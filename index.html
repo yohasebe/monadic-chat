@@ -130,8 +130,12 @@
     .status-wrapper .status{
     }
     .button-group {
-      height: 35px;
+      min-height: 35px;
       margin: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      align-items: center;
     }
     .button-group button {
       background-color: #ffc107;
@@ -139,9 +143,10 @@
       border: none;
       border-radius: 5px;
       padding: 5px 10px;
-      margin-right: 5px;
       cursor: pointer;
       font-size: 13px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .button-group button:hover {
       background-color: #e0ac07;
@@ -206,7 +211,7 @@
     <span><i class="fa-solid fa-robot"></i> <b>Monadic Chat</b>&nbsp;&nbsp;</span>
     <span id="version"></span>
     <span>&nbsp;&nbsp;&nbsp;</span>
-    <span id="modeLabel" data-i18n="ui.mode"> <i class="fa-solid fa-cube"></i> <span>Mode</span> </span>
+    <span id="modeLabel"> <i class="fa-solid fa-cube"></i> <span>Mode</span> </span>
     <span id="modeStatus" class="status inactive">Checking</span>
     <span>&nbsp;&nbsp;</span>
     <span id="dockerLabel" data-i18n="ui.docker"> <i class="fa-brands fa-docker"></i> <span>Docker</span> </span>
@@ -285,7 +290,7 @@
       setInitialHeights(currentRatio);
     });
   </script>
-    <script src="http://localhost:4567/js/i18n/translations.js"></script>
+    <script src="webUITranslations.js"></script>
     <script src="mainScreen.js"></script>
 </body>
 </html>

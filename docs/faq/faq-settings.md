@@ -21,3 +21,19 @@ If you are developing additional apps or modifying existing apps, check the cont
 
 If you are adding libraries to the Python container using `pysetup.sh`, error messages may be displayed in `docker_build.log`. Check the error message and correct the installation script.
 
+---
+
+##### Q: What is the difference between UI Language and Conversation Language? :id=ui-vs-conversation-language
+
+**A**: Monadic Chat has two separate language settings:
+
+- **UI Language**: Controls the interface language of the Electron app (menus, buttons, dialogs). This is set in the Electron Settings panel and affects only the application interface.
+
+- **Conversation Language**: Controls the language used for AI responses and speech recognition/synthesis. This is set in the Web UI and affects:
+  - AI response language
+  - Speech-to-Text (STT) language detection
+  - Text-to-Speech (TTS) language
+  - Text direction (RTL for Arabic, Hebrew, Persian, Urdu)
+
+These settings are independent, allowing you to use the app interface in one language while conversing with AI in another.
+

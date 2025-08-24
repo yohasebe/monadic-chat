@@ -225,7 +225,8 @@ function handleTokenVerification(data) {
     
     // Update status to "Ready for input" after token verification
     if (typeof setAlert === 'function') {
-      setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+      const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
     }
     
     return true;
@@ -401,14 +402,20 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
       $('#select-role').prop('disabled', false);
       
-      // Only hide spinner if we're not in the middle of function calls
-      if (!window.callingFunction) {
+      // Check if we should hide spinner - hide if not calling function OR if streaming is complete
+      if (!window.callingFunction || window.streamingResponse) {
         $('#monadic-spinner').hide();
         $('#cancel_query').hide();
         
+        // Reset streaming flag
+        if (window.streamingResponse) {
+          window.streamingResponse = false;
+        }
+        
         // Clear the "Connected" status and show "Ready for input"
         if (typeof setAlert === 'function') {
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+          const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
         }
       } else {
         // Keep spinner visible but update message
@@ -480,7 +487,8 @@ function handleSTTMessage(data) {
     
     // Show success alert if function is available
     if (typeof setAlert === 'function') {
-      setAlert('<i class="fa-solid fa-circle-check"></i> Voice recognition finished', 'secondary');
+      const voiceMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.voiceRecognitionFinished') : 'Voice recognition finished';
+      setAlert(`<i class="fa-solid fa-circle-check"></i> ${voiceMsg}`, 'secondary');
     }
     
     // Make sure amplitude chart is hidden
@@ -505,7 +513,7 @@ function handleCancelMessage(data) {
   if (data && data.type === 'cancel') {
     // More comprehensive UI reset to ensure all elements are properly enabled
     // Reset input field state
-    $('#message').attr('placeholder', 'Type your message...');
+    $('#message').attr('placeholder', typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : 'Type your message...');
     $('#message').prop('disabled', false);
     
     // Re-enable all controls - include AI user button explicitly
@@ -526,6 +534,9 @@ function handleCancelMessage(data) {
     }
     if (window.callingFunction !== undefined) {
       window.callingFunction = false;
+    }
+    if (window.streamingResponse !== undefined) {
+      window.streamingResponse = false;
     }
     
     // Set focus back to input field if function is available

@@ -196,31 +196,31 @@ function listModels(models, openai = false) {
         switch (key) {
           case "count_messages":
             noValue = false;
-            label = "Number of all messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.numberOfAllMessages') : "Number of all messages";
             break;
           case "count_active_messages":
             noValue = false;
-            label = "Number of active messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.numberOfActiveMessages') : "Number of active messages";
             break;
           case "count_all_tokens":
             noValue = false;
-            label = "Tokens in all messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokensInAllMessages') : "Tokens in all messages";
             break;
           case "count_total_system_tokens":
             noValue = false;
-            label = "Tokens in all system prompts";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokensInSystemPrompts') : "Tokens in all system prompts";
             break;
           case "count_total_input_tokens":
             noValue = false;
-            label = "Tokens in all user messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokensInUserMessages') : "Tokens in all user messages";
             break;
           case "count_total_output_tokens":
             noValue = false;
-            label = "Tokens in all assistant messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokensInAssistantMessages') : "Tokens in all assistant messages";
             break;
           case "count_total_active_tokens":
             noValue = false;
-            label = "Tokens in all active messages";
+            label = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokensInActiveMessages') : "Tokens in all active messages";
             break;
           case "encoding_name":
             // skip and go to next iteration
@@ -252,7 +252,7 @@ function listModels(models, openai = false) {
     return `
       <div class="json-item" data-key="stats" data-depth="0">
       <div class="json-toggle" onclick="toggleItem(this)">
-      <i class="fas fa-chevron-right"></i> <span class="toggle-text">click to toggle</span>
+      <i class="fas fa-chevron-right"></i> <span class="toggle-text">${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.clickToToggle') : 'click to toggle'}</span>
       </div>
       <div class="json-content" style="display: none;">
       <table class="table table-sm mb-0">
@@ -752,9 +752,9 @@ function setParams() {
   params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice").val();
   params["gemini_tts_voice"] = $("#gemini-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
-  params["interface_language"] = $("#interface-language").val();
-  // Keep asr_lang for backward compatibility
-  params["asr_lang"] = params["interface_language"];
+  params["conversation_language"] = $("#conversation-language").val();
+  // Update asr_lang for STT/TTS
+  params["asr_lang"] = params["conversation_language"];
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
 

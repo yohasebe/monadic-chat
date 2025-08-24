@@ -157,7 +157,7 @@ RSpec.describe "WebSocket RTL Language Support" do
       system_prompt_message = {
         "message" => "SYSTEM_PROMPT",
         "content" => "Test prompt",
-        "interface_language" => "ar"
+        "conversation_language" => "ar"
       }
       
       # Initialize runtime settings
@@ -167,8 +167,8 @@ RSpec.describe "WebSocket RTL Language Support" do
       }
       
       # Process language from SYSTEM_PROMPT
-      interface_language = system_prompt_message["interface_language"]
-      session[:runtime_settings][:language] = interface_language || "auto"
+      conversation_language = system_prompt_message["conversation_language"]
+      session[:runtime_settings][:language] = conversation_language || "auto"
       
       expect(session[:runtime_settings][:language]).to eq("ar")
       expect(Monadic::Utils::LanguageConfig.text_direction(session[:runtime_settings][:language])).to eq("rtl")

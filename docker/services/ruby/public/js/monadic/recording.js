@@ -299,7 +299,7 @@ voiceButton.on("click", function () {
   // "Stop" button is pressed
   } else if (!silenceDetected) {
     // Restore original placeholder
-    const originalPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+    const originalPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
     $("#message").attr("placeholder", originalPlaceholder);
     
     voiceButton.toggleClass("btn-info btn-danger");
@@ -324,7 +324,7 @@ voiceButton.on("click", function () {
             console.log("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
             setAlert("NO AUDIO DETECTED: Check your microphone settings", "error");
             // Restore original placeholder
-            const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+            const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
             $("#message").attr("placeholder", origPlaceholder);
             
             $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
@@ -343,7 +343,7 @@ voiceButton.on("click", function () {
               console.log("Base64 audio data too small. Canceling STT processing.");
               setAlert("AUDIO PROCESSING FAILED", "error");
               // Restore original placeholder
-              const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+              const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
               $("#message").attr("placeholder", origPlaceholder);
               
               $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
@@ -353,7 +353,7 @@ voiceButton.on("click", function () {
               return;
             }
             
-            let lang_code = $("#interface-language").val();
+            let lang_code = $("#conversation-language").val();
             // Extract format from the MIME type
             let format = "webm"; // Default fallback
             if (mediaRecorder.mimeType) {
@@ -415,7 +415,7 @@ voiceButton.on("click", function () {
 
   } else {
     // Restore original placeholder
-    const originalPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+    const originalPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
     $("#message").attr("placeholder", originalPlaceholder);
     
     voiceButton.toggleClass("btn-info btn-danger");

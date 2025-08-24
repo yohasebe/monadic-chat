@@ -1456,6 +1456,8 @@ function processAudioDataQueue() {
 
 let responseStarted = false;
 let callingFunction = false;
+// Track if we're currently streaming a response
+let streamingResponse = false;
 
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
@@ -1674,6 +1676,7 @@ function connect_websocket(callback) {
         // Reset state flags
         if (window.responseStarted !== undefined) window.responseStarted = false;
         if (window.callingFunction !== undefined) window.callingFunction = false;
+        if (window.streamingResponse !== undefined) window.streamingResponse = false;
         
         const providerInfo = isSlowProvider ? ` (${currentProvider} may have slower initial responses)` : '';
         setAlert("<i class='fas fa-exclamation-triangle'></i> Operation timed out. UI reset." + providerInfo, "warning");
@@ -2016,8 +2019,8 @@ function connect_websocket(callback) {
         setAlert(`<i class='fa-solid fa-globe'></i> Language changed to ${languageName}`, "success");
         
         // Update the selector if needed (in case it was changed server-side)
-        if (data.language && $("#interface-language").val() !== data.language) {
-          $("#interface-language").val(data.language);
+        if (data.language && $("#conversation-language").val() !== data.language) {
+          $("#conversation-language").val(data.language);
         }
         
         // Update RTL/LTR for message areas based on text direction
@@ -2145,6 +2148,7 @@ function connect_websocket(callback) {
           // Reset response tracking flags to ensure clean state
           responseStarted = false;
           callingFunction = false;
+          streamingResponse = false;
           
           // Set focus back to input field
           setInputFocus();
@@ -2168,7 +2172,8 @@ function connect_websocket(callback) {
         // These operations are still needed regardless of which path handled the message
         if (handled) {
           verified = "full";
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
           
           // Enable OpenAI TTS options when token is verified
           $("#openai-tts-4o").prop("disabled", false);
@@ -2182,7 +2187,7 @@ function connect_websocket(callback) {
             $("#tts-provider").val("openai-tts-4o").trigger("change");
           }
           $("#start").prop("disabled", false);
-          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #interface-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           // TTS speed is already enabled by default and should remain enabled
           
           // Update the available AI User providers when token is verified
@@ -2664,7 +2669,7 @@ function connect_websocket(callback) {
           $("#send, #clear, #voice").prop("disabled", false);
           
           // Restore original placeholder
-          const origPlaceholder = $("#message").data("original-placeholder") || "Type your message or click Speech Input button to use voice . . .";
+          const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
           $("#message").attr("placeholder", origPlaceholder);
           
           // Ensure amplitude chart is hidden after processing
@@ -2685,9 +2690,11 @@ function connect_websocket(callback) {
         }
 
         if ($("#apps option").length === 0) {
-          setAlert("<i class='fa-solid fa-bolt'></i> No apps available - check API keys in settings", "warning");
+          const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
+          setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
         } else {
-          setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+          const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
         }
 
         $("#monadic-spinner").hide();
@@ -2756,7 +2763,7 @@ function connect_websocket(callback) {
           window.SessionState.clearMessages();
           $("#discourse").empty();
           setStats(formatInfo([]), "info");
-          $("#start-label").text("Start Session");
+          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.startSession') : 'Start Session');
           break;
         }
         
@@ -2847,9 +2854,9 @@ function connect_websocket(callback) {
         setStats(formatInfo(data["content"]), "info");
 
         if (messages.length > 0) {
-          $("#start-label").text("Continue Session");
+          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.continueSession') : 'Continue Session');
         } else {
-          $("#start-label").text("Start Session");
+          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.startSession') : 'Start Session');
         }
         
         // Update AI User button state
@@ -3462,7 +3469,7 @@ function connect_websocket(callback) {
           }
           
           // Don't clear the message so users can edit and resubmit
-          $("#message").attr("placeholder", "Type your message...");
+          $("#message").attr("placeholder", typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message...");
           $("#message").prop("disabled", false);
           
           // Re-enable all the UI elements individually
@@ -3528,6 +3535,7 @@ function connect_websocket(callback) {
             setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
             callingFunction = false;
             responseStarted = true;
+            streamingResponse = true; // Mark that we're streaming
             // Update spinner message for streaming
             $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
             // remove the leading new line characters from content
@@ -3667,7 +3675,8 @@ function reconnect_websocket(ws, callback) {
         startPing();
         
         // Update UI
-        setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "info");
+        const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
         
         // Execute callback if provided
         if (callback && typeof callback === 'function') {
@@ -3744,7 +3753,8 @@ function handleVisibilityChange() {
         case WebSocket.OPEN:
           // Connection is already open, verify it's still active
           ws.send(JSON.stringify({ message: "PING" }));
-          setAlert("<i class='fa-solid fa-circle-check'></i> Connected", "info");
+          const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
           break;
       }
     } catch (error) {

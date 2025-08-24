@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Listen for command output from the main process
   onCommandOutput: (callback) => ipcRenderer.on('command-output', callback),
+  
+  // Listen for clear messages command
+  onClearMessages: (callback) => ipcRenderer.on('clear-messages', callback),
 
   // Send a command to the main process
   sendCommand: (command) => ipcRenderer.send('command', command),

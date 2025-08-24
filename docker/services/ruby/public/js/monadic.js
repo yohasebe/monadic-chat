@@ -30,6 +30,15 @@ function getProviderFromGroup(group) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Initialize Web UI translations if available
+  if (typeof webUIi18n !== 'undefined') {
+    // Try to get saved language from cookie
+    const cookieMatch = document.cookie.match(/interface-language=([^;]+)/);
+    if (cookieMatch && cookieMatch[1] && cookieMatch[1] !== 'en') {
+      webUIi18n.setLanguage(cookieMatch[1]);
+    }
+  }
+  
   // No longer disable AI User button initially - we'll show an error message if conversation hasn't started
   $("#ai_user").attr("title", "Generate AI user response based on conversation");
   // Ensure cancel button is hidden on page load using setTimeout for more reliability
@@ -725,7 +734,7 @@ $(function () {
     $("#back-to-settings").hide();
     $("#main-panel").hide();
     $("#parameter-panel").hide();
-    $("#start-label").text("Start Session");
+    $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
     proceedWithAppChange(newAppValue);
   });
   
@@ -1250,7 +1259,7 @@ $(function () {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
         console.log("Safety timeout: Re-enabling controls that were left in disabled state");
         ensureControlsEnabled();
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input'}`, "success");
       }
     }, 3000); // 3 second timeout is enough for normal operations to complete
 
@@ -1280,7 +1289,7 @@ $(function () {
         monadic: params["monadic"],
         websearch: params["websearch"],
         jupyter: params["jupyter"],
-        interface_language: params["interface_language"] || "auto",
+        conversation_language: params["conversation_language"] || "auto",
       }));
 
       // Initialize audio before showing the UI
@@ -1298,7 +1307,7 @@ $(function () {
         $("#temp-card").show();
         $("#user-panel").hide();
         $("#monadic-spinner").show(); // Show spinner for initial assistant message
-        setAlert("<i class='fas fa-spinner fa-spin'></i> Generating response from assistant...", "info");
+        setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.generatingResponse') : 'Generating response from assistant...'}`, "info");
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         reconnect_websocket(ws, function (ws) {
           // Ensure critical parameters are correctly set based on checkboxes
@@ -1329,7 +1338,7 @@ $(function () {
   });
 
   $("#cancel_query").on("click", function () {
-    setAlert("<i class='fa-solid fa-ban' style='color: #ffc107;'></i> Operation canceled", "warning");
+    setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
     ttsStop();
 
     responseStarted = false;
@@ -1361,7 +1370,7 @@ $(function () {
       return;
     }
     audioInit();
-    setAlert("<i class='fas fa-robot'></i> THINKING", "warning");
+    setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
     const userMessageText = $("#message").val();
     params["message"] = userMessageText;
@@ -1389,13 +1398,13 @@ $(function () {
 
     if ($("#select-role").val() !== "user") {
       // Show spinner to indicate processing
-      setAlert("<i class='fas fa-spinner fa-spin'></i> Processing sample message", "warning");
+      setAlert(`<i class='fas fa-spinner fa-spin'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.processingMessage') : 'Processing sample message'}`, "warning");
       
       // Set a reasonable timeout to avoid UI getting stuck
       let sampleTimeoutId = setTimeout(function() {
         $("#monadic-spinner").hide();
         $("#cancel_query").hide();
-        setAlert("Sample message timed out. Please try again.", "error");
+        setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sampleTimeout') : 'Sample message timed out. Please try again.', "error");
       }, 5000);
       
       // Store timeout ID in window object so it can be cleared in the websocket listener
@@ -1448,9 +1457,9 @@ $(function () {
     $("#main-panel").hide();
     $("#parameter-panel").hide();
     if (messages.length > 0) {
-      $("#start-label").text("Continue Session");
+      $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.continueSession') : 'Continue Session');
     } else {
-      $("#start-label").text("Start Session");
+      $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
     }
     adjustScrollButtons();
     setInputFocus()
@@ -1462,7 +1471,7 @@ $(function () {
     audioInit();
     resetEvent(event);
     $("#select-role").val("user").trigger("change");
-    $("#start-label").text("Start Session");
+    $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
     $("#model").prop("disabled", false);
   });
 
@@ -1571,7 +1580,7 @@ $(function () {
     
     // Check if formHandlers is available
     if (typeof formHandlers === 'undefined' || !formHandlers.uploadPdf) {
-      setAlert("Upload functionality not available", "error");
+      setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadNotAvailable') : 'Upload functionality not available', "error");
       return;
     }
     
@@ -1595,7 +1604,8 @@ $(function () {
         // Refresh PDF titles and show success message with filename
         ws.send(JSON.stringify({ message: "PDF_TITLES" }));
         const uploadedFilename = response.filename || "PDF file";
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" uploaded successfully`, "success");
+        const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
@@ -1618,7 +1628,8 @@ $(function () {
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`Error uploading file: ${errorMessage}`, "error");
+      const uploadErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadError') : 'Error uploading file';
+      setAlert(`${uploadErrorMsg}: ${errorMessage}`, "error");
     }
   });
 
@@ -1739,7 +1750,8 @@ $(function () {
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`Error converting document: ${errorMessage}`, "error");
+      const convertErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.convertError') : 'Error converting document';
+      setAlert(`${convertErrorMsg}: ${errorMessage}`, "error");
     }
   });
 
@@ -1861,7 +1873,8 @@ $(function () {
       
       // Show appropriate error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`Error fetching webpage: ${errorMessage}`, "error");
+      const fetchErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.fetchError') : 'Error fetching webpage';
+      setAlert(`${fetchErrorMsg}: ${errorMessage}`, "error");
     }
   });
 
@@ -1946,23 +1959,23 @@ $(function () {
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
   });
 
-  $("#interface-language").on("change", function () {
-    params["interface_language"] = $("#interface-language option:selected").val();
-    setCookie("interface-language", params["interface_language"], 30);
-    // Also update the legacy asr_lang parameter for backward compatibility
-    params["asr_lang"] = params["interface_language"];
+  $("#conversation-language").on("change", function () {
+    params["conversation_language"] = $("#conversation-language option:selected").val();
+    setCookie("conversation-language", params["conversation_language"], 30);
+    // Also update asr_lang for STT/TTS
+    params["asr_lang"] = params["conversation_language"];
     
-    // Update RTL/LTR interface
-    updateRTLInterface(params["interface_language"]);
+    // Update RTL/LTR for message display based on conversation language
+    updateRTLInterface(params["conversation_language"]);
     
-    console.log("Language changed to:", params["interface_language"]);
+    console.log("Conversation language changed to:", params["conversation_language"]);
     console.log("WebSocket state:", window.ws ? window.ws.readyState : "null");
     
     // If WebSocket is open, send UPDATE_LANGUAGE message to server
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
       const message = {
         message: "UPDATE_LANGUAGE",
-        new_language: params["interface_language"]
+        new_language: params["conversation_language"]
       };
       console.log("Sending UPDATE_LANGUAGE:", message);
       window.ws.send(JSON.stringify(message));
@@ -2049,7 +2062,7 @@ $(function () {
     
     const file = fileInput[0].files[0];
     if (!file) {
-      setAlert("Please select a file to import", "error");
+      setAlert(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.selectFileImport') : 'Please select a file to import', "error");
       return;
     }
     
@@ -2065,7 +2078,7 @@ $(function () {
       if (response && response.success) {
         // Clean up UI after successful import
         $("#loadModal").modal("hide");
-        setAlert("<i class='fa-solid fa-circle-check'></i> Session imported successfully", "success");
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
         
         // Force reload page to load the imported session
         window.location.reload();
@@ -2084,7 +2097,8 @@ $(function () {
       
       // Show error message
       const errorMessage = error.statusText || error.message || "Unknown error";
-      setAlert(`Error importing session: ${errorMessage}`, "error");
+      const importErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.importError') : 'Error importing session';
+      setAlert(`${importErrorMsg}: ${errorMessage}`, "error");
       
       // Hide modal since there was an AJAX error
       $("#loadModal").modal("hide");
@@ -2196,16 +2210,17 @@ $(function () {
     $("#ai-user-toggle").prop("checked", false);
     
     // Initialize interface language from cookie
-    const savedLanguage = getCookie("interface-language");
-    if (savedLanguage) {
-      $("#interface-language").val(savedLanguage);
-      params["interface_language"] = savedLanguage;
-      params["asr_lang"] = savedLanguage; // Backward compatibility
+    // Load saved conversation language
+    const savedConversationLanguage = getCookie("conversation-language");
+    if (savedConversationLanguage) {
+      $("#conversation-language").val(savedConversationLanguage);
+      params["conversation_language"] = savedConversationLanguage;
+      params["asr_lang"] = savedConversationLanguage;
       // Set RTL/LTR on page load
-      updateRTLInterface(savedLanguage);
+      updateRTLInterface(savedConversationLanguage);
     } else {
       // Default to auto if no cookie
-      params["interface_language"] = "auto";
+      params["conversation_language"] = "auto";
       params["asr_lang"] = "auto";
     }
     

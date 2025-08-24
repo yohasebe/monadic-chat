@@ -161,11 +161,11 @@ function openWebViewWindow(url) {
     const envPath = getEnvPath();
     if (envPath) {
       const envConfig = readEnvFile(envPath);
-      const interfaceLanguage = envConfig.INTERFACE_LANGUAGE || 'en';
+      const uiLanguage = envConfig.UI_LANGUAGE || 'en';
       webviewWindow.webContents.executeJavaScript(`
-        document.cookie = "interface-language=${interfaceLanguage}; path=/; max-age=31536000";
+        document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
         if (window.webUIi18n) {
-          window.webUIi18n.setLanguage('${interfaceLanguage}');
+          window.webUIi18n.setLanguage('${uiLanguage}');
         }
       `);
     }
@@ -689,7 +689,7 @@ class DockerManager {
     return this.checkStatus()
       .then((status) => {
         if (!status) {
-          writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Docker Desktop is not running. Please start Docker Desktop and try again.</p><hr />');
+          writeToScreen(formatMessage('info', 'messages.dockerNotRunning') + '<hr />');
           // Reset status to 'Stopped' and update UI
           currentStatus = 'Stopped';
           updateStatusIndicator(currentStatus);
@@ -724,7 +724,68 @@ class DockerManager {
             });
             
             subprocess.stdout.on('data', function (data) {
-              writeToScreen(data.toString());
+              const output = data.toString();
+              
+              // Translate Docker messages before displaying
+              let translatedOutput = output;
+              
+              // Handle HTML messages with specific patterns
+              if (output.includes('Custom Ruby setup script')) {
+                translatedOutput = formatMessage('info', 'messages.customRubySetup');
+              } else if (output.includes('Custom Python setup script')) {
+                translatedOutput = formatMessage('info', 'messages.customPythonSetup');
+              } else if (output.includes('Custom Ollama setup script')) {
+                translatedOutput = formatMessage('info', 'messages.customOllamaSetup');
+              } else if (output.includes('Checking container integrity')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.checkingContainerIntegrity')}</p>`;
+              } else if (output.includes('Starting Docker...')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.startingDocker')}</p>`;
+              } else if (output.includes('Building Ollama container...')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.buildingOllama')}</p>`;
+              } else if (output.includes('Build of Ruby container has finished')) {
+                translatedOutput = formatMessage('success', 'messages.buildRubyFinished');
+              } else if (output.includes('Build of Python container has finished')) {
+                translatedOutput = formatMessage('success', 'messages.buildPythonFinished');
+              } else if (output.includes('Build of user containers has finished')) {
+                translatedOutput = formatMessage('success', 'messages.buildUserFinished');
+              } else if (output.includes('Build of Ollama container has finished')) {
+                translatedOutput = formatMessage('success', 'messages.buildOllamaFinished');
+              } else if (output.includes('Build of Monadic Chat has finished')) {
+                translatedOutput = formatMessage('success', 'messages.buildMonadicFinished');
+              } else if (output.includes('Container failed to build')) {
+                translatedOutput = formatMessage('error', 'messages.containerFailedBuild');
+              } else if (output.includes('No user containers to build')) {
+                translatedOutput = formatMessage('info', 'messages.noUserContainers');
+              } else if (output.includes('Ollama container failed to build')) {
+                translatedOutput = formatMessage('error', 'messages.ollamaContainerFailed');
+              } else if (output.includes('Please check the following log files')) {
+                translatedOutput = formatMessage('warning', 'messages.checkLogFiles');
+              } else if (output.includes('All containers are available')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.allContainersAvailable')}</p>`;
+              } else if (output.includes('Starting Ollama container')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.startingOllamaContainer')}</p>`;
+              } else if (output.includes('Updating Ruby container to detect Ollama')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.updatingRubyContainer')}</p>`;
+              } else if (output.includes('Running Containers')) {
+                translatedOutput = `[HTML]: <p><b>${i18n.t('messages.runningContainers')}</b></p>`;
+              } else if (output.includes('You can directly access the containers')) {
+                translatedOutput = `[HTML]: <p>${i18n.t('messages.containerAccessInfo')}</p>`;
+              } else if (output.includes('System available at:')) {
+                // Extract URL and translate
+                const urlMatch = output.match(/http:\/\/[0-9.:]+/);
+                if (urlMatch) {
+                  translatedOutput = `[HTML]: <p>${i18n.t('messages.systemAvailableAt')}: ${urlMatch[0]}</p>`;
+                }
+              } else if (output.includes('Monadic Chat app v') && output.includes('Container image v')) {
+                // Extract versions - include all characters until whitespace or end of line
+                const appVersionMatch = output.match(/Monadic Chat app v([^\s]+)/);
+                const containerVersionMatch = output.match(/Container image v([^\s]+)/);
+                if (appVersionMatch && containerVersionMatch) {
+                  translatedOutput = `[HTML]: <p>${i18n.t('messages.versionInfo', { appVersion: appVersionMatch[1], containerVersion: containerVersionMatch[1] })}</p>`;
+                }
+              }
+              
+              writeToScreen(translatedOutput);
               
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
@@ -745,7 +806,9 @@ class DockerManager {
                       const verificationMessage = dockerManager.isServerMode() 
                         ? 'Server verification complete'
                         : 'System initialization complete';
-                      writeToScreen(`[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> ${verificationMessage}</p>`);
+                      const msgKey = dockerManager.isServerMode() ? 'messages.serverModeActivated' : 'messages.systemInitComplete';
+                      const msgParams = dockerManager.isServerMode() ? { url: dockerManager.serverUrl } : {};
+                      writeToScreen(formatMessage('success', msgKey, msgParams));
                       
                       // Force a small delay to ensure status update is processed first
                       setTimeout(() => {
@@ -790,9 +853,9 @@ class DockerManager {
                             try {
                               shell.openExternal('http://localhost:4567').catch(err => {
                                 console.error('Error opening browser:', err);
-                                writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: #FF7F07;'></i>Please open browser manually at http://localhost:4567</p>");
+                                writeToScreen(formatMessage('warning', 'messages.openBrowserManually'));
                               });
-                              writeToScreen("[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Opening the browser.</p>");
+                              writeToScreen(formatMessage('success', 'messages.openingBrowser'));
                             } catch (err) {
                               console.error('Error opening browser:', err);
                             }
@@ -801,7 +864,7 @@ class DockerManager {
                       }, 500);
                     } else {
                       // Server verification failed after max retries
-                      writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> Could not verify server is running. Please check Docker status and try restart.</p>');
+                      writeToScreen(formatMessage('error', 'messages.serverVerifyFailed'));
                       // Reset status to allow retry
                       currentStatus = 'Stopped';
                       updateStatusIndicator(currentStatus);
@@ -814,7 +877,7 @@ class DockerManager {
                     currentStatus = 'Stopped';
                     updateStatusIndicator(currentStatus);
                     updateContextMenu(false);
-                    writeToScreen('[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> Error connecting to server. Please check Docker status and try restart.</p>');
+                    writeToScreen(formatMessage('error', 'messages.errorConnecting'));
                   });
               }
             });
@@ -947,7 +1010,7 @@ function checkForUpdatesManual(showDialog = false) {
           } else {
             // Display update notification in main window only on startup
             if (mainWindow && !mainWindow.isDestroyed()) {
-              lastUpdateCheckResult = `[HTML]: <p><i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i> A new version (${latestVersion}) is available. Current version: ${currentVersion}. Click "Check for Updates" from the menu to download it.</p>`;
+              lastUpdateCheckResult = formatMessage('warning', 'messages.newVersionAvailable', { version: latestVersion, current: currentVersion });
               mainWindow.webContents.send('command-output', lastUpdateCheckResult);
             }
           }
@@ -964,7 +1027,7 @@ function checkForUpdatesManual(showDialog = false) {
           } else {
             // Display up-to-date message in main window only on startup
             if (mainWindow && !mainWindow.isDestroyed()) {
-              lastUpdateCheckResult = `[HTML]: <p><i class="fa-solid fa-circle-check" style="color: #22ad50;"></i> You are using the latest version (${currentVersion}).</p>`;
+              lastUpdateCheckResult = formatMessage('success', 'messages.usingLatestVersion', { version: currentVersion });
               mainWindow.webContents.send('command-output', lastUpdateCheckResult);
             }
           }
@@ -976,7 +1039,7 @@ function checkForUpdatesManual(showDialog = false) {
         } else {
           // Display error in main window only on startup
           if (mainWindow && !mainWindow.isDestroyed()) {
-            lastUpdateCheckResult = '[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to retrieve the latest version number.</p>';
+            lastUpdateCheckResult = formatMessage('info', 'messages.failedToRetrieveVersion');
             mainWindow.webContents.send('command-output', lastUpdateCheckResult);
           }
         }
@@ -990,7 +1053,7 @@ function checkForUpdatesManual(showDialog = false) {
       // Display error in main window only on startup
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', 
-          `[HTML]: <p><i class="fa-solid fa-circle-info" style="color: #61b0ff;"></i> Failed to check for updates: ${err.message}</p>`);
+          formatMessage('info', 'messages.failedToCheckUpdates', { error: err.message }));
       }
     }
   });
@@ -1000,17 +1063,17 @@ function checkForUpdatesManual(showDialog = false) {
 function uninstall() {
   let options = {
     type: 'question',
-    buttons: ['Cancel', 'Delete all'],
+    buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.deleteAll')],
     defaultId: 1,
-    message: 'Confirm Uninstall',
-    detail: 'This will remove all the Monadic Chat images and containers. Do you want to continue?',
+    message: i18n.t('dialogs.confirmUninstall'),
+    detail: i18n.t('dialogs.uninstallMessage'),
     icon: path.join(iconDir, 'app-icon.png')
   };
 
   dialog.showMessageBox(null, options).then((result) => {
     setTimeout(() => {
       if (result.response === 1) {
-        dockerManager.runCommand('remove', '[HTML]: <p>Removing containers and images.</p>', 'Uninstalling', 'Uninstalled');
+        dockerManager.runCommand('remove', formatMessage(null, 'messages.removingContainers'), 'Uninstalling', 'Uninstalled');
       } else {
         return false;
       }
@@ -1031,11 +1094,11 @@ async function quitApp() {
 
   let options = {
     type: 'question',
-    buttons: ['Cancel', 'Quit'],
+    buttons: [i18n.t('dialogs.cancel'), i18n.t('menu.quit')],
     defaultId: 1,
-    title: 'Confirm Quit',
-    message: 'Quit Monadic Chat Console?',
-    detail: 'This will stop all running processes and close the application.',
+    title: i18n.t('dialogs.quitConfirmTitle'),
+    message: i18n.t('dialogs.quitConfirmTitle'),
+    detail: i18n.t('dialogs.quitConfirmMessage'),
     icon: path.join(iconDir, 'app-icon.png')
   };
 
@@ -1047,7 +1110,7 @@ async function quitApp() {
         if (dockerStatus) {
           // Start the Docker stop process but don't wait for it to complete
           // This allows the app to quit more quickly while Docker handles cleanup in the background
-          dockerManager.runCommand('stop', '[HTML]: <p>Stopping all processes.</p>', 'Stopping', 'Quitting')
+          dockerManager.runCommand('stop', formatMessage(null, 'messages.stoppingAllProcesses'), 'Stopping', 'Quitting')
             .catch(error => {
               console.error('Error stopping Docker containers during quit:', error);
             });
@@ -1122,21 +1185,21 @@ function openMainWindow() {
 }
 
 let statusMenuItem = {
-  label: 'Status: Stopped',
+  label: `${i18n.t('menu.status')}: ${i18n.t('status.stopped')}`,
   enabled: false
 };
 
 // Add mode status to menu
 function getDistributedModeLabel() {
   if (dockerManager.isServerMode()) {
-    return "Server Mode";
+    return i18n.t('menu.server');
   } else {
-    return "Standalone Mode";
+    return i18n.t('menu.standalone');
   }
 }
 
 let serverModeItem = {
-  label: `Mode: ${getDistributedModeLabel()}`,
+  label: `${i18n.t('menu.mode')}: ${getDistributedModeLabel()}`,
   enabled: false
 };
 
@@ -1151,7 +1214,7 @@ const menuItems = [
       // Check requirements first
       dockerManager.checkRequirements()
         .then(() => {
-          dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+          dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
         })
         .catch((error) => {
           console.log(`Docker requirements check failed: ${error}`);
@@ -1165,7 +1228,7 @@ const menuItems = [
     label: i18n.t('menu.stop'),
     click: () => {
       openMainWindow();
-      dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . . </p>', 'Stopping', 'Stopped');
+      dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped');
     },
     enabled: true
   },
@@ -1173,7 +1236,7 @@ const menuItems = [
     label: i18n.t('menu.restart'),
     click: () => {
       openMainWindow();
-      dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+      dockerManager.runCommand('restart', formatMessage(null, 'messages.monadicChatRestarting'), 'Restarting', 'Running');
     },
     enabled: true
   },
@@ -1405,15 +1468,12 @@ function initializeApp() {
     });
 
     createMainWindow();
-    contextMenu = Menu.buildFromTemplate(menuItems);
-
+    
     updateStatus();
     
-    // Update menus with the loaded language preference after a short delay
-    setTimeout(() => {
-      updateTrayMenu();
-      updateApplicationMenu();
-    }, 100);
+    // Update menus with localized labels after initialization
+    updateApplicationMenu();
+    updateTrayMenu();
 
     ipcMain.on('command', async (_event, command) => {
       try {
@@ -1422,7 +1482,7 @@ function initializeApp() {
             // Check requirements first
             dockerManager.checkRequirements()
               .then(() => {
-                dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+                dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
               })
               .catch((error) => {
                 console.log(`Docker requirements check failed: ${error}`);
@@ -1441,7 +1501,7 @@ function initializeApp() {
               });
             break;
           case 'restart':
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', formatMessage(null, 'messages.monadicChatRestarting'), 'Restarting', 'Running');
             break;
           case 'browser': {
             const url = 'http://localhost:4567';
@@ -1489,8 +1549,13 @@ function initializeApp() {
       });
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
+      // Only create main window if it doesn't exist
+      if (!mainWindow || mainWindow.isDestroyed()) {
         createMainWindow();
+      } else {
+        // If mainWindow exists, just show it
+        mainWindow.show();
+        mainWindow.focus();
       }
     });
 
@@ -1543,31 +1608,36 @@ function fetchWithRetry(url, options = {}, retries = 30, delay = 2000, timeout =
     } catch (error) {
       const attemptMessage = `Connecting to server: attempt ${attempt} failed`;
       console.log(attemptMessage);
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      // Only send to UI if English is selected (for other languages, these are intentionally hidden)
+      const currentLang = i18n.currentLanguage || 'en';
+      if (currentLang === 'en' && mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('command-output', attemptMessage);
       }
       
       if (attempt <= retries) {
-        // Add more informative messages based on attempt number
-        let statusMessage = '';
-        if (attempt === 2) {
-          statusMessage = `🚀 Starting Docker containers and Ruby server...`;
-        } else if (attempt === 5) {
-          statusMessage = `📦 Loading application modules...`;
-        } else if (attempt === 10) {
-          statusMessage = `⏳ Almost ready, please wait...`;
-        }
-        
-        if (statusMessage) {
-          console.log(statusMessage);
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('command-output', statusMessage);
+        // Add more informative messages based on attempt number (English only)
+        if (currentLang === 'en') {
+          let statusMessage = '';
+          if (attempt === 2) {
+            statusMessage = `🚀 Starting Docker containers and Ruby server...`;
+          } else if (attempt === 5) {
+            statusMessage = `📦 Loading application modules...`;
+          } else if (attempt === 10) {
+            statusMessage = `⏳ Almost ready, please wait...`;
+          }
+          
+          if (statusMessage) {
+            console.log(statusMessage);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('command-output', statusMessage);
+            }
           }
         }
         
         const retryMessage = `Retrying in ${delay}ms . . .`;
         console.log(retryMessage);
-        if (mainWindow && !mainWindow.isDestroyed()) {
+        // Only send to UI if English is selected (for other languages, these are intentionally hidden)
+        if (currentLang === 'en' && mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('command-output', retryMessage);
         }
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -1647,39 +1717,80 @@ function updateContextMenu(disableControls = false) {
   
   updateTrayImage(currentStatus);
   if (tray) {
+    // Create fresh menu items with current translations
+    const freshMenuItems = [
+      statusMenuItem,
+      serverModeItem,
+      { type: 'separator' },
+      {
+        label: i18n.t('menu.start'),
+        click: () => {
+          openMainWindow();
+          dockerManager.checkRequirements()
+            .then(() => {
+              dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
+            })
+            .catch((error) => {
+              console.log(`Docker requirements check failed: ${error}`);
+              dialog.showErrorBox('Docker Error', error);
+            });
+        },
+        enabled: disableControls ? false : currentStatus === 'Stopped'
+      },
+      {
+        label: i18n.t('menu.stop'),
+        click: () => {
+          openMainWindow();
+          dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped');
+        },
+        enabled: disableControls ? false : ['Running', 'Ready', 'Starting', 'Building'].includes(currentStatus)
+      },
+      {
+        label: i18n.t('menu.restart'),
+        click: () => {
+          openMainWindow();
+          dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . . </p>', 'Restarting', 'Running');
+        },
+        enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
+      },
+      { type: 'separator' },
+      {
+        label: i18n.t('menu.openBrowser'),
+        click: () => {
+          shell.openExternal('http://localhost:4567');
+        },
+        enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
+      },
+      {
+        label: i18n.t('menu.openSharedFolder'),
+        click: () => {
+          shell.openPath(getSharedFolderPath());
+        }
+      },
+      { type: 'separator' },
+      {
+        label: i18n.t('menu.settings'),
+        click: () => {
+          openSettingsWindow();
+        }
+      },
+      {
+        label: i18n.t('menu.quit'),
+        click: () => {
+          quitApp(mainWindow);
+        }
+      }
+    ];
+    
     // Update mode label
     serverModeItem.label = `Mode: ${getDistributedModeLabel()}`;
-    
-    if (disableControls) {
-      menuItems.forEach(item => {
-        if (item.label && ['Start', 'Stop', 'Restart', 'Open Browser'].includes(item.label)) {
-          item.enabled = false;
-        }
-      });
-    } else {
-      // Enable/disable menu items based on status
-      menuItems.forEach(item => {
-        if (item.label === 'Start') {
-          item.enabled = currentStatus === 'Stopped';
-        } else if (item.label === 'Stop') {
-          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
-        } else if (item.label === 'Restart') {
-          item.enabled = currentStatus === 'Running' || currentStatus === 'Ready';
-        } else if (item.label === 'Open Browser') {
-          item.enabled = currentStatus === 'Running';
-        } else if (item.label === 'Build All' || item.label === 'Build Ruby Container' || 
-                   item.label === 'Build Python Container' || item.label === 'Build User Containers') {
-          item.enabled = currentStatus === 'Stopped' || currentStatus === 'Uninstalled';
-        } else if (item.label === 'Import Document DB' || item.label === 'Export Document DB') {
-          item.enabled = currentStatus === 'Stopped';
-        }
-      });
-    }
 
-    contextMenu = Menu.buildFromTemplate(menuItems);
+    contextMenu = Menu.buildFromTemplate(freshMenuItems);
     tray.setContextMenu(contextMenu);
 
-    mainWindow.webContents.send('update-controls', { status: currentStatus, disableControls });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-controls', { status: currentStatus, disableControls });
+    }
     updateApplicationMenu();
   }
 }
@@ -1709,7 +1820,7 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Check for Updates',
+          label: i18n.t('menu.checkForUpdates'),
           click: () => {
             openMainWindow();
             checkForUpdates();
@@ -1765,15 +1876,15 @@ function updateApplicationMenu() {
       label: i18n.t('menu.actions'),
       submenu: [
         {
-          label: 'Start',
+          label: i18n.t('menu.start'),
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+            dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
           },
           enabled: currentStatus === 'Stopped'
         },
         {
-          label: 'Stop',
+          label: i18n.t('menu.stop'),
           click: () => {
             openMainWindow();
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
@@ -1781,10 +1892,10 @@ function updateApplicationMenu() {
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         {
-          label: 'Restart',
+          label: i18n.t('menu.restart'),
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
+            dockerManager.runCommand('restart', formatMessage(null, 'messages.monadicChatRestarting'), 'Restarting', 'Running');
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -1794,11 +1905,11 @@ function updateApplicationMenu() {
         
         // Docker build commands
           {
-            label: 'Build All',
+            label: i18n.t('menu.buildAll'),
             click: () => {
               openMainWindow();
               dockerManager.runCommand('build',
-                '[HTML]: <p>Building Monadic Chat . . .</p>',
+                formatMessage(null, 'messages.buildingMonadicChat'),
                 'Building',
                 'Stopped',
                 false);
@@ -1806,11 +1917,11 @@ function updateApplicationMenu() {
             enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
           {
-            label: 'Build Ruby Container',
+            label: i18n.t('menu.buildRubyContainer'),
             click: () => {
               openMainWindow();
               dockerManager.runCommand('build_ruby_container',
-                '[HTML]: <p>Building Ruby container . . .</p>',
+                formatMessage(null, 'messages.buildingRubyContainer'),
                 'Building',
                 'Stopped',
                 false);
@@ -1818,11 +1929,11 @@ function updateApplicationMenu() {
             enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
           {
-            label: 'Build Python Container',
+            label: i18n.t('menu.buildPythonContainer'),
             click: () => {
               openMainWindow();
               dockerManager.runCommand('build_python_container',
-                '[HTML]: <p>Building Python container . . .</p>',
+                formatMessage(null, 'messages.buildingPythonContainer'),
                 'Building',
                 'Stopped',
                 false);
@@ -1830,11 +1941,11 @@ function updateApplicationMenu() {
             enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
           },
           {
-            label: 'Build User Containers',
+            label: i18n.t('menu.buildUserContainers'),
             click: () => {
               openMainWindow();
               dockerManager.runCommand('build_user_containers',
-                '[HTML]: <p>Building user containers . . .</p>',
+                formatMessage(null, 'messages.buildingUserContainers'),
                 'Building',
                 'Stopped',
                 false);
@@ -1845,11 +1956,11 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: 'Build Ollama Container',
+            label: i18n.t('menu.buildOllamaContainer'),
             click: () => {
               openMainWindow();
               dockerManager.runCommand('build_ollama_container',
-                '[HTML]: <p>Building Ollama container . . .<br>This may take several minutes on first build.</p>',
+                formatMessage(null, 'messages.buildingOllamaContainer'),
                 'Building',
                 'Stopped',
                 false);
@@ -1860,39 +1971,39 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: 'Start JupyterLab',
+            label: i18n.t('menu.startJupyterLab'),
             click: () => {
               // First check if we're in server mode
               if (dockerManager.isServerMode()) {
                 dialog.showMessageBox(mainWindow, {
                   type: 'warning',
-                  title: 'Jupyter Disabled',
-                  message: 'JupyterLab is disabled in Server Mode',
-                  detail: 'For security reasons, JupyterLab is not available when running in Server Mode. Switch to Standalone Mode in Settings to use JupyterLab.',
-                  buttons: ['OK']
+                  title: i18n.t('menu.jupyterDisabled'),
+                  message: i18n.t('menu.jupyterDisabledMessage'),
+                  detail: i18n.t('menu.jupyterDisabledDetail'),
+                  buttons: [i18n.t('dialogs.ok')]
                 });
                 return;
               }
               openMainWindow();
-              dockerManager.runCommand('start-jupyter', '[HTML]: <p>Starting JupyterLab . . .</p>', 'Starting', 'Running');
+              dockerManager.runCommand('start-jupyter', formatMessage(null, 'messages.startingJupyterLab'), 'Starting', 'Running');
             },
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
           {
-            label: 'Stop JupyterLab',
+            label: i18n.t('menu.stopJupyterLab'),
             click: () => {
               // First check if we're in server mode
               if (dockerManager.isServerMode()) {
                 dialog.showMessageBox(mainWindow, {
                   type: 'warning',
-                  title: 'Jupyter Disabled',
-                  message: 'JupyterLab is disabled in Server Mode',
-                  detail: 'For security reasons, JupyterLab is not available when running in Server Mode. Switch to Standalone Mode in Settings to use JupyterLab.',
-                  buttons: ['OK']
+                  title: i18n.t('menu.jupyterDisabled'),
+                  message: i18n.t('menu.jupyterDisabledMessage'),
+                  detail: i18n.t('menu.jupyterDisabledDetail'),
+                  buttons: [i18n.t('dialogs.ok')]
                 });
                 return;
               }
-              dockerManager.runCommand('stop-jupyter', '[HTML]: <p>Stopping JupyterLab . . .</p>', 'Starting', 'Running');
+              dockerManager.runCommand('stop-jupyter', formatMessage(null, 'messages.stoppingJupyterLab'), 'Starting', 'Running');
             },
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
           },
@@ -1900,33 +2011,33 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: 'Import Document DB',
+            label: i18n.t('menu.importDocumentDB'),
             click: () => {
               openMainWindow();
-              dockerManager.runCommand('import-db', '[HTML]: <p>Importing Document DB . . .</p>', 'Importing', 'Stopped')
+              dockerManager.runCommand('import-db', formatMessage(null, 'messages.importingDocumentDB'), 'Importing', 'Stopped')
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           },
           {
-            label: 'Export Document DB',
+            label: i18n.t('menu.exportDocumentDB'),
             click: () => {
-              dockerManager.runCommand('export-db', '[HTML]: <p>Exporting Document DB . . .</p>', 'Exporting', 'Stopped');
+              dockerManager.runCommand('export-db', formatMessage(null, 'messages.exportingDocumentDB'), 'Exporting', 'Stopped');
             },
             enabled: currentStatus === 'Stopped' && metRequirements
           }
       ]
     },
     {
-      label: 'Open',
+      label: i18n.t('menu.open'),
       submenu: [
         {
-          label: 'Open Console',
+          label: i18n.t('menu.openConsole'),
           click: () => {
             openMainWindow();
           }
         },
         {
-          label: 'Open Browser',
+          label: i18n.t('menu.openBrowser'),
           click: () => {
             openMainWindow();
             const url = 'http://localhost:4567';
@@ -1940,21 +2051,21 @@ function updateApplicationMenu() {
         },
         { type: 'separator' },
         {
-          label: 'Open Shared Folder',
+          label: i18n.t('menu.openSharedFolder'),
           click: () => {
             openMainWindow();
             openSharedFolder();
           }
         },
         {
-          label: 'Open Config Folder',
+          label: i18n.t('menu.openConfigFolder'),
           click: () => {
             openMainWindow();
             openConfigFolder();
           }
         },
         {
-          label: 'Open Log Folder',
+          label: i18n.t('menu.openLogFolder'),
           click: () => {
             openMainWindow();
             openLogFolder();
@@ -1970,10 +2081,10 @@ function updateApplicationMenu() {
       ]
     },
     {
-      label: 'Help',
+      label: i18n.t('menu.help'),
       submenu: [
         {
-          label: 'Documentation',
+          label: i18n.t('menu.documentation'),
           click: () => {
             openBrowser('https://yohasebe.github.io/monadic-chat/', true);
           }
@@ -1982,7 +2093,7 @@ function updateApplicationMenu() {
     }
     ,
     {
-      label: 'Window',
+      label: i18n.t('menu.window'),
       submenu: [
         {
           role: 'minimize',
@@ -2012,13 +2123,11 @@ function updateApplicationMenu() {
 function updateTrayMenu() {
   if (!tray) return;
   
-  const statusMenuItem = {
-    label: currentStatus || 'Stopped',
-    enabled: false
-  };
+  // Update the global statusMenuItem with translated status
+  statusMenuItem.label = translateStatus(currentStatus || 'Stopped');
   
   const serverModeItem = {
-    label: dockerManager.serverMode ? `Network: ${dockerManager.serverUrl}` : 'Standalone Mode',
+    label: dockerManager.serverMode ? `${i18n.t('menu.network')}: ${dockerManager.serverUrl}` : i18n.t('menu.standaloneMode'),
     enabled: false
   };
   
@@ -2032,7 +2141,7 @@ function updateTrayMenu() {
         openMainWindow();
         dockerManager.checkRequirements()
           .then(() => {
-            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+            dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
           })
           .catch((error) => {
             console.log(`Docker requirements check failed: ${error}`);
@@ -2073,6 +2182,32 @@ function updateTrayMenu() {
   tray.setContextMenu(contextMenu);
 }
 
+// Helper function to translate status values
+function translateStatus(status) {
+  if (!status) return '';
+  const statusKey = status.toLowerCase().replace(/\s+/g, '');
+  return i18n.t(`status.${statusKey}`) || status;
+}
+
+// Helper function to format HTML messages with translations
+function formatMessage(type, messageKey, params = {}) {
+  const icons = {
+    info: '<i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i>',
+    success: '<i class="fa-solid fa-circle-check" style="color: #22ad50;"></i>',
+    warning: '<i class="fa-solid fa-circle-exclamation" style="color: #FF7F07;"></i>',
+    error: '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>',
+    sync: '<i class="fa-solid fa-sync fa-spin"></i>',
+    server: '<i class="fa-solid fa-server" style="color:#DC4C64;"></i>',
+    laptop: '<i class="fa-solid fa-laptop" style="color:#4CACDC;"></i>'
+  };
+  
+  let message = i18n.t(messageKey, params);
+  if (type && icons[type]) {
+    return `[HTML]: <p>${icons[type]} ${message}</p>`;
+  }
+  return `[HTML]: <p>${message}</p>`;
+}
+
 // Send a message to the renderer process to write to the screen
 function writeToScreen(text) {
   if (mainWindow) {
@@ -2089,10 +2224,20 @@ function updateStatusIndicator(status) {
     console.trace();
   }
   
+  // Update current status
+  currentStatus = status;
+  
+  // Update the global statusMenuItem with translated status
+  const translatedStatus = translateStatus(status);
+  statusMenuItem.label = translatedStatus;
+  
   if (mainWindow) {
-    mainWindow.webContents.send('update-status-indicator', status);
-    statusMenuItem.label = `Status: ${status}`;
+    // Send both the original status and translated version
+    mainWindow.webContents.send('update-status-indicator', status, translatedStatus);
   }
+  
+  // Update tray menu to reflect the new status
+  updateContextMenu(false);
 }
 
 function createMainWindow() {
@@ -2102,8 +2247,8 @@ function createMainWindow() {
   dockerManager.loadServerModeSettings();
 
   mainWindow = new BrowserWindow({
-    width: 780,
-    minWidth: 780,
+    width: 820,
+    minWidth: 820,
     height: 480,
     minHeight: 480,
     webPreferences: {
@@ -2121,34 +2266,8 @@ function createMainWindow() {
     backgroundColor: '#f0f0f0'
   });
 
-  let openingText;
-
+  // Check if port 4567 is already in use on initial launch
   if (justLaunched) {
-    // Check what mode we're in
-    const isServerMode = dockerManager.isServerMode();
-    
-    if (isServerMode) {
-      openingText = `
-        [HTML]: 
-        <p><b>Monadic Chat: <span style="color: #DC4C64; font-weight: bold;">Server Mode</span></b></p>
-        <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> Running in server mode. Services will be accessible from external devices.</p>
-        <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>Security notice:</strong> Jupyter features are disabled in Server Mode for security.</p>
-        <p>Press <b>start</b> button to initialize the server.</p>
-        <hr />`
-      currentStatus = 'Stopped';
-    } else {
-      openingText = `
-        [HTML]: 
-        <p><b>Monadic Chat: <span style="color: #4CACDC; font-weight: bold;">Standalone Mode</span></b></p>
-        <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> Running in standalone mode. Services are accessible locally only.</p>
-        <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> Please make sure Docker Desktop is running while using Monadic Chat.</p>
-        <p>Press <b>start</b> button to initialize the server.</p>
-        <hr />`
-      currentStatus = 'Stopped';
-    }
-    justLaunched = false;
-
-    // Check if port 4567 is already in use on initial launch
     isPortTaken(4567, function (taken) {
       if (taken) {
         currentStatus = 'Port in use';
@@ -2166,6 +2285,69 @@ function createMainWindow() {
   })
 
   mainWindow.loadFile('index.html');
+  
+  // Ensure initial messages are sent after the window loads
+  mainWindow.webContents.once('did-finish-load', () => {
+    // Send initial status and version
+    mainWindow.webContents.send('update-status-indicator', currentStatus);
+    mainWindow.webContents.send('update-version', app.getVersion());
+    
+    // Send interface language to Web UI
+    const envPath = getEnvPath();
+    let interfaceLanguage = 'en';
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      interfaceLanguage = envConfig.UI_LANGUAGE || 'en';
+      mainWindow.webContents.send('interface-language-changed', { 
+        language: interfaceLanguage 
+      });
+    }
+    
+    // Set cookies
+    const isServerMode = dockerManager.isServerMode();
+    mainWindow.webContents.executeJavaScript(`
+      document.cookie = "distributed-mode=${isServerMode ? 'server' : 'off'}; path=/; max-age=31536000";
+      document.cookie = "ui-language=${interfaceLanguage}; path=/; max-age=31536000";
+    `);
+    
+    // Send mode update
+    mainWindow.webContents.send('update-distributed-mode', {
+      mode: isServerMode ? 'server' : 'off',
+      showNotification: false
+    });
+    
+    // Send opening message if just launched
+    if (justLaunched) {
+      let openingText;
+      if (isServerMode) {
+        openingText = `
+          [HTML]: 
+          <p><b>${i18n.t('messages.serverModeTitle')}</b></p>
+          <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> ${i18n.t('messages.serverModeDesc')}</p>
+          <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>${i18n.t('dialogs.warning')}:</strong> ${i18n.t('menu.jupyterDisabledMessage')}</p>
+          <p>${i18n.t('messages.pressStartButton')}</p>
+          <hr />`;
+      } else {
+        openingText = `
+          [HTML]: 
+          <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
+          <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p>${i18n.t('messages.pressStartButton')}</p>
+          <hr />`;
+      }
+      writeToScreen(openingText);
+      justLaunched = false;
+      
+      // Show update checking message
+      writeToScreen(`[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> ${i18n.t('messages.checkingForUpdates')}</p>`);
+      
+      // Check for updates after main window is loaded (no dialog)
+      setTimeout(() => {
+        checkForUpdatesManual(false); // false = no dialog, only main window notification
+      }, 2000); // Delay to ensure window is fully loaded
+    }
+  });
 
   // Register standard keyboard shortcuts
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -2179,44 +2361,6 @@ function createMainWindow() {
     }
   });
 
-  mainWindow.webContents.on('did-finish-load', () => {
-    
-    mainWindow.webContents.send('update-status-indicator', currentStatus);
-    mainWindow.webContents.send('update-version', app.getVersion());
-    
-    // Send interface language to Web UI
-    const envPath = getEnvPath();
-    if (envPath) {
-      const envConfig = readEnvFile(envPath);
-      const interfaceLanguage = envConfig.INTERFACE_LANGUAGE || 'en';
-      mainWindow.webContents.send('interface-language-changed', { 
-        language: interfaceLanguage 
-      });
-    }
-    
-    // Set the distributed mode cookie based on actual settings (not just when changing settings)
-    const isServerMode = dockerManager.isServerMode();
-    mainWindow.webContents.executeJavaScript(`
-      document.cookie = "distributed-mode=${isServerMode ? 'server' : 'off'}; path=/; max-age=31536000";
-      document.cookie = "interface-language=${interfaceLanguage}; path=/; max-age=31536000";
-    `);
-    
-    // Send the mode update to the renderer process
-    mainWindow.webContents.send('update-distributed-mode', {
-      mode: isServerMode ? 'server' : 'off',
-      showNotification: false
-    });
-    
-    writeToScreen(openingText);
-    
-    // Show update checking message
-    writeToScreen('[HTML]: <p style="color: #666; font-size: 12px;"><i class="fa-solid fa-sync fa-spin"></i> Checking for updates...</p>');
-    
-    // Check for updates after main window is loaded (no dialog)
-    setTimeout(() => {
-      checkForUpdatesManual(false); // false = no dialog, only main window notification
-    }, 2000); // Delay to ensure window is fully loaded
-  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -2238,8 +2382,7 @@ function createMainWindow() {
     }
   ];
 
-  // Set the same simple menu for all platforms
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  // Don't set menu here - updateApplicationMenu() handles it
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
@@ -2424,7 +2567,7 @@ function openSettingsWindow() {
     settingsWindow = new BrowserWindow({
       devTools: true,
       width: 600,
-      minWidth: 780,
+      minWidth: 600,
       height: 400,
       minHeight: 400,
       parent: mainWindow,
@@ -2440,6 +2583,21 @@ function openSettingsWindow() {
     });
 
     settingsWindow.loadFile('settings.html');
+    
+    // Send the current interface language to the settings window after it loads
+    settingsWindow.webContents.once('did-finish-load', () => {
+      const envPath = getEnvPath();
+      if (envPath) {
+        const envConfig = readEnvFile(envPath);
+        const uiLanguage = envConfig.UI_LANGUAGE || 'en';
+        settingsWindow.webContents.executeJavaScript(`
+          document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
+          if (typeof settingsI18n !== 'undefined') {
+            settingsI18n.setLanguage('${uiLanguage}');
+          }
+        `);
+      }
+    });
     // Enable standard edit shortcuts in settings window
     extendedContextMenu({
       window: settingsWindow,
@@ -2866,17 +3024,70 @@ ipcMain.on('save-settings', (_event, data) => {
   // Check if interface language has changed
   const envPath = getEnvPath();
   const oldConfig = envPath ? readEnvFile(envPath) : {};
-  const languageChanged = data.INTERFACE_LANGUAGE && data.INTERFACE_LANGUAGE !== oldConfig.INTERFACE_LANGUAGE;
+  const uiLanguage = data.UI_LANGUAGE;
+  const oldUiLanguage = oldConfig.UI_LANGUAGE;
+  const languageChanged = uiLanguage && uiLanguage !== oldUiLanguage;
   
   saveSettings(data);
   
-  // Apply interface language change
-  if (data.INTERFACE_LANGUAGE) {
-    i18n.setLanguage(data.INTERFACE_LANGUAGE);
+  // Apply UI language change
+  if (uiLanguage) {
+    i18n.setLanguage(uiLanguage);
     updateApplicationMenu();
     // Also update tray menu if it exists
     if (tray) {
       updateTrayMenu();
+    }
+    
+    // If language changed, clear messages and show initial message in new language
+    if (languageChanged && mainWindow && !mainWindow.isDestroyed()) {
+      // Clear the messages area
+      mainWindow.webContents.send('clear-messages');
+      
+      // Re-send the initial message in the new language
+      const isServerMode = dockerManager.isServerMode();
+      let openingText;
+      if (isServerMode) {
+        openingText = `
+          [HTML]: 
+          <p><b>${i18n.t('messages.serverModeTitle')}</b></p>
+          <p><i class="fa-solid fa-server" style="color:#DC4C64;"></i> ${i18n.t('messages.serverModeDesc')}</p>
+          <p><i class="fa-solid fa-shield-halved" style="color:#FFC107;"></i> <strong>${i18n.t('dialogs.warning')}:</strong> ${i18n.t('menu.jupyterDisabledMessage')}</p>
+          <p>${i18n.t('messages.pressStartButton')}</p>
+          <hr />`;
+      } else {
+        openingText = `
+          [HTML]: 
+          <p><b>${i18n.t('messages.standaloneModeTitle')}</b></p>
+          <p><i class="fa-solid fa-laptop" style="color:#4CACDC;"></i> ${i18n.t('messages.standaloneModeDesc')}</p>
+          <p><i class="fa-solid fa-circle-info" style="color:#61b0ff;"></i> ${i18n.t('messages.standaloneModeTip')}</p>
+          <p>${i18n.t('messages.pressStartButton')}</p>
+          <hr />`;
+      }
+      writeToScreen(openingText);
+      
+      // Re-send update check result if available
+      if (lastUpdateCheckResult) {
+        // Regenerate the message with the new language
+        const currentVersion = app.getVersion();
+        if (lastUpdateCheckResult.includes('fa-circle-check')) {
+          // Using latest version
+          lastUpdateCheckResult = formatMessage('success', 'messages.usingLatestVersion', { version: currentVersion });
+        } else if (lastUpdateCheckResult.includes('fa-circle-exclamation')) {
+          // New version available - extract version from the message
+          const versionMatch = lastUpdateCheckResult.match(/v([0-9.\\-a-z]+)/i);
+          if (versionMatch) {
+            lastUpdateCheckResult = formatMessage('warning', 'messages.newVersionAvailable', { version: versionMatch[1], current: currentVersion });
+          }
+        } else if (lastUpdateCheckResult.includes('fa-circle-info')) {
+          // Failed to retrieve version
+          lastUpdateCheckResult = formatMessage('info', 'messages.failedToRetrieveVersion');
+        }
+        writeToScreen(lastUpdateCheckResult);
+      }
+      
+      // Update the status indicator with translated text
+      updateStatusIndicator(currentStatus);
     }
   }
   
@@ -2890,8 +3101,14 @@ ipcMain.on('save-settings', (_event, data) => {
   
   // If language changed, also update the web UI
   if (languageChanged && mainWindow && mainWindow.webContents) {
+    // Update cookie for Web UI
+    mainWindow.webContents.executeJavaScript(`
+      document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
+    `);
+    
+    // Send language change event
     mainWindow.webContents.send('interface-language-changed', { 
-      language: data.INTERFACE_LANGUAGE 
+      language: uiLanguage 
     });
   }
 });
@@ -2902,8 +3119,9 @@ app.whenReady().then(() => {
   const envPath = getEnvPath();
   if (envPath) {
     const envConfig = readEnvFile(envPath);
-    if (envConfig.INTERFACE_LANGUAGE) {
-      i18n.setLanguage(envConfig.INTERFACE_LANGUAGE);
+    const uiLanguage = envConfig.UI_LANGUAGE;
+    if (uiLanguage) {
+      i18n.setLanguage(uiLanguage);
     }
   }
   
@@ -2915,8 +3133,7 @@ app.whenReady().then(() => {
       updateSplashWindow.close();
       updateSplashWindow = null;
     }
-    // Continue with normal initialization if update process crashes
-    initializeApp();
+    // Don't automatically initialize the app here to avoid double initialization
   });
   
   // Check for pending updates before initializing the app

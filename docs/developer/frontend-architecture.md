@@ -242,6 +242,78 @@ window.doResetActions = function() {
 - `utilities_websearch_patch.js` - Web search enhancements
 - `websocket.js` - WebSocket communication
 
+## Internationalization (i18n) System
+
+### Architecture
+
+The i18n system provides multi-language support for the Web UI with a Promise-based initialization system.
+
+#### Core Components
+
+1. **WebUIi18n Class** (`public/js/i18n/translations.js`)
+   - Manages translations for 5 languages (EN, JA, ZH, KO, ES)
+   - Provides Promise-based initialization
+   - Handles dynamic UI updates
+
+2. **Translation Structure**
+   ```javascript
+   {
+     en: { ui: { messages: { readyForInput: "Ready for input" } } },
+     ja: { ui: { messages: { readyForInput: "入力可能" } } },
+     // ... other languages
+   }
+   ```
+
+3. **Declarative Translation**
+   ```html
+   <!-- Text content -->
+   <div data-i18n="ui.resetDescription">Press reset...</div>
+   
+   <!-- Title attribute -->
+   <button data-i18n-title="ui.cancel">Cancel</button>
+   
+   <!-- Placeholder -->
+   <input data-i18n-placeholder="ui.messagePlaceholder" />
+   ```
+
+### Promise-Based Initialization
+
+```javascript
+// Global promise for i18n readiness
+window.i18nReady = webUIi18n.ready();
+
+// Wait for initialization
+window.i18nReady.then(() => {
+  const text = webUIi18n.t('ui.messages.readyForInput');
+  $("#status").text(text);
+});
+
+// Safe translation helper (works even before init)
+const text = safeTranslate('ui.messages.readyForInput', 'Ready for input');
+```
+
+### State Management for Streaming
+
+The system tracks streaming response state to maintain proper UI feedback:
+
+```javascript
+// Streaming state flags
+let responseStarted = false;    // Response has begun
+let streamingResponse = false;  // Currently streaming
+let callingFunction = false;    // Function call in progress
+
+// Spinner visibility logic
+if (!callingFunction && !streamingResponse) {
+  $("#monadic-spinner").hide();
+}
+```
+
+### Language Separation
+
+- **UI Language**: Controls interface elements (menus, buttons, status messages)
+- **Conversation Language**: Controls AI response language and text direction
+- Both can be configured independently for maximum flexibility
+
 ## Best Practices
 
 ### 1. Always Use SessionState Methods

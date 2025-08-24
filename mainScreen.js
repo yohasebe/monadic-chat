@@ -430,10 +430,23 @@ function writeToScreen(text) {
       logLines = 0;
       // Add stop message to messages area with timestamp
       const timestamp = new Date().toLocaleTimeString();
-      const stopMessage = window.electronAPI.getDistributedMode() === 'server' 
-        ? 'Server stopped' 
-        : 'System stopped';
-      htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage} at ${timestamp}</p>\n`;
+      const stopMessageKey = window.electronAPI.getDistributedMode() === 'server' 
+        ? 'messages.serverStopped' 
+        : 'messages.systemStopped';
+      
+      // Get translated stop message
+      let stopMessage = stopMessageKey;
+      if (window.i18n && window.i18n.t) {
+        stopMessage = window.i18n.t(stopMessageKey, { time: timestamp });
+      } else {
+        // Fallback to English if i18n not available
+        const defaultMessage = window.electronAPI.getDistributedMode() === 'server' 
+          ? 'Server stopped' 
+          : 'System stopped';
+        stopMessage = `${defaultMessage} at ${timestamp}`;
+      }
+      
+      htmlOutputElement.innerHTML += `<p style="color: #999;"><i class="fa-solid fa-circle-stop"></i> ${stopMessage}</p>\n`;
       htmlMessageCount++;
       
       // Limit HTML messages to prevent memory issues
@@ -796,8 +809,52 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Listen for interface language changes
   window.electronAPI.onInterfaceLanguageChanged((_event, data) => {
-    if (data.language && window.webUIi18n) {
-      window.webUIi18n.setLanguage(data.language);
+    if (data.language) {
+      // Update i18n instance
+      if (window.i18n) {
+        window.i18n.setLanguage(data.language);
+      }
+      
+      // Update Web UI language if available
+      if (window.webUIi18n) {
+        window.webUIi18n.setLanguage(data.language);
+      }
+      
+      // Re-translate all messages in #messages
+      const messagesElement = document.getElementById('messages');
+      if (messagesElement) {
+        const htmlOutput = messagesElement.querySelector('.html-output');
+        if (htmlOutput) {
+          // Find all translatable messages
+          const translatableMessages = htmlOutput.querySelectorAll('[data-i18n-key]');
+          translatableMessages.forEach(msg => {
+            const key = msg.getAttribute('data-i18n-key');
+            const type = msg.getAttribute('data-i18n-type');
+            const paramsStr = msg.getAttribute('data-i18n-params');
+            let params = {};
+            try {
+              params = JSON.parse(paramsStr || '{}');
+            } catch (e) {
+              // Ignore parse errors
+            }
+            
+            // Get translation using the renderer's i18n instance
+            if (window.i18n && window.i18n.t) {
+              const translatedText = window.i18n.t(key, params);
+              
+              // Find the icon if exists
+              const icon = msg.querySelector('i.fa-solid');
+              if (icon) {
+                // Update text while preserving icon
+                const iconHTML = icon.outerHTML;
+                msg.innerHTML = iconHTML + ' ' + translatedText;
+              } else {
+                msg.textContent = translatedText;
+              }
+            }
+          });
+        }
+      }
     }
   });
 

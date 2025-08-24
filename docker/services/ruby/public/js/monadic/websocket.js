@@ -1479,7 +1479,9 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
-    setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
+    const verifyingText = typeof webUIi18n !== 'undefined' ? 
+      webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
+    setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
     ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
 
     // Detect browser/device capabilities for audio handling
@@ -1588,7 +1590,9 @@ function connect_websocket(callback) {
 
     // Only verify token once
     if (!verified) {
-      setAlert("<i class='fa-solid fa-bolt'></i> Verifying token", "warning");
+      const verifyingText = typeof webUIi18n !== 'undefined' ? 
+      webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
+    setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
       ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
     }
 
@@ -1679,7 +1683,9 @@ function connect_websocket(callback) {
         if (window.streamingResponse !== undefined) window.streamingResponse = false;
         
         const providerInfo = isSlowProvider ? ` (${currentProvider} may have slower initial responses)` : '';
-        setAlert("<i class='fas fa-exclamation-triangle'></i> Operation timed out. UI reset." + providerInfo, "warning");
+        const timedOutText = typeof webUIi18n !== 'undefined' ? 
+          webUIi18n.t('ui.messages.operationTimedOut') : 'Operation timed out. UI reset.';
+        setAlert(`<i class='fas fa-exclamation-triangle'></i> ${timedOutText}${providerInfo}`, "warning");
       }
     }, timeoutDuration);  // Dynamic timeout based on provider
     
@@ -1767,7 +1773,9 @@ function connect_websocket(callback) {
         
         // Customize spinner message based on wait content
         if (data["content"].includes("CALLING FUNCTIONS")) {
-          $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Calling functions');
+          const callingFunctionsText = typeof webUIi18n !== 'undefined' ? 
+            webUIi18n.t('ui.messages.spinnerCallingFunctions') : 'Calling functions';
+          $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${callingFunctionsText}`);
         } else if (data["content"].includes("SEARCHING WEB")) {
           $("#monadic-spinner span").html('<i class="fas fa-search fa-pulse"></i> Searching web');
         } else if (data["content"].includes("PROCESSING")) {
@@ -1817,7 +1825,9 @@ function connect_websocket(callback) {
           }
         } else {
           console.error("Web Speech API not available");
-          setAlert("Web Speech API not available in this browser", "warning");
+          const notAvailableText = typeof webUIi18n !== 'undefined' ? 
+            webUIi18n.t('ui.messages.webSpeechNotAvailable') : 'Web Speech API not available in this browser';
+          setAlert(notAvailableText, "warning");
         }
         break;
       }
@@ -2004,7 +2014,9 @@ function connect_websocket(callback) {
         responseStarted = false;
         
         // Set alert to ready state
-        setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+        const readyToStartText = typeof webUIi18n !== 'undefined' ? 
+          webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
         
         break;
       }
@@ -2016,7 +2028,9 @@ function connect_websocket(callback) {
       case "language_updated": {
         // Show notification about language change
         const languageName = data.language_name || data.language;
-        setAlert(`<i class='fa-solid fa-globe'></i> Language changed to ${languageName}`, "success");
+        const languageChangedText = typeof webUIi18n !== 'undefined' ? 
+          webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
+        setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
         
         // Update the selector if needed (in case it was changed server-side)
         if (data.language && $("#conversation-language").val() !== data.language) {
@@ -2763,7 +2777,15 @@ function connect_websocket(callback) {
           window.SessionState.clearMessages();
           $("#discourse").empty();
           setStats(formatInfo([]), "info");
-          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.startSession') : 'Start Session');
+          // Ensure i18n is ready before updating text
+          if (window.i18nReady) {
+            window.i18nReady.then(() => {
+              const startText = webUIi18n.t('ui.session.startSession');
+              $("#start-label").text(startText);
+            });
+          } else {
+            $("#start-label").text('Start Session');
+          }
           break;
         }
         
@@ -2806,7 +2828,9 @@ function connect_websocket(callback) {
               if (msg["thinking"]) {
                 // Use the unified thinking block renderer if available
                 if (typeof renderThinkingBlock === 'function') {
-                  html = renderThinkingBlock(msg["thinking"], "Thinking Process") + html;
+                  const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
+                    webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
+                  html = renderThinkingBlock(msg["thinking"], thinkingTitle) + html;
                 } else {
                   // Fallback to old style if function not available
                   html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + msg["thinking"] + "</div></div>" + html;
@@ -2854,9 +2878,25 @@ function connect_websocket(callback) {
         setStats(formatInfo(data["content"]), "info");
 
         if (messages.length > 0) {
-          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.continueSession') : 'Continue Session');
+          // Ensure i18n is ready before updating text
+          if (window.i18nReady) {
+            window.i18nReady.then(() => {
+              const continueText = webUIi18n.t('ui.session.continueSession');
+              $("#start-label").text(continueText);
+            });
+          } else {
+            $("#start-label").text('Continue Session');
+          }
         } else {
-          $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.session.startSession') : 'Start Session');
+          // Ensure i18n is ready before updating text
+          if (window.i18nReady) {
+            window.i18nReady.then(() => {
+              const startText = webUIi18n.t('ui.session.startSession');
+              $("#start-label").text(startText);
+            });
+          } else {
+            $("#start-label").text('Start Session');
+          }
         }
         
         // Update AI User button state
@@ -3121,7 +3161,9 @@ function connect_websocket(callback) {
           if (data["content"]["thinking"]) {
             // Use the unified thinking block renderer if available
             if (typeof renderThinkingBlock === 'function') {
-              html = renderThinkingBlock(data["content"]["thinking"], "Thinking Process") + html;
+              const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
+                webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
+              html = renderThinkingBlock(data["content"]["thinking"], thinkingTitle) + html;
             } else {
               // Fallback to old style if function not available
               html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html;
@@ -3129,7 +3171,9 @@ function connect_websocket(callback) {
           } else if(data["content"]["reasoning_content"]) {
             // Use the unified thinking block renderer if available
             if (typeof renderThinkingBlock === 'function') {
-              html = renderThinkingBlock(data["content"]["reasoning_content"], "Reasoning Process") + html;
+              const reasoningTitle = typeof webUIi18n !== 'undefined' ? 
+                webUIi18n.t('ui.messages.reasoningProcess') : "Reasoning Process";
+              html = renderThinkingBlock(data["content"]["reasoning_content"], reasoningTitle) + html;
             } else {
               // Fallback to old style if function not available
               html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html;
@@ -3147,6 +3191,9 @@ function connect_websocket(callback) {
             $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
             $("#select-role").prop("disabled", false);
             
+            // Reset streaming flag as response is done
+            streamingResponse = false;
+            
             // Only hide spinner if we're not waiting for function calls
             if (!callingFunction) {
               $("#monadic-spinner").hide();
@@ -3162,7 +3209,9 @@ function connect_websocket(callback) {
             
             // For assistant messages, don't show "Ready to start" immediately
             // Wait for streaming to complete
-            setAlert("<i class='fa-solid fa-circle-check'></i> Response received", "success");
+            const receivedText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.responseReceived') : 'Response received';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
             
             // Handle auto_speech for TTS auto-playback
             if (window.autoSpeechActive || (params && params["auto_speech"] === "true")) {
@@ -3182,7 +3231,8 @@ function connect_websocket(callback) {
             // For non-assistant messages, show "Ready for input" only if not calling functions
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
             if (!callingFunction) {
-              setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
             }
           }
 
@@ -3196,6 +3246,8 @@ function connect_websocket(callback) {
           appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
           $("#message").show();
           $("#message").prop("disabled", false);
+          // Reset streaming flag as response is done
+          streamingResponse = false;
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
             $("#monadic-spinner").hide();
@@ -3203,13 +3255,17 @@ function connect_websocket(callback) {
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           // Only show "Ready for input" if we're not waiting for function calls
           if (!callingFunction) {
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            const readyText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           }
         } else if (data["content"]["role"] === "system") {
           // Use the appendCard helper function
           appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
           $("#message").show();
           $("#message").prop("disabled", false);
+          // Reset streaming flag as response is done
+          streamingResponse = false;
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
             $("#monadic-spinner").hide();
@@ -3217,7 +3273,9 @@ function connect_websocket(callback) {
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           // Only show "Ready for input" if we're not waiting for function calls
           if (!callingFunction) {
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            const readyText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           }
         }
 
@@ -3295,7 +3353,14 @@ function connect_websocket(callback) {
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         
         // Show informative spinner message with brain animation icon
-        $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request...');
+        const processingRequestText = typeof webUIi18n !== 'undefined' ? 
+          webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
+        $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
+        $("#monadic-spinner").show(); // Ensure spinner is visible
+        
+        // Mark that we're starting a response process
+        streamingResponse = true;
+        responseStarted = false; // Will be set to true when streaming starts
         break;
       }
 
@@ -3420,20 +3485,24 @@ function connect_websocket(callback) {
         setTimeout(function() {
           // Only show "Ready for input" if no pending operations detected
           if (!pendingOperations) {
-            setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+            const readyText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           } else {
             // If operations are still pending, wait and check again
             let checkInterval = setInterval(function() {
               if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0 && !callingFunction) {
                 clearInterval(checkInterval);
-                setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+                const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
               }
             }, 500); // Check every 500ms
             
             // Safety timeout to prevent infinite checking
             setTimeout(function() {
               clearInterval(checkInterval);
-              setAlert("<i class='fa-solid fa-circle-check'></i> Ready for input", "success");
+              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
+              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
             }, 10000); // Maximum wait of 10 seconds
           }
           
@@ -3515,10 +3584,16 @@ function connect_websocket(callback) {
         if (data.type === "fragment") {
           // Handle fragment messages from all vendors
           if (!responseStarted) {
-            setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
+            const respondingText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
+            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             responseStarted = true;
-            // Update spinner message for streaming
-            $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
+            streamingResponse = true; // Mark that we're streaming
+            // Show and update spinner message for streaming
+            const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
+            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
+            $("#monadic-spinner").show(); // Ensure spinner is visible
           }
           
           // Use the dedicated fragment handler
@@ -3532,12 +3607,17 @@ function connect_websocket(callback) {
           // Handle other default messages (for backward compatibility)
           let content = data["content"];
           if (!responseStarted || callingFunction) {
-            setAlert("<i class='fas fa-pencil-alt'></i> RESPONDING", "warning");
+            const respondingText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
+            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             callingFunction = false;
             responseStarted = true;
             streamingResponse = true; // Mark that we're streaming
-            // Update spinner message for streaming
-            $("#monadic-spinner span").html('<i class="fa-solid fa-circle-nodes fa-pulse"></i> Receiving response');
+            // Show and update spinner message for streaming
+            const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
+            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
+            $("#monadic-spinner").show(); // Ensure spinner is visible
             // remove the leading new line characters from content
             content = content.replace(/^\n+/, "");
           }

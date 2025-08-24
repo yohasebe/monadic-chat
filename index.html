@@ -290,7 +290,17 @@
       setInitialHeights(currentRatio);
     });
   </script>
+    <script src="i18n.js"></script>
     <script src="webUITranslations.js"></script>
     <script src="mainScreen.js"></script>
+    <script>
+      // Initialize i18n for message re-translation
+      window.i18n = new I18n();
+      // Set initial language from cookie
+      const uiLanguageCookie = document.cookie.match(/ui-language=([^;]+)/);
+      if (uiLanguageCookie) {
+        window.i18n.setLanguage(uiLanguageCookie[1]);
+      }
+    </script>
 </body>
 </html>

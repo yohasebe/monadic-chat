@@ -106,6 +106,8 @@
     "failedToCheckUpdates": "Failed to check for updates: {{error}}",
     "removingContainers": "Removing containers and images.",
     "stoppingAllProcesses": "Stopping all processes.",
+    "systemStopped": "System stopped at {{time}}",
+    "serverStopped": "Server stopped at {{time}}",
     "quittingMonadicChat": "Quitting Monadic Chat . . .",
     "monadicChatPreparing": "Monadic Chat preparing . . .",
     "monadicChatStopping": "Monadic Chat is stopping . . .",

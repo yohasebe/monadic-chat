@@ -106,6 +106,8 @@
     "failedToCheckUpdates": "アップデートの確認に失敗しました: {{error}}",
     "removingContainers": "コンテナとイメージを削除しています。",
     "stoppingAllProcesses": "すべてのプロセスを停止しています。",
+    "systemStopped": "システムが{{time}}に停止しました",
+    "serverStopped": "サーバーが{{time}}に停止しました",
     "quittingMonadicChat": "Monadic Chatを終了しています...",
     "monadicChatPreparing": "Monadic Chatを準備しています...",
     "monadicChatStopping": "Monadic Chatを停止しています...",

@@ -390,7 +390,7 @@
           DISTRIBUTED_MODE: distributedMode,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
-          INTERFACE_LANGUAGE: document.getElementById('interface-language').value
+          UI_LANGUAGE: document.getElementById('interface-language').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -474,7 +474,7 @@
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
-        document.getElementById('interface-language').value = data.INTERFACE_LANGUAGE || 'en';
+        document.getElementById('interface-language').value = data.UI_LANGUAGE || 'en';
         
         // Handle distributed mode settings - ensure default value is set
         const distributedMode = data.DISTRIBUTED_MODE || 'off';

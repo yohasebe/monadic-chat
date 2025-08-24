@@ -734,7 +734,16 @@ $(function () {
     $("#back-to-settings").hide();
     $("#main-panel").hide();
     $("#parameter-panel").hide();
-    $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
+    // Wait for i18n to be ready before updating button text
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        const startText = webUIi18n.t('ui.session.startSession');
+        $("#start-label").text(startText);
+      });
+    } else {
+      // Fallback if i18nReady is not available
+      $("#start-label").text('Start Session');
+    }
     proceedWithAppChange(newAppValue);
   });
   
@@ -1456,10 +1465,24 @@ $(function () {
     $("#back-to-settings").hide();
     $("#main-panel").hide();
     $("#parameter-panel").hide();
-    if (messages.length > 0) {
-      $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.continueSession') : 'Continue Session');
+    // Wait for i18n to be ready before updating button text
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        if (messages.length > 0) {
+          const continueText = webUIi18n.t('ui.session.continueSession');
+          $("#start-label").text(continueText);
+        } else {
+          const startText = webUIi18n.t('ui.session.startSession');
+          $("#start-label").text(startText);
+        }
+      });
     } else {
-      $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
+      // Fallback if i18nReady is not available
+      if (messages.length > 0) {
+        $("#start-label").text('Continue Session');
+      } else {
+        $("#start-label").text('Start Session');
+      }
     }
     adjustScrollButtons();
     setInputFocus()
@@ -1471,7 +1494,16 @@ $(function () {
     audioInit();
     resetEvent(event);
     $("#select-role").val("user").trigger("change");
-    $("#start-label").text(typeof webUIi18n !== 'undefined' ? webUIi18n.t('session.startSession') : 'Start Session');
+    // Wait for i18n to be ready before updating button text
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        const startText = webUIi18n.t('ui.session.startSession');
+        $("#start-label").text(startText);
+      });
+    } else {
+      // Fallback if i18nReady is not available
+      $("#start-label").text('Start Session');
+    }
     $("#model").prop("disabled", false);
   });
 

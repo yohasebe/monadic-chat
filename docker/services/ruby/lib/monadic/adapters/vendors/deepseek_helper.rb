@@ -755,8 +755,9 @@ module DeepSeekHelper
                       "type" => "fragment",
                       "content" => fragment,
                       "index" => choice["message"]["content"].length - fragment.length,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => choice["message"]["content"].length == fragment.length
+                      "timestamp" => Time.now.to_f
+                      # Don't send is_first flag to prevent spinner from disappearing
+                      # "is_first" => choice["message"]["content"].length == fragment.length
                     }
                     block&.call res
                   end

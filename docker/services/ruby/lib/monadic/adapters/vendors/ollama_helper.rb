@@ -378,8 +378,9 @@ module OllamaHelper
           res = {
             "type" => "fragment",
             "content" => fragment,
-            "index" => fragment_index,
-            "is_first" => is_first_fragment
+            "index" => fragment_index
+            # Don't send is_first flag to prevent spinner from disappearing
+            # "is_first" => is_first_fragment
           }
           
           if CONFIG["EXTRA_LOGGING"]

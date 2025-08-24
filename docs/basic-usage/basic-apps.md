@@ -580,9 +580,7 @@ Jupyter Notebook apps are available for the following providers:
 - OpenAI
 - Anthropic Claude
 - Google Gemini
-- xAI Grok (requires step-by-step execution)
-
-!> **Note:** Cohere is not supported for Jupyter Notebook due to limitations with sequential tool execution (maximum 2 tools per response)
+- xAI Grok
 
 ### Monadic Chat Help
 

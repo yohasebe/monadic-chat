@@ -79,8 +79,10 @@ test_tts_input_*
 # Vendor assets (downloaded during build)
 /docker/services/ruby/public/vendor/
 
-# Ignore Claude documentation (internal development docs)
+# Ignore internal development documentation
 CLAUDE.md
+DEVELOPER_NOTES.md
+ARCHITECTURE_IMPROVEMENTS.md
 CLAUDE_DOCS/
 
 # Python cache files

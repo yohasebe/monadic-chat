@@ -293,6 +293,9 @@
       }
     </style>
    <script>
+     // Set initial UI language from server (Electron app setting)
+     document.cookie = "ui-language=<%= @ui_language %>; path=/; max-age=31536000";
+     
      // Toggle mobile-view class when width < 1024px
      function toggleMobileView() {
        const isMobile = window.innerWidth < 1024;
@@ -312,10 +315,10 @@
           <span class="nav-text"><span class="text-main">Monadic</span><span class="text-highlight"> Chat</span></span>
         </a>
         <div class="ms-auto d-flex align-items-center nav-actions">
-          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation">
-            <i class="fas fa-ban"></i><span>CANCEL</span>
+          <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
+            <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
-          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" style="margin-top: -1px;">
+          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" style="margin-top: -1px;" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -325,30 +328,30 @@
       <div class="row g-3 mt-0 mb-0" style="margin-bottom: 0 !important;">
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 50px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class="pb-2 mb-1"><span class="text"><i class="fas fa-message"></i></span> Monadic Chat Info</h5>
+            <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
             <div class="mb-2" style="display: flex; align-items: center;">
               <div id="monadic-homepage">
-                <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer">Homepage</a></span>
+                <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.homepage">Homepage</a></span>
                 &nbsp;&nbsp;
-                <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer">GitHub</a></span>
+                <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
               </div>
             </div>
             <div class="mb-3" style="display: flex; align-items: center;">
               <div id="monadic-version">
-                <span class="text text-secondary"><i class="fa-solid fa-circle-info"></i> Version:</span> <span class="text text-secondary" id="monadic-version-number"></span>
+                <span class="text text-secondary"><i class="fa-solid fa-circle-info"></i> <span data-i18n="ui.version">Version</span>:</span> <span class="text text-secondary" id="monadic-version-number"></span>
               </div>
             </div>
             
             <div class="mb-3">
-              <label for="interface-language" class="div-label mb-1"><i class="fa-solid fa-globe"></i> Conversation Language</label>
-              <select class="form-select form-select-sm" id="interface-language">
+              <label for="conversation-language" class="div-label mb-1" data-i18n="ui.conversationLanguage"><i class="fa-solid fa-globe"></i> Conversation Language</label>
+              <select class="form-select form-select-sm" id="conversation-language">
                 <% Monadic::Utils::LanguageConfig.all_languages.each do |lang| %>
                   <option value="<%= lang[:code] %>"><%= lang[:display] %></option>
                 <% end %>
               </select>
             </div>
 
-            <h5><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
+            <h5 data-i18n="ui.currentBaseApp"><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
             <div style="display: flex; align-items: center;">
               <div class="icon-container">
                 <span id="base-app-icon" class="app-icon"></span>
@@ -365,50 +368,50 @@
           </div>
 
           <div id="api-token-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5><span class="text"><i class="fa-solid fa-square-check"></i> Monadic Chat Status</span></h5>
-            <div id="alert-message" class="mt-3 mb-3 text">Not started</div>
+            <h5><span class="text" data-i18n="ui.monadicChatStatus"><i class="fa-solid fa-square-check"></i> Monadic Chat Status</span></h5>
+            <div id="alert-message" class="mt-3 mb-3 text" data-i18n="ui.notStarted">Not started</div>
             
-            <h5><span class="text"><i class="fa-solid fa-robot"></i></span> AI Assistant & User</h5>
+            <h5><span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & User</span></h5>
 
             <div class="mt-3 text">
               <div class="mb-1">
-                <div><span class="me-2 assistant-color fw-bold">AI Assistant</span></div>
-                <div class="ps-4 text-wrap"><span id="model-selected">Not selected</span></div>
+                <div><span class="me-2 assistant-color fw-bold" data-i18n="ui.aiAssistant">AI Assistant</span></div>
+                <div class="ps-4 text-wrap"><span id="model-selected" data-i18n="ui.notSelected">Not selected</span></div>
                 <div class="ps-4 text-wrap"><span id="model-non-default" class="fw-semibold" style="display:none;">non-default model</span></div>
               </div>
               <div class="mb-1">
-                <div><span class="me-2 user-color fw-bold">AI User</span></div>
-                <div class="ps-4 text-wrap"><span id="ai-user-model">Not configured</span></div>
+                <div><span class="me-2 user-color fw-bold" data-i18n="ui.aiUser">AI User</span></div>
+                <div class="ps-4 text-wrap"><span id="ai-user-model" data-i18n="ui.notConfigured">Not configured</span></div>
               </div>
             </div>
 
             <div class="mb-2"></div>
-            <h5><span class="text"><i class="fas fa-chart-line"></i> Statistics</span></h5>
-            <div id="stats-message" class="mt-3 text">No data available</div>
+            <h5><span class="text" data-i18n="ui.statistics"><i class="fas fa-chart-line"></i> Statistics</span></h5>
+            <div id="stats-message" class="mt-3 text" data-i18n="ui.noDataAvailable">No data available</div>
           </div>
 
           <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="pb-2"><span class="text"><i class="fas fa-database"></i></span> PDF Database</h5>
+            <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-database"></i> PDF Database</span></h5>
             <div class="like-h6"><i class="fas fa-file-pdf"></i> Uploaded PDF</div>
             <div class="mt-3" id="pdf-titles"></div>
           </div>
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text"><i class="fas fa-file"></i> Session</span></h5>
+            <h5 class=""><span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-file"></i> Session</span></h5>
             <div class="d-flex align-items-center flex-wrap">
-              <button class="btn btn-sm btn-warning me-2" id="reset" title="Reset conversation while keeping current app selection"><i class="fas fa-stop" ></i> Reset</button>
-              <button class="btn btn-sm btn-warning me-2" id="load" title="Import conversation from file"><i class="fas fa-file-import"></i> Import</button>
-              <button class="btn btn-sm btn-warning me-2" id="save" title="Export conversation to file"><i class="fas fa-file-export"></i> Export</button>
+              <button class="btn btn-sm btn-warning me-2" id="reset" title="Reset conversation while keeping current app selection" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
+              <button class="btn btn-sm btn-warning me-2" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
+              <button class="btn btn-sm btn-warning me-2" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1"> Press "reset" to clear conversation while keeping the current app selection.</div>
           </div>
 
           <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text"><i class="fas fa-comment-dots"></i> Speech</span></h5>
+            <h5 class=""><span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span></h5>
 
             <div class="my-1">
-              <label for="tts-provider" class="div-label my-2">Text-to-Speech Provider</label>
+              <label for="tts-provider" class="div-label my-2" data-i18n="ui.textToSpeechProvider">Text-to-Speech Provider</label>
               <select class="form-select form-select-sm" id="tts-provider">
                 <option id="openai-tts-4o" value="openai-tts-4o" disabled>OpenAI (4o TTS)</option>
                 <option id="openai-tts" value="openai-tts" disabled>OpenAI (TTS)</option>
@@ -422,13 +425,13 @@
             </div>
 
             <div id="elevenlabs-voices" class="my-1" style="display: none;">
-              <label for="tts-voice" class="div-label my-2">Elevenlabs Text-to-Speech Voice</label>
+              <label for="tts-voice" class="div-label my-2" data-i18n="ui.elevenLabsVoice">Elevenlabs Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="elevenlabs-tts-voice">
               </select>
             </div>
 
             <div id="openai-voices" class="my-1">
-              <label for="tts-voice" class="div-label my-2">OpenAI Text-to-Speech Voice</label>
+              <label for="tts-voice" class="div-label my-2" data-i18n="ui.openAIVoice">OpenAI Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="tts-voice">
                 <option value="alloy">Alloy</option>
                 <option value="ash">Ash</option>
@@ -444,7 +447,7 @@
             </div>
             
             <div id="gemini-voices" class="my-1" style="display: none;">
-              <label for="gemini-voice" class="div-label my-2">Gemini Text-to-Speech Voice</label>
+              <label for="gemini-voice" class="div-label my-2" data-i18n="ui.geminiVoice">Gemini Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="gemini-tts-voice">
                 <option value="aoede">Aoede</option>
                 <option value="charon">Charon</option>
@@ -458,14 +461,14 @@
             </div>
 
             <div id="webspeech-voices" class="my-1" style="display: none;">
-              <label for="webspeech-voice" class="div-label my-2">Web Speech API Voice</label>
+              <label for="webspeech-voice" class="div-label my-2" data-i18n="ui.webSpeechVoice">Web Speech API Voice</label>
               <select class="form-select form-select-sm" id="webspeech-voice">
                 <!-- Voice options will be populated by JavaScript -->
               </select>
             </div>
 
             <div class="my-1">
-              <label for="tts-speed" class="div-label my-2">TTS Speed (<span id="tts-speed-value">1.00</span>)</label><br />
+              <label for="tts-speed" class="div-label my-2" data-i18n="ui.ttsSpeed">TTS Speed (<span id="tts-speed-value">1.00</span>)</label><br />
               <input type="range" class="div-range" min="0.70" max="1.20" step="0.01" value="1.00" id="tts-speed">
             </div>
 
@@ -480,12 +483,12 @@
 
         <div id="main" class="col-md-8 order-md-1 scrollable" style="padding-bottom: 50px;">
           <div id="config" class="rounded p-3 shaded-panel">
-            <h5 class="pb-0" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
+            <h5 class="pb-0" style="color: #777; margin-top: 0.5em;"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
 
 
             <form class="row my-2">
               <div class="col-5">
-                <label class="form-label" for="apps">Base App</label>
+                <label class="form-label" for="apps" data-i18n="ui.baseApp">Base App</label>
                 <div class="position-relative">
                   <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;">
                     <span id="app-select-icon" style="color: #777;"></span>
@@ -501,7 +504,7 @@
                 </div>
               </div>
               <div class="col-3 ms-2">
-                <label class="form-label text-nowrap" for="context-size-toggle">Max Context Size</label>
+                <label class="form-label text-nowrap" for="context-size-toggle" data-i18n="ui.maxContextSize">Max Context Size</label>
                 <div class="d-flex align-items-center gap-2">
                   <input class="form-check-input mt-0" type="checkbox" id="context-size-toggle" checked="">
                   <input type="number" id="context-size" min="1" max="9999" stop="1" value="100" class="form-control form-control-sm" />
@@ -509,7 +512,7 @@
               </div>
               
               <div class="col-3 ms-2">
-                <label class="form-label text-nowrap" for="max-tokens-toggle">Max Output Tokens</label>
+                <label class="form-label text-nowrap" for="max-tokens-toggle" data-i18n="ui.maxOutputTokens">Max Output Tokens</label>
                 <div class="d-flex align-items-center gap-2">
                   <input class="form-check-input mt-0" type="checkbox" id="max-tokens-toggle" checked="checked">
                   <input type="number" id="max-tokens" stop="1" min="100" max="999999" value="4000" class="form-control form-control-sm" />
@@ -519,12 +522,12 @@
 
             <form class="row my-3" id="model_and_file">
               <div class="col-5">
-                <label for="model" class="form-label text-nowrap">Model</label>
+                <label for="model" class="form-label text-nowrap" data-i18n="ui.model">Model</label>
                 <select class="form-select form-select-sm me-3" size="1" id="model" ></select>
               </div>
 
               <div class="col-3 ms-2">
-                <label class="form-label text-nowrap" for="reasoning-effort">Reasoning Effort</label>
+                <label class="form-label text-nowrap" for="reasoning-effort" data-i18n="ui.reasoningEffort">Reasoning Effort</label>
                 <div class="d-flex align-items-center gap-2">
                   <select class="form-select form-select-sm" id="reasoning-effort">
                     <option value="minimal">minimal</option>
@@ -538,8 +541,8 @@
               <div class="col-3 ms-2" id="file-div" style="display: none;">
                 <div class="row">
                   <div class="col-auto">
-                    <label class="form-label" for="pdf-import">PDF → DB</label>
-                    <div><button class="btn btn-sm btn-warning text-nowrap" id="pdf-import"><i class="fas fa-file"></i> Import File</button></div>
+                    <label class="form-label" for="pdf-import" data-i18n="ui.pdfToDb">PDF → DB</label>
+                    <div><button class="btn btn-sm btn-warning text-nowrap" id="pdf-import" data-i18n="ui.importFile"><i class="fas fa-file"></i> Import File</button></div>
                   </div>
                 </div>
               </div>
@@ -547,17 +550,17 @@
 
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
-                <label for="temperature" class="div-label my-2">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
+                <label for="temperature" class="div-label my-2" data-i18n="ui.temperature">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
                 <input type="range" class="div-range" min="0.0" max="2.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="presence-penalty" class="div-label my-2">Presence Penalty <small><span id="presence-penalty-value">0.0</span></small></label><br />
+                <label for="presence-penalty" class="div-label my-2" data-i18n="ui.presencePenalty">Presence Penalty <small><span id="presence-penalty-value">0.0</span></small></label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="presence-penalty" style="max-width: 100%;">
               </div>
 
               <div class="col-3">
-                <label for="frequency-penalty" class="div-label my-2">Frequency Penalty <small><span id="frequency-penalty-value">0.0</span></small></label><br />
+                <label for="frequency-penalty" class="div-label my-2" data-i18n="ui.frequencyPenalty">Frequency Penalty <small><span id="frequency-penalty-value">0.0</span></small></label><br />
                 <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="frequency-penalty" style="max-width: 100%;">
               </div>
             </form>
@@ -565,15 +568,15 @@
             <div class="row my-3">
               <div id="config-initial-prompt" class="">
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="initial-prompt-toggle">Show Initial Prompt for Assistant</label>
+                  <label class="form-check-label" for="initial-prompt-toggle" data-i18n="ui.showInitialPromptAssistant">Show Initial Prompt for Assistant</label>
                   <input class="form-check-input" type="checkbox" id="initial-prompt-toggle">
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="prompt-caching">Prompt Caching</label>
+                  <label class="form-check-label" for="prompt-caching" data-i18n="ui.promptCaching">Prompt Caching</label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="websearch">Web Search</label>
+                  <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
                   <input class="form-check-input" type="checkbox" id="websearch">
                 </div>
 
@@ -584,15 +587,15 @@
             <div class="row my-3">
               <div id="config-ai-user-initial-prompt" class="">
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="ai-user-initial-prompt-toggle">Show Initial Prompt for AI-User</label>
+                  <label class="form-check-label" for="ai-user-initial-prompt-toggle" data-i18n="ui.showInitialPromptAIUser">Show Initial Prompt for AI-User</label>
                   <input class="form-check-input" type="checkbox" id="ai-user-initial-prompt-toggle">&nbsp;
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="initiate-from-assistant">Start from assistant</label>
+                  <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="mathjax">Math Rendering</label>
+                  <label class="form-check-label" for="mathjax" data-i18n="ui.mathRendering">Math Rendering</label>
                   <input class="form-check-input" type="checkbox" id="mathjax">
                 </div>
                 <textarea class="form-control form-control-sm" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
@@ -602,7 +605,7 @@
             <div class="row my-3 align-items-center">
               <div class="col-12">
                 <fieldset>
-                  <legend>Voice Chat Interaction Controls&nbsp;
+                  <legend data-i18n="ui.voiceChatControls">Voice Chat Interaction Controls&nbsp;
                     <span id="interaction-check-all" class="mt-2 mb-0 textbox-caption" style="font-weight: 400">
                       check all
                     </span>
@@ -615,11 +618,11 @@
                   </legend>
                   <div class="form-check form-switch float-start me-3" id="auto-speech-form">
                     <input class="form-check-input" type="checkbox" id="check-auto-speech">
-                    <label class="form-check-label" for="check-auto-speech">Auto speech</label>
+                    <label class="form-check-label" for="check-auto-speech" data-i18n="ui.autoSpeech">Auto speech</label>
                   </div>
                   <div class="form-check form-switch float-start me-3">
                     <input class="form-check-input" type="checkbox" id="check-easy-submit">
-                    <label class="form-check-label" for="check-easy-submit">Easy submit <small>(with Enter key or Stop button)</small></label>
+                    <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
                   </div>
                 </fieldset>
               </div>
@@ -628,7 +631,7 @@
             <div class="row my-3">
               <div id="config-initial-prompt" class="">
                 <div class="form-check form-switch">
-                  <label class="form-check-label" for="auto-scroll-toggle">Auto scroll while streaming</label>
+                  <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
                   <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
                 </div>
               </div>
@@ -643,7 +646,7 @@
           </div>
 
           <div id="main-panel" class="rounded p-3 shaded-panel" style="display :none;">
-            <h5 class="pb-0 mb-0" style="color: #777; margin-top: 0.5em;"><span class="text"><i class="fas fa-comments"></i> Dialog</span></h5>
+            <h5 class="pb-0 mb-0" style="color: #777; margin-top: 0.5em;"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
             <div id="discourse" style="width: 100%; overflow-y: auto; display: none;"></div>
 
             <div id="temp-card" class="card mt-3" style="display:none;">
@@ -665,7 +668,7 @@
             <div id="user-panel" class="mt-1">
               <div class="row">
                 <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." ></textarea>
+                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
                   <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
                 </div>
@@ -674,9 +677,9 @@
               <div class="row mt-1 mb-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center flex-wrap">
-                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message"><i class="fas fa-image"></i> Image</button>
-                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file"><i class="fa-solid fa-file-arrow-up"></i> From file</button>
-                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL"><i class="fa-solid fa-globe"></i> From URL</button>
+                    <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
+                    <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> From file</button>
+                    <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> From URL</button>
                   </div>
                 </div>
               </div>
@@ -685,7 +688,7 @@
               <div id="voice-input-row" class="row mb-3 align-items-center">
                 <div class="col-auto d-flex align-items-center flex-wrap">
                   <div class="d-flex align-items-center">
-                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1" title="Start/stop voice input recording"><i class="fas fa-microphone"></i> Speech Input</button>
+                    <button id="voice" class="btn btn-sm btn-info text-nowrap" tabindex="1" title="Start/stop voice input recording" data-i18n="ui.speechInput" data-i18n-title="ui.startStopVoice"><i class="fas fa-microphone"></i> Speech Input</button>
                     <div id="amplitude" style="display: none; margin-left: 10px; height: 28px; overflow: hidden;">
                       <canvas id="amplitude-chart" style="width: 150px; height: 28px; max-width: 100%;" width="300" height="56"></canvas>
                     </div>
@@ -696,7 +699,7 @@
 
               <div class="row mb-3">
                 <div class="col-auto d-flex align-items-center">
-                  <label " class="form-check-label ps-1 me-1" for="select-role">Role</label>
+                  <label class="form-check-label ps-1 me-1 text-nowrap" for="select-role" data-i18n="ui.role">Role</label>
                   <div style="display: inline-flex; align-items: center; max-width: 100%;">
                     <span style="font-size: 1.3em; color: #777;" id="role-icon"><i class="fa-solid fa-face-smile"></i>&nbsp;</span>
                   </div>
@@ -730,18 +733,18 @@
                   <option value="deepseek">DeepSeek</option>
                   <option value="grok">Grok</option>
                 </select>
-                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation">Run</button>
+                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation" data-i18n="ui.run">Run</button>
               </div>
 
               <div class="row mt-3">
                 <div class="col-auto">
                   <div class="d-flex align-items-center">
-                    <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant"><i class="fas fa-paper-plane"></i> Send</button>
-                    <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel"><i class="fas fa-bars"></i> Settings</button>
+                    <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
+                    <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
+                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel" data-i18n="ui.settings"><i class="fas fa-bars"></i> Settings</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
-                    <span>Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
+                    <span data-i18n="ui.pressToSend">Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>
                   </div>
                 </div>
               </div>
@@ -1027,6 +1030,7 @@
     <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/mask_editor.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/i18n/translations.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/utilities_websearch_patch.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic-improvements.js?timestamp=<%= @timestamp %>"></script>

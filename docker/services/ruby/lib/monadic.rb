@@ -629,6 +629,9 @@ get "/" do
   session[:messages] ||= []
   session[:version] = Monadic::VERSION
   session[:docker] = Monadic::Utils::Environment.in_container?
+  
+  # Get UI language from environment variable (set by Electron app)
+  @ui_language = ENV['UI_LANGUAGE'] || 'en'
 
   if Faye::WebSocket.websocket?(env)
     websocket_handler(env)

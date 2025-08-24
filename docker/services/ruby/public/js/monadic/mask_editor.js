@@ -316,7 +316,8 @@ function openMaskEditor(imageData) {
       console.log("Mask added to images:", maskFilename);
       
       // Show success alert
-      setAlert(`<i class='fa-solid fa-circle-check'></i> Mask created for ${imageData.title}`, "success");
+      const maskCreatedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskCreated') : 'Mask created for';
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskCreatedMsg} ${imageData.title}`, "success");
       
       // Find if the image is already in the display
       const existingImageIndex = images.findIndex(img => 
@@ -389,7 +390,8 @@ function openMaskEditor(imageData) {
         updateFileDisplay(images);
         
         // Show success alert
-        setAlert(`<i class='fa-solid fa-circle-check'></i> Mask removed`, "success");
+        const maskRemovedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskRemoved') : 'Mask removed';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedMsg}`, "success");
       });
       
       // Handle mask toggle

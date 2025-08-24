@@ -359,7 +359,7 @@ function attachEventListeners($card) {
       elevenlabs_tts_voice: $("#elevenlabs-tts-voice").val(),
       gemini_tts_voice: $("#gemini-tts-voice").val(),
       tts_speed: ttsSpeed,
-      interface_language: $("#interface-language").val() || "auto",
+      conversation_language: $("#conversation-language").val() || "auto",
       mid: mid
     };
     

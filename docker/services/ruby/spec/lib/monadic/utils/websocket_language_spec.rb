@@ -20,29 +20,29 @@ RSpec.describe "WebSocket Language Handling" do
   end
 
   describe "SYSTEM_PROMPT handler" do
-    it "initializes runtime_settings with language from interface_language" do
+    it "initializes runtime_settings with language from conversation_language" do
       obj = {
         "content" => "Test prompt",
-        "interface_language" => "ja"
+        "conversation_language" => "ja"
       }
       
       # Simulate SYSTEM_PROMPT handling
       session[:runtime_settings] = {
-        language: obj["interface_language"] || "auto",
+        language: obj["conversation_language"] || "auto",
         language_updated_at: nil
       }
       
       expect(session[:runtime_settings][:language]).to eq("ja")
     end
 
-    it "defaults to 'auto' when interface_language is not provided" do
+    it "defaults to 'auto' when conversation_language is not provided" do
       obj = {
         "content" => "Test prompt"
       }
       
       # Simulate SYSTEM_PROMPT handling
       session[:runtime_settings] = {
-        language: obj["interface_language"] || "auto",
+        language: obj["conversation_language"] || "auto",
         language_updated_at: nil
       }
       
@@ -180,7 +180,7 @@ RSpec.describe "WebSocket Language Handling" do
       # Verify no message contains language settings
       session[:messages].each do |msg|
         expect(msg).not_to have_key("language")
-        expect(msg).not_to have_key("interface_language")
+        expect(msg).not_to have_key("conversation_language")
         expect(msg["text"]).not_to include("Please respond in")
       end
     end
@@ -195,10 +195,10 @@ RSpec.describe "WebSocket Language Handling" do
       
       # Simulate TTS parameter extraction
       obj = {
-        "interface_language" => session[:runtime_settings][:language]
+        "conversation_language" => session[:runtime_settings][:language]
       }
       
-      language = obj["interface_language"] || "auto"
+      language = obj["conversation_language"] || "auto"
       expect(language).to eq("ja")
     end
 
@@ -207,7 +207,7 @@ RSpec.describe "WebSocket Language Handling" do
       
       # Simulate TTS parameter extraction
       obj = {}
-      language = obj["interface_language"] || "auto"
+      language = obj["conversation_language"] || "auto"
       
       expect(language).to eq("auto")
     end

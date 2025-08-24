@@ -618,7 +618,7 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
-          language = obj["interface_language"] || "auto"
+          language = obj["conversation_language"] || "auto"
           
           # Special handling for Web Speech API
           if provider == "webspeech" || provider == "web-speech"
@@ -649,7 +649,7 @@ module WebSocketHelper
           elevenlabs_voice = obj["elevenlabs_voice"]
           speed = obj["speed"]
           response_format = obj["response_format"]
-          language = obj["interface_language"] || "auto"
+          language = obj["conversation_language"] || "auto"
           # model = obj["model"]
           
           
@@ -866,9 +866,9 @@ module WebSocketHelper
             language_updated_at: nil
           }
           
-          # Store language preference in runtime settings (not in system prompt)
-          interface_language = obj["interface_language"]
-          session[:runtime_settings][:language] = interface_language || "auto"
+          # Store conversation language preference in runtime settings (not in system prompt)
+          conversation_language = obj["conversation_language"]
+          session[:runtime_settings][:language] = conversation_language || "auto"
           
           if CONFIG["EXTRA_LOGGING"]
             extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1079,7 +1079,7 @@ module WebSocketHelper
           text = obj["text"]
           speed = obj["tts_speed"]
           response_format = "mp3"
-          language = obj["interface_language"] || "auto"
+          language = obj["conversation_language"] || "auto"
           
           # Process text with PragmaticSegmenter to split into sentences
           ps = PragmaticSegmenter::Segmenter.new(text: text)
@@ -1234,7 +1234,7 @@ module WebSocketHelper
             speed = obj["tts_speed"]
             response_format = "mp3"
             model = "tts-1"
-            language = obj["interface_language"] || "auto"
+            language = obj["conversation_language"] || "auto"
           end
 
           thread = Thread.new do

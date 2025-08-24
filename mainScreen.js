@@ -314,13 +314,16 @@ function writeToScreen(text) {
       return; // Don't show the success message
     }
     
-    // Don't show connection attempts during startup
-    if (inStartupPhase && text.includes("Connecting to server: attempt")) {
+    // Check the current interface language
+    const interfaceLanguage = getCookie('interface-language') || 'en';
+    
+    // Don't show connection attempts during startup (English only)
+    if (interfaceLanguage === 'en' && inStartupPhase && text.includes("Connecting to server: attempt")) {
       return;
     }
     
-    // Don't show retry messages during startup
-    if (inStartupPhase && text.includes("Retrying in")) {
+    // Don't show retry messages during startup (English only)
+    if (interfaceLanguage === 'en' && inStartupPhase && text.includes("Retrying in")) {
       return;
     }
     
@@ -354,8 +357,8 @@ function writeToScreen(text) {
     
     // Handle connection-related status updates for Server mode
     if (currentMode === 'server') {
-      // Server is still in connecting stage - failed attempts
-      if (text.includes("Connecting to server: attempt") && text.includes("failed")) {
+      // Server is still in connecting stage - failed attempts (English only)
+      if (interfaceLanguage === 'en' && text.includes("Connecting to server: attempt") && text.includes("failed")) {
         const statusElement = document.getElementById('status');
         if (statusElement && statusElement.textContent !== "Finalizing") {
           console.log("Server connection attempt failed - ensuring status shows Finalizing");
@@ -363,11 +366,11 @@ function writeToScreen(text) {
           statusElement.classList.remove('active');
           statusElement.classList.add('inactive');
         }
-        return; // Don't show attempt failed messages in server mode
+        return; // Don't show attempt failed messages in server mode (English only)
       }
       
-      // Don't show retry messages in server mode
-      else if (text.includes("Retrying in")) {
+      // Don't show retry messages in server mode (English only)
+      else if (interfaceLanguage === 'en' && text.includes("Retrying in")) {
         return;
       }
       
@@ -397,13 +400,16 @@ function writeToScreen(text) {
     }
     
     // Handle update check messages - replace the checking message
-    if (text.includes("You are using the latest version") || 
-        text.includes("A new version") || 
-        text.includes("Failed to retrieve the latest version")) {
-      // Find and remove the "Checking for updates..." message
+    // Check for update result messages by looking for specific icons instead of text
+    const hasUpdateResult = text.includes('fa-circle-check') || // Success (latest version)
+                           text.includes('fa-circle-exclamation') || // Warning (new version) or Error
+                           text.includes('fa-circle-info'); // Info (failed to retrieve)
+    
+    if (hasUpdateResult) {
+      // Find and remove the "Checking for updates..." message with spinner
       const paragraphs = htmlOutputElement.querySelectorAll('p');
       paragraphs.forEach(p => {
-        if (p.querySelector('i.fa-sync')) {
+        if (p.querySelector('i.fa-sync.fa-spin')) {
           p.remove();
         }
       });
@@ -585,8 +591,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Update Monadic Chat status 
-  window.electronAPI.onUpdateStatusIndicator((_event, status) => {
-    updateMonadicChatStatusUI(status);
+  window.electronAPI.onUpdateStatusIndicator((_event, status, translatedStatus) => {
+    // Use translated status if available, otherwise use original
+    updateMonadicChatStatusUI(translatedStatus || status);
   });
   
   // Listen for distributed mode updates from the main process
@@ -721,6 +728,15 @@ document.addEventListener('DOMContentLoaded', () => {
     writeToScreen(output);
   });
   
+  // Handle clear messages command
+  window.electronAPI.onClearMessages((_event) => {
+    // Clear both message areas
+    htmlOutputElement.innerHTML = '';
+    logOutputElement.textContent = '';
+    logLines = 0;
+    htmlMessageCount = 0;
+  });
+  
   // Handle reset display command
   window.electronAPI.onResetDisplay((_event, lastUpdateResult) => {
     // Clear both message areas
@@ -769,6 +785,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Initialize Web UI translations if available
+  if (window.webUIi18n) {
+    // Try to get saved language from cookie first
+    const cookieMatch = document.cookie.match(/interface-language=([^;]+)/);
+    if (cookieMatch && cookieMatch[1]) {
+      window.webUIi18n.setLanguage(cookieMatch[1]);
+    }
+  }
+  
   // Listen for interface language changes
   window.electronAPI.onInterfaceLanguageChanged((_event, data) => {
     if (data.language && window.webUIi18n) {

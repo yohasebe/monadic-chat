@@ -104,7 +104,8 @@ $("#uploadImage").on("click", function () {
     // Validate PDF compatibility with selected model and app settings
     if (file.type === 'application/pdf') {
       if (isImageGenerationApp) {
-        setAlert("PDF files cannot be uploaded in image generation apps", "error");
+        const pdfErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.pdfUploadError') : 'PDF files cannot be uploaded in image generation apps';
+        setAlert(pdfErrorMsg, "error");
         $("#imageModal").modal("hide");
         return;
       }

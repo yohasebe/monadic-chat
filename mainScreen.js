@@ -769,6 +769,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Listen for interface language changes
+  window.electronAPI.onInterfaceLanguageChanged((_event, data) => {
+    if (data.language && window.webUIi18n) {
+      window.webUIi18n.setLanguage(data.language);
+    }
+  });
+
 });
 
 

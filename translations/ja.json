@@ -31,7 +31,19 @@
     "window": "ウィンドウ",
     "minimize": "最小化",
     "close": "閉じる",
-    "help": "ヘルプ"
+    "help": "ヘルプ",
+    "actions": "アクション",
+    "start": "開始",
+    "stop": "停止",
+    "restart": "再起動",
+    "openConsole": "コンソールを開く",
+    "openBrowser": "ブラウザを開く",
+    "openSharedFolder": "共有フォルダを開く",
+    "openConfigFolder": "設定フォルダを開く",
+    "openLogFolder": "ログフォルダを開く",
+    "documentation": "ドキュメント",
+    "checkForUpdates": "アップデートを確認",
+    "uninstall": "イメージとコンテナをアンインストール"
   },
   "tray": {
     "show": "表示",

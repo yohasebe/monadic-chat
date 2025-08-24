@@ -155,6 +155,22 @@ function openWebViewWindow(url) {
   });
   
   webviewWindow.loadURL(url);
+  
+  // Set interface language when page loads
+  webviewWindow.webContents.on('did-finish-load', () => {
+    const envPath = getEnvPath();
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      const interfaceLanguage = envConfig.INTERFACE_LANGUAGE || 'en';
+      webviewWindow.webContents.executeJavaScript(`
+        document.cookie = "interface-language=${interfaceLanguage}; path=/; max-age=31536000";
+        if (window.webUIi18n) {
+          window.webUIi18n.setLanguage('${interfaceLanguage}');
+        }
+      `);
+    }
+  });
+  
   // Filter out invisible matches: skip zero-sized selections
   webviewWindow.webContents.on('found-in-page', (event, result) => {
     // Only handle our own search requests
@@ -250,17 +266,17 @@ function openWebViewWindow(url) {
   // Make sure Menu is visible for standard edit commands
   const editMenu = Menu.buildFromTemplate([
     {
-      label: 'Edit',
+      label: i18n.t('menu.edit'),
       submenu: [
         {
-          label: 'Undo',
+          label: i18n.t('menu.undo'),
           accelerator: 'CmdOrCtrl+Z',
           click: () => {
             webviewWindow.webContents.undo();
           }
         },
         {
-          label: 'Redo',
+          label: i18n.t('menu.redo'),
           accelerator: process.platform === 'darwin' ? 'CmdOrCtrl+Shift+Z' : 'CmdOrCtrl+Y',
           click: () => {
             webviewWindow.webContents.redo();
@@ -268,21 +284,21 @@ function openWebViewWindow(url) {
         },
         { type: 'separator' },
         {
-          label: 'Cut',
+          label: i18n.t('menu.cut'),
           accelerator: 'CmdOrCtrl+X',
           click: () => {
             webviewWindow.webContents.cut();
           }
         },
         {
-          label: 'Copy',
+          label: i18n.t('menu.copy'),
           accelerator: 'CmdOrCtrl+C',
           click: () => {
             webviewWindow.webContents.copy();
           }
         },
         {
-          label: 'Paste',
+          label: i18n.t('menu.paste'),
           accelerator: 'CmdOrCtrl+V',
           click: () => {
             webviewWindow.webContents.paste();
@@ -290,7 +306,7 @@ function openWebViewWindow(url) {
         },
         { type: 'separator' },
         {
-          label: 'Select All',
+          label: i18n.t('menu.selectAll'),
           accelerator: 'CmdOrCtrl+A',
           click: () => {
             webviewWindow.webContents.selectAll();
@@ -299,17 +315,17 @@ function openWebViewWindow(url) {
       ]
     },
     {
-      label: 'View',
+      label: i18n.t('menu.view'),
       submenu: [
         { 
-          label: 'Reload',
+          label: i18n.t('menu.reload'),
           accelerator: 'CmdOrCtrl+R',
           click: () => {
             webviewWindow.reload();
           }
         },
         { 
-          label: 'Toggle DevTools',
+          label: i18n.t('menu.toggleDevTools'),
           accelerator: 'CmdOrCtrl+Shift+I',
           click: () => {
             webviewWindow.webContents.toggleDevTools();
@@ -317,21 +333,21 @@ function openWebViewWindow(url) {
         },
         { type: 'separator' },
         { 
-          label: 'Zoom In',
+          label: i18n.t('menu.zoomIn'),
           accelerator: 'CmdOrCtrl+Plus',
           click: () => {
             webviewWindow.webContents.send('zoom-in-menu');
           }
         },
         { 
-          label: 'Zoom Out',
+          label: i18n.t('menu.zoomOut'),
           accelerator: 'CmdOrCtrl+-',
           click: () => {
             webviewWindow.webContents.send('zoom-out-menu');
           }
         },
         { 
-          label: 'Reset Zoom',
+          label: i18n.t('menu.resetZoom'),
           accelerator: 'CmdOrCtrl+0',
           click: () => {
             webviewWindow.webContents.send('zoom-reset-menu');
@@ -339,7 +355,7 @@ function openWebViewWindow(url) {
         },
         { type: 'separator' },
         { 
-          label: 'Toggle Fullscreen',
+          label: i18n.t('menu.toggleFullscreen'),
           accelerator: process.platform === 'darwin' ? 'Ctrl+Command+F' : 'F11',
           click: () => {
             const isFullScreen = webviewWindow.isFullScreen();
@@ -1129,7 +1145,7 @@ const menuItems = [
   serverModeItem,
   { type: 'separator' },
   {
-    label: 'Start',
+    label: i18n.t('menu.start'),
     click: () => {
       openMainWindow();
       // Check requirements first
@@ -1146,7 +1162,7 @@ const menuItems = [
     enabled: true
   },
   {
-    label: 'Stop',
+    label: i18n.t('menu.stop'),
     click: () => {
       openMainWindow();
       dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . . </p>', 'Stopping', 'Stopped');
@@ -1154,7 +1170,7 @@ const menuItems = [
     enabled: true
   },
   {
-    label: 'Restart',
+    label: i18n.t('menu.restart'),
     click: () => {
       openMainWindow();
       dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . .</p>', 'Restarting', 'Running');
@@ -1163,14 +1179,14 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Open Console',
+    label: i18n.t('menu.openConsole'),
     click: () => {
       openMainWindow();
     },
     enabled: true
   },
   {
-    label: 'Open Browser',
+    label: i18n.t('menu.openBrowser'),
     click: () => {
       openMainWindow();
       const url = 'http://localhost:4567';
@@ -1184,7 +1200,7 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Open Shared Folder',
+    label: i18n.t('menu.openSharedFolder'),
     click: () => {
       openMainWindow();
       openSharedFolder();
@@ -1192,7 +1208,7 @@ const menuItems = [
     enabled: true
   },
   {
-    label: 'Open Config Folder',
+    label: i18n.t('menu.openConfigFolder'),
     click: () => {
       openMainWindow();
       openConfigFolder();
@@ -1200,7 +1216,7 @@ const menuItems = [
     enabled: true
   },
   {
-    label: 'Open Log Folder',
+    label: i18n.t('menu.openLogFolder'),
     click: () => {
       openMainWindow();
       openLogFolder();
@@ -1209,7 +1225,7 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Documentation',
+    label: i18n.t('menu.documentation'),
     click: () => {
       openBrowser('https://yohasebe.github.io/monadic-chat/', true);
     },
@@ -1217,7 +1233,7 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Check for Updates',
+    label: i18n.t('menu.checkForUpdates'),
     click: () => {
       openMainWindow();
       checkForUpdates();
@@ -1700,7 +1716,7 @@ function updateApplicationMenu() {
           }
         },
         {
-          label: 'Uninstall Images and Containers',
+          label: i18n.t('menu.uninstall'),
           click: () => {
             uninstall();
           }
@@ -1746,7 +1762,7 @@ function updateApplicationMenu() {
       ]
     },
     {
-      label: 'Actions',
+      label: i18n.t('menu.actions'),
       submenu: [
         {
           label: 'Start',
@@ -2182,6 +2198,7 @@ function createMainWindow() {
     const isServerMode = dockerManager.isServerMode();
     mainWindow.webContents.executeJavaScript(`
       document.cookie = "distributed-mode=${isServerMode ? 'server' : 'off'}; path=/; max-age=31536000";
+      document.cookie = "interface-language=${interfaceLanguage}; path=/; max-age=31536000";
     `);
     
     // Send the mode update to the renderer process

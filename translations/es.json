@@ -129,6 +129,8 @@
     "failedToCheckUpdates": "Error al buscar actualizaciones: {{error}}",
     "removingContainers": "Eliminando contenedores e imágenes.",
     "stoppingAllProcesses": "Deteniendo todos los procesos.",
+    "systemStopped": "Sistema detenido a las {{time}}",
+    "serverStopped": "Servidor detenido a las {{time}}",
     "quittingMonadicChat": "Saliendo de Monadic Chat...",
     "monadicChatPreparing": "Preparando Monadic Chat...",
     "monadicChatStopping": "Deteniendo Monadic Chat...",

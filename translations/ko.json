@@ -129,6 +129,8 @@
     "failedToCheckUpdates": "업데이트 확인 실패: {{error}}",
     "removingContainers": "컨테이너와 이미지를 제거하는 중입니다.",
     "stoppingAllProcesses": "모든 프로세스를 중지하는 중입니다.",
+    "systemStopped": "{{time}}에 시스템이 중지되었습니다",
+    "serverStopped": "{{time}}에 서버가 중지되었습니다",
     "quittingMonadicChat": "Monadic Chat를 종료하는 중...",
     "monadicChatPreparing": "Monadic Chat를 준비하는 중...",
     "monadicChatStopping": "Monadic Chat를 중지하는 중...",

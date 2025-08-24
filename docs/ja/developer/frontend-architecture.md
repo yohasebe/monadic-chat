@@ -242,6 +242,78 @@ window.doResetActions = function() {
 - `utilities_websearch_patch.js` - Web検索拡張
 - `websocket.js` - WebSocket通信
 
+## 国際化（i18n）システム
+
+### アーキテクチャ
+
+i18nシステムは、Promiseベースの初期化システムを使用してWeb UIの多言語サポートを提供します。
+
+#### コアコンポーネント
+
+1. **WebUIi18nクラス** (`public/js/i18n/translations.js`)
+   - 5言語（英語、日本語、中国語、韓国語、スペイン語）の翻訳を管理
+   - Promiseベースの初期化を提供
+   - 動的なUI更新を処理
+
+2. **翻訳構造**
+   ```javascript
+   {
+     en: { ui: { messages: { readyForInput: "Ready for input" } } },
+     ja: { ui: { messages: { readyForInput: "入力可能" } } },
+     // ... 他の言語
+   }
+   ```
+
+3. **宣言的翻訳**
+   ```html
+   <!-- テキストコンテンツ -->
+   <div data-i18n="ui.resetDescription">リセットを押すと...</div>
+   
+   <!-- title属性 -->
+   <button data-i18n-title="ui.cancel">キャンセル</button>
+   
+   <!-- プレースホルダー -->
+   <input data-i18n-placeholder="ui.messagePlaceholder" />
+   ```
+
+### Promiseベースの初期化
+
+```javascript
+// i18n準備完了のグローバルPromise
+window.i18nReady = webUIi18n.ready();
+
+// 初期化を待つ
+window.i18nReady.then(() => {
+  const text = webUIi18n.t('ui.messages.readyForInput');
+  $("#status").text(text);
+});
+
+// 安全な翻訳ヘルパー（初期化前でも使用可能）
+const text = safeTranslate('ui.messages.readyForInput', 'Ready for input');
+```
+
+### ストリーミング用の状態管理
+
+システムは適切なUIフィードバックを維持するためにストリーミングレスポンスの状態を追跡します：
+
+```javascript
+// ストリーミング状態フラグ
+let responseStarted = false;    // レスポンスが開始された
+let streamingResponse = false;  // 現在ストリーミング中
+let callingFunction = false;    // 関数呼び出し中
+
+// スピナー表示ロジック
+if (!callingFunction && !streamingResponse) {
+  $("#monadic-spinner").hide();
+}
+```
+
+### 言語の分離
+
+- **UI言語**: インターフェース要素（メニュー、ボタン、ステータスメッセージ）を制御
+- **会話言語**: AIレスポンスの言語とテキスト方向を制御
+- 最大の柔軟性のため、両方を独立して設定可能
+
 ## ベストプラクティス
 
 ### 1. 常にSessionStateメソッドを使用

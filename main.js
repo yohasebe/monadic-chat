@@ -114,8 +114,12 @@ let webviewWindow = null;
 // State for in-page search to filter invisible matches
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
-function openWebViewWindow(url) {
+function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
+    if (forceReload) {
+      // Force reload for restart
+      webviewWindow.webContents.reload();
+    }
     webviewWindow.focus();
     return;
   }
@@ -680,6 +684,9 @@ class DockerManager {
   }
 
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
+    // Track if this is a restart command
+    const isRestart = command === 'restart';
+    
     // Write the initial message to the screen
     writeToScreen(message);
     
@@ -848,10 +855,14 @@ class DockerManager {
 
                           // Then open based on browser mode preference
                           if (browserMode === 'internal') {
-                            openWebViewWindow('http://localhost:4567');
+                            openWebViewWindow('http://localhost:4567', isRestart);
                           } else {
                             try {
-                              shell.openExternal('http://localhost:4567').catch(err => {
+                              // For restart, force reload by adding timestamp parameter
+                              const browserUrl = isRestart ? 
+                                `http://localhost:4567?reload=${Date.now()}` : 
+                                'http://localhost:4567';
+                              shell.openExternal(browserUrl).catch(err => {
                                 console.error('Error opening browser:', err);
                                 writeToScreen(formatMessage('warning', 'messages.openBrowserManually'));
                               });
@@ -2203,9 +2214,10 @@ function formatMessage(type, messageKey, params = {}) {
   
   let message = i18n.t(messageKey, params);
   if (type && icons[type]) {
-    return `[HTML]: <p>${icons[type]} ${message}</p>`;
+    // Include data attributes for re-translation
+    return `[HTML]: <p data-i18n-key="${messageKey}" data-i18n-type="${type}" data-i18n-params='${JSON.stringify(params)}'>${icons[type]} ${message}</p>`;
   }
-  return `[HTML]: <p>${message}</p>`;
+  return `[HTML]: <p data-i18n-key="${messageKey}" data-i18n-params='${JSON.stringify(params)}'>${message}</p>`;
 }
 
 // Send a message to the renderer process to write to the screen
@@ -3115,13 +3127,24 @@ ipcMain.on('save-settings', (_event, data) => {
 
 // This is the main entry point for app initialization
 app.whenReady().then(() => {
-  // Initialize i18n with saved language preference
+  // Initialize i18n with saved UI language
   const envPath = getEnvPath();
   if (envPath) {
+    // Migrate INTERFACE_LANGUAGE to UI_LANGUAGE if needed
+    try {
+      const content = fs.readFileSync(envPath, 'utf8');
+      if (content.includes('INTERFACE_LANGUAGE=')) {
+        const newContent = content.replace(/INTERFACE_LANGUAGE=/g, 'UI_LANGUAGE=');
+        fs.writeFileSync(envPath, newContent, 'utf8');
+      }
+    } catch (error) {
+      console.error('Error migrating env file:', error);
+    }
+    
+    // Load and set UI language
     const envConfig = readEnvFile(envPath);
-    const uiLanguage = envConfig.UI_LANGUAGE;
-    if (uiLanguage) {
-      i18n.setLanguage(uiLanguage);
+    if (envConfig.UI_LANGUAGE) {
+      i18n.setLanguage(envConfig.UI_LANGUAGE);
     }
   }
   

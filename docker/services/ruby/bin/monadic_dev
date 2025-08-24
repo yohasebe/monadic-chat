@@ -42,6 +42,17 @@ ENV["SELENIUM_IMAGE"] = selenium_image
 ENV["MONADIC_VERSION"] = Monadic::VERSION.to_s
 ENV["HOST_OS"] = `uname -s`.chomp
 
+# Load UI_LANGUAGE from env file if exists
+env_file_path = File.expand_path(File.join(ENV["HOME"], "monadic", "config", "env"))
+if File.exist?(env_file_path)
+  File.readlines(env_file_path).each do |line|
+    if line.start_with?("UI_LANGUAGE=")
+      ENV["UI_LANGUAGE"] = line.split("=", 2)[1].strip
+      break
+    end
+  end
+end
+
 # Define required containers for the application
 REQUIRED_CONTAINERS = [
   "monadic-chat-python-container",

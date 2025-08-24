@@ -122,9 +122,28 @@ const webUITranslations = {
         error: "Error",
         connecting: "Connecting...",
         readyForInput: "Ready for input",
+        responding: "RESPONDING",
+        responseReceived: "Response received",
+        readyToStart: "Ready to start",
+        verifyingToken: "Verifying token",
+        operationTimedOut: "Operation timed out. UI reset.",
+        languageChanged: "Language changed to",
+        webSpeechNotAvailable: "Web Speech API not available in this browser",
         generatingResponse: "Generating response from assistant...",
         operationCanceled: "Operation canceled",
         thinking: "THINKING",
+        spinnerStarting: "Starting",
+        spinnerCallingFunctions: "Calling functions",
+        spinnerReceivingResponse: "Receiving response",
+        spinnerGeneratingAIUser: "Generating AI user response",
+        spinnerSearchingWeb: "Searching web",
+        spinnerProcessing: "Processing",
+        spinnerProcessingRequest: "Processing request",
+        spinnerProcessingTools: "Processing tools",
+        spinnerListening: "Listening...",
+        spinnerProcessingSpeech: "Processing speech...",
+        thinkingProcess: "Thinking Process",
+        reasoningProcess: "Reasoning Process",
         processingMessage: "Processing sample message",
         sampleTimeout: "Sample message timed out. Please try again.",
         uploadNotAvailable: "Upload functionality not available",
@@ -273,9 +292,28 @@ const webUITranslations = {
         error: "エラー",
         connecting: "接続中...",
         readyForInput: "入力可能",
+        responding: "応答中",
+        responseReceived: "応答受信完了",
+        readyToStart: "開始準備完了",
+        verifyingToken: "トークンを検証中",
+        operationTimedOut: "操作がタイムアウトしました。UIをリセットしました。",
+        languageChanged: "言語を変更しました：",
+        webSpeechNotAvailable: "このブラウザでは音声認識APIが利用できません",
         generatingResponse: "アシスタントからの応答を生成中...",
         operationCanceled: "操作がキャンセルされました",
         thinking: "思考中",
+        spinnerStarting: "開始中",
+        spinnerCallingFunctions: "関数呼び出し中",
+        spinnerReceivingResponse: "応答受信中",
+        spinnerGeneratingAIUser: "AIユーザー応答生成中",
+        spinnerSearchingWeb: "ウェブ検索中",
+        spinnerProcessing: "処理中",
+        spinnerProcessingRequest: "リクエスト処理中",
+        spinnerProcessingTools: "ツール処理中",
+        spinnerListening: "リスニング中...",
+        spinnerProcessingSpeech: "音声処理中...",
+        thinkingProcess: "思考プロセス",
+        reasoningProcess: "推論プロセス",
         processingMessage: "サンプルメッセージを処理中",
         sampleTimeout: "サンプルメッセージがタイムアウトしました。もう一度お試しください。",
         uploadNotAvailable: "アップロード機能は利用できません",
@@ -421,9 +459,28 @@ const webUITranslations = {
         error: "错误",
         connecting: "连接中...",
         readyForInput: "准备输入",
+        responding: "响应中",
+        responseReceived: "响应接收完成",
+        readyToStart: "准备开始",
+        verifyingToken: "验证令牌中",
+        operationTimedOut: "操作超时。UI已重置。",
+        languageChanged: "语言已更改为",
+        webSpeechNotAvailable: "此浏览器不支持语音识别API",
         generatingResponse: "正在生成助手响应...",
         operationCanceled: "操作已取消",
         thinking: "思考中",
+        spinnerStarting: "启动中",
+        spinnerCallingFunctions: "调用函数中",
+        spinnerReceivingResponse: "接收响应中",
+        spinnerGeneratingAIUser: "生成AI用户响应",
+        spinnerSearchingWeb: "搜索网络",
+        spinnerProcessing: "处理中",
+        spinnerProcessingRequest: "处理请求中",
+        spinnerProcessingTools: "处理工具中",
+        spinnerListening: "正在倾听...",
+        spinnerProcessingSpeech: "处理语音中...",
+        thinkingProcess: "思考过程",
+        reasoningProcess: "推理过程",
         processingMessage: "正在处理示例消息",
         sampleTimeout: "示例消息超时。请重试。",
         uploadNotAvailable: "上传功能不可用",
@@ -569,9 +626,28 @@ const webUITranslations = {
         error: "오류",
         connecting: "연결 중...",
         readyForInput: "입력 준비",
+        responding: "응답 중",
+        responseReceived: "응답 수신 완료",
+        readyToStart: "시작 준비 완료",
+        verifyingToken: "토큰 확인 중",
+        operationTimedOut: "작업 시간 초과. UI가 재설정되었습니다.",
+        languageChanged: "언어가 변경되었습니다:",
+        webSpeechNotAvailable: "이 브라우저에서는 음성 인식 API를 사용할 수 없습니다",
         generatingResponse: "어시스턴트 응답 생성 중...",
         operationCanceled: "작업이 취소되었습니다",
         thinking: "생각 중",
+        spinnerStarting: "시작 중",
+        spinnerCallingFunctions: "함수 호출 중",
+        spinnerReceivingResponse: "응답 수신 중",
+        spinnerGeneratingAIUser: "AI 사용자 응답 생성 중",
+        spinnerSearchingWeb: "웹 검색 중",
+        spinnerProcessing: "처리 중",
+        spinnerProcessingRequest: "요청 처리 중",
+        spinnerProcessingTools: "도구 처리 중",
+        spinnerListening: "듣는 중...",
+        spinnerProcessingSpeech: "음성 처리 중...",
+        thinkingProcess: "사고 과정",
+        reasoningProcess: "추론 과정",
         processingMessage: "샘플 메시지 처리 중",
         sampleTimeout: "샘플 메시지가 시간 초과되었습니다. 다시 시도해주세요.",
         uploadNotAvailable: "업로드 기능을 사용할 수 없습니다",
@@ -717,9 +793,28 @@ const webUITranslations = {
         error: "Error",
         connecting: "Conectando...",
         readyForInput: "Listo para entrada",
+        responding: "RESPONDIENDO",
+        responseReceived: "Respuesta recibida",
+        readyToStart: "Listo para comenzar",
+        verifyingToken: "Verificando token",
+        operationTimedOut: "Operación agotada. IU reiniciada.",
+        languageChanged: "Idioma cambiado a",
+        webSpeechNotAvailable: "API de voz no disponible en este navegador",
         generatingResponse: "Generando respuesta del asistente...",
         operationCanceled: "Operación cancelada",
         thinking: "PENSANDO",
+        spinnerStarting: "Iniciando",
+        spinnerCallingFunctions: "Llamando funciones",
+        spinnerReceivingResponse: "Recibiendo respuesta",
+        spinnerGeneratingAIUser: "Generando respuesta de usuario IA",
+        spinnerSearchingWeb: "Buscando en la web",
+        spinnerProcessing: "Procesando",
+        spinnerProcessingRequest: "Procesando solicitud",
+        spinnerProcessingTools: "Procesando herramientas",
+        spinnerListening: "Escuchando...",
+        spinnerProcessingSpeech: "Procesando voz...",
+        thinkingProcess: "Proceso de Pensamiento",
+        reasoningProcess: "Proceso de Razonamiento",
         processingMessage: "Procesando mensaje de muestra",
         sampleTimeout: "El mensaje de muestra agotó el tiempo. Por favor intente de nuevo.",
         uploadNotAvailable: "Funcionalidad de carga no disponible",
@@ -753,6 +848,8 @@ class WebUIi18n {
   constructor() {
     this.currentLanguage = 'en';
     this.translations = webUITranslations;
+    this.initialized = false;
+    this.initPromise = null;
   }
 
   setLanguage(language) {
@@ -902,10 +999,62 @@ class WebUIi18n {
     if (rebuildBtn) rebuildBtn.setAttribute('title', this.t('ui.rebuild'));
     if (updateBtn) updateBtn.setAttribute('title', this.t('ui.update'));
   }
+  
+  // Initialize i18n with a Promise
+  init() {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+    
+    this.initPromise = new Promise((resolve) => {
+      // Initialize with saved language preference
+      const savedUILanguage = getCookie('ui-language') || 'en';
+      this.setLanguage(savedUILanguage);
+      this.initialized = true;
+      
+      // Update session button text
+      this.updateSessionButton();
+      
+      console.log('[WebUIi18n] Initialization complete');
+      resolve();
+    });
+    
+    return this.initPromise;
+  }
+  
+  // Helper method to update session button
+  updateSessionButton() {
+    if (typeof messages !== 'undefined' && messages && messages.length > 0) {
+      const continueText = this.t('ui.session.continueSession');
+      $("#start-label").text(continueText);
+    } else {
+      const startText = this.t('ui.session.startSession');
+      $("#start-label").text(startText);
+    }
+  }
+  
+  // Ensure i18n is ready before using
+  ready() {
+    if (!this.initPromise) {
+      return this.init();
+    }
+    return this.initPromise;
+  }
 }
 
 // Create global instance
 const webUIi18n = new WebUIi18n();
+
+// Create a global promise for i18n readiness
+window.i18nReady = webUIi18n.ready();
+
+// Safe translation helper that returns fallback if i18n not ready
+window.safeTranslate = function(key, fallback) {
+  if (webUIi18n && webUIi18n.initialized) {
+    return webUIi18n.t(key);
+  }
+  return fallback || key;
+};
 
 // Function to get cookie value
 function getCookie(name) {
@@ -917,14 +1066,15 @@ function getCookie(name) {
 
 // Initialize with saved language preference
 document.addEventListener('DOMContentLoaded', () => {
-  // UI language is set from Electron or saved preference
-  const savedUILanguage = getCookie('ui-language') || getCookie('interface-language') || 'en';
-  if (savedUILanguage) {
-    webUIi18n.setLanguage(savedUILanguage);
-  } else {
-    // Even for English, we need to apply translations
-    webUIi18n.updateUIText();
+  // Clean up old interface-language cookie if exists
+  if (getCookie('interface-language')) {
+    document.cookie = 'interface-language=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
   }
+  
+  // Initialize i18n system
+  webUIi18n.init().then(() => {
+    console.log('[WebUIi18n] Ready for use');
+  });
   
   // Conversation language selector only changes conversation language, NOT UI
   const conversationLanguageSelector = document.getElementById('conversation-language');

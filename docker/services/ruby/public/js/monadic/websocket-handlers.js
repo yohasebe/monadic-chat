@@ -11,7 +11,13 @@
  * @param {string} title - Optional custom title (defaults to "Thinking Process")
  * @returns {string} - HTML string for the thinking block
  */
-function renderThinkingBlock(thinkingContent, title = "Thinking Process") {
+function renderThinkingBlock(thinkingContent, title = null) {
+  // Use translated title if not provided
+  if (!title && typeof webUIi18n !== 'undefined') {
+    title = webUIi18n.t('ui.messages.thinkingProcess');
+  } else if (!title) {
+    title = "Thinking Process";
+  }
   const blockId = 'thinking-' + Math.random().toString(36).substr(2, 9);
   
   return `
@@ -379,9 +385,13 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     
     // Handle thinking content if present with unified design
     if (data.content.thinking) {
-      finalHtml = renderThinkingBlock(data.content.thinking, "Thinking Process") + html;
+      const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
+        webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
+      finalHtml = renderThinkingBlock(data.content.thinking, thinkingTitle) + html;
     } else if (data.content.reasoning_content) {
-      finalHtml = renderThinkingBlock(data.content.reasoning_content, "Reasoning Process") + html;
+      const reasoningTitle = typeof webUIi18n !== 'undefined' ? 
+        webUIi18n.t('ui.messages.reasoningProcess') : "Reasoning Process";
+      finalHtml = renderThinkingBlock(data.content.reasoning_content, reasoningTitle) + html;
     }
     
     if (data.content.role === 'assistant') {

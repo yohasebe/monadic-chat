@@ -129,6 +129,8 @@
     "failedToCheckUpdates": "检查更新失败: {{error}}",
     "removingContainers": "正在删除容器和镜像。",
     "stoppingAllProcesses": "正在停止所有进程。",
+    "systemStopped": "系统已于{{time}}停止",
+    "serverStopped": "服务器已于{{time}}停止",
     "quittingMonadicChat": "正在退出Monadic Chat...",
     "monadicChatPreparing": "Monadic Chat正在准备...",
     "monadicChatStopping": "Monadic Chat正在停止...",

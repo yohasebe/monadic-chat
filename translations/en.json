@@ -31,7 +31,19 @@
     "window": "Window",
     "minimize": "Minimize",
     "close": "Close",
-    "help": "Help"
+    "help": "Help",
+    "actions": "Actions",
+    "start": "Start",
+    "stop": "Stop",
+    "restart": "Restart",
+    "openConsole": "Open Console",
+    "openBrowser": "Open Browser",
+    "openSharedFolder": "Open Shared Folder",
+    "openConfigFolder": "Open Config Folder",
+    "openLogFolder": "Open Log Folder",
+    "documentation": "Documentation",
+    "checkForUpdates": "Check for Updates",
+    "uninstall": "Uninstall Images and Containers"
   },
   "tray": {
     "show": "Show",

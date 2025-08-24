@@ -7,6 +7,12 @@ const webUITranslations = {
       restart: "Restart",
       rebuild: "Rebuild",
       update: "Update",
+      openBrowser: "Open Browser",
+      sharedFolder: "Shared Folder",
+      quit: "Quit",
+      mode: "Mode",
+      docker: "Docker",
+      system: "System",
       send: "Send",
       clear: "Clear",
       voice: "Voice",
@@ -41,6 +47,12 @@ const webUITranslations = {
       restart: "再起動",
       rebuild: "再構築",
       update: "更新",
+      openBrowser: "ブラウザを開く",
+      sharedFolder: "共有フォルダ",
+      quit: "終了",
+      mode: "モード",
+      docker: "Docker",
+      system: "システム",
       send: "送信",
       clear: "クリア",
       voice: "音声",
@@ -252,11 +264,29 @@ class WebUIi18n {
 // Create global instance
 const webUIi18n = new WebUIi18n();
 
+// Function to get cookie value
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
+// Initialize with saved language preference
+document.addEventListener('DOMContentLoaded', () => {
+  const savedLanguage = getCookie('interface-language');
+  if (savedLanguage && savedLanguage !== 'en') {
+    webUIi18n.setLanguage(savedLanguage);
+  }
+});
+
 // Listen for interface language changes from Electron
 if (window.electronAPI) {
   window.electronAPI.onInterfaceLanguageChanged((event, data) => {
     if (data.language) {
       webUIi18n.setLanguage(data.language);
+      // Also save to cookie for external browser
+      document.cookie = `interface-language=${data.language}; path=/; max-age=31536000`;
     }
   });
 }

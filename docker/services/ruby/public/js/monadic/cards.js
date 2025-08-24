@@ -229,7 +229,8 @@ function attachEventListeners($card) {
       mids.delete(mid);
       
       // Add explicit visual feedback for the user
-      setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
+      const messageDeletedText = getTranslation('ui.messages.messageDeleted', 'Message deleted');
+      setAlert(`<i class='fas fa-circle-check'></i> ${messageDeletedText}`, "success");
       return;
     }
     
@@ -268,7 +269,8 @@ function attachEventListeners($card) {
       mids.delete(mid);
       
       // Add explicit visual feedback for the user
-      setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
+      const messageDeletedText = getTranslation('ui.messages.messageDeleted', 'Message deleted');
+      setAlert(`<i class='fas fa-circle-check'></i> ${messageDeletedText}`, "success");
     }
   });
   
@@ -398,7 +400,8 @@ function attachEventListeners($card) {
       window.responseStarted = false;
     }
     if (typeof setAlert === 'function') {
-      setAlert("<i class='fa-solid fa-circle-check'></i> Ready to start", "success");
+      const readyToStartText = getTranslation('ui.messages.readyToStart', 'Ready to start');
+      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
     }
   });
 

@@ -13,6 +13,16 @@ const DEFAULT_APP = ""; // Empty string to select first available app
 
 let currentPdfData = null;
 
+// Utility function for getting translations with fallback
+function getTranslation(key, fallback) {
+  // Check if webUIi18n is available and initialized
+  if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
+    return webUIi18n.t(key);
+  }
+  // Return fallback if translation system is not ready
+  return fallback;
+}
+
 // Function to update app icon in select dropdown
 function updateAppSelectIcon(appValue) {
   // If no appValue is provided, use current selected app
@@ -926,7 +936,8 @@ function doResetActions() {
   $("#config").show();
   $("#back-to-settings").hide();
   $("#parameter-panel").hide();
-  setAlert("<i class='fa-solid fa-circle-check'></i> Reset successful.", "success");
+  const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
+  setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
   
   // Set flags to indicate reset happened using centralized state management
   window.SessionState.setResetFlags();

@@ -371,7 +371,7 @@
             <h5><span class="text" data-i18n="ui.monadicChatStatus"><i class="fa-solid fa-square-check"></i> Monadic Chat Status</span></h5>
             <div id="alert-message" class="mt-3 mb-3 text" data-i18n="ui.notStarted">Not started</div>
             
-            <h5><span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & User</span></h5>
+            <h5><span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & AI User</span></h5>
 
             <div class="mt-3 text">
               <div class="mb-1">
@@ -653,7 +653,7 @@
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
                   <span class='text-secondary'><i class='fas fa-robot'></i></span>
-                  <span class='fw-bold assistant-color'>Assistant</span>
+                  <span class='fw-bold assistant-color' data-i18n="ui.assistant">Assistant</span>
                 </div>
                 <div class="me-1 text-secondary d-flex align-items-center">
                   <span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner"></span>
@@ -714,14 +714,14 @@
 
               <div class="d-flex align-items-center">
                 <span id="ai-assistant-info" data-model="" class="fw-bold">
-                  <span style="color: #DC4C64;">AI Assistant</span>
+                  <span style="color: #DC4C64;" data-i18n="ui.aiAssistant">AI Assistant</span>
                   &nbsp;
                   <span style="color: inherit; font-weight: normal;">OpenAI</span>
                 </span>
                 <span class="text-secondary mx-1">
                   <i class="fas fa-exchange-alt"></i>
                 </span>
-                <span class="user-color fw-bold">AI User</span>
+                <span class="user-color fw-bold" data-i18n="ui.aiUser">AI User</span>
                   &nbsp;
                 <select id="ai_user_provider" class="form-select form-select-sm me-1" style="width: auto; min-width: 120px;">
                   <option value="openai">OpenAI</option>

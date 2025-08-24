@@ -1,4 +1,17 @@
-- [August 23, 2025] Latest Updates
+- [August 24, 2025] Latest Updates
+  - **GPT-5 Streaming Duplicate Fix**: Resolved duplicate character issue during streaming
+    - Fixed duplicate characters appearing during GPT-5, GPT-4.1, and chatgpt-4o streaming
+    - Server-side: Skip redundant response.in_progress events for these models
+    - Client-side: Enhanced duplicate detection with index-based and timestamp fallback
+    - Prevents false positives with legitimate repeated characters
+    - Debug mode available: `window.debugFragments = true` in browser console
+  - **Comprehensive AI User Translation**: Fixed all UI elements for non-English languages
+    - Translated all AI User tooltips, spinners, and alert messages
+    - Fixed Claude API error: "messages: at least one message is required"
+    - Translated role selector options dynamically
+    - Unified terminology: "AI Assistant" and "AI User" across all languages
+
+- [August 23, 2025] Recent Updates
   - **Comprehensive Language Selector**: Unified language control for UI and AI
     - Moved language selector from settings panel to info panel for better visibility
     - Single selector controls STT, TTS, and AI response language

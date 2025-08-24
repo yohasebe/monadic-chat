@@ -1727,6 +1727,10 @@ module OpenAIHelper
             requested_model = query["original_user_model"] || query["model"]
             check_model_switch(response_model, requested_model, session, &block)
 
+            # Store the model for use throughout streaming
+            # This helps us determine which events to process
+            streaming_model = response_model || requested_model || body["model"]
+
             # Handle different event types for responses API
             event_type = json["type"]
             
@@ -1736,15 +1740,50 @@ module OpenAIHelper
               # Response created - just log for now
               # Response created
               
+              # Store model information from response.created event if available
+              if json["response"] && json["response"]["model"]
+                streaming_model = json["response"]["model"]
+              end
+              
             when "response.in_progress"
               # Response in progress - check for any output
-              # Note: For GPT-5, we skip this event as it duplicates response.output_text.delta
-              # Only process for models that don't emit response.output_text.delta events
+              # IMPORTANT: GPT-5, GPT-4.1, and chatgpt-4o models emit BOTH response.in_progress 
+              # AND response.output_text.delta events, causing duplicate text fragments.
+              # We skip response.in_progress for these models to prevent duplication.
+              # Other models only emit response.in_progress, so we process them normally.
               response_data = json["response"]
-              current_model = json["model"] || response_data&.dig("metadata", "model") || query["model"] || obj["model"]
               
-              # Skip for GPT-5 models as they emit proper delta events
-              if current_model && current_model.to_s.include?("gpt-5")
+              # Update streaming_model if we find it in the response
+              if response_data && response_data["model"]
+                streaming_model = response_data["model"]
+              end
+              
+              # Use the stored streaming_model or try to find it in various locations
+              current_model = streaming_model || 
+                             json["model"] || 
+                             response_data&.dig("metadata", "model") || 
+                             response_data&.dig("model") ||
+                             query["model"] || 
+                             obj["model"] ||
+                             body["model"]
+              
+              # Debug logging for GPT-5 streaming issues
+              if CONFIG["EXTRA_LOGGING"]
+                STDERR.puts "[OpenAI Streaming] response.in_progress event"
+                STDERR.puts "  current_model: #{current_model}"
+                STDERR.puts "  streaming_model: #{streaming_model}"
+                STDERR.puts "  Will skip: #{current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.downcase.include?("gpt5") || current_model.to_s.include?("gpt-4.1") || current_model.to_s.include?("chatgpt-4o"))}"
+              end
+              
+              # Skip for GPT-5 models, GPT-4.1 models, and chatgpt-4o models as they emit proper delta events
+              # Check both the model name and if it contains gpt-5, gpt5, gpt-4.1, or chatgpt-4o
+              if current_model && (current_model.to_s.downcase.include?("gpt-5") || 
+                                  current_model.to_s.downcase.include?("gpt5") || 
+                                  current_model.to_s.include?("gpt-4.1") ||
+                                  current_model.to_s.include?("chatgpt-4o"))
+                if CONFIG["EXTRA_LOGGING"]
+                  STDERR.puts "[OpenAI Streaming] Skipping response.in_progress for model: #{current_model}"
+                end
                 next
               end
               
@@ -1773,12 +1812,29 @@ module OpenAIHelper
             when "response.output_text.delta"
               # Text fragment
               fragment = json["delta"]
+              
+              # Debug logging for GPT-5 streaming issues
+              if CONFIG["EXTRA_LOGGING"]
+                current_model = streaming_model || json["model"] || query["model"] || obj["model"] || body["model"]
+                if current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.include?("gpt-4.1"))
+                  STDERR.puts "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}"
+                end
+              end
+              
               if fragment && !fragment.empty?
                 id = json["response_id"] || json["item_id"] || "default"
                 texts[id] ||= ""
-                texts[id] += fragment
                 
-                res = { "type" => "fragment", "content" => fragment }
+                # Add index for duplicate detection on client side
+                res = { 
+                  "type" => "fragment", 
+                  "content" => fragment,
+                  "index" => texts[id].length,
+                  "timestamp" => Time.now.to_f,
+                  "is_first" => texts[id].empty?
+                }
+                
+                texts[id] += fragment
                 block&.call res
               end
               

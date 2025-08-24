@@ -222,7 +222,8 @@ function startAudioCapture() {
 
     }).catch(function (err) {
       console.error("Error accessing microphone:", err);
-      setAlert("MICROPHONE ACCESS ERROR: " + err.message, "error");
+      const micErrorText = getTranslation('ui.messages.microphoneAccessError', 'MICROPHONE ACCESS ERROR');
+      setAlert(`${micErrorText}: ${err.message}`, "error");
       
       // Restore button state on error
       voiceButton.toggleClass("btn-info btn-danger");
@@ -254,10 +255,12 @@ voiceButton.on("click", function () {
     silenceDetected = false;
     voiceButton.toggleClass("btn-info btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Stop');
-    setAlert("<i class='fas fa-microphone'></i> LISTENING . . .", "info");
+    const listeningText = getTranslation('ui.messages.listeningStatus', 'LISTENING . . .');
+    setAlert(`<i class='fas fa-microphone'></i> ${listeningText}`, "info");
     $("#send, #clear").prop("disabled", true);
     $("#monadic-spinner").show();
-    $("#monadic-spinner span").html('<i class="fas fa-microphone fa-pulse"></i> Listening...');
+    const listeningSpinnerText = getTranslation('ui.messages.spinnerListening', 'Listening...');
+    $("#monadic-spinner span").html(`<i class="fas fa-microphone fa-pulse"></i> ${listeningSpinnerText}`);
     isListening = true;
 
     // For Electron environment, try to explicitly request permissions via bridge API
@@ -304,10 +307,12 @@ voiceButton.on("click", function () {
     
     voiceButton.toggleClass("btn-info btn-danger");
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
-    setAlert("<i class='fas fa-cogs'></i> PROCESSING ...", "warning");
+    const processingText = getTranslation('ui.messages.processingStatus', 'PROCESSING ...');
+    setAlert(`<i class='fas fa-cogs'></i> ${processingText}`, "warning");
     $("#send, #clear, #voice").prop("disabled", true);
     // Update spinner to show processing state
-    $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing speech...');
+    const processingSpeechText = getTranslation('ui.messages.spinnerProcessingSpeech', 'Processing speech...');
+    $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingSpeechText}`);
     // Hide amplitude display immediately when processing starts
     $("#amplitude").hide();
     // Show cancel button during STT processing
@@ -322,7 +327,8 @@ voiceButton.on("click", function () {
           // Increased threshold to 100 bytes to better detect empty recordings
           if (event.data.size <= 100) { // Increased from 44 bytes for better detection
             console.log("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
-            setAlert("NO AUDIO DETECTED: Check your microphone settings", "error");
+            const noAudioText = getTranslation('ui.messages.noAudioDetected', 'NO AUDIO DETECTED: Check your microphone settings');
+            setAlert(noAudioText, "error");
             // Restore original placeholder
             const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
             $("#message").attr("placeholder", origPlaceholder);
@@ -341,7 +347,8 @@ voiceButton.on("click", function () {
             // Double-check the base64 length to ensure we have actual content
             if (!base64 || base64.length < 100) {
               console.log("Base64 audio data too small. Canceling STT processing.");
-              setAlert("AUDIO PROCESSING FAILED", "error");
+              const audioFailedText = getTranslation('ui.messages.audioProcessingFailed', 'AUDIO PROCESSING FAILED');
+              setAlert(audioFailedText, "error");
               // Restore original placeholder
               const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
               $("#message").attr("placeholder", origPlaceholder);
@@ -419,7 +426,8 @@ voiceButton.on("click", function () {
     $("#message").attr("placeholder", originalPlaceholder);
     
     voiceButton.toggleClass("btn-info btn-danger");
-    setAlert("SILENCE DETECTED: Check your microphone settings", "error");
+    const silenceText = getTranslation('ui.messages.silenceDetected', 'SILENCE DETECTED: Check your microphone settings');
+    setAlert(silenceText, "error");
     voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
     $("#send, #clear").prop("disabled", false);
     isListening = false;

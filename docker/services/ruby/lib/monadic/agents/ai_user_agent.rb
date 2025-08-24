@@ -89,8 +89,12 @@ module AIUserAgent
     
     # Add system message - use either the specialized format for Anthropic or standard format for others
     if provider == "anthropic"
-      # For Anthropic, we don't add the system message to messages array
-      # It's handled via the separate system option
+      # For Anthropic, we need at least one user message
+      # Add a simple prompt to trigger the AI user response
+      focused_messages << { 
+        "role" => "user", 
+        "content" => "Based on the conversation context provided in the system message, what would be the most natural next response from the user?" 
+      }
     else
       # For other providers, add as a system message
       focused_messages << { "role" => "system", "content" => system_message }

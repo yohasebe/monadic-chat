@@ -110,7 +110,8 @@ $("#uploadImage").on("click", function () {
         return;
       }
       if (!isPdfEnabled) {
-        setAlert("PDF files can only be uploaded when using a model that supports PDF input", "error");
+        const pdfRestrictionMsg = getTranslation('ui.messages.pdfModelRestriction', 'PDF files can only be uploaded when using a model that supports PDF input');
+        setAlert(pdfRestrictionMsg, "error");
         $("#imageModal").modal("hide");
         return;
       }
@@ -152,7 +153,8 @@ $("#uploadImage").on("click", function () {
     } catch (error) {
       $("#imageModal button").prop("disabled", false);
       $("#imageModal").modal("hide");
-      setAlert(`Error uploading file: ${error}`, "error");
+      const errorUploadingText = getTranslation('ui.messages.errorUploadingFile', 'Error uploading file');
+      setAlert(`${errorUploadingText}: ${error}`, "error");
       return;
     }
   }
@@ -345,7 +347,8 @@ function updateFileDisplay(files) {
     updateFileDisplay(images);
     
     // Show success alert
-    setAlert(`<i class='fa-solid fa-circle-check'></i> Mask removed`, "success");
+    const maskRemovedText = getTranslation('ui.messages.maskRemoved', 'Mask removed');
+    setAlert(`<i class='fa-solid fa-circle-check'></i> ${maskRemovedText}`, "success");
   });
   
   // Add event listeners for mask creation
@@ -357,7 +360,8 @@ function updateFileDisplay(files) {
     const isMaskEditingEnabled = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp) : false;
     
     if (!isMaskEditingEnabled) {
-      setAlert("Mask editing is not available in this app", "error");
+      const maskNotAvailableText = getTranslation('ui.messages.maskEditingNotAvailable', 'Mask editing is not available in this app');
+      setAlert(maskNotAvailableText, "error");
       return;
     }
     
@@ -365,7 +369,8 @@ function updateFileDisplay(files) {
       window.openMaskEditor(images[index]);
     } else {
       console.error("Mask editor not loaded");
-      setAlert("Mask editor not available", "error");
+      const maskEditorNotAvailableText = getTranslation('ui.messages.maskEditorNotAvailable', 'Mask editor not available');
+      setAlert(maskEditorNotAvailableText, "error");
     }
   });
 }
@@ -433,7 +438,8 @@ function imageToBase64(blob, callback) {
           // In case of error, update display with current images to prevent UI lockup
           updateFileDisplay(images);
           // Show an error message to the user
-          setAlert(`<i class="fas fa-exclamation-circle"></i> Error processing image: ${error.message}`, "error");
+          const errorProcessingText = getTranslation('ui.messages.errorProcessingImage', 'Error processing image');
+          setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
           $("#imageModal").modal("hide");
           callback(null);
@@ -445,7 +451,8 @@ function imageToBase64(blob, callback) {
         // In case of error, update display with current images to prevent UI lockup
         updateFileDisplay(images);
         // Show an error message to the user
-        setAlert(`<i class="fas fa-exclamation-circle"></i> Error loading image`, "error");
+        const errorLoadingText = getTranslation('ui.messages.errorLoadingImage', 'Error loading image');
+        setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
         $("#imageModal").modal("hide");
         callback(null);
@@ -457,7 +464,8 @@ function imageToBase64(blob, callback) {
     reader.onerror = function(error) {
       console.error('Error reading file:', error);
       // Show an error message to the user
-      setAlert(`<i class="fas fa-exclamation-circle"></i> Error reading file`, "error");
+      const errorReadingText = getTranslation('ui.messages.errorReadingFile', 'Error reading file');
+      setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
       $("#imageModal").modal("hide");
       callback(null);
@@ -513,7 +521,8 @@ function imageToBase64(blob, callback) {
           // In case of error, update display with current images to prevent UI lockup
           updateFileDisplay(images);
           // Show an error message to the user
-          setAlert(`<i class="fas fa-exclamation-circle"></i> Error processing image: ${error.message}`, "error");
+          const errorProcessingText = getTranslation('ui.messages.errorProcessingImage', 'Error processing image');
+          setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
           $("#imageModal").modal("hide");
           reject(error);
@@ -525,7 +534,8 @@ function imageToBase64(blob, callback) {
         // In case of error, update display with current images to prevent UI lockup
         updateFileDisplay(images);
         // Show an error message to the user
-        setAlert(`<i class="fas fa-exclamation-circle"></i> Error loading image`, "error");
+        const errorLoadingText = getTranslation('ui.messages.errorLoadingImage', 'Error loading image');
+        setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
         $("#imageModal").modal("hide");
         reject(error);
@@ -537,7 +547,8 @@ function imageToBase64(blob, callback) {
     reader.onerror = function(error) {
       console.error('Error reading file:', error);
       // Show an error message to the user
-      setAlert(`<i class="fas fa-exclamation-circle"></i> Error reading file`, "error");
+      const errorReadingText = getTranslation('ui.messages.errorReadingFile', 'Error reading file');
+      setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
       $("#imageModal").modal("hide");
       reject(error);

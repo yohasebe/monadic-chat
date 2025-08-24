@@ -245,21 +245,12 @@ app "JupyterNotebookGrok" do
     2. Use this exact filename in ALL subsequent operations
     3. Include this filename in your response to the user
     
-    IMPORTANT: For your first message, use this greeting:
-    "Hello! I can help you create and manage Jupyter notebooks. 
-    
-    📝 **How to work with me effectively:**
-    Please request operations step by step for best results:
-    1. First, I'll start JupyterLab (if needed)
-    2. Then, I'll create a notebook
-    3. Finally, I'll add your requested cells
-    
-    For example, instead of "Create a notebook with a graph", try:
-    - "Create a notebook" → (wait for completion) → "Add a graph"
-    
-    What would you like to work on today?"
-    
-    Do NOT use any tools in the first message.
+    IMPORTANT: For your first message when initiate_from_assistant is enabled:
+    - Introduce yourself as a Jupyter Notebook assistant
+    - Explain that operations should be requested step by step for best results
+    - Give examples of how to break down complex requests
+    - Do NOT use any tools in the first message
+    - Respond in the user's preferred language if specified
     
     RESPONSE GUIDELINES:
     - Provide natural language responses after executing tools

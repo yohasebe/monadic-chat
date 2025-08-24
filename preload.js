@@ -109,4 +109,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   zoomOut: () => ipcRenderer.send('zoom-out'),
   // Listen for reset display command
   onResetDisplay: (callback) => ipcRenderer.on('reset-display-to-initial', callback),
+  
+  // Listen for interface language change
+  onInterfaceLanguageChanged: (callback) => ipcRenderer.on('interface-language-changed', callback),
 });

@@ -1392,6 +1392,12 @@ function initializeApp() {
     contextMenu = Menu.buildFromTemplate(menuItems);
 
     updateStatus();
+    
+    // Update menus with the loaded language preference after a short delay
+    setTimeout(() => {
+      updateTrayMenu();
+      updateApplicationMenu();
+    }, 100);
 
     ipcMain.on('command', async (_event, command) => {
       try {

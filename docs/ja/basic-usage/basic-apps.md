@@ -554,9 +554,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 - OpenAI
 - Anthropic Claude
 - Google Gemini
-- xAI Grok（段階的実行が必要）
-
-!> **注意:** Cohereは逐次ツール実行の制限（レスポンスあたり最大2ツール）によりJupyter Notebookをサポートしていません
+- xAI Grok
 
 ### Monadic Chat Help
 

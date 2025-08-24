@@ -115,7 +115,34 @@ app "CodeInterpreterPerplexity" do
   end
 
   tools do
-    require_relative "./code_interpreter_tools"
-    include CodeInterpreterTools
+    define_tool "run_code", "Execute Python code and return the output" do
+      parameter :code, "string", "The Python code to execute", required: true
+      parameter :command, "string", "The command to run (e.g., 'python')", required: true
+      parameter :extension, "string", "The file extension (e.g., 'py')", required: true
+    end
+    
+    define_tool "run_bash_command", "Execute a bash command" do
+      parameter :command, "string", "The bash command to execute", required: true
+    end
+    
+    define_tool "install_python_libraries", "Install Python libraries using pip" do
+      parameter :libraries, "string", "Space-separated list of libraries to install", required: true
+    end
+    
+    define_tool "fetch_web_content", "Fetch content from a URL" do
+      parameter :url, "string", "The URL to fetch content from", required: true
+    end
+    
+    define_tool "fetch_text_from_file", "Read text content from a file" do
+      parameter :file, "string", "The filename to read", required: true
+    end
+    
+    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
+      parameter :pdf, "string", "The filename of the PDF to read", required: true
+    end
+    
+    define_tool "fetch_text_from_office", "Extract text content from Office files" do
+      parameter :file, "string", "The filename of the Office file to read", required: true
+    end
   end
 end

@@ -5,6 +5,30 @@
 
 ## August 2025 Updates
 
+### Session 10 - 2025-08-24
+
+#### Provider Spinner Display Issues Fixed
+- **Problem Identified**: Spinner disappearing prematurely before response arrives
+  - Affected providers: DeepSeek, Perplexity, and Ollama
+  - Root cause: `is_first` flag in fragment messages triggering premature UI updates
+  - Secondary issue: Redundant initial "THINKING" spinner messages
+- **Solution Implemented**:
+  - Removed `is_first` flag from fragment messages in affected providers
+  - Commented out server-side "THINKING" spinner messages
+  - Preserved "CALLING FUNCTIONS" messages for tool execution feedback
+- **Technical Details**:
+  - Client-side websocket handler at line 92 was clearing content on `is_first === true`
+  - All providers use similar fragment streaming pattern but handle spinners differently
+  - Fix ensures consistent spinner visibility throughout request lifecycle
+
+#### Cohere Jupyter Notebook Investigation
+- **Discovery**: Cohere limited to 2 sequential tool calls per response
+  - Documentation claimed full multi-tool support but testing revealed limitations
+  - Cannot execute the 3+ tool sequence required for Jupyter operations
+  - Attempted workarounds (step-by-step prompting, Grok-style approach) unsuccessful
+- **Decision**: Jupyter Notebook not implemented for Cohere provider
+- **Documentation**: Updated provider compatibility matrix to reflect actual capabilities
+
 ### Session 9 - 2025-08-23
 
 #### Universal Language Injection for All Providers

@@ -639,9 +639,10 @@ module PerplexityHelper
 
     # Request body is ready
     
-    # Send initial spinner message
-    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
-    block&.call res
+    # Don't send initial spinner - let the client handle it
+    # The spinner will be shown automatically when the request starts
+    # res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
+    # block&.call res
     
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"

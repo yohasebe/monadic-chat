@@ -307,9 +307,10 @@ module OllamaHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Send initial spinner/waiting message
-    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
-    block&.call res
+    # Don't send initial spinner - let the client handle it
+    # The spinner will be shown automatically when the request starts
+    # res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
+    # block&.call res
 
     success = false
     MAX_RETRIES.times do

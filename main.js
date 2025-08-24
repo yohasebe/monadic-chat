@@ -6,6 +6,8 @@ process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
+const extendedContextMenu = require('electron-context-menu');
+const i18n = require('./i18n');
 
 // Splash window for updates
 let updateSplashWindow = null;
@@ -87,7 +89,6 @@ if (process.platform === 'darwin') {
 }
 
 const { exec, execSync, spawn } = require('child_process');
-const extendedContextMenu = require('electron-context-menu');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -1225,7 +1226,7 @@ const menuItems = [
   },
   { type: 'separator' },
   {
-    label: 'Quit',
+    label: i18n.t('tray.quit'),
     click: () => {
       openMainWindow();
       quitApp(mainWindow);
@@ -1667,17 +1668,17 @@ function updateApplicationMenu() {
   // Create standard menu
   const menu = Menu.buildFromTemplate([
     {
-      label: 'File',
+      label: i18n.t('menu.file'),
       submenu: [
         {
-          label: 'About Monadic Chat',
+          label: i18n.t('menu.about'),
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'About Monadic Chat',
-              message: `Monadic Chat\nVersion: ${app.getVersion()}`,
-              detail: 'Grounding AI Chatbots with Full Linux Environment on Docker\n\n© 2025 Yoichiro Hasebe',
-              buttons: ['OK'],
+              title: i18n.t('menu.about'),
+              message: i18n.t('menu.aboutMessage', { version: app.getVersion() }),
+              detail: i18n.t('menu.aboutDetail'),
+              buttons: [i18n.t('dialogs.ok')],
               icon: path.join(iconDir, 'app-icon.png')
             });
           }
@@ -1702,14 +1703,14 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Open Console',
+          label: i18n.t('menu.window'),
           accelerator: 'Cmd+N',
           click: () => {
             openMainWindow();
           }
         },
         {
-          label: 'Minimize',
+          label: i18n.t('menu.minimize'),
           accelerator: 'Cmd+M',
           click: () => {
             if (mainWindow) {
@@ -1718,7 +1719,7 @@ function updateApplicationMenu() {
           }
         },
         {
-          label: 'Close Window',
+          label: i18n.t('menu.close'),
           accelerator: 'Cmd+W',
           click: () => {
             if (mainWindow) {
@@ -1730,7 +1731,7 @@ function updateApplicationMenu() {
           type: 'separator'
         },
         {
-          label: 'Quit Monadic Chat',
+          label: i18n.t('menu.quit'),
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
             quitApp(mainWindow);
@@ -1939,7 +1940,7 @@ function updateApplicationMenu() {
         },
         { type: 'separator' },
         {
-          label: 'Settings',
+          label: i18n.t('menu.settings'),
           click: () => {
             openSettingsWindow();
           }
@@ -1983,6 +1984,71 @@ function updateApplicationMenu() {
   ]);
 
   Menu.setApplicationMenu(menu);
+}
+
+// Update tray menu with localized labels
+function updateTrayMenu() {
+  if (!tray) return;
+  
+  const statusMenuItem = {
+    label: currentStatus || 'Stopped',
+    enabled: false
+  };
+  
+  const serverModeItem = {
+    label: dockerManager.serverMode ? `Network: ${dockerManager.serverUrl}` : 'Standalone Mode',
+    enabled: false
+  };
+  
+  const menuItems = [
+    statusMenuItem,
+    serverModeItem,
+    { type: 'separator' },
+    {
+      label: i18n.t('menu.startDockerContainers'),
+      click: () => {
+        openMainWindow();
+        dockerManager.checkRequirements()
+          .then(() => {
+            dockerManager.runCommand('start', '[HTML]: <p>Monadic Chat preparing . . .</p>', 'Starting', 'Running');
+          })
+          .catch((error) => {
+            console.log(`Docker requirements check failed: ${error}`);
+            dialog.showErrorBox(i18n.t('dialogs.error'), error);
+          });
+      }
+    },
+    {
+      label: i18n.t('menu.stopDockerContainers'),
+      click: () => {
+        openMainWindow();
+        dockerManager.runCommand('stop', '[HTML]: <p>Stopping the Docker services . . .</p>', 'Stopping', 'Stopped');
+      }
+    },
+    { type: 'separator' },
+    {
+      label: i18n.t('tray.show'),
+      click: () => {
+        openMainWindow();
+      }
+    },
+    {
+      label: i18n.t('menu.settings'),
+      click: () => {
+        openSettingsWindow();
+      }
+    },
+    { type: 'separator' },
+    {
+      label: i18n.t('tray.quit'),
+      click: () => {
+        quitApp(mainWindow);
+      }
+    }
+  ];
+  
+  const contextMenu = Menu.buildFromTemplate(menuItems);
+  tray.setContextMenu(contextMenu);
 }
 
 // Send a message to the renderer process to write to the screen
@@ -2095,6 +2161,16 @@ function createMainWindow() {
     
     mainWindow.webContents.send('update-status-indicator', currentStatus);
     mainWindow.webContents.send('update-version', app.getVersion());
+    
+    // Send interface language to Web UI
+    const envPath = getEnvPath();
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      const interfaceLanguage = envConfig.INTERFACE_LANGUAGE || 'en';
+      mainWindow.webContents.send('interface-language-changed', { 
+        language: interfaceLanguage 
+      });
+    }
     
     // Set the distributed mode cookie based on actual settings (not just when changing settings)
     const isServerMode = dockerManager.isServerMode();
@@ -2764,7 +2840,23 @@ ipcMain.on('request-settings', (event) => {
 
 // Handle settings save from settings window
 ipcMain.on('save-settings', (_event, data) => {
+  // Check if interface language has changed
+  const envPath = getEnvPath();
+  const oldConfig = envPath ? readEnvFile(envPath) : {};
+  const languageChanged = data.INTERFACE_LANGUAGE && data.INTERFACE_LANGUAGE !== oldConfig.INTERFACE_LANGUAGE;
+  
   saveSettings(data);
+  
+  // Apply interface language change
+  if (data.INTERFACE_LANGUAGE) {
+    i18n.setLanguage(data.INTERFACE_LANGUAGE);
+    updateApplicationMenu();
+    // Also update tray menu if it exists
+    if (tray) {
+      updateTrayMenu();
+    }
+  }
+  
   // Apply browser mode immediately without restart
   if (data.BROWSER_MODE) {
     browserMode = data.BROWSER_MODE;
@@ -2772,10 +2864,26 @@ ipcMain.on('save-settings', (_event, data) => {
       mainWindow.webContents.send('update-browser-mode', { mode: browserMode });
     }
   }
+  
+  // If language changed, also update the web UI
+  if (languageChanged && mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('interface-language-changed', { 
+      language: data.INTERFACE_LANGUAGE 
+    });
+  }
 });
 
 // This is the main entry point for app initialization
 app.whenReady().then(() => {
+  // Initialize i18n with saved language preference
+  const envPath = getEnvPath();
+  if (envPath) {
+    const envConfig = readEnvFile(envPath);
+    if (envConfig.INTERFACE_LANGUAGE) {
+      i18n.setLanguage(envConfig.INTERFACE_LANGUAGE);
+    }
+  }
+  
   // Setup update-related error handlers first
   process.on('uncaughtException', (error) => {
     console.error('Uncaught exception during update process:', error);

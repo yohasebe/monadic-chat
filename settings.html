@@ -263,6 +263,15 @@
         <div class="settings-category category-display">
           <h2><i class="fas fa-palette"></i> Display & UI</h2>
           
+          <label for="interface-language">Interface Language</label>
+          <select id="interface-language" name="interface-language">
+            <option value="en">English</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="zh">中文 (Chinese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="es">Español (Spanish)</option>
+          </select>
+          
           <label for="rouge-theme">Syntax Highlighting Theme</label>
           <select id="rouge-theme" name="rouge-theme">
             <option disabled>──Dark Themes──</option>
@@ -376,7 +385,8 @@
           BROWSER_MODE: document.getElementById('browser-mode').value,
           DISTRIBUTED_MODE: distributedMode,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
-          MCP_SERVER_PORT: document.getElementById('mcp-server-port').value
+          MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
+          INTERFACE_LANGUAGE: document.getElementById('interface-language').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -461,6 +471,7 @@
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
+        document.getElementById('interface-language').value = data.INTERFACE_LANGUAGE || 'en';
         
         // Handle distributed mode settings - ensure default value is set
         const distributedMode = data.DISTRIBUTED_MODE || 'off';

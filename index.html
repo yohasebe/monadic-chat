@@ -222,12 +222,12 @@
     <pre id="output"></pre>
   </div>
   <div class="button-group">
-    <button id="start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
-    <button id="stop" disabled><i class="fa-solid fa-stop"></i> Stop</button>
-    <button id="restart" disabled><i class="fa-solid fa-rotate-right"></i> Restart</button>
+    <button id="start" data-i18n="ui.start"><i class="fa-solid fa-play"></i> <span>Start</span></button>
+    <button id="stop" disabled data-i18n="ui.stop"><i class="fa-solid fa-stop"></i> <span>Stop</span></button>
+    <button id="restart" disabled data-i18n="ui.restart"><i class="fa-solid fa-rotate-right"></i> <span>Restart</span></button>
     <button id="browser" disabled><i class="fa-solid fa-window-maximize"></i> Open Browser</button>
     <button id="sharedfolder" ><i class="fas fa-folder-open"></i> Shared Folder</button>
-    <button id="settings" ><i class="fa-solid fa-sliders"></i> Settings</button>
+    <button id="settings" data-i18n="ui.settings"><i class="fa-solid fa-sliders"></i> <span>Settings</span></button>
     <button id="exit"><i class="fa-solid fa-xmark"></i> Quit</button>
   </div>
   <script>
@@ -285,6 +285,7 @@
       setInitialHeights(currentRatio);
     });
   </script>
+    <script src="http://localhost:4567/js/i18n/translations.js"></script>
     <script src="mainScreen.js"></script>
 </body>
 </html>

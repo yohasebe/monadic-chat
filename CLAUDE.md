@@ -164,7 +164,7 @@
 
 ### Provider Enhancements
 - **Math Tutor**: Extended support to Claude, Gemini, and Grok (previously OpenAI-only)
-- **Jupyter Notebook**: Added support for Gemini and Grok with provider-specific optimizations
+- **Jupyter Notebook**: Added support for Claude, Gemini, and Grok with provider-specific optimizations
 - **Voice Pipeline**: Fixed STT test reliability issues
 
 ### Key Discoveries
@@ -172,7 +172,7 @@
 - **OpenAI Exception**: Only OpenAI successfully combines monadic mode (JSON responses) with tool execution
 - **Gemini 2.5**: Trade-off between function calling and structured output - cannot have both
 - **Grok**: Cannot use monadic mode with tool execution simultaneously  
-- **Cohere**: Limited to single tool calls - unsuitable for complex workflows
+- **Cohere**: Multi-tool support exists but limited to 2 sequential tool calls per response (incompatible with Jupyter Notebook workflow)
 
 ## Testing & Documentation
 - Test suite expanded to 1269 passing tests
@@ -188,7 +188,7 @@
   - Tends to wrap JSON responses in markdown code blocks when forced
 - **Grok**: Jupyter Notebook filename display requires post-processing
 - **Gemini**: Must choose between function calling OR structured output
-- **Cohere**: Cannot chain multiple tool calls
+- **Cohere**: Maximum 2 sequential tool calls per response (prevents Jupyter Notebook implementation)
 
 ### System-Wide
 - MathJax in headers requires special handling
@@ -237,14 +237,18 @@ Claude's monadic mode fails with tool execution due to fundamental architecture 
 ## Lessons Learned
 
 ### Provider Compatibility Matrix
-| Feature | OpenAI | Claude | Gemini | Grok |
-|---------|--------|--------|--------|------|
-| Monadic Mode | ✅ | ✅* | ✅* | ✅* |
-| Tool Execution | ✅ | ✅ | ✅ | ✅ |
-| Monadic + Tools | ✅ | ❌ | ❌ | ❌ |
-| Batch Processing | ✅ | ✅ | ✅ | ⚠️ |
+| Feature | OpenAI | Claude | Gemini | Grok | Cohere |
+|---------|--------|--------|--------|------|--------|
+| Monadic Mode | ✅ | ✅* | ✅* | ✅* | ✅* |
+| Tool Execution | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Monadic + Tools | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Batch Processing | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Parallel Tools | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Sequential Tools (3+) | ✅ | ✅ | ✅ | ✅ | ❌** |
+| Jupyter Notebook | ✅ | ✅ | ✅ | ✅ | ❌ |
 
 *Works for non-tool apps only
+**Limited to 2 sequential tool calls per response
 
 ### Best Practices Established
 1. **Don't force uniformity** - Let each provider use its strengths

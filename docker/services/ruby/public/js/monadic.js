@@ -40,7 +40,24 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   
   // No longer disable AI User button initially - we'll show an error message if conversation hasn't started
-  $("#ai_user").attr("title", "Generate AI user response based on conversation");
+  // Set title with translation when available
+  if (window.i18nReady) {
+    window.i18nReady.then(() => {
+      const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
+      $("#ai_user").attr("title", aiUserTitle);
+      
+      // Update role selector options with translations
+      const roleOptions = $("#select-role option");
+      if (roleOptions.length > 0) {
+        $(roleOptions[0]).text(webUIi18n.t('ui.roleOptions.user') || 'User');
+        $(roleOptions[1]).text(webUIi18n.t('ui.roleOptions.sampleUser') || 'User (to add to past messages)');
+        $(roleOptions[2]).text(webUIi18n.t('ui.roleOptions.sampleAssistant') || 'Assistant (to add to past messages)');
+        $(roleOptions[3]).text(webUIi18n.t('ui.roleOptions.sampleSystem') || 'System (to provide additional direction)');
+      }
+    });
+  } else {
+    $("#ai_user").attr("title", "Generate AI user response based on conversation");
+  }
   // Ensure cancel button is hidden on page load using setTimeout for more reliability
   setTimeout(function() {
     document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
@@ -374,7 +391,8 @@ $(function () {
       
       // Provide better user feedback
       const providerName = $("#ai_user_provider option:selected").text();
-      const alertMessage = `<i class='fas fa-spinner fa-spin'></i> Analyzing conversation`;
+      const analyzingText = getTranslation('ui.messages.analyzingConversation', 'Analyzing conversation');
+      const alertMessage = `<i class='fas fa-spinner fa-spin'></i> ${analyzingText}`;
       setAlert(alertMessage, "warning");
       
       // Disable UI elements manually here to ensure they're disabled even if websocket events fail
@@ -390,7 +408,9 @@ $(function () {
       
       // Show the spinner with robot icon animation
       $("#monadic-spinner").css("display", "block");
-      $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response');
+      const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ? 
+        webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
+      $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
       
       // Show a tooltip explaining the process
       $("#alert-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
@@ -761,7 +781,16 @@ $(function () {
     $("#ai-user-toggle").prop("disabled", false);
     
     // Always enable AI User button (error message will be shown if conversation not started)
-    $("#ai_user").prop("disabled", false).attr("title", "Generate AI user response based on conversation");
+    $("#ai_user").prop("disabled", false);
+    // Set title with translation when available
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
+        $("#ai_user").attr("title", aiUserTitle);
+      });
+    } else {
+      $("#ai_user").attr("title", "Generate AI user response based on conversation");
+    }
 
     if (messages.length > 0) {
       if (appValue === lastApp) {

@@ -545,7 +545,8 @@ function ttsSpeak(text, stream, callback) {
   if (typeof ws === 'undefined' || !ws || ws.readyState !== WebSocket.OPEN) {
     console.error("WebSocket is not connected");
     if (typeof setAlert === 'function') {
-      setAlert('<i class="fas fa-exclamation-triangle"></i> WebSocket connection error', 'error');
+      const wsErrorText = getTranslation('ui.messages.webSocketConnectionError', 'WebSocket connection error');
+      setAlert(`<i class="fas fa-exclamation-triangle"></i> ${wsErrorText}`, 'error');
     }
     return false;
   }
@@ -600,7 +601,8 @@ function ttsSpeak(text, stream, callback) {
             // If it doesn't, show an alert
             if (err.name === 'NotAllowedError') {
               if (typeof setAlert === 'function') {
-                setAlert('<i class="fas fa-volume-up"></i> Click anywhere to enable audio', 'info');
+                const clickAudioText = getTranslation('ui.messages.clickToEnableAudio', 'Click anywhere to enable audio');
+                setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
               }
             }
           });

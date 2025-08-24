@@ -217,6 +217,17 @@ window.handleFragmentMessage = function(fragment) {
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
     
+    // Debug logging for GPT-5 duplicate issue
+    if (window.debugFragments) {
+      console.log('[Fragment Debug]', {
+        content: text,
+        index: fragment.index,
+        timestamp: fragment.timestamp || Date.now(),
+        is_first: fragment.is_first,
+        lastIndex: window._lastProcessedIndex
+      });
+    }
+    
     // Skip empty fragments
     if (!text) return;
     
@@ -251,16 +262,47 @@ window.handleFragmentMessage = function(fragment) {
     
     // Check for duplicate fragments by index
     if (fragment.index !== undefined) {
-      if (window._lastProcessedIndex >= fragment.index) {
+      if (window._lastProcessedIndex !== undefined && window._lastProcessedIndex >= fragment.index) {
         // Skip duplicate or out-of-order fragments
+        if (window.debugFragments) {
+          console.log('[Fragment Debug] Skipping duplicate - index:', fragment.index, 'lastIndex:', window._lastProcessedIndex);
+        }
         return;
       }
       window._lastProcessedIndex = fragment.index;
+    } else {
+      // If no index is provided, use timestamp-based duplicate detection
+      // This is a fallback for providers that don't send index
+      const now = Date.now();
+      const fragmentKey = `${text}_${fragment.timestamp || now}`;
+      
+      // Check if we've seen this exact fragment (content + timestamp) recently
+      if (window._recentFragments && window._recentFragments[fragmentKey]) {
+        if (window.debugFragments) {
+          console.log('[Fragment Debug] Skipping duplicate fragment - content:', text);
+        }
+        return;
+      }
+      
+      // Store this fragment temporarily
+      window._recentFragments = window._recentFragments || {};
+      window._recentFragments[fragmentKey] = now;
+      
+      // Clean up old entries after 1 second
+      setTimeout(() => {
+        delete window._recentFragments[fragmentKey];
+      }, 1000);
     }
     
     // Add to streaming text display
     const tempText = $("#temp-card .card-text");
     if (tempText.length) {
+      // Debug: Log current text content before adding
+      if (window.debugFragments) {
+        console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
+        console.log('[Fragment Debug] Adding fragment:', text);
+      }
+      
       // Use DocumentFragment for efficient DOM manipulation while preserving newlines
       const docFrag = document.createDocumentFragment();
       const lines = text.split('\n');
@@ -278,6 +320,11 @@ window.handleFragmentMessage = function(fragment) {
       
       // Append all at once for better performance
       tempText[0].appendChild(docFrag);
+      
+      // Debug: Log after append
+      if (window.debugFragments) {
+        console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
+      }
     }
     
     // If this is a final fragment, clean up
@@ -705,7 +752,8 @@ function initializeMediaSourceForAudio() {
                     });
                   };
                   document.addEventListener('click', enableAudio);
-                  setAlert('<i class="fas fa-volume-up"></i> Click anywhere to enable audio', 'info');
+                  const clickAudioText = getTranslation('ui.messages.clickToEnableAudio', 'Click anywhere to enable audio');
+          setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
                 }
               });
             }
@@ -999,7 +1047,8 @@ function processAudio(audioData) {
           // Debug log removed
           // User interaction might be required
           if (err.name === 'NotAllowedError') {
-            setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+            const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
+            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
           }
         });
       }
@@ -1288,7 +1337,8 @@ function processIOSAudioBuffer() {
         
         // Show indicator if user interaction is required
         if (err.name === 'NotAllowedError') {
-          setAlert('<i class="fas fa-volume-up"></i> Tap to enable iOS audio', 'info');
+          const tapAudioText = getTranslation('ui.messages.tapToEnableIOSAudio', 'Tap to enable iOS audio');
+          setAlert(`<i class="fas fa-volume-up"></i> ${tapAudioText}`, 'info');
         }
       });
       
@@ -1743,7 +1793,8 @@ function connect_websocket(callback) {
                   
                   // User interaction might be required, show indicator
                   if (err.name === 'NotAllowedError') {
-                    setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                    const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
+            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
                   }
                 });
               }
@@ -1773,15 +1824,17 @@ function connect_websocket(callback) {
         
         // Customize spinner message based on wait content
         if (data["content"].includes("CALLING FUNCTIONS")) {
-          const callingFunctionsText = typeof webUIi18n !== 'undefined' ? 
-            webUIi18n.t('ui.messages.spinnerCallingFunctions') : 'Calling functions';
+          const callingFunctionsText = getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions');
           $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${callingFunctionsText}`);
         } else if (data["content"].includes("SEARCHING WEB")) {
-          $("#monadic-spinner span").html('<i class="fas fa-search fa-pulse"></i> Searching web');
+          const searchingWebText = getTranslation('ui.messages.spinnerSearchingWeb', 'Searching web');
+          $("#monadic-spinner span").html(`<i class="fas fa-search fa-pulse"></i> ${searchingWebText}`);
         } else if (data["content"].includes("PROCESSING")) {
-          $("#monadic-spinner span").html('<i class="fas fa-spinner fa-pulse"></i> Processing');
+          const processingText = getTranslation('ui.messages.spinnerProcessing', 'Processing');
+          $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
         } else {
-          $("#monadic-spinner span").html('<i class="fas fa-brain fa-pulse"></i> Processing request');
+          const processingRequestText = getTranslation('ui.messages.spinnerProcessingRequest', 'Processing request');
+          $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}`);
         }
         break;
       }
@@ -1871,7 +1924,8 @@ function connect_websocket(callback) {
                   playPromise.catch(err => {
                     // Debug log removed
                     if (err.name === 'NotAllowedError') {
-                      setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
+            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
                     }
                   });
                 }
@@ -1962,7 +2016,8 @@ function connect_websocket(callback) {
                   playPromise.catch(err => {
                     // Debug log removed
                     if (err.name === 'NotAllowedError') {
-                      setAlert('<i class="fas fa-volume-up"></i> Click to enable audio', 'info');
+                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
+            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
                     }
                   });
                 }
@@ -2229,7 +2284,8 @@ function connect_websocket(callback) {
         $("#openai-tts").prop("disabled", true);
         $("#openai-tts-hd").prop("disabled", true);
 
-        setAlert("<i class='fa-solid fa-bolt'></i> Cannot connect to OpenAI API", "warning");
+        const cannotConnectText = getTranslation('ui.messages.cannotConnectToAPI', 'Cannot connect to OpenAI API');
+        setAlert(`<i class='fa-solid fa-bolt'></i> ${cannotConnectText}`, "warning");
         break;
       }
       case "token_not_verified": {
@@ -2246,7 +2302,8 @@ function connect_websocket(callback) {
         $("#openai-tts").prop("disabled", true);
         $("#openai-tts-hd").prop("disabled", true);
 
-        setAlert("<i class='fa-solid fa-bolt'></i> Valid OpenAI token not set", "warning");
+        const tokenNotSetText = getTranslation('ui.messages.validTokenNotSet', 'Valid OpenAI token not set');
+        setAlert(`<i class='fa-solid fa-bolt'></i> ${tokenNotSetText}`, "warning");
         break;
       }
       case "apps": {
@@ -2501,7 +2558,8 @@ function connect_websocket(callback) {
       }
       case "parameters": {
         loadedApp = data["content"]["app_name"];
-        setAlert("<i class='fa-solid fa-hourglass-half'></i> Please wait", "warning");
+        const pleaseWaitText = getTranslation('ui.messages.pleaseWait', 'Please wait');
+        setAlert(`<i class='fa-solid fa-hourglass-half'></i> ${pleaseWaitText}`, "warning");
         loadParams(data["content"], "loadParams");
         
         // All providers now support AI User functionality
@@ -2692,7 +2750,8 @@ function connect_websocket(callback) {
           if ($("#check-easy-submit").is(":checked")) {
             $("#send").click();
           }
-          setAlert("<i class='fa-solid fa-circle-check'></i> Voice recognition finished", "secondary");
+          const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${voiceFinishedText}`, "secondary");
           setInputFocus()
         }
         break;
@@ -2913,7 +2972,8 @@ function connect_websocket(callback) {
             // Keep spinner visible for tool calls
             callingFunction = true;
             $("#monadic-spinner").show();
-            $("#monadic-spinner span").html('<i class="fas fa-cogs fa-pulse"></i> Processing tools');
+            const processingToolsText = getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools');
+            $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
           } else {
             // No tool calls, ensure callingFunction is false
             callingFunction = false;
@@ -2927,14 +2987,17 @@ function connect_websocket(callback) {
         break;
       }
       case "ai_user_started": {
-        setAlert("<i class='fas fa-spinner fa-spin'></i> Generating AI user response...", "warning");
+        const generatingText = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
+        setAlert(`<i class='fas fa-spinner fa-spin'></i> ${generatingText}`, "warning");
         
         // Show the cancel button
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
         
         // Show spinner and update its message with robot animation
         $("#monadic-spinner").css("display", "block");
-        $("#monadic-spinner span").html('<i class="fas fa-robot fa-pulse"></i> Generating AI user response');
+        const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ? 
+          webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
+        $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
         
         // Disable the input elements
         $("#message").prop("disabled", true);
@@ -2985,7 +3048,8 @@ function connect_websocket(callback) {
         $("#select-role").prop("disabled", false);
 
         // Update alert message to success state
-        setAlert("<i class='fa-solid fa-circle-check'></i> AI user response generated", "success");
+        const generatedText = getTranslation('ui.messages.aiUserResponseGenerated', 'AI user response generated');
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${generatedText}`, "success");
 
         // Ensure the panel is visible
         if (!isElementInViewport(mainPanel)) {
@@ -3462,7 +3526,8 @@ function connect_websocket(callback) {
           // Show success alert
           const roleText = data.role === "user" ? "User" : 
                           data.role === "assistant" ? "Assistant" : "System";
-          setAlert(`<i class='fas fa-check-circle'></i> Sample ${roleText} message added`, "success");
+          const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
+          setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");
         }
         break;
       }
@@ -3566,7 +3631,8 @@ function connect_websocket(callback) {
           updateAIUserButtonState(messages);
           
           // Show canceled message
-          setAlert("<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> Operation canceled", "warning");
+          const operationCanceledText = getTranslation('ui.messages.operationCanceled', 'Operation canceled');
+          setAlert(`<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> ${operationCanceledText}`, "warning");
           
           setInputFocus();
         }
@@ -3647,10 +3713,12 @@ function connect_websocket(callback) {
       const port = window.location.port || "4567";
       
       // Show helpful error message
-      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> Connection to ${host}:${port} failed`, "danger");
+      const connectionFailedText = getTranslation('ui.messages.connectionFailed', 'Connection failed');
+      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${connectionFailedText} - ${host}:${port}`, "danger");
     } else {
       // Generic error for localhost
-      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> Connection failed`, "danger");
+      const connectionFailedText = getTranslation('ui.messages.connectionFailed', 'Connection failed');
+      setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${connectionFailedText}`, "danger");
     }
     
     ws.close();
@@ -3674,7 +3742,8 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (ws._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    setAlert("<i class='fa-solid fa-server'></i> Connection failed - please refresh page", "danger");
+    const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
+    setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
     
     // Properly clean up any pending timers
     if (reconnectionTimer) {
@@ -3705,7 +3774,8 @@ function reconnect_websocket(ws, callback) {
         
         // After maximum attempts, just show final error and don't reconnect
         if (ws._reconnectAttempts >= maxReconnectAttempts) {
-          setAlert("<i class='fa-solid fa-server'></i> Connection failed - please refresh page", "danger");
+          const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
+    setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
           return; // Exit without creating new connection
         }
         
@@ -3989,12 +4059,29 @@ function updateAIUserButtonState(messages) {
   if (hasConversation) {
     // Enable AI User button and update its appearance
     aiUserBtn.prop("disabled", false);
-    aiUserBtn.attr("title", "Generate AI user response based on conversation");
+    // Set AI user button title with translation
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        const aiUserTitle = webUIi18n.t('ui.generateAIUserResponse') || "Generate AI user response based on conversation";
+        aiUserBtn.attr("title", aiUserTitle);
+      });
+    } else {
+      aiUserBtn.attr("title", "Generate AI user response based on conversation");
+    }
     aiUserBtn.removeClass("disabled");
     
     // Add special tooltip for Perplexity
     if (isPerplexity) {
-      aiUserBtn.attr("title", "Generate AI user response (Perplexity requires alternating user/assistant messages)");
+      // Special case for Perplexity
+      if (window.i18nReady) {
+        window.i18nReady.then(() => {
+          const perplexityTitle = webUIi18n.t('ui.generateAIUserResponsePerplexity') || 
+            "Generate AI user response (Perplexity requires alternating user/assistant messages)";
+          aiUserBtn.attr("title", perplexityTitle);
+        });
+      } else {
+        aiUserBtn.attr("title", "Generate AI user response (Perplexity requires alternating user/assistant messages)");
+      }
     }
   } else {
     // Disable AI User button when there's no sufficient conversation

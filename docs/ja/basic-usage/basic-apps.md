@@ -39,7 +39,7 @@
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Jupyter Notebook | ✅ | ✅ | | ✅ | | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## アシスタント :id=assistant
@@ -549,10 +549,14 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 !> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
 
-下記の言語モデルでJupyter Notebookアプリが利用可能です。
+下記のプロバイダーでJupyter Notebookアプリが利用可能です。
 
 - OpenAI
 - Anthropic Claude
+- Google Gemini
+- xAI Grok（段階的実行が必要）
+
+!> **注意:** Cohereは逐次ツール実行の制限（レスポンスあたり最大2ツール）によりJupyter Notebookをサポートしていません
 
 ### Monadic Chat Help
 

@@ -246,6 +246,44 @@ Providers handle the combination of monadic mode (structured JSON responses) and
 - Provide examples of how to break down complex requests
 - Set proper user expectations about step-by-step execution
 
+## Spinner Management and Streaming Response Handling
+
+### Provider Spinner Consistency Issues
+Some providers had issues with spinner disappearing prematurely during streaming responses:
+
+#### Affected Providers
+- **DeepSeek**: Sent initial "THINKING" spinner and `is_first` flag in fragments
+- **Perplexity**: Same pattern as DeepSeek
+- **Ollama**: Same pattern as DeepSeek
+
+#### Root Causes
+1. **Redundant spinner messages**: Server sending "THINKING" message when client already shows spinner
+2. **Fragment `is_first` flag**: Triggered premature UI updates clearing spinner display
+3. **Client-side handling**: websocket-handlers.js line 92 clears content on `is_first === true`
+
+#### Solution Applied
+- Removed `is_first` flag from fragment messages in affected providers
+- Commented out initial "THINKING" spinner messages
+- Preserved "CALLING FUNCTIONS" messages as they provide useful user feedback
+
+### Best Practices for Provider Implementations
+- Let client handle initial spinner display automatically
+- Only send "wait" messages for meaningful state changes (e.g., "CALLING FUNCTIONS")
+- Avoid sending `is_first` flag in fragments to prevent UI state conflicts
+- Ensure spinner remains visible throughout entire request lifecycle
+
+## Cohere Provider Limitations
+
+### Tool Execution Constraints
+- **Maximum sequential tools**: 2 per response
+- **Jupyter Notebook**: Cannot be implemented due to 3+ tool requirement
+- **Documentation mismatch**: API docs claim full multi-tool support but testing reveals limitations
+
+### Attempted Workarounds (Unsuccessful)
+- Step-by-step prompting (Grok-style)
+- Breaking operations into smaller chunks
+- Various system prompt modifications
+
 ## Language Support Implementation
 
 ### Universal Language Injection

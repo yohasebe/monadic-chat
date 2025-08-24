@@ -301,6 +301,22 @@ SQL,sequel
    - Initial container download takes time
    - Watch progress in console
 
+### Q: Why does the loading spinner disappear too early? :id=spinner-disappearing
+
+**A**: This was a known issue with some providers (DeepSeek, Perplexity, Ollama) that has been fixed. If you still experience this:
+
+1. **Update to Latest Version**
+   - Pull the latest code
+   - Restart the server
+   
+2. **Clear Browser Cache**
+   - Hard refresh (Ctrl+F5 or Cmd+Shift+R)
+   - Clear site data if needed
+
+3. **Check Provider Status**
+   - Some providers may have temporary issues
+   - Try switching providers to test
+
 ### Q: What if containers fail to build? :id=container-build-failure
 
 **A**: Troubleshooting steps:

@@ -39,7 +39,7 @@ The table below shows which apps are available for which AI model providers.
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | | | | | | |
+| Jupyter Notebook | ✅ | ✅ | | ✅ | | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
@@ -575,10 +575,14 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
-Jupyter Notebook apps are also available for the following models:
+Jupyter Notebook apps are available for the following providers:
 
 - OpenAI
 - Anthropic Claude
+- Google Gemini
+- xAI Grok (requires step-by-step execution)
+
+!> **Note:** Cohere is not supported for Jupyter Notebook due to limitations with sequential tool execution (maximum 2 tools per response)
 
 ### Monadic Chat Help
 

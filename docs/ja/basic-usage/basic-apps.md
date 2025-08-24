@@ -519,6 +519,8 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 - Google Gemini
 - xAI Grok
 
+?> **注意:** Perplexityはツールコーリング（関数呼び出し）をサポートしていないため、Code Interpreterアプリは利用できません。Perplexityではコードの提案のみが可能で、実行はできません。
+
 ### Coding Assistant
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')

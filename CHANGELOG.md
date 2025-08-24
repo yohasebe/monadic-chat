@@ -5,11 +5,16 @@
     - Client-side: Enhanced duplicate detection with index-based and timestamp fallback
     - Prevents false positives with legitimate repeated characters
     - Debug mode available: `window.debugFragments = true` in browser console
+    - Added 9 comprehensive test cases for streaming scenarios
   - **Comprehensive AI User Translation**: Fixed all UI elements for non-English languages
     - Translated all AI User tooltips, spinners, and alert messages
     - Fixed Claude API error: "messages: at least one message is required"
     - Translated role selector options dynamically
     - Unified terminology: "AI Assistant" and "AI User" across all languages
+  - **Provider Capability Clarifications**: Updated provider compatibility matrix
+    - Removed Code Interpreter app for Perplexity (no tool calling support)
+    - Confirmed Perplexity cannot execute code, only provide suggestions
+    - Updated documentation to reflect accurate provider capabilities
 
 - [August 23, 2025] Recent Updates
   - **Comprehensive Language Selector**: Unified language control for UI and AI

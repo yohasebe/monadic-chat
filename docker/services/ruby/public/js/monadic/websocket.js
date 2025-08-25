@@ -1817,7 +1817,14 @@ function connect_websocket(callback) {
       
       case "wait": {
         callingFunction = true;
-        setAlert(data["content"], "warning");
+        
+        // Check if content is a translation key
+        let waitContent = data["content"];
+        if (waitContent === 'generating_ai_user_response') {
+          waitContent = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
+        }
+        
+        setAlert(waitContent, "warning");
         
         // Show the spinner and update its message based on the content
         $("#monadic-spinner").show();
@@ -2169,27 +2176,35 @@ function connect_websocket(callback) {
       }
 
       case "error": {
+        // Check if content is a translation key
+        let errorContent = data.content;
+        if (errorContent === 'ai_user_requires_conversation') {
+          errorContent = getTranslation('ui.messages.aiUserRequiresConversation', 'AI User requires an existing conversation. Please start a conversation first.');
+        }
+        
         // Check if error during AI User generation (message starts with AI User error)
-        const isAIUserError = data.content && data.content.toString().includes("AI User error");
+        const isAIUserError = errorContent && errorContent.toString().includes("AI User error");
         
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleErrorMessage === 'function') {
-          handled = wsHandlers.handleErrorMessage(data);
+          // Pass the translated content to the handler
+          const translatedData = { ...data, content: errorContent };
+          handled = wsHandlers.handleErrorMessage(translatedData);
         } else {
           // Fallback to inline handling
           $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
           $("#message").show();
           $("#message").prop("disabled", false);
           $("#monadic-spinner").hide();
-          setAlert(data.content, 'error');
+          setAlert(errorContent, 'error');
           handled = true;
         }
         
         // Additional UI operations specific to our application context
         if (handled) {
           $("#select-role").prop("disabled", false);
-          $("#alert-message").html("Input a message.");
+          $("#alert-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           
           // Reset UI panels and indicators
           $("#temp-card").hide();
@@ -3616,7 +3631,7 @@ function connect_websocket(callback) {
           $("#ai_user").prop("disabled", false);
           $("#select-role").prop("disabled", false);
           
-          $("#alert-message").html("Input a message.");
+          $("#alert-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           
           // Hide loading indicators

@@ -92,6 +92,9 @@
       "settings.html",
       "update-progress.html",
       "update-splash.html",
+      "i18n.js",
+      "webUITranslations.js",
+      "translations/**/*",
       "icons/**/*"
     ],
     "afterSign": "notarize.js",

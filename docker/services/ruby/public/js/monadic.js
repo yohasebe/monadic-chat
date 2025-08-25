@@ -1383,7 +1383,9 @@ $(function () {
     callingFunction = false;
 
     // Reset AI user state if active
-    $("#message").attr("placeholder", "Type your message . . .");
+    const placeholderText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+      webUIi18n.t('ui.messagePlaceholder') : "Type your message . . .";
+    $("#message").attr("placeholder", placeholderText);
     $("#message").prop("disabled", false);
     $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
     $("#ai_user_provider").prop("disabled", false);
@@ -2088,13 +2090,12 @@ $(function () {
     $("#voice-input-row").hide();
     $("#auto-speech").hide();
     $("#auto-speech-form").hide();
-    // Set message placeholder to standard text
-    $("#message").attr("placeholder", "Type your message . . .");
+    // Set message placeholder to standard text - simplified without voice
+    // Will be properly translated when i18n initializes
   } else {
     // Show voice input row
     $("#voice-input-row").show();
-    // Set message placeholder to include voice input instructions
-    $("#message").attr("placeholder", "Type your message or click Speech Input button to use voice . . .");
+    // Set message placeholder will be handled by i18n initialization
   }
 
   $("#select-role").on("change", function () {

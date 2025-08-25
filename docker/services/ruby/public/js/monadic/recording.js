@@ -247,7 +247,8 @@ voiceButton.on("click", function () {
     // Store it as a data attribute on the message element
     $("#message").data("original-placeholder", originalPlaceholder);
     // Set new placeholder for recording state
-    $("#message").attr("placeholder", "Listening to your voice input...");
+    const listeningPlaceholder = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.listeningPlaceholder') : "Listening to your voice input...";
+    $("#message").attr("placeholder", listeningPlaceholder);
     
     $("#asr-p-value").text("").hide();
     // Show amplitude chart when voice recording starts

@@ -733,7 +733,7 @@ module WebSocketHelper
           if session[:messages].nil? || session[:messages].size < 2
             @channel.push({ 
               "type" => "error", 
-              "content" => "AI User requires an existing conversation. Please start a conversation first." 
+              "content" => "ai_user_requires_conversation"
             }.to_json)
             next
           end
@@ -744,7 +744,7 @@ module WebSocketHelper
           params = obj["contents"]["params"]
           
           # UI feedback
-          @channel.push({ "type" => "wait", "content" => "Generating AI user response..." }.to_json)
+          @channel.push({ "type" => "wait", "content" => "generating_ai_user_response" }.to_json)
           @channel.push({ "type" => "ai_user_started" }.to_json)
           
           # Process the request

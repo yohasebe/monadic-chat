@@ -112,6 +112,7 @@ const webUITranslations = {
         sampleSystem: "System (to provide additional direction)"
       },
       messagePlaceholder: "Type your message or click Speech Input button to use voice . . .",
+      listeningPlaceholder: "Listening to your voice input...",
       pressToSend: "Press Send button to send your message.",
       resetDescription: "Press \"reset\" to clear conversation while keeping the current app selection.",
       imagePdf: "Image/PDF",
@@ -172,7 +173,9 @@ const webUITranslations = {
         disconnected: "Disconnected",
         connectionLost: "Connection lost",
         reconnecting: "Reconnecting...",
-        noAppsAvailable: "No apps available - check API keys in settings"
+        noAppsAvailable: "No apps available - check API keys in settings",
+        inputMessage: "Input a message.",
+        aiUserRequiresConversation: "AI User requires an existing conversation. Please start a conversation first."
       },
       session: {
         startSession: "Start Session",
@@ -292,6 +295,7 @@ const webUITranslations = {
         sampleSystem: "システム（追加の指示を提供）"
       },
       messagePlaceholder: "メッセージを入力するか、音声入力ボタンをクリックして音声を使用してください...",
+      listeningPlaceholder: "音声入力を聞いています...",
       pressToSend: "送信ボタンを押してメッセージを送信してください。",
       resetDescription: "「リセット」を押すと、現在のアプリ選択を維持したまま会話をクリアします。",
       imagePdf: "画像/PDF",
@@ -352,7 +356,9 @@ const webUITranslations = {
         disconnected: "切断",
         connectionLost: "接続が失われました",
         reconnecting: "再接続中...",
-        noAppsAvailable: "利用可能なアプリがありません - 設定でAPIキーを確認してください"
+        noAppsAvailable: "利用可能なアプリがありません - 設定でAPIキーを確認してください",
+        inputMessage: "メッセージを入力してください。",
+        aiUserRequiresConversation: "AIユーザーには既存の会話が必要です。まず会話を開始してください。"
       },
       session: {
         startSession: "セッションを開始",
@@ -403,6 +409,7 @@ const webUITranslations = {
         sampleSystem: "系统（提供额外指示）"
       },
       messagePlaceholder: "输入消息或点击语音输入按钮使用语音...",
+      listeningPlaceholder: "正在听您的语音输入...",
       pressToSend: "按发送按钮发送消息。",
       resetDescription: "按\"重置\"清除对话，同时保持当前的应用程序选择。",
       imagePdf: "图像/PDF",
@@ -558,7 +565,9 @@ const webUITranslations = {
         disconnected: "已断开",
         connectionLost: "连接丢失",
         reconnecting: "重新连接中...",
-        noAppsAvailable: "没有可用的应用 - 请在设置中检查API密钥"
+        noAppsAvailable: "没有可用的应用 - 请在设置中检查API密钥",
+        inputMessage: "输入消息。",
+        aiUserRequiresConversation: "AI用户需要现有对话。请先开始对话。"
       },
       session: {
         startSession: "开始会话",
@@ -609,6 +618,7 @@ const webUITranslations = {
         sampleSystem: "시스템 (추가 지시 제공)"
       },
       messagePlaceholder: "메시지를 입력하거나 음성 입력 버튼을 클릭하여 음성을 사용하세요...",
+      listeningPlaceholder: "음성 입력을 듣고 있습니다...",
       pressToSend: "전송 버튼을 눌러 메시지를 보냅니다.",
       resetDescription: "\"재설정\"을 누르면 현재 앱 선택을 유지하면서 대화를 지웁니다.",
       imagePdf: "이미지/PDF",
@@ -735,7 +745,9 @@ const webUITranslations = {
         disconnected: "연결 끊김",
         connectionLost: "연결이 끊겼습니다",
         reconnecting: "다시 연결 중...",
-        noAppsAvailable: "사용 가능한 앱이 없습니다 - 설정에서 API 키를 확인하세요"
+        noAppsAvailable: "사용 가능한 앱이 없습니다 - 설정에서 API 키를 확인하세요",
+        inputMessage: "메시지를 입력하세요.",
+        aiUserRequiresConversation: "AI 사용자는 기존 대화가 필요합니다. 먼저 대화를 시작하세요."
       },
       session: {
         startSession: "세션 시작",
@@ -786,6 +798,7 @@ const webUITranslations = {
         sampleSystem: "Sistema (para proporcionar dirección adicional)"
       },
       messagePlaceholder: "Ingrese un mensaje o haga clic en el botón de entrada de voz para usar voz...",
+      listeningPlaceholder: "Escuchando su entrada de voz...",
       pressToSend: "Presione el botón Enviar para enviar el mensaje.",
       resetDescription: "Presione \"Reiniciar\" para limpiar la conversación mientras mantiene la selección actual de la aplicación.",
       imagePdf: "Imagen/PDF",
@@ -912,7 +925,9 @@ const webUITranslations = {
         disconnected: "Desconectado",
         connectionLost: "Conexión perdida",
         reconnecting: "Reconectando...",
-        noAppsAvailable: "No hay aplicaciones disponibles - verifique las claves API en configuración"
+        noAppsAvailable: "No hay aplicaciones disponibles - verifique las claves API en configuración",
+        inputMessage: "Ingrese un mensaje.",
+        aiUserRequiresConversation: "El usuario de IA requiere una conversación existente. Por favor, inicie una conversación primero."
       },
       session: {
         startSession: "Iniciar Sesión",
@@ -963,6 +978,7 @@ const webUITranslations = {
         sampleSystem: "Système (pour fournir des directives supplémentaires)"
       },
       messagePlaceholder: "Tapez votre message ou cliquez sur le bouton d'entrée vocale pour utiliser la voix...",
+      listeningPlaceholder: "Écoute de votre entrée vocale...",
       pressToSend: "Appuyez sur le bouton Envoyer pour envoyer votre message.",
       resetDescription: "Appuyez sur \"Réinitialiser\" pour effacer la conversation tout en conservant la sélection actuelle de l'application.",
       imagePdf: "Image/PDF",
@@ -1089,7 +1105,9 @@ const webUITranslations = {
         disconnected: "Déconnecté",
         connectionLost: "Connexion perdue",
         reconnecting: "Reconnexion...",
-        noAppsAvailable: "Aucune application disponible - vérifiez les clés API dans les paramètres"
+        noAppsAvailable: "Aucune application disponible - vérifiez les clés API dans les paramètres",
+        inputMessage: "Entrez un message.",
+        aiUserRequiresConversation: "L'utilisateur IA nécessite une conversation existante. Veuillez d'abord commencer une conversation."
       },
       session: {
         startSession: "Démarrer Session",
@@ -1140,6 +1158,7 @@ const webUITranslations = {
         sampleSystem: "System (zusätzliche Anweisungen bereitstellen)"
       },
       messagePlaceholder: "Geben Sie Ihre Nachricht ein oder klicken Sie auf die Spracheingabetaste...",
+      listeningPlaceholder: "Höre Ihre Spracheingabe...",
       pressToSend: "Drücken Sie die Senden-Taste, um Ihre Nachricht zu senden.",
       resetDescription: "Drücken Sie \"Zurücksetzen\", um die Konversation zu löschen und dabei die aktuelle App-Auswahl beizubehalten.",
       imagePdf: "Bild/PDF",
@@ -1266,7 +1285,9 @@ const webUITranslations = {
         disconnected: "Getrennt",
         connectionLost: "Verbindung verloren",
         reconnecting: "Verbindung wird wiederhergestellt...",
-        noAppsAvailable: "Keine Apps verfügbar - überprüfen Sie die API-Schlüssel in den Einstellungen"
+        noAppsAvailable: "Keine Apps verfügbar - überprüfen Sie die API-Schlüssel in den Einstellungen",
+        inputMessage: "Nachricht eingeben.",
+        aiUserRequiresConversation: "KI-Benutzer benötigt eine bestehende Konversation. Bitte starten Sie zuerst eine Konversation."
       },
       session: {
         startSession: "Sitzung Starten",

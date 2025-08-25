@@ -39,7 +39,6 @@
 | `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `grok-2-latest` | `grok-beta` |
 | `AI_USER_MODEL` | AI生成ユーザーメッセージ用のモデル | `gpt-4o-mini` | `gpt-4o` |
-| `WEBSEARCH_MODEL` | ウェブ検索クエリ用のモデル | `gpt-4o-mini` | `gpt-4o` |
 
 ## システム設定
 
@@ -128,7 +127,6 @@ ROUGE_THEME=github
 ```bash
 # ウェブ検索と音声
 TAVILY_API_KEY=tvly-...
-WEBSEARCH_MODEL=gpt-4o-mini
 STT_MODEL=whisper-1
 
 # PDF処理

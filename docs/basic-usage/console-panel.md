@@ -169,9 +169,6 @@ Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" 
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 
-**WEBSEARCH_MODEL** <br />
-Select the model used for web search when using OpenAI reasoning models (o1, o3, etc.) that don't have native web search capabilities. Available options are `gpt-4.1` and `gpt-4.1-mini`. The default is `gpt-4.1-mini`.
-
 **AI_USER_MAX_TOKENS** <br />
 Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.
 

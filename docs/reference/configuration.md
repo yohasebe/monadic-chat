@@ -39,7 +39,6 @@ This page provides a comprehensive reference for all configuration options in Mo
 | `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Default model for Grok apps | `grok-2-latest` | `grok-beta` |
 | `AI_USER_MODEL` | Model for AI-generated user messages | `gpt-4o-mini` | `gpt-4o` |
-| `WEBSEARCH_MODEL` | Model for web search queries | `gpt-4o-mini` | `gpt-4o` |
 
 ## System Settings
 
@@ -128,7 +127,6 @@ ROUGE_THEME=github
 ```bash
 # Web Search and Voice
 TAVILY_API_KEY=tvly-...
-WEBSEARCH_MODEL=gpt-4o-mini
 STT_MODEL=whisper-1
 
 # PDF Processing

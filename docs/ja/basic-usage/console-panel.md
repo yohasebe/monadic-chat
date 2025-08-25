@@ -168,21 +168,18 @@ ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声�
 **TAVILY_API_KEY** <br />
 Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
 
-![Settings Panel](../assets/images/settings-model.png ':size=600')
-
-**WEBSEARCH_MODEL** <br />
-Web検索機能を持たないOpenAIの推論モデル（o1、o3など）を使用する際に、Web検索に使用するモデルを選択します。利用可能なオプションは`gpt-4.1`と`gpt-4.1-mini`です。デフォルトは`gpt-4.1-mini`です。
+![設定パネル](../assets/images/settings-model.png ':size=600')
 
 **AI_USER_MAX_TOKENS** <br />
 AIユーザーの最大トークン数を選択します。この設定は、単一リクエストで使用できるトークンの数を制限するために使用されます。デフォルトは`2000`です。
 
-![Settings Panel](../assets/images/settings-display.png ':size=600')
+![設定パネル](../assets/images/settings-display.png ':size=600')
 
 **Syntax Highlighting Theme** <br />
 
 コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`pastie`です。
 
-![Settings Panel](../assets/images/settings-voice.png ':size=600')
+![設定パネル](../assets/images/settings-voice.png ':size=600')
 
 **STT_MODEL** <br />
 Speech-to-Textに使用するモデルを選択します。`gpt-4o-transcribe`、`gpt-4o-mini-transcribe`、および`whisper-1`が利用可能です。デフォルトは`gpt-4o-transcribe`です。
@@ -190,7 +187,7 @@ Speech-to-Textに使用するモデルを選択します。`gpt-4o-transcribe`�
 **TTS Dictionary File Path** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
 
-![Settings Panel](../assets/images/settings-system.png ':size=600')
+![設定パネル](../assets/images/settings-system.png ':size=600')
 
 **Application Mode** <br />
 Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。

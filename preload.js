@@ -97,6 +97,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
   
+  // Change UI language immediately
+  changeUILanguage: (language) => ipcRenderer.send('change-ui-language', language),
+  
   // Restart application after settings change
   restartApp: () => ipcRenderer.send('restart-app'),
   
@@ -113,6 +116,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for reset display command
   onResetDisplay: (callback) => ipcRenderer.on('reset-display-to-initial', callback),
   
-  // Listen for interface language change
-  onInterfaceLanguageChanged: (callback) => ipcRenderer.on('interface-language-changed', callback),
+  // Listen for UI language change
+  onUILanguageChanged: (callback) => ipcRenderer.on('ui-language-changed', callback),
 });

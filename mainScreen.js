@@ -801,15 +801,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Web UI translations if available
   if (window.webUIi18n) {
     // Try to get saved language from cookie first
-    const cookieMatch = document.cookie.match(/interface-language=([^;]+)/);
+    const cookieMatch = document.cookie.match(/ui-language=([^;]+)/);
     if (cookieMatch && cookieMatch[1]) {
+      console.log('[MainScreen] Setting language from cookie:', cookieMatch[1]);
       window.webUIi18n.setLanguage(cookieMatch[1]);
+    } else {
+      // Set default language to English
+      console.log('[MainScreen] No cookie found, setting default language to English');
+      window.webUIi18n.setLanguage('en');
     }
   }
   
-  // Listen for interface language changes
-  window.electronAPI.onInterfaceLanguageChanged((_event, data) => {
+  // Listen for UI language changes
+  window.electronAPI.onUILanguageChanged((_event, data) => {
     if (data.language) {
+      // Save to cookie for persistence
+      document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
+      
       // Update i18n instance
       if (window.i18n) {
         window.i18n.setLanguage(data.language);

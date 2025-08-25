@@ -9,7 +9,7 @@ class I18n {
   }
 
   loadTranslations() {
-    const languages = ['en', 'ja', 'zh', 'ko', 'es'];
+    const languages = ['en', 'ja', 'zh', 'ko', 'es', 'fr', 'de'];
     
     languages.forEach(lang => {
       try {

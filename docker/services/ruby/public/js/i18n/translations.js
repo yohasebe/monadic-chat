@@ -919,6 +919,360 @@ const webUITranslations = {
         continueSession: "Continuar Sesión"
       }
     }
+  },
+  fr: {
+    ui: {
+      start: "Démarrer",
+      stop: "Arrêter",
+      restart: "Redémarrer",
+      rebuild: "Reconstruire",
+      update: "Mettre à jour",
+      openBrowser: "Navigateur",
+      sharedFolder: "Partagé",
+      quit: "Quitter",
+      send: "Envoyer",
+      clear: "Effacer",
+      voice: "Voix",
+      settings: "Paramètres",
+      run: "Exécuter",
+      version: "Version",
+      conversationLanguage: "Langue de Conversation",
+      voiceChatControls: "Contrôles d'Interaction du Chat Vocal",
+      voiceChatOperationControl: "Contrôle d'Opération du Chat Vocal",
+      statistics: "Statistiques",
+      clickToToggle: "Cliquer pour basculer",
+      tokensInSystemPrompts: "Jetons dans tous les prompts système",
+      tokensInUserMessages: "Jetons dans tous les messages utilisateur",
+      tokensInAssistantMessages: "Jetons dans tous les messages assistant",
+      tokensInActiveMessages: "Jetons dans tous les messages actifs",
+      tokensInAllMessages: "Jetons dans tous les messages",
+      numberOfAllMessages: "Nombre total de messages",
+      numberOfActiveMessages: "Nombre de messages actifs",
+      dialog: "Dialogue",
+      user: "Utilisateur",
+      assistant: "Assistant",
+      aiAssistant: "Assistant IA",
+      aiUser: "Utilisateur IA",
+      generateAIUserResponse: "Générer une réponse d'utilisateur IA basée sur la conversation",
+      generateAIUserResponsePerplexity: "Générer une réponse d'utilisateur IA (Perplexity nécessite des messages alternés utilisateur/assistant)",
+      role: "Rôle",
+      roleOptions: {
+        user: "Utilisateur",
+        sampleUser: "Utilisateur (pour ajouter aux messages passés)",
+        sampleAssistant: "Assistant (pour ajouter aux messages passés)",
+        sampleSystem: "Système (pour fournir des directives supplémentaires)"
+      },
+      messagePlaceholder: "Tapez votre message ou cliquez sur le bouton d'entrée vocale pour utiliser la voix...",
+      pressToSend: "Appuyez sur le bouton Envoyer pour envoyer votre message.",
+      resetDescription: "Appuyez sur \"Réinitialiser\" pour effacer la conversation tout en conservant la sélection actuelle de l'application.",
+      imagePdf: "Image/PDF",
+      maxContextSize: "Taille maximale du contexte",
+      maxOutputTokens: "Jetons de sortie maximum",
+      model: "Modèle",
+      reasoningEffort: "Effort de raisonnement",
+      pdfToDb: "PDF → BD",
+      temperature: "Température",
+      presencePenalty: "Pénalité de présence",
+      frequencyPenalty: "Pénalité de fréquence",
+      showInitialPromptAssistant: "Afficher le prompt initial de l'assistant",
+      promptCaching: "Cache de prompts",
+      webSearch: "Recherche web",
+      showInitialPromptAIUser: "Afficher le prompt initial de l'utilisateur IA",
+      startFromAssistant: "Commencer par l'assistant",
+      mathRendering: "Rendu mathématique",
+      autoSpeech: "Voix automatique",
+      easySubmit: "Soumission facile",
+      easySubmitHint: "(avec la touche Entrée ou le bouton Stop)",
+      autoScroll: "Défilement automatique pendant le streaming",
+      webSpeechVoice: "Voix Web Speech API",
+      ttsSpeed: "Vitesse TTS",
+      baseApp: "Application de base",
+      systemSettings: "Paramètres système",
+      speech: "Voix",
+      sessionLabel: "Session",
+      pdfDatabase: "Base de données PDF",
+      monadicChatInfo: "Informations Monadic Chat",
+      monadicChatStatus: "État Monadic Chat",
+      aiAssistantAndUser: "Assistant IA & Utilisateur IA",
+      github: "GitHub",
+      version: "Version",
+      currentBaseApp: "Application Actuelle",
+      selectApp: "Sélectionner App",
+      searchApps: "Rechercher apps...",
+      availableApps: "Apps Disponibles",
+      notStarted: "Non démarré",
+      notSelected: "Non sélectionné",
+      notConfigured: "Non configuré",
+      noDataAvailable: "Aucune donnée",
+      reset: "Réinitialiser",
+      import: "Importer",
+      export: "Exporter",
+      homepage: "Page d'accueil",
+      cancelQuery: "Annuler la requête",
+      toggleMenu: "Basculer le menu",
+      status: "État",
+      mode: "Mode",
+      standalone: "Autonome",
+      server: "Serveur",
+      network: "Réseau",
+      textToSpeechProvider: "Fournisseur de synthèse vocale",
+      speechToTextProvider: "Fournisseur de reconnaissance vocale",
+      elevenLabsVoice: "Voix Elevenlabs",
+      openAIVoice: "Voix OpenAI",
+      geminiVoice: "Voix Gemini",
+      voiceSettings: "Paramètres vocaux",
+      appSettings: "Paramètres de l'application",
+      conversationControl: "Contrôle de conversation",
+      image: "Image",
+      fromFile: "Depuis un fichier",
+      fromURL: "Depuis une URL",
+      speechInput: "Entrée vocale",
+      importFile: "Importer un fichier",
+      attachImage: "Joindre un fichier image au message",
+      importFromDoc: "Importer du texte depuis un document",
+      importFromWeb: "Importer du texte depuis une URL web",
+      startStopVoice: "Démarrer/arrêter l'enregistrement vocal",
+      appCategories: {
+        general: "Général",
+        specialized: "Spécialisé",
+        tools: "Outils"
+      },
+      messages: {
+        starting: "Démarrage des conteneurs Docker...",
+        stopping: "Arrêt des conteneurs Docker...",
+        restarting: "Redémarrage des conteneurs Docker...",
+        rebuilding: "Reconstruction des conteneurs Docker...",
+        updating: "Mise à jour des conteneurs Docker...",
+        ready: "Prêt",
+        error: "Erreur",
+        connecting: "Connexion...",
+        readyForInput: "Prêt pour l'entrée",
+        responding: "RÉPONSE EN COURS",
+        responseReceived: "Réponse reçue",
+        readyToStart: "Prêt à démarrer",
+        verifyingToken: "Vérification du jeton",
+        operationTimedOut: "Opération expirée. IU réinitialisée.",
+        languageChanged: "Langue changée en",
+        webSpeechNotAvailable: "API vocale non disponible dans ce navigateur",
+        generatingAIUserResponse: "Génération de la réponse de l'utilisateur IA...",
+        aiUserResponseGenerated: "Réponse de l'utilisateur IA générée",
+        generatingResponse: "Génération de la réponse de l'assistant...",
+        operationCanceled: "Opération annulée",
+        thinking: "RÉFLEXION",
+        spinnerStarting: "Démarrage",
+        spinnerCallingFunctions: "Appel de fonctions",
+        spinnerReceivingResponse: "Réception de la réponse",
+        spinnerGeneratingAIUser: "Génération de la réponse utilisateur IA",
+        spinnerSearchingWeb: "Recherche sur le web",
+        spinnerProcessing: "Traitement",
+        spinnerProcessingRequest: "Traitement de la requête",
+        spinnerProcessingTools: "Traitement des outils",
+        spinnerListening: "Écoute...",
+        spinnerProcessingSpeech: "Traitement de la voix...",
+        thinkingProcess: "Processus de Réflexion",
+        reasoningProcess: "Processus de Raisonnement",
+        processingMessage: "Traitement du message d'exemple",
+        sampleTimeout: "Message d'exemple expiré. Veuillez réessayer.",
+        uploadNotAvailable: "Fonctionnalité de téléchargement non disponible",
+        uploadSuccess: "téléchargé avec succès",
+        uploadError: "Erreur lors du téléchargement du fichier",
+        convertError: "Erreur lors de la conversion du document",
+        fetchError: "Erreur lors de la récupération de la page web",
+        selectFileImport: "Veuillez sélectionner un fichier à importer",
+        sessionImported: "Session importée avec succès",
+        importError: "Erreur lors de l'importation de la session",
+        voiceRecognitionFinished: "Reconnaissance vocale terminée",
+        maskCreated: "Masque créé pour",
+        maskRemoved: "Masque supprimé",
+        pdfUploadError: "Les fichiers PDF ne peuvent pas être téléchargés dans les applications de génération d'images",
+        connected: "Connecté",
+        disconnected: "Déconnecté",
+        connectionLost: "Connexion perdue",
+        reconnecting: "Reconnexion...",
+        noAppsAvailable: "Aucune application disponible - vérifiez les clés API dans les paramètres"
+      },
+      session: {
+        startSession: "Démarrer Session",
+        continueSession: "Continuer Session"
+      }
+    }
+  },
+  de: {
+    ui: {
+      start: "Starten",
+      stop: "Stoppen",
+      restart: "Neustart",
+      rebuild: "Neuerstellen",
+      update: "Aktualisieren",
+      openBrowser: "Browser",
+      sharedFolder: "Geteilt",
+      quit: "Beenden",
+      send: "Senden",
+      clear: "Löschen",
+      voice: "Stimme",
+      settings: "Einstellungen",
+      run: "Ausführen",
+      version: "Version",
+      conversationLanguage: "Gesprächssprache",
+      voiceChatControls: "Sprachcha t-Interaktionssteuerung",
+      voiceChatOperationControl: "Sprachchat-Bedienungssteuerung",
+      statistics: "Statistiken",
+      clickToToggle: "Klicken zum Umschalten",
+      tokensInSystemPrompts: "Token in allen Systemprompts",
+      tokensInUserMessages: "Token in allen Benutzernachrichten",
+      tokensInAssistantMessages: "Token in allen Assistentnachrichten",
+      tokensInActiveMessages: "Token in allen aktiven Nachrichten",
+      tokensInAllMessages: "Token in allen Nachrichten",
+      numberOfAllMessages: "Anzahl aller Nachrichten",
+      numberOfActiveMessages: "Anzahl aktiver Nachrichten",
+      dialog: "Dialog",
+      user: "Benutzer",
+      assistant: "Assistent",
+      aiAssistant: "KI-Assistent",
+      aiUser: "KI-Benutzer",
+      generateAIUserResponse: "KI-Benutzerantwort basierend auf Konversation generieren",
+      generateAIUserResponsePerplexity: "KI-Benutzerantwort generieren (Perplexity benötigt abwechselnde Benutzer/Assistent-Nachrichten)",
+      role: "Rolle",
+      roleOptions: {
+        user: "Benutzer",
+        sampleUser: "Benutzer (zu vergangenen Nachrichten hinzufügen)",
+        sampleAssistant: "Assistent (zu vergangenen Nachrichten hinzufügen)",
+        sampleSystem: "System (zusätzliche Anweisungen bereitstellen)"
+      },
+      messagePlaceholder: "Geben Sie Ihre Nachricht ein oder klicken Sie auf die Spracheingabetaste...",
+      pressToSend: "Drücken Sie die Senden-Taste, um Ihre Nachricht zu senden.",
+      resetDescription: "Drücken Sie \"Zurücksetzen\", um die Konversation zu löschen und dabei die aktuelle App-Auswahl beizubehalten.",
+      imagePdf: "Bild/PDF",
+      maxContextSize: "Maximale Kontextgröße",
+      maxOutputTokens: "Maximale Ausgabe-Token",
+      model: "Modell",
+      reasoningEffort: "Denkaufwand",
+      pdfToDb: "PDF → DB",
+      temperature: "Temperatur",
+      presencePenalty: "Präsenzstrafe",
+      frequencyPenalty: "Häufigkeitsstrafe",
+      showInitialPromptAssistant: "Anfangsprompt des Assistenten anzeigen",
+      promptCaching: "Prompt-Caching",
+      webSearch: "Websuche",
+      showInitialPromptAIUser: "Anfangsprompt des KI-Benutzers anzeigen",
+      startFromAssistant: "Vom Assistenten beginnen",
+      mathRendering: "Mathematik-Rendering",
+      autoSpeech: "Automatische Sprache",
+      easySubmit: "Einfaches Senden",
+      easySubmitHint: "(mit Enter-Taste oder Stopp-Taste)",
+      autoScroll: "Automatisches Scrollen während des Streamings",
+      webSpeechVoice: "Web Speech API Stimme",
+      ttsSpeed: "TTS-Geschwindigkeit",
+      baseApp: "Basis-App",
+      systemSettings: "Systemeinstellungen",
+      speech: "Sprache",
+      sessionLabel: "Sitzung",
+      pdfDatabase: "PDF-Datenbank",
+      monadicChatInfo: "Monadic Chat Info",
+      monadicChatStatus: "Monadic Chat Status",
+      aiAssistantAndUser: "KI-Assistent & KI-Benutzer",
+      github: "GitHub",
+      version: "Version",
+      currentBaseApp: "Aktuelle App",
+      selectApp: "App Auswählen",
+      searchApps: "Apps suchen...",
+      availableApps: "Verfügbare Apps",
+      notStarted: "Nicht gestartet",
+      notSelected: "Nicht ausgewählt",
+      notConfigured: "Nicht konfiguriert",
+      noDataAvailable: "Keine Daten verfügbar",
+      reset: "Zurücksetzen",
+      import: "Importieren",
+      export: "Exportieren",
+      homepage: "Startseite",
+      cancelQuery: "Anfrage abbrechen",
+      toggleMenu: "Menü umschalten",
+      status: "Status",
+      mode: "Modus",
+      standalone: "Eigenständig",
+      server: "Server",
+      network: "Netzwerk",
+      textToSpeechProvider: "Text-zu-Sprache-Anbieter",
+      speechToTextProvider: "Sprache-zu-Text-Anbieter",
+      elevenLabsVoice: "Elevenlabs Stimme",
+      openAIVoice: "OpenAI Stimme",
+      geminiVoice: "Gemini Stimme",
+      voiceSettings: "Spracheinstellungen",
+      appSettings: "App-Einstellungen",
+      conversationControl: "Gesprächssteuerung",
+      image: "Bild",
+      fromFile: "Aus Datei",
+      fromURL: "Aus URL",
+      speechInput: "Spracheingabe",
+      importFile: "Datei importieren",
+      attachImage: "Bilddatei an Nachricht anhängen",
+      importFromDoc: "Text aus Dokumentdatei importieren",
+      importFromWeb: "Text aus Web-URL importieren",
+      startStopVoice: "Sprachaufnahme starten/stoppen",
+      appCategories: {
+        general: "Allgemein",
+        specialized: "Spezialisiert",
+        tools: "Werkzeuge"
+      },
+      messages: {
+        starting: "Docker-Container werden gestartet...",
+        stopping: "Docker-Container werden gestoppt...",
+        restarting: "Docker-Container werden neu gestartet...",
+        rebuilding: "Docker-Container werden neu erstellt...",
+        updating: "Docker-Container werden aktualisiert...",
+        ready: "Bereit",
+        error: "Fehler",
+        connecting: "Verbindung wird hergestellt...",
+        readyForInput: "Bereit für Eingabe",
+        responding: "ANTWORTEN",
+        responseReceived: "Antwort erhalten",
+        readyToStart: "Bereit zum Start",
+        verifyingToken: "Token wird überprüft",
+        operationTimedOut: "Operation abgelaufen. UI zurückgesetzt.",
+        languageChanged: "Sprache geändert zu",
+        webSpeechNotAvailable: "Sprach-API in diesem Browser nicht verfügbar",
+        generatingAIUserResponse: "KI-Benutzerantwort wird generiert...",
+        aiUserResponseGenerated: "KI-Benutzerantwort generiert",
+        generatingResponse: "Assistentenantwort wird generiert...",
+        operationCanceled: "Operation abgebrochen",
+        thinking: "DENKEN",
+        spinnerStarting: "Starten",
+        spinnerCallingFunctions: "Funktionen aufrufen",
+        spinnerReceivingResponse: "Antwort empfangen",
+        spinnerGeneratingAIUser: "KI-Benutzerantwort generieren",
+        spinnerSearchingWeb: "Web durchsuchen",
+        spinnerProcessing: "Verarbeitung",
+        spinnerProcessingRequest: "Anfrage verarbeiten",
+        spinnerProcessingTools: "Werkzeuge verarbeiten",
+        spinnerListening: "Zuhören...",
+        spinnerProcessingSpeech: "Sprache verarbeiten...",
+        thinkingProcess: "Denkprozess",
+        reasoningProcess: "Denkvorgang",
+        processingMessage: "Beispielnachricht verarbeiten",
+        sampleTimeout: "Beispielnachricht abgelaufen. Bitte erneut versuchen.",
+        uploadNotAvailable: "Upload-Funktionalität nicht verfügbar",
+        uploadSuccess: "erfolgreich hochgeladen",
+        uploadError: "Fehler beim Hochladen der Datei",
+        convertError: "Fehler beim Konvertieren des Dokuments",
+        fetchError: "Fehler beim Abrufen der Webseite",
+        selectFileImport: "Bitte wählen Sie eine Datei zum Importieren",
+        sessionImported: "Sitzung erfolgreich importiert",
+        importError: "Fehler beim Importieren der Sitzung",
+        voiceRecognitionFinished: "Spracherkennung abgeschlossen",
+        maskCreated: "Maske erstellt für",
+        maskRemoved: "Maske entfernt",
+        pdfUploadError: "PDF-Dateien können in Bildgenerierungs-Apps nicht hochgeladen werden",
+        connected: "Verbunden",
+        disconnected: "Getrennt",
+        connectionLost: "Verbindung verloren",
+        reconnecting: "Verbindung wird wiederhergestellt...",
+        noAppsAvailable: "Keine Apps verfügbar - überprüfen Sie die API-Schlüssel in den Einstellungen"
+      },
+      session: {
+        startSession: "Sitzung Starten",
+        continueSession: "Sitzung Fortsetzen"
+      }
+    }
   }
 };
 
@@ -1069,6 +1423,10 @@ class WebUIi18n {
         pressToSendElement.innerHTML = translation.replace('전송', '<span class="text-secondary"> 전송 <i class="fas fa-paper-plane"></i></span>');
       } else if (this.currentLanguage === 'es') {
         pressToSendElement.innerHTML = translation.replace('Enviar', '<span class="text-secondary"> Enviar <i class="fas fa-paper-plane"></i></span>');
+      } else if (this.currentLanguage === 'fr') {
+        pressToSendElement.innerHTML = translation.replace('Envoyer', '<span class="text-secondary"> Envoyer <i class="fas fa-paper-plane"></i></span>');
+      } else if (this.currentLanguage === 'de') {
+        pressToSendElement.innerHTML = translation.replace('Senden', '<span class="text-secondary"> Senden <i class="fas fa-paper-plane"></i></span>');
       } else {
         pressToSendElement.innerHTML = translation.replace('Send', '<span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span>');
       }
@@ -1154,11 +1512,6 @@ function getCookie(name) {
 
 // Initialize with saved language preference
 document.addEventListener('DOMContentLoaded', () => {
-  // Clean up old interface-language cookie if exists
-  if (getCookie('interface-language')) {
-    document.cookie = 'interface-language=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-  }
-  
   // Initialize i18n system
   webUIi18n.init().then(() => {
     console.log('[WebUIi18n] Ready for use');
@@ -1173,23 +1526,58 @@ document.addEventListener('DOMContentLoaded', () => {
       conversationLanguageSelector.value = savedConversationLanguage;
     }
     
+    // Track if this is a programmatic change from UI language sync
+    let isProgrammaticChange = false;
+    
     conversationLanguageSelector.addEventListener('change', (event) => {
       const newLanguage = event.target.value;
       console.log(`[WebUIi18n] Conversation language changed to: ${newLanguage}`);
       // Save to cookie for persistence (for AI conversation language only)
       document.cookie = `conversation-language=${newLanguage}; path=/; max-age=31536000`;
+      
+      // Track if user manually changed the conversation language
+      if (!isProgrammaticChange) {
+        // User manually changed it, set flag
+        document.cookie = `user-changed-conversation-language=true; path=/; max-age=31536000`;
+      }
+      isProgrammaticChange = false; // Reset flag
+      
       // DO NOT change UI language here
     });
+    
+    // Make programmatic changes trackable
+    const originalDispatchEvent = conversationLanguageSelector.dispatchEvent;
+    conversationLanguageSelector.dispatchEvent = function(event) {
+      if (event.type === 'change' && event.isTrusted === false) {
+        isProgrammaticChange = true;
+      }
+      return originalDispatchEvent.call(this, event);
+    };
   }
 });
 
-// Listen for interface language changes from Electron
-if (window.electronAPI && typeof window.electronAPI.onInterfaceLanguageChanged === 'function') {
-  window.electronAPI.onInterfaceLanguageChanged((event, data) => {
+// Listen for UI language changes from Electron
+if (window.electronAPI && typeof window.electronAPI.onUILanguageChanged === 'function') {
+  window.electronAPI.onUILanguageChanged((event, data) => {
     if (data.language) {
       webUIi18n.setLanguage(data.language);
       // Also save to cookie for external browser
-      document.cookie = `interface-language=${data.language}; path=/; max-age=31536000`;
+      document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
+      
+      // Sync conversation language with UI language
+      const conversationLanguageSelector = document.getElementById('conversation-language');
+      if (conversationLanguageSelector) {
+        // Reset the user-changed flag since UI language is being changed
+        document.cookie = `user-changed-conversation-language=false; path=/; max-age=31536000`;
+        
+        // Update conversation language to match UI language
+        conversationLanguageSelector.value = data.language;
+        document.cookie = `conversation-language=${data.language}; path=/; max-age=31536000`;
+        
+        // Trigger change event to update the app
+        const event = new Event('change', { bubbles: true });
+        conversationLanguageSelector.dispatchEvent(event);
+      }
     }
   });
 }

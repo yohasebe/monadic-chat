@@ -108,6 +108,9 @@ module OpenAIHelper
   RESPONSES_API_WEBSEARCH_MODELS = [
     "gpt-4.1",
     "gpt-4.1-mini",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
     "o3",
     "o3-pro",
     "o4-mini"
@@ -447,10 +450,10 @@ module OpenAIHelper
     search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
     
     # If websearch is enabled and the current model is a reasoning model without native search,
-    # switch to the WEBSEARCH_MODEL (defaults to gpt-4.1-mini if not set)
+    # switch to gpt-4.1-mini as the fallback web search model
     if websearch_enabled && reasoning_model && !search_model && !use_responses_api
       original_model = model
-      model = CONFIG["WEBSEARCH_MODEL"] || "gpt-4.1-mini"
+      model = "gpt-4.1-mini"  # Default fallback for web search
       body["model"] = model
       
       # Update model flags after switching

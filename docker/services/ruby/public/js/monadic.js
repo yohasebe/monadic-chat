@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize Web UI translations if available
   if (typeof webUIi18n !== 'undefined') {
     // Try to get saved language from cookie
-    const cookieMatch = document.cookie.match(/interface-language=([^;]+)/);
+    const cookieMatch = document.cookie.match(/ui-language=([^;]+)/);
     if (cookieMatch && cookieMatch[1] && cookieMatch[1] !== 'en') {
       webUIi18n.setLanguage(cookieMatch[1]);
     }
@@ -171,7 +171,7 @@ $(function () {
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
-  $("#send, #clear, #voice, #tts-voice, #interface-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  $("#send, #clear, #voice, #tts-voice, #ui-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
   // Keep TTS speed control always enabled as it's used by multiple TTS providers
   $("#tts-speed").prop("disabled", false);
 

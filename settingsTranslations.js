@@ -12,7 +12,7 @@ const settingsTranslations = {
         systemSettings: "System Settings"
       },
       labels: {
-        interfaceLanguage: "Interface Language",
+        uiLanguage: "UI Language",
         syntaxHighlighting: "Syntax Highlighting Theme",
         darkThemes: "──Dark Themes──",
         lightThemes: "──Light Themes──",
@@ -55,7 +55,7 @@ const settingsTranslations = {
         systemSettings: "システム設定"
       },
       labels: {
-        interfaceLanguage: "インターフェース言語",
+        uiLanguage: "UI言語",
         syntaxHighlighting: "構文ハイライト テーマ",
         darkThemes: "──ダークテーマ──",
         lightThemes: "──ライトテーマ──",
@@ -98,7 +98,7 @@ const settingsTranslations = {
         systemSettings: "系统设置"
       },
       labels: {
-        interfaceLanguage: "界面语言",
+        uiLanguage: "界面语言",
         syntaxHighlighting: "语法高亮主题",
         darkThemes: "──深色主题──",
         lightThemes: "──浅色主题──",
@@ -141,7 +141,7 @@ const settingsTranslations = {
         systemSettings: "시스템 설정"
       },
       labels: {
-        interfaceLanguage: "인터페이스 언어",
+        uiLanguage: "UI 언어",
         syntaxHighlighting: "구문 강조 테마",
         darkThemes: "──다크 테마──",
         lightThemes: "──라이트 테마──",
@@ -184,7 +184,7 @@ const settingsTranslations = {
         systemSettings: "Configuración del Sistema"
       },
       labels: {
-        interfaceLanguage: "Idioma de Interfaz",
+        uiLanguage: "Idioma de UI",
         syntaxHighlighting: "Tema de Resaltado de Sintaxis",
         darkThemes: "──Temas Oscuros──",
         lightThemes: "──Temas Claros──",
@@ -211,6 +211,92 @@ const settingsTranslations = {
         settingsSaved: "Configuración guardada",
         modeChanged: "Modo Cambiado",
         modeChangeMessage: "La configuración del modo ha cambiado. La aplicación debe reiniciarse para que este cambio surta efecto. Por favor, cierre y reinicie Monadic Chat manualmente.",
+        ok: "OK"
+      }
+    }
+  },
+  fr: {
+    settings: {
+      title: "Paramètres",
+      loading: "Chargement des paramètres...",
+      categories: {
+        apiKeys: "Clés API",
+        modelSettings: "Paramètres du Modèle",
+        displayUI: "Affichage et Interface",
+        voiceAudio: "Voix et Audio",
+        systemSettings: "Paramètres Système"
+      },
+      labels: {
+        uiLanguage: "Langue de l'UI",
+        syntaxHighlighting: "Thème de Coloration Syntaxique",
+        darkThemes: "──Thèmes Sombres──",
+        lightThemes: "──Thèmes Clairs──",
+        speechToText: "STT_MODEL (Reconnaissance Vocale)",
+        ttsDictPath: "Chemin du Fichier Dictionnaire TTS",
+        selectFile: "Sélectionner Fichier",
+        applicationMode: "Mode Application",
+        standaloneMode: "Autonome (Par défaut)",
+        serverMode: "Mode Serveur",
+        browserMode: "Mode Navigateur",
+        internalBrowser: "Navigateur Interne",
+        externalBrowser: "Navigateur Externe",
+        extraLogging: "Journalisation Supplémentaire",
+        enableMcpServer: "Activer le Serveur MCP",
+        mcpServerPort: "Port du Serveur MCP"
+      },
+      buttons: {
+        showApiKeys: "Afficher les Clés API",
+        hideApiKeys: "Masquer les Clés API",
+        save: "Enregistrer",
+        close: "Fermer"
+      },
+      messages: {
+        settingsSaved: "Paramètres enregistrés",
+        modeChanged: "Mode Modifié",
+        modeChangeMessage: "Le paramètre de mode a été modifié. L'application doit être redémarrée pour que ce changement prenne effet. Veuillez fermer et redémarrer Monadic Chat manuellement.",
+        ok: "OK"
+      }
+    }
+  },
+  de: {
+    settings: {
+      title: "Einstellungen",
+      loading: "Einstellungen werden geladen...",
+      categories: {
+        apiKeys: "API-Schlüssel",
+        modelSettings: "Modelleinstellungen",
+        displayUI: "Anzeige und Benutzeroberfläche",
+        voiceAudio: "Sprache und Audio",
+        systemSettings: "Systemeinstellungen"
+      },
+      labels: {
+        uiLanguage: "UI-Sprache",
+        syntaxHighlighting: "Syntaxhervorhebungsthema",
+        darkThemes: "──Dunkle Themen──",
+        lightThemes: "──Helle Themen──",
+        speechToText: "STT_MODEL (Spracherkennung)",
+        ttsDictPath: "TTS-Wörterbuchdateipfad",
+        selectFile: "Datei auswählen",
+        applicationMode: "Anwendungsmodus",
+        standaloneMode: "Eigenständig (Standard)",
+        serverMode: "Server-Modus",
+        browserMode: "Browser-Modus",
+        internalBrowser: "Interner Browser",
+        externalBrowser: "Externer Browser",
+        extraLogging: "Zusätzliche Protokollierung",
+        enableMcpServer: "MCP-Server aktivieren",
+        mcpServerPort: "MCP-Server-Port"
+      },
+      buttons: {
+        showApiKeys: "API-Schlüssel anzeigen",
+        hideApiKeys: "API-Schlüssel verbergen",
+        save: "Speichern",
+        close: "Schließen"
+      },
+      messages: {
+        settingsSaved: "Einstellungen gespeichert",
+        modeChanged: "Modus geändert",
+        modeChangeMessage: "Die Moduseinstellung wurde geändert. Die Anwendung muss neu gestartet werden, damit diese Änderung wirksam wird. Bitte schließen und starten Sie Monadic Chat manuell neu.",
         ok: "OK"
       }
     }

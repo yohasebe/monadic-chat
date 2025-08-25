@@ -41,7 +41,7 @@ The most significant change in 1.0.0 is the unified configuration system.
 #### Affected Settings
 - All API keys: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, etc.
 - Default models: `OPENAI_DEFAULT_MODEL`, `ANTHROPIC_DEFAULT_MODEL`, etc.
-- Feature settings: `AI_USER_MAX_TOKENS`, `WEBSEARCH_MODEL`, `DISTRIBUTED_MODE`
+- Feature settings: `AI_USER_MAX_TOKENS`, `DISTRIBUTED_MODE`
 - Other settings: `PYTHON_PORT`, `HELP_EMBEDDINGS_BATCH_SIZE`, `TTS_DICT_DATA`
 
 #### Migration Steps

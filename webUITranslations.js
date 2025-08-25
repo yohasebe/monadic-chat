@@ -8,7 +8,7 @@ const webUITranslations = {
       rebuild: "Rebuild",
       update: "Update",
       openBrowser: "Browser",
-      sharedFolder: "Shared",
+      sharedFolder: "Shared Folder",
       quit: "Quit",
       mode: "Mode",
       docker: "Docker",
@@ -126,7 +126,7 @@ const webUITranslations = {
       rebuild: "重建",
       update: "更新",
       openBrowser: "浏览器",
-      sharedFolder: "共享",
+      sharedFolder: "共享文件夹",
       quit: "退出",
       send: "发送",
       clear: "清除",
@@ -182,7 +182,7 @@ const webUITranslations = {
       rebuild: "재구축",
       update: "업데이트",
       openBrowser: "브라우저",
-      sharedFolder: "공유",
+      sharedFolder: "공유 폴더",
       quit: "종료",
       send: "전송",
       clear: "지우기",
@@ -285,6 +285,124 @@ const webUITranslations = {
         connecting: "Conectando..."
       }
     }
+  },
+  fr: {
+    ui: {
+      start: "Démarrer",
+      stop: "Arrêter",
+      restart: "Redémarrer",
+      rebuild: "Reconstruire",
+      update: "Mettre à jour",
+      openBrowser: "Navigateur",
+      sharedFolder: "Partagé",
+      quit: "Quitter",
+      mode: "Mode",
+      docker: "Docker",
+      system: "Système",
+      send: "Envoyer",
+      clear: "Effacer",
+      voice: "Voix",
+      settings: "Paramètres",
+      run: "Exécuter",
+      version: "Version",
+      conversationLanguage: "Langue de Conversation",
+      voiceChatControls: "Contrôles d'Interaction du Chat Vocal",
+      currentBaseApp: "Application Actuelle",
+      selectApp: "Sélectionner App",
+      searchApps: "Rechercher apps...",
+      availableApps: "Apps Disponibles",
+      notStarted: "Non démarré",
+      notSelected: "Non sélectionné",
+      notConfigured: "Non configuré",
+      noDataAvailable: "Aucune donnée",
+      reset: "Réinitialiser",
+      import: "Importer",
+      export: "Exporter",
+      homepage: "Page d'accueil",
+      cancelQuery: "Annuler la requête",
+      toggleMenu: "Basculer le menu",
+      status: "État",
+      mode: "Mode",
+      standalone: "Autonome",
+      server: "Serveur",
+      network: "Réseau",
+      textToSpeechProvider: "Fournisseur de synthèse vocale",
+      speechToTextProvider: "Fournisseur de reconnaissance vocale",
+      appCategories: {
+        general: "Général",
+        specialized: "Spécialisé",
+        tools: "Outils"
+      },
+      messages: {
+        starting: "Démarrage des conteneurs Docker...",
+        stopping: "Arrêt des conteneurs Docker...",
+        restarting: "Redémarrage des conteneurs Docker...",
+        rebuilding: "Reconstruction des conteneurs Docker...",
+        updating: "Mise à jour des conteneurs Docker...",
+        ready: "Prêt",
+        error: "Erreur",
+        connecting: "Connexion..."
+      }
+    }
+  },
+  de: {
+    ui: {
+      start: "Starten",
+      stop: "Stoppen",
+      restart: "Neustart",
+      rebuild: "Neuerstellen",
+      update: "Aktualisieren",
+      openBrowser: "Browser",
+      sharedFolder: "Freigabe",
+      quit: "Beenden",
+      mode: "Modus",
+      docker: "Docker",
+      system: "System",
+      send: "Senden",
+      clear: "Löschen",
+      voice: "Stimme",
+      settings: "Einstellungen",
+      run: "Ausführen",
+      version: "Version",
+      conversationLanguage: "Gesprächssprache",
+      voiceChatControls: "Sprachchat-Interaktionssteuerung",
+      currentBaseApp: "Aktuelle App",
+      selectApp: "App Auswählen",
+      searchApps: "Apps suchen...",
+      availableApps: "Verfügbare Apps",
+      notStarted: "Nicht gestartet",
+      notSelected: "Nicht ausgewählt",
+      notConfigured: "Nicht konfiguriert",
+      noDataAvailable: "Keine Daten verfügbar",
+      reset: "Zurücksetzen",
+      import: "Importieren",
+      export: "Exportieren",
+      homepage: "Startseite",
+      cancelQuery: "Anfrage abbrechen",
+      toggleMenu: "Menü umschalten",
+      status: "Status",
+      mode: "Modus",
+      standalone: "Eigenständig",
+      server: "Server",
+      network: "Netzwerk",
+      textToSpeechProvider: "Text-zu-Sprache-Anbieter",
+      speechToTextProvider: "Sprache-zu-Text-Anbieter",
+      appCategories: {
+        general: "Allgemein",
+        specialized: "Spezialisiert",
+        tools: "Werkzeuge"
+      },
+      messages: {
+        starting: "Docker-Container werden gestartet...",
+        stopping: "Docker-Container werden gestoppt...",
+        restarting: "Docker-Container werden neu gestartet...",
+        rebuilding: "Docker-Container werden neu erstellt...",
+        updating: "Docker-Container werden aktualisiert...",
+        ready: "Bereit",
+        error: "Fehler",
+        connecting: "Verbindung wird hergestellt..."
+      }
+    }
   }
 };
 
@@ -324,6 +442,7 @@ class WebUIi18n {
   }
 
   updateUIText() {
+    console.log('[WebUITranslations] Updating UI text for language:', this.currentLanguage);
     // Update elements with data-i18n attribute
     document.querySelectorAll('[data-i18n]').forEach(element => {
       const key = element.getAttribute('data-i18n');
@@ -333,10 +452,30 @@ class WebUIi18n {
         element.value = translation;
       } else if (element.placeholder !== undefined) {
         element.placeholder = translation;
-      } else {
-        // Preserve icons if present
+      } else if (element.tagName === 'BUTTON') {
+        // Special handling for buttons with icons and spans
         const icon = element.querySelector('i');
-        if (icon) {
+        const span = element.querySelector('span');
+        if (icon && span) {
+          // Update only the text span, preserve the icon
+          console.log(`[WebUITranslations] Updating button ${element.id}: ${span.textContent} -> ${translation}`);
+          span.textContent = translation;
+        } else if (icon) {
+          // If there's an icon but no span, update the text after the icon
+          const iconHTML = icon.outerHTML;
+          element.innerHTML = iconHTML + ' ' + translation;
+        } else {
+          // No icon, just update the text
+          element.textContent = translation;
+        }
+      } else {
+        // For other elements (like span labels)
+        const span = element.querySelector('span');
+        const icon = element.querySelector('i');
+        if (span && icon) {
+          // Update only the span text, preserve the icon
+          span.textContent = translation;
+        } else if (icon) {
           const iconHTML = icon.outerHTML;
           element.innerHTML = iconHTML + ' ' + translation;
         } else {
@@ -378,19 +517,23 @@ function getCookie(name) {
 
 // Initialize with saved language preference
 document.addEventListener('DOMContentLoaded', () => {
-  const savedLanguage = getCookie('interface-language');
-  if (savedLanguage && savedLanguage !== 'en') {
+  const savedLanguage = getCookie('ui-language');
+  if (savedLanguage) {
+    console.log('[WebUITranslations] Initializing with saved language:', savedLanguage);
     webUIi18n.setLanguage(savedLanguage);
+  } else {
+    console.log('[WebUITranslations] No saved language, using English');
+    webUIi18n.setLanguage('en');
   }
 });
 
-// Listen for interface language changes from Electron
+// Listen for UI language changes from Electron
 if (window.electronAPI) {
-  window.electronAPI.onInterfaceLanguageChanged((event, data) => {
+  window.electronAPI.onUILanguageChanged((event, data) => {
     if (data.language) {
       webUIi18n.setLanguage(data.language);
       // Also save to cookie for external browser
-      document.cookie = `interface-language=${data.language}; path=/; max-age=31536000`;
+      document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
     }
   });
 }

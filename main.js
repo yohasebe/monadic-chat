@@ -2310,7 +2310,7 @@ function createMainWindow() {
     if (envPath) {
       const envConfig = readEnvFile(envPath);
       interfaceLanguage = envConfig.UI_LANGUAGE || 'en';
-      mainWindow.webContents.send('interface-language-changed', { 
+      mainWindow.webContents.send('ui-language-changed', { 
         language: interfaceLanguage 
       });
     }
@@ -2832,10 +2832,6 @@ function checkAndUpdateEnvFile() {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
     }
 
-    if (!envConfig.WEBSEARCH_MODEL) {
-        envConfig.WEBSEARCH_MODEL = 'gpt-4.1';
-    }
-
     // Set default models for each provider if not already specified
     if (!envConfig.OPENAI_DEFAULT_MODEL) {
         envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4.1';
@@ -3029,6 +3025,28 @@ function loadSettings() {
 ipcMain.on('request-settings', (event) => {
   const settings = loadSettings();
   event.sender.send('load-settings', settings);
+});
+
+// Handle immediate UI language change
+ipcMain.on('change-ui-language', (_event, language) => {
+  // Apply UI language change immediately
+  i18n.setLanguage(language);
+  updateApplicationMenu();
+  
+  // Update tray menu if it exists
+  if (tray) {
+    updateTrayMenu();
+  }
+  
+  // Notify all windows about the language change
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('ui-language-changed', { language });
+  }
+  
+  // Also notify the internal browser if it exists
+  if (internalBrowser && !internalBrowser.isDestroyed()) {
+    internalBrowser.webContents.send('ui-language-changed', { language });
+  }
 });
 
 // Handle settings save from settings window

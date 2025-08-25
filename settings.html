@@ -53,10 +53,10 @@
     }
 
     .settings-category h2 {
-      font-size: 14px;
+      font-size: 13px;
       margin-top: 0;
-      margin-bottom: 15px;
-      padding-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
       border-bottom: 1px solid #e0e0e0;
       color: #555;
     }
@@ -194,9 +194,28 @@
 
     #save-message {
       display: none;
-      color: green;
+      color: #28a745;
       margin-left: 10px;
-      font-size: 14px;
+      font-size: 18px;
+      vertical-align: middle;
+    }
+    
+    #save-message i {
+      animation: checkmark 0.5s ease-in-out;
+    }
+    
+    @keyframes checkmark {
+      0% {
+        transform: scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: scale(1.2);
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
     }
 
     </style>
@@ -214,6 +233,45 @@
     <h1>Monadic Chat <span style="font-weight: normal;" data-i18n="settings.title">Settings</span></h1>
     <div id="settings-container">
       <form id="settings-form">
+        <!-- Category: Display & UI -->
+        <div class="settings-category category-display">
+          <h2 data-i18n="settings.categories.displayUI"><i class="fas fa-palette"></i> Display & UI</h2>
+          
+          <label for="ui-language" data-i18n="settings.labels.uiLanguage">UI Language</label>
+          <select id="ui-language" name="ui-language">
+            <option value="en">English</option>
+            <option value="ja">日本語 (Japanese)</option>
+            <option value="zh">中文 (Chinese)</option>
+            <option value="ko">한국어 (Korean)</option>
+            <option value="es">Español (Spanish)</option>
+            <option value="fr">Français (French)</option>
+            <option value="de">Deutsch (German)</option>
+          </select>
+          
+          <label for="rouge-theme" data-i18n="settings.labels.syntaxHighlighting">Syntax Highlighting Theme</label>
+          <select id="rouge-theme" name="rouge-theme">
+            <option disabled data-i18n="settings.labels.darkThemes">──Dark Themes──</option>
+            <option value="base16:dark">base16-dark</option>
+            <option value="github:dark">github-dark</option>
+            <option value="gruvbox:dark">gruvbox-dark</option>
+            <option value="colorful:dark">colorful</option>
+            <option value="molokai:dark">molokai</option>
+            <option value="monokai:dark">monokai</option>
+            <option value="monokai_sublime:dark">monokai_sublime</option>
+            <option value="tulip:dark">tulip</option>
+            <option value="thankful_eyes:light">thankful_eyes</option>
+
+            <option disabled data-i18n="settings.labels.lightThemes">──Light Themes──</option>
+            <option value="base16:light">base16-light</option>
+            <option value="github:light">github-light</option>
+            <option value="gruvbox:light">gruvbox-light</option>
+            <option value="bw:light">bw</option>
+            <option value="igor_pro:light">igor_pro</option>
+            <option value="magritte:light">magritte</option>
+            <option value="pastie:light">pastie</option>
+          </select>
+        </div>
+
         <!-- Category: API Keys -->
         <div class="settings-category category-api-keys">
           <h2 data-i18n="settings.categories.apiKeys"><i class="fas fa-key"></i> API Keys</h2>
@@ -253,51 +311,8 @@
         <div class="settings-category category-model">
           <h2 data-i18n="settings.categories.modelSettings"><i class="fas fa-robot"></i> Model Settings</h2>
           
-          <label for="websearch-model">WEBSEARCH_MODEL</label>
-          <select id="websearch-model" name="websearch-model">
-            <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-            <option value="gpt-4.1">gpt-4.1</option>
-          </select>
-          
           <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
           <input type="number" id="ai-user-max-tokens" name="ai-user-max-tokens" min="100" max="8000" step="10" value="2000">
-        </div>
-
-        <!-- Category: Display & UI -->
-        <div class="settings-category category-display">
-          <h2 data-i18n="settings.categories.displayUI"><i class="fas fa-palette"></i> Display & UI</h2>
-          
-          <label for="interface-language" data-i18n="settings.labels.interfaceLanguage">Interface Language</label>
-          <select id="interface-language" name="interface-language">
-            <option value="en">English</option>
-            <option value="ja">日本語 (Japanese)</option>
-            <option value="zh">中文 (Chinese)</option>
-            <option value="ko">한국어 (Korean)</option>
-            <option value="es">Español (Spanish)</option>
-          </select>
-          
-          <label for="rouge-theme" data-i18n="settings.labels.syntaxHighlighting">Syntax Highlighting Theme</label>
-          <select id="rouge-theme" name="rouge-theme">
-            <option disabled data-i18n="settings.labels.darkThemes">──Dark Themes──</option>
-            <option value="base16:dark">base16-dark</option>
-            <option value="github:dark">github-dark</option>
-            <option value="gruvbox:dark">gruvbox-dark</option>
-            <option value="colorful:dark">colorful</option>
-            <option value="molokai:dark">molokai</option>
-            <option value="monokai:dark">monokai</option>
-            <option value="monokai_sublime:dark">monokai_sublime</option>
-            <option value="tulip:dark">tulip</option>
-            <option value="thankful_eyes:light">thankful_eyes</option>
-
-            <option disabled data-i18n="settings.labels.lightThemes">──Light Themes──</option>
-            <option value="base16:light">base16-light</option>
-            <option value="github:light">github-light</option>
-            <option value="gruvbox:light">gruvbox-light</option>
-            <option value="bw:light">bw</option>
-            <option value="igor_pro:light">igor_pro</option>
-            <option value="magritte:light">magritte</option>
-            <option value="pastie:light">pastie</option>
-          </select>
         </div>
 
         <!-- Category: Voice & Audio -->
@@ -351,7 +366,7 @@
       <button type="button" id="toggle-visibility" data-i18n="settings.buttons.showApiKeys"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
       <button type="submit" form="settings-form" data-i18n="settings.buttons.save"><i class="fas fa-save fa-icon"></i>Save</button>
       <button type="button" id="cancel" data-i18n="settings.buttons.close"><i class="fas fa-times fa-icon"></i>Close</button>
-      <span id="save-message" data-i18n="settings.messages.settingsSaved">Settings saved</span>
+      <span id="save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
     </div>
 
     <script>
@@ -383,14 +398,13 @@
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           STT_MODEL: document.getElementById('stt-model').value,
           AI_USER_MAX_TOKENS: document.getElementById('ai-user-max-tokens').value,
-          WEBSEARCH_MODEL: document.getElementById('websearch-model').value,
           TTS_DICT_PATH: ttsDictPath,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
           DISTRIBUTED_MODE: distributedMode,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
-          UI_LANGUAGE: document.getElementById('interface-language').value
+          UI_LANGUAGE: document.getElementById('ui-language').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -398,9 +412,17 @@
 
         window.electronAPI.saveSettings(data);
 
-        // Show the save message
+        // Show the save icon with animation
         const saveMessage = document.getElementById('save-message');
-        saveMessage.style.display = 'inline';
+        // Set tooltip text based on current language
+        const tooltipText = settingsI18n.t('settings.messages.settingsSaved');
+        saveMessage.setAttribute('title', tooltipText);
+        saveMessage.style.display = 'inline-block';
+        
+        // Hide the icon after 2 seconds
+        setTimeout(() => {
+          saveMessage.style.display = 'none';
+        }, 2000);
         
         // Check if distributed mode has changed
         if (distributedMode !== previousMode) {
@@ -443,11 +465,6 @@
         else if (data.BROWSER_MODE !== previousBrowserMode) {
           window.electronAPI.closeSettings();
         }
-
-        // Hide the message after 3 seconds
-        setTimeout(() => {
-          saveMessage.style.display = 'none';
-        }, 3000);
       });
 
       document.getElementById('cancel').addEventListener('click', () => {
@@ -469,12 +486,11 @@
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
         document.getElementById('ai-user-max-tokens').value = data.AI_USER_MAX_TOKENS || '2000';
-        document.getElementById('websearch-model').value = data.WEBSEARCH_MODEL || 'gpt-4.1-mini';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
-        document.getElementById('interface-language').value = data.UI_LANGUAGE || 'en';
+        document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
         
         // Handle distributed mode settings - ensure default value is set
         const distributedMode = data.DISTRIBUTED_MODE || 'off';
@@ -505,9 +521,12 @@
       window.electronAPI.requestSettings();
 
       // Listen for interface language changes and update UI
-      document.getElementById('interface-language').addEventListener('change', (event) => {
+      document.getElementById('ui-language').addEventListener('change', (event) => {
         const language = event.target.value;
         settingsI18n.setLanguage(language);
+        
+        // Notify main process to update language immediately
+        window.electronAPI.changeUILanguage(language);
       });
 
       document.getElementById('select-tts-dict').addEventListener('click', async () => {

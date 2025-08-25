@@ -303,7 +303,7 @@ Monadic Chat automatically switches models in certain situations to ensure optim
 ### When Models Are Switched
 
 #### OpenAI
-- **Web Search**: Reasoning models (o1, o3) don't support web search, so they switch to the model specified in `WEBSEARCH_MODEL` (default: gpt-4.1-mini)
+- **Web Search**: Reasoning models (o1) don't support web search and automatically switch to gpt-4.1-mini as fallback
 - **Image Processing**: Models without vision capabilities automatically switch to gpt-4.1
 - **API Limitations**: Some models (like o3-pro) may be automatically switched by OpenAI to compatible versions
 

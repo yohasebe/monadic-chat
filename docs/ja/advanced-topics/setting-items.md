@@ -144,52 +144,14 @@ end
 - `UI_LANGUAGE` - インターフェース言語（英語、日本語、中国語、韓国語、スペイン語、フランス語、ドイツ語）
 
 
-## CONFIGとENVの使用パターン :id=config-env-pattern
+## 設定の保存
 
-Monadic Chatは設定値にアクセスするための一貫したパターンを使用しています：
+すべての設定は`~/monadic/config/env`ファイルに保存され、以下の方法で編集できます：
+- Electron設定パネル（対応する設定の場合）
+- ファイルの直接編集（高度な設定の場合）
 
-### 設定の優先順位
+設定はアプリケーション起動時に読み込まれ、セッション間で保持されます。
 
-1. CONFIG ハッシュ - Dotenvを介して`~/monadic/config/env`ファイルから読み込まれます
-2. ENV 変数 - システム環境変数（フォールバック）
-3. デフォルト値 - どちらも設定されていない場合のハードコードされたデフォルト
-
-### 標準アクセスパターン
-
-```ruby
-# コードベース全体で使用される標準パターン
-value = CONFIG["KEY"] || ENV["KEY"] || "default_value"
-```
-
-### 使用例
-
-```ruby
-# APIキー
-api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
-
-# モデル設定
-default_model = CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
-
-# 機能フラグ
-allow_jupyter = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] || ENV["ALLOW_JUPYTER_IN_SERVER_MODE"]
-
-# 数値
-max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
-```
-
-### ベストプラクティス
-
-- ユーザー設定: `~/monadic/config/env`ファイルに保存（CONFIGからアクセス）
-- デプロイメント時の上書き: システム環境変数（ENV）を使用
-- 開発時: `rake server:debug`はCONFIGを上書きするENV値を設定
-- Docker: コンテナ内の環境変数が優先されます
-
-### 重要な注意点
-
-- CONFIG値は起動時に`~/monadic/config/env`から読み込まれます
-- ENVはCONFIG値を上書きできます（DockerとCI/CDに便利）
-- 一部のレガシーコードはENVを最初にチェックする場合があります - これらは更新中です
-- デバッグモード（`EXTRA_LOGGING`、`MONADIC_DEBUG`）は標準パターンに従います
 
 ## 完全な例
 

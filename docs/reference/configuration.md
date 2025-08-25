@@ -96,15 +96,7 @@ This page provides a comprehensive reference for all configuration options in Mo
 | `PDF_RAG_TOKENS` | Tokens per PDF chunk | `4000` | 500-8000 |
 | `PDF_RAG_OVERLAP_LINES` | Line overlap between PDF chunks | `4` | 0-20 |
 
-## Setting Priority
-
-Configuration values are read in the following priority order:
-
-1. **GUI Settings** (for supported options)
-2. **CONFIG Hash** - Loaded from `~/monadic/config/env`
-3. **System Defaults** - Hardcoded fallback values
-
-## Usage Examples
+## Configuration Examples
 
 ### Basic Configuration
 ```bash

@@ -146,52 +146,13 @@ These are configured in the Monadic Chat UI, not in MDSL files:
 - `ROUGE_THEME` - Syntax highlighting theme
 - `UI_LANGUAGE` - Interface language (en, ja, zh, ko, es, fr, de)
 
-## CONFIG vs ENV Usage Pattern :id=config-env-pattern
+## Configuration Storage
 
-Monadic Chat uses a consistent pattern for accessing configuration values:
+All settings are stored in the `~/monadic/config/env` file and can be edited through:
+- The Electron settings panel (for supported settings)
+- Direct file editing (for advanced settings)
 
-### Configuration Priority
-
-1. **CONFIG Hash** - Loaded from `~/monadic/config/env` file via Dotenv
-2. **ENV Variables** - System environment variables (fallback)
-3. **Default Values** - Hardcoded defaults if neither is set
-
-### Standard Access Pattern
-
-```ruby
-# Standard pattern used throughout the codebase
-value = CONFIG["KEY"] || ENV["KEY"] || "default_value"
-```
-
-### Example Usage
-
-```ruby
-# API Keys
-api_key = CONFIG["OPENAI_API_KEY"] || ENV["OPENAI_API_KEY"]
-
-# Model Settings
-default_model = CONFIG["OPENAI_DEFAULT_MODEL"] || ENV["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
-
-# Feature Flags
-allow_jupyter = CONFIG["ALLOW_JUPYTER_IN_SERVER_MODE"] || ENV["ALLOW_JUPYTER_IN_SERVER_MODE"]
-
-# Numeric Values
-max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || ENV["AI_USER_MAX_TOKENS"]&.to_i || 2000
-```
-
-### Best Practices
-
-- **User Settings**: Store in `~/monadic/config/env` file (accessed via CONFIG)
-- **Deployment Overrides**: Use system environment variables (ENV)
-- **Development**: `rake server:debug` sets ENV values that override CONFIG
-- **Docker**: Environment variables in containers take precedence
-
-### Important Notes
-
-- CONFIG values are loaded at startup from `~/monadic/config/env`
-- ENV can override CONFIG values (useful for Docker and CI/CD)
-- Some legacy code may check ENV first - these are being updated
-- Debug mode (`EXTRA_LOGGING`, `MONADIC_DEBUG`) follows the standard pattern
+Settings are loaded at application startup and persist between sessions.
 
 ## Complete Example
 

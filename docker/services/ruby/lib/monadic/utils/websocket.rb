@@ -424,7 +424,7 @@ module WebSocketHelper
       update_message_status_after_edit
     else
       # Message not found
-      @channel.push({ "type" => "error", "content" => "Message not found for editing" }.to_json)
+      @channel.push({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
     end
   end
   
@@ -466,7 +466,7 @@ module WebSocketHelper
   # @param obj [Hash] Parsed message object
   def handle_audio_message(ws, obj)
     if obj["content"].nil?
-      @channel.push({ "type" => "error", "content" => "Voice input is empty" }.to_json)
+      @channel.push({ "type" => "error", "content" => "voice_input_empty" }.to_json)
       return
     end
     
@@ -499,7 +499,7 @@ module WebSocketHelper
       res = stt_api_request(blob, format, lang_code, model)
       
       if res["text"] && res["text"] == ""
-        @channel.push({ "type" => "error", "content" => "The text input is empty" }.to_json)
+        @channel.push({ "type" => "error", "content" => "text_input_empty" }.to_json)
       elsif res["type"] && res["type"] == "error"
         # Include format information in error message for debugging
         error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
@@ -584,7 +584,7 @@ module WebSocketHelper
           obj = BooleanParser.parse_hash(obj)
         rescue JSON::ParserError => e
           DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
-          @channel.push({ "type" => "error", "content" => "Invalid message format received" }.to_json)
+          @channel.push({ "type" => "error", "content" => "invalid_message_format" }.to_json)
           next
         end
         
@@ -762,7 +762,7 @@ module WebSocketHelper
             end
           rescue => e
             # Error handling
-            @channel.push({ "type" => "error", "content" => "AI User error: #{e.message}" }.to_json)
+            @channel.push({ "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json)
           end
         when "HTML"
           thread&.join
@@ -810,7 +810,7 @@ module WebSocketHelper
               end
 
               if content["finish_reason"] && content["finish_reason"] == "safety"
-                @channel.push({ "type" => "error", "content" => "The API stopped responding because of safety reasons" }.to_json)
+                @channel.push({ "type" => "error", "content" => "api_stopped_safety" }.to_json)
               end
 
               html = if session["parameters"]["monadic"]
@@ -854,7 +854,7 @@ module WebSocketHelper
               @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
             rescue StandardError => e
               STDERR.puts "Error processing request: #{e.message}"
-              @channel.push({ "type" => "error", "content" => "Something went wrong" }.to_json)
+              @channel.push({ "type" => "error", "content" => "something_went_wrong" }.to_json)
             end
           end
         when "SYSTEM_PROMPT"
@@ -999,7 +999,7 @@ module WebSocketHelper
             puts e.backtrace
             
             # Inform the client
-            @channel.push({ "type" => "error", "content" => "Error processing sample message" }.to_json)
+            @channel.push({ "type" => "error", "content" => "error_processing_sample" }.to_json)
           end
         when "AUDIO"
           handle_audio_message(ws, obj)
@@ -1529,7 +1529,7 @@ module WebSocketHelper
                 # If still no content found
                 if raw_content.nil?
                   puts "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." if CONFIG["EXTRA_LOGGING"]
-                  @channel.push({ "type" => "error", "content" => "Content not found in response" }.to_json)
+                  @channel.push({ "type" => "error", "content" => "content_not_found" }.to_json)
                   break
                 end
                 if raw_content
@@ -1539,7 +1539,7 @@ module WebSocketHelper
                   content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
                 else
                   content = ""
-                  @channel.push({ "type" => "error", "content" => "Empty response from API" }.to_json)
+                  @channel.push({ "type" => "error", "content" => "empty_response" }.to_json)
                 end
 
                 response.dig("choices", 0, "message")["content"] = content

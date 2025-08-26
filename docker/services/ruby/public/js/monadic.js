@@ -762,7 +762,9 @@ $(function () {
       });
     } else {
       // Fallback if i18nReady is not available
-      $("#start-label").text('Start Session');
+      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+        webUIi18n.t('ui.session.startSession') : 'Start Session';
+      $("#start-label").text(startText);
     }
     proceedWithAppChange(newAppValue);
   });
@@ -1510,9 +1512,13 @@ $(function () {
     } else {
       // Fallback if i18nReady is not available
       if (messages.length > 0) {
-        $("#start-label").text('Continue Session');
+        const continueText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+          webUIi18n.t('ui.session.continueSession') : 'Continue Session';
+        $("#start-label").text(continueText);
       } else {
-        $("#start-label").text('Start Session');
+        const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+        webUIi18n.t('ui.session.startSession') : 'Start Session';
+      $("#start-label").text(startText);
       }
     }
     adjustScrollButtons();
@@ -1533,7 +1539,9 @@ $(function () {
       });
     } else {
       // Fallback if i18nReady is not available
-      $("#start-label").text('Start Session');
+      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+        webUIi18n.t('ui.session.startSession') : 'Start Session';
+      $("#start-label").text(startText);
     }
     $("#model").prop("disabled", false);
   });

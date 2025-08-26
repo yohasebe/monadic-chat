@@ -65,11 +65,13 @@ selectFileButton.on("click", function () {
   if (isPdfEnabled && !isImageGenerationApp) {
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
-    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .webp, .pdf)');
+    const pdfLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportPdf') : 'File to import (.jpg, .jpeg, .png, .gif, .webp, .pdf)';
+    $("label[for='imageFile']").text(pdfLabel);
   } else {
     $("#imageModalLabel").html('<i class="fas fa-image"></i> Select Image File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
-    $("label[for='imageFile']").text('File to import (.jpg, .jpeg, .png, .gif, .webp)');
+    const imageLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportImage') : 'File to import (.jpg, .jpeg, .png, .gif, .webp)';
+    $("label[for='imageFile']").text(imageLabel);
   }
 
   $("#imageModal").modal("show");

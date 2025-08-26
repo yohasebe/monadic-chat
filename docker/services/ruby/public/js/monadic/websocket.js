@@ -2176,14 +2176,50 @@ function connect_websocket(callback) {
       }
 
       case "error": {
-        // Check if content is a translation key
+        // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
-        if (errorContent === 'ai_user_requires_conversation') {
-          errorContent = getTranslation('ui.messages.aiUserRequiresConversation', 'AI User requires an existing conversation. Please start a conversation first.');
+        
+        // Handle various error message formats
+        if (typeof errorContent === 'object' && errorContent.key) {
+          // Handle structured error with key and details
+          if (errorContent.key === 'ai_user_error') {
+            errorContent = `${getTranslation('ui.messages.aiUserError', 'AI User error')}: ${errorContent.details}`;
+          }
+        } else if (typeof errorContent === 'string') {
+          // Map translation keys to translated messages
+          const errorTranslations = {
+            'ai_user_requires_conversation': 'ui.messages.aiUserRequiresConversation',
+            'message_not_found_for_editing': 'ui.messages.messageNotFoundForEditing',
+            'voice_input_empty': 'ui.messages.voiceInputEmpty',
+            'text_input_empty': 'ui.messages.textInputEmpty',
+            'invalid_message_format': 'ui.messages.invalidMessageFormat',
+            'api_stopped_safety': 'ui.messages.apiStoppedSafety',
+            'something_went_wrong': 'ui.messages.somethingWentWrong',
+            'error_processing_sample': 'ui.messages.errorProcessingSample',
+            'content_not_found': 'ui.messages.contentNotFound',
+            'empty_response': 'ui.messages.emptyResponse'
+          };
+          
+          if (errorTranslations[errorContent]) {
+            // Get the English fallback from the key
+            const fallbacks = {
+              'ai_user_requires_conversation': 'AI User requires an existing conversation. Please start a conversation first.',
+              'message_not_found_for_editing': 'Message not found for editing',
+              'voice_input_empty': 'Voice input is empty',
+              'text_input_empty': 'The text input is empty',
+              'invalid_message_format': 'Invalid message format received',
+              'api_stopped_safety': 'The API stopped responding because of safety reasons',
+              'something_went_wrong': 'Something went wrong',
+              'error_processing_sample': 'Error processing sample message',
+              'content_not_found': 'Content not found in response',
+              'empty_response': 'Empty response from API'
+            };
+            errorContent = getTranslation(errorTranslations[errorContent], fallbacks[errorContent] || errorContent);
+          }
         }
         
         // Check if error during AI User generation (message starts with AI User error)
-        const isAIUserError = errorContent && errorContent.toString().includes("AI User error");
+        const isAIUserError = errorContent && errorContent.toString().includes(getTranslation('ui.messages.aiUserError', 'AI User error'));
         
         // Use the handler if available, otherwise use inline code
         let handled = false;

@@ -803,13 +803,13 @@
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p>How would you like to delete this message?</p>
-            <p><strong>Message:</strong> <span id="messageToDelete" style="font-weight: normal; color: #777;"></span></p>
+            <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
+            <p><strong data-i18n="ui.messageLabel">Message:</strong> <span id="messageToDelete" style="font-weight: normal; color: #777;"></span></p>
           </div>
           <div class="modal-footer flex-column align-items-stretch">
-            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
-            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-warning mb-2"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
+            <button type="button" id="deleteMessageAndSubsequent" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageAndBelow"><i class="fa-regular fa-circle-down"></i> Delete this message and below</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
           </div>
         </div>
       </div>

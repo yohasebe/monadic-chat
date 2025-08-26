@@ -255,7 +255,8 @@ voiceButton.on("click", function () {
     $("#amplitude").show().css("display", "inline-flex"); // Ensure proper display mode
     silenceDetected = false;
     voiceButton.toggleClass("btn-info btn-danger");
-    voiceButton.html('<i class="fas fa-microphone"></i> Stop');
+    const stopText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.stopButton') : 'Stop';
+    voiceButton.html(`<i class="fas fa-microphone"></i> ${stopText}`);
     const listeningText = getTranslation('ui.messages.listeningStatus', 'LISTENING . . .');
     setAlert(`<i class='fas fa-microphone'></i> ${listeningText}`, "info");
     $("#send, #clear").prop("disabled", true);

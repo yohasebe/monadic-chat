@@ -1,0 +1,30 @@
+app "SampleMultilang" do
+  description do
+    en "Sample app demonstrating multi-language description support"
+    ja "多言語説明サポートを示すサンプルアプリ"
+    zh "演示多语言描述支持的示例应用"
+    ko "다국어 설명 지원을 보여주는 샘플 앱"
+    es "Aplicación de muestra que demuestra el soporte de descripción multilingüe"
+    fr "Application exemple démontrant le support de description multilingue"
+    de "Beispiel-App zur Demonstration der mehrsprachigen Beschreibungsunterstützung"
+  end
+  
+  icon "flask"
+  
+  system_prompt <<~PROMPT
+  This is a sample application demonstrating multi-language description support.
+  You can respond to any questions about how this feature works.
+  PROMPT
+  
+  llm do
+    provider "openai"
+    model "gpt-4.1-mini"
+  end
+  
+  display_name "Sample Multilang"
+  
+  features do
+    auto_speech false
+    mathjax false
+  end
+end

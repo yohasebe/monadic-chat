@@ -730,8 +730,16 @@ module MonadicDSL
       @state = state
     end
     
-    def description(text)
-      @state.ui[:description] = text
+    def description(text = nil, &block)
+      if block_given?
+        # Multi-language description using block syntax
+        desc_builder = DescriptionBuilder.new
+        desc_builder.instance_eval(&block)
+        @state.ui[:description] = desc_builder.descriptions
+      else
+        # Single string description (backward compatibility)
+        @state.ui[:description] = text
+      end
     end
     
     def icon(name)
@@ -785,6 +793,22 @@ module MonadicDSL
         tool_config.instance_eval(&block)
         
         @state.settings[:tools] = tool_config.to_h
+      end
+    end
+  end
+  
+  # Description builder for multi-language support
+  class DescriptionBuilder
+    attr_reader :descriptions
+    
+    def initialize
+      @descriptions = {}
+    end
+    
+    # Define methods for each supported language
+    %w[en ja zh ko es fr de].each do |lang|
+      define_method(lang) do |text|
+        @descriptions[lang] = text
       end
     end
   end

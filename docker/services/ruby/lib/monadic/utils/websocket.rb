@@ -240,8 +240,11 @@ module WebSocketHelper
   
   # Prepare apps data with settings
   # @return [Hash] Apps data with settings
-  def prepare_apps_data
+  def prepare_apps_data(ui_language = nil)
     return {} unless defined?(APPS)
+    
+    # Get UI language from session parameters if not provided
+    ui_language ||= session[:parameters]&.[]("ui_language") || "en"
     
     apps = {}
     APPS.each do |k, v|
@@ -257,8 +260,19 @@ module WebSocketHelper
           # Always log to console for debugging
           puts "WebSocket sending: #{k} reasoning_effort = #{m.inspect}"
         end
+        
+        # Handle description specially for multi-language support
+        if p == "description"
+          if m.is_a?(Hash)
+            # Multi-language description: select the appropriate language
+            # Fallback order: requested language -> English -> first available
+            apps[k][p] = m[ui_language] || m["en"] || m.values.first || ""
+          else
+            # Single string description (backward compatibility)
+            apps[k][p] = m ? m.to_s : ""
+          end
         # Special case for models array to ensure it's properly sent as JSON
-        if p == "models" && m.is_a?(Array)
+        elsif p == "models" && m.is_a?(Array)
           apps[k][p] = m.to_json
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))
           # Tools need to be sent as proper JSON too
@@ -1008,6 +1022,10 @@ module WebSocketHelper
           old_language = session[:runtime_settings][:language] if session[:runtime_settings]
           new_language = obj["new_language"]
           
+          # Update UI language in parameters as well
+          session[:parameters] ||= {}
+          session[:parameters]["ui_language"] = new_language
+          
           # Initialize runtime_settings if not exists
           session[:runtime_settings] ||= {
             language: "auto",
@@ -1028,6 +1046,10 @@ module WebSocketHelper
               extra_log.puts("  Runtime settings: #{session[:runtime_settings].inspect}")
               extra_log.close
             end
+            
+            # Resend apps data with updated language descriptions
+            apps_data = prepare_apps_data(new_language)
+            @channel.push({ "type" => "apps", "content" => apps_data }.to_json) unless apps_data.empty?
             
             # Notify client of successful update
             language_name = if new_language == "auto"

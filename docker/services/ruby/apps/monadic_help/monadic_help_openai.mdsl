@@ -1,8 +1,33 @@
 app "MonadicHelpOpenAI" do
-  description <<~TEXT
-    AI assistant for Monadic Chat documentation and help.
-    <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Help and guidance for using Monadic Chat. <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    Monadic Chatの使用方法とガイダンス。 <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    使用Monadic Chat的帮助和指导。 <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    Monadic Chat 사용을 위한 도움말 및 안내. <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Ayuda y orientación para usar Monadic Chat. <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Aide et conseils pour utiliser Monadic Chat. <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Hilfe und Anleitung zur Nutzung von Monadic Chat. <a href="https://yohasebe.github.io/monadic-chat/" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "fa-regular fa-circle-question"
   display_name "Monadic Chat Help"

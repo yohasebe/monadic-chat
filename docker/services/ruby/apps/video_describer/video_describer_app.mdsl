@@ -1,7 +1,33 @@
 app "VideoDescriberApp" do
-  description <<~TEXT
-  Analyzes videos to provide comprehensive descriptions. Extracts frames and transcribes audio for complete content understanding. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Analyze and describe video content. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    ビデオコンテンツの分析と説明。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    分析和描述视频内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    비디오 콘텐츠 분석 및 설명. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Analizar y describir contenido de video. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Analyser et décrire le contenu vidéo. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Videoinhalte analysieren und beschreiben. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-describer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "video"
   

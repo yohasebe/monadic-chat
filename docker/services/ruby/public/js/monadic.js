@@ -347,7 +347,8 @@ $(function () {
         }
       }
       // Update the badge in the AI User section with provider name and model
-      $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
+      const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
+      $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
       
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
@@ -413,7 +414,7 @@ $(function () {
       $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
       
       // Show a tooltip explaining the process
-      $("#alert-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
+      $("#status-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
       
       // Enable button after a delay to prevent rapid clicking
       setTimeout(() => {
@@ -770,7 +771,13 @@ $(function () {
   });
   
   // Function to handle the actual app change
-  function proceedWithAppChange(appValue) {
+  // Make it globally accessible for initialization from websocket.js
+  window.proceedWithAppChange = function proceedWithAppChange(appValue) {
+    // Ensure params is initialized
+    if (typeof params === 'undefined') {
+      window.params = {};
+    }
+    
     // All providers now support AI User functionality
     const selectedApp = apps[appValue];
     
@@ -1383,6 +1390,13 @@ $(function () {
 
     responseStarted = false;
     callingFunction = false;
+    streamingResponse = false;  // Reset streaming flag
+
+    // Clear spinner check interval if it exists
+    if (window.spinnerCheckInterval) {
+      clearInterval(window.spinnerCheckInterval);
+      window.spinnerCheckInterval = null;
+    }
 
     // Reset AI user state if active
     const placeholderText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
@@ -1392,15 +1406,18 @@ $(function () {
     $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
     $("#ai_user_provider").prop("disabled", false);
     $("#ai_user").prop("disabled", false);
+    $("#select-role").prop("disabled", false);
 
     // Send cancel message to server
     ws.send(JSON.stringify({ message: "CANCEL" }));
     
-    // Reset UI
+    // Reset UI completely
     $("#chat").html("");
     $("#temp-card").hide();
     $("#user-panel").show();
-    $("#cancel_query").hide();
+    $("#monadic-spinner").hide();  // Hide spinner
+    $("#indicator").hide();  // Hide indicator
+    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');  // Force hide cancel button
     
     // Set focus back to input
     setInputFocus();
@@ -2039,6 +2056,11 @@ $(function () {
     // Update RTL/LTR for message display based on conversation language
     updateRTLInterface(params["conversation_language"]);
     
+    // Update image button visibility to ensure correct translations
+    if (typeof window.checkAndUpdateImageButtonVisibility === 'function') {
+      window.checkAndUpdateImageButtonVisibility();
+    }
+    
     console.log("Conversation language changed to:", params["conversation_language"]);
     console.log("WebSocket state:", window.ws ? window.ws.readyState : "null");
     
@@ -2073,21 +2095,33 @@ $(function () {
     $("#alert-box").hide();
   })
 
-  $("#initial-prompt-toggle").on("change", function () {
-    if (this.checked) {
-      $("#initial-prompt").css("display", "");
-      autoResize(document.getElementById('initial-prompt'), 100);
+  $("#initial-prompt-toggle").on("click", function () {
+    const $prompt = $("#initial-prompt");
+    const $icon = $("#initial-prompt-icon");
+    
+    if ($prompt.is(":visible")) {
+      $prompt.slideUp(200);
+      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
     } else {
-      $("#initial-prompt").css("display", "none");
+      $prompt.slideDown(200, function() {
+        autoResize(document.getElementById('initial-prompt'), 100);
+      });
+      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
     }
   });
 
-  $("#ai-user-initial-prompt-toggle").on("change", function () {
-    if (this.checked) {
-      $("#ai-user-initial-prompt").css("display", "");
-      autoResize(document.getElementById('ai-user-initial-prompt'), 100);
+  $("#ai-user-initial-prompt-toggle").on("click", function () {
+    const $prompt = $("#ai-user-initial-prompt");
+    const $icon = $("#ai-user-initial-prompt-icon");
+    
+    if ($prompt.is(":visible")) {
+      $prompt.slideUp(200);
+      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
     } else {
-      $("#ai-user-initial-prompt").css("display", "none");
+      $prompt.slideDown(200, function() {
+        autoResize(document.getElementById('ai-user-initial-prompt'), 100);
+      });
+      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
     }
   });
 

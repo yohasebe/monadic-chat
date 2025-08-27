@@ -28,6 +28,13 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 
+## Recent Updates (v0.9.9+)
+
+- **Enhanced Image Generation**: Improved mask editing with automatic recognition and `input_fidelity` parameter support
+- **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 models via both Chat Completions and Responses APIs
+- **UI/UX Improvements**: Redesigned scroll buttons with better visibility and smooth animations
+- **Bug Fixes**: Fixed Second Opinion app localization, cancel button behavior, and PDF handling
+
 ## Getting Started
 
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)

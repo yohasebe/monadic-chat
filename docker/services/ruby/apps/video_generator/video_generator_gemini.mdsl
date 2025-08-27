@@ -1,7 +1,33 @@
 app "VideoGeneratorGemini" do
-  description <<~TEXT
-    This app generates 8-second 720p videos using Google's Veo 3 model through the Gemini API. It supports both text-to-video and image-to-video generation with synchronized audio. Place images in ~/monadic/data/ for image-to-video. Generation takes 11 seconds to 6 minutes. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Generate videos from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    テキスト説明からビデオ生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    从文本描述生成视频。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    텍스트 설명에서 비디오 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Generar videos desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Générer des vidéos à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Videos aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "fa-solid fa-film"
   

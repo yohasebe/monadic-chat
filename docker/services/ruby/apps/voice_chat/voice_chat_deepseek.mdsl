@@ -1,7 +1,33 @@
 app "VoiceChatDeepSeek" do
-  description <<~TEXT
-  Voice-enabled conversational AI. Uses speech recognition and text-to-speech for natural voice interactions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Conversational AI with voice input and output support. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    音声入出力をサポートする会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    支持语音输入输出的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    음성 입출력을 지원하는 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    IA conversacional con soporte de entrada y salida de voz. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    IA conversationnelle avec entrée et sortie vocales. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Konversations-KI mit Spracheingabe und -ausgabe. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "microphone"
   

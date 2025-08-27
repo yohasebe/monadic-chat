@@ -2,10 +2,35 @@ app "ConceptVisualizerClaude" do
   icon "fa-solid fa-diagram-project"
   
   display_name "Concept Visualizer"
-  description <<~TEXT
-    Create visual diagrams from text descriptions. Generates mind maps, flowcharts, and network diagrams using LaTeX/TikZ.
-    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Generate visual diagrams for concepts and relationships. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    概念と関係性の視覚的図表生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    生成概念和关系的视觉图表。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    개념과 관계의 시각적 다이어그램 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Generar diagramas visuales para conceptos y relaciones. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Générer des diagrammes visuels pour concepts et relations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Visuelle Diagramme für Konzepte und Beziehungen erstellen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=concept-visualizer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   include_modules "ClaudeHelper"
 

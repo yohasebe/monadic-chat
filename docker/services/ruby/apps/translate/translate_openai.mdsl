@@ -1,8 +1,34 @@
 app "TranslateOpenAI" do
   display_name "Translate"
-  description <<~TEXT
-    Professional translation between languages. Supports custom translations via parentheses for specific terms. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Translation between multiple languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    複数言語間の翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    多语言之间的翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    다국어 간 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Traducción entre múltiples idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Traduction entre plusieurs langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Übersetzung zwischen mehreren Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   icon "language"
   
   system_prompt <<~TEXT

@@ -19,12 +19,35 @@ class ImageGeneratorOpenAI < MonadicApp
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, 
                                 mask: nil, n: 1, size: "1024x1024", 
                                 quality: "standard", output_format: "png",
-                                background: nil, output_compression: nil)
+                                background: nil, output_compression: nil, input_fidelity: nil)
     # Input validation
     raise ArgumentError, "Invalid operation" unless %w[generate edit variation].include?(operation)
     raise ArgumentError, "Model is required" if model.to_s.strip.empty?
     raise ArgumentError, "Prompt is required for generate/edit" if %w[generate edit].include?(operation) && prompt.to_s.strip.empty?
     raise ArgumentError, "Images required for edit/variation" if %w[edit variation].include?(operation) && (images.nil? || images.empty?)
+    
+    # Validate background parameter if provided
+    if background && !%w[transparent opaque auto].include?(background.to_s)
+      raise ArgumentError, "Invalid background value: '#{background}'. Must be 'transparent', 'opaque', or 'auto'"
+    end
+    
+    # Validate output_compression parameter if provided
+    if output_compression && output_compression.to_i != 0
+      if output_compression.to_i < 1 || output_compression.to_i > 100
+        raise ArgumentError, "Invalid output_compression value: #{output_compression}. Must be between 1 and 100"
+      end
+      
+      # PNG does not support compression parameter
+      if output_format == "png"
+        raise ArgumentError, "PNG format does not support compression. Remove output_compression parameter or use JPEG/WEBP format"
+      end
+    end
+    
+    # For edit operation with mask, ensure mask parameter is provided
+    if operation == "edit" && mask.nil? && images
+      # Check if a mask file exists for the image
+      puts "Warning: No mask parameter provided for edit operation. Mask may not be applied correctly."
+    end
     
     # Call the method from ImageGenerationHelper
     super

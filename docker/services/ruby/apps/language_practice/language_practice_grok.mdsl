@@ -1,7 +1,33 @@
 app "LanguagePracticeGrok" do
-  description <<~TEXT
-  Interactive language learning with speech synthesis and voice input. Practice conversations with AI feedback. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Language conversation practice with grammar corrections. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    文法訂正付き言語会話練習。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    带语法纠正的语言对话练习。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    문법 교정이 포함된 언어 대화 연습. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Práctica de conversación con correcciones gramaticales. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Pratique de conversation avec corrections grammaticales. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Sprachkonversationspraxis mit Grammatikkorrekturen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "chalkboard-user"
   

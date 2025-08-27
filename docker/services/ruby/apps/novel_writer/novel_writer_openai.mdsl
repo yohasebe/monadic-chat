@@ -1,7 +1,33 @@
 app "NovelWriterOpenAI" do
-  description <<~TEXT
-  AI-powered novel writing assistant. Develops characters, plots, and maintains narrative coherence with word tracking. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Creative writing assistance for stories and narratives. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    物語と創作文章の執筆支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    故事和叙述的创意写作协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    이야기와 서술을 위한 창의적 글쓰기 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Asistencia de escritura creativa para historias y narrativas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Assistance d'écriture créative pour histoires et récits. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Kreative Schreibhilfe für Geschichten und Erzählungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   icon "book"
   
   system_prompt <<~TEXT

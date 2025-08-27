@@ -1,8 +1,34 @@
 app "DrawIOGrapherOpenAI" do
   display_name "DrawIO Grapher"
-  description <<~TEXT
-    Generate Draw.io diagrams from descriptions. Creates XML files ready for import and further editing in Draw.io. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=drawio-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Create diagrams using Draw.io XML format.
+    TEXT
+    
+    ja <<~TEXT
+    Draw.io XML形式での図表作成。
+    TEXT
+    
+    zh <<~TEXT
+    使用Draw.io XML格式创建图表。
+    TEXT
+    
+    ko <<~TEXT
+    Draw.io XML 형식으로 다이어그램 생성.
+    TEXT
+    
+    es <<~TEXT
+    Crear diagramas usando formato XML de Draw.io.
+    TEXT
+    
+    fr <<~TEXT
+    Créer des diagrammes au format XML Draw.io.
+    TEXT
+    
+    de <<~TEXT
+    Diagramme im Draw.io XML-Format erstellen.
+    TEXT
+  end
   icon "diagram"
   
   # Include the DrawIOGrapher module for XML processing and validation

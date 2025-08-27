@@ -1,7 +1,33 @@
 app "SecondOpinionMistral" do
-  description <<~TEXT
-    Multi-provider AI consultation. Get initial answers verified by other AI models for accuracy and diverse perspectives. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Alternative perspectives and suggestions for decision-making. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    意思決定のための代替視点と提案。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    为决策提供替代观点和建议。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    의사 결정을 위한 대안적 관점과 제안. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Perspectivas alternativas y sugerencias para la toma de decisiones. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Perspectives alternatives et suggestions pour la prise de décision. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Alternative Perspektiven und Vorschläge zur Entscheidungsfindung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=second-opinion" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "fa-solid fa-people-arrows"
   
@@ -27,7 +53,7 @@ app "SecondOpinionMistral" do
       - `user_query` (required): The original user's question
       - `agent_response` (required): Your first response
       - `provider` (optional): The provider to use for second opinion (e.g., 'openai', 'claude', 'gemini')
-      - `model` (optional): Specific model to use
+      - `model` (optional): Specific model to use (if not specified, default model for the provider will be used)
 
       ## How to recognize second opinion requests:
       - Direct requests: "Get a second opinion", "Verify this", "Check this answer"
@@ -85,7 +111,7 @@ app "SecondOpinionMistral" do
     define_tool "second_opinion_agent", "Verify the response before returning it to the user" do
       parameter :user_query, "string", "The query given by the user", required: true
       parameter :agent_response, "string", "Your response to be verified", required: true
-      parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'gemini')", required: false
+      parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'gemini', 'cohere', 'perplexity', 'grok', 'deepseek')", required: false
       parameter :model, "string", "Specific model to use (optional)", required: false
     end
   end

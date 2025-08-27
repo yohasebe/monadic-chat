@@ -73,6 +73,10 @@ parser = OptionParser.new do |opts|
   opts.on("--compression COMPRESSION", "Compression level for jpeg/webp (0-100)") do |comp|
     options[:output_compression] = comp.to_i
   end
+  
+  opts.on("--fidelity FIDELITY", "Input fidelity for edits (high/low)") do |fidelity|
+    options[:input_fidelity] = fidelity
+  end
 
   opts.on("-n", "--count COUNT", "Number of images to generate") do |count|
     options[:n] = count.to_i
@@ -244,6 +248,7 @@ def generate_image(options, num_retrials = 3)
         form[:output_format] = options[:output_format] if options[:output_format]
         form[:background] = options[:background] if options[:background]
         form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
+        form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
         
         # Add images with proper MIME types
 

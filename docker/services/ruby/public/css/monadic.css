@@ -278,26 +278,65 @@ div.card-body.role-system {
 
 #back_to_top,
 #back_to_bottom {
-  opacity: 0.0;
-  margin-right: 8px;
-  position: sticky;
-  bottom: 16px;
-  z-index: 1050;
-  float: right;
+  display: none; /* Initially hidden */
+  position: fixed;
+  z-index: 1020; /* Below modals but above content */
+  transition: opacity 0.3s ease;
+  opacity: 0.9;
+  /* Position in the center-right of main content area */
+  left: calc(50% + 200px); /* Offset from center to be over main content */
+}
+
+#back_to_top {
+  bottom: 110px; /* Above bottom button */
+}
+
+#back_to_bottom {
+  bottom: 60px; /* Bottom position */
+}
+
+#back_to_top:hover,
+#back_to_bottom:hover {
+  opacity: 1;
 }
 
 #back_to_top a,
 #back_to_bottom a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
   color: #fff;
-  background-color: #666;
-  text-align: center;
-  padding: 10px;
-  border-radius: 4px;
+  background-color: rgba(52, 58, 64, 0.8); /* Dark background for visibility */
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  text-decoration: none;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
 }
 
 #back_to_top a:hover,
 #back_to_bottom a:hover {
-  background-color: #777;
+  color: #fff;
+  background-color: #007bff; /* Blue on hover */
+  border-color: #007bff;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+  transform: translateY(-2px);
+}
+
+#back_to_top a i,
+#back_to_bottom a i {
+  font-size: 16px;
+}
+
+/* Responsive positioning for smaller screens */
+@media (max-width: 1200px) {
+  #back_to_top,
+  #back_to_bottom {
+    left: auto;
+    right: 30px; /* Position on the right for smaller screens */
+  }
 }
 
 span.status {
@@ -375,7 +414,7 @@ button.fixed-width {
   background-color: #F8F8F8;
 }
 
-#alert-message table td,
+#status-message table td,
 #stats-message table td {
   padding-left: 0;
   border-bottom: 0;
@@ -459,7 +498,8 @@ h5 i,
 /* Match height and style of toggle-menu button */
 #cancel_query {
   position: relative !important;
-  height: 30px !important;
+  box-sizing: content-box !important; /* Ensure height doesn't include borders */
+  height: 26px !important; /* 26px + 2px borders = 28px total */
   padding: 0 8px !important;
   background-color: transparent !important;
   border: 1px solid rgba(0, 0, 0, 0.2) !important;
@@ -596,11 +636,11 @@ blockquote ol {
 }
 /* END: BLOCKQUOTE STYLE IMPROVEMENTS */
 
-#alert-message code {
+#status-message code {
   color: #0a58ca;
 }
 
-#alert-message {
+#status-message {
   font-weight: 600;
   background: #ffffff;
   padding: 6px;
@@ -608,15 +648,15 @@ blockquote ol {
   border: 1px solid #999999;
 }
 
-#alert-message.message-success {
+#status-message.message-success {
   color: #22ad50;
 }
 
-#alert-message.message-info {
+#status-message.message-info {
   color: #61b0ff;
 }
 
-#alert-message.message-warning {
+#status-message.message-warning {
   color: #FF7F07;
 }
 
@@ -924,35 +964,78 @@ legend {
 /* Image container */
 .image-container {
   display: inline-block;
-  margin: 5px;
+  margin: 10px;
   position: relative;
   vertical-align: top;
+  padding-top: 35px; /* Space for buttons above image */
 }
 
 .image-container img {
   max-height: 200px;
   max-width: 200px;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: 8px;
+  display: block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
 }
 
 .image-container .image-actions {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 0;
+  right: 0;
   display: flex;
   flex-direction: row;
+  gap: 5px;
+  z-index: 10;
 }
 
-.image-container .btn {
-  opacity: 0.7;
-  font-size: 10px;
-  padding: 2px 5px;
-  margin: 0 2px;
+/* Button styles */
+.image-container .btn.remove-file,
+.image-container .btn.create-mask {
+  background-color: #ffffff !important;
+  border: 1px solid #dee2e6 !important;
+  color: #495057 !important;
+  padding: 5px 10px !important;
+  font-size: 13px !important;
+  border-radius: 5px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  line-height: 1.2 !important;
+  min-height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
-.image-container .btn:hover {
-  opacity: 1;
+.image-container .btn.remove-file:hover {
+  background-color: #dc3545 !important;
+  color: #ffffff !important;
+  border-color: #dc3545 !important;
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3) !important;
+}
+
+.image-container .btn.create-mask {
+  background-color: #007bff !important;
+  color: #ffffff !important;
+  border-color: #007bff !important;
+}
+
+.image-container .btn.create-mask:hover {
+  background-color: #0056b3 !important;
+  border-color: #0056b3 !important;
+  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3) !important;
+}
+
+/* Icon styles */
+.image-container .btn i {
+  font-size: 14px !important;
+  margin: 0 !important;
+}
+
+.image-container .btn.create-mask i {
+  margin-right: 5px !important;
 }
 
 .json-header {
@@ -1513,10 +1596,9 @@ legend {
     font-size: 1.3em !important;
   }
   
-  /* Assistant icon with consistent red color on mobile */
+  /* Assistant icon - inherit text-secondary color */
   .card-header .card-title .fa-robot,
   #temp-card .card-header .card-title .fa-robot {
-    color: #DC4C64 !important;
     font-size: 1.3em !important;
   }
   
@@ -1622,7 +1704,7 @@ legend {
   }
   
   /* Optimize panel spacing on mobile */
-  #monadic-info-panel, #control-panel, #api-token-panel, #tts-panel, #pdf-panel {
+  #monadic-info-panel, #control-panel, #ai-status-panel, #tts-panel, #pdf-panel {
     margin-bottom: 0.6rem !important; /* Further reduce space between panels */
     padding-top: 0.6rem !important; /* Less padding to reduce overall spacing */
     padding-bottom: 0.6rem !important;
@@ -1805,7 +1887,7 @@ pre code {
 }
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #api-token-panel, #control-panel, #tts-panel {
+#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #tts-panel {
   border: 1px solid #666;
 }
 

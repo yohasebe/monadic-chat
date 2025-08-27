@@ -1,7 +1,33 @@
 app "VoiceInterpreterOpenAI" do
-  description <<~TEXT
-    Real-time voice interpretation between languages. Translates spoken input and outputs synthesized speech in target language. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Real-time voice translation between languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Traducción de voz en tiempo real entre idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Traduction vocale en temps réel entre langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Echtzeit-Sprachübersetzung zwischen Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "far fa-comments"
   

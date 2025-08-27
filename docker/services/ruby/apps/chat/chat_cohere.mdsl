@@ -1,7 +1,33 @@
 app "ChatCohere" do
-  description <<~TEXT
-  AI chat optimized for business and productivity tasks. Strong at summarization and information retrieval. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    General conversational AI assistant. Supports text and images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    汎用会話AIアシスタント。テキストと画像をサポート。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    通用对话AI助手。支持文本和图像。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Asistente de IA conversacional general. Admite texto e imágenes. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Assistant IA conversationnel général. Prend en charge texte et images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/language-models?id=cohere-models" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "comment"
   

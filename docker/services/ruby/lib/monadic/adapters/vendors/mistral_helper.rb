@@ -567,10 +567,9 @@ module MistralHelper
 
       unless res.status.success?
         err_json = JSON.parse(res.body)
-        formatted_error = format_api_error(err_json, "mistral")
         error_message = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Mistral",
-          message: error_report["message"] || "Unknown API error",
+          message: err_json["message"] || "Unknown API error",
           code: res.status.code
         )
         res = { "type" => "error", "content" => error_message }

@@ -1,8 +1,33 @@
 app "VisualWebExplorerGrok" do
-  description <<~TEXT
-    Capture web pages as screenshots or extract their text content in Markdown format. Perfect for creating documentation, archiving web content, or analyzing page content.
-    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Browse and capture web content with screenshots. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    スクリーンショット付きウェブコンテンツ閲覧。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    使用截图浏览和捕获网页内容。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    스크린샷으로 웹 콘텐츠 탐색 및 캡처. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Navegar y capturar contenido web con capturas de pantalla. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Parcourir et capturer du contenu web avec captures d'écran. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Web-Inhalte mit Screenshots durchsuchen und erfassen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=visual-web-explorer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
 
   icon "fa-globe-magnifying-glass"
   display_name "Visual Web Explorer"

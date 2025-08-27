@@ -714,11 +714,9 @@ module GrokHelper
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
         
-        
-        formatted_error = format_api_error(error_data, "grok")
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "xAI",
-          message: error_report["error"]["message"] || "Unknown API error",
+          message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
           code: res.status.code
         )
         res = { "type" => "error", "content" => formatted_error }

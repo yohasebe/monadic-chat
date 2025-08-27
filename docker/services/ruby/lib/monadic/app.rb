@@ -640,7 +640,7 @@ class MonadicApp
       "openai" => "gpt-4.1",
       "anthropic" => "claude-3-5-sonnet-20240620",
       "cohere" => "command-r-plus",
-      "gemini" => "gemini-2.5-flash-preview-05-20",
+      "gemini" => "gemini-2.5-flash",
       "mistral" => "mistral-large-latest",
       "grok" => "grok-2-1212",
       "perplexity" => "sonar",

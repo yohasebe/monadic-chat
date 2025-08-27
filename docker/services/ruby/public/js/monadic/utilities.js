@@ -13,6 +13,27 @@ const DEFAULT_APP = ""; // Empty string to select first available app
 
 let currentPdfData = null;
 
+// Global variables for app state management
+// These are used across multiple JS files
+if (typeof window.apps === 'undefined') {
+  window.apps = {};
+}
+if (typeof window.params === 'undefined') {
+  window.params = {};
+}
+if (typeof window.originalParams === 'undefined') {
+  window.originalParams = {};
+}
+if (typeof window.messages === 'undefined') {
+  window.messages = [];
+}
+if (typeof window.lastApp === 'undefined') {
+  window.lastApp = null;
+}
+if (typeof window.stop_apps_trigger === 'undefined') {
+  window.stop_apps_trigger = false;
+}
+
 // Utility function for getting translations with fallback
 function getTranslation(key, fallback) {
   // Check if webUIi18n is available and initialized
@@ -342,19 +363,19 @@ function removeEmojis(text) {
 }
 
 function setAlertClass(alertType = "error") {
+  // Apply classes to #status-message
+  // Remove all existing text-* classes
+  $("#status-message").removeClass(function (_index, className) {
+    return (className.match(/\btext-\S+/g) || []).join(' ');
+  });
+  
+  // Map error to danger for consistency with Bootstrap
   if (alertType === "error") {
-    // Direct DOM access without global references
-    $("#alert-box").removeClass(function (_index, className) {
-      return (className.match(/\balert-\S+/g) || []).join(' ');
-    });
-    $("#alert-box").addClass(`alert-${alertType}`);
-  } else {
-    // Direct DOM access without global references
-    $("#alert-message").removeClass(function (_index, className) {
-      return (className.match(/\btext-\S+/g) || []).join(' ');
-    });
-    $("#alert-message").addClass(`text-${alertType}`);
+    alertType = "danger";
   }
+  
+  // Add the new class
+  $("#status-message").addClass(`text-${alertType}`);
 }
 
 function setAlert(text = "", alertType = "success") {
@@ -398,7 +419,7 @@ function setAlert(text = "", alertType = "success") {
       }
       
       // Success message - direct DOM access
-      $("#alert-message").html("<i class='fas fa-circle-check'></i> Error message removed");
+      $("#status-message").html("<i class='fas fa-circle-check'></i> Error message removed");
       setAlertClass("success");
       
       return false;
@@ -411,7 +432,7 @@ function setAlert(text = "", alertType = "success") {
     $("#discourse").append(errorCard);
   } else {
     // Direct DOM access
-    $("#alert-message").html(`${text}`);
+    $("#status-message").html(`${text}`);
     setAlertClass(alertType);
   }
 }
@@ -485,7 +506,8 @@ function loadParams(params, calledFor = "loadParams") {
       }
     }
     // Update the badge in the AI User section
-    $("#ai-assistant-info").html('<span style="color: #DC4C64;">AI Assistant</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
+    const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
+    $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
   }
   
   stop_apps_trigger = false;
@@ -882,10 +904,23 @@ function doResetActions() {
   $("#message").css("height", "96px").val("");
 
   ws.send(JSON.stringify({ "message": "RESET" }));
-  ws.send(JSON.stringify({ "message": "LOAD" }));
+  // Get UI language from cookie or default to 'en'
+  const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
+  ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
 
   currentPdfData = null;
-  resetParams();
+  
+  // Delay resetParams to ensure LOAD response is processed first
+  setTimeout(function() {
+    resetParams();
+    
+    // After resetParams, trigger app change to reload models and initial prompt
+    const currentAppVal = $("#apps").val();
+    if (currentAppVal && typeof window.proceedWithAppChange === 'function') {
+      // Call proceedWithAppChange to properly initialize the app
+      window.proceedWithAppChange(currentAppVal);
+    }
+  }, 300);
 
   const model = $("#model").val();
 
@@ -982,7 +1017,8 @@ function doResetActions() {
   $("#initial-prompt-toggle").prop("checked", false).trigger("change");
   $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
 
-  setStats("No data available");
+  const noDataText = getTranslation('ui.noDataAvailable', 'No data available');
+  setStats(noDataText);
 
   // Instead of selecting the first available app, maintain the current selection
   // Use stop_apps_trigger flag to prevent app change dialog

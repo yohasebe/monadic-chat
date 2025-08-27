@@ -121,7 +121,7 @@ module PerplexityHelper
           return Monadic::Utils::ErrorFormatter.api_error(
             provider: "Perplexity",
             message: error_message,
-            code: res.status.code
+            code: response.status.code
           )
         rescue => e
           return Monadic::Utils::ErrorFormatter.parsing_error(
@@ -259,7 +259,7 @@ module PerplexityHelper
         return Monadic::Utils::ErrorFormatter.api_error(
             provider: "Perplexity",
             message: error_message,
-            code: res.status.code
+            code: response.status.code
           )
       rescue => e
         return Monadic::Utils::ErrorFormatter.parsing_error(
@@ -686,10 +686,9 @@ module PerplexityHelper
     unless res.status.success?
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
-        formatted_error = format_api_error(error_data, "perplexity")
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Perplexity",
-          message: error_report["error"]["message"] || "Unknown API error",
+          message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
           code: res.status.code
         )
         res = { "type" => "error", "content" => formatted_error }

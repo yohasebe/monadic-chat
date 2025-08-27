@@ -3,7 +3,7 @@ module MonadicHelper
   # Accepts keyword args from function call: operation, model, prompt, images, mask, n, size, quality, output_format, background, output_compression
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
                      n: 1, size: "1024x1024", quality: nil,
-                     output_format: nil, background: nil, output_compression: nil)
+                     output_format: nil, background: nil, output_compression: nil, input_fidelity: nil)
     # Build CLI command
     parts = []
     parts << "image_generator_openai.rb"
@@ -15,7 +15,8 @@ module MonadicHelper
     parts << "-q #{quality}" if quality
     parts << "-f #{output_format}" if output_format
     parts << "-b #{background}" if background
-    parts << "--compression #{output_compression}" if output_compression
+    parts << "--compression #{output_compression}" if output_compression && output_compression.to_i > 0
+    parts << "--fidelity #{input_fidelity}" if input_fidelity
     
     # Process image parameters
     if images

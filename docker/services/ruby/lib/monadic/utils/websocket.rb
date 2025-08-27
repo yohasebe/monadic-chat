@@ -246,19 +246,20 @@ module WebSocketHelper
     # Get UI language from session parameters if not provided
     ui_language ||= session[:parameters]&.[]("ui_language") || "en"
     
+    # Debug logging for language selection
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG] prepare_apps_data called with ui_language: #{ui_language}"
+    end
+    
     apps = {}
     APPS.each do |k, v|
       apps[k] = {}
       v.settings.each do |p, m|
         # Debug log for reasoning_effort in all OpenAI apps
-        if p == "reasoning_effort"
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
-            extra_log.close
-          end
-          # Always log to console for debugging
-          puts "WebSocket sending: #{k} reasoning_effort = #{m.inspect}"
+        if p == "reasoning_effort" && CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
+          extra_log.close
         end
         
         # Handle description specially for multi-language support
@@ -266,7 +267,16 @@ module WebSocketHelper
           if m.is_a?(Hash)
             # Multi-language description: select the appropriate language
             # Fallback order: requested language -> English -> first available
-            apps[k][p] = m[ui_language] || m["en"] || m.values.first || ""
+            selected_desc = m[ui_language] || m["en"] || m.values.first || ""
+            apps[k][p] = selected_desc
+            
+            # Debug logging for multi-language descriptions
+            if CONFIG["EXTRA_LOGGING"] && k == "SampleMultilang"
+              puts "[DEBUG] SampleMultilang description selection:"
+              puts "  Requested language: #{ui_language}"
+              puts "  Available languages: #{m.keys.join(', ')}"
+              puts "  Selected description: #{selected_desc[0..50]}..."
+            end
           else
             # Single string description (backward compatibility)
             apps[k][p] = m ? m.to_s : ""
@@ -702,6 +712,12 @@ module WebSocketHelper
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" }.to_json)
           end
         when "CHECK_TOKEN"
+          # Store ui_language in session parameters if provided
+          if obj["ui_language"]
+            session[:parameters] ||= {}
+            session[:parameters]["ui_language"] = obj["ui_language"]
+          end
+          
           if CONFIG["ERROR"].to_s == "true"
             ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" }.to_json)
           else
@@ -735,6 +751,11 @@ module WebSocketHelper
           session[:error] = nil
           session[:obj] = nil
         when "LOAD"
+          # Store ui_language in session parameters if provided
+          if obj["ui_language"]
+            session[:parameters] ||= {}
+            session[:parameters]["ui_language"] = obj["ui_language"]
+          end
           handle_load_message(ws)
         when "DELETE"
           handle_delete_message(ws, obj)

@@ -1,7 +1,33 @@
 app "ImageGeneratorOpenAI" do
-  description <<~TEXT
-    AI image generation with DALL-E. Create, edit with masks, and generate variations. Supports multiple formats and quality settings. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Generate images from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    テキスト説明から画像生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    从文本描述生成图像。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    텍스트 설명에서 이미지 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Generar imágenes desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Générer des images à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Bilder aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
 
   icon "fa-regular fa-image"
 
@@ -17,11 +43,54 @@ app "ImageGeneratorOpenAI" do
   system_prompt <<~TEXT
     You help the user generate and edit images using OpenAI's image generation models.
     
+    CRITICAL MASK EDITING RULES - MUST FOLLOW:
+    
+    🔴 IMPORTANT: When you see "Mask images for editing" in the conversation, you MUST use edit operation!
+    
+    1. DETECTING MASK FILES:
+       - Look for "Mask images for editing" section in the message
+       - Any filename starting with "mask__" is a MASK FILE for EDITING
+       - The corresponding original image typically has pattern "img_[timestamp]_[id].png"
+       - If ANY mask file exists, you MUST use "edit" operation
+    
+    2. REQUIRED EDIT OPERATION FORMAT:
+       When mask files are present, ALWAYS use:
+       generate_image_with_openai({
+         operation: "edit",  // MUST be "edit", NOT "generate"!
+         model: "gpt-image-1",
+         prompt: "[describe ONLY what to put in the masked/transparent area]",
+         images: ["img_[timestamp]_[id].png"],  // Original image
+         mask: "mask__[timestamp]_[id].png",    // Mask file (REQUIRED!)
+         n: 1,
+         size: "1024x1024",
+         input_fidelity: "high"  // Preserves original image outside mask
+       })
+    
+    3. ABSOLUTE RULES:
+       - If you see "mask__" files, NEVER use operation: "generate"
+       - NEVER offer to create new images when masks exist
+       - NEVER ignore mask files in the conversation
+       - ALWAYS check for "Mask images for editing" in user messages
+       - The prompt should ONLY describe what goes in the masked area
+    
+    4. EXAMPLE CORRECT RESPONSE:
+       User: "Put a red car in the masked area" [with mask__123_abc.png attached]
+       You: "I'll edit the image using the mask to add a red car in the specified area."
+       [Use operation: "edit" with the mask file]
+       
+    5. EXAMPLE WRONG RESPONSE:
+       User: "Put a red car in the masked area" [with mask__123_abc.png attached]  
+       You: "I'll generate a new image with a red car."
+       [Using operation: "generate" - THIS IS WRONG!]
+    
     Available models:
     - gpt-image-1: Latest model with best quality and instruction following
       - Sizes: 1024x1024, 1024x1536, 1536x1024, 1792x1024, 1024x1792
       - Quality: low, medium, high, auto (default)
-      - Supports output_format, background, and output_compression options
+      - Background: MUST be one of: "transparent", "opaque", or "auto" (default)
+      - Output format: "png" (default), "jpeg", or "webp"
+      - Output compression: Integer between 1-100 (only for jpeg/webp)
+      - Input fidelity (edit only): "high" preserves original image, "low" allows more creative changes
     - dall-e-3: Previous generation model
       - Sizes: 1024x1024, 1792x1024, 1024x1792
       - Quality: standard, hd
@@ -41,21 +110,26 @@ app "ImageGeneratorOpenAI" do
          background,    // gpt-image-1 only
          output_compression // gpt-image-1 only
        }).
-    2. For image editing, call generate_image_with_openai({
+    2. For image editing with mask (inpainting), call generate_image_with_openai({
          operation: "edit",
-         model: "gpt-image-1", // or "dall-e-2"
-         prompt,
+         model: "gpt-image-1", // Best for mask editing, or "dall-e-2"
+         prompt,  // Describe ONLY what should appear in the masked area
          n,
-         images,
-         mask,
+         images,  // The original image
+         mask,    // REQUIRED: The mask image filename
          size,
          quality,
-         output_format, // gpt-image-1 only
-         background,    // gpt-image-1 only
-         output_compression // gpt-image-1 only
+         input_fidelity: "high", // IMPORTANT: Use "high" to preserve original image
+         output_format,     // gpt-image-1 only: "png", "jpeg", or "webp"
+         background,        // gpt-image-1 only: "transparent", "opaque", or "auto"
+         output_compression // ONLY for jpeg/webp. NEVER use with PNG!
        }).
-       IMPORTANT: When mask images are provided, ALWAYS include the mask parameter in your function call.
-       The mask parameter should specify the mask image filename in the shared folder.
+       CRITICAL RULES FOR MASK EDITING:
+       - ALWAYS include the mask parameter when a mask image exists
+       - The prompt should describe ONLY what to put in the masked (transparent) area
+       - Do NOT describe the entire image or unchanged areas
+       - Never use output_compression with PNG format
+       - For PNG output, omit the output_compression parameter entirely
     3. For variation (dall-e-2 only), call generate_image_with_openai({
          operation: "variation",
          model: "dall-e-2",
@@ -80,6 +154,7 @@ app "ImageGeneratorOpenAI" do
     initiate_from_assistant false
     image true
     pdf false
+    image_generation true
   end
 
   tools do
@@ -96,8 +171,9 @@ app "ImageGeneratorOpenAI" do
       parameter :size, "string", "Image dimensions", required: false, enum: ["256x256", "512x512", "1024x1024", "1024x1536", "1536x1024", "1792x1024", "1024x1792"]
       parameter :quality, "string", "Image quality level", required: false, enum: ["standard", "hd", "low", "medium", "high", "auto"]
       parameter :output_format, "string", "Output image format", required: false, enum: ["png", "webp", "jpeg"]
-      parameter :background, "string", "Background color for transparent images", required: false
+      parameter :background, "string", "Background setting: 'transparent', 'opaque', or 'auto' (gpt-image-1 only)", required: false, enum: ["transparent", "opaque", "auto"]
       parameter :output_compression, "integer", "Compression level for JPEG images (1-100)", required: false
+      parameter :input_fidelity, "string", "How closely to match the original image in edits (gpt-image-1 only)", required: false, enum: ["high", "low"]
     end
 
     # Auto-generated tool definitions

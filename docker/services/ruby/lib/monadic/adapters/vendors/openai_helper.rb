@@ -640,6 +640,7 @@ module OpenAIHelper
         msg["images"].each do |img|
           messages_containing_img = true
           if img["type"] == "application/pdf"
+            # PDFs need special handling
             message["content"] << {
               "type" => "file",
               "file" => {
@@ -715,11 +716,44 @@ module OpenAIHelper
 
     # If this is an image generation request, add the image filenames to the last message
     if image_generation && !image_file_references.empty? && role == "user"
-      img_references_text = "\n\nAttached images:\n"
+      # Separate regular images and mask images
+      regular_images = []
+      mask_images = []
+      
       image_file_references.each do |img_path|
-        # Extract just the filename without path
         filename = File.basename(img_path)
-        img_references_text += "- #{filename}\n"
+        if filename.start_with?("mask__")
+          mask_images << filename
+        else
+          regular_images << filename
+        end
+      end
+      
+      img_references_text = ""
+      
+      # Add regular images if any
+      unless regular_images.empty?
+        img_references_text += "\n\nAttached images:\n"
+        regular_images.each do |filename|
+          img_references_text += "- #{filename}\n"
+        end
+      end
+      
+      # Add mask images with clear indication for editing
+      unless mask_images.empty?
+        img_references_text += "\n\nMask images for editing (MUST use edit operation):\n"
+        mask_images.each do |mask_filename|
+          # Extract the original image name from mask filename
+          # mask__1756299902_677f71fa.png -> img_1756299902_677f71fa.png
+          original_name = mask_filename.sub(/^mask__/, "img_")
+          img_references_text += "- #{mask_filename} (mask for editing)\n"
+          
+          # Check if we have a corresponding original image
+          if regular_images.include?(original_name)
+            img_references_text += "  Original image: #{original_name}\n"
+          end
+        end
+        img_references_text += "\nIMPORTANT: You have mask files attached. You MUST use the 'edit' operation with these masks, NOT 'generate'.\n"
       end
       
       if last_text.to_s != ""
@@ -932,31 +966,17 @@ module OpenAIHelper
                     "text" => item["text"]
                   }
                 when "image_url"
-                  # Extract media type and base64 data from data URL
-                  url = item["image_url"]["url"]
-                  if url.start_with?("data:")
-                    match = url.match(/^data:(image\/\w+);base64,(.+)$/)
-                    if match
-                      media_type = match[1]
-                      base64_data = match[2]
-                    else
-                      # Default to jpeg if pattern doesn't match
-                      media_type = "image/jpeg"
-                      base64_data = url.sub(/^data:image\/\w+;base64,/, '')
-                    end
-                  else
-                    # If not a data URL, assume it's already base64
-                    media_type = "image/jpeg"
-                    base64_data = url
-                  end
-                  
+                  # For Responses API, keep the image_url format as specified in the documentation
                   {
                     "type" => "input_image",
-                    "source" => {
-                      "type" => "base64",
-                      "media_type" => media_type,
-                      "data" => base64_data
-                    }
+                    "image_url" => item["image_url"]["url"]
+                  }
+                when "file"
+                  # For Responses API, convert PDF file format
+                  {
+                    "type" => "input_file",
+                    "filename" => item["file"]["filename"],
+                    "file_data" => item["file"]["file_data"]
                   }
                 else
                   item  # Keep as is for unknown types
@@ -1154,6 +1174,18 @@ module OpenAIHelper
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Responses API: model=#{body['model']}, tools=#{body['tools']&.length || 0}")
+        # Debug log for PDF content
+        if body['input']
+          body['input'].each_with_index do |msg, idx|
+            if msg['content'].is_a?(Array)
+              msg['content'].each do |item|
+                if item['type'] == 'file' || item['type'] == 'input_file'
+                  extra_log.puts("  Message #{idx} has #{item['type']}: filename=#{item['filename'] || item.dig('file', 'filename')}")
+                end
+              end
+            end
+          end
+        end
         extra_log.close
       end
       
@@ -1198,6 +1230,21 @@ module OpenAIHelper
 
 
     MAX_RETRIES.times do
+      # Debug log the actual body being sent for Responses API with PDF
+      if use_responses_api && CONFIG["EXTRA_LOGGING"]
+        if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
+          puts "DEBUG: Sending to Responses API with PDF content:"
+          puts "Body structure: #{body.keys}"
+          body["input"].each_with_index do |msg, idx|
+            if msg["content"].is_a?(Array)
+              msg["content"].each do |item|
+                puts "  Input[#{idx}] content type: #{item['type']}"
+              end
+            end
+          end
+        end
+      end
+      
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
       break if res.status.success?
 
@@ -1206,12 +1253,12 @@ module OpenAIHelper
 
     unless res.status.success?
       
-      error_report = JSON.parse(res.body)["error"]
+      error_body = JSON.parse(res.body)
+      error_report = error_body["error"]
       pp error_report
-      formatted_error = format_api_error(error_report, "openai")
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "OpenAI",
-        message: error_report["error"]["message"] || "Unknown API error",
+        message: error_report["message"] || "Unknown API error",
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }

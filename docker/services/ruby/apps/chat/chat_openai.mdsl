@@ -1,31 +1,31 @@
 app "ChatOpenAI" do
   description do
     en <<~TEXT
-    General-purpose chat with GPT models. Supports vision, web search, and function calling. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    General conversational AI assistant. Supports text and images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    GPTモデルを使用した汎用チャット。画像認識、ウェブ検索、関数呼び出しをサポート。<a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    汎用会話AIアシスタント。テキストと画像をサポート。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    使用GPT模型的通用聊天。支持视觉、网络搜索和函数调用。<a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    通用对话AI助手。支持文本和图像。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    GPT 모델을 사용한 범용 채팅. 비전, 웹 검색 및 함수 호출을 지원합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    범용 대화 AI 어시스턴트. 텍스트와 이미지 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    Chat de propósito general con modelos GPT. Admite visión, búsqueda web y llamadas a funciones. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Asistente de IA conversacional general. Admite texto e imágenes. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    Chat polyvalent avec les modèles GPT. Prend en charge la vision, la recherche web et les appels de fonction. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Assistant IA conversationnel général. Prend en charge texte et images. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Allzweck-Chat mit GPT-Modellen. Unterstützt Vision, Websuche und Funktionsaufrufe. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Allgemeiner KI-Konversationsassistent. Unterstützt Text und Bilder. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   

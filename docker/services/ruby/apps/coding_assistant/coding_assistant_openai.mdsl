@@ -1,7 +1,33 @@
 app "CodingAssistantOpenAI" do
-  description <<~TEXT
-  Code writing assistant with predicted outputs for faster responses. Reduces latency and token usage for large codebases. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Programming help with code suggestions and explanations. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    提供代码建议和解释的编程帮助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    코드 제안과 설명을 통한 프로그래밍 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Ayuda de programación con sugerencias y explicaciones de código. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Aide à la programmation avec suggestions et explications de code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Programmierhilfe mit Code-Vorschlägen und Erklärungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=coding-assistant" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "laptop-code"
   

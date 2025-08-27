@@ -1103,10 +1103,9 @@ module CohereHelper
                       { "message" => "Unknown error occurred" }
                     end
       pp error_report
-      formatted_error = format_api_error(error_report, "cohere")
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Cohere",
-        message: error_body["message"] || "Unknown API error",
+        message: error_report["message"] || "Unknown API error",
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }

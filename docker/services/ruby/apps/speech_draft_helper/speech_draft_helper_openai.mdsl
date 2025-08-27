@@ -1,7 +1,33 @@
 app "SpeechDraftHelperOpenAI" do
-  description <<~TEXT
-    Analyzes and improves speech drafts from text, Word, or PDF files. Provides revision suggestions and MP3 audio generation. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=speech-draft-helper' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Draft and refine speeches and presentations.
+    TEXT
+    
+    ja <<~TEXT
+    スピーチとプレゼンテーションの作成と改善。
+    TEXT
+    
+    zh <<~TEXT
+    起草和完善演讲和演示文稿。
+    TEXT
+    
+    ko <<~TEXT
+    연설과 프레젠테이션 작성 및 개선.
+    TEXT
+    
+    es <<~TEXT
+    Redactar y perfeccionar discursos y presentaciones.
+    TEXT
+    
+    fr <<~TEXT
+    Rédiger et perfectionner discours et présentations.
+    TEXT
+    
+    de <<~TEXT
+    Reden und Präsentationen entwerfen und verfeinern.
+    TEXT
+  end
   
   icon "fas fa-user-tie"
   

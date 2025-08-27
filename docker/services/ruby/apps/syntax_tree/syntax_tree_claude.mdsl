@@ -2,10 +2,35 @@ app "SyntaxTreeClaude" do
   icon "fa-solid fa-tree"
 
   display_name "Syntax Tree"
-  description <<~TEXT
-    Generate linguistic parse trees from sentences. Creates visual syntactic diagrams with professional linguistic analysis.
-    <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Generate syntax trees for linguistic analysis. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    言語分析用構文木の生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    生成用于语言分析的语法树。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    언어 분석을 위한 구문 트리 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Generar árboles sintácticos para análisis lingüístico. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Générer des arbres syntaxiques pour analyse linguistique. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Syntaxbäume für linguistische Analysen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=syntax-tree" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   include_modules "ClaudeHelper"
 

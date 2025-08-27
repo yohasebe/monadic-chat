@@ -1,13 +1,13 @@
 module SecondOpinionAgent
   # Default models for each provider based on Chat app configurations
   PROVIDER_DEFAULT_MODELS = {
-    "openai" => "gpt-4.1-mini",
+    "openai" => "gpt-4.1",  # Updated to match MDSL
     "claude" => "claude-3-5-sonnet-20241022",
-    "gemini" => "gemini-2.5-flash-preview-05-20",
+    "gemini" => "gemini-2.5-flash",
     "mistral" => "mistral-large-latest",
     "cohere" => "command-a-03-2025",
     "perplexity" => "sonar",
-    "grok" => "grok-3-mini-fast",
+    "grok" => "grok-4-0709",  # Updated to match MDSL
     "deepseek" => "deepseek-chat",
     "ollama" => nil  # Will be determined dynamically
   }.freeze
@@ -15,6 +15,19 @@ module SecondOpinionAgent
   def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
+    
+    # Debug output to track the issue
+    puts "SecondOpinionAgent DEBUG: Input provider=#{provider.inspect}, model=#{model.inspect}"
+    puts "SecondOpinionAgent DEBUG: Determined provider=#{target_provider.inspect}, model=#{target_model.inspect}"
+    
+    # Validate model is not nil or empty
+    if target_model.nil? || target_model.to_s.strip.empty?
+      return {
+        comments: "Error: Model not specified or invalid for provider #{target_provider}",
+        validity: "error", 
+        model: "none"
+      }
+    end
     
     # Get the appropriate helper module
     helper = get_provider_helper(target_provider)
@@ -149,22 +162,49 @@ module SecondOpinionAgent
   private
 
   def determine_provider_and_model(provider, model)
-    # If both provider and model are specified, use them
-    if provider && model
-      return [provider.downcase, model]
+    # Normalize provider name if provided
+    if provider
+      # Handle common provider name variations
+      provider_normalized = case provider.to_s.downcase
+      when "claude", "anthropic"
+        "claude"
+      when "openai", "gpt"
+        "openai"
+      when "gemini", "google"
+        "gemini"
+      when "xai", "grok"
+        "grok"
+      else
+        provider.to_s.downcase
+      end
+    end
+    
+    # If both provider and model are specified, validate and use them
+    if provider && model && !model.to_s.strip.empty?
+      # For Claude, check if the model name is incomplete (missing full date)
+      if provider_normalized == "claude" && model.to_s =~ /claude.*sonnet.*\d{4}-\d{2}$/
+        # Model name appears to be cut off (ends with YYYY-MM instead of YYYYMMDD)
+        puts "SecondOpinionAgent WARNING: Incomplete Claude model name detected: #{model}"
+        # Use default model instead
+        model = PROVIDER_DEFAULT_MODELS[provider_normalized]
+        puts "SecondOpinionAgent INFO: Using default model: #{model}"
+      end
+      return [provider_normalized, model]
     end
     
     # If only provider is specified, use default model for that provider
-    if provider && !model
-      provider_name = provider.downcase
-      default_model = PROVIDER_DEFAULT_MODELS[provider_name]
+    if provider && (model.nil? || model.to_s.strip.empty?)
+      default_model = PROVIDER_DEFAULT_MODELS[provider_normalized]
       
       # Special handling for Ollama
-      if provider_name == "ollama" && default_model.nil?
+      if provider_normalized == "ollama" && default_model.nil?
         default_model = get_ollama_default_model
       end
       
-      return [provider_name, default_model]
+      # Log for debugging
+      puts "SecondOpinionAgent DEBUG: Provider #{provider_normalized} -> Default model: #{default_model.inspect}"
+      
+      return [provider_normalized, default_model]
     end
     
     # If neither is specified, use AI_USER_MODEL or default
@@ -222,10 +262,10 @@ module SecondOpinionAgent
     
     # Known reasoning models patterns
     reasoning_patterns = {
-      # Gemini 2.5 preview models use reasoning_effort
-      "gemini" => /2\.5.*preview/i,
-      # OpenAI o1/o3 models use reasoning
-      "openai" => /^o[13](-|$)/i,
+      # Only Gemini thinking models use reasoning_effort
+      "gemini" => /thinking/i,
+      # OpenAI o1/o3 models don't use reasoning_effort parameter
+      # "openai" => /^o[13](-|$)/i,  # Commented out - o1/o3 don't use reasoning_effort
       # Mistral magistral models use reasoning_effort
       "mistral" => /^magistral(-|$)/i,
       # Add more patterns here as new reasoning models are released

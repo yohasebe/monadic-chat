@@ -1,7 +1,33 @@
 app "CodeInterpreterDeepSeek" do
-  description <<~TEXT
-    Python code execution environment. Run code, visualize data, and work with files interactively. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Execute Python code for data analysis and visualization. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    データ分析と可視化のためのPythonコード実行。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    执行Python代码进行数据分析和可视化。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    데이터 분석 및 시각화를 위한 Python 코드 실행. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Ejecutar código Python para análisis de datos y visualización. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Exécuter du code Python pour l'analyse de données et la visualisation. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Python-Code für Datenanalyse und Visualisierung ausführen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=code-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
 
   icon "fab fa-python"
 

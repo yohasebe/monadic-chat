@@ -1,8 +1,34 @@
 app "PDFNavigatorOpenAI" do
   display_name "PDF Navigator"
-  description <<~TEXT
-    AI-powered PDF document navigator. Upload PDFs and ask questions about their content with intelligent search. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=pdf-navigator' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Search and navigate PDF documents with Q&A support.
+    TEXT
+    
+    ja <<~TEXT
+    Q&A機能付きPDF文書検索とナビゲーション。
+    TEXT
+    
+    zh <<~TEXT
+    带问答支持的PDF文档搜索和导航。
+    TEXT
+    
+    ko <<~TEXT
+    Q&A 지원이 포함된 PDF 문서 검색 및 탐색.
+    TEXT
+    
+    es <<~TEXT
+    Buscar y navegar documentos PDF con soporte de preguntas y respuestas.
+    TEXT
+    
+    fr <<~TEXT
+    Rechercher et naviguer dans des PDF avec support Q&R.
+    TEXT
+    
+    de <<~TEXT
+    PDF-Dokumente mit Q&A-Unterstützung durchsuchen und navigieren.
+    TEXT
+  end
   icon "file-pdf"
   
   system_prompt <<~TEXT

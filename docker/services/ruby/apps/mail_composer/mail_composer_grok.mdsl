@@ -1,7 +1,33 @@
 app "MailComposerGrok" do
-  description <<~TEXT
-    AI-powered email drafting assistant. Creates professional emails based on your requirements and style preferences. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Email drafting assistance with tone customization. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    トーン調整可能なメール作成支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    可调整语气的电子邮件起草协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    톤 맞춤이 가능한 이메일 작성 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Asistencia para redactar correos con personalización de tono. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Aide à la rédaction d'emails avec personnalisation du ton. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    E-Mail-Entwurfshilfe mit Tonanpassung. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mail-composer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
 
   icon "at"
   

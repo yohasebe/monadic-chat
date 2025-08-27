@@ -1,7 +1,33 @@
 app "Mermaid Grapher" do
-  description <<~TEXT
-    Data visualization with Mermaid.js. Automatically selects optimal diagram types and generates ready-to-use Mermaid code. <a href='https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=mermaid-grapher' target='_blank'><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Create diagrams using Mermaid markdown syntax.
+    TEXT
+    
+    ja <<~TEXT
+    Mermaidマークダウン構文での図表作成。
+    TEXT
+    
+    zh <<~TEXT
+    使用Mermaid markdown语法创建图表。
+    TEXT
+    
+    ko <<~TEXT
+    Mermaid 마크다운 구문으로 다이어그램 생성.
+    TEXT
+    
+    es <<~TEXT
+    Crear diagramas usando sintaxis Mermaid markdown.
+    TEXT
+    
+    fr <<~TEXT
+    Créer des diagrammes avec la syntaxe Mermaid markdown.
+    TEXT
+    
+    de <<~TEXT
+    Diagramme mit Mermaid-Markdown-Syntax erstellen.
+    TEXT
+  end
   icon "diagram"
   display_name "Mermaid Grapher"
   

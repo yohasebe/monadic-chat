@@ -1,7 +1,33 @@
 app "JupyterNotebookOpenAI" do
-  description <<~TEXT
-    Interactive Jupyter notebook environment. Create, edit, and execute notebooks with AI assistance. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Create and manage Jupyter notebooks with code execution. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    コード実行可能なJupyterノートブックの作成と管理。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    创建和管理可执行代码的Jupyter笔记本。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    코드 실행이 가능한 Jupyter 노트북 생성 및 관리. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Crear y gestionar notebooks Jupyter con ejecución de código. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Créer et gérer des notebooks Jupyter avec exécution de code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Jupyter-Notebooks mit Code-Ausführung erstellen und verwalten. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   
   icon "rocket"
   

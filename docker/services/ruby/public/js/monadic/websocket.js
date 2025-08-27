@@ -245,8 +245,10 @@ window.handleFragmentMessage = function(fragment) {
       // Create a new temporary card for streaming text
       tempCard = $(`
         <div id="temp-card" class="card mt-3 streaming-card"> 
-          <div class="card-header p-2 ps-3">
-            <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+          <div class="card-header p-2 ps-3 d-flex justify-content-between">
+            <div class="fs-5 card-title mb-0">
+              <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+            </div>
           </div>
           <div class="card-body role-assistant">
             <div class="card-text"></div>
@@ -1508,6 +1510,8 @@ let responseStarted = false;
 let callingFunction = false;
 // Track if we're currently streaming a response
 let streamingResponse = false;
+// Track spinner check interval to prevent duplicates
+window.spinnerCheckInterval = null;
 
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
@@ -1532,7 +1536,14 @@ function connect_websocket(callback) {
     const verifyingText = typeof webUIi18n !== 'undefined' ? 
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
-    ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
+    // Get UI language from cookie or default to 'en'
+    const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
+    ws.send(JSON.stringify({ 
+      message: "CHECK_TOKEN", 
+      initial: true, 
+      contents: $("#token").val(),
+      ui_language: uiLanguage 
+    }));
 
     // Detect browser/device capabilities for audio handling
     const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
@@ -1643,14 +1654,23 @@ function connect_websocket(callback) {
       const verifyingText = typeof webUIi18n !== 'undefined' ? 
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
-      ws.send(JSON.stringify({ message: "CHECK_TOKEN", initial: true, contents: $("#token").val() }));
+      // Get UI language from cookie or default to 'en'
+    const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
+    ws.send(JSON.stringify({ 
+      message: "CHECK_TOKEN", 
+      initial: true, 
+      contents: $("#token").val(),
+      ui_language: uiLanguage 
+    }));
     }
 
     // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
       if (verified) {
         if (!initialLoadComplete) {  // Only send LOAD on initial connection
-          ws.send(JSON.stringify({ "message": "LOAD" }));
+          // Get UI language from cookie or default to 'en'
+          const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
+          ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
           initialLoadComplete = true; // Set the flag after the initial load
         }
         startPing();
@@ -2176,6 +2196,17 @@ function connect_websocket(callback) {
       }
 
       case "error": {
+        // Clear any pending spinner check interval on error
+        if (window.spinnerCheckInterval) {
+          clearInterval(window.spinnerCheckInterval);
+          window.spinnerCheckInterval = null;
+        }
+        
+        // Reset streaming flags
+        streamingResponse = false;
+        responseStarted = false;
+        callingFunction = false;
+        
         // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
         
@@ -2240,7 +2271,7 @@ function connect_websocket(callback) {
         // Additional UI operations specific to our application context
         if (handled) {
           $("#select-role").prop("disabled", false);
-          $("#alert-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
+          $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           
           // Reset UI panels and indicators
           $("#temp-card").hide();
@@ -2362,7 +2393,32 @@ function connect_websocket(callback) {
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
         
-        if (Object.keys(apps).length === 0) {
+        // Check if this is an update to existing apps (e.g., from language change)
+        const isUpdate = Object.keys(apps).length > 0;
+        
+        if (isUpdate) {
+          // Update existing apps data with new content (for language updates or reset)
+          for (const [key, value] of Object.entries(data["content"])) {
+            apps[key] = value;  // Update or add the app data
+          }
+          
+          // Update the currently displayed app description if needed
+          const currentApp = $("#apps").val();
+          if (currentApp && apps[currentApp]) {
+            $("#base-app-desc").html(apps[currentApp]["description"]);
+            
+            // If this is after a reset, re-initialize the app
+            // Check if parameters message hasn't been received yet
+            if (!data["from_parameters"]) {
+              // Re-initialize the current app with proceedWithAppChange
+              setTimeout(function() {
+                if (typeof window.proceedWithAppChange === 'function') {
+                  window.proceedWithAppChange(currentApp);
+                }
+              }, 100);
+            }
+          }
+        } else {
           // Prepare arrays for app classification
           let regularApps = [];
           let specialApps = {};
@@ -2426,10 +2482,6 @@ function connect_websocket(callback) {
           
           for (const [key, value] of regularApps) {
             apps[key] = value;
-            // Debug: Log reasoning_effort for OpenAI apps
-            if (value["reasoning_effort"]) {
-              console.log(`App ${key} has reasoning_effort: ${value["reasoning_effort"]}`);
-            }
             // Use display_name if available, otherwise fall back to app_name
             const displayText = value["display_name"] || value["app_name"];
             const appIcon = value["icon"] || "";
@@ -2556,44 +2608,92 @@ function connect_websocket(callback) {
             }, 100);
           }
           
-          // select the first available (non-disabled) app in the dropdown
-          $("#apps").val($("#apps option:not([disabled]):first").val()).trigger('change');
-
-          // Use display_name if available, otherwise fall back to app_name
-          const displayText = apps[$("#apps").val()]["display_name"] || apps[$("#apps").val()]["app_name"];
-          $("#base-app-title").text(displayText);
+          // Select the default app: prefer Chat app if available
+          let firstValidApp;
           
-          // With customizable select, active state is handled natively by the browser
-
-          if (apps[$("#apps").val()]["monadic"]) {
-            $("#monadic-badge").show();
+          // First, try to find a Chat app from OpenAI (if API key is available)
+          const openAIChatOption = $("#apps option").filter(function() {
+            return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
+          }).first();
+          
+          if (openAIChatOption.length > 0) {
+            firstValidApp = openAIChatOption.val();
           } else {
-            $("#monadic-badge").hide();
+            // Look for any Chat app from other providers
+            const anyChatOption = $("#apps option").filter(function() {
+              const val = $(this).val();
+              return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
+            }).first();
+            
+            if (anyChatOption.length > 0) {
+              firstValidApp = anyChatOption.val();
+            } else {
+              // Fallback: select the first available non-disabled app
+              firstValidApp = $("#apps option").filter(function() {
+                return !$(this).prop('disabled') && !$(this).text().includes('──');
+              }).first().val();
+            }
           }
+          
+          if (firstValidApp) {
+            $("#apps").val(firstValidApp);
+            
+            // Set lastApp to prevent confirmation dialog on initial load
+            lastApp = firstValidApp;
+            
+            // Ensure stop_apps_trigger is false so change event will be processed
+            stop_apps_trigger = false;
+            
+            // Use display_name if available, otherwise fall back to app_name
+            const selectedApp = apps[firstValidApp];
+            if (selectedApp) {
+              const displayText = selectedApp["display_name"] || selectedApp["app_name"];
+              $("#base-app-title").text(displayText);
+              
+              // Update badges immediately
+              if (selectedApp["monadic"]) {
+                $("#monadic-badge").show();
+              } else {
+                $("#monadic-badge").hide();
+              }
 
-          if (apps[$("#apps").val()]["websearch"]) {
-            $("#websearch-badge").show();
-          } else {
-            $("#websearch-badge").hide();
-          }
+              if (selectedApp["websearch"]) {
+                $("#websearch-badge").show();
+              } else {
+                $("#websearch-badge").hide();
+              }
 
-          if (apps[$("#apps").val()]["tools"]) {
-            $("#tools-badge").show();
-          } else {
-            $("#tools-badge").hide();
-          }
+              if (selectedApp["tools"]) {
+                $("#tools-badge").show();
+              } else {
+                $("#tools-badge").hide();
+              }
 
-          if (apps[$("#apps").val()]["mathjax"]) {
-            $("#math-badge").show();
-          } else {
-            $("#math-badge").hide();
-          }
+              if (selectedApp["mathjax"]) {
+                $("#math-badge").show();
+              } else {
+                $("#math-badge").hide();
+              }
 
-          $("#base-app-icon").html(apps[$("#apps").val()]["icon"]);
-          $("#base-app-desc").html(apps[$("#apps").val()]["description"]);
+              $("#base-app-icon").html(selectedApp["icon"]);
+              $("#base-app-desc").html(selectedApp["description"]);
 
-          if ($("#apps").val() === "PDF") {
-            ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+              if (firstValidApp === "PDF") {
+                ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+              }
+              
+              // Call proceedWithAppChange directly to ensure proper initialization
+              // Use setTimeout to ensure DOM and all dependencies are ready
+              setTimeout(function() {
+                if (typeof window.proceedWithAppChange === 'function') {
+                  // Call proceedWithAppChange directly for reliable initialization
+                  window.proceedWithAppChange(firstValidApp);
+                } else {
+                  // Fallback to triggering change event if function not available
+                  $("#apps").trigger('change');
+                }
+              }, 100);
+            }
           }
           
           // Update the AI User provider dropdown if the function is available
@@ -2603,7 +2703,8 @@ function connect_websocket(callback) {
             
           }
         }
-        originalParams = apps["Chat"];
+        // Set originalParams to the first valid app or Chat if available
+        originalParams = apps["Chat"] || apps[$("#apps").val()] || {};
         resetParams();
         break;
       }
@@ -2618,43 +2719,48 @@ function connect_websocket(callback) {
         const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
 
         let models = [];
-        if (currentApp["models"] && currentApp["models"].length > 0) {
-          let models_text = currentApp["models"]
-          models = JSON.parse(models_text);
-        } else if (currentApp["model"]) {
-          models = [currentApp["model"]];
-        } else {
-          models = [];
+        if (currentApp) {
+          if (currentApp["models"] && currentApp["models"].length > 0) {
+            let models_text = currentApp["models"]
+            models = JSON.parse(models_text);
+          } else if (currentApp["model"]) {
+            models = [currentApp["model"]];
+          } else {
+            models = [];
+          }
         }
 
-        let openai = currentApp["group"].toLowerCase() === "openai";
-        let modelList = listModels(models, openai);
-        $("#model").html(modelList);
+        if (currentApp) {
+          let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
+          let modelList = listModels(models, openai);
+          $("#model").html(modelList);
+        }
         
         // Select the appropriate model
         let model;
-        const isOllama = currentApp["group"].toLowerCase() === "ollama";
-        
-        if (currentApp["model"] && models.includes(currentApp["model"])) {
-          // If app has a specific model set and it's available, use it
-          model = currentApp["model"];
-        } else if (isOllama && models.length > 0) {
-          // For Ollama apps without specific model, select first available
-          model = models[0];
-        } else if (models.length > 0) {
-          // For other apps, select the first model
-          model = models[0];
-        }
-        
-        // Extract provider name from current app group using shared function if available
-        let provider;
-        if (typeof getProviderFromGroup === 'function') {
-          provider = getProviderFromGroup(currentApp["group"]);
-        } else {
-          // Fallback implementation if the function is not available
-          provider = "OpenAI";
-          if (currentApp["group"]) {
-            const group = currentApp["group"].toLowerCase();
+        if (currentApp) {
+          const isOllama = currentApp["group"] && currentApp["group"].toLowerCase() === "ollama";
+          
+          if (currentApp["model"] && models.includes(currentApp["model"])) {
+            // If app has a specific model set and it's available, use it
+            model = currentApp["model"];
+          } else if (isOllama && models.length > 0) {
+            // For Ollama apps without specific model, select first available
+            model = models[0];
+          } else if (models.length > 0) {
+            // For other apps, select the first model
+            model = models[0];
+          }
+          
+          // Extract provider name from current app group using shared function if available
+          let provider;
+          if (typeof getProviderFromGroup === 'function') {
+            provider = getProviderFromGroup(currentApp["group"]);
+          } else {
+            // Fallback implementation if the function is not available
+            provider = "OpenAI";
+            if (currentApp["group"]) {
+              const group = currentApp["group"].toLowerCase();
             if (group.includes("anthropic") || group.includes("claude")) {
               provider = "Anthropic";
             } else if (group.includes("gemini") || group.includes("google")) {
@@ -2673,34 +2779,36 @@ function connect_websocket(callback) {
               provider = "Ollama";
             }
           }
+          }
+          
+          // Update model display with Provider (Model) format
+          if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+            $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
+          } else {
+            $("#model-selected").text(`${provider} (${model})`);
+          }
+
+          $("#model").val(model);
+
+          // Use display_name if available, otherwise fall back to app_name
+          $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
+          $("#base-app-icon").html(currentApp["icon"]);
+
+          if (currentApp["monadic"]) {
+            $("#monadic-badge").show();
+          } else {
+            $("#monadic-badge").hide();
+          }
+
+          if (currentApp["tools"]) {
+            $("#tools-badge").show();
+          } else {
+            $("#tools-badge").hide();
+          }
+
+          $("#base-app-desc").html(currentApp["description"]);
         }
         
-        // Update model display with Provider (Model) format
-        if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-          $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
-        } else {
-          $("#model-selected").text(`${provider} (${model})`);
-        }
-
-        $("#model").val(model);
-
-        // Use display_name if available, otherwise fall back to app_name
-        $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
-        $("#base-app-icon").html(currentApp["icon"]);
-
-        if (currentApp["monadic"]) {
-          $("#monadic-badge").show();
-        } else {
-          $("#monadic-badge").hide();
-        }
-
-        if (currentApp["tools"]) {
-          $("#tools-badge").show();
-        } else {
-          $("#tools-badge").hide();
-        }
-
-        $("#base-app-desc").html(currentApp["description"]);
         $("#start").focus();
 
         updateAppAndModelSelection(data["content"]);
@@ -3309,6 +3417,12 @@ function connect_websocket(callback) {
             // Reset streaming flag as response is done
             streamingResponse = false;
             
+            // Clear any pending spinner check interval
+            if (spinnerCheckInterval) {
+              clearInterval(spinnerCheckInterval);
+              spinnerCheckInterval = null;
+            }
+            
             // Only hide spinner if we're not waiting for function calls
             if (!callingFunction) {
               $("#monadic-spinner").hide();
@@ -3363,6 +3477,13 @@ function connect_websocket(callback) {
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
           streamingResponse = false;
+          
+          // Clear any pending spinner check interval
+          if (spinnerCheckInterval) {
+            clearInterval(spinnerCheckInterval);
+            spinnerCheckInterval = null;
+          }
+          
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
             $("#monadic-spinner").hide();
@@ -3381,6 +3502,13 @@ function connect_websocket(callback) {
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
           streamingResponse = false;
+          
+          // Clear any pending spinner check interval
+          if (spinnerCheckInterval) {
+            clearInterval(spinnerCheckInterval);
+            spinnerCheckInterval = null;
+          }
+          
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
             $("#monadic-spinner").hide();
@@ -3448,8 +3576,10 @@ function connect_websocket(callback) {
           // Create a new temp card if it doesn't exist
           const tempCard = $(`
             <div id="temp-card" class="card mt-3 streaming-card"> 
-              <div class="card-header p-2 ps-3">
-                <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+              <div class="card-header p-2 ps-3 d-flex justify-content-between">
+                <div class="fs-5 card-title mb-0">
+                  <span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+                </div>
               </div>
               <div class="card-body role-assistant">
                 <div class="card-text"></div>
@@ -3476,6 +3606,35 @@ function connect_websocket(callback) {
         // Mark that we're starting a response process
         streamingResponse = true;
         responseStarted = false; // Will be set to true when streaming starts
+        
+        // Clear any existing interval first
+        if (window.spinnerCheckInterval) {
+          clearInterval(window.spinnerCheckInterval);
+          window.spinnerCheckInterval = null;
+        }
+        
+        // Keep spinner visible during the initial gap between processing and receiving
+        // Only check for a short period (3 seconds max) to prevent infinite loops
+        let checkCount = 0;
+        window.spinnerCheckInterval = setInterval(() => {
+          checkCount++;
+          
+          // Stop checking after 3 seconds or if response has started
+          if (checkCount > 30 || responseStarted || !streamingResponse) {
+            clearInterval(window.spinnerCheckInterval);
+            window.spinnerCheckInterval = null;
+            return;
+          }
+          
+          // Only re-show spinner if it's hidden and we're still waiting for first fragment
+          if (streamingResponse && !responseStarted && !$("#monadic-spinner").is(":visible")) {
+            const processingRequestText = typeof webUIi18n !== 'undefined' ? 
+              webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
+            $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
+            $("#monadic-spinner").show();
+          }
+        }, 100); // Check every 100ms
+        
         break;
       }
 
@@ -3585,8 +3744,18 @@ function connect_websocket(callback) {
       
       case "streaming_complete": {
         // Handle streaming completion
-        // Hide the spinner if still showing
-        $("#monadic-spinner").hide();
+        streamingResponse = false;
+        
+        // Clear any pending spinner check interval
+        if (window.spinnerCheckInterval) {
+          clearInterval(window.spinnerCheckInterval);
+          window.spinnerCheckInterval = null;
+        }
+        
+        // Hide the spinner unless we're still processing function calls
+        if (!callingFunction) {
+          $("#monadic-spinner").hide();
+        }
         
         // Check if there are any pending operations before showing "Ready for input"
         // This includes checking for active spinners or recent DOM updates
@@ -3667,7 +3836,7 @@ function connect_websocket(callback) {
           $("#ai_user").prop("disabled", false);
           $("#select-role").prop("disabled", false);
           
-          $("#alert-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
+          $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           
           // Hide loading indicators
@@ -3706,7 +3875,10 @@ function connect_websocket(callback) {
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             responseStarted = true;
             streamingResponse = true; // Mark that we're streaming
-            // Show and update spinner message for streaming
+          }
+          
+          // Always update spinner for fragments to ensure continuity
+          if (streamingResponse) {
             const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
               webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
             $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);

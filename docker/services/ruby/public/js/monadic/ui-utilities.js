@@ -63,18 +63,23 @@ function adjustScrollButtons() {
   const backToTopBtn = $("#back_to_top");
   const backToBottomBtn = $("#back_to_bottom");
   
-  // Standard behavior for all platforms
-  if (mainScrollTop > mainHeight / 2) {
-    if (backToTopBtn.show) backToTopBtn.show();
+  // Calculate thresholds (100px minimum scroll to show buttons)
+  const scrollThreshold = 100;
+  
+  // Show top button when scrolled down enough from the top
+  // This should work even when at the bottom
+  if (mainScrollTop > scrollThreshold) {
+    backToTopBtn.fadeIn(200);
   } else {
-    if (backToTopBtn.hide) backToTopBtn.hide();
+    backToTopBtn.fadeOut(200);
   }
   
-  // Show/hide the scroll to bottom button
-  if (mainScrollHeight - mainScrollTop - mainHeight > mainHeight / 2) {
-    if (backToBottomBtn.show) backToBottomBtn.show();
+  // Show bottom button when not near the bottom
+  const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
+  if (distanceFromBottom > scrollThreshold) {
+    backToBottomBtn.fadeIn(200);
   } else {
-    if (backToBottomBtn.hide) backToBottomBtn.hide();
+    backToBottomBtn.fadeOut(200);
   }
 }
 
@@ -149,12 +154,15 @@ function adjustImageUploadButton(selectedModel) {
     const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
     
     // If it's an image generation app, show "Image" regardless of PDF support
+    const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
+    const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
+    
     if (isImageGenerationApp) {
-      imageFileElement.html('<i class="fas fa-image"></i> Image');
+      imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
     } else if (isPdfEnabled) {
-      imageFileElement.html('<i class="fas fa-file"></i> Image/PDF');
+      imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
     } else {
-      imageFileElement.html('<i class="fas fa-image"></i> Image');
+      imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
     }
     
     // Also update the file input's accept attribute

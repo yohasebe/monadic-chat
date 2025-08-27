@@ -1,7 +1,33 @@
 app "LanguagePracticePlusOpenAI" do
-  description <<~TEXT
-    Enhanced language learning with voice interaction. Provides linguistic feedback alongside conversation practice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Enhanced language practice with detailed feedback and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    詳細なフィードバックとアドバイス付き言語練習。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    带详细反馈和建议的增强语言练习。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    상세한 피드백과 조언이 포함된 향상된 언어 연습. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Práctica de idiomas mejorada con retroalimentación detallada. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Pratique linguistique améliorée avec feedback détaillé. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Erweiterte Sprachpraxis mit detailliertem Feedback. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   icon "language-practice-plus"
   
   # WebSearchAgent is automatically available when websearch feature is enabled

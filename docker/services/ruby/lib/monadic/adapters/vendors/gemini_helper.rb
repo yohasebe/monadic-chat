@@ -311,6 +311,13 @@ module GeminiHelper
     # Set up API endpoint - use v1beta for thinking models, v1alpha for others
     endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
     target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
+    
+    # Debug logging for SecondOpinion
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      puts "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}"
+      puts "GeminiHelper send_query: Full URI=#{target_uri.gsub(/key=.*/, 'key=***')}"
+    end
+    
     http = HTTP.headers(headers)
     
     # Make request
@@ -416,7 +423,7 @@ module GeminiHelper
         return Monadic::Utils::ErrorFormatter.api_error(
           provider: "Gemini",
           message: error_message,
-          code: res.status.code
+          code: response.status.code
         )
       end
     rescue StandardError => e
@@ -1154,10 +1161,9 @@ module GeminiHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      formatted_error = format_api_error(error_report, "gemini")
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Gemini",
-        message: error_report["error"]["message"] || "Unknown API error",
+        message: error_report.dig("error", "message") || "Unknown API error",
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }

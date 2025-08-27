@@ -208,13 +208,14 @@ The OpenAI version uses the latest gpt-image-1 model and supports three main ope
 
 With the image editing feature, you can:
 - Select an existing image as a base
-- Specify areas to modify using a mask image (optional)
+- Create mask images to specify areas to modify
+  - Click the mask button on uploaded images
+  - Draw on the image to select editing areas
 - Provide text instructions for the changes
 - Customize output options including:
-  - Image size (square, portrait, landscape)
-  - Quality level (standard, hd)
+  - Image size and quality
   - Output format (PNG, JPEG, WebP)
-  - Background type (transparent, opaque)
+  - Background transparency
   - Compression level
 
 ### Creating and Using Masks

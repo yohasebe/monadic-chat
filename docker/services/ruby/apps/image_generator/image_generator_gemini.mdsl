@@ -1,7 +1,33 @@
 app "ImageGeneratorGemini" do
-  description <<~TEXT
-    AI image generation with auto model selection. Uses Imagen 3 for quality or Gemini for speed. Natural language editing support. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Generate images from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    テキスト説明から画像生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    从文本描述生成图像。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    텍스트 설명에서 이미지 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Generar imágenes desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Générer des images à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Bilder aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=image-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
 
   icon "fa-regular fa-image"
 
@@ -43,6 +69,7 @@ app "ImageGeneratorGemini" do
     initiate_from_assistant false
     image true
     pdf false
+    image_generation true
     group "Google"
   end
 

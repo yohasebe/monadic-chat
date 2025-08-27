@@ -1,4 +1,12 @@
-- [August 24, 2025] Latest Updates
+- [August 27, 2025] Latest Updates
+  - **UI/UX Improvements and Bug Fixes**
+    - Second Opinion App: Fixed Japanese text display issue in temp-card
+    - Cancel Query Button: Fixed spinner visibility and adjusted height to 28px
+    - OpenAI GPT-5 Responses API: Added full support for images and PDFs
+    - Scroll Buttons: Complete redesign with dark theme, smooth animations, and better positioning
+    - Image Generator Mask Editing: Enhanced recognition with mask__ prefix and input_fidelity parameter
+
+- [August 24, 2025] Recent Updates
   - **GPT-5 Streaming Duplicate Fix**: Resolved duplicate character issue during streaming
     - Fixed duplicate characters appearing during GPT-5, GPT-4.1, and chatgpt-4o streaming
     - Server-side: Skip redundant response.in_progress events for these models

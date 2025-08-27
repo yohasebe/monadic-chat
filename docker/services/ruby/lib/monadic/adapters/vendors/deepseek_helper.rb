@@ -588,10 +588,9 @@ module DeepSeekHelper
     unless res.status.success?
       error_report = JSON.parse(res.body)
       pp error_report
-      formatted_error = format_api_error(error_report, "deepseek")
       error_message = Monadic::Utils::ErrorFormatter.api_error(
         provider: "DeepSeek",
-        message: formatted_error,
+        message: error_report.dig("error", "message") || error_report["message"] || "Unknown API error",
         code: res.status.code
       )
       res = { "type" => "error", "content" => error_message }

@@ -1,8 +1,34 @@
 app "ContentReaderOpenAI" do
   display_name "Content Reader"
-  description <<~TEXT
-    AI assistant that analyzes and explains files, web content, and code in beginner-friendly language. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
-  TEXT
+  description do
+    en <<~TEXT
+    Extract and analyze text from documents and PDFs. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    文書とPDFからテキスト抽出と分析。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    从文档和PDF中提取和分析文本。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    문서와 PDF에서 텍스트 추출 및 분석. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Extraer y analizar texto de documentos y PDFs. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Extraire et analyser du texte de documents et PDFs. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Text aus Dokumenten und PDFs extrahieren und analysieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=content-reader" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
   icon "leanpub"
   
   # WebSearchAgent is automatically available when websearch feature is enabled

@@ -277,19 +277,260 @@
       /* Mobile view adjustments */
       /* Media query for toggle menu removed - will rely on default styling */
       /* Media query for toggle menu (800px) removed - will rely on default styling */
-      /* Ensure cancel button content never wraps and stays inline */
+      /* Cancel button with softer styling */
       #cancel_query {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
         white-space: nowrap !important;
-        padding: .375rem .75rem !important;
-        /* Keep line height consistent so content fits within border */
-        line-height: 1 !important;
+        background-color: #fef5f5; /* Very light rose background */
+        border-color: #feb2b2; /* Soft rose border */
+        color: #c53030; /* Soft red text */
+        vertical-align: middle !important; /* Ensure vertical alignment */
+        line-height: 1.5 !important; /* Match other buttons */
       }
+      
+      #cancel_query:hover {
+        background-color: #fed7d7; /* Slightly darker rose on hover */
+        border-color: #fc8181; /* Darker rose border on hover */
+        color: #9b2c2c; /* Darker red text on hover */
+      }
+      
+      #cancel_query:focus {
+        box-shadow: 0 0 0 0.2rem rgba(254, 178, 178, 0.25); /* Soft focus ring */
+      }
+      
       /* Add spacing between icon and text for cancel button */
       #cancel_query i {
         margin-right: .25rem !important;
+      }
+      
+      /* Initial prompt toggle buttons styling */
+      #initial-prompt-toggle,
+      #ai-user-initial-prompt-toggle {
+        min-width: 280px; /* Set consistent width for both buttons */
+        text-align: left;
+        margin-bottom: 10px; /* Add vertical spacing between button and textarea */
+        border-color: #dee2e6; /* Lighter default border */
+        color: #6c757d; /* Softer text color */
+      }
+      
+      #initial-prompt-toggle:hover,
+      #ai-user-initial-prompt-toggle:hover {
+        background-color: #f8f9fa; /* Very light background on hover */
+        border-color: #adb5bd; /* Lighter border on hover */
+        color: #495057; /* Slightly darker text on hover */
+      }
+      
+      #initial-prompt-toggle:focus,
+      #ai-user-initial-prompt-toggle:focus {
+        box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.15); /* Softer focus ring */
+      }
+      
+      #initial-prompt-toggle i,
+      #ai-user-initial-prompt-toggle i {
+        margin-right: .5rem;
+      }
+      
+      /* Status message in navbar */
+      #status-message {
+        height: 28px;
+        padding: 0 0.5rem;
+        border-radius: 0.25rem;
+        border: 1px solid #dee2e6;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.875rem;
+        width: 200px; /* Fixed width */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        background-color: #f8f9fa;
+        line-height: 1;
+        box-sizing: border-box;
+      }
+      
+      /* Add spacing between icon and text in status message */
+      #status-message i {
+        margin-right: 0.5rem; /* Space between icon and text */
+      }
+      
+      #status-message.text-success {
+        background-color: #f0f9f5; /* Very light mint green */
+        border-color: #c3e6cb; /* Soft green border */
+        color: #155724 !important; /* Dark green text */
+      }
+      
+      #status-message.text-warning {
+        background-color: #fffaf0; /* Very light warm yellow */
+        border-color: #ffeaa7; /* Soft yellow border */
+        color: #856404 !important; /* Dark amber text */
+      }
+      
+      #status-message.text-danger {
+        background-color: #fef5f5; /* Very light rose */
+        border-color: #f5c2c7; /* Soft rose border */
+        color: #721c24 !important; /* Dark red text */
+      }
+      
+      #status-message.text-info {
+        background-color: #f0f7ff; /* Very light sky blue */
+        border-color: #bee5eb; /* Soft sky blue border */
+        color: #0c5460 !important; /* Dark teal text */
+      }
+      
+      #status-message.text-primary {
+        background-color: #f5f7fa; /* Very light gray-blue */
+        border-color: #c8d6e5; /* Soft gray-blue border */
+        color: #2c3e50 !important; /* Dark blue-gray text */
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 900px) {
+        #status-message {
+          width: 150px;
+        }
+      }
+      
+      @media (max-width: 800px) {
+        #status-message {
+          width: 120px;
+        }
+      }
+      
+      /* Hide earlier to prevent overlap issues */
+      @media (max-width: 768px) {
+        #status-message {
+          width: 0 !important;
+          padding: 0 !important;
+          border: none !important;
+          overflow: hidden !important;
+          opacity: 0 !important;
+          margin: 0 !important;
+        }
+      }
+      
+      @media (max-width: 400px) {
+        /* Only on very small screens, show icon only for cancel button */
+        #cancel_query span {
+          display: none;
+        }
+        
+        #cancel_query i {
+          margin-right: 0 !important;
+        }
+      }
+      
+      /* Ensure nav buttons container stays on one line */
+      .nav-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: nowrap !important;
+        gap: 0.5rem; /* Consistent spacing */
+      }
+      
+      /* Fix toggle button position regardless of status-message visibility */
+      #toggle-menu {
+        position: relative;
+        flex-shrink: 0; /* Prevent shrinking */
+      }
+      
+      /* Remove top margin from first h5 elements in panels */
+      .shaded-panel h5:first-child,
+      #menu h5:first-child {
+        margin-top: 0 !important;
+      }
+      
+      /* Add top margin to subsequent h5 elements in panels */
+      .shaded-panel h5:not(:first-child),
+      #menu h5:not(:first-child) {
+        margin-top: 1.5rem !important;
+      }
+      
+      /* Minimum width for Send button to ensure prominence */
+      #send {
+        min-width: 80px;
+      }
+      
+      /* Session buttons layout with proper wrapping */
+      .session-buttons {
+        gap: 0.5rem; /* Consistent spacing between buttons */
+      }
+      
+      .session-buttons .btn {
+        margin: 0; /* Remove individual margins since we're using gap */
+      }
+      
+      /* Primary button colors - consistent blue theme */
+      .btn-primary {
+        background-color: #007bff; /* Standard blue */
+        border-color: #007bff;
+      }
+      
+      .btn-primary:hover {
+        background-color: #0056b3; /* Darker blue on hover */
+        border-color: #0056b3;
+      }
+      
+      .btn-primary:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      
+      .btn-primary:active,
+      .btn-primary.active {
+        background-color: #0056b3; /* Same as hover for consistency */
+        border-color: #004085;
+      }
+      
+      .btn-primary:disabled {
+        background-color: #6c9bd1; /* Lighter blue when disabled */
+        border-color: #6c9bd1;
+      }
+      
+      .btn-secondary {
+        background-color: #718096; /* Softer gray */
+        border-color: #718096;
+      }
+      
+      .btn-secondary:hover {
+        background-color: #4a5568; /* Darker gray on hover */
+        border-color: #4a5568;
+      }
+      
+      .btn-secondary:focus {
+        box-shadow: 0 0 0 0.2rem rgba(113, 128, 150, 0.25);
+      }
+      
+      /* Softer message card styling */
+      .card {
+        border-color: #e2e8f0; /* Softer border for all cards */
+      }
+      
+      .card-header {
+        background-color: #f7fafc; /* Very light background for headers */
+        border-bottom-color: #e2e8f0;
+      }
+      
+      /* User message cards - Blue */
+      .user-color {
+        color: #4CACDC; /* Existing user blue color */
+      }
+      
+      /* Assistant message cards - Red */
+      .assistant-color {
+        color: #DC4C64; /* Existing assistant red color */
+      }
+      
+      /* System message cards - Green */
+      .system-color {
+        color: #22ad50; /* Existing system green color */
+      }
+      
+      /* Temp card (typing indicator) */
+      #temp-card {
+        border-color: #cbd5e0; /* Slightly more visible border */
+      }
+      
+      #temp-card .card-header {
+        background-color: #edf2f7; /* Slightly darker for temp card */
       }
     </style>
    <script>
@@ -318,7 +559,8 @@
           <button id="cancel_query" class="btn btn-light me-2" aria-label="Cancel Query" title="Cancel current operation" data-i18n-title="ui.cancelQuery">
             <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
-          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" style="margin-top: -1px;" data-i18n-title="ui.toggleMenu">
+          <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
+          <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -367,10 +609,7 @@
             <div id="base-app-desc" class="mt-2 mb-1"></div>
           </div>
 
-          <div id="api-token-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5><span class="text" data-i18n="ui.monadicChatStatus"><i class="fa-solid fa-square-check"></i> Monadic Chat Status</span></h5>
-            <div id="alert-message" class="mt-3 mb-3 text" data-i18n="ui.notStarted">Not started</div>
-            
+          <div id="ai-status-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5><span class="text" data-i18n="ui.aiAssistantAndUser"><i class="fa-solid fa-robot"></i> AI Assistant & AI User</span></h5>
 
             <div class="mt-3 text">
@@ -398,10 +637,10 @@
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-file"></i> Session</span></h5>
-            <div class="d-flex align-items-center flex-wrap">
-              <button class="btn btn-sm btn-warning me-2" id="reset" title="Reset conversation while keeping current app selection" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
-              <button class="btn btn-sm btn-warning me-2" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
-              <button class="btn btn-sm btn-warning me-2" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
+            <div class="session-buttons d-flex align-items-center flex-wrap">
+              <button class="btn btn-sm btn-warning" id="reset" title="Reset conversation while keeping current app selection" data-i18n="ui.reset"><i class="fas fa-stop" ></i> Reset</button>
+              <button class="btn btn-sm btn-warning" id="load" title="Import conversation from file" data-i18n="ui.import"><i class="fas fa-file-import"></i> Import</button>
+              <button class="btn btn-sm btn-warning" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
             </div>
             <input type="file" id="fileInput" style="display:none;">
             <div class="mt-3 mb-1" data-i18n="ui.resetDescription"> Press "reset" to clear conversation while keeping the current app selection.</div>
@@ -567,10 +806,10 @@
 
             <div class="row my-3">
               <div id="config-initial-prompt" class="">
-                <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="initial-prompt-toggle" data-i18n="ui.showInitialPromptAssistant">Show Initial Prompt for Assistant</label>
-                  <input class="form-check-input" type="checkbox" id="initial-prompt-toggle">
-                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary me-3" id="initial-prompt-toggle" title="Toggle initial prompt visibility">
+                  <i class="fas fa-chevron-down" id="initial-prompt-icon"></i>
+                  <span data-i18n="ui.initialPromptAssistant">Initial Prompt for Assistant</span>
+                </button>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
                   <label class="form-check-label" for="prompt-caching" data-i18n="ui.promptCaching">Prompt Caching</label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
@@ -586,10 +825,10 @@
 
             <div class="row my-3">
               <div id="config-ai-user-initial-prompt" class="">
-                <div style="display:inline-block;" class="form-check form-switch me-3">
-                  <label class="form-check-label" for="ai-user-initial-prompt-toggle" data-i18n="ui.showInitialPromptAIUser">Show Initial Prompt for AI-User</label>
-                  <input class="form-check-input" type="checkbox" id="ai-user-initial-prompt-toggle">&nbsp;
-                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary me-3" id="ai-user-initial-prompt-toggle" title="Toggle AI User initial prompt visibility">
+                  <i class="fas fa-chevron-down" id="ai-user-initial-prompt-icon"></i>
+                  <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
+                </button>
                 <div style="display:inline-block;" class="form-check form-switch me-3">
                   <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
@@ -605,7 +844,7 @@
             <div class="row my-3 align-items-center">
               <div class="col-12">
                 <fieldset>
-                  <legend data-i18n="ui.voiceChatControls">Voice Chat Interaction Controls&nbsp;
+                  <legend data-i18n="ui.voiceConversationControls">Voice Conversation Interaction Controls&nbsp;
                     <span id="interaction-check-all" class="mt-2 mb-0 textbox-caption" style="font-weight: 400">
                       check all
                     </span>
@@ -653,7 +892,7 @@
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
                   <span class='text-secondary'><i class='fas fa-robot'></i></span>
-                  <span class='fw-bold assistant-color' data-i18n="ui.assistant">Assistant</span>
+                  <span class='fw-bold fs-6' style="color: #DC4C64;">Assistant</span>
                 </div>
                 <div class="me-1 text-secondary d-flex align-items-center">
                   <span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner"></span>
@@ -750,8 +989,6 @@
               </div>
             </div>
           </div>
-          <div id="back_to_bottom" ><a href="#"><i class="fas fa-arrow-down"></i></a></div>
-          <div id="back_to_top" ><a href="#"><i class="fas fa-arrow-up"></i></a></div>
         </div>
       </div>
     </div>
@@ -765,11 +1002,11 @@
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            Are you sure you want to reset the chat?
+            <span data-i18n="ui.modals.resetConfirmation">Are you sure you want to reset the chat?</span>
           </div>
           <div class="modal-footer">
             <div></div>
-            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal">Confirm</button>
+            <button type="button" id="resetConfirmed" class="btn btn-sm btn-primary" data-bs-dismiss="modal" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -784,7 +1021,7 @@
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            Are you sure you want to delete <span style="font-weight: bold; color: #777;" id="pdfToDelete"></span>?
+            <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span style="font-weight: bold; color: #777;" id="pdfToDelete"></span>?
           </div>
           <div class="modal-footer">
             <div></div>
@@ -820,15 +1057,15 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> Change App</h5>
+            <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> <span data-i18n="ui.modals.changeApp">Change App</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <p>Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
+            <p data-i18n="ui.modals.appChangeConfirmation">Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" id="appChangeConfirmed" class="btn btn-sm btn-primary">Confirm</button>
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" data-i18n="ui.cancel">Cancel</button>
+            <button type="button" id="appChangeConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1046,5 +1283,9 @@
     </script>
     
     <!-- No inline styles - all styles moved to monadic.css -->
+    
+    <!-- Scroll buttons - outside main container for proper floating -->
+    <div id="back_to_bottom"><a href="#"><i class="fas fa-arrow-down"></i></a></div>
+    <div id="back_to_top"><a href="#"><i class="fas fa-arrow-up"></i></a></div>
   </body>
 </html>

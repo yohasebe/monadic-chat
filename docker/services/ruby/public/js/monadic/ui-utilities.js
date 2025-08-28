@@ -53,6 +53,13 @@ function setupTextarea(textarea, initialHeight) {
  * Enhanced for iOS compatibility
  */
 function adjustScrollButtons() {
+  // Don't show buttons if menu is visible on mobile (main is hidden)
+  if ($("body").hasClass("menu-visible")) {
+    $("#back_to_top").hide();
+    $("#back_to_bottom").hide();
+    return;
+  }
+  
   const mainPanel = $("#main");
   // Safe access to dimensions with fallbacks for iOS
   const mainHeight = mainPanel.height() || 0;

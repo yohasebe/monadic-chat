@@ -280,11 +280,11 @@ div.card-body.role-system {
 #back_to_bottom {
   display: none; /* Initially hidden */
   position: fixed;
-  z-index: 1020; /* Below modals but above content */
+  z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
   transition: opacity 0.3s ease;
   opacity: 0.9;
-  /* Position in the center-right of main content area */
-  left: calc(50% + 200px); /* Offset from center to be over main content */
+  /* Position on the right side of the viewport */
+  right: 30px; /* Fixed position from right edge */
 }
 
 #back_to_top {
@@ -331,11 +331,18 @@ div.card-body.role-system {
 }
 
 /* Responsive positioning for smaller screens */
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
   #back_to_top,
   #back_to_bottom {
-    left: auto;
-    right: 30px; /* Position on the right for smaller screens */
+    right: 20px; /* Slightly closer to edge on mobile */
+  }
+  
+  #back_to_top {
+    bottom: 100px; /* Adjust for mobile UI */
+  }
+  
+  #back_to_bottom {
+    bottom: 50px; /* Adjust for mobile UI */
   }
 }
 
@@ -1730,6 +1737,12 @@ legend {
   
   /* Hide main content completely when menu is shown */
   body.menu-visible #main {
+    display: none !important;
+  }
+  
+  /* Hide scroll buttons when menu is visible on mobile */
+  body.menu-visible #back_to_top,
+  body.menu-visible #back_to_bottom {
     display: none !important;
   }
   

@@ -85,6 +85,13 @@ window.shims.uiUtils = {
 
   // Adjusts scroll buttons visibility based on scroll position
   adjustScrollButtons: function() {
+    // Don't show buttons if menu is visible on mobile (main is hidden)
+    if ($("body").hasClass("menu-visible")) {
+      $("#back_to_top").hide();
+      $("#back_to_bottom").hide();
+      return;
+    }
+    
     const mainPanel = $("#main");
     const mainHeight = mainPanel.height();
     const mainScrollHeight = mainPanel.prop("scrollHeight");

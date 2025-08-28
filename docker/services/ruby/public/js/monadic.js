@@ -548,6 +548,39 @@ $(function () {
     });
   }
 
+  // Fallback function for scroll buttons when uiUtils is not available
+  function adjustScrollButtonsFallback() {
+    // Don't show buttons if menu is visible on mobile (main is hidden)
+    if ($("body").hasClass("menu-visible")) {
+      $("#back_to_top").hide();
+      $("#back_to_bottom").hide();
+      return;
+    }
+    
+    const mainPanel = $("#main");
+    const mainHeight = mainPanel.height() || 0;
+    const mainScrollHeight = mainPanel.prop("scrollHeight") || 0;
+    const mainScrollTop = mainPanel.scrollTop() || 0;
+    
+    // Calculate thresholds (100px minimum scroll to show buttons)
+    const scrollThreshold = 100;
+    
+    // Show top button when scrolled down enough from the top
+    if (mainScrollTop > scrollThreshold) {
+      $("#back_to_top").fadeIn(200);
+    } else {
+      $("#back_to_top").fadeOut(200);
+    }
+    
+    // Show bottom button when not near the bottom
+    const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
+    if (distanceFromBottom > scrollThreshold) {
+      $("#back_to_bottom").fadeIn(200);
+    } else {
+      $("#back_to_bottom").fadeOut(200);
+    }
+  }
+
   // Call these functions on document ready
   $(function () {
     setupToggleHandlers();
@@ -1211,6 +1244,13 @@ $(function () {
     
     // Reset scroll position
     $("body, html").animate({ scrollTop: 0 }, 0);
+    
+    // Update scroll buttons visibility after menu toggle
+    if (uiUtils && uiUtils.adjustScrollButtons) {
+      uiUtils.adjustScrollButtons();
+    } else {
+      adjustScrollButtonsFallback();
+    }
     
     // Basic scroll position maintenance - use a very small timeout
     setTimeout(function() {

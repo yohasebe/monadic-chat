@@ -86,10 +86,12 @@ window.shims.uiUtils = {
   // Adjusts scroll buttons visibility based on scroll position
   adjustScrollButtons: function() {
     const mainPanel = $("#main");
-    const isMobile = $(window).width() < 600;
+    const windowWidth = $(window).width();
+    const isMobile = windowWidth < 600;
+    const isMedium = windowWidth < 768; // Bootstrap md breakpoint
     
-    // On mobile, check toggle button state to determine if menu is showing
-    if (isMobile) {
+    // On mobile and medium screens where menu/content are exclusive, check toggle state
+    if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
       // When menu-hidden class is present, menu is hidden and main is showing
       // When menu-hidden class is absent, menu is showing and main is hidden

@@ -2207,6 +2207,9 @@ function connect_websocket(callback) {
         responseStarted = false;
         callingFunction = false;
         
+        // Re-enable toggle menu
+        $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
+        
         // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
         
@@ -3607,6 +3610,9 @@ function connect_websocket(callback) {
         streamingResponse = true;
         responseStarted = false; // Will be set to true when streaming starts
         
+        // Disable toggle menu during streaming
+        $("#toggle-menu").addClass("streaming-active").css("cursor", "not-allowed");
+        
         // Clear any existing interval first
         if (window.spinnerCheckInterval) {
           clearInterval(window.spinnerCheckInterval);
@@ -3745,6 +3751,9 @@ function connect_websocket(callback) {
       case "streaming_complete": {
         // Handle streaming completion
         streamingResponse = false;
+        
+        // Re-enable toggle menu
+        $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
         
         // Clear any pending spinner check interval
         if (window.spinnerCheckInterval) {

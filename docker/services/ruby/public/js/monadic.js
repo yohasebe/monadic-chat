@@ -630,10 +630,12 @@ $(function () {
   // Fallback function for scroll buttons when uiUtils is not available
   function adjustScrollButtonsFallback() {
     const mainPanel = $("#main");
-    const isMobile = $(window).width() < 600;
+    const windowWidth = $(window).width();
+    const isMobile = windowWidth < 600;
+    const isMedium = windowWidth < 768; // Bootstrap md breakpoint
     
-    // On mobile, check toggle button state to determine if menu is showing
-    if (isMobile) {
+    // On mobile and medium screens where menu/content are exclusive, check toggle state
+    if (isMobile || isMedium) {
       // Check if toggle button has menu-hidden class
       // When menu-hidden class is present, menu is hidden and main is showing
       // When menu-hidden class is absent, menu is showing and main is hidden
@@ -1350,6 +1352,17 @@ $(function () {
     e.preventDefault();
     e.stopPropagation();
     
+    // Check if AI is currently responding
+    if ($("#monadic-spinner").is(":visible") || window.streamingResponse) {
+      // Don't allow toggle during AI response
+      // Add visual feedback that the button is disabled
+      $(this).css("opacity", "0.5");
+      setTimeout(() => {
+        $(this).css("opacity", "1");
+      }, 200);
+      return false;
+    }
+    
     // Check if we're on mobile
     const isMobile = $(window).width() < 600;
     
@@ -1577,6 +1590,9 @@ $(function () {
     responseStarted = false;
     callingFunction = false;
     streamingResponse = false;  // Reset streaming flag
+    
+    // Re-enable toggle menu
+    $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
 
     // Clear spinner check interval if it exists
     if (window.spinnerCheckInterval) {

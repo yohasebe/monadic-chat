@@ -35,7 +35,7 @@ app "CodeInterpreterGrok" do
 
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-code-fast-1"
     temperature 0.0
     tool_choice "auto"  # Default to auto, will be overridden when needed
     max_tokens 4096  # Ensure enough tokens for tool responses

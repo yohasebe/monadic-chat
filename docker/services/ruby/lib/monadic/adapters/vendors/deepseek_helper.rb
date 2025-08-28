@@ -3,11 +3,13 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
+require_relative "../../utils/model_spec_utils"
 require 'strscan'
 require 'securerandom'
 
 module DeepSeekHelper
   include InteractionUtils
+  extend ModelSpecUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
@@ -167,7 +169,7 @@ module DeepSeekHelper
     def use_strict_mode?(obj)
       # Enable strict mode for deepseek-chat model when function calling is used
       # Can be controlled via configuration or per-request parameter
-      model = obj["model"] || "deepseek-chat"
+      model = obj["model"] || DeepSeekHelper.get_default_model
       
       # Check if explicitly disabled
       return false if obj["strict_function_calling"] == false
@@ -225,8 +227,14 @@ module DeepSeekHelper
     end
   end
 
+  # Get default model using model_spec.js ordering
+  def self.get_default_model
+    ModelSpecUtils.get_default_model("deepseek") || "deepseek-chat"
+  end
+
   # Simple non-streaming chat completion
-  def send_query(options, model: "deepseek-chat")
+  def send_query(options, model: nil)
+    model ||= DeepSeekHelper.get_default_model
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

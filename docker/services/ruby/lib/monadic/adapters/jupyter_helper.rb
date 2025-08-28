@@ -301,7 +301,24 @@ module MonadicHelper
                               container: "python",
                               success: "The cells have been added to the notebook successfully.\n")
                  puts "[DEBUG Jupyter] Command result: #{result}" if CONFIG["EXTRA_LOGGING"]
-                 result
+                 
+                 # Check if the error is about missing notebook file
+                 if result && result.include?("does not exist")
+                   # Provide more helpful error message
+                   available_notebooks = Dir.glob(File.join(shared_volume, "*.ipynb")).map { |f| File.basename(f, ".ipynb") }
+                   if available_notebooks.any?
+                     similar = available_notebooks.select { |nb| nb.start_with?(filename.split("_").first) }
+                     if similar.any?
+                       "Error: Notebook '#{filename}' not found. Did you mean one of these? #{similar.join(', ')}. Please use the exact filename with timestamp returned by create_jupyter_notebook."
+                     else
+                       "Error: Notebook '#{filename}' not found. Available notebooks: #{available_notebooks.join(', ')}. Please use the exact filename with timestamp."
+                     end
+                   else
+                     "Error: Notebook '#{filename}' not found and no notebooks exist. Please create a notebook first using create_jupyter_notebook."
+                   end
+                 else
+                   result
+                 end
                else
                  puts "[DEBUG Jupyter] JSON file not created in time" if CONFIG["EXTRA_LOGGING"]
                  false
@@ -352,12 +369,9 @@ module MonadicHelper
     filepath = File.join(shared_volume, filename_with_ext)
 
     if res
-      output = get_last_cell_output(filepath)
-      if output
-        "The last cell output is: #{output}"
-      else
-        "The notebook has been executed successfully."
-      end
+      # Don't include the last cell output in the response as it's too technical
+      # and Grok tends to repeat it unnecessarily in user-facing messages
+      "The cells have been executed successfully."
     else
       "Error: The notebook could not be executed."
     end
@@ -375,6 +389,48 @@ module MonadicHelper
     "#{jupyter_url}/lab/tree/#{filename}"
   end
 
+  # Combined function for Gemini to create notebook and add cells in one call
+  def create_and_populate_jupyter_notebook(filename:, cells: [], run: true)
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Jupyter] create_and_populate_jupyter_notebook called"
+      puts "  Filename: #{filename}"
+      puts "  Cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}"
+      puts "  Run cells: #{run}"
+    end
+    
+    # First create the notebook
+    result = create_jupyter_notebook(filename: filename)
+    
+    if result && result.include?("successfully")
+      # Extract the actual filename with timestamp
+      actual_filename = nil
+      if result =~ /Notebook '([^']+\.ipynb)'/
+        actual_filename = $1.sub('.ipynb', '')
+      elsif result =~ /([^\/\s]+_\d{8}_\d{6})\.ipynb/
+        actual_filename = $1
+      end
+      
+      if actual_filename && cells && cells.is_a?(Array) && !cells.empty?
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Jupyter] Adding cells to notebook: #{actual_filename}"
+        end
+        # Now add the cells
+        cells_result = add_jupyter_cells(
+          filename: actual_filename,
+          cells: cells,
+          run: run
+        )
+        
+        # Combine the results
+        "#{result}\n\n#{cells_result}"
+      else
+        result
+      end
+    else
+      result
+    end
+  end
+  
   def create_jupyter_notebook(filename:)
     begin
       # filename extension is not required and removed if provided

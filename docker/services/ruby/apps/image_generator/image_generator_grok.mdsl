@@ -82,6 +82,7 @@ app "ImageGeneratorGrok" do
     image true
     pdf false
     image_generation true
+    monadic false
     group "xAI"
   end
 

@@ -66,8 +66,8 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         
         # Basic MDSL structure validation
         expect(content).to match(/app\s+"[^"]+"\s+do/), "#{file} should have proper app declaration"
-        # Allow both inline descriptions and module references
-        expect(content).to match(/(description\s+<<~TEXT|description\s+\w+::\w+)/), "#{file} should have description"
+        # Allow both inline descriptions, module references, and multi-language block format
+        expect(content).to match(/(description\s+<<~TEXT|description\s+\w+::\w+|description\s+do)/), "#{file} should have description"
         # Allow both inline icons and module references
         expect(content).to match(/(icon\s+"[^"]+"|icon\s+\w+::\w+)/), "#{file} should have icon"
         # Allow both system_prompt formats and module references

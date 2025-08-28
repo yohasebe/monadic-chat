@@ -999,7 +999,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> Reset</h5>
+            <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> <span data-i18n="ui.modals.reset">Reset</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -1018,7 +1018,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fas fa-trash"></i> Delete PDF</h5>
+            <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deletePDF">Delete PDF</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -1026,7 +1026,7 @@
           </div>
           <div class="modal-footer">
             <div></div>
-            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-primary">Confirm</button>
+            <button type="button" id="pdfDeleteConfirmed" class="btn btn-sm btn-primary" data-i18n="ui.modals.confirm">Confirm</button>
           </div>
         </div>
       </div>
@@ -1037,7 +1037,7 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fas fa-trash"></i> Delete Message</h5>
+            <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deleteMessage">Delete Message</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -1078,12 +1078,12 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> Load File</h5>
+            <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.modals.loadFile">Load File</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <form action="/load" method="post" enctype="multipart/form-data" type="hidden">
             <div class="modal-body">
-              <label for="file-load" class="form-label">Select file to load</label>
+              <label for="file-load" class="form-label" data-i18n="ui.modals.selectFileToLoad">Select file to load</label>
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">
             </div>
             <div class="modal-footer">
@@ -1091,7 +1091,7 @@
               <div class="spinner-border" role="status" id="load-spinner" style="display: none;">
                 <span class="visually-hidden">Loading . . .</span>
               </div>
-              <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled>Load</button>
+              <button id="import-button" type="submit" value="load" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.load">Load</button>
             </div>
           </form>
         </div>
@@ -1102,15 +1102,15 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> Import File</h5>
+            <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> <span data-i18n="ui.modals.importFile">Import File</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="file-title">File Title (Optional)</label>
+            <label class="form-label" for="file-title" data-i18n="ui.modals.fileTitleOptional">File Title (Optional)</label>
             <div class="mb-3">
-              <input placeholder="File name will be used if not provided" class="form-control form-control-sm" id="file-title"></input>
+              <input data-i18n="[placeholder]ui.modals.fileTitlePlaceholder" placeholder="File name will be used if not provided" class="form-control form-control-sm" id="file-title"></input>
             </div>
-            <label for="fileFile" class="form-label">File to import</label>
+            <label for="fileFile" class="form-label" data-i18n="ui.modals.fileToImport">File to import</label>
             <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>
           <div class="modal-footer">
@@ -1118,7 +1118,7 @@
             <div class="spinner-border" role="status" id="file-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="uploadFile" value="file" class="btn btn-sm btn-primary" disabled>Import</button>
+            <button type="submit" id="uploadFile" value="file" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
           </div>
         </div>
       </div>
@@ -1128,15 +1128,15 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> From file</h5>
+            <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromFile">From file</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="doc-label">Label (Optional)</label>
+            <label class="form-label" for="doc-label" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
             <div class="mb-3">
-              <input placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-label"></input>
+              <input data-i18n="[placeholder]ui.modals.docLabelPlaceholder" placeholder="Text placed at the top of the document" class="form-control form-control-sm" id="doc-label"></input>
             </div>
-            <label for="docFile" class="form-label">Document to convert<br />[pdf, docx, pptx, xlsx, and any text-based files]</label>
+            <label for="docFile" class="form-label" data-i18n="[html]ui.modals.documentToConvert">Document to convert<br />[pdf, docx, pptx, xlsx, and any text-based files]</label>
             <input class="form-control form-control-sm" id="docFile" type="file" name="docFile">
           </div>
           <div class="modal-footer">
@@ -1144,7 +1144,7 @@
             <div class="spinner-border" role="status" id="doc-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled>Convert</button>
+            <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
           </div>
         </div>
       </div>
@@ -1154,15 +1154,15 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> From URL</h5>
+            <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label class="form-label" for="urlLabel">Label (Optional)</label>
+            <label class="form-label" for="urlLabel" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
             <div class="mb-3">
-              <input placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
+              <input data-i18n="[placeholder]ui.modals.urlLabelPlaceholder" placeholder="Text placed at the top of the webpage contents" class="form-control form-control-sm" id="urlLabel"></input>
             </div>
-            <label for="pageURL" class="form-label">URL of the page to fetch</label>
+            <label for="pageURL" class="form-label" data-i18n="ui.modals.urlToFetch">URL of the page to fetch</label>
             <div class="mb-3">
               <input placeholder="URL must start with http:// or https://" class="form-control form-control-sm" id="pageURL"></input>
             </div>
@@ -1172,7 +1172,7 @@
             <div class="spinner-border" role="status" id="url-spinner" style="display: none;">
               <span class="visually-hidden">Loading . . .</span>
             </div>
-            <button type="submit" id="fetchPage" value="url" class="btn btn-sm btn-primary" disabled>Convert</button>
+            <button type="submit" id="fetchPage" value="url" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
           </div>
         </div>
       </div>
@@ -1182,16 +1182,16 @@
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> Select File</h5>
+            <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> <span data-i18n="ui.modals.selectFile">Select File</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <label for="imageFile" class="form-label">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
+            <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
             <input class="form-control form-control-sm" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
           </div>
           <div class="modal-footer">
             <div id="select_image_error" class="size-error text-warning mb-2"></div>
-            <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled>Import</button>
+            <button type="submit" id="uploadImage" value="image" class="btn btn-sm btn-primary" disabled data-i18n="ui.import">Import</button>
           </div>
         </div>
       </div>

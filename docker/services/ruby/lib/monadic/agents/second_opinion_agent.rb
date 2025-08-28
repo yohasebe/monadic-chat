@@ -7,7 +7,7 @@ module SecondOpinionAgent
     "mistral" => "mistral-large-latest",
     "cohere" => "command-a-03-2025",
     "perplexity" => "sonar",
-    "grok" => "grok-4-0709",  # Updated to match MDSL
+    "grok" => "grok-4-0709",  # Standard grok-4 model
     "deepseek" => "deepseek-chat",
     "ollama" => nil  # Will be determined dynamically
   }.freeze

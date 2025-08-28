@@ -155,6 +155,7 @@ app "ImageGeneratorOpenAI" do
     image true
     pdf false
     image_generation true
+    monadic false
   end
 
   tools do

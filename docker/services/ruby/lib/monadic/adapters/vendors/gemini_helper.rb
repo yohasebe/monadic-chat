@@ -10,6 +10,7 @@ require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
+require_relative "../../utils/model_spec_utils"
 
 # GeminiHelper Module - Interface for Google's Gemini AI Models
 #
@@ -47,6 +48,10 @@ module GeminiHelper
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
   OPEN_TIMEOUT = 10
   READ_TIMEOUT = 120
+  
+  # Image generation model endpoint (separate from chat models)
+  # This is a specialized API not included in the regular model list
+  IMAGE_GENERATION_MODEL = "imagen-3.0-generate-002"
   WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -2075,7 +2080,15 @@ module GeminiHelper
         end
         
         # Call the function with the provided arguments
-        function_return = send(function_name.to_sym, **argument_hash)
+        # First try to call the function on the app object (for Jupyter and other app-specific functions)
+        function_return = if app.respond_to?(function_name.to_sym)
+          app.send(function_name.to_sym, **argument_hash)
+        elsif respond_to?(function_name.to_sym)
+          # Fallback to calling on self (GeminiHelper) if app doesn't have the method
+          send(function_name.to_sym, **argument_hash)
+        else
+          raise NoMethodError, "Function '#{function_name}' not found in app or helper"
+        end
         
         # Log the result for debugging
         if CONFIG["EXTRA_LOGGING"]
@@ -2802,8 +2815,12 @@ module GeminiHelper
         }
       }
       
+      # Use the image generation model constant
+      # This is a separate API endpoint from the chat models
+      image_model = IMAGE_GENERATION_MODEL
+      
       # Make API request to Imagen 3
-      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=#{api_key}")
+      uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict?key=#{api_key}")
       
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true

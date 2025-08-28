@@ -41,7 +41,7 @@ app "JupyterNotebookGemini" do
     model ["gemini-2.5-flash", "gemini-2.0-flash"]  # 2.5 as primary, 2.0 as fallback
     temperature 0.0  # Set to 0 for deterministic outputs
     max_tokens 8192
-    reasoning_effort "low"  # Better balance for function calling with Gemini 2.5
+    reasoning_effort "minimal"  # Required for proper function calling with Gemini 2.5
   end
 
   system_prompt <<~TEXT
@@ -66,18 +66,29 @@ app "JupyterNotebookGemini" do
     - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
     - Prefer simple annotations without LaTeX when possible to avoid parsing errors    ## Tool Calling Instructions
     
+    CRITICAL: You MUST use the native Gemini function calling mechanism.
+    DO NOT generate <tool_code>, <tool_output>, or any other XML-like tags.
+    DO NOT show print() statements or pseudo-code of tool calls.
+    
     When asked to perform any task, you MUST use the provided function tools.
     Do not generate pseudo-code or text descriptions of what you would do.
     
-    Required workflow:
+    **GEMINI-SPECIFIC WORKFLOW** (MUST FOLLOW):
     1. Use `run_jupyter` to start JupyterLab if needed
-    2. Use `create_jupyter_notebook` to create a new notebook
-    3. Use `add_jupyter_cells` to add code or markdown cells
-       - Prefer adding ALL cells in a SINGLE call when possible
-       - The cells parameter accepts an array, so you can add multiple cells at once
+    2. **ALWAYS USE**: `create_and_populate_jupyter_notebook` - This is the PREFERRED method for Gemini
+       - This function creates the notebook AND adds cells in ONE CALL
+       - Pass both filename and cells array in a single function call
+       - DO NOT use create_jupyter_notebook followed by add_jupyter_cells (use the combined function instead)
+    3. For adding cells to existing notebooks, use `add_jupyter_cells` with the exact filename
     4. Use other tools as appropriate for the task
     
+    **CRITICAL FOR GEMINI**: 
+    - ALWAYS prefer `create_and_populate_jupyter_notebook` over separate create/add calls
+    - This combined function ensures the entire workflow completes successfully
+    - Pass ALL cells in the cells array parameter
+    
     Always use the actual function calling mechanism, not text output.
+    Never display tool call syntax to the user - just execute the tools directly.
     
     ## Core Rules
     
@@ -110,9 +121,47 @@ app "JupyterNotebookGemini" do
        - .pdf → fetch_text_from_pdf
        - .xlsx, .docx → fetch_text_from_office
     
+    ## Session Context & Filename Management
+    
+    Throughout the entire conversation session, you MUST:
+    1. **Remember the current notebook filename** you're working with (including timestamp)
+    2. **Track all variables, functions, and modules** used across cells in the notebook
+    3. **Maintain awareness of notebook state** (what cells exist, what's been imported, what variables are defined)
+    4. When user asks to add more cells to "the notebook" or "that notebook", use the SAME notebook filename from earlier in the conversation
+    5. Don't create new notebooks unless explicitly requested (e.g., "create a new notebook")
+    
+    Example conversation flow:
+    - User: "Create a math notebook" → You create "math_notebook_20250828_123456"
+    - User: "Add a function to calculate derivatives" → Use add_jupyter_cells with "math_notebook_20250828_123456" (NOT create new)
+    - User: "Add another cell with integration" → Still use "math_notebook_20250828_123456"
+    - User: "Show me what's in the notebook" → Use get_jupyter_cells_with_results on "math_notebook_20250828_123456"
+    
     ## Examples
     
     **IMPORTANT**: Always add ALL cells in a SINGLE add_jupyter_cells call when creating notebooks.
+    
+    **GEMINI workflow:**
+    
+    INITIAL creation (when user asks for NEW notebook):
+    1. create_and_populate_jupyter_notebook({
+         "filename": "math_notebook",
+         "cells": [
+           {"cell_type": "markdown", "source": "# Math Notebook"},
+           {"cell_type": "code", "source": "import numpy as np\\nimport matplotlib.pyplot as plt"},
+           {"cell_type": "code", "source": "# Your code here"}
+         ]
+       })
+       → Returns: "Notebook 'math_notebook_20250828_123456.ipynb' created successfully..."
+       → REMEMBER this filename for the entire session!
+    
+    ADDING to existing notebook (when user asks to add more):
+    2. add_jupyter_cells({
+         "filename": "math_notebook_20250828_123456",  // Use EXACT filename from earlier!
+         "cells": [
+           {"cell_type": "code", "source": "def derivative(f, x, h=0.0001):\\n    return (f(x+h) - f(x))/h"}
+         ]
+       })
+       → Adds cells to the EXISTING notebook, not creating a new one
     
     **Creating a complete notebook (single call with all cells):**
     ```json
@@ -160,6 +209,37 @@ app "JupyterNotebookGemini" do
 
   # Define tools for Jupyter Notebook operations
   tools [
+    {
+      "name" => "create_and_populate_jupyter_notebook",
+      "description" => "Create a new Jupyter notebook AND add cells in one operation (GEMINI PREFERRED)",
+      "parameters" => {
+        "type" => "object",
+        "properties" => {
+          "filename" => {
+            "type" => "string",
+            "description" => "Base filename for the notebook (without .ipynb extension)"
+          },
+          "cells" => {
+            "type" => "array",
+            "description" => "Array of cell objects to add to the notebook",
+            "items" => {
+              "type" => "object",
+              "properties" => {
+                "cell_type" => {
+                  "type" => "string",
+                  "enum" => ["code", "markdown"]
+                },
+                "source" => {
+                  "type" => "string",
+                  "description" => "Cell content"
+                }
+              }
+            }
+          }
+        },
+        "required" => ["filename", "cells"]
+      }
+    },
     {
       "name" => "run_jupyter",
       "description" => "Start or stop JupyterLab server",

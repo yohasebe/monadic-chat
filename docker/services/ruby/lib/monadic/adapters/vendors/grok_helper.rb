@@ -3,6 +3,8 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
+require_relative "../../utils/model_spec_utils"
+require "json"
 
 module GrokHelper
   include InteractionUtils
@@ -15,6 +17,11 @@ module GrokHelper
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
+  
+  # Get default model using ModelSpecUtils
+  def self.get_default_model
+    ModelSpecUtils.get_default_model("grok") || "grok-3-mini"
+  end
 
 
   class << self
@@ -59,10 +66,63 @@ module GrokHelper
     def clear_models_cache
       $MODELS[:grok] = nil
     end
+    
+    # Load model specifications from model_spec.js
+    def load_model_spec
+      spec_file = File.join(File.dirname(__FILE__), "../../../../public/js/monadic/model_spec.js")
+      return {} unless File.exist?(spec_file)
+      
+      content = File.read(spec_file)
+      # Extract the JSON-like content
+      # Find the object definition
+      match = content.match(/const\s+modelSpec\s*=\s*(\{[\s\S]*?\n\});?/m)
+      return {} unless match
+      
+      json_content = match[1]
+      # Remove comments
+      json_content = json_content.gsub(%r{//[^\n]*}, "") # Remove single-line comments
+      
+      # Fix trailing commas (not valid in JSON)
+      json_content = json_content.gsub(/,(\s*[}\]])/, '\1')
+      
+      begin
+        JSON.parse(json_content)
+      rescue JSON::ParserError => e
+        puts "Warning: Failed to parse model_spec.js: #{e.message}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+        {}
+      end
+    end
+    
+    # Get appropriate model based on websearch requirement
+    def get_model_for_websearch(requested_model, websearch_needed)
+      return requested_model unless websearch_needed
+      
+      model_spec = load_model_spec
+      return requested_model if model_spec.empty?
+      
+      model_info = model_spec[requested_model]
+      return requested_model unless model_info
+      
+      # Check if model supports websearch
+      if model_info["websearch_capability"] == false && model_info["fallback_for_websearch"]
+        fallback_model = model_info["fallback_for_websearch"]
+        
+        if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[Grok] Switching from #{requested_model} to #{fallback_model} for web search capability"
+        end
+        
+        return fallback_model
+      end
+      
+      requested_model
+    end
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "grok-3-mini")
+  def send_query(options, model: nil)
+    # Use default model if not specified
+    model ||= GrokHelper.get_default_model
+    
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -199,6 +259,13 @@ module GrokHelper
 
     # Get the parameters from the session
     obj = session[:parameters]
+    if obj.nil?
+      return Monadic::Utils::ErrorFormatter.api_error(
+        provider: "xAI",
+        message: "Session parameters not initialized",
+        code: 500
+      )
+    end
     app = obj["app_name"]
     api_key = CONFIG["XAI_API_KEY"]
 
@@ -223,7 +290,19 @@ module GrokHelper
     # Check for websearch configuration
     # Handle both string and boolean values for websearch parameter
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
-    websearch_native = websearch
+    
+    # Dynamically switch model if websearch is needed but not supported
+    original_model = model
+    model = GrokHelper.get_model_for_websearch(model, websearch)
+    
+    # Check if we switched models
+    if model != original_model && CONFIG["EXTRA_LOGGING"]
+      puts "[Grok] Model switched from #{original_model} to #{model} for web search capability"
+    end
+    
+    # Enable native websearch only if the final model supports it
+    model_spec = GrokHelper.load_model_spec[model] || {}
+    websearch_native = websearch && model_spec["websearch_capability"] != false
     
     # Debug log websearch parameter
     if CONFIG["EXTRA_LOGGING"]
@@ -593,7 +672,17 @@ module GrokHelper
     # and the prompt suffix
     last_text = message_with_snippet if message_with_snippet.to_s != ""
 
-    if last_text != "" && prompt_suffix.to_s != ""
+    # CRITICAL FIX: Don't replace the user message content if this is the initial assistant greeting
+    # Check if this is initiate_from_assistant scenario (2 messages: system + user)
+    is_initial_greeting = body["messages"].length == 2 && 
+                         body["messages"][0]["role"] == "system" && 
+                         body["messages"][1]["role"] == "user" &&
+                         session[:messages].length <= 1
+
+    # CRITICAL FIX 2: Don't modify tool result messages!
+    last_message_is_tool = body["messages"].last && body["messages"].last["role"] == "tool"
+
+    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && !last_message_is_tool
       new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
       if body.dig("messages", -1, "content")
         last_content = body["messages"].last["content"]
@@ -605,7 +694,7 @@ module GrokHelper
             end
           end
         elsif last_content.is_a?(String)
-          # For tool results, content is just a string, so replace it directly
+          # For user messages that are strings (shouldn't happen for tool results now)
           body["messages"].last["content"] = new_text
         end
       end
@@ -639,7 +728,9 @@ module GrokHelper
 
     if messages_containing_img
       original_model = body["model"]
-      body["model"] = "grok-2-vision-1212"
+      # Get vision model from ModelSpecUtils
+      vision_model = ModelSpecUtils.get_vision_model("grok") || "grok-2-vision-1212"
+      body["model"] = vision_model
       body.delete("stop")
       
       # Send system notification about model switch
@@ -791,6 +882,11 @@ module GrokHelper
     end
 
     obj = session[:parameters]
+    if obj.nil?
+      # Initialize parameters if nil
+      session[:parameters] = {}
+      obj = session[:parameters]
+    end
 
     buffer = String.new
     texts = {}
@@ -1037,6 +1133,11 @@ module GrokHelper
           # Store the assistant message with tool_calls for the next API request
           # This will be added to messages in api_request when role == "tool"
           obj = session[:parameters]
+          if obj.nil?
+            # Initialize parameters if nil
+            session[:parameters] = {}
+            obj = session[:parameters]
+          end
           obj["assistant_tool_calls"] = tool_calls
           
           call_depth += 1
@@ -1058,6 +1159,11 @@ module GrokHelper
         
         # Store assistant tool_calls for next request
         obj = session[:parameters]
+        if obj.nil?
+          # Initialize parameters if nil
+          session[:parameters] = {}
+          obj = session[:parameters]
+        end
         obj["assistant_tool_calls"] = tool_calls
 
         call_depth += 1
@@ -1172,6 +1278,11 @@ module GrokHelper
   
   def process_functions(app, session, tools, call_depth, &block)
     obj = session[:parameters]
+    if obj.nil?
+      # Initialize parameters if nil
+      session[:parameters] = {}
+      obj = session[:parameters]
+    end
     tool_results = []
     
     tools.each do |tool_call|
@@ -1292,9 +1403,10 @@ module GrokHelper
           end
         end
         
-        # CRITICAL: If this is create_jupyter_notebook, extract the actual filename with timestamp
-        # and store it in session for subsequent tool calls AND for the LLM to use in its response
-        if function_name == "create_jupyter_notebook" && function_return.include?("created successfully")
+        # CRITICAL: If this is create_jupyter_notebook OR create_and_populate_jupyter_notebook, 
+        # extract the actual filename with timestamp and store it in session
+        if (function_name == "create_jupyter_notebook" || function_name == "create_and_populate_jupyter_notebook") && 
+           function_return.include?("created successfully")
           # Extract actual notebook filename with timestamp
           if function_return =~ /Notebook '([^']+)' created successfully/
             actual_notebook_name = $1
@@ -1305,7 +1417,7 @@ module GrokHelper
             
             if CONFIG["EXTRA_LOGGING"]
               extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts("\n[#{Time.now}] Stored notebook name: #{actual_notebook_name}")
+              extra_log.puts("\n[#{Time.now}] Stored notebook name from #{function_name}: #{actual_notebook_name}")
               extra_log.puts("Stored notebook link: #{obj["current_notebook_link"]}")
               extra_log.close
             end
@@ -1511,8 +1623,11 @@ module GrokHelper
         # Pattern 1: Without timestamp
         content = content.gsub(/\b#{Regexp.escape(base_name)}\.ipynb\b/i, actual_filename)
         
-        # Pattern 2: With ANY timestamp (catches all fake timestamps)
+        # Pattern 2: With ANY timestamp (catches all fake timestamps including wrong dates)
         content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
+        
+        # Pattern 2b: Also catch common placeholder patterns like 20231001_123456
+        content = content.gsub(/\b#{Regexp.escape(base_name)}_202[3-9]\d{4}_\d{6}\.ipynb\b/i, actual_filename)
         
         # Pattern 3: Fix URLs
         content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,

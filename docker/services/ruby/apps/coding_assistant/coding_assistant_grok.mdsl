@@ -43,7 +43,7 @@ app "CodingAssistantGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-code-fast-1"
     temperature 0.0
   end
   

@@ -39,7 +39,7 @@
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | ✅ | | ✅ | | | |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## アシスタント :id=assistant
@@ -558,6 +558,10 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 - Anthropic Claude
 - Google Gemini
 - xAI Grok
+
+?> **プロバイダー別の注意事項:**
+> - **Gemini**: ノートブックの作成とセルの追加を確実に行うため、`create_and_populate_jupyter_notebook`という統合関数を使用しています
+> - すべてのプロバイダーはノートブックの作成、セルの追加、Jupyter環境内でのPythonコード実行をサポートしています
 
 ### Monadic Chat Help
 

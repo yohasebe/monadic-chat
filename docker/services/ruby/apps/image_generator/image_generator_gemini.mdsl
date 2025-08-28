@@ -70,6 +70,7 @@ app "ImageGeneratorGemini" do
     image true
     pdf false
     image_generation true
+    monadic false
     group "Google"
   end
 

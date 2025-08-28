@@ -176,7 +176,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       app_instance.settings = class_settings if class_settings
       
       # Check MDSL configuration
-      expect(app_instance.settings[:model]).to eq("grok-4-0709")
+      expect(app_instance.settings[:model]).to eq("grok-code-fast-1")
       expect(app_instance.settings[:model]).not_to eq("grok-4")  # Wrong model name
     end
     

@@ -39,7 +39,7 @@ The table below shows which apps are available for which AI model providers.
 | Content Reader | ✅ | | | | | | | | |
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Jupyter Notebook | ✅ | ✅ | | ✅ | | ✅ | | | |
+| Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Assistant :id=assistant
@@ -579,9 +579,13 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 Jupyter Notebook apps are available for the following providers:
 
 - OpenAI
-- Anthropic Claude
+- Anthropic Claude  
 - Google Gemini
 - xAI Grok
+
+?> **Provider-specific Notes:**
+> - **Gemini**: Uses a combined `create_and_populate_jupyter_notebook` function for better reliability when creating notebooks with cells
+> - All providers support creating notebooks, adding cells, and executing Python code within the Jupyter environment
 
 ### Monadic Chat Help
 

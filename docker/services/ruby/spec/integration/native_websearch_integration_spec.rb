@@ -312,8 +312,8 @@ RSpec.describe "Native Web Search Integration", :integration do
           "temperature" => 0.0,
           "max_tokens" => 1000,
           "context_size" => 5,
-          "app_name" => "test",
-          "reasoning_effort" => "minimal"  # Required for function calling
+          "app_name" => "test"
+          # Note: reasoning_effort must NOT be set for function calling to work
         }
       }
       

@@ -431,8 +431,30 @@ function setAlert(text = "", alertType = "success") {
     // Append to discourse area
     $("#discourse").append(errorCard);
   } else {
+    // Translate known status messages
+    let displayText = text;
+    
+    // Check for common status messages that need translation
+    if (typeof text === 'string') {
+      if (text.includes("CALLING FUNCTIONS")) {
+        displayText = `<i class='fas fa-cogs'></i> ${getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions')}`;
+      } else if (text.includes("SEARCHING WEB")) {
+        displayText = `<i class='fas fa-search'></i> ${getTranslation('ui.messages.spinnerSearchingWeb', 'Searching web')}`;
+      } else if (text.includes("SEARCHING FILES")) {
+        displayText = `<i class='fas fa-file-search'></i> ${getTranslation('ui.messages.spinnerSearchingFiles', 'Searching files')}`;
+      } else if (text.includes("GENERATING IMAGE")) {
+        displayText = `<i class='fas fa-image'></i> ${getTranslation('ui.messages.spinnerGeneratingImage', 'Generating image')}`;
+      } else if (text.includes("CALLING MCP TOOL")) {
+        displayText = `<i class='fas fa-plug'></i> ${getTranslation('ui.messages.spinnerCallingMCP', 'Calling MCP tool')}`;
+      } else if (text.includes("PROCESSING")) {
+        displayText = `<i class='fas fa-spinner'></i> ${getTranslation('ui.messages.spinnerProcessing', 'Processing')}`;
+      } else if (text.includes("THINKING")) {
+        displayText = `<i class='fas fa-brain'></i> ${getTranslation('ui.messages.spinnerThinking', 'Thinking')}`;
+      }
+    }
+    
     // Direct DOM access
-    $("#status-message").html(`${text}`);
+    $("#status-message").html(`${displayText}`);
     setAlertClass(alertType);
   }
 }

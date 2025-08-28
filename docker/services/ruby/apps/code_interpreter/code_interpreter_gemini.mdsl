@@ -37,7 +37,8 @@ app "CodeInterpreterGemini" do
     provider "gemini"
     model ["gemini-2.5-flash", "gemini-2.0-flash"]  # 2.5 flash as primary, 2.0 as fallback
     temperature 0.0
-    reasoning_effort "low"  # Better balance for function calling with Gemini 2.5
+    max_tokens 8192  # Ensure sufficient tokens for complete responses
+    reasoning_effort "minimal"  # Required for proper function calling with Gemini 2.5
   end
 
   system_prompt <<~TEXT
@@ -273,6 +274,7 @@ app "CodeInterpreterGemini" do
     initiate_from_assistant true
     image true
     pdf false
+    monadic false  # Required for proper function calling with Gemini
   end
 
   tools do

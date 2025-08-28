@@ -5,6 +5,7 @@ require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
+require_relative "../../utils/model_spec_utils"
 
 module CohereHelper
   include InteractionUtils
@@ -888,8 +889,8 @@ module CohereHelper
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
     
     # Handle reasoning (thinking) parameter for command-a-reasoning models
-    # Check if this is a reasoning model by model name and reasoning_effort is set
-    is_reasoning_model = obj["model"] && obj["model"].include?("reasoning")
+    # Check if this is a reasoning model using ModelSpecUtils
+    is_reasoning_model = ModelSpecUtils.is_thinking_model?(obj["model"])
     if is_reasoning_model && obj["reasoning_effort"]
       # Check if we have conversation history with assistant messages
       has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
@@ -1428,8 +1429,8 @@ module CohereHelper
           DebugHelper.debug("obj['model']: #{obj['model'].inspect}", category: :api, level: :info)
         end
         
-        # For Cohere reasoning models, check the model name directly as a fallback
-        is_reasoning_model = obj["reasoning_model"] || (obj["model"] && obj["model"].include?("reasoning"))
+        # For Cohere reasoning models, check using ModelSpecUtils
+        is_reasoning_model = obj["reasoning_model"] || ModelSpecUtils.is_thinking_model?(obj["model"])
         
         # Check if reasoning was actually enabled for this request
         # With the new single-text workaround, thinking is always enabled when requested

@@ -570,6 +570,7 @@ const modelSpec = {
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
+    "reasoning_capability": true,
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
@@ -584,7 +585,7 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true
   },
-  "command-r-08-2024": {
+  "command-r7b-12-2024": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -1035,7 +1036,8 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "websearch_capability": true
   },
   "grok-4-0709-eu": {
     "context_window" : [1, 256000],
@@ -1043,7 +1045,8 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "websearch_capability": true
   },
   "grok-3": {
     "context_window" : [1, 131072],
@@ -1076,6 +1079,16 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"]
+  },
+  "grok-code-fast-1": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"],
+    "websearch_capability": false,
+    "fallback_for_websearch": "grok-4-0709"
   },
   "grok-2-vision-1212": {
     "context_window" : [1, 32768],

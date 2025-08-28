@@ -568,11 +568,18 @@ $(function () {
 
   // Function to fix layout after window resize
   function fixLayoutAfterResize() {
-    const windowWidth = $(window).width();
-    const isMobile = windowWidth < 600;
-    const toggleBtn = $("#toggle-menu");
-    const mainPanel = $("#main");
-    const menuPanel = $("#menu");
+    try {
+      const windowWidth = $(window).width();
+      const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : windowWidth < 600;
+      const toggleBtn = $("#toggle-menu");
+      const mainPanel = $("#main");
+      const menuPanel = $("#menu");
+      
+      // Check if essential elements exist
+      if (!toggleBtn.length || !mainPanel.length || !menuPanel.length) {
+        console.warn("fixLayoutAfterResize: Required elements not found");
+        return;
+      }
     
     if (isMobile) {
       // Mobile layout
@@ -619,11 +626,17 @@ $(function () {
     // Force reflow to ensure proper rendering
     document.body.offsetHeight;
     
-    // Update scroll buttons position
-    if (uiUtils && uiUtils.adjustScrollButtons) {
-      uiUtils.adjustScrollButtons();
-    } else if (typeof adjustScrollButtonsFallback === 'function') {
-      adjustScrollButtonsFallback();
+      // Update scroll buttons position
+      if (uiUtils && uiUtils.adjustScrollButtons) {
+        uiUtils.adjustScrollButtons();
+      } else if (typeof adjustScrollButtonsFallback === 'function') {
+        adjustScrollButtonsFallback();
+      }
+    } catch (error) {
+      console.error("Error in fixLayoutAfterResize:", error);
+      // Attempt basic recovery
+      $("#main").show();
+      $("#toggle-menu").show();
     }
   }
 
@@ -689,33 +702,194 @@ $(function () {
     }
   }
 
-  // Setup ResizeObserver for more reliable resize detection
+  // Store ResizeObserver instance for cleanup
+  let layoutResizeObserver = null;
+  let resizeObserverTimeout = null;
+  let lastObservedTime = 0;
+  
+  // Setup ResizeObserver for more reliable resize detection with performance optimizations
   function setupResizeObserver() {
-    if (typeof ResizeObserver === 'undefined') {
-      return; // ResizeObserver not supported
+    try {
+      if (typeof ResizeObserver === 'undefined') {
+        console.warn('ResizeObserver not supported in this browser');
+        return;
+      }
+      
+      // Clean up existing observer and timeout
+      if (layoutResizeObserver) {
+        layoutResizeObserver.disconnect();
+        layoutResizeObserver = null;
+      }
+      if (resizeObserverTimeout) {
+        clearTimeout(resizeObserverTimeout);
+        resizeObserverTimeout = null;
+      }
+      
+      const mainPanel = document.getElementById('main');
+      const menuPanel = document.getElementById('menu');
+      
+      if (!mainPanel || !menuPanel) {
+        console.warn('Required panels not found for ResizeObserver');
+        return;
+      }
+      
+      // Create ResizeObserver with performance optimizations
+      layoutResizeObserver = new ResizeObserver(entries => {
+        // Rate limiting: ignore events that happen too frequently
+        const now = Date.now();
+        const timeSinceLastObserve = now - lastObservedTime;
+        
+        // Skip if less than 50ms since last observation (high-frequency filtering)
+        if (timeSinceLastObserve < 50) {
+          return;
+        }
+        
+        lastObservedTime = now;
+        
+        // Check if any entry has meaningful size change (more than 1px)
+        const hasMeaningfulChange = entries.some(entry => {
+          const { width, height } = entry.contentRect;
+          const target = entry.target;
+          const lastWidth = target.dataset.lastWidth ? parseFloat(target.dataset.lastWidth) : 0;
+          const lastHeight = target.dataset.lastHeight ? parseFloat(target.dataset.lastHeight) : 0;
+          
+          // Store new dimensions
+          target.dataset.lastWidth = width.toString();
+          target.dataset.lastHeight = height.toString();
+          
+          // Check if change is significant (more than 1px)
+          return Math.abs(width - lastWidth) > 1 || Math.abs(height - lastHeight) > 1;
+        });
+        
+        // Only proceed if there's a meaningful change
+        if (!hasMeaningfulChange) {
+          return;
+        }
+        
+        // Debounce to prevent excessive calls
+        if (resizeObserverTimeout) {
+          clearTimeout(resizeObserverTimeout);
+        }
+        
+        const debounceTime = window.UIConfig ? 
+          window.UIConfig.TIMING.RESIZE_OBSERVER_DEBOUNCE : 200;
+        
+        resizeObserverTimeout = setTimeout(() => {
+          try {
+            fixLayoutAfterResize();
+          } catch (error) {
+            console.error('Error in fixLayoutAfterResize:', error);
+          }
+          resizeObserverTimeout = null;
+        }, debounceTime);
+      });
+      
+      // Observe both panels with specific options
+      const observerOptions = {
+        box: 'content-box'  // Only observe content size changes, not border/padding
+      };
+      
+      layoutResizeObserver.observe(mainPanel, observerOptions);
+      layoutResizeObserver.observe(menuPanel, observerOptions);
+      
+      // Clean up on page unload
+      $(window).off("beforeunload.resizeObserver").on("beforeunload.resizeObserver", function() {
+        if (layoutResizeObserver) {
+          layoutResizeObserver.disconnect();
+          layoutResizeObserver = null;
+        }
+        if (resizeObserverTimeout) {
+          clearTimeout(resizeObserverTimeout);
+          resizeObserverTimeout = null;
+        }
+      });
+      
+    } catch (error) {
+      console.error('Error setting up ResizeObserver:', error);
+      // Fall back to window resize only
+      if (layoutResizeObserver) {
+        try {
+          layoutResizeObserver.disconnect();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        layoutResizeObserver = null;
+      }
     }
-    
-    const mainPanel = document.getElementById('main');
-    const menuPanel = document.getElementById('menu');
-    
-    if (!mainPanel || !menuPanel) {
-      return;
-    }
-    
-    // Create ResizeObserver to detect container size changes
-    const resizeObserver = new ResizeObserver(entries => {
-      // Debounce to prevent excessive calls
-      clearTimeout(window.resizeObserverTimeout);
-      window.resizeObserverTimeout = setTimeout(() => {
-        fixLayoutAfterResize();
-      }, 100);
-    });
-    
-    // Observe both panels
-    resizeObserver.observe(mainPanel);
-    resizeObserver.observe(menuPanel);
   }
 
+  // Cleanup function to prevent memory leaks
+  function cleanupEventHandlers() {
+    try {
+      // Clear all timeouts
+      if (window.resizeTimeout) {
+        clearTimeout(window.resizeTimeout);
+        window.resizeTimeout = null;
+      }
+      if (window.resizeObserverTimeout) {
+        clearTimeout(window.resizeObserverTimeout);
+        window.resizeObserverTimeout = null;
+      }
+      if (window.spinnerCheckInterval) {
+        clearInterval(window.spinnerCheckInterval);
+        window.spinnerCheckInterval = null;
+      }
+      
+      // Disconnect ResizeObserver
+      if (layoutResizeObserver) {
+        layoutResizeObserver.disconnect();
+        layoutResizeObserver = null;
+      }
+      
+      // Remove window event listeners
+      $(window).off('.resizeHandler');
+      $(window).off('.resizeObserver');
+      $(window).off('.scrollHandler');
+      
+      // Clean up tooltips
+      if (window.uiUtils && window.uiUtils.cleanupAllTooltips) {
+        window.uiUtils.cleanupAllTooltips();
+      }
+      
+      // Clear UIState listeners if available
+      if (window.UIState && window.UIState.reset) {
+        // Don't reset state, just clear listeners
+        // window.UIState.reset();
+      }
+      
+      console.log('Event handlers cleaned up successfully');
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+  }
+  
+  // Setup cleanup on page unload
+  $(window).on('beforeunload', cleanupEventHandlers);
+  
+  // Also handle visibility changes to prevent issues when tab is hidden
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      // Page is hidden, pause non-critical updates
+      if (window.UIState) {
+        window.UIState.set('pageHidden', true);
+      }
+    } else {
+      // Page is visible again, resume updates
+      if (window.UIState) {
+        window.UIState.set('pageHidden', false);
+      }
+      // Force layout update when becoming visible
+      setTimeout(function() {
+        if (typeof fixLayoutAfterResize === 'function') {
+          fixLayoutAfterResize();
+        }
+        if (window.uiUtils && window.uiUtils.adjustScrollButtons) {
+          window.uiUtils.adjustScrollButtons();
+        }
+      }, 100);
+    }
+  });
+  
   // Call these functions on document ready
   $(function () {
     setupToggleHandlers();
@@ -1191,6 +1365,16 @@ $(function () {
 
   // Initialize page state based on screen width when document is ready
   $(document).ready(function() {
+    // Initialize UIState if available
+    if (window.UIState && window.UIState.initialize) {
+      try {
+        window.UIState.initialize();
+        console.log('UIState initialized successfully');
+      } catch (error) {
+        console.error('Error initializing UIState:', error);
+      }
+    }
+    
     // On mobile, initialize with menu hidden on first load
     if ($(window).width() < 600) {
       // Set proper classes and hide menu on mobile
@@ -1346,74 +1530,107 @@ $(function () {
     }
   });
 
-  // Handle toggle-menu button click
+  // Handle toggle-menu button click with comprehensive error handling
   $("#toggle-menu").on("click", function (e) {
-    // Prevent any default behavior
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Check if AI is currently responding
-    if ($("#monadic-spinner").is(":visible") || window.streamingResponse) {
-      // Don't allow toggle during AI response
-      // Add visual feedback that the button is disabled
-      $(this).css("opacity", "0.5");
-      setTimeout(() => {
-        $(this).css("opacity", "1");
-      }, 200);
-      return false;
-    }
-    
-    // Check if we're on mobile
-    const isMobile = $(window).width() < 600;
-    
-    // Removed inline CSS injection for toggle-menu on click
-    
-    // Toggle menu visibility and change icon to indicate state
-    if ($("#menu").is(":visible")) {
-      // Menu is visible, will be hidden
-      $(this).addClass("menu-hidden").html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
+    try {
+      // Prevent any default behavior
+      e.preventDefault();
+      e.stopPropagation();
       
-      if (isMobile) {
-        // On mobile: hide menu and show main
-        $("#menu").hide();
-        $("#main").show();
-        $("body").removeClass("menu-visible");
-      } else {
-        // On desktop: normal column behavior
-        $("#main").removeClass("col-md-8").addClass("col-md-12");
-        $("#menu").hide();
-      }
-    } else {
-      // Menu is hidden, will be shown
-      $(this).removeClass("menu-hidden").html('<i class="fas fa-times"></i>'); // Change to X when menu open
+      // Get required elements with safety checks
+      const $toggleBtn = $(this);
+      const $menu = $("#menu");
+      const $main = $("#main");
+      const $spinner = $("#monadic-spinner");
       
-      if (isMobile) {
-        // On mobile: show menu and hide main completely
-        $("#menu").show();
-        $("#main").hide();
-        $("body").addClass("menu-visible"); 
+      if (!$toggleBtn.length || !$menu.length || !$main.length) {
+        console.error('Required elements missing for menu toggle');
+        return false;
+      }
+      
+      // Check if AI is currently responding
+      const isStreaming = window.streamingResponse || 
+                         (window.UIConfig && window.UIConfig.STATE && window.UIConfig.STATE.isStreaming);
+      
+      if ($spinner.is(":visible") || isStreaming) {
+        // Don't allow toggle during AI response
+        // Add visual feedback that the button is disabled
+        $toggleBtn.css("opacity", "0.5").attr("aria-disabled", "true");
+        setTimeout(() => {
+          $toggleBtn.css("opacity", "1").attr("aria-disabled", "false");
+        }, 200);
+        return false;
+      }
+      
+      // Check if we're on mobile with fallback
+      const isMobile = window.UIConfig ? 
+        window.UIConfig.isMobileView() : 
+        $(window).width() < 600;
+      
+      // Toggle menu visibility and change icon to indicate state
+      const menuVisible = $menu.is(":visible");
+      
+      if (menuVisible) {
+        // Menu is visible, will be hidden
+        $toggleBtn.addClass("menu-hidden")
+                  .attr("aria-expanded", "false")
+                  .html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
+        
+        if (isMobile) {
+          // On mobile: hide menu and show main
+          $menu.hide();
+          $main.show();
+          $("body").removeClass("menu-visible");
+        } else {
+          // On desktop: normal column behavior
+          $main.removeClass("col-md-8").addClass("col-md-12");
+          $menu.hide();
+        }
       } else {
-        // On desktop: normal column behavior
-        $("#main").removeClass("col-md-12").addClass("col-md-8");
-        $("#menu").show();
+        // Menu is hidden, will be shown
+        $toggleBtn.removeClass("menu-hidden")
+                  .attr("aria-expanded", "true")
+                  .html('<i class="fas fa-times"></i>'); // Change to X when menu open
+        
+        if (isMobile) {
+          // On mobile: show menu and hide main completely
+          $menu.show();
+          $main.hide();
+          $("body").addClass("menu-visible"); 
+        } else {
+          // On desktop: normal column behavior
+          $main.removeClass("col-md-12").addClass("col-md-8");
+          $menu.show();
+        }
       }
-    }
-    
-    // Reset scroll position
-    $("body, html").animate({ scrollTop: 0 }, 0);
-    
-    // Update scroll buttons visibility after menu toggle (with slight delay for DOM update)
-    setTimeout(function() {
-      if (uiUtils && uiUtils.adjustScrollButtons) {
-        uiUtils.adjustScrollButtons();
-      } else if (typeof adjustScrollButtonsFallback === 'function') {
-        adjustScrollButtonsFallback();
+      
+      // Update UI state if available
+      if (window.UIConfig && window.UIConfig.STATE) {
+        window.UIConfig.STATE.isMenuVisible = !menuVisible;
       }
-    }, 50);
-    
-    // Basic scroll position maintenance - use a very small timeout
-    setTimeout(function() {
-      // Reset scroll positions
+      
+      // Reset scroll position
+      $("body, html").animate({ scrollTop: 0 }, 0);
+      
+      // Update scroll buttons visibility after menu toggle (with slight delay for DOM update)
+      const updateDelay = window.UIConfig ? 
+        window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 50;
+      
+      setTimeout(function() {
+        try {
+          if (window.uiUtils && window.uiUtils.adjustScrollButtons) {
+            window.uiUtils.adjustScrollButtons();
+          } else if (typeof adjustScrollButtonsFallback === 'function') {
+            adjustScrollButtonsFallback();
+          }
+        } catch (error) {
+          console.error('Error adjusting scroll buttons:', error);
+        }
+      }, updateDelay);
+      
+      // Basic scroll position maintenance - use a very small timeout
+      setTimeout(function() {
+        // Reset scroll positions
       $("#main, #menu").scrollTop(0);
       
       // On mobile, force elements to maintain their positions
@@ -1463,10 +1680,23 @@ $(function () {
         // Run optimization again after a short delay for iOS
         setTimeout(optimizeMobileScrolling, 100);
       }
-    }, 10); // Very small timeout
-    
-    return false; // Prevent event bubbling
-  })
+      }, 10); // Very small timeout
+      
+      return false; // Prevent event bubbling
+      
+    } catch (error) {
+      console.error('Error in menu toggle:', error);
+      // Attempt recovery
+      try {
+        $("#main").show();
+        $("#toggle-menu").show();
+        $("body").removeClass("menu-visible");
+      } catch (recoveryError) {
+        console.error('Recovery failed:', recoveryError);
+      }
+      return false;
+    }
+  });
 
   $("#interaction-check-all").on("click", function () {
     $("#check-auto-speech").prop("checked", true);
@@ -2185,14 +2415,38 @@ $(function () {
   //////////////////////////////
 
   // Direct DOM access without storing references
-  $("#back_to_top").on("click", function (e) {
-    e.preventDefault();
-    $("#main").animate({ scrollTop: 0 }, 500);
+  // Scroll button handlers with keyboard support
+  function scrollToTop(e) {
+    if (e) e.preventDefault();
+    const scrollTime = window.UIConfig ? 
+      window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
+    $("#main").animate({ scrollTop: 0 }, scrollTime);
+  }
+  
+  function scrollToBottom(e) {
+    if (e) e.preventDefault();
+    const scrollTime = window.UIConfig ? 
+      window.UIConfig.TIMING.SCROLL_ANIMATION : 500;
+    $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, scrollTime);
+  }
+  
+  // Click handlers
+  $("#back_to_top").on("click", scrollToTop);
+  $("#back_to_bottom").on("click", scrollToBottom);
+  
+  // Keyboard handlers (Enter and Space)
+  $("#back_to_top").on("keydown", function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      scrollToTop();
+    }
   });
-
-  $("#back_to_bottom").on("click", function (e) {
-    e.preventDefault();
-    $("#main").animate({ scrollTop: $("#main").prop("scrollHeight") }, 500);
+  
+  $("#back_to_bottom").on("keydown", function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      scrollToBottom();
+    }
   });
 
   // Define originalParams globally to avoid reference errors

@@ -304,14 +304,14 @@ div.card-body.role-system {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   color: #fff;
   background-color: rgba(52, 58, 64, 0.8); /* Dark background for visibility */
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   text-decoration: none;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   transition: all 0.2s ease;
 }
 
@@ -320,13 +320,13 @@ div.card-body.role-system {
   color: #fff;
   background-color: #007bff; /* Blue on hover */
   border-color: #007bff;
-  box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+  box-shadow: 0 3px 10px rgba(0,123,255,0.4);
   transform: translateY(-2px);
 }
 
 #back_to_top a i,
 #back_to_bottom a i {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* Responsive positioning for smaller screens */

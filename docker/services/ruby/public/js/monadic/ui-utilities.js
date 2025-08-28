@@ -53,13 +53,15 @@ function setupTextarea(textarea, initialHeight) {
  * Enhanced for iOS compatibility
  */
 function adjustScrollButtons() {
-  const mainPanel = $("#main");
-  const windowWidth = $(window).width();
-  const isMobile = windowWidth < 600;
-  const isMedium = windowWidth < 768; // Bootstrap md breakpoint
+  try {
+    const mainPanel = $("#main");
+    
+    // Use centralized configuration if available
+    const isMobile = window.UIConfig ? window.UIConfig.isMobileView() : $(window).width() < 600;
+    const isTablet = window.UIConfig ? window.UIConfig.isTabletView() : $(window).width() < 768;
   
-  // On mobile and medium screens where menu/content are exclusive, check toggle state
-  if (isMobile || isMedium) {
+    // On mobile and tablet screens where menu/content are exclusive, check toggle state
+    if (isMobile || isTablet) {
     // Check if toggle button has menu-hidden class
     // When menu-hidden class is present, menu is hidden and main is showing
     // When menu-hidden class is absent, menu is showing and main is hidden
@@ -99,8 +101,8 @@ function adjustScrollButtons() {
     backToBottomBtn.css("right", buttonRight + "px");
   }
   
-  // Calculate thresholds (100px minimum scroll to show buttons)
-  const scrollThreshold = 100;
+    // Calculate thresholds using config or default
+    const scrollThreshold = window.UIConfig ? window.UIConfig.TIMING.SCROLL_THRESHOLD : 100;
   
   // Show top button when scrolled down enough from the top
   // This should work even when at the bottom
@@ -110,12 +112,17 @@ function adjustScrollButtons() {
     backToTopBtn.fadeOut(200);
   }
   
-  // Show bottom button when not near the bottom
-  const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
-  if (distanceFromBottom > scrollThreshold) {
-    backToBottomBtn.fadeIn(200);
-  } else {
-    backToBottomBtn.fadeOut(200);
+    // Show bottom button when not near the bottom
+    const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
+    if (distanceFromBottom > scrollThreshold) {
+      backToBottomBtn.fadeIn(200);
+    } else {
+      backToBottomBtn.fadeOut(200);
+    }
+  } catch (error) {
+    console.error("Error in adjustScrollButtons:", error);
+    // Hide buttons on error to prevent stuck visible state
+    $("#back_to_top, #back_to_bottom").hide();
   }
 }
 

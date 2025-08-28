@@ -1258,6 +1258,8 @@
     <script src="js/monadic/session_state.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/shims.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/ui-config.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/ui-state.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket-handlers.js?timestamp=<%= @timestamp %>"></script>
@@ -1286,7 +1288,11 @@
     <!-- No inline styles - all styles moved to monadic.css -->
     
     <!-- Scroll buttons - outside main container for proper floating -->
-    <div id="back_to_bottom"><a href="#"><i class="fas fa-arrow-down"></i></a></div>
-    <div id="back_to_top"><a href="#"><i class="fas fa-arrow-up"></i></a></div>
+    <div id="back_to_bottom" role="button" aria-label="Scroll to bottom" tabindex="0">
+      <a href="#" aria-hidden="true"><i class="fas fa-arrow-down"></i></a>
+    </div>
+    <div id="back_to_top" role="button" aria-label="Scroll to top" tabindex="0">
+      <a href="#" aria-hidden="true"><i class="fas fa-arrow-up"></i></a>
+    </div>
   </body>
 </html>

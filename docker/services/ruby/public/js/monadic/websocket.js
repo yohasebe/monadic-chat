@@ -1509,7 +1509,7 @@ function processAudioDataQueue() {
 let responseStarted = false;
 let callingFunction = false;
 // Track if we're currently streaming a response
-let streamingResponse = false;
+let streamingResponse = false; // Keep local variable for backward compatibility
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
@@ -1533,6 +1533,11 @@ function connect_websocket(callback) {
 
   ws.onopen = function () {
     console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
+    // Update state if available
+    if (window.UIState) {
+      window.UIState.set('wsConnected', true);
+      window.UIState.set('wsReconnecting', false);
+    }
     const verifyingText = typeof webUIi18n !== 'undefined' ? 
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
@@ -2204,6 +2209,10 @@ function connect_websocket(callback) {
         
         // Reset streaming flags
         streamingResponse = false;
+        if (window.UIState) {
+          window.UIState.set('streamingResponse', false);
+          window.UIState.set('isStreaming', false);
+        }
         responseStarted = false;
         callingFunction = false;
         
@@ -2303,6 +2312,10 @@ function connect_websocket(callback) {
           responseStarted = false;
           callingFunction = false;
           streamingResponse = false;
+          if (window.UIState) {
+            window.UIState.set('streamingResponse', false);
+            window.UIState.set('isStreaming', false);
+          }
           
           // Set focus back to input field
           setInputFocus();
@@ -3419,6 +3432,10 @@ function connect_websocket(callback) {
             
             // Reset streaming flag as response is done
             streamingResponse = false;
+            if (window.UIState) {
+              window.UIState.set('streamingResponse', false);
+              window.UIState.set('isStreaming', false);
+            }
             
             // Clear any pending spinner check interval
             if (spinnerCheckInterval) {
@@ -3480,6 +3497,10 @@ function connect_websocket(callback) {
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
           streamingResponse = false;
+          if (window.UIState) {
+            window.UIState.set('streamingResponse', false);
+            window.UIState.set('isStreaming', false);
+          }
           
           // Clear any pending spinner check interval
           if (spinnerCheckInterval) {
@@ -3505,6 +3526,10 @@ function connect_websocket(callback) {
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
           streamingResponse = false;
+          if (window.UIState) {
+            window.UIState.set('streamingResponse', false);
+            window.UIState.set('isStreaming', false);
+          }
           
           // Clear any pending spinner check interval
           if (spinnerCheckInterval) {
@@ -3608,6 +3633,10 @@ function connect_websocket(callback) {
         
         // Mark that we're starting a response process
         streamingResponse = true;
+        if (window.UIState) {
+          window.UIState.set('streamingResponse', true);
+          window.UIState.set('isStreaming', true);
+        }
         responseStarted = false; // Will be set to true when streaming starts
         
         // Disable toggle menu during streaming
@@ -3751,6 +3780,10 @@ function connect_websocket(callback) {
       case "streaming_complete": {
         // Handle streaming completion
         streamingResponse = false;
+        if (window.UIState) {
+          window.UIState.set('streamingResponse', false);
+          window.UIState.set('isStreaming', false);
+        }
         
         // Re-enable toggle menu
         $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
@@ -3884,6 +3917,10 @@ function connect_websocket(callback) {
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             responseStarted = true;
             streamingResponse = true; // Mark that we're streaming
+            if (window.UIState) {
+              window.UIState.set('streamingResponse', true);
+              window.UIState.set('isStreaming', true);
+            }
           }
           
           // Always update spinner for fragments to ensure continuity
@@ -3911,6 +3948,10 @@ function connect_websocket(callback) {
             callingFunction = false;
             responseStarted = true;
             streamingResponse = true; // Mark that we're streaming
+            if (window.UIState) {
+              window.UIState.set('streamingResponse', true);
+              window.UIState.set('isStreaming', true);
+            }
             // Show and update spinner message for streaming
             const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
               webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
@@ -3933,11 +3974,20 @@ function connect_websocket(callback) {
 
   ws.onclose = function (_e) {
     initialLoadComplete = false;
+    // Update state if available
+    if (window.UIState) {
+      window.UIState.set('wsConnected', false);
+      window.UIState.set('wsReconnecting', true);
+    }
     reconnect_websocket(ws);
   }
 
   ws.onerror = function (err) {
     console.error(`[WebSocket] Socket error for ${wsUrl}:`, err.message || 'Unknown error');
+    // Update state if available
+    if (window.UIState) {
+      window.UIState.set('wsConnected', false);
+    }
     
     // Get connection details if not localhost
     if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {

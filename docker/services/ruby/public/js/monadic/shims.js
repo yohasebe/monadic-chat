@@ -85,17 +85,27 @@ window.shims.uiUtils = {
 
   // Adjusts scroll buttons visibility based on scroll position
   adjustScrollButtons: function() {
-    // Don't show buttons if menu is visible on mobile (main is hidden)
+    const mainPanel = $("#main");
+    const isMobile = $(window).width() < 600;
+    
+    // On mobile, check if main is hidden (menu is showing)
+    if (isMobile) {
+      if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
+        $("#back_to_top").hide();
+        $("#back_to_bottom").hide();
+        return;
+      }
+    }
+    
+    // Also check for menu-visible class (mobile menu state)
     if ($("body").hasClass("menu-visible")) {
       $("#back_to_top").hide();
       $("#back_to_bottom").hide();
       return;
     }
     
-    const mainPanel = $("#main");
-    
-    // If main panel is not visible, hide buttons
-    if (!mainPanel.is(":visible")) {
+    // Double-check: if main panel is not visible, hide buttons
+    if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
       $("#back_to_top").hide();
       $("#back_to_bottom").hide();
       return;

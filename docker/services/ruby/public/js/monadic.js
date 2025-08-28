@@ -550,17 +550,27 @@ $(function () {
 
   // Fallback function for scroll buttons when uiUtils is not available
   function adjustScrollButtonsFallback() {
-    // Don't show buttons if menu is visible on mobile (main is hidden)
+    const mainPanel = $("#main");
+    const isMobile = $(window).width() < 600;
+    
+    // On mobile, check if main is hidden (menu is showing)
+    if (isMobile) {
+      if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
+        $("#back_to_top").hide();
+        $("#back_to_bottom").hide();
+        return;
+      }
+    }
+    
+    // Also check for menu-visible class (mobile menu state)
     if ($("body").hasClass("menu-visible")) {
       $("#back_to_top").hide();
       $("#back_to_bottom").hide();
       return;
     }
     
-    const mainPanel = $("#main");
-    
-    // If main panel is not visible, hide buttons
-    if (!mainPanel.is(":visible")) {
+    // Double-check: if main panel is not visible, hide buttons
+    if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
       $("#back_to_top").hide();
       $("#back_to_bottom").hide();
       return;
@@ -1085,6 +1095,15 @@ $(function () {
       // On desktop, menu is visible by default, so set the appropriate icon and style
       $("#toggle-menu").removeClass("menu-hidden").html('<i class="fas fa-times"></i>');
     }
+    
+    // Initialize scroll buttons state
+    setTimeout(function() {
+      if (uiUtils && uiUtils.adjustScrollButtons) {
+        uiUtils.adjustScrollButtons();
+      } else if (typeof adjustScrollButtonsFallback === 'function') {
+        adjustScrollButtonsFallback();
+      }
+    }, 100);
   });
   
   // Also ensure positions are set on load event
@@ -1262,12 +1281,14 @@ $(function () {
     // Reset scroll position
     $("body, html").animate({ scrollTop: 0 }, 0);
     
-    // Update scroll buttons visibility after menu toggle
-    if (uiUtils && uiUtils.adjustScrollButtons) {
-      uiUtils.adjustScrollButtons();
-    } else {
-      adjustScrollButtonsFallback();
-    }
+    // Update scroll buttons visibility after menu toggle (with slight delay for DOM update)
+    setTimeout(function() {
+      if (uiUtils && uiUtils.adjustScrollButtons) {
+        uiUtils.adjustScrollButtons();
+      } else if (typeof adjustScrollButtonsFallback === 'function') {
+        adjustScrollButtonsFallback();
+      }
+    }, 50);
     
     // Basic scroll position maintenance - use a very small timeout
     setTimeout(function() {

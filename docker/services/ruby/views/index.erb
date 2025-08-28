@@ -524,13 +524,13 @@
         color: #22ad50; /* Existing system green color */
       }
       
-      /* Temp card (typing indicator) */
+      /* Temp card (typing indicator) - match assistant card styling */
       #temp-card {
         border-color: #cbd5e0; /* Slightly more visible border */
       }
       
       #temp-card .card-header {
-        background-color: #edf2f7; /* Slightly darker for temp card */
+        background-color: #f7fafc; /* Light gray background to match assistant card */
       }
     </style>
    <script>
@@ -591,6 +591,7 @@
                   <option value="<%= lang[:code] %>"><%= lang[:display] %></option>
                 <% end %>
               </select>
+              <div class="mt-2 textbox-caption" data-i18n="ui.uiLanguageNote">UI language can be changed in system settings.</div>
             </div>
 
             <h5 data-i18n="ui.currentBaseApp"><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
@@ -643,7 +644,7 @@
               <button class="btn btn-sm btn-warning" id="save" title="Export conversation to file" data-i18n="ui.export"><i class="fas fa-file-export"></i> Export</button>
             </div>
             <input type="file" id="fileInput" style="display:none;">
-            <div class="mt-3 mb-1" data-i18n="ui.resetDescription"> Press "reset" to clear conversation while keeping the current app selection.</div>
+            <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "reset" to clear conversation while keeping the current app selection.</div>
           </div>
 
           <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
@@ -891,7 +892,7 @@
             <div id="temp-card" class="card mt-3" style="display:none;">
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
-                  <span class='text-secondary'><i class='fas fa-robot'></i></span>
+                  <span><i class='fas fa-robot' style="color: #DC4C64;"></i></span>
                   <span class='fw-bold fs-6' style="color: #DC4C64;">Assistant</span>
                 </div>
                 <div class="me-1 text-secondary d-flex align-items-center">
@@ -955,13 +956,13 @@
                 <span id="ai-assistant-info" data-model="" class="fw-bold">
                   <span style="color: #DC4C64;" data-i18n="ui.aiAssistant">AI Assistant</span>
                   &nbsp;
-                  <span style="color: inherit; font-weight: normal;">OpenAI</span>
+                  <span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">OpenAI</span>
                 </span>
-                <span class="text-secondary mx-1">
+                &nbsp;<span class="text-secondary mx-2">
                   <i class="fas fa-exchange-alt"></i>
-                </span>
+                </span>&nbsp;
                 <span class="user-color fw-bold" data-i18n="ui.aiUser">AI User</span>
-                  &nbsp;
+                &nbsp;&nbsp;
                 <select id="ai_user_provider" class="form-select form-select-sm me-1" style="width: auto; min-width: 120px;">
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
@@ -972,7 +973,7 @@
                   <option value="deepseek">DeepSeek</option>
                   <option value="grok">Grok</option>
                 </select>
-                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation" data-i18n="ui.run">Run</button>
+                <button id="ai_user" class="btn btn-sm btn-secondary ms-1" title="Generate AI User response based on conversation"><i class="fas fa-play"></i>&nbsp;<span data-i18n="ui.run">Run</span></button>
               </div>
 
               <div class="row mt-3">
@@ -980,7 +981,7 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel" data-i18n="ui.settings"><i class="fas fa-bars"></i> Settings</button>
+                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel" data-i18n="ui.settings"><i class="fas fa-bars"></i>&nbsp;Settings</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
                     <span data-i18n="ui.pressToSend">Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>

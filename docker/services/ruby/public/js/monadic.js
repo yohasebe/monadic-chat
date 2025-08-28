@@ -348,7 +348,7 @@ $(function () {
       }
       // Update the badge in the AI User section with provider name and model
       const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
-      $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> <span style="color: inherit; font-weight: normal;">' + provider + '</span>').attr("data-model", selectedModel);
+      $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>').attr("data-model", selectedModel);
       
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {

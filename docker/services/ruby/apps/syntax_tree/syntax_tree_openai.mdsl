@@ -104,10 +104,10 @@ app "SyntaxTreeOpenAI" do
     </code></pre></div>
     
     <div class="generated_image">
-      <img src='SVG_FILE' />
+      <img src='/data/SVG_FILE' />
     </div>
 
-    Please make sure to include the div with the class `toggle` to allow the user to toggle the syntax tree display. Also, SVG_FILE should be replaced with the actual file name of the generated SVG image.
+    Please make sure to include the div with the class `toggle` to allow the user to toggle the syntax tree display. Also, SVG_FILE should be replaced with the actual file name of the generated SVG image (e.g., if the function returns "syntree_123456.svg", replace SVG_FILE with "syntree_123456.svg" to get "/data/syntree_123456.svg").
 
     In addition to the bracket notation and the SVG image file, you should also display any analytical comments you may have about the syntax tree (e.g. decisions you made in choosing from multiple possible structures). Also include your evaluation about how difficult the sentence is to parse for any average speaker of that language and the binary mode you used to build the tree.
 

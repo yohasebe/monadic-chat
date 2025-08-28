@@ -1,3 +1,45 @@
+/* CSS Variables - Single source of truth for common values */
+:root {
+  /* Transition Durations - Matching existing values */
+  --transition-fast: 200ms;     /* Used for quick interactions */
+  --transition-normal: 300ms;    /* Standard transitions */
+  --transition-slow: 500ms;      /* Smooth animations like scrolling */
+  
+  /* Border Settings - Consistent across UI */
+  --border-width: 1px;
+  --border-radius: 4px;
+  --border-radius-large: 8px;
+  --border-radius-pill: 50%;
+  --border-color: #ced4da;
+  --border-color-light: rgba(255, 255, 255, 0.3);
+  --border-color-dark: rgba(0, 0, 0, 0.2);
+  
+  /* Shadows - Standardized depths */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.4);
+  
+  /* Opacity Levels */
+  --opacity-hover: 0.9;
+  --opacity-disabled: 0.5;
+  --opacity-backdrop: 0.5;
+  
+  /* Spacing - Based on existing patterns */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
+  
+  /* Font Sizes - Standardized */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+}
+
 //CSS (contents kept for reference, style additions added to end)
 /*-------------------------------------------*/
 /* Custom Responsive Navbar Reset */
@@ -36,7 +78,7 @@
   font-size: 1.7rem;
 }
 #main-nav .nav-actions .btn {
-  padding: 0.5rem;
+  padding: var(--spacing-sm);
   background: transparent;
   border: none;
 }
@@ -123,7 +165,7 @@ html, body, input, button, select, textarea {
 }
 /* Smooth nav style transitions on rapid width changes */
 #main-nav, .navbar, .navbar-brand, #main-nav .container-fluid {
-  transition: all 0.3s ease-in-out;
+  transition: all var(--transition-normal) ease-in-out;
 }
 /* Ensure layout uses flex for brand and toggle-button grouping */
 #main-nav .container-fluid {
@@ -281,8 +323,8 @@ div.card-body.role-system {
   display: none; /* Initially hidden */
   position: fixed;
   z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
-  transition: opacity 0.3s ease;
-  opacity: 0.9;
+  transition: opacity var(--transition-normal) ease;
+  opacity: var(--opacity-hover);
   /* Will be positioned dynamically via JavaScript based on #main element */
 }
 
@@ -312,7 +354,7 @@ div.card-body.role-system {
   border-radius: 50%;
   text-decoration: none;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast) ease;
 }
 
 #back_to_top a:hover,
@@ -338,6 +380,52 @@ div.card-body.role-system {
   #back_to_bottom {
     bottom: 50px; /* Adjust for mobile UI */
   }
+}
+
+/* Simplified alert styles - remove backgrounds and borders */
+.alert {
+  background-color: transparent !important;
+  border: none !important;
+  border-left: none !important;
+  padding: var(--spacing-md) 0 !important;
+  margin-bottom: 0.5rem;
+  border-radius: 0;
+}
+
+.alert-danger,
+.alert-warning,
+.alert-info,
+.alert-success,
+.alert-primary,
+.alert-secondary {
+  background-color: transparent !important;
+  border: none !important;
+  border-left: none !important;
+}
+
+/* Maintain text colors for different alert types */
+.alert-danger {
+  color: #721c24;
+}
+
+.alert-warning {
+  color: #856404;
+}
+
+.alert-info {
+  color: #0c5460;
+}
+
+.alert-success {
+  color: #155724;
+}
+
+.alert-primary {
+  color: #004085;
+}
+
+.alert-secondary {
+  color: #383d41;
 }
 
 span.status {
@@ -508,9 +596,9 @@ h5 i,
   display: flex !important; /* Show by default */
   align-items: center !important;
   justify-content: center !important;
-  opacity: 0.85 !important;
+  opacity: var(--opacity-hover) !important;
   cursor: pointer !important;
-  transition: opacity 0.3s ease !important;
+  transition: opacity var(--transition-normal) ease !important;
 }
 
 #cancel_query i {
@@ -674,7 +762,7 @@ blockquote ol {
 
 #interaction-check-all,
 #interaction-uncheck-all {
-  transition: color 0.2s ease, text-decoration 0.2s ease;
+  transition: color var(--transition-fast) ease, text-decoration var(--transition-fast) ease;
 }
 
 #interaction-check-all:hover,
@@ -708,7 +796,7 @@ div.sourcecode-toggle:hover {
   min-height: 100px;
   overflow-y: hidden;
   resize: vertical;
-  transition: height 0.2s ease;
+  transition: height var(--transition-fast) ease;
   font-size: 1em;
 }
 
@@ -959,7 +1047,7 @@ legend {
   line-height: 1; /* Reset line height */
   font-size: 0.85em; /* Reduced font size */
   display: inline-block;
-  opacity: 0.8; /* Add slight transparency */
+  opacity: var(--opacity-hover); /* Add slight transparency */
 }
 
 /* Image container */
@@ -988,7 +1076,7 @@ legend {
   display: flex;
   flex-direction: row;
   gap: 5px;
-  z-index: 10;
+  z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
 
 /* Button styles */
@@ -1001,7 +1089,7 @@ legend {
   font-size: 13px !important;
   border-radius: 5px !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all var(--transition-fast) ease !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   line-height: 1.2 !important;
   min-height: 30px !important;
@@ -1098,7 +1186,7 @@ legend {
   z-index: 1000;
   background-color: #777;
   color: white;
-  opacity: 0.85;
+  opacity: var(--opacity-hover);
   padding: 12px 12px 8px 12px;
   border-radius: 8px;
 }
@@ -1200,7 +1288,7 @@ legend {
 .modal-header {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: var(--spacing-md) var(--spacing-lg);
   position: relative;
 }
 
@@ -1852,7 +1940,7 @@ pre code{
 }
 
 #voice i.fas.fa-microphone {
-  transition: all 0.2s ease; /* Add transition for smoother changes */
+  transition: all var(--transition-fast) ease; /* Add transition for smoother changes */
 }
 
 #voice:focus i.fas.fa-microphone {
@@ -2158,7 +2246,7 @@ h1 {
   padding: 2px 6px;
   font-size: 10px;
   border-radius: 0 4px 0 4px;
-  z-index: 10;
+  z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
 
 .mask-controls {
@@ -2225,7 +2313,7 @@ h1 {
   border-bottom: 1px solid #e0e0e0;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast) ease;
 }
 
 .thinking-block-header:hover {
@@ -2243,7 +2331,7 @@ h1 {
 
 .thinking-block-icon {
   font-size: 0.85em;
-  transition: transform 0.3s ease;
+  transition: transform var(--transition-normal) ease;
 }
 
 .thinking-block.expanded .thinking-block-icon {
@@ -2256,13 +2344,13 @@ h1 {
   border-top: none;
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+  transition: max-height var(--transition-normal) ease-out, padding var(--transition-normal) ease-out;
 }
 
 .thinking-block.expanded .thinking-block-content {
   max-height: 2000px;
   padding: 1em;
-  transition: max-height 0.5s ease-in, padding 0.3s ease-in;
+  transition: max-height var(--transition-slow) ease-in, padding var(--transition-normal) ease-in;
 }
 
 .thinking-block-content pre {

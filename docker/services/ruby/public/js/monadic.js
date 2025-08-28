@@ -182,6 +182,37 @@ $(function () {
   // Use "Chat" as the default app if not defined elsewhere
   let lastApp = typeof defaultApp !== 'undefined' ? defaultApp : "Chat";
 
+  // Common UI operations - centralized for consistency
+  const UIOperations = {
+    showMain: function() {
+      $("#main").show();
+      return this;
+    },
+    hideMain: function() {
+      $("#main").hide();
+      return this;
+    },
+    showMenu: function() {
+      $("#menu").show();
+      return this;
+    },
+    hideMenu: function() {
+      $("#menu").hide();
+      return this;
+    },
+    showBoth: function() {
+      this.showMain().showMenu();
+      return this;
+    },
+    setMainColumns: function(removeClass, addClass) {
+      $("#main").removeClass(removeClass).addClass(addClass);
+      return this;
+    }
+  };
+  
+  // Make available globally for reuse
+  window.UIOperations = UIOperations;
+
   // Consolidate event handlers for toggles
   function setupToggleHandlers() {
     $("#auto-scroll-toggle").on("change", function () {
@@ -633,7 +664,15 @@ $(function () {
         adjustScrollButtonsFallback();
       }
     } catch (error) {
-      console.error("Error in fixLayoutAfterResize:", error);
+      if (window.ErrorHandler) {
+        window.ErrorHandler.log({
+          category: window.ErrorHandler.CATEGORIES.UI,
+          message: 'Error in fixLayoutAfterResize',
+          details: error.message
+        });
+      } else {
+        console.error("Error in fixLayoutAfterResize:", error);
+      }
       // Attempt basic recovery
       $("#main").show();
       $("#toggle-menu").show();
@@ -688,17 +727,17 @@ $(function () {
     
     // Show top button when scrolled down enough from the top
     if (mainScrollTop > scrollThreshold) {
-      $("#back_to_top").fadeIn(200);
+      $("#back_to_top").fadeIn(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
     } else {
-      $("#back_to_top").fadeOut(200);
+      $("#back_to_top").fadeOut(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
     }
     
     // Show bottom button when not near the bottom
     const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      $("#back_to_bottom").fadeIn(200);
+      $("#back_to_bottom").fadeIn(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
     } else {
-      $("#back_to_bottom").fadeOut(200);
+      $("#back_to_bottom").fadeOut(window.UIConfig ? window.UIConfig.TIMING.TOGGLE_ANIMATION : 200);
     }
   }
 
@@ -778,7 +817,15 @@ $(function () {
           try {
             fixLayoutAfterResize();
           } catch (error) {
-            console.error('Error in fixLayoutAfterResize:', error);
+            if (window.ErrorHandler) {
+              window.ErrorHandler.log({
+                category: window.ErrorHandler.CATEGORIES.UI,
+                message: 'Error in fixLayoutAfterResize',
+                details: error.message
+              });
+            } else {
+              console.error('Error in fixLayoutAfterResize:', error);
+            }
           }
           resizeObserverTimeout = null;
         }, debounceTime);
@@ -805,7 +852,16 @@ $(function () {
       });
       
     } catch (error) {
-      console.error('Error setting up ResizeObserver:', error);
+      if (window.ErrorHandler) {
+        window.ErrorHandler.log({
+          category: window.ErrorHandler.CATEGORIES.UI,
+          message: 'Error setting up ResizeObserver',
+          details: error.message,
+          level: window.ErrorHandler.LEVELS.WARNING
+        });
+      } else {
+        console.error('Error setting up ResizeObserver:', error);
+      }
       // Fall back to window resize only
       if (layoutResizeObserver) {
         try {
@@ -859,7 +915,16 @@ $(function () {
       
       console.log('Event handlers cleaned up successfully');
     } catch (error) {
-      console.error('Error during cleanup:', error);
+      if (window.ErrorHandler) {
+        window.ErrorHandler.log({
+          category: window.ErrorHandler.CATEGORIES.SYSTEM,
+          message: 'Error during cleanup',
+          details: error.message,
+          level: window.ErrorHandler.LEVELS.WARNING
+        });
+      } else {
+        console.error('Error during cleanup:', error);
+      }
     }
   }
   
@@ -1371,7 +1436,15 @@ $(function () {
         window.UIState.initialize();
         console.log('UIState initialized successfully');
       } catch (error) {
-        console.error('Error initializing UIState:', error);
+        if (window.ErrorHandler) {
+          window.ErrorHandler.log({
+            category: window.ErrorHandler.CATEGORIES.SYSTEM,
+            message: 'Error initializing UIState',
+            details: error.message
+          });
+        } else {
+          console.error('Error initializing UIState:', error);
+        }
       }
     }
     
@@ -1678,7 +1751,7 @@ $(function () {
         $("#main, #menu").css("transform", "translateZ(0)");
         
         // Run optimization again after a short delay for iOS
-        setTimeout(optimizeMobileScrolling, 100);
+        setTimeout(optimizeMobileScrolling, window.UIConfig ? window.UIConfig.TIMING.LAYOUT_FIX_DELAY : 100);
       }
       }, 10); // Very small timeout
       
@@ -2815,7 +2888,7 @@ $(function () {
       if ($(window).width() < 600) {
         // Run optimization immediately and after a small delay
         optimizeMobileScrolling();
-        setTimeout(optimizeMobileScrolling, 500);
+        setTimeout(optimizeMobileScrolling, window.UIConfig ? window.UIConfig.TIMING.SCROLL_ANIMATION : 500);
       }
     }
     

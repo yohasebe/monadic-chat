@@ -22,6 +22,32 @@ const UI_TIMING = {
   SPINNER_CHECK_INTERVAL: 1000     // Interval for checking spinner state
 };
 
+// Z-index layer management (higher numbers appear on top)
+const UI_ZINDEX = {
+  // Base layers
+  BASE: 1,                    // Normal flow elements
+  ELEVATED: 10,               // Slightly elevated elements
+  
+  // Content layers
+  STICKY_HEADER: 100,         // Sticky headers
+  DROPDOWN: 200,              // Dropdown menus
+  
+  // Overlay layers
+  OVERLAY_BACKDROP: 1000,     // Menu overlay, backdrop
+  OVERLAY_CONTENT: 1040,      // Overlay content (menus)
+  SCROLL_BUTTONS: 1050,       // Scroll to top/bottom buttons
+  
+  // Modal layers
+  MODAL_BACKDROP: 2000,       // Modal backdrop
+  MODAL: 2010,                // Modal dialogs
+  MODAL_DROPDOWN: 2020,       // Dropdowns inside modals
+  
+  // Critical layers
+  TOOLTIP: 3000,              // Tooltips (highest regular content)
+  NOTIFICATION: 4000,         // Important notifications
+  CRITICAL: 9999              // Critical system messages (highest)
+};
+
 // UI State flags
 const UI_STATE = {
   isStreaming: false,
@@ -60,6 +86,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     UI_BREAKPOINTS,
     UI_TIMING,
+    UI_ZINDEX,
     UI_STATE,
     isMobileView,
     isTabletView,
@@ -72,6 +99,7 @@ if (typeof module !== 'undefined' && module.exports) {
 window.UIConfig = {
   BREAKPOINTS: UI_BREAKPOINTS,
   TIMING: UI_TIMING,
+  ZINDEX: UI_ZINDEX,
   STATE: UI_STATE,
   isMobileView,
   isTabletView,

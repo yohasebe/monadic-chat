@@ -140,27 +140,66 @@ describe('UI Utilities', () => {
       const mockMainPanel = {
         height: jest.fn().mockReturnValue(500),
         prop: jest.fn().mockReturnValue(2000),
-        scrollTop: jest.fn().mockReturnValue(300) // Scrolled more than half the height
+        scrollTop: jest.fn().mockReturnValue(300), // Scrolled more than threshold
+        offset: jest.fn().mockReturnValue({ left: 100 }),
+        width: jest.fn().mockReturnValue(800)
       };
       
-      // Mock button elements
-      const mockTopButton = { show: jest.fn(), hide: jest.fn() };
-      const mockBottomButton = { show: jest.fn(), hide: jest.fn() };
+      // Mock toggle button (menu is hidden, so main is visible)
+      const mockToggleBtn = {
+        hasClass: jest.fn().mockReturnValue(true) // menu-hidden = true means main is visible
+      };
+      
+      // Mock body element
+      const mockBody = {
+        hasClass: jest.fn().mockReturnValue(false) // no menu-visible class
+      };
+      
+      // Mock button elements with fadeIn/fadeOut methods
+      const mockTopButton = { 
+        fadeIn: jest.fn(), 
+        fadeOut: jest.fn(),
+        css: jest.fn(),
+        show: jest.fn(), 
+        hide: jest.fn() 
+      };
+      const mockBottomButton = { 
+        fadeIn: jest.fn(), 
+        fadeOut: jest.fn(),
+        css: jest.fn(),
+        show: jest.fn(), 
+        hide: jest.fn() 
+      };
+      
+      // Mock window
+      const mockWindow = {
+        width: jest.fn().mockReturnValue(1920)
+      };
       
       // Setup the jQuery mock for this test
       $.mockImplementation(selector => {
         if (selector === '#main') return mockMainPanel;
         if (selector === '#back_to_top') return mockTopButton;
         if (selector === '#back_to_bottom') return mockBottomButton;
-        return { show: jest.fn(), hide: jest.fn() };
+        if (selector === '#toggle-menu') return mockToggleBtn;
+        if (selector === 'body') return mockBody;
+        if (selector === window) return mockWindow;
+        return { 
+          show: jest.fn(), 
+          hide: jest.fn(),
+          fadeIn: jest.fn(),
+          fadeOut: jest.fn(),
+          hasClass: jest.fn().mockReturnValue(false),
+          css: jest.fn()
+        };
       });
       
       // Call the function
       uiUtils.adjustScrollButtons();
       
-      // Should show top button
-      expect(mockTopButton.show).toHaveBeenCalled();
-      expect(mockBottomButton.show).toHaveBeenCalled();
+      // Should show top button (fadeIn) and bottom button (fadeIn)
+      expect(mockTopButton.fadeIn).toHaveBeenCalledWith(200);
+      expect(mockBottomButton.fadeIn).toHaveBeenCalledWith(200);
     });
     
     it('should hide bottom button when at the bottom', () => {
@@ -168,27 +207,66 @@ describe('UI Utilities', () => {
       const mockMainPanel = {
         height: jest.fn().mockReturnValue(500),
         prop: jest.fn().mockReturnValue(1000), // Total scroll height
-        scrollTop: jest.fn().mockReturnValue(500) // Scrolled to the end
+        scrollTop: jest.fn().mockReturnValue(500), // Scrolled to the end
+        offset: jest.fn().mockReturnValue({ left: 100 }),
+        width: jest.fn().mockReturnValue(800)
       };
       
-      // Mock button elements
-      const mockTopButton = { show: jest.fn(), hide: jest.fn() };
-      const mockBottomButton = { show: jest.fn(), hide: jest.fn() };
+      // Mock toggle button (menu is hidden, so main is visible)
+      const mockToggleBtn = {
+        hasClass: jest.fn().mockReturnValue(true) // menu-hidden = true means main is visible
+      };
+      
+      // Mock body element
+      const mockBody = {
+        hasClass: jest.fn().mockReturnValue(false) // no menu-visible class
+      };
+      
+      // Mock button elements with fadeIn/fadeOut methods
+      const mockTopButton = { 
+        fadeIn: jest.fn(), 
+        fadeOut: jest.fn(),
+        css: jest.fn(),
+        show: jest.fn(), 
+        hide: jest.fn() 
+      };
+      const mockBottomButton = { 
+        fadeIn: jest.fn(), 
+        fadeOut: jest.fn(),
+        css: jest.fn(),
+        show: jest.fn(), 
+        hide: jest.fn() 
+      };
+      
+      // Mock window
+      const mockWindow = {
+        width: jest.fn().mockReturnValue(1920)
+      };
       
       // Setup the jQuery mock for this test
       $.mockImplementation(selector => {
         if (selector === '#main') return mockMainPanel;
         if (selector === '#back_to_top') return mockTopButton;
         if (selector === '#back_to_bottom') return mockBottomButton;
-        return { show: jest.fn(), hide: jest.fn() };
+        if (selector === '#toggle-menu') return mockToggleBtn;
+        if (selector === 'body') return mockBody;
+        if (selector === window) return mockWindow;
+        return { 
+          show: jest.fn(), 
+          hide: jest.fn(),
+          fadeIn: jest.fn(),
+          fadeOut: jest.fn(),
+          hasClass: jest.fn().mockReturnValue(false),
+          css: jest.fn()
+        };
       });
       
       // Call the function
       uiUtils.adjustScrollButtons();
       
-      // Should hide bottom button, show top button
-      expect(mockTopButton.show).toHaveBeenCalled();
-      expect(mockBottomButton.hide).toHaveBeenCalled();
+      // Should show top button (fadeIn), hide bottom button (fadeOut)
+      expect(mockTopButton.fadeIn).toHaveBeenCalledWith(200);
+      expect(mockBottomButton.fadeOut).toHaveBeenCalledWith(200);
     });
   });
 

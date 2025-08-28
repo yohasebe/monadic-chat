@@ -6,28 +6,16 @@ const fs = require('fs');
 const path = require('path');
 
 describe('Model Specification', () => {
-  // We'll extract the modelSpec object by evaluating the source file
+  // We'll extract the modelSpec object by requiring the file directly
   let modelSpec;
   
   beforeEach(() => {
-    // Read the file content
+    // Clear the require cache to ensure fresh loading
     const filePath = path.join(__dirname, '../../docker/services/ruby/public/js/monadic/model_spec.js');
-    const fileContent = fs.readFileSync(filePath, 'utf8');
+    delete require.cache[require.resolve(filePath)];
     
-    // Execute the file content in a controlled way to extract modelSpec
-    try {
-      // Create a function that will evaluate the file in a scope where we can capture modelSpec
-      const createModelSpec = new Function(`
-        ${fileContent}
-        return modelSpec;
-      `);
-      
-      // Execute the function to get modelSpec
-      modelSpec = createModelSpec();
-    } catch (e) {
-      console.error('Error loading model_spec.js:', e);
-      throw e;
-    }
+    // Require the modelSpec directly - it exports via module.exports
+    modelSpec = require(filePath);
   });
   
   it('should be defined as an object', () => {
@@ -41,7 +29,7 @@ describe('Model Specification', () => {
     expect(modelSpec['claude-sonnet-4-20250514']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash-preview-05-20']).toBeDefined();
     expect(modelSpec['command-r-plus-08-2024']).toBeDefined();
-    expect(modelSpec['grok-2']).toBeDefined();
+    expect(modelSpec['grok-3']).toBeDefined();
   });
   
   describe('OpenAI Models', () => {
@@ -70,9 +58,9 @@ describe('Model Specification', () => {
       const model = modelSpec['claude-sonnet-4-20250514'];
       
       // Check essential parameters
-      expect(model.context_window).toEqual([1, 200000]);
+      expect(model.context_window).toEqual([1, 1000000]);
       expect(model.max_output_tokens).toEqual([[1, 64000], 64000]);
-      expect(model.reasoning_effort).toEqual([["none", "low", "medium", "high"], "low"]);
+      expect(model.reasoning_effort).toEqual([["none", "minimal", "low", "medium", "high"], "low"]);
       expect(model.tool_capability).toBe(true);
       expect(model.vision_capability).toBe(true);
     });

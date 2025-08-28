@@ -44,7 +44,26 @@ global.window = {
     pathname: '/',
     search: '',
     hash: ''
-  }
+  },
+  performance: {
+    now: jest.fn(() => Date.now()),
+    timing: {
+      navigationStart: 1000,
+      loadEventEnd: 2000,
+      domContentLoadedEventEnd: 1500,
+      responseEnd: 1200
+    },
+    memory: {
+      usedJSHeapSize: 1000000,
+      totalJSHeapSize: 2000000,
+      jsHeapSizeLimit: 4000000
+    }
+  },
+  Date: global.Date,
+  setTimeout: global.setTimeout,
+  clearTimeout: global.clearTimeout,
+  setInterval: global.setInterval,
+  clearInterval: global.clearInterval
 };
 
 // Mock document with proper body

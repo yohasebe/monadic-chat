@@ -558,9 +558,26 @@ $(function () {
     }
     
     const mainPanel = $("#main");
+    
+    // If main panel is not visible, hide buttons
+    if (!mainPanel.is(":visible")) {
+      $("#back_to_top").hide();
+      $("#back_to_bottom").hide();
+      return;
+    }
+    
     const mainHeight = mainPanel.height() || 0;
     const mainScrollHeight = mainPanel.prop("scrollHeight") || 0;
     const mainScrollTop = mainPanel.scrollTop() || 0;
+    
+    // Position buttons relative to main panel
+    const mainOffset = mainPanel.offset();
+    const mainWidth = mainPanel.width();
+    if (mainOffset) {
+      const buttonRight = $(window).width() - (mainOffset.left + mainWidth) + 30;
+      $("#back_to_top").css("right", buttonRight + "px");
+      $("#back_to_bottom").css("right", buttonRight + "px");
+    }
     
     // Calculate thresholds (100px minimum scroll to show buttons)
     const scrollThreshold = 100;

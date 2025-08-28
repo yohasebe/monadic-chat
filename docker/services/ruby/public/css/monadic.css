@@ -283,8 +283,7 @@ div.card-body.role-system {
   z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
   transition: opacity 0.3s ease;
   opacity: 0.9;
-  /* Position on the right side of the viewport */
-  right: 30px; /* Fixed position from right edge */
+  /* Will be positioned dynamically via JavaScript based on #main element */
 }
 
 #back_to_top {
@@ -332,11 +331,6 @@ div.card-body.role-system {
 
 /* Responsive positioning for smaller screens */
 @media (max-width: 768px) {
-  #back_to_top,
-  #back_to_bottom {
-    right: 20px; /* Slightly closer to edge on mobile */
-  }
-  
   #back_to_top {
     bottom: 100px; /* Adjust for mobile UI */
   }

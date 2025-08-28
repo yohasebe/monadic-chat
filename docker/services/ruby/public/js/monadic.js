@@ -506,25 +506,43 @@ $(function () {
       }, 100));
     });
 
-    // Improved resize event - store timer in data attribute
+    // Track previous window width to detect significant changes
+    let previousWidth = $(window).width();
+    
+    // Improved resize event with immediate and delayed response
     $(window).on("resize", function () {
       const $window = $(window);
+      const currentWidth = $window.width();
       const existingTimer = $window.data('resizeTimer');
+      
+      // Check if we crossed the mobile/desktop boundary (600px)
+      const wasMobile = previousWidth < 600;
+      const isMobile = currentWidth < 600;
+      const crossedBoundary = wasMobile !== isMobile;
+      
+      // Immediate fix if we crossed the mobile/desktop boundary
+      if (crossedBoundary) {
+        fixLayoutAfterResize();
+      }
+      
+      // Clear existing timer
       if (existingTimer) {
         clearTimeout(existingTimer);
       }
+      
+      // Set new timer for final adjustments
       $window.data('resizeTimer', setTimeout(function() {
-        // Use the UI utilities module if available, otherwise fall back
-        if (uiUtils && uiUtils.adjustScrollButtons) {
-          uiUtils.adjustScrollButtons();
-        } else {
-          adjustScrollButtonsFallback();
-        }
-        // Force nav reflow to apply correct styles on rapid resize
+        // Final layout fix
+        fixLayoutAfterResize();
+        
+        // Force nav reflow to apply correct styles
         const $nav = $('#main-nav');
         $nav.hide();
         $nav[0].offsetHeight; // force reflow
         $nav.show();
+        
+        // Update previous width
+        previousWidth = currentWidth;
       }, 250));
     });
     
@@ -546,6 +564,67 @@ $(function () {
         $window.removeData('resizeTimer');
       }
     });
+  }
+
+  // Function to fix layout after window resize
+  function fixLayoutAfterResize() {
+    const windowWidth = $(window).width();
+    const isMobile = windowWidth < 600;
+    const toggleBtn = $("#toggle-menu");
+    const mainPanel = $("#main");
+    const menuPanel = $("#menu");
+    
+    if (isMobile) {
+      // Mobile layout
+      const isMenuHidden = toggleBtn.hasClass("menu-hidden");
+      
+      if (isMenuHidden) {
+        // Menu should be hidden, main should be visible
+        menuPanel.hide();
+        mainPanel.show().removeClass("col-md-8").addClass("col-md-12");
+        $("body").removeClass("menu-visible");
+        toggleBtn.html('<i class="fas fa-bars"></i>');
+      } else {
+        // Menu should be visible, main should be hidden
+        menuPanel.show();
+        mainPanel.hide();
+        $("body").addClass("menu-visible");
+        toggleBtn.html('<i class="fas fa-times"></i>');
+      }
+      
+      // Reset any inline styles that might have been applied
+      toggleBtn.css({
+        "position": "",
+        "top": "",
+        "right": "",
+        "display": ""
+      });
+    } else {
+      // Desktop layout
+      $("body").removeClass("menu-visible");
+      
+      if (menuPanel.is(":visible")) {
+        // Both panels visible
+        mainPanel.removeClass("col-md-12").addClass("col-md-8").show();
+        menuPanel.show();
+        toggleBtn.removeClass("menu-hidden").html('<i class="fas fa-times"></i>');
+      } else {
+        // Only main panel visible
+        mainPanel.removeClass("col-md-8").addClass("col-md-12").show();
+        menuPanel.hide();
+        toggleBtn.addClass("menu-hidden").html('<i class="fas fa-bars"></i>');
+      }
+    }
+    
+    // Force reflow to ensure proper rendering
+    document.body.offsetHeight;
+    
+    // Update scroll buttons position
+    if (uiUtils && uiUtils.adjustScrollButtons) {
+      uiUtils.adjustScrollButtons();
+    } else if (typeof adjustScrollButtonsFallback === 'function') {
+      adjustScrollButtonsFallback();
+    }
   }
 
   // Fallback function for scroll buttons when uiUtils is not available
@@ -608,10 +687,38 @@ $(function () {
     }
   }
 
+  // Setup ResizeObserver for more reliable resize detection
+  function setupResizeObserver() {
+    if (typeof ResizeObserver === 'undefined') {
+      return; // ResizeObserver not supported
+    }
+    
+    const mainPanel = document.getElementById('main');
+    const menuPanel = document.getElementById('menu');
+    
+    if (!mainPanel || !menuPanel) {
+      return;
+    }
+    
+    // Create ResizeObserver to detect container size changes
+    const resizeObserver = new ResizeObserver(entries => {
+      // Debounce to prevent excessive calls
+      clearTimeout(window.resizeObserverTimeout);
+      window.resizeObserverTimeout = setTimeout(() => {
+        fixLayoutAfterResize();
+      }, 100);
+    });
+    
+    // Observe both panels
+    resizeObserver.observe(mainPanel);
+    resizeObserver.observe(menuPanel);
+  }
+
   // Call these functions on document ready
   $(function () {
     setupToggleHandlers();
     setupEventListeners();
+    setupResizeObserver();
   });
 
   $("#model").on("change", function() {
@@ -1108,9 +1215,10 @@ $(function () {
   
   // Also ensure positions are set on load event
   $(window).on("load", function() {
-    if ($(window).width() < 600) {
-      // Note: Removed inline CSS injection for toggle-menu on load
-    }
+    // Fix layout on load to ensure proper state
+    setTimeout(function() {
+      fixLayoutAfterResize();
+    }, 100);
   });
   
   // Function to ensure navbar elements are perfectly centered

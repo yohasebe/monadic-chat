@@ -88,9 +88,16 @@ window.shims.uiUtils = {
     const mainPanel = $("#main");
     const isMobile = $(window).width() < 600;
     
-    // On mobile, check if main is hidden (menu is showing)
+    // On mobile, check toggle button state to determine if menu is showing
     if (isMobile) {
-      if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
+      // Check if toggle button has menu-hidden class
+      // When menu-hidden class is present, menu is hidden and main is showing
+      // When menu-hidden class is absent, menu is showing and main is hidden
+      const toggleBtn = $("#toggle-menu");
+      const isMenuHidden = toggleBtn.hasClass("menu-hidden");
+      
+      if (!isMenuHidden) {
+        // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
         $("#back_to_top").hide();
         $("#back_to_bottom").hide();
         return;
@@ -99,13 +106,6 @@ window.shims.uiUtils = {
     
     // Also check for menu-visible class (mobile menu state)
     if ($("body").hasClass("menu-visible")) {
-      $("#back_to_top").hide();
-      $("#back_to_bottom").hide();
-      return;
-    }
-    
-    // Double-check: if main panel is not visible, hide buttons
-    if (!mainPanel.is(":visible") || mainPanel.css("display") === "none") {
       $("#back_to_top").hide();
       $("#back_to_bottom").hide();
       return;

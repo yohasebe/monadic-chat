@@ -31,8 +31,8 @@
     }
     
     performanceStats.misses++;
-    // Use window.jQuery to avoid conflict with local $ function
-    const element = window.jQuery(selector);
+    // Use jQuery $ directly - no conflict as we renamed the alias
+    const element = $(selector);
     
     // Only cache if element exists
     if (element.length > 0) {
@@ -130,10 +130,10 @@
    */
   function setupAutoRefresh() {
     // Clear cache when significant DOM changes occur
-    window.jQuery(document).on('DOMContentLoaded', clearAll);
+    $(document).on('DOMContentLoaded', clearAll);
     
     // Clear cache before page unload
-    window.jQuery(window).on('beforeunload', clearAll);
+    $(window).on('beforeunload', clearAll);
   }
   
   // Convenience method for getting single element
@@ -151,7 +151,8 @@
     getStats,
     initialize,
     setupAutoRefresh,
-    $: getCached  // Alias for backward compatibility  // Convenience jQuery-like method
+    getCached,  // Explicit method name
+    $c: getCached  // Short alias that doesn't conflict with jQuery's $
   };
   
   // Export to window

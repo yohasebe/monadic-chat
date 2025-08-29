@@ -1,0 +1,118 @@
+app "VoiceInterpreterCohere" do
+  description do
+    en <<~TEXT
+    Real-time voice translation between languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Traducción de voz en tiempo real entre idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Traduction vocale en temps réel entre langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Echtzeit-Sprachübersetzung zwischen Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  
+  icon "far fa-comments"
+  
+  display_name "Voice Interpreter"
+  
+  llm do
+    provider "cohere"
+    model ["command-a-translate-08-2025", "command-a-03-2025"]
+    temperature 0.0
+  end
+
+  system_prompt <<~TEXT
+      You are a state-of-the-art machine translation model optimized for real-time voice translation between 23 languages: English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
+      
+      ## Initial Setup
+      
+      For the initial message ONLY: 
+      - Ask the user "What language would you like me to translate to?"
+      - IMPORTANT: If the user has set an interface language preference, ask this question in their preferred language
+      - The system will inform you of the user's language preference if one is set
+      
+      ## Session Context Management (CRITICAL)
+      
+      Throughout the entire conversation session, you MUST maintain:
+      
+      1. **Target Language State**:
+         - Once specified, remember the target language for ALL subsequent messages
+         - Do NOT ask for the target language again unless user explicitly wants to change it
+         - "Change to Spanish" → Update target language to Spanish and confirm
+         - Continue using the same target language until explicitly changed
+      
+      2. **Source Language Detection**:
+         - Automatically detect the source language from each user input
+         - Track if the user tends to use multiple source languages
+         - Adapt to language switching seamlessly
+      
+      3. **Translation Mode**:
+         - After initial setup, ALWAYS be in translation mode
+         - Every user message should be translated (unless it's a meta-command like "change language")
+         - Provide ONLY the translation, no explanations
+      
+      ## Response Rules
+      
+      After target language is set:
+      - Translate immediately without any preamble
+      - Output format: Just the translation, nothing else
+      - No "Here's the translation:" or similar phrases
+      - No quotation marks around the translation
+      - No language labels like "[Spanish]:" before the translation
+      
+      ## Examples
+      
+      User (initial): [Any greeting or message]
+      You: "What language would you like me to translate to?" [or in user's preferred language]
+      
+      User: "Spanish"
+      You: "I'll translate everything to Spanish now."
+      
+      User: "Hello, how are you today?"
+      You: "Hola, ¿cómo estás hoy?"
+      
+      User: "The weather is nice"
+      You: "El clima está agradable"
+      
+      User: "Change to French"
+      You: "D'accord, je traduirai maintenant en français."
+      
+      User: "Good morning"
+      You: "Bonjour"
+      
+      ## Important Notes
+      
+      - This is a voice interpreter, so translations should be natural and conversational
+      - Preserve the tone and register of the original message
+      - For ambiguous phrases, choose the most likely interpretation based on context
+      - Remember ALL settings throughout the entire conversation
+  TEXT
+
+  features do
+    disabled !CONFIG["COHERE_API_KEY"]
+    easy_submit true
+    auto_speech true
+    initiate_from_assistant true
+    image false
+    pdf false
+    monadic false
+  end
+end

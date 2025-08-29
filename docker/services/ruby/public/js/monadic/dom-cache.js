@@ -31,7 +31,8 @@
     }
     
     performanceStats.misses++;
-    const element = $(selector);
+    // Use window.jQuery to avoid conflict with local $ function
+    const element = window.jQuery(selector);
     
     // Only cache if element exists
     if (element.length > 0) {
@@ -129,14 +130,14 @@
    */
   function setupAutoRefresh() {
     // Clear cache when significant DOM changes occur
-    $(document).on('DOMContentLoaded', clearAll);
+    window.jQuery(document).on('DOMContentLoaded', clearAll);
     
     // Clear cache before page unload
-    $(window).on('beforeunload', clearAll);
+    window.jQuery(window).on('beforeunload', clearAll);
   }
   
   // Convenience method for getting single element
-  function $(selector, forceRefresh = false) {
+  function getCached(selector, forceRefresh = false) {
     return get(selector, forceRefresh);
   }
   
@@ -150,7 +151,7 @@
     getStats,
     initialize,
     setupAutoRefresh,
-    $  // Convenience jQuery-like method
+    $: getCached  // Alias for backward compatibility  // Convenience jQuery-like method
   };
   
   // Export to window

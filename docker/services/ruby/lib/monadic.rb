@@ -1096,20 +1096,33 @@ APPS.each do |k, v|
     
     # Handle model fallbacks if specified
     if parameters[:model_fallbacks] && parameters[:model_fallbacks].is_a?(Array)
-      # Try to find the first available model
-      available_model = parameters[:model_fallbacks].find do |model|
-        # Check if model is available based on API keys
-        case parameters[:provider]
-        when "openai"
-          CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].empty?
-        when "anthropic"
-          CONFIG["ANTHROPIC_API_KEY"] && !CONFIG["ANTHROPIC_API_KEY"].empty?
+      # Get available models from the provider
+      available_models = case parameters[:provider]
+      when "cohere"
+        if CONFIG["COHERE_API_KEY"] && !CONFIG["COHERE_API_KEY"].empty?
+          # Get the list of available models from Cohere
+          cohere_models = Monadic::Adapters::CohereAdapter.new.list_models
+          cohere_models || []
         else
-          true # For other providers, assume model is available
+          []
         end
+      when "openai"
+        # For OpenAI, we could fetch models but for now just check API key
+        CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].empty? ? parameters[:model_fallbacks] : []
+      when "anthropic"
+        # For Anthropic, we could fetch models but for now just check API key
+        CONFIG["ANTHROPIC_API_KEY"] && !CONFIG["ANTHROPIC_API_KEY"].empty? ? parameters[:model_fallbacks] : []
+      else
+        # For other providers, assume all models in fallback list are available
+        parameters[:model_fallbacks]
       end
       
-      # Set the available model or fallback to the first one
+      # Find the first model that's actually available
+      available_model = parameters[:model_fallbacks].find do |model|
+        available_models.include?(model)
+      end
+      
+      # Set the available model or keep the first one as fallback
       parameters[:model] = available_model || parameters[:model_fallbacks].first
     end
     

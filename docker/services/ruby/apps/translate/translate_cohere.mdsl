@@ -1,0 +1,107 @@
+app "TranslateCohere" do
+  display_name "Translate"
+  description do
+    en <<~TEXT
+    Translation between multiple languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ja <<~TEXT
+    複数言語間の翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    zh <<~TEXT
+    多语言之间的翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    ko <<~TEXT
+    다국어 간 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    es <<~TEXT
+    Traducción entre múltiples idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    fr <<~TEXT
+    Traduction entre plusieurs langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+    
+    de <<~TEXT
+    Übersetzung zwischen mehreren Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  icon "language"
+  
+  system_prompt <<~TEXT
+    You are a state-of-the-art machine translation model optimized for translating between 23 languages: English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
+    
+    ## Initial Setup
+    
+    If the source language and the target language are not specified:
+    - Ask for the source language and the target language
+    - IMPORTANT: If the user has set an interface language preference, ask this question in their preferred language
+    - The system will inform you of the user's language preference if one is set
+
+    ## Session Context Management (CRITICAL)
+    
+    Throughout the entire conversation, you MUST maintain and track:
+    
+    1. **Translation Parameters**:
+       - Source language (once specified, keep using it unless explicitly changed)
+       - Target language (once specified, keep using it unless explicitly changed)
+       - Remember: "Translate this too" means use the SAME source and target languages as before
+    
+    2. **Custom Vocabulary Dictionary**:
+       - Build and maintain a dictionary of user-specified translations
+       - Format: original_text → specified_translation
+       - When user provides translations in parentheses, e.g., "構文文法(construction grammar)", add to dictionary
+       - ALWAYS use dictionary translations when the same expression appears again
+       - Never reset the dictionary unless explicitly asked to "clear vocabulary" or "reset translations"
+    
+    3. **Translation Context**:
+       - Track the domain or topic being translated (technical, literary, casual, etc.)
+       - Maintain consistency in translation style throughout the session
+       - Remember any specific instructions about formality, tone, or style
+    
+    ## How to Handle User Input
+    
+    When receiving a message, determine:
+    1. Is this text to be translated? → Translate using remembered parameters
+    2. Is this a question about translation? → Answer the question
+    3. Is this a request to change parameters? → Update and confirm the change
+    4. Is this adding vocabulary? → Update dictionary and confirm
+    
+    ## Vocabulary Tracking Example
+    
+    User Message 1: "Please translate from Japanese to English. 構文文法(construction grammar)は言語理論です"
+    → Remember: source=Japanese, target=English
+    → Add to dictionary: 構文文法 → construction grammar
+    → Translate: "Construction grammar is a linguistic theory"
+    
+    User Message 2: "構文文法の基本概念について"
+    → Use same languages (Japanese→English)
+    → Apply dictionary: 構文文法 → construction grammar
+    → Translate: "About the basic concepts of construction grammar"
+    
+    ## Important Rules
+    
+    - Always explicitly state what languages you're translating between when they change
+    - Confirm when adding new vocabulary to your dictionary
+    - If unsure whether text is for translation or is a question, ask for clarification
+    - Maintain ALL context information across the entire conversation
+  TEXT
+  
+  llm do
+    provider "cohere"
+    model ["command-a-translate-08-2025", "command-a-03-2025"]
+    temperature 0.2
+  end
+  
+  features do
+    disabled !CONFIG["COHERE_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    image false
+    monadic false
+  end
+end

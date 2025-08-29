@@ -284,6 +284,9 @@ module WebSocketHelper
         # Special case for models array to ensure it's properly sent as JSON
         elsif p == "models" && m.is_a?(Array)
           apps[k][p] = m.to_json
+        elsif p == "model_fallbacks" && m.is_a?(Array)
+          # Send model fallbacks as JSON array
+          apps[k][p] = m.to_json
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))
           # Tools need to be sent as proper JSON too
           apps[k][p] = m.to_json

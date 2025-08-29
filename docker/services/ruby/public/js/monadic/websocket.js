@@ -2757,7 +2757,16 @@ function connect_websocket(callback) {
         if (currentApp) {
           const isOllama = currentApp["group"] && currentApp["group"].toLowerCase() === "ollama";
           
-          if (currentApp["model"] && models.includes(currentApp["model"])) {
+          // Check for model fallbacks
+          if (currentApp["model_fallbacks"]) {
+            let fallbacks = JSON.parse(currentApp["model_fallbacks"]);
+            // Find the first available model from the fallback list
+            model = fallbacks.find(m => models.includes(m));
+            if (!model && models.length > 0) {
+              // If no fallback model is available, use the first available model
+              model = models[0];
+            }
+          } else if (currentApp["model"] && models.includes(currentApp["model"])) {
             // If app has a specific model set and it's available, use it
             model = currentApp["model"];
           } else if (isOllama && models.length > 0) {

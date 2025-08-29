@@ -153,7 +153,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           fetch_web_content search_wikipedia
           write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
           delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-          list_jupyter_notebooks
+          list_jupyter_notebooks create_and_populate_jupyter_notebook
           restart_jupyter_kernel interrupt_jupyter_execution move_jupyter_cell insert_jupyter_cells
           websearch_agent list_providers_and_voices text_to_speech
           generate_video_with_veo generate_image_with_imagen

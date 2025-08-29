@@ -217,7 +217,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
   end
   
   describe "Status reporting" do
-    it "includes status information in system prompt" do
+    it "includes Jupyter notebook management instructions in system prompt" do
       skip "JupyterNotebookGrok not loaded" unless defined?(JupyterNotebookGrok)
       app_instance = JupyterNotebookGrok.new
       class_settings = JupyterNotebookGrok.instance_variable_get(:@settings)
@@ -226,11 +226,10 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       system_prompt = app_instance.settings[:initial_prompt]
       skip "System prompt not configured" unless system_prompt
       
-      # Check that status reporting is mentioned
-      expect(system_prompt).to include("Status:")
-      expect(system_prompt).to include("Jupyter Running")
-      expect(system_prompt).to include("Notebook Created")
-      expect(system_prompt).to include("Notebook Name")
+      # Check that Jupyter notebook management instructions are included
+      expect(system_prompt).to include("Jupyter Notebook assistant")
+      expect(system_prompt).to include("create_and_populate_jupyter_notebook")
+      expect(system_prompt).to include("Combined Tool")
     end
   end
 end

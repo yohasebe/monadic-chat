@@ -76,60 +76,83 @@ RSpec.describe SecondOpinionAgent do
     end
   end
   
-  describe "#is_model_reasoning_based?" do
+  describe "Provider-specific reasoning model detection" do
     context "Gemini models" do
+      before do
+        require_relative "../../../apps/second_opinion/second_opinion_gemini"
+      end
+      
       it "identifies thinking models as reasoning-based" do
-        expect(agent.send(:is_model_reasoning_based?, "gemini", "gemini-2-5-thinking-exp-01-21")).to be true
-        expect(agent.send(:is_model_reasoning_based?, "gemini", "gemini-2.5-thinking-exp")).to be true
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2-5-thinking-exp-01-21")).to be true
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-thinking-exp")).to be true
       end
       
-      it "does not identify regular models as reasoning-based" do
-        expect(agent.send(:is_model_reasoning_based?, "gemini", "gemini-2.5-flash")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "gemini", "gemini-2.5-pro")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "gemini", "gemini-1.5-pro")).to be false
-      end
-    end
-    
-    context "OpenAI models" do
-      it "does not identify o1/o3 as reasoning-based (they don't use reasoning_effort)" do
-        expect(agent.send(:is_model_reasoning_based?, "openai", "o1-preview")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "openai", "o1-mini")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "openai", "o3-mini")).to be false
+      it "identifies Gemini 2.5 models as reasoning-based" do
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-flash")).to be true
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-2.5-pro")).to be true
       end
       
-      it "does not identify regular models as reasoning-based" do
-        expect(agent.send(:is_model_reasoning_based?, "openai", "gpt-4.1")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "openai", "gpt-5")).to be false
+      it "does not identify older models as reasoning-based" do
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-1.5-pro")).to be false
+        expect(SecondOpinionGemini.is_reasoning_model?("gemini-1.0-pro")).to be false
       end
     end
     
     context "Mistral models" do
+      before do
+        require_relative "../../../apps/second_opinion/second_opinion_mistral"
+      end
+      
       it "identifies magistral models as reasoning-based" do
-        expect(agent.send(:is_model_reasoning_based?, "mistral", "magistral-2025")).to be true
-        expect(agent.send(:is_model_reasoning_based?, "mistral", "magistral")).to be true
+        expect(SecondOpinionMistral.is_reasoning_model?("magistral-2025")).to be true
+        expect(SecondOpinionMistral.is_reasoning_model?("magistral")).to be true
       end
       
       it "does not identify regular models as reasoning-based" do
-        expect(agent.send(:is_model_reasoning_based?, "mistral", "mistral-large-latest")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "mistral", "mistral-small")).to be false
+        expect(SecondOpinionMistral.is_reasoning_model?("mistral-large-latest")).to be false
+        expect(SecondOpinionMistral.is_reasoning_model?("mistral-small")).to be false
+      end
+    end
+    
+    context "OpenAI models" do
+      before do
+        require_relative "../../../apps/second_opinion/second_opinion_openai"
+      end
+      
+      it "does not identify any models as reasoning-based (o1/o3 don't use reasoning_effort)" do
+        expect(SecondOpinionOpenAI.is_reasoning_model?("o1-preview")).to be false
+        expect(SecondOpinionOpenAI.is_reasoning_model?("o1-mini")).to be false
+        expect(SecondOpinionOpenAI.is_reasoning_model?("o3-mini")).to be false
+        expect(SecondOpinionOpenAI.is_reasoning_model?("gpt-4.1")).to be false
+        expect(SecondOpinionOpenAI.is_reasoning_model?("gpt-5")).to be false
       end
     end
     
     context "Other providers" do
+      before do
+        require_relative "../../../apps/second_opinion/second_opinion_claude"
+        require_relative "../../../apps/second_opinion/second_opinion_cohere"
+        require_relative "../../../apps/second_opinion/second_opinion_perplexity"
+      end
+      
       it "returns false for providers without reasoning models" do
-        expect(agent.send(:is_model_reasoning_based?, "claude", "claude-3-5-sonnet-20241022")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "cohere", "command-a-03-2025")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "perplexity", "sonar")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "grok", "grok-4-0709")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "deepseek", "deepseek-chat")).to be false
+        expect(SecondOpinionClaude.is_reasoning_model?("claude-3-5-sonnet-20241022")).to be false
+        expect(SecondOpinionCohere.is_reasoning_model?("command-r")).to be false
+        expect(SecondOpinionPerplexity.is_reasoning_model?("sonar")).to be false
       end
     end
     
     context "edge cases" do
+      before do
+        require_relative "../../../apps/second_opinion/second_opinion_gemini"
+        require_relative "../../../apps/second_opinion/second_opinion_mistral"
+        require_relative "../../../apps/second_opinion/second_opinion_openai"
+      end
+      
       it "handles nil values" do
-        expect(agent.send(:is_model_reasoning_based?, nil, "model")).to be false
-        expect(agent.send(:is_model_reasoning_based?, "provider", nil)).to be false
-        expect(agent.send(:is_model_reasoning_based?, nil, nil)).to be false
+        expect(SecondOpinionGemini.is_reasoning_model?(nil)).to be false
+        expect(SecondOpinionMistral.is_reasoning_model?(nil)).to be false
+        expect(SecondOpinionOpenAI.is_reasoning_model?(nil)).to be false
       end
     end
   end
@@ -163,7 +186,11 @@ RSpec.describe SecondOpinionAgent do
       end
     
       it "gets a second opinion from Gemini" do
-        result = agent.second_opinion_agent(
+        # Use the actual Gemini class to get proper reasoning configuration
+        require_relative "../../../apps/second_opinion/second_opinion_gemini"
+        gemini_agent = SecondOpinionGemini.new
+        
+        result = gemini_agent.second_opinion_agent(
           user_query: "What is 5 x 5?",
           agent_response: "5 x 5 equals 25",
           provider: "gemini",

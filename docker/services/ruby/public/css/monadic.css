@@ -239,7 +239,8 @@ img.base64-image {
 .func-edit,
 div.sourcecode-toggle,
 #interaction-check-all,
-#interaction-uncheck-all {
+#interaction-uncheck-all,
+#interaction-toggle-all {
   cursor: pointer;
 }
 
@@ -382,50 +383,106 @@ div.card-body.role-system {
   }
 }
 
-/* Simplified alert styles - remove backgrounds and borders */
-.alert {
-  background-color: transparent !important;
-  border: none !important;
-  border-left: none !important;
-  padding: var(--spacing-md) 0 !important;
-  margin-bottom: 0.5rem;
-  border-radius: 0;
-}
-
+/* Simplified alert styles - remove ALL backgrounds and borders, keep only icon and text color */
+.alert,
 .alert-danger,
 .alert-warning,
 .alert-info,
 .alert-success,
 .alert-primary,
-.alert-secondary {
+.alert-secondary,
+.alert-light,
+.alert-dark,
+div[class*="alert-"] {
   background-color: transparent !important;
+  background-image: none !important;
   border: none !important;
   border-left: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0.5rem 0 !important;
+  margin-bottom: 0.5rem;
+  border-radius: 0;
 }
 
-/* Maintain text colors for different alert types */
-.alert-danger {
-  color: #721c24;
+/* Remove all pseudo-elements that might add borders or backgrounds */
+.alert::before,
+.alert::after,
+div[class*="alert-"]::before,
+div[class*="alert-"]::after {
+  display: none !important;
+  content: none !important;
+  border: none !important;
+  background: none !important;
 }
 
-.alert-warning {
-  color: #856404;
+/* Clean, simple text colors for different alert types */
+.alert-danger,
+.alert-danger *:not(a) {
+  color: #dc3545 !important;  /* Clear red for errors */
+  background-color: transparent !important;
+  border-color: transparent !important;
 }
 
-.alert-info {
-  color: #0c5460;
+.alert-warning,
+.alert-warning *:not(a) {
+  color: #fd7e14 !important;  /* Clear orange for warnings */
+  background-color: transparent !important;
+  border-color: transparent !important;
 }
 
-.alert-success {
-  color: #155724;
+.alert-info,
+.alert-info *:not(a) {
+  color: #0dcaf0 !important;  /* Clear cyan for info */
+  background-color: transparent !important;
+  border-color: transparent !important;
 }
 
-.alert-primary {
-  color: #004085;
+.alert-success,
+.alert-success *:not(a) {
+  color: #198754 !important;  /* Clear green for success */
+  background-color: transparent !important;
+  border-color: transparent !important;
 }
 
-.alert-secondary {
-  color: #383d41;
+.alert-primary,
+.alert-primary *:not(a) {
+  color: #0d6efd !important;  /* Clear blue for primary */
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.alert-secondary,
+.alert-secondary *:not(a) {
+  color: #6c757d !important;  /* Clear gray for secondary */
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+/* Ensure alert close buttons and links maintain visibility */
+.alert .btn-close {
+  background-color: transparent !important;
+  opacity: 0.8;
+}
+
+.alert a {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
+/* Remove any Bootstrap alert animations/transitions that might show borders */
+.alert {
+  transition: none !important;
+}
+
+/* Force override Bootstrap's alert-dismissible padding */
+.alert-dismissible {
+  padding-right: 0 !important;
+}
+
+/* Ensure consistent icon spacing */
+.alert i[class*="fa-"] {
+  margin-right: 0.5rem;
 }
 
 span.status {
@@ -761,12 +818,14 @@ blockquote ol {
 }
 
 #interaction-check-all,
-#interaction-uncheck-all {
+#interaction-uncheck-all,
+#interaction-toggle-all {
   transition: color var(--transition-fast) ease, text-decoration var(--transition-fast) ease;
 }
 
 #interaction-check-all:hover,
-#interaction-uncheck-all:hover {
+#interaction-uncheck-all:hover,
+#interaction-toggle-all:hover {
   color: #495057;
   text-decoration: underline;
 }

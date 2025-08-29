@@ -120,8 +120,9 @@ module GrokHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model if not specified
-    model ||= GrokHelper.get_default_model
+    # Use default model from CONFIG if not specified
+    # Try GROK_DEFAULT_MODEL first, then XAI_DEFAULT_MODEL for backward compatibility
+    model ||= CONFIG["GROK_DEFAULT_MODEL"] || CONFIG["XAI_DEFAULT_MODEL"]
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)

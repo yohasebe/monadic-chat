@@ -2820,21 +2820,13 @@ function checkAndUpdateEnvFile() {
         envConfig.STT_MODEL = 'gpt-4o-transcribe';
     }
 
-    if (!envConfig.AI_USER_MODEL) {
-        envConfig.AI_USER_MODEL = 'gpt-4.1';
-    }
-
-    if (!envConfig.AI_USER_MAX_TOKENS) {
-        envConfig.AI_USER_MAX_TOKENS = '2000';
-    }
-
     if (!envConfig.EMBEDDING_MODEL) {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
     }
 
     // Set default models for each provider if not already specified
     if (!envConfig.OPENAI_DEFAULT_MODEL) {
-        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4.1';
+        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-5';
     }
 
     if (!envConfig.ANTHROPIC_DEFAULT_MODEL) {
@@ -2842,7 +2834,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.COHERE_DEFAULT_MODEL) {
-        envConfig.COHERE_DEFAULT_MODEL = 'command-r-plus';
+        envConfig.COHERE_DEFAULT_MODEL = 'command-a-03-2025';
     }
 
     if (!envConfig.GEMINI_DEFAULT_MODEL) {
@@ -2854,7 +2846,7 @@ function checkAndUpdateEnvFile() {
     }
 
     if (!envConfig.GROK_DEFAULT_MODEL) {
-        envConfig.GROK_DEFAULT_MODEL = 'grok';
+        envConfig.GROK_DEFAULT_MODEL = 'grok-4-0709';
     }
 
     if (!envConfig.PERPLEXITY_DEFAULT_MODEL) {

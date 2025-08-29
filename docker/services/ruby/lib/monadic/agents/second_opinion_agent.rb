@@ -71,22 +71,20 @@ module SecondOpinionAgent
       }
     ]
     
-    # Use AI_USER_MAX_TOKENS from configuration or default to 2000 for second opinions
-    max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || 2000
-    
+    # Let each provider use its own default max_tokens
+    # Don't specify max_tokens here - providers will use their defaults
     parameters = {
       "messages" => messages,
-      "model" => target_model,
-      "max_tokens" => max_tokens
+      "model" => target_model
     }
     
-    # Check if this is a reasoning/thinking model that uses reasoning_effort
-    is_reasoning_model = is_model_reasoning_based?(target_provider, target_model)
-    
-    if is_reasoning_model
-      parameters["reasoning_effort"] = "low"  # Use low effort for quick second opinions
-      # Don't include temperature for thinking models
+    # Delegate reasoning configuration to the provider implementation
+    # Each provider class knows how to configure its own reasoning models
+    if respond_to?(:configure_reasoning_params)
+      parameters = configure_reasoning_params(parameters, target_model)
     else
+      # Fallback for when called from module directly (e.g., tests)
+      # Use simple default configuration
       parameters["temperature"] = 0.7
     end
 
@@ -207,17 +205,16 @@ module SecondOpinionAgent
       return [provider_normalized, default_model]
     end
     
-    # If neither is specified, use AI_USER_MODEL or default
-    ai_user_model = CONFIG["AI_USER_MODEL"] || "gpt-4.1"
+    # If neither is specified, use OpenAI as default provider with its default model
+    default_provider = "openai"
+    default_model = get_default_model_for_provider(default_provider)
     
-    # Check if AI_USER_MODEL contains provider:model format
-    if ai_user_model.include?(":")
-      provider_name, model_name = ai_user_model.split(":", 2)
-      return [provider_name.downcase, model_name]
-    else
-      # Default to OpenAI if no provider specified
-      return ["openai", ai_user_model]
+    # Log for debugging
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "SecondOpinionAgent: No provider specified, using default: #{default_provider} with model #{default_model}"
     end
+    
+    return [default_provider, default_model]
   end
 
   def get_provider_helper(provider)
@@ -253,29 +250,38 @@ module SecondOpinionAgent
       return models.first if models && !models.empty?
     end
     
-    # Fallback to environment variable or default
-    CONFIG["OLLAMA_DEFAULT_MODEL"] || "llama3.2"
+    # Use CONFIG variable (set in main.js with default)
+    CONFIG["OLLAMA_DEFAULT_MODEL"]
   end
   
-  def is_model_reasoning_based?(provider, model)
-    return false if provider.nil? || model.nil?
+  def get_default_model_for_provider(provider)
+    # Get default model based on provider using CONFIG variables
+    # CONFIG variables are always set with defaults in main.js
+    provider_downcase = provider.to_s.downcase
     
-    # Known reasoning models patterns
-    reasoning_patterns = {
-      # Only Gemini thinking models use reasoning_effort
-      "gemini" => /thinking/i,
-      # OpenAI o1/o3 models don't use reasoning_effort parameter
-      # "openai" => /^o[13](-|$)/i,  # Commented out - o1/o3 don't use reasoning_effort
-      # Mistral magistral models use reasoning_effort
-      "mistral" => /^magistral(-|$)/i,
-      # Add more patterns here as new reasoning models are released
-      # "claude" => /reasoning-model-pattern/i,
-    }
-    
-    # Check if the model matches known reasoning patterns for the provider
-    pattern = reasoning_patterns[provider.downcase]
-    return false unless pattern
-    
-    model.match?(pattern)
+    case provider_downcase
+    when "claude", "anthropic"
+      CONFIG["ANTHROPIC_DEFAULT_MODEL"]
+    when "openai", "gpt"
+      CONFIG["OPENAI_DEFAULT_MODEL"]
+    when "gemini", "google"
+      CONFIG["GEMINI_DEFAULT_MODEL"]
+    when "mistral"
+      CONFIG["MISTRAL_DEFAULT_MODEL"]
+    when "cohere"
+      CONFIG["COHERE_DEFAULT_MODEL"]
+    when "perplexity"
+      CONFIG["PERPLEXITY_DEFAULT_MODEL"]
+    when "grok", "xai"
+      CONFIG["GROK_DEFAULT_MODEL"]
+    when "deepseek"
+      CONFIG["DEEPSEEK_DEFAULT_MODEL"]
+    when "ollama"
+      get_ollama_default_model
+    else
+      # Fallback to OpenAI default
+      CONFIG["OPENAI_DEFAULT_MODEL"]
+    end
   end
+  
 end

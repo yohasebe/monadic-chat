@@ -139,8 +139,6 @@ end
 
 These are configured in the Monadic Chat UI, not in MDSL files:
 
-- `AI_USER_MODEL` - Model for AI-generated user messages
-- `AI_USER_MAX_TOKENS` - Max tokens for user message generation (default: 2000)
 - `TAVILY_API_KEY` - API key for Tavily web search service (used by providers without native web search)
 - `STT_MODEL` - Speech-to-text model
 - `ROUGE_THEME` - Syntax highlighting theme

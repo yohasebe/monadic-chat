@@ -234,7 +234,9 @@ module DeepSeekHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    model ||= DeepSeekHelper.get_default_model
+    # Use default model from CONFIG if not specified
+    model ||= CONFIG["DEEPSEEK_DEFAULT_MODEL"]
+    
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     

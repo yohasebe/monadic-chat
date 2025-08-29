@@ -136,8 +136,6 @@ end
 
 これらはMDSLファイルではなく、Monadic Chatの設定パネルで設定されます：
 
-- `AI_USER_MODEL` - AI生成ユーザーメッセージ用のモデル
-- `AI_USER_MAX_TOKENS` - ユーザーメッセージ生成の最大トークン数（デフォルト：2000）
 - `TAVILY_API_KEY` - Tavilyウェブ検索サービスのAPIキー（ネイティブウェブ検索非対応プロバイダー用）
 - `STT_MODEL` - 音声認識モデル
 - `ROUGE_THEME` - シンタックスハイライトテーマ

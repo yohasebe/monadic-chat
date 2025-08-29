@@ -310,9 +310,6 @@
         <!-- Category: Model Settings -->
         <div class="settings-category category-model">
           <h2 data-i18n="settings.categories.modelSettings"><i class="fas fa-robot"></i> Model Settings</h2>
-          
-          <label for="ai-user-max-tokens">AI_USER_MAX_TOKENS</label>
-          <input type="number" id="ai-user-max-tokens" name="ai-user-max-tokens" min="100" max="8000" step="10" value="2000">
         </div>
 
         <!-- Category: Voice & Audio -->
@@ -397,7 +394,6 @@
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
           STT_MODEL: document.getElementById('stt-model').value,
-          AI_USER_MAX_TOKENS: document.getElementById('ai-user-max-tokens').value,
           TTS_DICT_PATH: ttsDictPath,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
@@ -485,7 +481,6 @@
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
-        document.getElementById('ai-user-max-tokens').value = data.AI_USER_MAX_TOKENS || '2000';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;

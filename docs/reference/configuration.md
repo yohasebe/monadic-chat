@@ -38,13 +38,11 @@ This page provides a comprehensive reference for all configuration options in Mo
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Default model for Grok apps | `grok-2-latest` | `grok-beta` |
-| `AI_USER_MODEL` | Model for AI-generated user messages | `gpt-4o-mini` | `gpt-4o` |
 
 ## System Settings
 
 | Variable | Description | Default | Range/Options |
 |----------|-------------|---------|---------------|
-| `AI_USER_MAX_TOKENS` | Max tokens for AI-generated user messages | `2000` | 100-4000 |
 | `FONT_SIZE` | Base font size for the interface | `16` | 10-24 |
 | `AUTONOMOUS_ITERATIONS` | Number of autonomous mode iterations | `2` | 1-10 |
 | `MAX_CHAR_COUNT` | Maximum message length | `200000` | 1000-500000 |
@@ -108,7 +106,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # Model Preferences
 OPENAI_DEFAULT_MODEL=gpt-4o
-AI_USER_MODEL=gpt-4o-mini
 
 # UI Settings
 FONT_SIZE=18

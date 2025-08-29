@@ -128,7 +128,7 @@ Select a provider for the AI User feature from the dropdown menu. The dropdown o
 When on, the assistant makes the first utterance when starting a conversation.
 
 **Chat Interaction Controls**<br />
-Options to configure Monadic Chat for conversations using voice input. For conversations with voice input, it is recommended to turn on all the following options (`Start from assistant`, `Auto speech`, `Easy submit`). You can turn all options on or off at once by clicking `check all` or `uncheck all`.
+Options to configure Monadic Chat for conversations using voice input. For conversations with voice input, it is recommended to turn on all the following options (`Start from assistant`, `Auto speech`, `Easy submit`). You can toggle all options at once by clicking the `toggle all` link, which intelligently checks all boxes if any are unchecked, or unchecks all if they're all checked.
 
 **Auto speech**<br />
 When on, the assistant's response is automatically read aloud using synthesized speech when it is returned. You can select the voice, speaking speed, and language (automatic or specified) for synthesized speech on the web interface.

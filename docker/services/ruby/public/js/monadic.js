@@ -1771,14 +1771,47 @@ $(function () {
     }
   });
 
-  $("#interaction-check-all").on("click", function () {
-    $("#check-auto-speech").prop("checked", true);
-    $("#check-easy-submit").prop("checked", true);
+  // Function to update toggle button text based on checkbox states
+  function updateToggleButtonText() {
+    const autoSpeechChecked = $("#check-auto-speech").prop("checked");
+    const easySubmitChecked = $("#check-easy-submit").prop("checked");
+    const $toggleButton = $("#interaction-toggle-all");
+    
+    if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
+      // Show appropriate text based on current state
+      if (autoSpeechChecked && easySubmitChecked) {
+        $toggleButton.text(webUIi18n.t('ui.uncheckAll'));
+      } else if (!autoSpeechChecked && !easySubmitChecked) {
+        $toggleButton.text(webUIi18n.t('ui.checkAll'));
+      } else {
+        $toggleButton.text(webUIi18n.t('ui.toggleAll'));
+      }
+    }
+  }
+  
+  // Toggle all interaction checkboxes
+  $("#interaction-toggle-all").on("click", function () {
+    const autoSpeechChecked = $("#check-auto-speech").prop("checked");
+    const easySubmitChecked = $("#check-easy-submit").prop("checked");
+    
+    // If any checkbox is unchecked, check all. Otherwise, uncheck all.
+    const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
+    
+    $("#check-auto-speech").prop("checked", shouldCheck);
+    $("#check-easy-submit").prop("checked", shouldCheck);
+    
+    // Update the button text after toggling
+    updateToggleButtonText();
   });
-
-  $("#interaction-uncheck-all").on("click", function () {
-    $("#check-auto-speech").prop("checked", false);
-    $("#check-easy-submit").prop("checked", false);
+  
+  // Update toggle button text when individual checkboxes change
+  $("#check-auto-speech, #check-easy-submit").on("change", function() {
+    updateToggleButtonText();
+  });
+  
+  // Initialize toggle button text on page load
+  $(document).ready(function() {
+    updateToggleButtonText();
   });
 
   $("#start").on("click", function () {

@@ -226,7 +226,10 @@ module OpenAIHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "gpt-4.1")
+  def send_query(options, model: nil)
+    # Use default model from CONFIG if not specified
+    model ||= CONFIG["OPENAI_DEFAULT_MODEL"]
+    
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -329,12 +332,8 @@ module OpenAIHelper
     reasoning_effort = obj["reasoning_effort"]
     verbosity = obj["verbosity"]  # GPT-5 verbosity setting
 
-    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
-    if obj["ai_user"] == "true"
-      max_completion_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
-    else
-      max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
-    end
+    # Handle max_tokens
+    max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
     
     # If no max_tokens specified, use model defaults for reasoning models
     if max_completion_tokens.nil? || max_completion_tokens == 0

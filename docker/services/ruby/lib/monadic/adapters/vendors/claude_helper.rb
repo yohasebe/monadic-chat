@@ -149,7 +149,10 @@ module ClaudeHelper
   end
 
   # Simple non-streaming chat completion
-  def send_query(options, model: "claude-3-5-sonnet-20241022")
+  def send_query(options, model: nil)
+    # Use default model from CONFIG if not specified
+    model ||= CONFIG["ANTHROPIC_DEFAULT_MODEL"]
+    
     # First try CONFIG, then fall back to ENV for the API key
     api_key = CONFIG["ANTHROPIC_API_KEY"]
     
@@ -465,12 +468,8 @@ module ClaudeHelper
 
     temperature = obj["temperature"]&.to_f
     
-    # Handle max_tokens, prioritizing AI_USER_MAX_TOKENS for AI User mode
-    if obj["ai_user"] == "true"
-      max_tokens = (CONFIG["AI_USER_MAX_TOKENS"] || obj["max_tokens"])&.to_i
-    else
-      max_tokens = obj["max_tokens"]&.to_i
-    end
+    # Handle max_tokens
+    max_tokens = obj["max_tokens"]&.to_i
     
     # Use model defaults if max_tokens is nil or 0
     if max_tokens.nil? || max_tokens == 0

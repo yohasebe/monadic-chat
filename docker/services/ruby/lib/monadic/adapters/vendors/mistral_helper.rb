@@ -150,7 +150,9 @@ module MistralHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    model ||= MistralHelper.get_default_model
+    # Use default model from CONFIG if not specified
+    model ||= CONFIG["MISTRAL_DEFAULT_MODEL"]
+    
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
     
@@ -324,12 +326,8 @@ module MistralHelper
     obj = session[:parameters]
     app = obj["app_name"]
 
-    # Handle max_tokens with AI_USER_MAX_TOKENS for AI User mode
-    if obj["ai_user"] == "true"
-      max_tokens = CONFIG["AI_USER_MAX_TOKENS"]&.to_i || obj["max_tokens"]&.to_i
-    else
-      max_tokens = obj["max_tokens"]&.to_i
-    end
+    # Handle max_tokens
+    max_tokens = obj["max_tokens"]&.to_i
 
     temperature = obj["temperature"].to_f
     context_size = obj["context_size"].to_i

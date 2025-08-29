@@ -38,13 +38,11 @@
 | `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `grok-2-latest` | `grok-beta` |
-| `AI_USER_MODEL` | AI生成ユーザーメッセージ用のモデル | `gpt-4o-mini` | `gpt-4o` |
 
 ## システム設定
 
 | 変数名 | 説明 | デフォルト | 範囲/オプション |
 |--------|------|------------|-----------------|
-| `AI_USER_MAX_TOKENS` | AI生成ユーザーメッセージの最大トークン数 | `2000` | 100-4000 |
 | `FONT_SIZE` | インターフェースの基本フォントサイズ | `16` | 10-24 |
 | `AUTONOMOUS_ITERATIONS` | 自律モードの反復回数 | `2` | 1-10 |
 | `MAX_CHAR_COUNT` | メッセージの最大文字数 | `200000` | 1000-500000 |
@@ -108,7 +106,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # モデル設定
 OPENAI_DEFAULT_MODEL=gpt-4o
-AI_USER_MODEL=gpt-4o-mini
 
 # UI設定
 FONT_SIZE=18

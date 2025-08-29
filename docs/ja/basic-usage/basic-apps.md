@@ -22,8 +22,8 @@
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
-| Translate | ✅ | | | | | | | | |
-| Voice Interpreter | ✅ | | | | | | | | |
+| Translate | ✅ | | ✅ | | | | | | |
+| Voice Interpreter | ✅ | | ✅ | | | | | | |
 | Novel Writer | ✅ | | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
 | Video Generator | | | | | ✅ | | | | |
@@ -177,11 +177,15 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 
 ユーザーの入力テキストを別の言語に翻訳します。まず、AIアシスタントが翻訳先の言語を尋ねます。次に、ユーザーの入力テキストを指定された言語に翻訳します。特定の表現に関して、それらをどのように訳すかを指定したい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳表現を指定してください。
 
+TranslateアプリはOpenAIとCohereのモデルで利用可能です。
+
 ### Voice Interpreter
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
 ユーザーが音声入力で与えた内容を別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
+
+Voice InterpreterアプリはOpenAIとCohereのモデルで利用可能です。
 
 ## コンテンツ生成 :id=content-generation
 
@@ -256,8 +260,8 @@ OpenAIバージョンは最新のgpt-image-1モデルを使用し、3つの主�
 
 下記の言語モデルでImage Generatorアプリが利用可能です。
 
-- OpenAI（gpt-image-1を使用） - 画像生成、編集、バリエーション生成に対応
-- Google Gemini（Imagen 3とGemini 2.0 Flashを使用） - 自動モデル選択による画像生成と画像編集に対応
+- OpenAI（gpt-image-1を使用） - 画像生成、マスク描画による編集、バリエーション生成に対応
+- Google Gemini（Imagen 3とGemini 2.5 Flash Image Previewを使用） - 画像生成とセマンティック編集（手動マスク不要の自然言語ベース編集）に対応
 - xAI Grok - 画像生成に対応
 
 ### Video Generator

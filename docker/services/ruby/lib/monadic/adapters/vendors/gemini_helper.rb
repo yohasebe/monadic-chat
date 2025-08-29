@@ -2601,7 +2601,7 @@ module GeminiHelper
       api_key = CONFIG["GEMINI_API_KEY"]
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
       
-      # For editing operations, force use of Gemini model
+      # For editing operations, force use of Gemini model (Imagen3 doesn't support editing)
       if operation == "edit"
         model = "gemini"
       end
@@ -2627,7 +2627,7 @@ module GeminiHelper
         }
       }
       
-      # For edit operation, add the uploaded image to the request
+      # For edit operation, add the uploaded image to the request (natural language editing)
       if operation == "edit" && session && session[:messages]
         # Look for the most recent user message with images
         user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
@@ -2637,33 +2637,44 @@ module GeminiHelper
         end
         
         latest_message = user_messages_with_images.last
-        first_image = latest_message["images"].first
+        images = latest_message["images"]
         
-        if first_image && first_image["data"] && first_image["data"].start_with?("data:image/")
-          # Extract base64 data from data URL
-          data_url = first_image["data"]
-          base64_data = data_url.split(',').last
+        # Find the first non-mask image (ignore mask__ prefixed files)
+        original_image = images.find { |img| img["name"] && !img["name"].start_with?("mask__") }
+        
+        if original_image.nil?
+          original_image = images.first # Fallback to first image if no non-mask found
+        end
+        
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] Gemini Edit: Using natural language editing"
+          extra_log.puts "  Image: #{original_image['name']}"
+          extra_log.puts "  Edit prompt: #{prompt}"
+          extra_log.close
+        end
+        
+        if original_image && original_image["data"] && original_image["data"].start_with?("data:image/")
+          # Add original image
+          original_data_url = original_image["data"]
+          original_base64 = original_data_url.split(',').last
+          original_mime_type = original_data_url.include?('image/') ? 
+                               original_data_url.split(';').first.split(':').last : 
+                               "image/jpeg"
           
-          # Determine mime type
-          mime_type = if first_image["type"]
-                       first_image["type"]
-                     elsif data_url.include?('image/')
-                       data_url.split(';').first.split(':').last
-                     else
-                       "image/jpeg"
-                     end
-          
-          # Add image to request parts
           request_body[:contents][0][:parts] << {
             inline_data: {
-              mime_type: mime_type,
-              data: base64_data
+              mime_type: original_mime_type,
+              data: original_base64
             }
           }
           
-          # Add editing instruction
+          # Add natural language editing prompt
+          edit_prompt = "Please edit this image according to the following instructions: #{prompt}\n\n" +
+                       "Make the edits look natural and seamless with the rest of the image."
+          
           request_body[:contents][0][:parts] << {
-            text: prompt
+            text: edit_prompt
           }
         else
           return { success: false, error: "Invalid image data format" }.to_json
@@ -2676,8 +2687,8 @@ module GeminiHelper
       end
       
       # Make API request
-      # Use the correct model for image generation
-      model_name = "gemini-2.0-flash-preview-image-generation"
+      # Use the new image generation model
+      model_name = "gemini-2.5-flash-image-preview"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
       
       http = Net::HTTP.new(uri.host, uri.port)
@@ -2782,7 +2793,7 @@ module GeminiHelper
     rescue StandardError => e
       return { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
         provider: "Gemini",
-        tool_name: "execute_mermaid_generation",
+        tool_name: "generate_image_with_gemini",
         message: e.message
       ) }.to_json
     end

@@ -884,6 +884,12 @@ function isMaskEditingEnabled(appName) {
   if (!appName) {
     appName = $("#apps").val();
   }
+  
+  // Disable mask editor for Gemini Image Generator (uses semantic masking instead)
+  if (appName && appName.includes("ImageGeneratorGemini")) {
+    return false;
+  }
+  
   return apps[appName] && 
     (apps[appName].image_generation === true || 
      apps[appName].image_generation === "true") &&

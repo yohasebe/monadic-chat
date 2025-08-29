@@ -22,8 +22,8 @@ The table below shows which apps are available for which AI model providers.
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice Plus | ✅ | | | | | | | | |
-| Translate | ✅ | | | | | | | | |
-| Voice Interpreter | ✅ | | | | | | | | |
+| Translate | ✅ | | ✅ | | | | | | |
+| Voice Interpreter | ✅ | | ✅ | | | | | | |
 | Novel Writer | ✅ | | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
 | Video Generator | | | | | ✅ | | | | |
@@ -177,12 +177,16 @@ This is a language learning application where the conversation starts with the a
 
 This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
 
+Translate is available for OpenAI and Cohere models.
+
 
 ### Voice Interpreter
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
 This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
+
+Voice Interpreter is available for OpenAI and Cohere models.
 
 
 ## Content Generation :id=content-generation
@@ -260,8 +264,8 @@ All generated images are saved in the `Shared Folder` and also displayed in the 
 
 Image Generator apps are also available for the following models:
 
-- OpenAI (using gpt-image-1) - supports image generation, editing, and variation
-- Google Gemini (using Imagen 3 and Gemini 2.0 Flash) - supports image generation with automatic model selection and image editing
+- OpenAI (using gpt-image-1) - supports image generation, editing with mask drawing, and variation
+- Google Gemini (using Imagen 3 and Gemini 2.5 Flash Image Preview) - supports image generation and semantic editing (natural language-based editing without manual masks)
 - xAI Grok - supports image generation
 
 ### Video Generator

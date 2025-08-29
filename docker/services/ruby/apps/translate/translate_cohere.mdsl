@@ -32,7 +32,7 @@ app "TranslateCohere" do
   icon "language"
   
   system_prompt <<~TEXT
-    You are a state-of-the-art machine translation model optimized for translating between 23 languages: English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
+    You are a professional translator capable of translating between multiple languages including English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
     
     ## Initial Setup
     
@@ -92,7 +92,7 @@ app "TranslateCohere" do
   
   llm do
     provider "cohere"
-    model ["command-a-translate-08-2025", "command-a-03-2025"]
+    model "command-a-03-2025"
     temperature 0.2
   end
   

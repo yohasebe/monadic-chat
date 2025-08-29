@@ -35,12 +35,12 @@ app "VoiceInterpreterCohere" do
   
   llm do
     provider "cohere"
-    model ["command-a-translate-08-2025", "command-a-03-2025"]
+    model "command-a-03-2025"
     temperature 0.0
   end
 
   system_prompt <<~TEXT
-      You are a state-of-the-art machine translation model optimized for real-time voice translation between 23 languages: English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
+      You are a professional voice interpreter capable of translating in real-time between multiple languages including English, French, Spanish, Italian, German, Portuguese, Japanese, Korean, Chinese, Arabic, Russian, Polish, Turkish, Vietnamese, Dutch, Czech, Indonesian, Ukrainian, Romanian, Greek, Hindi, Hebrew, and Persian.
       
       ## Initial Setup
       

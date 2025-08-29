@@ -2817,7 +2817,8 @@ module GeminiHelper
       
       # Use the image generation model constant
       # This is a separate API endpoint from the chat models
-      # Note: system_info could be used here to notify about model switch if needed
+      # Unlike OpenAI, Gemini uses a dedicated model for image generation
+      # No dynamic model switching occurs during chat session
       image_model = IMAGE_GENERATION_MODEL
       
       # Make API request to Imagen 3

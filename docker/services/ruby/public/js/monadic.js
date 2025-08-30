@@ -2102,11 +2102,11 @@ $(function () {
     $("#model").prop("disabled", false);
   });
   
-  // Logo click - resets to default app
+  // Logo click - resets conversation but keeps current app
   $(".reset-area").on("click", function (event) {
     ttsStop();
     audioInit();
-    resetEvent(event, true); // true = reset to default app
+    resetEvent(event, false); // false = keep current app
     $("#select-role").val("user").trigger("change");
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {

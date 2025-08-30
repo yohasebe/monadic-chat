@@ -39,7 +39,6 @@ app "JupyterNotebookOpenAI" do
     provider "openai"
     model ["gpt-5", "gpt-4.1"]
     temperature 0.0
-    reasoning_effort "minimal"
   end
 
   system_prompt <<~TEXT

@@ -94,10 +94,12 @@ These models use `reasoning_effort` parameter ("low", "medium", "high") instead 
 - Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
 
 ### Key Differences from Standard Models
-- Use `reasoning_effort` instead of temperature
-- Limited function calling support
+- Use `reasoning_effort` instead of temperature for reasoning models
+- Limited function calling support with reasoning models
 - Web search requires automatic model switching
 - Some models don't support streaming (o1-pro, o3-pro)
+
+!> **Note**: The `reasoning_effort` parameter is primarily for simple text generation tasks. For complex operations involving tool calling, code generation, or document creation (like Concept Visualizer, Code Interpreter, Jupyter Notebook), the parameter is automatically disabled to ensure proper functionality.
 
 ## OpenAI Models
 

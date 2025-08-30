@@ -94,10 +94,12 @@ WEBSEARCH_MODEL=gpt-4o-mini
 - 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
 
 ### 標準モデルとの主な違い
-- temperatureの代わりに`reasoning_effort`を使用
-- ファンクションコーリングのサポート制限
+- 推論モデルではtemperatureの代わりに`reasoning_effort`を使用
+- 推論モデルではファンクションコーリングのサポートに制限
 - ウェブ検索は自動的なモデル切り替えが必要
 - 一部のモデルはストリーミング非対応（o1-pro、o3-pro）
+
+!> **注意**: `reasoning_effort`パラメータは主にシンプルなテキスト生成タスク用です。ツール呼び出し、コード生成、ドキュメント作成などの複雑な操作（Concept Visualizer、Code Interpreter、Jupyter Notebookなど）では、適切な動作を確保するためにこのパラメータは自動的に無効化されます。
 
 ## OpenAI Models
 

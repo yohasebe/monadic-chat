@@ -855,7 +855,14 @@ module MonadicDSL
 
       # If a value is provided, it takes precedence over environment variables
       if value
-        @state.settings[:model] = value
+        # Handle both single model and array of models
+        if value.is_a?(Array)
+          # Store the array as models (for dropdown) and first item as default model
+          @state.settings[:models] = value
+          @state.settings[:model] = value.first
+        else
+          @state.settings[:model] = value
+        end
       # Otherwise, try to use environment variable if available
       elsif provider_env_var && ENV[provider_env_var]
         @state.settings[:model] = ENV[provider_env_var]
@@ -1188,6 +1195,13 @@ module MonadicDSL
     # Use group from features if defined, otherwise use provider's display_group
     group_value = state.features[:group] || provider_config.display_group
     
+    # Use models from state if specified, otherwise use provider's model list
+    models_value = if state.settings[:models]
+                     state.settings[:models].inspect
+                   else
+                     model_list_code
+                   end
+    
     class_def = <<~RUBY
       class #{state.name} < MonadicApp
 #{include_lines}
@@ -1199,7 +1213,7 @@ module MonadicDSL
         @settings = {
           group: #{group_value.inspect},
           disabled: #{disabled_condition},
-          models: #{model_list_code},
+          models: #{models_value},
           model: #{model_value},
           temperature: #{state.settings[:temperature]},
           initial_prompt: initial_prompt,

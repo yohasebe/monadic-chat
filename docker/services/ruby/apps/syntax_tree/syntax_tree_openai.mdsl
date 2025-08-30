@@ -37,7 +37,6 @@ app "SyntaxTreeOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5", "gpt-4.1"]
-    reasoning_effort "low"  # Balance between performance and accuracy
     # verbosity "high"  # Optional: "high", "medium", or "low" for GPT-5 models
     max_tokens 4000
     temperature 0.0

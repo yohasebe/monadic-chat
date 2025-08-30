@@ -5,7 +5,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
-require_relative "../../utils/model_defaults"
+require_relative "../../utils/system_defaults"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -150,8 +150,8 @@ module ClaudeHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model from CONFIG if not specified
-    model ||= CONFIG["ANTHROPIC_DEFAULT_MODEL"]
+    # Use default model from SystemDefaults if not specified
+    model ||= SystemDefaults.get_default_model('anthropic')
     
     # First try CONFIG, then fall back to ENV for the API key
     api_key = CONFIG["ANTHROPIC_API_KEY"]
@@ -171,7 +171,8 @@ module ClaudeHelper
     
     # Basic request body
     # Get max_tokens with fallback to model default
-    max_tokens_value = options["max_tokens"] || Monadic::Utils::ModelDefaults.get_max_tokens(model)
+    require_relative "../../utils/model_token_utils"
+    max_tokens_value = options["max_tokens"] || ModelTokenUtils.get_max_tokens(model)
     
     body = {
       "model" => model,
@@ -473,7 +474,8 @@ module ClaudeHelper
     
     # Use model defaults if max_tokens is nil or 0
     if max_tokens.nil? || max_tokens == 0
-      max_tokens = Monadic::Utils::ModelDefaults.get_max_tokens(model)
+      require_relative "../../utils/model_token_utils"
+      max_tokens = ModelTokenUtils.get_max_tokens(model)
       DebugHelper.debug("Claude: Using default max_tokens #{max_tokens} for model #{model}", category: :api, level: :info)
     end
 

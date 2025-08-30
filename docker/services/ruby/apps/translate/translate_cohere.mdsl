@@ -92,7 +92,7 @@ app "TranslateCohere" do
   
   llm do
     provider "cohere"
-    model "command-a-03-2025"
+    model "command-a-translate-08-2025"
     temperature 0.2
   end
   

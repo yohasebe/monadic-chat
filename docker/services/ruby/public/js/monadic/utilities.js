@@ -896,7 +896,7 @@ function isMaskEditingEnabled(appName) {
     apps[appName].image_generation !== "upload_only";
 }
 
-function resetEvent(_event) {
+function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
   $("#image-used").children().remove();
@@ -909,7 +909,7 @@ function resetEvent(_event) {
   // For iOS devices, bypass the modal and use standard confirm dialog
   if (isIOS) {
     if (confirm("Are you sure you want to reset the chat?")) {
-      doResetActions();
+      doResetActions(resetToDefaultApp);
     }
   } else {
     // For other platforms, use the Bootstrap modal
@@ -917,17 +917,17 @@ function resetEvent(_event) {
     $("#resetConfirmation").on("shown.bs.modal", function () {
       $("#resetConfirmed").focus();
     });
-    $("#resetConfirmed").on("click", function (event) {
+    $("#resetConfirmed").off("click").on("click", function (event) {
       event.preventDefault();
-      doResetActions();
+      doResetActions(resetToDefaultApp);
     });
   }
 }
 
 // Function to handle the actual reset logic
-function doResetActions() {
+function doResetActions(resetToDefaultApp = false) {
   // Store the current app selection before reset
-  const currentApp = $("#apps").val();
+  const currentApp = resetToDefaultApp ? null : $("#apps").val();
 
   $("#message").css("height", "96px").val("");
 
@@ -941,6 +941,18 @@ function doResetActions() {
   // Delay resetParams to ensure LOAD response is processed first
   setTimeout(function() {
     resetParams();
+    
+    // If resetting to default app, find and select the first available app
+    if (resetToDefaultApp) {
+      // Find the first non-disabled option that is not a separator
+      const firstApp = $("#apps option").filter(function() {
+        return !$(this).prop('disabled') && !$(this).text().startsWith('──');
+      }).first().val();
+      
+      if (firstApp) {
+        $("#apps").val(firstApp).trigger('change');
+      }
+    }
     
     // After resetParams, trigger app change to reload models and initial prompt
     const currentAppVal = $("#apps").val();
@@ -965,9 +977,11 @@ function doResetActions() {
   }
 
   // Extract provider from app_name parameter
+  // Use the final app value after potential reset
+  const finalApp = resetToDefaultApp ? $("#apps").val() : currentApp;
   let provider = "OpenAI";
-  if (apps[currentApp] && apps[currentApp].group) {
-    const group = apps[currentApp].group.toLowerCase();
+  if (apps[finalApp] && apps[finalApp].group) {
+    const group = apps[finalApp].group.toLowerCase();
     if (group.includes("anthropic") || group.includes("claude")) {
       provider = "Anthropic";
     } else if (group.includes("gemini") || group.includes("google")) {

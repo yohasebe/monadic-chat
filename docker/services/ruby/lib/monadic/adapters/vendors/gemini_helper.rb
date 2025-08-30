@@ -10,7 +10,7 @@ require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
-require_relative "../../utils/model_spec_utils"
+require_relative "../../utils/system_defaults"
 
 # GeminiHelper Module - Interface for Google's Gemini AI Models
 #
@@ -156,7 +156,7 @@ module GeminiHelper
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
-    model ||= CONFIG["GEMINI_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('gemini')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)

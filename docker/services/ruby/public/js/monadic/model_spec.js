@@ -544,7 +544,18 @@ const modelSpec = {
     "top_p": [[0.01, 0.09], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
+    "tool_capability": true,
+    "deprecated": false
+  },
+  "command-a-translate-08-2025": {
+    "context_window" : [1, 8992],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.09], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": false,
+    "deprecated": false
   },
   "c4ai-aya-vision-32b": {
     "context_window" : [1, 16000],

@@ -2081,10 +2081,32 @@ $(function () {
   });
 
 
-  $("#reset, .reset-area").on("click", function (event) {
+  // Regular reset button - keeps current app
+  $("#reset").on("click", function (event) {
     ttsStop();
     audioInit();
-    resetEvent(event);
+    resetEvent(event, false); // false = keep current app
+    $("#select-role").val("user").trigger("change");
+    // Wait for i18n to be ready before updating button text
+    if (window.i18nReady) {
+      window.i18nReady.then(() => {
+        const startText = webUIi18n.t('ui.session.startSession');
+        $("#start-label").text(startText);
+      });
+    } else {
+      // Fallback if i18nReady is not available
+      const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
+        webUIi18n.t('ui.session.startSession') : 'Start Session';
+      $("#start-label").text(startText);
+    }
+    $("#model").prop("disabled", false);
+  });
+  
+  // Logo click - resets to default app
+  $(".reset-area").on("click", function (event) {
+    ttsStop();
+    audioInit();
+    resetEvent(event, true); // true = reset to default app
     $("#select-role").val("user").trigger("change");
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {

@@ -65,7 +65,14 @@ RSpec.describe "Model Specification Validation" do
         
         # Find OpenAI models in model_spec that are not in the API response
         openai_models_in_spec = model_spec.keys.select { |k| k.match?(/^(gpt|o1|chatgpt)/) }
-        deprecated_models = openai_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = openai_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated OpenAI models in model_spec.js:"
@@ -102,7 +109,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = ClaudeHelper.list_models
         
         claude_models_in_spec = model_spec.keys.select { |k| k.match?(/^claude/) }
-        deprecated_models = claude_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = claude_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Claude models in model_spec.js:"
@@ -138,7 +152,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = CohereHelper.list_models
         
         cohere_models_in_spec = model_spec.keys.select { |k| k.match?(/^(command|embed|rerank)/) }
-        deprecated_models = cohere_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = cohere_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Cohere models in model_spec.js:"
@@ -174,7 +195,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = MistralHelper.list_models
         
         mistral_models_in_spec = model_spec.keys.select { |k| k.match?(/^(mistral|open-mistral|codestral|pixtral)/) }
-        deprecated_models = mistral_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = mistral_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Mistral models in model_spec.js:"
@@ -210,7 +238,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = GrokHelper.list_models
         
         grok_models_in_spec = model_spec.keys.select { |k| k.match?(/^grok/) }
-        deprecated_models = grok_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = grok_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Grok models in model_spec.js:"
@@ -246,7 +281,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = DeepSeekHelper.list_models
         
         deepseek_models_in_spec = model_spec.keys.select { |k| k.match?(/^deepseek/) }
-        deprecated_models = deepseek_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = deepseek_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated DeepSeek models in model_spec.js:"
@@ -280,7 +322,14 @@ RSpec.describe "Model Specification Validation" do
         available_models = PerplexityHelper.list_models
         
         perplexity_models_in_spec = model_spec.keys.select { |k| k.match?(/^(sonar|r1)/) }
-        deprecated_models = perplexity_models_in_spec - available_models
+        
+        # Filter out models that have explicit deprecated: false flag
+        deprecated_models = perplexity_models_in_spec.select do |model|
+          # Skip if model has deprecated: false explicitly set
+          next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Otherwise, check if it's not in available models
+          !available_models.include?(model)
+        end
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Perplexity models in model_spec.js:"

@@ -8,6 +8,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
+require_relative "../../utils/system_defaults"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -227,8 +228,8 @@ module OpenAIHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model from CONFIG if not specified
-    model ||= CONFIG["OPENAI_DEFAULT_MODEL"]
+    # Use default model from SystemDefaults if not specified
+    model ||= SystemDefaults.get_default_model('openai')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
@@ -337,8 +338,8 @@ module OpenAIHelper
     
     # If no max_tokens specified, use model defaults for reasoning models
     if max_completion_tokens.nil? || max_completion_tokens == 0
-      require_relative '../../utils/model_defaults'
-      max_completion_tokens = Monadic::Utils::ModelDefaults.get_max_tokens(original_user_model)
+      require_relative '../../utils/model_token_utils'
+      max_completion_tokens = ModelTokenUtils.get_max_tokens(original_user_model)
       DebugHelper.debug("OpenAI: Using default max_tokens #{max_completion_tokens} for model #{original_user_model}", category: :api, level: :info)
     end
     
@@ -448,29 +449,16 @@ module OpenAIHelper
     non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
     search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
     
-    # If websearch is enabled and the current model is a reasoning model without native search,
-    # switch to gpt-4.1-mini as the fallback web search model
-    if websearch_enabled && reasoning_model && !search_model && !use_responses_api
-      original_model = model
-      model = "gpt-4.1-mini"  # Default fallback for web search
-      body["model"] = model
+    # If websearch is enabled but the model doesn't support it, disable websearch
+    # (No fallback - let the model work without web search capability)
+    if websearch_enabled && !search_model && !use_responses_api
+      websearch_enabled = false
       
-      # Update model flags after switching
-      # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
-    reasoning_model = if model == "gpt-5-chat-latest"
-                        false
-                      else
-                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
-                      end
-      non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
-      non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
-      search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
-      
-      # Send system notification about model switch
-      if block && original_model != model
+      # Send system notification that web search is not available
+      if block
         system_msg = {
-          "type" => "system_info",
-          "content" => "Model automatically switched from #{original_model} to #{model} for web search functionality."
+          "type" => "system_info", 
+          "content" => "Web search is not available for model #{model}. Proceeding without web search."
         }
         block.call system_msg
       end

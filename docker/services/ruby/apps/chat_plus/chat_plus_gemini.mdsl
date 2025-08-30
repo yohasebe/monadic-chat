@@ -33,30 +33,38 @@ app "ChatPlusGemini" do
   system_prompt <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    While keeping the conversation going, you take notes on various aspects of the conversation, such as the topics discussed, the people mentioned, and other important information provided by the user. You should update these notes as the conversation progresses.
+    You have access to a shared folder at /monadic/data where you can read and write files. Use the available tools to:
+    - List files in the shared folder to see what's available
+    - Read files from the shared folder to access their contents
+    - Write or append text content to files in the shared folder
 
-    IMPORTANT: You MUST structure your ENTIRE response as a valid JSON object with the following structure:
-    {
-      "message": "Your response to the user",
-      "context": {
-        "reasoning": "The reasoning and thought process behind your response",
-        "topics": ["topic1", "topic2", ...],
-        "people": ["person1 and their relationship", "person2 and their relationship", ...],
-        "notes": ["user preference 1", "important date/location/event", ...]
-      }
-    }
+    File operations:
+    - When listing files, you can optionally specify a subdirectory within the shared folder
+    - When reading files, provide the relative path from the shared folder
+    - When writing files, specify the filename, extension, and content separately
+    - You can choose to either overwrite (mode: "write") or append to existing files (mode: "append")
 
-    Requirements:
-    - The response MUST be valid JSON - no text before or after the JSON object
-    - DO NOT wrap the JSON in markdown code blocks (no ```json or ```)
-    - Start directly with { and end with }
-    - "message": Your response to the user (can include markdown formatting)
-    - "reasoning": Explain your thought process for this response
-    - "topics": Array of ALL topics discussed in the entire conversation (accumulated)
-    - "people": Array of ALL people and their relationships mentioned (accumulated)
-    - "notes": Array of ALL user preferences, important dates, locations, and events (accumulated)
+    ## Context Tracking and Response Format (CRITICAL)
+    
+    Every response MUST include two parts:
+    
+    1. **Main Response**: Your regular response to the user with an appropriate emoji at the beginning.
+    
+    2. **Context Summary**: At the end of EVERY response, include a summary in this EXACT format:
+    
+    ---
+    📝 **Context Summary:**
+    - **Topics**: [List ALL topics discussed in the entire conversation so far]
+    - **People**: [List ALL people mentioned and their relationships]
+    - **Notes**: [List ALL user preferences, important dates, locations, events, and key information]
+    - **Reasoning**: [Brief explanation of your thought process for this response]
+    ---
+    
+    This context summary is MANDATORY and helps maintain continuity across the conversation. Each response should accumulate information - never remove items from previous summaries unless explicitly asked.
+    
+    When starting a new conversation, if you see previous context summaries in the history, incorporate ALL that information into your current summary.
 
-    Remember: The lists in the context object should be ACCUMULATED - do not remove any items unless the user explicitly asks you to do so. Each response should include all previously mentioned items plus any new ones.
+    You can also save important conversation context to files in the shared folder for long-term reference.
   TEXT
   
   llm do
@@ -75,6 +83,24 @@ app "ChatPlusGemini" do
     initiate_from_assistant false
     image true
     pdf false
-    monadic true
+    monadic false  # Required for tool execution
+  end
+  
+  tools do
+    define_tool "read_file_from_shared_folder", "Read the contents of a file from the shared folder" do
+      parameter :filepath, "string", "The path to the file within the shared folder", required: true
+    end
+    
+    define_tool "write_file_to_shared_folder", "Write or append text content to a file in the shared folder" do
+      parameter :filename, "string", "The name of the file (without extension)", required: true
+      parameter :extension, "string", "The file extension", required: true
+      parameter :content, "string", "The text content to write to the file", required: true
+      parameter :mode, "string", "Write mode: 'write' (overwrite) or 'append' (add to existing). Defaults to 'write'", required: false
+    end
+    
+    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
+      parameter :directory, "string", "The subdirectory path within the shared folder (optional)", required: false
+    end
   end
 end
+

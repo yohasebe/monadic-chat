@@ -3,11 +3,10 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
-require_relative "../../utils/model_spec_utils"
+require_relative "../../utils/system_defaults"
 
 module PerplexityHelper
   include InteractionUtils
-  extend ModelSpecUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.perplexity.ai"
 
@@ -34,20 +33,15 @@ module PerplexityHelper
     ]
   end
 
-  # Get default model using model_spec.js ordering
+  # Get default model
   def self.get_default_model
-    # Perplexity models don't have a common prefix, so we check specific models
-    spec = ModelSpecUtils.load_model_spec
-    perplexity_models = ["r1-1776", "sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
-    
-    # Find the first Perplexity model in model_spec.js
-    spec.keys.find { |k| perplexity_models.include?(k) } || "sonar-pro"
+    "sonar-pro"
   end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
-    model ||= CONFIG["PERPLEXITY_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('perplexity')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)

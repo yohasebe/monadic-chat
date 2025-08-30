@@ -1,16 +1,6 @@
+require_relative "../utils/system_defaults"
+
 module SecondOpinionAgent
-  # Default models for each provider based on Chat app configurations
-  PROVIDER_DEFAULT_MODELS = {
-    "openai" => "gpt-4.1",  # Updated to match MDSL
-    "claude" => "claude-3-5-sonnet-20241022",
-    "gemini" => "gemini-2.5-flash",
-    "mistral" => "mistral-large-latest",
-    "cohere" => "command-a-03-2025",
-    "perplexity" => "sonar",
-    "grok" => "grok-4-0709",  # Standard grok-4 model
-    "deepseek" => "deepseek-chat",
-    "ollama" => nil  # Will be determined dynamically
-  }.freeze
 
   def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
     # Determine provider and model
@@ -184,7 +174,7 @@ module SecondOpinionAgent
         # Model name appears to be cut off (ends with YYYY-MM instead of YYYYMMDD)
         puts "SecondOpinionAgent WARNING: Incomplete Claude model name detected: #{model}"
         # Use default model instead
-        model = PROVIDER_DEFAULT_MODELS[provider_normalized]
+        model = get_default_model_for_provider(provider_normalized)
         puts "SecondOpinionAgent INFO: Using default model: #{model}"
       end
       return [provider_normalized, model]
@@ -192,7 +182,7 @@ module SecondOpinionAgent
     
     # If only provider is specified, use default model for that provider
     if provider && (model.nil? || model.to_s.strip.empty?)
-      default_model = PROVIDER_DEFAULT_MODELS[provider_normalized]
+      default_model = get_default_model_for_provider(provider_normalized)
       
       # Special handling for Ollama
       if provider_normalized == "ollama" && default_model.nil?
@@ -261,26 +251,26 @@ module SecondOpinionAgent
     
     case provider_downcase
     when "claude", "anthropic"
-      CONFIG["ANTHROPIC_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('anthropic')
     when "openai", "gpt"
-      CONFIG["OPENAI_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('openai')
     when "gemini", "google"
-      CONFIG["GEMINI_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('gemini')
     when "mistral"
-      CONFIG["MISTRAL_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('mistral')
     when "cohere"
-      CONFIG["COHERE_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('cohere')
     when "perplexity"
-      CONFIG["PERPLEXITY_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('perplexity')
     when "grok", "xai"
-      CONFIG["GROK_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('xai')
     when "deepseek"
-      CONFIG["DEEPSEEK_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('deepseek')
     when "ollama"
       get_ollama_default_model
     else
       # Fallback to OpenAI default
-      CONFIG["OPENAI_DEFAULT_MODEL"]
+      SystemDefaults.get_default_model('openai')
     end
   end
   

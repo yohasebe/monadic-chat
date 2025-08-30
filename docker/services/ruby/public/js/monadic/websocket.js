@@ -3808,20 +3808,27 @@ function connect_websocket(callback) {
           pendingOperations = true;
         }
         
-        // Set a small delay to ensure all DOM updates are complete
+        // Set a proper delay to ensure all DOM updates are complete
+        // Increased delay to avoid premature "Ready for input" display
         setTimeout(function() {
+          // Re-check for pending operations after delay
+          pendingOperations = false;
+          if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0 || callingFunction) {
+            pendingOperations = true;
+          }
+          
           // Only show "Ready for input" if no pending operations detected
-          if (!pendingOperations) {
+          if (!pendingOperations && !streamingResponse) {
             const readyText = typeof webUIi18n !== 'undefined' ? 
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           } else {
             // If operations are still pending, wait and check again
             let checkInterval = setInterval(function() {
-              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0 && !callingFunction) {
+              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0 && !callingFunction && !streamingResponse) {
                 clearInterval(checkInterval);
                 const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
+                setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
               }
             }, 500); // Check every 500ms
             

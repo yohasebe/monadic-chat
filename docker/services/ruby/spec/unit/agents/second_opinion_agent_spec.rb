@@ -44,8 +44,8 @@ RSpec.describe SecondOpinionAgent do
     
     context "model defaults" do
       it "uses correct default models for each provider" do
-        expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-3-5-sonnet-20241022")
-        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-4.1")
+        expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-20250514")
+        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-2.5-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-0709")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
@@ -62,8 +62,8 @@ RSpec.describe SecondOpinionAgent do
       end
       
       it "handles empty model strings by using defaults" do
-        expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-3-5-sonnet-20241022")
-        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-4.1")
+        expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-4-20250514")
+        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-5")
       end
     end
     
@@ -71,7 +71,7 @@ RSpec.describe SecondOpinionAgent do
       it "detects and fixes incomplete Claude model names" do
         # This simulates the case where the model name is cut off
         result = agent.send(:determine_provider_and_model, "claude", "claude-3-5-sonnet-2024-10")
-        expect(result[1]).to eq("claude-3-5-sonnet-20241022")
+        expect(result[1]).to eq("claude-sonnet-4-20250514")
       end
     end
   end

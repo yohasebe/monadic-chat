@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../utils/system_defaults"
+
 # AI User Agent
 # Handles the generation of simulated user responses in conversations
 module AIUserAgent
@@ -236,26 +238,26 @@ module AIUserAgent
     # Provider details are logged to dedicated log files
     provider_downcase = provider.to_s.downcase
     
-    # Get model from configuration variables with fallbacks
+    # Get model from SystemDefaults with provider mapping
     if provider_downcase.include?("anthropic") || provider_downcase.include?("claude")
-      CONFIG["ANTHROPIC_DEFAULT_MODEL"] || "claude-3-5-sonnet-20241022"
+      SystemDefaults.get_default_model('anthropic')
     elsif provider_downcase.include?("openai") || provider_downcase.include?("gpt")
-      CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+      SystemDefaults.get_default_model('openai')
     elsif provider_downcase.include?("cohere") || provider_downcase.include?("command")
-      CONFIG["COHERE_DEFAULT_MODEL"] || "command-r-plus"
+      SystemDefaults.get_default_model('cohere')
     elsif provider_downcase.include?("gemini") || provider_downcase.include?("google")
-      CONFIG["GEMINI_DEFAULT_MODEL"] || "gemini-2.5-flash"
+      SystemDefaults.get_default_model('gemini')
     elsif provider_downcase.include?("mistral")
-      CONFIG["MISTRAL_DEFAULT_MODEL"] || "mistral-large-latest"
+      SystemDefaults.get_default_model('mistral')
     elsif provider_downcase.include?("grok") || provider_downcase.include?("xai")
-      CONFIG["GROK_DEFAULT_MODEL"] || "grok-2"
+      SystemDefaults.get_default_model('xai')
     elsif provider_downcase.include?("perplexity")
-      CONFIG["PERPLEXITY_DEFAULT_MODEL"] || "sonar"
+      SystemDefaults.get_default_model('perplexity')
     elsif provider_downcase.include?("deepseek")
-      CONFIG["DEEPSEEK_DEFAULT_MODEL"] || "deepseek-chat"
+      SystemDefaults.get_default_model('deepseek')
     else
-      # Fallback to default model - details logged to dedicated log files
-      CONFIG["OPENAI_DEFAULT_MODEL"] || "gpt-4.1"
+      # Fallback to OpenAI default model
+      SystemDefaults.get_default_model('openai')
     end
   end
 end

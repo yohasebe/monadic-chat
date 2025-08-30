@@ -3,13 +3,12 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
-require_relative "../../utils/model_spec_utils"
+require_relative "../../utils/system_defaults"
 require 'strscan'
 require 'securerandom'
 
 module DeepSeekHelper
   include InteractionUtils
-  extend ModelSpecUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
@@ -227,15 +226,15 @@ module DeepSeekHelper
     end
   end
 
-  # Get default model using model_spec.js ordering
+  # Get default model
   def self.get_default_model
-    ModelSpecUtils.get_default_model("deepseek") || "deepseek-chat"
+    "deepseek-chat"
   end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
-    model ||= CONFIG["DEEPSEEK_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('deepseek')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)

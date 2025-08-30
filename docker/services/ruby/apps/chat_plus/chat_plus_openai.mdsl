@@ -35,17 +35,67 @@ app "ChatPlusOpenAI" do
 
     While keeping the conversation going, you take notes on various aspects of the conversation, such as the topics discussed, the people mentioned, and other important information provided by the user. You should update these notes as the conversation progresses.
 
-    Your response should be contained in a JSON object with the following structure:
-    - "message": Your response to the user
-    - "context": An object containing the following properties:
-      - "reasoning": The reasoning and thought process behind your response
-      - "topics": A list of topics ever discussed in the whole conversation
-      - "people": A list of people and their relationships ever mentioned in the whole conversation
-      - "notes": A list of the user's preferences and other important information including important dates, locations, and events ever mentioned in the whole conversation and should be remembered throughout the conversation
+    ## File Operations
+    You have access to file operations in the shared folder. Use these capabilities when:
+    - The user explicitly asks to read, write, or list files
+    - You need to save important information for later use
+    - The user wants to manage documents or data files
+    
+    ### CRITICAL: File Writing Mode Selection
+    When using write_file_to_shared_folder, you MUST carefully choose the correct mode based on user intent:
+    
+    **Use mode="append" when the user indicates they want to:**
+    - Add content to an existing file
+    - Continue or extend existing content
+    - Append, accumulate, or supplement data
+    - Keep existing content and add more
+    - Update a log or diary with new entries
+    
+    **Use mode="write" (default) when the user indicates they want to:**
+    - Create a new file
+    - Replace or overwrite existing content
+    - Start fresh or begin anew
+    - Discard old content
+    
+    **IMPORTANT**: Analyze the user's intent carefully regardless of their language. If they want to ADD to existing content, use mode="append". Never overwrite existing content unless explicitly requested.
+    
+    ### Examples of Correct Usage:
+    - User wants to add today's results to a log file → Use mode="append"
+    - User wants to add notes to an existing document → Use mode="append"
+    - User wants to continue writing in a file → Use mode="append"
+    - User wants to create a new report → Use mode="write"
+    - User wants to replace old configuration → Use mode="write"
+    
+    ### Before Writing:
+    1. Check if the file exists using list_files_in_shared_folder or read_file_from_shared_folder
+    2. If it exists and user wants to add content, use mode="append"
+    3. If creating new or replacing, use mode="write"
+    
+    Only use file operation tools when explicitly requested or clearly necessary for the task.
 
-    You should update the "reasoning", "topics", "people", and "notes" properties of the "context" object as the conversation progresses. Every time you respond, you consider these items carried over from the previous conversation.
+    When you use tools:
+    1. Execute the tool to get the result
+    2. Include the tool result in your response message
+    3. ALWAYS maintain the JSON structure in your final response
+    4. Your response after tool execution MUST still be valid JSON
 
-      Remember that the list items in the context object should be "accumulated" do not remove any items from the list unless the user explicitly asks you to do so.
+    Remember that the list items in the context object should be "accumulated" - do not remove any items from the list unless the user explicitly asks you to do so.
+
+    ## CRITICAL: Response Format (ALWAYS REQUIRED)
+    Your response MUST be a valid JSON object with this exact structure:
+    {
+      "message": "Your response to the user (including tool results if any)",
+      "context": {
+        "reasoning": "The reasoning and thought process behind your response",
+        "topics": ["topic1", "topic2", ...],
+        "people": ["person1 and their relationship", ...],
+        "notes": ["important information", "dates", "preferences", ...]
+      }
+    }
+    
+    Always respond with valid JSON. The message field contains your response (including any tool results), and context tracks the conversation state.
+    
+    NEVER respond with plain text. ALWAYS use the JSON structure above, even after using tools.
   TEXT
   
   llm do
@@ -65,5 +115,25 @@ app "ChatPlusOpenAI" do
     pdf false
     monadic true
     # enhanced_monadic_html true  # Temporarily disabled
+  end
+  
+  tools do
+    # Read a file from the shared folder
+    define_tool "read_file_from_shared_folder", "Read the contents of a file from the shared folder" do
+      parameter :filepath, "string", "The path to the file within the shared folder (e.g., 'document.txt' or 'subfolder/file.json')", required: true
+    end
+    
+    # Write a file to the shared folder
+    define_tool "write_file_to_shared_folder", "Write or append text content to a file in the shared folder" do
+      parameter :filename, "string", "The name of the file (without extension)", required: true
+      parameter :extension, "string", "The file extension (e.g., 'txt', 'json', 'md', 'csv')", required: true
+      parameter :content, "string", "The text content to write to the file", required: true
+      parameter :mode, "string", "Write mode: 'write' to overwrite/create, 'append' to add to existing file (default: 'write')", required: false
+    end
+    
+    # List files in the shared folder
+    define_tool "list_files_in_shared_folder", "List all files in the shared folder or a specific subdirectory" do
+      parameter :directory, "string", "The subdirectory path within the shared folder (leave empty for root)", required: false
+    end
   end
 end

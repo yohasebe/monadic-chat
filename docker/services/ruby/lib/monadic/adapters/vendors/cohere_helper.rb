@@ -5,7 +5,7 @@ require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
-require_relative "../../utils/model_spec_utils"
+require_relative "../../utils/system_defaults"
 
 module CohereHelper
   include InteractionUtils
@@ -74,6 +74,12 @@ module CohereHelper
 
   TEXT
 
+  # Helper method to check if a model is a thinking/reasoning model
+  def self.is_thinking_model?(model_name)
+    return false unless model_name
+    model_name.include?("thinking") || model_name.include?("reasoning")
+  end
+
   class << self
     attr_reader :cached_models
 
@@ -104,11 +110,34 @@ module CohereHelper
         if res.status.success?
           # Cache the filtered models
           model_data = JSON.parse(res.body)
-          $MODELS[:cohere] = model_data["models"].map do |model|
+          api_models = model_data["models"].map do |model|
             model["name"]
           end.filter do |model|
             !model.include?("embed") && !model.include?("rerank")
           end
+          
+          # Add models from model_spec that have deprecated: false flag
+          begin
+            # Use ModelSpecLoader to get the merged model spec
+            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
+            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
+            
+            if model_spec
+              # Find Cohere models with deprecated: false
+              model_spec.each do |model_name, model_config|
+                if model_name.match?(/^(command|c4ai)/) && 
+                   model_config["deprecated"] == false &&
+                   !api_models.include?(model_name)
+                  api_models << model_name
+                end
+              end
+            end
+          rescue => e
+            # If there's any error loading model_spec, just use API models
+            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["DEBUG"]
+          end
+          
+          $MODELS[:cohere] = api_models.sort
           $MODELS[:cohere]
         end
       rescue HTTP::Error, HTTP::TimeoutError
@@ -120,12 +149,69 @@ module CohereHelper
     def clear_models_cache
       $MODELS[:cohere] = nil
     end
+    
+    # Class method version for DSL
+    def self.list_models
+      # Return cached models if they exist
+      return $MODELS[:cohere] if $MODELS[:cohere]
+
+      api_key = CONFIG["COHERE_API_KEY"]
+      return [] if api_key.nil?
+
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+
+      target_uri = "#{API_ENDPOINT}/models"
+      http = HTTP.headers(headers)
+
+      begin
+        res = http.get(target_uri)
+
+        if res.status.success?
+          # Cache the filtered models
+          model_data = JSON.parse(res.body)
+          api_models = model_data["models"].map do |model|
+            model["name"]
+          end.filter do |model|
+            !model.include?("embed") && !model.include?("rerank")
+          end
+          
+          # Add models from model_spec that have deprecated: false flag
+          begin
+            # Use ModelSpecLoader to get the merged model spec
+            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
+            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
+            
+            if model_spec
+              # Find Cohere models with deprecated: false
+              model_spec.each do |model_name, model_config|
+                if model_name.match?(/^(command|c4ai)/) && 
+                   model_config["deprecated"] == false &&
+                   !api_models.include?(model_name)
+                  api_models << model_name
+                end
+              end
+            end
+          rescue => e
+            # If there's any error loading model_spec, just use API models
+            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["DEBUG"]
+          end
+          
+          $MODELS[:cohere] = api_models.sort
+          $MODELS[:cohere]
+        end
+      rescue HTTP::Error, HTTP::TimeoutError
+        []
+      end
+    end
   end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
-    model ||= CONFIG["COHERE_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('cohere')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
@@ -888,8 +974,8 @@ module CohereHelper
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
     
     # Handle reasoning (thinking) parameter for command-a-reasoning models
-    # Check if this is a reasoning model using ModelSpecUtils
-    is_reasoning_model = ModelSpecUtils.is_thinking_model?(obj["model"])
+    # Check if this is a reasoning model
+    is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
     if is_reasoning_model && obj["reasoning_effort"]
       # Check if we have conversation history with assistant messages
       has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
@@ -1428,8 +1514,8 @@ module CohereHelper
           DebugHelper.debug("obj['model']: #{obj['model'].inspect}", category: :api, level: :info)
         end
         
-        # For Cohere reasoning models, check using ModelSpecUtils
-        is_reasoning_model = obj["reasoning_model"] || ModelSpecUtils.is_thinking_model?(obj["model"])
+        # For Cohere reasoning models, check using local method
+        is_reasoning_model = obj["reasoning_model"] || CohereHelper.is_thinking_model?(obj["model"])
         
         # Check if reasoning was actually enabled for this request
         # With the new single-text workaround, thinking is always enabled when requested

@@ -4,17 +4,16 @@ require 'securerandom'
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
-require_relative "../../utils/model_spec_utils"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
+require_relative "../../utils/system_defaults"
 
 module MistralHelper
   include InteractionUtils
   include MonadicProviderInterface
   include MonadicSchemaValidator
   include MonadicPerformance
-  extend ModelSpecUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
@@ -143,15 +142,15 @@ module MistralHelper
     end
   end
 
-  # Get default model using model_spec.js ordering
+  # Get default model
   def self.get_default_model
-    ModelSpecUtils.get_default_model("mistral") || "mistral-large-latest"
+    "mistral-large-latest"
   end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
-    model ||= CONFIG["MISTRAL_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('mistral')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)

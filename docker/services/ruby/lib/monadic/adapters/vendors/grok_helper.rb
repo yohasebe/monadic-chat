@@ -3,7 +3,7 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
-require_relative "../../utils/model_spec_utils"
+require_relative "../../utils/system_defaults"
 require "json"
 
 module GrokHelper
@@ -18,9 +18,9 @@ module GrokHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   
-  # Get default model using ModelSpecUtils
+  # Get default model
   def self.get_default_model
-    ModelSpecUtils.get_default_model("grok") || "grok-3-mini"
+    "grok-3-mini"
   end
 
 
@@ -122,7 +122,7 @@ module GrokHelper
   def send_query(options, model: nil)
     # Use default model from CONFIG if not specified
     # Try GROK_DEFAULT_MODEL first, then XAI_DEFAULT_MODEL for backward compatibility
-    model ||= CONFIG["GROK_DEFAULT_MODEL"] || CONFIG["XAI_DEFAULT_MODEL"]
+    model ||= SystemDefaults.get_default_model('xai')
     
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
@@ -729,8 +729,8 @@ module GrokHelper
 
     if messages_containing_img
       original_model = body["model"]
-      # Get vision model from ModelSpecUtils
-      vision_model = ModelSpecUtils.get_vision_model("grok") || "grok-2-vision-1212"
+      # Use default vision model for grok
+      vision_model = "grok-2-vision-1212"
       body["model"] = vision_model
       body.delete("stop")
       

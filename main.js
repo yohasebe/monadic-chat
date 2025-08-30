@@ -2824,37 +2824,35 @@ function checkAndUpdateEnvFile() {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';
     }
 
-    // Set default models for each provider if not already specified
-    if (!envConfig.OPENAI_DEFAULT_MODEL) {
-        envConfig.OPENAI_DEFAULT_MODEL = 'gpt-5';
-    }
-
-    if (!envConfig.ANTHROPIC_DEFAULT_MODEL) {
-        envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-4-20250514';
-    }
-
-    if (!envConfig.COHERE_DEFAULT_MODEL) {
-        envConfig.COHERE_DEFAULT_MODEL = 'command-a-03-2025';
-    }
-
-    if (!envConfig.GEMINI_DEFAULT_MODEL) {
-        envConfig.GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
-    }
-
-    if (!envConfig.MISTRAL_DEFAULT_MODEL) {
-        envConfig.MISTRAL_DEFAULT_MODEL = 'mistral-large-latest';
-    }
-
-    if (!envConfig.GROK_DEFAULT_MODEL) {
-        envConfig.GROK_DEFAULT_MODEL = 'grok-4-0709';
-    }
-
-    if (!envConfig.PERPLEXITY_DEFAULT_MODEL) {
-        envConfig.PERPLEXITY_DEFAULT_MODEL = 'sonar';
-    }
-
-    if (!envConfig.DEEPSEEK_DEFAULT_MODEL) {
-        envConfig.DEEPSEEK_DEFAULT_MODEL = 'deepseek-chat';
+    // Load default models from system_defaults.json if not already specified
+    const systemDefaultsPath = path.join(__dirname, 'docker', 'services', 'ruby', 'config', 'system_defaults.json');
+    try {
+        const systemDefaults = JSON.parse(fs.readFileSync(systemDefaultsPath, 'utf8'));
+        const providerDefaults = systemDefaults.provider_defaults || {};
+        
+        // Map of environment variable names to provider keys in system_defaults.json
+        const providerMap = {
+            'OPENAI_DEFAULT_MODEL': 'openai',
+            'ANTHROPIC_DEFAULT_MODEL': 'anthropic',
+            'COHERE_DEFAULT_MODEL': 'cohere',
+            'GEMINI_DEFAULT_MODEL': 'gemini',
+            'MISTRAL_DEFAULT_MODEL': 'mistral',
+            'GROK_DEFAULT_MODEL': 'xai',
+            'PERPLEXITY_DEFAULT_MODEL': 'perplexity',
+            'DEEPSEEK_DEFAULT_MODEL': 'deepseek'
+        };
+        
+        // Set defaults from system_defaults.json if not already specified in env
+        for (const [envVar, providerKey] of Object.entries(providerMap)) {
+            if (!envConfig[envVar] && providerDefaults[providerKey]) {
+                envConfig[envVar] = providerDefaults[providerKey].model;
+            }
+        }
+    } catch (error) {
+        console.error('Warning: Could not load system_defaults.json:', error.message);
+        // Fallback to minimal defaults if file is missing or invalid
+        if (!envConfig.OPENAI_DEFAULT_MODEL) envConfig.OPENAI_DEFAULT_MODEL = 'gpt-4.1-mini';
+        if (!envConfig.ANTHROPIC_DEFAULT_MODEL) envConfig.ANTHROPIC_DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
     }
 
     // Do not override TTS_DICT_PATH if it already exists

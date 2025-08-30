@@ -1,0 +1,31 @@
+{
+  "provider_defaults": {
+    "openai": {
+      "model": "gpt-5"
+    },
+    "anthropic": {
+      "model": "claude-sonnet-4-20250514"
+    },
+    "cohere": {
+      "model": "command-a-03-2025"
+    },
+    "gemini": {
+      "model": "gemini-2.5-flash"
+    },
+    "mistral": {
+      "model": "mistral-large-latest"
+    },
+    "xai": {
+      "model": "grok-4-0709"
+    },
+    "perplexity": {
+      "model": "sonar"
+    },
+    "deepseek": {
+      "model": "deepseek-chat"
+    },
+    "ollama": {
+      "model": "llama3.2:latest"
+    }
+  }
+}

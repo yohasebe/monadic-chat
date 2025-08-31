@@ -149,8 +149,12 @@ class SyntaxTreeOpenAI < MonadicApp
     end
     
     # Check if SVG file was created
-    svg_path = File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "#{base_filename}.svg")
-    unless File.exist?(svg_path)
+    # Try both container path and local path
+    container_path = "/monadic/data/#{base_filename}.svg"
+    local_path = File.join(File.expand_path(File.join(Dir.home, "monadic", "data")), "#{base_filename}.svg")
+    
+    svg_exists = File.exist?(container_path) || File.exist?(local_path)
+    unless svg_exists
       return "Error: Syntax tree SVG was not generated. Please check the bracket notation format."
     end
     

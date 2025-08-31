@@ -19,7 +19,12 @@ class WikipediaOpenAI < MonadicApp
         # Save content to a file
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
         filename = "web_content_#{timestamp}.txt"
-        filepath = File.join(SHARED_VOL, filename)
+        # Use appropriate path based on environment
+        filepath = if defined?(Monadic::Utils::Environment) && Monadic::Utils::Environment.in_container?
+                     File.join(SHARED_VOL, filename)
+                   else
+                     File.join(LOCAL_SHARED_VOL, filename)
+                   end
         
         File.write(filepath, response.body)
         

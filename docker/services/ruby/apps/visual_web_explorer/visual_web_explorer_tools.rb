@@ -138,10 +138,9 @@ module VisualWebExplorerTools
           # Check if file exists with fallback
           unless File.exist?(image_path)
             # Try alternative path if first path fails
-            # This logic seems backwards, but keeping the same behavior
             alternative_path = Monadic::Utils::Environment.in_container? ?
-                                File.join(Dir.home, "monadic", "data", first_screenshot) :
-                                "/monadic/data/#{first_screenshot}"
+                                "/monadic/data/#{first_screenshot}" :
+                                File.join(Dir.home, "monadic", "data", first_screenshot)
             
             if File.exist?(alternative_path)
               image_path = alternative_path

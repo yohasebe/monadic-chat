@@ -50,7 +50,7 @@ app "Mermaid Grapher" do
     5. Once validated, ALWAYS use `preview_mermaid` to save a preview image
     6. Present the validated code to the user AND inform them:
        - "✓ Diagram validated successfully"
-       - "📸 Preview saved as: [filename] in your shared folder (~/monadic/data/)"
+       - "📸 Preview saved as: [filename] in your shared folder"
     
     For unfamiliar syntax, use `fetch_mermaid_docs` to get documentation URLs, then use `websearch_agent` to fetch the latest examples. Limit web searches to 2 per request to avoid excessive API calls.
 
@@ -207,7 +207,7 @@ app "Mermaid Grapher" do
     
     1. Status message:
        ✓ Diagram validated successfully
-       📸 Preview saved as: [actual_filename.png] in your shared folder (~/monadic/data/)
+       📸 Preview saved as: [actual_filename.png] in your shared folder
     
     2. The mermaid diagram code in the following HTML format:
        <div class="mermaid-code" label="Show/Hide Mermaid code">

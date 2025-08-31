@@ -2736,13 +2736,41 @@ function connect_websocket(callback) {
 
         let models = [];
         if (currentApp) {
-          if (currentApp["models"] && currentApp["models"].length > 0) {
-            let models_text = currentApp["models"]
-            models = JSON.parse(models_text);
-          } else if (currentApp["model"]) {
-            models = [currentApp["model"]];
+          // Get all available models for the provider
+          const isOpenAI = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
+          
+          if (isOpenAI) {
+            // For OpenAI apps, get all OpenAI models from modelSpec
+            const allOpenAIModels = Object.keys(window.modelSpec || {}).filter(model => {
+              // OpenAI models include: gpt-*, o1*, o3*, chatgpt-*
+              return model.startsWith('gpt-') || 
+                     model.startsWith('o1') || 
+                     model.startsWith('o3') || 
+                     model.startsWith('chatgpt-');
+            });
+            
+            // If MDSL specifies models, merge them with all OpenAI models
+            if (currentApp["models"] && currentApp["models"].length > 0) {
+              let mdslModels = JSON.parse(currentApp["models"]);
+              // Merge MDSL models with all OpenAI models, removing duplicates
+              models = [...new Set([...mdslModels, ...allOpenAIModels])];
+            } else if (currentApp["model"]) {
+              // If only a single model is specified, still show all OpenAI models
+              models = allOpenAIModels;
+            } else {
+              // No model specified, show all OpenAI models
+              models = allOpenAIModels;
+            }
           } else {
-            models = [];
+            // For non-OpenAI providers, use the existing logic
+            if (currentApp["models"] && currentApp["models"].length > 0) {
+              let models_text = currentApp["models"]
+              models = JSON.parse(models_text);
+            } else if (currentApp["model"]) {
+              models = [currentApp["model"]];
+            } else {
+              models = [];
+            }
           }
         }
 

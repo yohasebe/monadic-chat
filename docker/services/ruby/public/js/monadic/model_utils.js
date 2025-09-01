@@ -10,34 +10,44 @@ const PROVIDER_MODEL_BEHAVIOR = {
     modelPattern: /^(gpt-|o[13]|chatgpt-)/  // Pattern to identify provider's models
   },
   anthropic: {
-    showAllModels: false  // Show only MDSL-specified models
+    showAllModels: true,  // Show all available Claude models
+    modelPattern: /^claude-/  // Pattern to identify Claude models
   },
   claude: {
-    showAllModels: false  // Alias for anthropic
+    showAllModels: true,  // Alias for anthropic
+    modelPattern: /^claude-/  // Pattern to identify Claude models
   },
   gemini: {
-    showAllModels: false
+    showAllModels: true,  // Show all available Gemini models
+    modelPattern: /^(gemini-|gemma-)/  // Pattern to identify Gemini/Gemma models
   },
   google: {
-    showAllModels: false  // Alias for gemini
+    showAllModels: true,  // Alias for gemini
+    modelPattern: /^(gemini-|gemma-)/  // Pattern to identify Gemini/Gemma models
   },
   cohere: {
-    showAllModels: false
+    showAllModels: true,  // Show all available Cohere models
+    modelPattern: /^command-/  // Pattern to identify Cohere models
   },
   mistral: {
-    showAllModels: false
+    showAllModels: true,  // Show all available Mistral models
+    modelPattern: /^(mistral-|pixtral-|magistral-|ministral-)/  // Pattern to identify Mistral models
   },
   perplexity: {
-    showAllModels: false
+    showAllModels: true,  // Show all available Perplexity models
+    modelPattern: /^(sonar|llama-)/  // Pattern to identify Perplexity models
   },
   deepseek: {
-    showAllModels: false
+    showAllModels: true,  // Show all available DeepSeek models
+    modelPattern: /^deepseek-/  // Pattern to identify DeepSeek models
   },
   xai: {
-    showAllModels: false
+    showAllModels: true,  // Show all available xAI models
+    modelPattern: /^grok-/  // Pattern to identify xAI models
   },
   grok: {
-    showAllModels: false  // Alias for xai
+    showAllModels: true,  // Alias for xai
+    modelPattern: /^grok-/  // Pattern to identify xAI models
   },
   ollama: {
     showAllModels: false,
@@ -100,8 +110,15 @@ function getModelsForApp(appConfig) {
     }
   } else {
     // For providers that don't show all models, use MDSL-specified models only
-    if (appConfig["models"] && appConfig["models"].length > 0) {
-      return JSON.parse(appConfig["models"]);
+    if (appConfig["models"] && typeof appConfig["models"] === "string") {
+      // models is a JSON string from server
+      try {
+        const parsedModels = JSON.parse(appConfig["models"]);
+        return parsedModels;
+      } catch (e) {
+        console.error(`Failed to parse models JSON:`, e);
+        return [];
+      }
     } else if (appConfig["model"]) {
       return [appConfig["model"]];
     } else {

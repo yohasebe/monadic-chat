@@ -1562,8 +1562,20 @@ function connect_websocket(callback) {
         
         try {
           mediaSource = new MediaSource();
-          mediaSource.addEventListener('sourceopen', () => {
+          mediaSource.addEventListener('sourceopen', function() {
             try {
+              // Check if mediaSource is still valid and in correct state
+              if (!mediaSource || mediaSource.readyState !== 'open') {
+                // This is expected during sourceopen event - MediaSource transitions to 'open'
+                // No warning needed as this is normal behavior
+                if (mediaSource && mediaSource.readyState === 'closed') {
+                  // MediaSource was closed, fall back to basic mode
+                  window.basicAudioMode = true;
+                  return;
+                }
+                // Otherwise, continue - sourceopen event means it's transitioning to open
+              }
+              
               if (runningOnFirefox) {
                 // Firefox needs special handling
                 
@@ -1593,6 +1605,12 @@ function connect_websocket(callback) {
                 };
               } else {
                 // Chrome and others work well with mpeg
+                // Check if mediaSource is valid before using it
+                if (!mediaSource) {
+                  console.warn("MediaSource is null, falling back to basic audio mode");
+                  window.basicAudioMode = true;
+                  return;
+                }
                 
                 sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
                 sourceBuffer.addEventListener('updateend', processAudioDataQueue);
@@ -1688,12 +1706,16 @@ function connect_websocket(callback) {
   }
 
   function updateAppAndModelSelection(parameters) {
-    if (parameters.app_name) {
+    // Only update if the values are not already set correctly
+    if (parameters.app_name && $("#apps").val() !== parameters.app_name) {
       $("#apps").val(parameters.app_name).trigger('change');
     }
-    if (parameters.model) {
-      $("#model").val(parameters.model).trigger('change');
-    }
+    // Wait for app change to complete before setting model
+    setTimeout(() => {
+      if (parameters.model && $("#model").val() !== parameters.model) {
+        $("#model").val(parameters.model).trigger('change');
+      }
+    }, 200);
   }
 
   // Helper function to append a card to the discourse
@@ -2405,6 +2427,12 @@ function connect_websocket(callback) {
         break;
       }
       case "apps": {
+        console.log("=== APPS MESSAGE RECEIVED ===");
+        console.log("Apps message count:", ++window.appsMessageCount || (window.appsMessageCount = 1));
+        console.log("Current pendingParameters:", window.pendingParameters);
+        console.log("Current #apps value:", $("#apps").val());
+        console.log("isUpdate check: apps has", Object.keys(apps).length, "keys");
+        
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
@@ -2721,14 +2749,122 @@ function connect_websocket(callback) {
         }
         // Set originalParams to the first valid app or Chat if available
         originalParams = apps["Chat"] || apps[$("#apps").val()] || {};
-        resetParams();
+        
+        // Process pending parameters if any
+        if (window.pendingParameters) {
+          const params = window.pendingParameters;
+          window.pendingParameters = null;
+          
+          // Process the stored parameters after a delay to ensure DOM is ready
+          if (params.app_name) {
+            loadedApp = params.app_name;
+            console.log("Processing pending parameters for app:", params.app_name);
+            // Add delay to ensure dropdown is fully populated
+            setTimeout(() => {
+              console.log("Calling loadParams with pending parameters");
+              // Call loadParams which will handle the app and model selection
+              loadParams(params, "loadParams");
+            }, 100);
+          }
+        } else {
+          // Only reset params if we don't have pending parameters to load
+          // AND if we're not in a loaded session (after import)
+          // AND if this is truly the first APPS message
+          const currentApp = $("#apps").val();
+          const isFirstAppsMessage = window.appsMessageCount === 1;
+          
+          console.log("Deciding whether to call resetParams:");
+          console.log("  - currentApp:", currentApp);
+          console.log("  - isFirstAppsMessage:", isFirstAppsMessage);
+          console.log("  - loadedApp:", loadedApp);
+          
+          // Only reset if this is the first apps message and no app is selected
+          // OR if there's no loaded app from import
+          if (isFirstAppsMessage && (!currentApp || currentApp === "") && !loadedApp) {
+            console.log("Conditions met, calling resetParams");
+            resetParams();
+          } else {
+            console.log("Skipping resetParams - app already configured");
+          }
+        }
         break;
       }
       case "parameters": {
-        loadedApp = data["content"]["app_name"];
-        const pleaseWaitText = getTranslation('ui.messages.pleaseWait', 'Please wait');
-        setAlert(`<i class='fa-solid fa-hourglass-half'></i> ${pleaseWaitText}`, "warning");
-        loadParams(data["content"], "loadParams");
+        // Check if we have valid content
+        if (!data["content"] || Object.keys(data["content"]).length === 0) {
+          // Empty parameters, this is normal for initial load
+          break;
+        }
+        
+        // Store parameters for later processing if apps not loaded yet
+        if (!apps || Object.keys(apps).length === 0) {
+          window.pendingParameters = data["content"];
+          break;
+        }
+        
+        // Only process if we have an app_name
+        if (data["content"]["app_name"]) {
+          console.log("=== WEBSOCKET PARAMETERS MESSAGE ===");
+          console.log("app_name from server:", data["content"]["app_name"]);
+          console.log("model from server:", data["content"]["model"]);
+          console.log("group from server:", data["content"]["group"]);
+          console.log("Full content:", data["content"]);
+          
+          loadedApp = data["content"]["app_name"];
+          const pleaseWaitText = getTranslation('ui.messages.pleaseWait', 'Please wait');
+          setAlert(`<i class='fa-solid fa-hourglass-half'></i> ${pleaseWaitText}`, "warning");
+          
+          // Call loadParams which will handle everything including model selection
+          console.log("About to call loadParams...");
+          
+          // Check if loadParams is defined
+          if (typeof loadParams === 'function') {
+            loadParams(data["content"], "loadParams");
+          } else if (typeof window.loadParams === 'function') {
+            window.loadParams(data["content"], "loadParams");
+          } else {
+            console.error("loadParams function not found! Attempting direct app/model setting...");
+            
+            // Direct fallback approach
+            const appName = data["content"]["app_name"];
+            const model = data["content"]["model"];
+            
+            console.log("Direct setting app:", appName, "model:", model);
+            
+            // Set the app directly
+            if (appName) {
+              $("#apps").val(appName);
+              // Trigger change to update model list
+              $("#apps").trigger('change');
+              
+              // Set model after a delay
+              setTimeout(() => {
+                if (model) {
+                  $("#model").val(model);
+                  if ($("#model").val() !== model) {
+                    console.error("Failed to set model:", model);
+                    // Try again with a longer delay
+                    setTimeout(() => {
+                      $("#model").val(model);
+                      $("#model").trigger('change');
+                    }, 500);
+                  } else {
+                    $("#model").trigger('change');
+                  }
+                }
+              }, 300);
+            }
+          }
+          
+          console.log("loadParams handling complete, breaking...");
+          
+          // Don't rebuild the model list here - loadParams already handles it
+          // The code below was causing the model selector to be reset
+          break;
+        }
+        
+        // This code should only run if there's no app_name in parameters
+        // (which means it's not a loaded session)
         
         // All providers now support AI User functionality
         
@@ -2746,17 +2882,22 @@ function connect_websocket(callback) {
         // Select the appropriate model using shared utility function
         let model;
         if (currentApp) {
-          model = getDefaultModelForApp(currentApp, models);
+          // Use the model from parameters if available, otherwise use default
+          if (data["content"]["model"] && models.includes(data["content"]["model"])) {
+            model = data["content"]["model"];
+          } else {
+            model = getDefaultModelForApp(currentApp, models);
+          }
         }
           
           // Extract provider name from current app group using shared function if available
           let provider;
-          if (typeof getProviderFromGroup === 'function') {
+          if (typeof getProviderFromGroup === 'function' && currentApp && currentApp["group"]) {
             provider = getProviderFromGroup(currentApp["group"]);
           } else {
             // Fallback implementation if the function is not available
             provider = "OpenAI";
-            if (currentApp["group"]) {
+            if (currentApp && currentApp["group"]) {
               const group = currentApp["group"].toLowerCase();
             if (group.includes("anthropic") || group.includes("claude")) {
               provider = "Anthropic";
@@ -2788,29 +2929,30 @@ function connect_websocket(callback) {
           $("#model").val(model);
 
           // Use display_name if available, otherwise fall back to app_name
-          $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
-          $("#base-app-icon").html(currentApp["icon"]);
+          if (currentApp) {
+            $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
+            $("#base-app-icon").html(currentApp["icon"]);
 
-          if (currentApp["monadic"]) {
-            $("#monadic-badge").show();
-          } else {
-            $("#monadic-badge").hide();
+            if (currentApp["monadic"]) {
+              $("#monadic-badge").show();
+            } else {
+              $("#monadic-badge").hide();
+            }
+            
+            if (currentApp["tools"]) {
+              $("#tools-badge").show();
+            } else {
+              $("#tools-badge").hide();
+            }
+
+            $("#base-app-desc").html(currentApp["description"]);
           }
-
-          if (currentApp["tools"]) {
-            $("#tools-badge").show();
-          } else {
-            $("#tools-badge").hide();
-          }
-
-          $("#base-app-desc").html(currentApp["description"]);
         }
         
         $("#start").focus();
 
         updateAppAndModelSelection(data["content"]);
         break;
-      }
       case "elevenlabs_voices": {
         const cookieValue = getCookie("elevenlabs-tts-voice");
         let voices = data["content"];
@@ -4003,6 +4145,12 @@ let reconnectionTimer = null; // Store the timer to allow cancellation
 
 // Improved WebSocket reconnection logic with proper cleanup and retry handling
 function reconnect_websocket(ws, callback) {
+  // Prevent multiple reconnection attempts for the same WebSocket
+  if (ws._isReconnecting) {
+    console.log("Already attempting to reconnect, skipping duplicate attempt");
+    return;
+  }
+  
   // Store reconnection attempts in the WebSocket object itself
   // This ensures each WebSocket manages its own reconnection state
   if (ws._reconnectAttempts === undefined) {
@@ -4016,12 +4164,16 @@ function reconnect_websocket(ws, callback) {
     setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
     
     // Properly clean up any pending timers
+    ws._isReconnecting = false;
     if (reconnectionTimer) {
       clearTimeout(reconnectionTimer);
       reconnectionTimer = null;
     }
     return;
   }
+  
+  // Mark as reconnecting
+  ws._isReconnecting = true;
 
   // Calculate exponential backoff delay
   const delay = baseReconnectDelay * Math.pow(1.5, ws._reconnectAttempts);
@@ -4075,6 +4227,7 @@ function reconnect_websocket(ws, callback) {
         // Wait for socket to fully close before reconnecting
         console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
         reconnectionTimer = setTimeout(() => {
+          ws._isReconnecting = false; // Reset flag before next attempt
           reconnect_websocket(ws, callback);
         }, delay);
         break;
@@ -4083,6 +4236,7 @@ function reconnect_websocket(ws, callback) {
         // Socket is still trying to connect, wait a bit before checking again
         console.log(`Socket is connecting. Checking again in ${delay}ms.`);
         reconnectionTimer = setTimeout(() => {
+          ws._isReconnecting = false; // Reset flag before next attempt
           reconnect_websocket(ws, callback);
         }, delay);
         break;
@@ -4090,6 +4244,7 @@ function reconnect_websocket(ws, callback) {
       case WebSocket.OPEN:
         // Connection is successful, reset counters
         ws._reconnectAttempts = 0;
+        ws._isReconnecting = false;
         
         // Start ping to keep connection alive
         startPing();
@@ -4111,6 +4266,7 @@ function reconnect_websocket(ws, callback) {
     reconnectionTimer = setTimeout(() => {
       // Increment attempt counter on error
       ws._reconnectAttempts++;
+      ws._isReconnecting = false; // Reset flag before next attempt
       reconnect_websocket(ws, callback);
     }, delay);
   }

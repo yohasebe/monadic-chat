@@ -494,7 +494,7 @@ function deleteMessage(mid) {
 
   let stop_apps_trigger = false;
 
-function loadParams(params, calledFor = "loadParams") {
+window.loadParams = function(params, calledFor = "loadParams") {
   $("#model-non-default").hide();
   // check if params is not empty
   if (Object.keys(params).length === 0) {
@@ -538,11 +538,131 @@ function loadParams(params, calledFor = "loadParams") {
     // $("#apps").val(defaultApp);
     $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
   } else if (calledFor === "loadParams") {
-    stop_apps_trigger = true;
     let app_name = params["app_name"];
-    $("#apps").val(app_name);
-    $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
-    $("#model").val(params["model"]);
+    const modelToSet = params["model"];
+    
+    // Check if app_name is valid
+    if (!app_name) {
+      // This is normal for initial load without a saved session
+      // Just return without warning
+      return;
+    }
+    
+    // First, check if the exact app exists
+    let targetApp = app_name;
+    
+    // Log all available apps for debugging
+    
+    if (!(app_name in apps)) {
+      
+      // Try to identify the provider from the model  
+      if (modelToSet) {
+        let providerGroup = null;
+        
+        // Identify provider based on model pattern
+        if (/^(gpt-|o[13]|chatgpt-)/.test(modelToSet)) {
+          providerGroup = "OpenAI";
+        } else if (/^claude-/.test(modelToSet)) {
+          providerGroup = "Anthropic";
+        } else if (/^gemini-|^gemma-/.test(modelToSet)) {
+          providerGroup = "Google";
+        } else if (/^command-/.test(modelToSet)) {
+          providerGroup = "Cohere";
+        } else if (/^(mistral-|pixtral-|magistral-|ministral-)/.test(modelToSet)) {
+          providerGroup = "Mistral";
+        } else if (/^(sonar|llama-)/.test(modelToSet)) {
+          providerGroup = "Perplexity";
+        } else if (/^deepseek-/.test(modelToSet)) {
+          providerGroup = "DeepSeek";
+        } else if (/^grok-/.test(modelToSet)) {
+          providerGroup = "xAI";
+        }
+        
+        if (providerGroup) {
+          
+          // Also check if the imported data has a group field
+          if (params["group"]) {
+            // Use the group from the imported data if available
+            providerGroup = params["group"];
+          }
+          
+          // Try to find a matching app for this provider
+          // Extract the base app type from the original app_name (e.g., "MailComposer" from "MailComposerGemini")
+          let baseAppType = app_name.replace(/(?:OpenAI|Claude|Anthropic|Gemini|Google|Cohere|Mistral|Perplexity|DeepSeek|Grok|xAI|Ollama)$/i, '');
+          
+          // Find an app that matches this provider and base type
+          for (const [key, value] of Object.entries(apps)) {
+            if (value.group === providerGroup) {
+              // Check if this app key contains the base app type
+              if (key.toLowerCase().includes(baseAppType.toLowerCase()) || 
+                  (value.display_name && value.display_name.toLowerCase().includes(baseAppType.toLowerCase().replace(/([A-Z])/g, ' $1').trim().toLowerCase()))) {
+                targetApp = key;
+                break;
+              }
+            }
+          }
+          
+          // If we still couldn't find a match, try to find any app from this provider
+          if (targetApp === app_name) {
+            for (const [key, value] of Object.entries(apps)) {
+              if (value.group === providerGroup) {
+                // Default to the first app from this provider
+                targetApp = key;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Set the app selector WITHOUT triggering change event yet
+    $("#apps").val(targetApp);
+    $(`#apps option[value="${targetApp}"]`).attr('selected', 'selected');
+    
+    // Check if apps object is available and app exists before triggering change
+    if (typeof apps !== 'undefined' && apps && apps[targetApp]) {
+      // Store the model in params before triggering app change
+      // This will be preserved by proceedWithAppChange
+      if (modelToSet) {
+        params["model"] = modelToSet;
+      }
+      
+      // Ensure stop_apps_trigger is false so the change event will be processed
+      stop_apps_trigger = false;
+      
+      // Set a flag to indicate we're in the middle of loading params
+      window.isLoadingParams = true;
+      
+      // Now trigger the change event after value is set
+      $("#apps").trigger('change');
+      
+      // Clear the flag after a longer delay to ensure model setting completes
+      setTimeout(() => {
+        window.isLoadingParams = false;
+      }, 500);
+      
+      // Wait a moment for app change to complete, then set model
+      setTimeout(() => {
+        if (modelToSet) {
+          
+          // Force set the model value even if the dropdown was rebuilt
+          $("#model").val(modelToSet);
+          
+          if ($("#model").val() !== modelToSet) {
+            // Try once more with a longer delay
+            setTimeout(() => {
+              $("#model").val(modelToSet);
+              if ($("#model").val() === modelToSet) {
+                $("#model").trigger('change');
+              }
+            }, 300);
+          } else {
+            $("#model").trigger('change');
+          }
+        }
+      }, 300); // Increased timeout
+    }
   } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];
     $("#apps").val(app_name);
@@ -590,43 +710,75 @@ function loadParams(params, calledFor = "loadParams") {
   if (spec) {
     const reasoning_effort = params["reasoning_effort"];
     
-    // Debug: Log reasoning_effort processing
-    console.log(`\n=== loadParams Debug for ${params["app_name"]} ===`);
-    console.log(`Model:`, model);
-    console.log(`Model spec has reasoning_effort:`, spec["reasoning_effort"] ? "YES" : "NO");
-    console.log(`reasoning_effort from params:`, reasoning_effort);
-    console.log(`Model spec reasoning_effort:`, spec["reasoning_effort"]);
+    // Get provider from current app
+    const currentApp = $("#apps").val();
+    const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
+      ? window.getProviderFromGroup(window.apps[currentApp]["group"])
+      : "OpenAI";
     
-    // Check if the model supports reasoning_effort
-    if (spec["reasoning_effort"]) {
-      // Model supports reasoning_effort
-      let effortValue;
+    // Update UI with provider-specific components and labels
+    if (window.reasoningUIManager) {
+      window.reasoningUIManager.updateUI(provider, model);
+    }
+    
+    // Use ReasoningMapper to check if provider/model supports reasoning
+    if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, model)) {
+      // Get available options for this provider/model
+      const availableOptions = ReasoningMapper.getAvailableOptions(provider, model);
       
-      if (reasoning_effort) {
-        // Use the value from params (from MDSL or user selection)
-        effortValue = reasoning_effort;
-      } else {
-        // Use the default from model spec
-        let defaultEffort = 'medium';
-        try {
-          if (Array.isArray(spec["reasoning_effort"]) && spec["reasoning_effort"].length > 1) {
-            defaultEffort = spec["reasoning_effort"][1];
-          }
-        } catch (e) {
-          // Could not get default reasoning effort from model spec
+      // Update dropdown options
+      if (availableOptions) {
+        const $dropdown = $("#reasoning-effort");
+        $dropdown.empty(); // Clear existing options
+        
+        availableOptions.forEach(option => {
+          const label = window.ReasoningLabels ? 
+            window.ReasoningLabels.getOptionLabel(provider, option) : 
+            option;
+          $dropdown.append(`<option value="${option}">${label}</option>`);
+        });
+        
+        // Set value
+        let effortValue;
+        if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
+          effortValue = reasoning_effort;
+        } else {
+          effortValue = ReasoningMapper.getDefaultValue(provider, model) || availableOptions[0];
         }
-        effortValue = defaultEffort;
+        
+        $dropdown.val(effortValue);
+        $dropdown.prop('disabled', false);
+        $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
+      } else {
+        // Fallback if options couldn't be determined
+        $("#reasoning-effort").prop('disabled', true);
+        $("#reasoning-effort").val('');
+        $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
+        $("#max-tokens").prop("disabled", false);
       }
-      
-      $("#reasoning-effort").val(effortValue);
-      $("#reasoning-effort").prop('disabled', false);
-      $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
     } else {
-      // Model doesn't support reasoning_effort
+      // Model/provider doesn't support reasoning/thinking
       $("#reasoning-effort").prop('disabled', true);
       $("#reasoning-effort").val('');  // Clear the value
       $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
       $("#max-tokens").prop("disabled", false);
+    }
+    
+    // Update labels and description after options are set
+    if (window.ReasoningLabels) {
+      window.ReasoningLabels.updateUILabels(provider, model);
+      
+      // Update description text
+      const description = window.ReasoningLabels.getDescription(provider, model);
+      const descElement = document.getElementById('reasoning-description');
+      if (descElement) {
+        if (description && !$("#reasoning-effort").prop("disabled")) {
+          descElement.textContent = description;
+          descElement.style.display = 'inline';
+        } else {
+          descElement.style.display = 'none';
+        }
+      }
     }
 
     let temperature = params["temperature"];
@@ -722,18 +874,14 @@ function resetParams() {
   setTimeout(function () {
     // Don't change app selection to default - it will be preserved from the current app
     // $("#apps select").val(params["app_name"]);
-    console.log("Debug: params['pdf']:", params["pdf"]);
-    console.log("Debug: params['pdf_vector_storage']:", params["pdf_vector_storage"]);
     
     if (params["pdf"] === "true" || params["pdf_vector_storage"] === true || params["pdf_vector_storage"] === "true") {
-      console.log("Debug: Showing PDF controls");
-      $("#file-div").show();
+      $("#file-import-row").show();
       $("#pdf-panel").show();
     } else if (params["file"] === "true") {
-      $("#file-div").show();
+      $("#file-import-row").show();
     } else {
-      console.log("Debug: Hiding PDF controls");
-      $("#file-div").hide();
+      $("#file-import-row").hide();
       $("#pdf-panel").hide();
     }
     // Reset the flag after loading is complete
@@ -771,8 +919,34 @@ function setParams() {
   // params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
 
+  // Handle reasoning/thinking parameters with provider-specific mapping
   if (!$("#reasoning-effort").prop('disabled')) {
-    params["reasoning_effort"] = $("#reasoning-effort").val();
+    const uiValue = $("#reasoning-effort").val();
+    
+    // Get provider from current app
+    const currentApp = $("#apps").val();
+    const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
+      ? window.getProviderFromGroup(window.apps[currentApp]["group"])
+      : "OpenAI";
+    const model = params["model"];
+    
+    if (window.ReasoningMapper) {
+      // Map UI value to provider-specific parameter
+      const mappedParams = ReasoningMapper.mapToProviderParameter(provider, model, uiValue);
+      
+      if (mappedParams) {
+        // Add all mapped parameters to params object
+        Object.keys(mappedParams).forEach(key => {
+          params[key] = mappedParams[key];
+        });
+        
+      } else {
+        console.warn(`Failed to map reasoning effort '${uiValue}' for provider ${provider}, model ${model}`);
+      }
+    } else {
+      // Fallback: use original reasoning_effort parameter
+      params["reasoning_effort"] = uiValue;
+    }
   }
 
   if (!$("#temperature").prop('disabled')) {
@@ -851,7 +1025,7 @@ function checkParams() {
     alert("Please select a model.");
     $("#model").focus();
     return false;
-  } else if (!$("#reasoning-effort").val()) {
+  } else if (!$("#reasoning-effort").prop('disabled') && !$("#reasoning-effort").val()) {
     alert("Please select a reasoning effort.");
     $("#reasoning-effort").focus();
     return false

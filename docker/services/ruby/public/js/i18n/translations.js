@@ -1724,6 +1724,43 @@ class WebUIi18n {
     if (this.translations[language]) {
       this.currentLanguage = language;
       this.updateUIText();
+      
+      // Update reasoning labels if available
+      if (window.ReasoningLabels) {
+        const selectedModel = document.getElementById('model')?.value;
+        const currentApp = document.getElementById('apps')?.value;
+        if (selectedModel && currentApp) {
+          const provider = window.getProviderFromGroup ? window.getProviderFromGroup(window.apps[currentApp].group) : null;
+          if (provider) {
+            window.ReasoningLabels.updateUILabels(provider, selectedModel);
+            
+            // Update description text
+            const description = window.ReasoningLabels.getDescription(provider, selectedModel);
+            const descElement = document.getElementById('reasoning-description');
+            if (descElement) {
+              if (description && !$("#reasoning-effort").prop("disabled")) {
+                descElement.textContent = description;
+                descElement.style.display = 'inline';
+              } else {
+                descElement.style.display = 'none';
+              }
+            }
+            
+            // Update option labels
+            const select = document.getElementById('reasoning-effort');
+            if (select && !select.disabled) {
+              const currentValue = select.value;
+              select.querySelectorAll('option').forEach(option => {
+                const value = option.value;
+                const label = window.ReasoningLabels.getOptionLabel(provider, value);
+                option.textContent = label;
+              });
+              select.value = currentValue; // Preserve selection
+            }
+          }
+        }
+      }
+      
       console.log(`[WebUIi18n] Language set successfully to: ${language}`);
       return true;
     }
@@ -1924,6 +1961,7 @@ class WebUIi18n {
 
 // Create global instance
 const webUIi18n = new WebUIi18n();
+window.webUIi18n = webUIi18n; // Make it available globally
 
 // Create a global promise for i18n readiness
 window.i18nReady = webUIi18n.ready();

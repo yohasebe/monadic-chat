@@ -1,5 +1,6 @@
 # Add required utilities
 require_relative 'utils/fa_icons'
+require_relative 'utils/mdsl_validator' rescue nil
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
@@ -93,6 +94,32 @@ module MonadicDSL
       # Only handle the simplified DSL format
       app_state = eval(@content, TOPLEVEL_BINDING, @file)
       
+      # Validate MDSL configuration if validator is available
+      if defined?(Monadic::Utils::MDSLValidator) && app_state
+        begin
+          provider = determine_provider(app_state)
+          model = app_state.llm_settings[:model] || app_state.llm_settings[:models]&.first
+          
+          if provider && model
+            validation_result = Monadic::Utils::MDSLValidator.validate_reasoning_parameters(
+              app_state.llm_settings,
+              provider,
+              model
+            )
+            
+            # Log errors and warnings
+            validation_result[:errors].each do |error|
+              warn "MDSL Validation Error in #{@file}: #{error}"
+            end
+            validation_result[:warnings].each do |warning|
+              warn "MDSL Validation Warning in #{@file}: #{warning}"
+            end
+          end
+        rescue => e
+          warn "MDSL Validation failed for #{@file}: #{e.message}"
+        end
+      end
+      
       # After creating the class from MDSL, check for and load corresponding files
       base_name = File.basename(@file, '.*')
       dir_path = File.dirname(@file)
@@ -123,6 +150,27 @@ module MonadicDSL
     rescue => e
       warn "Warning: Failed to require #{@file}: #{e.message}"
       raise
+    end
+    
+    def determine_provider(app_state)
+      # Determine provider from app_state
+      if app_state.respond_to?(:llm_settings)
+        provider = app_state.llm_settings[:provider]
+        return provider if provider
+        
+        # Try to infer from group
+        group = app_state.settings[:group] if app_state.respond_to?(:settings)
+        case group
+        when /OpenAI/i then 'OpenAI'
+        when /Anthropic|Claude/i then 'Anthropic'
+        when /Google|Gemini/i then 'Google'
+        when /xAI|Grok/i then 'xAI'
+        when /DeepSeek/i then 'DeepSeek'
+        when /Perplexity/i then 'Perplexity'
+        when /Mistral/i then 'Mistral'
+        when /Cohere/i then 'Cohere'
+        end
+      end
     end
   end
 

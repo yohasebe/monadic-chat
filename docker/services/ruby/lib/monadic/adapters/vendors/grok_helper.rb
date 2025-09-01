@@ -4,6 +4,7 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 require "json"
 
 module GrokHelper
@@ -97,21 +98,17 @@ module GrokHelper
     def get_model_for_websearch(requested_model, websearch_needed)
       return requested_model unless websearch_needed
       
-      model_spec = load_model_spec
-      return requested_model if model_spec.empty?
-      
-      model_info = model_spec[requested_model]
-      return requested_model unless model_info
-      
-      # Check if model supports websearch
-      if model_info["websearch_capability"] == false && model_info["fallback_for_websearch"]
-        fallback_model = model_info["fallback_for_websearch"]
+      # Check if model supports websearch via ModelSpec
+      if !Monadic::Utils::ModelSpec.supports_web_search?(requested_model)
+        fallback_model = Monadic::Utils::ModelSpec.get_websearch_fallback(requested_model)
         
-        if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[Grok] Switching from #{requested_model} to #{fallback_model} for web search capability"
+        if fallback_model
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[Grok] Switching from #{requested_model} to #{fallback_model} for web search capability"
+          end
+          
+          return fallback_model
         end
-        
-        return fallback_model
       end
       
       requested_model
@@ -165,14 +162,15 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
-    # Grok-4 does not support reasoning_effort
-    # (Grok-3 did support it, but current model is Grok-4)
-    # case options["reasoning_effort"]
-    # when "low"
-    #   body["reasoning_effort"] = "low"
-    # when "medium", "high"
-    #   body["reasoning_effort"] = "high"
-    # end
+    # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
+    if options["reasoning_effort"] && !model.include?("grok-4")
+      case options["reasoning_effort"]
+      when "low", "minimal"
+        body["reasoning_effort"] = "low"
+      when "medium", "high"
+        body["reasoning_effort"] = "high"
+      end
+    end
     
     # Add search_parameters if requested
     if options["search_parameters"]
@@ -284,6 +282,7 @@ module GrokHelper
     temperature = obj["temperature"].to_f
     presence_penalty = obj["presence_penalty"] ? obj["presence_penalty"].to_f : nil
     frequency_penalty = obj["frequency_penalty"] ? obj["frequency_penalty"].to_f : nil
+    reasoning_effort = obj["reasoning_effort"]
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
@@ -301,9 +300,8 @@ module GrokHelper
       puts "[Grok] Model switched from #{original_model} to #{model} for web search capability"
     end
     
-    # Enable native websearch only if the final model supports it
-    model_spec = GrokHelper.load_model_spec[model] || {}
-    websearch_native = websearch && model_spec["websearch_capability"] != false
+    # Enable native websearch only if the final model supports it via ModelSpec
+    websearch_native = websearch && Monadic::Utils::ModelSpec.supports_web_search?(model)
     
     # Debug log websearch parameter
     if CONFIG["EXTRA_LOGGING"]
@@ -382,6 +380,16 @@ module GrokHelper
     body["presence_penalty"] = presence_penalty if presence_penalty
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_tokens"] = max_tokens if max_tokens
+
+    # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
+    if reasoning_effort && !model.include?("grok-4")
+      case reasoning_effort
+      when "low", "minimal"
+        body["reasoning_effort"] = "low"
+      when "medium", "high"
+        body["reasoning_effort"] = "high"
+      end
+    end
 
     if obj["response_format"]
       body["response_format"] = APPS[app].settings["response_format"]

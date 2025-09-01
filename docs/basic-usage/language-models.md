@@ -74,32 +74,71 @@ WEBSEARCH_MODEL=gpt-4o-mini
 - **Chat apps**: Web search disabled by default for user control (cost and privacy considerations) - can be enabled manually when needed
 - **Research Assistant**: Web search enabled by default with specialized search prompts
 
-## Reasoning Models
+## Reasoning and Thinking Features
 
-Reasoning models use advanced computational processes to think through problems step-by-step before responding. Monadic Chat automatically detects these models and adjusts parameters accordingly.
+Monadic Chat provides advanced reasoning and thinking capabilities across multiple AI providers. The Web UI automatically adapts to show appropriate controls based on the selected provider and model.
 
-### OpenAI Reasoning Models
+### Unified Interface
+
+The reasoning/thinking selector in the Web UI intelligently adapts to each provider's terminology and options:
+
+| Provider | Parameter Name | Available Options | Description |
+|----------|---------------|-------------------|-------------|
+| OpenAI | Reasoning Effort | minimal, low, medium, high | Controls computational depth for O1/O3/O4 models |
+| Anthropic | Thinking Level | minimal, low, medium, high | Maps to thinking budget (1024-25000 tokens) for Claude 4 models |
+| Google | Thinking Mode | minimal, low, medium, high | Adjusts reasoning dial for Gemini 2.5 preview models |
+| xAI | Reasoning Effort | low, medium, high | Controls Grok's reasoning depth (no minimal option) |
+| DeepSeek | Reasoning Mode | Off (minimal), On (medium) | Enables/disables step-by-step reasoning |
+| Perplexity | Research Depth | minimal, low, medium, high | Controls web search and analysis depth for R1 models |
+
+### Provider-Specific Reasoning Models
+
+#### OpenAI Reasoning Models
 - **O1 Series**: o1, o1-mini, o1-preview, o1-pro
 - **O3 Series**: o3, o3-pro
 - **O4 Series**: o4-mini
+- Use `reasoning_effort` parameter instead of temperature settings
 
-These models use `reasoning_effort` parameter ("low", "medium", "high") instead of temperature settings.
+#### Anthropic Thinking Models
+- **Claude 4.0 Series**: claude-opus-4, claude-sonnet-4
+- Support thinking process with configurable token budget
+- Thinking budget ranges from 1024 (minimal) to 25000+ (high) tokens
 
-### Gemini Thinking Models
-- **2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
+#### Google Thinking Models
+- **Gemini 2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
+- **Gemini 2.0 Thinking**: gemini-2.0-flash-thinking-exp
 - Advanced reasoning with adjustable computing budget
 
-### Mistral Reasoning Models
+#### xAI Grok Reasoning
+- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro
+- Supports reasoning_effort parameter (low, medium, high)
+
+#### DeepSeek Reasoning
+- **deepseek-reasoner**: Dedicated reasoning model
+- Simple on/off control for step-by-step reasoning
+
+#### Perplexity Research Models
+- **R1 Series**: r1-1776 (based on DeepSeek-R1)
+- **Sonar Reasoning**: sonar-reasoning, sonar-reasoning-pro
+- Controls depth of web search and analysis
+
+#### Mistral Reasoning Models
 - **Magistral Series**: magistral-medium, magistral-small
 - Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
 
-### Key Differences from Standard Models
-- Use `reasoning_effort` instead of temperature for reasoning models
-- Limited function calling support with reasoning models
-- Web search requires automatic model switching
-- Some models don't support streaming (o1-pro, o3-pro)
+### Automatic Feature Detection
 
-!> **Note**: The `reasoning_effort` parameter is primarily for simple text generation tasks. For complex operations involving tool calling, code generation, or document creation (like Concept Visualizer, Code Interpreter, Jupyter Notebook), the parameter is automatically disabled to ensure proper functionality.
+The Web UI automatically:
+- Detects whether the selected model supports reasoning/thinking features
+- Shows or hides the reasoning selector accordingly
+- Adapts the label and options to match the provider's terminology
+- Disables the selector for models that don't support these features
+
+### Important Notes
+
+!> **Note**: Reasoning/thinking parameters are primarily for simple text generation tasks. For complex operations involving tool calling, code generation, or document creation (like Concept Visualizer, Code Interpreter, Jupyter Notebook), these parameters are automatically disabled to ensure proper functionality.
+
+?> **Tip**: When switching between providers, the reasoning selector will automatically update to show the appropriate options for that provider's models.
 
 ## OpenAI Models
 

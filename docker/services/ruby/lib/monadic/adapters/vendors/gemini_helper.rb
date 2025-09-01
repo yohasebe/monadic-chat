@@ -7,6 +7,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/language_config"
+require_relative "../../utils/model_spec"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -170,16 +171,14 @@ module GeminiHelper
 
     # Check if this is a thinking model (Gemini 2.5) - moved before body creation
     is_thinking_model = false
-    # Detect specific model type for proper thinking configuration
-    is_25_pro = model =~ /gemini-2\.5-pro/i
-    is_25_flash = model =~ /gemini-2\.5-flash(?!-lite)/i  # Match flash but not flash-lite
-    is_25_flash_lite = model =~ /gemini-2\.5-flash-lite/i
     
-    if options["reasoning_effort"] || model =~ /2\.5.*preview/i
+    # Check if model supports thinking via ModelSpec or has reasoning_effort
+    if options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i
       is_thinking_model = true
       if CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
-        puts "  Model type: Pro=#{is_25_pro}, Flash=#{is_25_flash}, Flash-Lite=#{is_25_flash_lite}"
+        thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+        puts "  Model thinking budget: #{thinking_budget.inspect}" if thinking_budget
       end
     end
     
@@ -204,71 +203,36 @@ module GeminiHelper
       reasoning_effort = options["reasoning_effort"] || "low"
       user_max_tokens = options["max_tokens"] || 800
       
-      case reasoning_effort
-      when "none"
-        # Disable thinking completely for better function calling performance
-        budget_tokens = 0
-      when "minimal"
-        # Set minimal thinking based on model capabilities:
-        # - 2.5 Pro: minimum 128 (cannot disable)
-        # - 2.5 Flash: can use 0 to disable
-        # - 2.5 Flash Lite: doesn't think by default
-        if is_25_pro
-          budget_tokens = 128  # Minimum for Pro model
-        elsif is_25_flash
-          budget_tokens = 0  # Flash can disable thinking
-        elsif is_25_flash_lite
-          budget_tokens = 0  # Flash Lite doesn't think by default
-        else
-          budget_tokens = 0  # Default to 0 for unknown models
-        end
-      when "low"
-        if is_25_pro
+      # Get thinking budget configuration from ModelSpec
+      thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+      
+      if thinking_budget && thinking_budget["presets"] && thinking_budget["presets"][reasoning_effort]
+        # Use preset value if available
+        budget_tokens = thinking_budget["presets"][reasoning_effort]
+      elsif thinking_budget
+        # Fall back to calculated values based on constraints
+        case reasoning_effort
+        when "none"
+          budget_tokens = thinking_budget["can_disable"] ? 0 : thinking_budget["min"]
+        when "minimal"
+          budget_tokens = thinking_budget["can_disable"] ? 0 : thinking_budget["min"]
+        when "low"
           budget_tokens = [(user_max_tokens * 0.2).to_i, 5000].min
-          budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
-        elsif is_25_flash
-          budget_tokens = [(user_max_tokens * 0.2).to_i, 4000].min
-        elsif is_25_flash_lite
-          budget_tokens = 512  # Minimum for Flash Lite when it thinks
-        else
-          budget_tokens = [(user_max_tokens * 0.2).to_i, 4000].min
-        end
-      when "medium"
-        if is_25_pro
+          budget_tokens = [budget_tokens, thinking_budget["min"]].max
+        when "medium"
           budget_tokens = [(user_max_tokens * 0.6).to_i, 20000].min
-          budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
-        elsif is_25_flash
-          budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-        elsif is_25_flash_lite
-          budget_tokens = [(user_max_tokens * 0.6).to_i, 8000].min
-          budget_tokens = [budget_tokens, 512].max  # Ensure minimum for Flash Lite
+          budget_tokens = [budget_tokens, thinking_budget["min"]].max
+        when "high"
+          budget_tokens = [(user_max_tokens * 0.8).to_i, thinking_budget["max"]].min
+          budget_tokens = [budget_tokens, thinking_budget["min"]].max
         else
-          budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-        end
-      when "high"
-        if is_25_pro
-          budget_tokens = [(user_max_tokens * 0.8).to_i, 28000].min
-          budget_tokens = [[budget_tokens, 128].max, 32768].min  # Max 32768 for Pro
-        elsif is_25_flash
-          budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min
-          budget_tokens = [budget_tokens, 24576].min  # Max 24576 for Flash
-        elsif is_25_flash_lite
-          budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
-          budget_tokens = [[budget_tokens, 512].max, 24576].min  # Max 24576 for Flash Lite
-        else
-          budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
+          # Default to medium-like value
+          budget_tokens = [(thinking_budget["max"] * 0.3).to_i, 10000].min
+          budget_tokens = [budget_tokens, thinking_budget["min"]].max
         end
       else
-        # Default values based on model type
-        if is_25_pro
-          budget_tokens = 10000
-        elsif is_25_flash
-          budget_tokens = 8000
-        elsif is_25_flash_lite
-          budget_tokens = 4000
-        else
-          budget_tokens = 8000
-        end
+        # No thinking budget defined for this model
+        budget_tokens = 0
       end
       
       # Set thinking configuration
@@ -700,84 +664,46 @@ module GeminiHelper
       # Configure thinking for Gemini 2.5 models with reasoning_effort
       if is_thinking_model && reasoning_effort
         model = obj["model"]
-        # Detect specific model type for proper thinking configuration
-        is_25_pro = model =~ /gemini-2\.5-pro/i
-        is_25_flash = model =~ /gemini-2\.5-flash(?!-lite)/i  # Match flash but not flash-lite
-        is_25_flash_lite = model =~ /gemini-2\.5-flash-lite/i
         
         if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "GeminiHelper api_request: Model type detection - Pro=#{is_25_pro}, Flash=#{is_25_flash}, Flash-Lite=#{is_25_flash_lite}"
+          thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+          puts "GeminiHelper api_request: Model thinking budget - #{thinking_budget.inspect}" if thinking_budget
         end
         
         # Calculate thinking budget based on reasoning_effort
         # 2.5 Pro: 128-32,768, 2.5 Flash: 0-24,576, 2.5 Flash Lite: 512-24,576 (doesn't think by default)
         user_max_tokens = max_tokens || 8192
         
-        case reasoning_effort
-        when "none"
-          # Disable thinking completely for better function calling performance
-          budget_tokens = 0
-        when "minimal"
-          # Set minimal thinking based on model capabilities:
-          # - 2.5 Pro: minimum 128 (cannot disable)
-          # - 2.5 Flash: can use 0 to disable
-          # - 2.5 Flash Lite: doesn't think by default
-          if is_25_pro
-            budget_tokens = 128  # Minimum for Pro model
-          elsif is_25_flash
-            budget_tokens = 0  # Flash can disable thinking
-          elsif is_25_flash_lite
-            budget_tokens = 0  # Flash Lite doesn't think by default
-          else
-            budget_tokens = 0  # Default to 0 for unknown models
-          end
-        when "low"
-          if is_25_pro
+        # Get thinking budget configuration from ModelSpec
+        thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+        
+        if thinking_budget && thinking_budget["presets"] && thinking_budget["presets"][reasoning_effort]
+          # Use preset value if available
+          budget_tokens = thinking_budget["presets"][reasoning_effort]
+        elsif thinking_budget
+          # Fall back to calculated values based on constraints
+          case reasoning_effort
+          when "none"
+            budget_tokens = thinking_budget["can_disable"] ? 0 : thinking_budget["min"]
+          when "minimal"
+            budget_tokens = thinking_budget["can_disable"] ? 0 : thinking_budget["min"]
+          when "low"
             budget_tokens = [(user_max_tokens * 0.3).to_i, 10000].min
-            budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
-          elsif is_25_flash
-            budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
-          elsif is_25_flash_lite
-            budget_tokens = 512  # Minimum for Flash Lite when it thinks
-          else
-            budget_tokens = [(user_max_tokens * 0.3).to_i, 8000].min
-          end
-        when "medium"
-          if is_25_pro
+            budget_tokens = [budget_tokens, thinking_budget["min"]].max
+          when "medium"
             budget_tokens = [(user_max_tokens * 0.6).to_i, 20000].min
-            budget_tokens = [budget_tokens, 128].max  # Ensure minimum for Pro
-          elsif is_25_flash
-            budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-          elsif is_25_flash_lite
-            budget_tokens = [(user_max_tokens * 0.6).to_i, 8000].min
-            budget_tokens = [budget_tokens, 512].max  # Ensure minimum for Flash Lite
+            budget_tokens = [budget_tokens, thinking_budget["min"]].max
+          when "high"
+            budget_tokens = [(user_max_tokens * 0.8).to_i, thinking_budget["max"]].min
+            budget_tokens = [budget_tokens, thinking_budget["min"]].max
           else
-            budget_tokens = [(user_max_tokens * 0.6).to_i, 16000].min
-          end
-        when "high"
-          if is_25_pro
-            budget_tokens = [(user_max_tokens * 0.8).to_i, 28000].min
-            budget_tokens = [[budget_tokens, 128].max, 32768].min  # Max 32768 for Pro
-          elsif is_25_flash
-            budget_tokens = [(user_max_tokens * 0.8).to_i, 24000].min
-            budget_tokens = [budget_tokens, 24576].min  # Max 24576 for Flash
-          elsif is_25_flash_lite
-            budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
-            budget_tokens = [[budget_tokens, 512].max, 24576].min  # Max 24576 for Flash Lite
-          else
-            budget_tokens = [(user_max_tokens * 0.8).to_i, 20000].min
+            # Default to medium-like value
+            budget_tokens = [(thinking_budget["max"] * 0.3).to_i, 10000].min
+            budget_tokens = [budget_tokens, thinking_budget["min"]].max
           end
         else
-          # Default values based on model type
-          if is_25_pro
-            budget_tokens = 10000
-          elsif is_25_flash
-            budget_tokens = 8000
-          elsif is_25_flash_lite
-            budget_tokens = 4000
-          else
-            budget_tokens = 8000
-          end
+          # No thinking budget defined for this model
+          budget_tokens = 0
         end
         
         # Set thinking configuration using correct structure
@@ -855,9 +781,11 @@ module GeminiHelper
 
     # Handle initiate_from_assistant case where only system message exists
     if body["contents"].empty? && body["systemInstruction"]
+      # Add a simple greeting to initiate the assistant's response
+      # The system instruction already contains detailed instructions for the app
       body["contents"] << {
         "role" => "user",
-        "parts" => [{ "text" => "Please proceed according to your system instructions and introduce yourself." }]
+        "parts" => [{ "text" => "Hello" }]
       }
     end
 
@@ -1704,10 +1632,12 @@ module GeminiHelper
     # because we might get a response after processing the function calls
     if texts.empty? && !tool_calls.any?
       # Only show error message when no text AND no tool calls
-      result << "No response was received from the model. This might be due to a processing issue."
-      res = { "type" => "fragment", "content" => "No response received from model" }
+      # Don't store error messages as valid assistant responses
+      res = { "type" => "error", "content" => "No response received from model" }
       block&.call res
       finish_reason = "error"
+      # Return empty result to prevent storing error as a message
+      result = []
     else 
       result = texts
     end
@@ -1945,8 +1875,8 @@ module GeminiHelper
           [{ "choices" => [{ "message" => { "content" => result.join("") } }] }]
         end
       else
-        # Ensure we always return something meaningful
-        [{ "choices" => [{ "message" => { "content" => "No response was received from the model or function calls." } }] }]
+        # Return error type instead of a regular message when no response
+        [{ "type" => "error", "content" => "No response was received from the model." }]
       end
     elsif result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }

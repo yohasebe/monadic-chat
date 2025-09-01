@@ -74,32 +74,71 @@ WEBSEARCH_MODEL=gpt-4o-mini
 - **Chatアプリ**: Web検索はデフォルトで無効（コストとプライバシーを考慮）- 必要に応じて手動で有効化可能
 - **Research Assistant**: Web検索はデフォルトで有効（専門的な検索プロンプト使用）
 
-## 推論モデル
+## 推論・思考機能
 
-推論モデルは高度な計算プロセスを使用して、応答する前に問題を段階的に思考します。Monadic Chatはこれらのモデルを自動的に検出し、パラメータを調整します。
+Monadic Chatは複数のAIプロバイダにわたって高度な推論・思考機能を提供します。Web UIは選択されたプロバイダとモデルに基づいて適切なコントロールを自動的に表示します。
 
-### OpenAI推論モデル
+### 統一インターフェース
+
+Web UIの推論/思考セレクターは、各プロバイダの用語とオプションに合わせてインテリジェントに適応します：
+
+| プロバイダ | パラメータ名 | 利用可能なオプション | 説明 |
+|----------|---------------|-------------------|-------------|
+| OpenAI | Reasoning Effort | minimal, low, medium, high | O1/O3/O4モデルの計算深度を制御 |
+| Anthropic | Thinking Level | minimal, low, medium, high | Claude 4モデルのthinking budget（1024-25000トークン）にマップ |
+| Google | Thinking Mode | minimal, low, medium, high | Gemini 2.5プレビューモデルの推論ダイヤルを調整 |
+| xAI | Reasoning Effort | low, medium, high | Grokの推論深度を制御（minimalオプションなし） |
+| DeepSeek | Reasoning Mode | Off (minimal), On (medium) | ステップバイステップ推論の有効/無効 |
+| Perplexity | Research Depth | minimal, low, medium, high | R1モデルのWeb検索と分析深度を制御 |
+
+### プロバイダ別推論モデル
+
+#### OpenAI推論モデル
 - **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
 - **O3シリーズ**: o3、o3-pro
 - **O4シリーズ**: o4-mini
+- temperature設定の代わりに`reasoning_effort`パラメータを使用
 
-これらのモデルはtemperature設定の代わりに`reasoning_effort`パラメータ（"low"、"medium"、"high"）を使用します。
+#### Anthropic思考モデル
+- **Claude 4.0シリーズ**: claude-opus-4、claude-sonnet-4
+- 設定可能なトークン予算での思考プロセスをサポート
+- Thinking budgetは1024（minimal）から25000+（high）トークンの範囲
 
-### Gemini思考モデル
-- **2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
-- 調整可能なthinking budgetでの高度な推論
+#### Google思考モデル
+- **Gemini 2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
+- **Gemini 2.0思考**: gemini-2.0-flash-thinking-exp
+- 調整可能な計算予算での高度な推論
 
-### Mistral推論モデル
+#### xAI Grok推論
+- **Grok 3シリーズ**: grok-3、grok-3-mini、grok-3-pro
+- reasoning_effortパラメータ（low、medium、high）をサポート
+
+#### DeepSeek推論
+- **deepseek-reasoner**: 専用推論モデル
+- ステップバイステップ推論のシンプルなオン/オフ制御
+
+#### Perplexityリサーチモデル
+- **R1シリーズ**: r1-1776（DeepSeek-R1ベース）
+- **Sonar推論**: sonar-reasoning、sonar-reasoning-pro
+- Web検索と分析の深度を制御
+
+#### Mistral推論モデル
 - **Magistralシリーズ**: magistral-medium、magistral-small
-- 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
+- 多言語推論機能（フランス語、ドイツ語、スペイン語、イタリア語など）
 
-### 標準モデルとの主な違い
-- 推論モデルではtemperatureの代わりに`reasoning_effort`を使用
-- 推論モデルではファンクションコーリングのサポートに制限
-- ウェブ検索は自動的なモデル切り替えが必要
-- 一部のモデルはストリーミング非対応（o1-pro、o3-pro）
+### 自動機能検出
 
-!> **注意**: `reasoning_effort`パラメータは主にシンプルなテキスト生成タスク用です。ツール呼び出し、コード生成、ドキュメント作成などの複雑な操作（Concept Visualizer、Code Interpreter、Jupyter Notebookなど）では、適切な動作を確保するためにこのパラメータは自動的に無効化されます。
+Web UIは自動的に：
+- 選択されたモデルが推論/思考機能をサポートしているかを検出
+- それに応じて推論セレクターの表示/非表示を切り替え
+- プロバイダの用語に合わせてラベルとオプションを適応
+- これらの機能をサポートしないモデルではセレクターを無効化
+
+### 重要な注意事項
+
+!> **注意**: 推論/思考パラメータは主にシンプルなテキスト生成タスク用です。ツール呼び出し、コード生成、ドキュメント作成などの複雑な操作（Concept Visualizer、Code Interpreter、Jupyter Notebookなど）では、適切な動作を確保するためにこれらのパラメータは自動的に無効化されます。
+
+?> **ヒント**: プロバイダを切り替えると、推論セレクターはそのプロバイダのモデルに適したオプションを表示するように自動的に更新されます。
 
 ## OpenAI Models
 

@@ -41,7 +41,6 @@ app "JupyterNotebookGemini" do
     model ["gemini-2.5-flash", "gemini-2.0-flash"]  # 2.5 as primary, 2.0 as fallback
     temperature 0.0  # Set to 0 for deterministic outputs
     max_tokens 8192
-    reasoning_effort "minimal"  # Required for proper function calling with Gemini 2.5
   end
 
   system_prompt <<~TEXT

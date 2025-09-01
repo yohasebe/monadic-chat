@@ -37,7 +37,6 @@ app "SyntaxTreeClaude" do
   llm do
     provider "claude"
     model "claude-sonnet-4"  # Latest Sonnet 4 version
-    reasoning_effort "low"  # Balance between performance and accuracy
     temperature 0.0
   end
 

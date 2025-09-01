@@ -6,6 +6,7 @@ require_relative "../../utils/json_repair"
 require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -377,19 +378,10 @@ module ClaudeHelper
       extra_log.close
     end
     
-    # Determine which web search implementation to use
-    # Models that support native web search: Claude 3.5/3.7 Sonnet, Claude 3.5 Haiku
-    native_websearch_models = [
-      "claude-opus-4",
-      "claude-sonnet-4",
-      "claude-3-7-sonnet", 
-      "claude-3-5-sonnet", 
-      "claude-3-5-haiku"
-    ]
-    
+    # Determine which web search implementation to use via ModelSpec
     # Check if model supports native web search and native is enabled
     use_native_websearch = websearch && 
-                          native_websearch_models.any? { |m| model.to_s.include?(m) } &&
+                          Monadic::Utils::ModelSpec.supports_web_search?(model) &&
                           CONFIG["ANTHROPIC_NATIVE_WEBSEARCH"] != "false"
     
     # Claude only uses native web search
@@ -487,9 +479,8 @@ module ClaudeHelper
     # Store the original max_tokens value
     user_max_tokens = max_tokens
     
-    # Check if the model supports thinking
-    thinking_models = ["claude-opus-4-20250514", "claude-sonnet-4-20250514"]
-    supports_thinking = thinking_models.any? { |m| obj["model"].to_s.include?(m) }
+    # Check if the model supports thinking via ModelSpec
+    supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
     
     # Only enable thinking if the model supports it AND reasoning_effort is not "none"
     if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"

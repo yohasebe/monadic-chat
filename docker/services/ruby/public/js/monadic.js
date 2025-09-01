@@ -29,6 +29,9 @@ function getProviderFromGroup(group) {
   }
 }
 
+// Make the function available globally
+window.getProviderFromGroup = getProviderFromGroup;
+
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize Web UI translations if available
   if (typeof webUIi18n !== 'undefined') {
@@ -971,15 +974,21 @@ $(function () {
       $("#model-non-default").hide();
     }
 
-    // Handle reasoning effort dropdown
-    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
-      $("#reasoning-effort").prop("disabled", false);
+    // Handle reasoning effort dropdown with ReasoningMapper
+    const currentApp = $("#apps").val();
+    const provider = getProviderFromGroup(apps[currentApp]["group"]);
+    
+    // Update UI with provider-specific components and labels
+    if (window.reasoningUIManager) {
+      window.reasoningUIManager.updateUI(provider, selectedModel);
+    }
+    
+    if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, selectedModel)) {
+      const availableOptions = ReasoningMapper.getAvailableOptions(provider, selectedModel);
+      const defaultValue = ReasoningMapper.getDefaultValue(provider, selectedModel);
       
-      // Update options based on model spec
-      const reasoningSpec = modelSpec[selectedModel]["reasoning_effort"];
-      if (reasoningSpec && Array.isArray(reasoningSpec) && reasoningSpec.length >= 2) {
-        const availableOptions = reasoningSpec[0]; // Array of available options
-        const defaultValue = reasoningSpec[1]; // Default value
+      if (availableOptions && availableOptions.length > 0) {
+        $("#reasoning-effort").prop("disabled", false);
         
         // Store current value before clearing options
         const previousValue = $("#reasoning-effort").val();
@@ -987,37 +996,69 @@ $(function () {
         // Clear current options
         $("#reasoning-effort").empty();
         
-        // Add options from model spec
-        if (Array.isArray(availableOptions)) {
-          availableOptions.forEach(option => {
-            $("#reasoning-effort").append($('<option>', {
-              value: option,
-              text: option
-            }));
-          });
-          
-          // Don't override reasoning_effort if we're loading from params
-          if (!window.isLoadingParams) {
-            // Set the value - preserve existing value if present, otherwise use default
-            if (previousValue && availableOptions.includes(previousValue)) {
-              // Keep the previous value if it's valid for this model
-              $("#reasoning-effort").val(previousValue);
-            } else {
-              // Use the default value from model spec
-              $("#reasoning-effort").val(defaultValue);
-            }
+        // Add options from ReasoningMapper with provider-specific labels
+        availableOptions.forEach(option => {
+          const label = window.ReasoningLabels ? 
+            window.ReasoningLabels.getOptionLabel(provider, option) : 
+            option;
+          $("#reasoning-effort").append($('<option>', {
+            value: option,
+            text: label
+          }));
+        });
+        
+        // Don't override reasoning_effort if we're loading from params
+        if (!window.isLoadingParams) {
+          // Set the value - preserve existing value if present, otherwise use default
+          if (previousValue && availableOptions.includes(previousValue)) {
+            // Keep the previous value if it's valid for this model
+            $("#reasoning-effort").val(previousValue);
+          } else {
+            // Use the default value from ReasoningMapper
+            $("#reasoning-effort").val(defaultValue || availableOptions[0]);
           }
         }
+        
+        console.log(`Updated reasoning options for ${provider}/${selectedModel}: [${availableOptions.join(', ')}]`);
+      } else {
+        $("#reasoning-effort").prop("disabled", true);
       }
     } else {
       $("#reasoning-effort").prop("disabled", true);
-      // Restore default options when disabled
+      console.log(`Provider ${provider} with model ${selectedModel} does not support reasoning/thinking`);
+    }
+    
+    // Always restore default options when disabled (for consistency)
+    if ($("#reasoning-effort").prop("disabled")) {
       $("#reasoning-effort").empty();
-      $("#reasoning-effort").append($('<option>', { value: 'minimal', text: 'minimal' }));
-      $("#reasoning-effort").append($('<option>', { value: 'low', text: 'low' }));
-      $("#reasoning-effort").append($('<option>', { value: 'medium', text: 'medium' }));
-      $("#reasoning-effort").append($('<option>', { value: 'high', text: 'high' }));
+      const defaultOptions = ['minimal', 'low', 'medium', 'high'];
+      defaultOptions.forEach(option => {
+        const label = window.ReasoningLabels ? 
+          window.ReasoningLabels.getOptionLabel('default', option) : 
+          option;
+        $("#reasoning-effort").append($('<option>', { 
+          value: option, 
+          text: label 
+        }));
+      });
       $("#reasoning-effort").val('medium');
+    }
+
+    // Update labels and description after options are generated
+    if (window.ReasoningLabels) {
+      window.ReasoningLabels.updateUILabels(provider, selectedModel);
+      
+      // Update description text
+      const description = window.ReasoningLabels.getDescription(provider, selectedModel);
+      const descElement = document.getElementById('reasoning-description');
+      if (descElement) {
+        if (description && !$("#reasoning-effort").prop("disabled")) {
+          descElement.textContent = description;
+          descElement.style.display = 'inline';
+        } else {
+          descElement.style.display = 'none';
+        }
+      }
     }
 
     if (modelSpec[selectedModel]) {
@@ -1079,9 +1120,7 @@ $(function () {
     }
 
     // check if selected mode has data-model-type attribute and its value is "reasoning"
-    // Get current app's provider
-    const currentApp = $("#apps").val();
-    const provider = getProviderFromGroup(apps[currentApp]["group"]);
+    // Use existing currentApp and provider variables from above
     
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
@@ -1215,30 +1254,55 @@ $(function () {
       }
     }
     lastApp = appValue;
-    // Preserve the current state of mathjax checkbox if not defined in app
+    // Check if the app exists
+    if (!apps[appValue]) {
+      console.warn(`App '${appValue}' not found in apps object`);
+      return;
+    }
+    // Preserve important values before Object.assign overwrites them
     const currentMathjax = $("#mathjax").prop('checked');
+    const preservedModel = params["model"];  // Preserve the model that was set by loadParams
+    const preservedAppName = params["app_name"]; // Preserve the app_name
+    const preservedGroup = params["group"]; // Preserve the group
+    
     Object.assign(params, apps[appValue]);
+    
+    // Restore the preserved values if they were set (during import)
+    if (preservedModel) {
+      params["model"] = preservedModel;
+    }
+    if (preservedAppName) {
+      params["app_name"] = preservedAppName;
+    }
+    if (preservedGroup) {
+      params["group"] = preservedGroup;
+    }
     
     // Only set initiate_from_assistant to false if the app explicitly defines it as false
     // Don't override if it's already been set by setParams()
-    if (apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {
+    if (apps[appValue] && apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {
       params['initiate_from_assistant'] = false;
     }
     // Restore mathjax state if not explicitly set in app parameters
-    if (!apps[appValue].hasOwnProperty('mathjax')) {
+    if (apps[appValue] && !apps[appValue].hasOwnProperty('mathjax')) {
       params['mathjax'] = currentMathjax;
     }
-    loadParams(params, "changeApp");
+    
+    // Only call loadParams if we're not already in the middle of loading params
+    // This prevents circular calls when importing
+    if (!window.isLoadingParams) {
+      loadParams(params, "changeApp");
+    }
     
     // Update app icon in the select dropdown
     updateAppSelectIcon(appValue);
 
     if (apps[appValue]["pdf"] || apps[appValue]["pdf_vector_storage"]) {
-      $("#file-div").show();
+      $("#file-import-row").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
     } else {
-      $("#file-div").hide();
+      $("#file-import-row").hide();
       $("#pdf-panel").hide();
     }
 
@@ -1249,6 +1313,12 @@ $(function () {
     }
 
     let model;
+    // CRITICAL FIX: If params has group (from import), ensure apps[appValue] uses it
+    // This fixes the issue where imported Gemini apps show OpenAI models
+    if (params["group"] && params["group"] !== apps[appValue]["group"]) {
+      apps[appValue]["group"] = params["group"];
+    }
+    
     // Use shared utility function to get models for the app
     let models = getModelsForApp(apps[appValue]);
 
@@ -1281,7 +1351,19 @@ $(function () {
         $("#websearch").prop("disabled", true);
       }
 
-      $("#model").val(model).trigger("change");
+      $("#model").val(model);
+      
+      if ($("#model").val() !== model) {
+        // Try again after a delay
+        setTimeout(() => {
+          $("#model").val(model);
+          if ($("#model").val() === model) {
+            $("#model").trigger("change");
+          }
+        }, 100);
+      } else {
+        $("#model").trigger("change");
+      }
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
         uiUtils.adjustImageUploadButton(model);

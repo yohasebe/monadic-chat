@@ -86,8 +86,8 @@ Select one of the basic apps provided by Monadic Chat. Each app has different de
 **Model** <br />
 Models available for the selected app are displayed. If a default model is set for the app, the default model is pre-selected. You can change the model by selecting a different one from the dropdown list.  With many basic apps, the model list is automatically retrieved from the API, and multiple models are selectable. Please note that using a model other than the default one might result in errors if the model isn't suitable for the app.
 
-**Reasoning Effort** <br />
-For models capable of advanced reasoning (such as OpenAI's o1, o3, o4 series, Claude Opus 4 and Sonnet 4, Gemini 2.5 models, and Perplexity sonar-reasoning), you can adjust the reasoning effort level. Selecting `low` minimizes computational resources used in the reasoning process, while selecting `high` maximizes them. The default is `low` for most models.
+**Reasoning/Thinking Control** <br />
+For models with advanced reasoning capabilities, this selector automatically adapts to show provider-specific controls. The label and options change based on the selected provider and model (e.g., "Reasoning Effort" for OpenAI, "Thinking Level" for Claude, "Thinking Mode" for Gemini). Options typically range from minimal to high computational effort, allowing you to balance response quality with processing time. This control is only visible for models that support reasoning/thinking features and is automatically hidden for standard models. See the [Reasoning and Thinking Features](./language-models.md#reasoning-and-thinking-features) section for detailed information.
 
 
 **Max Output Tokens** <br />

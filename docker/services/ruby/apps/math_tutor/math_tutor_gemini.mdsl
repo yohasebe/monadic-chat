@@ -10,7 +10,6 @@ app "MathTutorGemini" do
     model ["gemini-2.5-flash", "gemini-2.0-flash"]
     temperature 0.0
     max_tokens 8192
-    reasoning_effort "low"  # Better balance for function calling with Gemini 2.5
   end
   
   features do

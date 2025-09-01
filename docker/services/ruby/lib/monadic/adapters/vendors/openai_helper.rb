@@ -9,6 +9,7 @@ require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -439,9 +440,9 @@ module OpenAIHelper
       "model" => model,
     }
 
-    # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
-    reasoning_model = if model == "gpt-5-chat-latest"
-                        false
+    # Check if model supports reasoning_effort via ModelSpec
+    reasoning_model = if Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
+                        true
                       else
                         REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
                       end
@@ -471,8 +472,8 @@ module OpenAIHelper
                        nil
                      end
 
-    # Add verbosity for GPT-5 models (works in both Chat Completions and Responses API)
-    if verbosity && model.to_s.include?("gpt-5")
+    # Add verbosity for models that support it (via ModelSpec)
+    if verbosity && Monadic::Utils::ModelSpec.supports_verbosity?(model)
       body["verbosity"] = verbosity
     end
     
@@ -1809,15 +1810,11 @@ module OpenAIHelper
                 STDERR.puts "[OpenAI Streaming] response.in_progress event"
                 STDERR.puts "  current_model: #{current_model}"
                 STDERR.puts "  streaming_model: #{streaming_model}"
-                STDERR.puts "  Will skip: #{current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.downcase.include?("gpt5") || current_model.to_s.include?("gpt-4.1") || current_model.to_s.include?("chatgpt-4o"))}"
+                STDERR.puts "  Will skip: #{current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)}"
               end
               
-              # Skip for GPT-5 models, GPT-4.1 models, and chatgpt-4o models as they emit proper delta events
-              # Check both the model name and if it contains gpt-5, gpt5, gpt-4.1, or chatgpt-4o
-              if current_model && (current_model.to_s.downcase.include?("gpt-5") || 
-                                  current_model.to_s.downcase.include?("gpt5") || 
-                                  current_model.to_s.include?("gpt-4.1") ||
-                                  current_model.to_s.include?("chatgpt-4o"))
+              # Skip for models that emit proper delta events (configured in ModelSpec)
+              if current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)
                 if CONFIG["EXTRA_LOGGING"]
                   STDERR.puts "[OpenAI Streaming] Skipping response.in_progress for model: #{current_model}"
                 end

@@ -72,7 +72,46 @@ You can override specific parameters of existing models without redefining the e
 
 - **tool_capability**: `boolean` - Whether the model supports function calling
 - **vision_capability**: `boolean` - Whether the model can process images
-- **reasoning_effort**: `[options_array, default]` - For models with thinking/reasoning modes
+
+### Provider-Specific Thinking/Reasoning Properties
+
+#### OpenAI
+- **reasoning_effort**: `[options_array, default]` - Controls reasoning intensity
+  - Example: `[["minimal", "low", "medium", "high"], "low"]`
+  - Used by: GPT-5 series, o1 models
+
+#### Claude (Anthropic)
+- **thinking_budget**: `{min, default, max}` - Token budget for thinking
+  - Example: `{"min": 1024, "default": 10000, "max": null}`
+  - Used by: Claude Opus 4, Claude Sonnet 4, Claude 3.7 Sonnet
+- **supports_thinking**: `boolean` - Indicates thinking support
+
+#### Gemini (Google)
+- **thinking_budget**: `{min, max, can_disable, presets}` - Thinking with presets
+  - Example with presets for reasoning_effort mapping:
+    ```json
+    {
+      "min": 128,
+      "max": 32768,
+      "can_disable": false,
+      "presets": {
+        "minimal": 128,
+        "low": 5000,
+        "medium": 20000,
+        "high": 28000
+      }
+    }
+    ```
+
+#### xAI (Grok)
+- **reasoning_effort**: `[options_array, default]` - Grok-3 models only
+  - Example: `[["low", "high"], "low"]`
+  - Note: NOT supported by Grok-4 models
+
+#### Other Providers
+- **supports_reasoning_content**: `boolean` - DeepSeek reasoner support
+- **is_reasoning_model**: `boolean` - Perplexity reasoning model flag
+- **supports_thinking**: `boolean` - Mistral/Cohere thinking support
 
 ## How It Works
 
@@ -110,3 +149,9 @@ docs/examples/models.json.example
 ```
 
 Copy this file to `~/monadic/config/models.json` and modify as needed.
+
+## Notes on Provider Properties
+
+- Each provider uses its native API terminology (e.g., OpenAI uses "reasoning_effort", Claude uses "thinking_budget")
+- Not all properties apply to all models within a provider
+- Custom models should follow the same property conventions as their provider

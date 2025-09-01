@@ -766,25 +766,25 @@
                 <select class="form-select form-select-sm me-3" size="1" id="model" ></select>
               </div>
 
-              <div class="col-3 ms-2">
+              <div class="col-auto ms-2">
                 <label class="form-label text-nowrap" for="reasoning-effort" data-i18n="ui.reasoningEffort">Reasoning Effort</label>
                 <div class="d-flex align-items-center gap-2">
-                  <select class="form-select form-select-sm" id="reasoning-effort">
+                  <select class="form-select form-select-sm" id="reasoning-effort" style="min-width: 180px;">
                     <option value="minimal">minimal</option>
                     <option value="low">low</option>
                     <option value="medium" selected>medium</option>
                     <option value="high">high</option>
                   </select>
+                  <small id="reasoning-description" class="text-muted" style="display: none; white-space: nowrap;"></small>
                 </div>
               </div>
+            </form>
 
-              <div class="col-3 ms-2" id="file-div" style="display: none;">
-                <div class="row">
-                  <div class="col-auto">
-                    <label class="form-label" for="pdf-import" data-i18n="ui.pdfToDb">PDF → DB</label>
-                    <div><button class="btn btn-sm btn-warning text-nowrap" id="pdf-import" data-i18n="ui.importFile"><i class="fas fa-file"></i> Import File</button></div>
-                  </div>
-                </div>
+            <!-- PDF Navigator Import Button - Separate Row -->
+            <form class="row my-2" id="file-import-row" style="display: none;">
+              <div class="col-auto">
+                <label class="form-label" for="pdf-import" data-i18n="ui.pdfToDb">PDF → DB</label>
+                <button class="btn btn-sm btn-warning text-nowrap" id="pdf-import" data-i18n="ui.importFile"><i class="fas fa-file"></i> Import File</button>
               </div>
             </form>
 
@@ -1036,7 +1036,7 @@
           </div>
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
-            <p><strong data-i18n="ui.messageLabel">Message:</strong> <span id="messageToDelete" style="font-weight: normal; color: #777;"></span></p>
+            <p id="messageToDelete" style="color: #777;"></p>
           </div>
           <div class="modal-footer flex-column align-items-stretch">
             <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
@@ -1246,6 +1246,9 @@
     <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
 
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/reasoning-mapper.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/reasoning-labels.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/reasoning-ui-manager.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/model_loader.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/version-utils.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>

@@ -72,7 +72,46 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 
 - **tool_capability**: `boolean` - モデルが関数呼び出しをサポートするか
 - **vision_capability**: `boolean` - モデルが画像を処理できるか
-- **reasoning_effort**: `[オプション配列, デフォルト値]` - 思考/推論モードを持つモデル用
+
+### プロバイダ固有の思考/推論プロパティ
+
+#### OpenAI
+- **reasoning_effort**: `[オプション配列, デフォルト値]` - 推論の強度を制御
+  - 例：`[["minimal", "low", "medium", "high"], "low"]`
+  - 対象：GPT-5シリーズ、o1モデル
+
+#### Claude (Anthropic)
+- **thinking_budget**: `{min, default, max}` - 思考用のトークン予算
+  - 例：`{"min": 1024, "default": 10000, "max": null}`
+  - 対象：Claude Opus 4、Claude Sonnet 4、Claude 3.7 Sonnet
+- **supports_thinking**: `boolean` - 思考機能のサポート
+
+#### Gemini (Google)
+- **thinking_budget**: `{min, max, can_disable, presets}` - プリセット付き思考設定
+  - reasoning_effortマッピング用プリセットの例：
+    ```json
+    {
+      "min": 128,
+      "max": 32768,
+      "can_disable": false,
+      "presets": {
+        "minimal": 128,
+        "low": 5000,
+        "medium": 20000,
+        "high": 28000
+      }
+    }
+    ```
+
+#### xAI (Grok)
+- **reasoning_effort**: `[オプション配列, デフォルト値]` - Grok-3モデルのみ
+  - 例：`[["low", "high"], "low"]`
+  - 注意：Grok-4モデルではサポートされません
+
+#### その他のプロバイダ
+- **supports_reasoning_content**: `boolean` - DeepSeek reasonerサポート
+- **is_reasoning_model**: `boolean` - Perplexity推論モデルフラグ
+- **supports_thinking**: `boolean` - Mistral/Cohere思考サポート
 
 ## 動作の仕組み
 
@@ -110,3 +149,9 @@ docs/examples/models.json.example
 ```
 
 このファイルを`~/monadic/config/models.json`にコピーして、必要に応じて修正してください。
+
+## プロバイダプロパティに関する注意事項
+
+- 各プロバイダはネイティブAPIの用語を使用します（例：OpenAIは"reasoning_effort"、Claudeは"thinking_budget"）
+- すべてのプロパティがプロバイダ内のすべてのモデルに適用されるわけではありません
+- カスタムモデルはそのプロバイダと同じプロパティ規則に従う必要があります

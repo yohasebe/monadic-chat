@@ -60,7 +60,12 @@ describe('Model Specification', () => {
       // Check essential parameters
       expect(model.context_window).toEqual([1, 1000000]);
       expect(model.max_output_tokens).toEqual([[1, 64000], 64000]);
-      expect(model.reasoning_effort).toEqual([["none", "minimal", "low", "medium", "high"], "low"]);
+      expect(model.thinking_budget).toEqual({
+        min: 1024,
+        default: 10000,
+        max: null
+      });
+      expect(model.supports_thinking).toBe(true);
       expect(model.tool_capability).toBe(true);
       expect(model.vision_capability).toBe(true);
     });

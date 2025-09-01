@@ -32,9 +32,7 @@ Monadicモードは統一インターフェースを通じてすべてのプロ�
 - **DeepSeek/Perplexity** - JSONフォーマットサポート
 - **Ollama** - `format: "json"`とシステム指示
 
-!> **重要**: ツール/関数呼び出しを多用するアプリケーション（Jupyter NotebookやCode Interpreterなど）では、一部のプロバイダーで`monadic: false`が必要です。OpenAIのみがMonadicモードとツールの広範な使用を正常に組み合わせることができます。
-
-?> **Claude固有の注意**: Claudeの思考モード（`reasoning_effort`）は`thinking`ブロックを生成し、JSON構造を妨げます。Monadicモードを強制すると、ClaudeはJSONをマークダウンのコードブロックで囲む傾向があります。ツール多用アプリケーションでは、Claudeは常に`monadic: false`を使用してください。
+!> **重要**: ツール/関数呼び出しを多用するアプリケーション（Jupyter NotebookやCode Interpreterなど）では、一部のプロバイダーで最適な動作のために`monadic: false`が必要な場合があります。
 
 ## アーキテクチャ
 

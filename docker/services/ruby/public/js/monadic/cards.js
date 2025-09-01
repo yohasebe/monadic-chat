@@ -251,6 +251,11 @@ function attachEventListeners($card) {
         "messageIndex": messageIndex
       });
       
+      // Get message text for preview
+      const messageText = $parentCard.find(".card-body").text().trim();
+      const truncatedText = messageText.length > 100 ? messageText.substring(0, 100) + "..." : messageText;
+      $("#messageToDelete").text(truncatedText);
+      
       // Configure modal based on message position
       if (isLastMessage) {
         // If it's the last message, hide the "Delete this and below" button since there's nothing below

@@ -1249,25 +1249,18 @@ $(function () {
     }
 
     let model;
-    let models = [];
-
-    if (apps[appValue]["models"] && apps[appValue]["models"].length > 0) {
-      let models_text = apps[appValue]["models"];
-      models = JSON.parse(models_text);
-    }
+    // Use shared utility function to get models for the app
+    let models = getModelsForApp(apps[appValue]);
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
       $("#model").html(modelList);
-      // For Ollama apps without a specific model, select the first available model
-      // For other apps, select models[1] if available (to skip the disabled option)
-      const isOllama = apps[appValue]["group"].toLowerCase() === "ollama";
-      if (isOllama && !apps[appValue]["model"]) {
-        model = models[0]; // Select first available model for Ollama
-      } else {
-        model = models[1] || models[0]; // Select second model if available, otherwise first
-      }
+      
+      // Use shared utility function to get default model
+      model = getDefaultModelForApp(apps[appValue], models);
+      
+      // Override with params if available
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
       }

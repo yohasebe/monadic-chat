@@ -2734,45 +2734,8 @@ function connect_websocket(callback) {
         
         const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
 
-        let models = [];
-        if (currentApp) {
-          // Get all available models for the provider
-          const isOpenAI = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
-          
-          if (isOpenAI) {
-            // For OpenAI apps, get all OpenAI models from modelSpec
-            const allOpenAIModels = Object.keys(window.modelSpec || {}).filter(model => {
-              // OpenAI models include: gpt-*, o1*, o3*, chatgpt-*
-              return model.startsWith('gpt-') || 
-                     model.startsWith('o1') || 
-                     model.startsWith('o3') || 
-                     model.startsWith('chatgpt-');
-            });
-            
-            // If MDSL specifies models, merge them with all OpenAI models
-            if (currentApp["models"] && currentApp["models"].length > 0) {
-              let mdslModels = JSON.parse(currentApp["models"]);
-              // Merge MDSL models with all OpenAI models, removing duplicates
-              models = [...new Set([...mdslModels, ...allOpenAIModels])];
-            } else if (currentApp["model"]) {
-              // If only a single model is specified, still show all OpenAI models
-              models = allOpenAIModels;
-            } else {
-              // No model specified, show all OpenAI models
-              models = allOpenAIModels;
-            }
-          } else {
-            // For non-OpenAI providers, use the existing logic
-            if (currentApp["models"] && currentApp["models"].length > 0) {
-              let models_text = currentApp["models"]
-              models = JSON.parse(models_text);
-            } else if (currentApp["model"]) {
-              models = [currentApp["model"]];
-            } else {
-              models = [];
-            }
-          }
-        }
+        // Use shared utility function to get models for the app
+        let models = currentApp ? getModelsForApp(currentApp) : [];
 
         if (currentApp) {
           let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
@@ -2780,21 +2743,11 @@ function connect_websocket(callback) {
           $("#model").html(modelList);
         }
         
-        // Select the appropriate model
+        // Select the appropriate model using shared utility function
         let model;
         if (currentApp) {
-          const isOllama = currentApp["group"] && currentApp["group"].toLowerCase() === "ollama";
-          
-          if (currentApp["model"] && models.includes(currentApp["model"])) {
-            // If app has a specific model set and it's available, use it
-            model = currentApp["model"];
-          } else if (isOllama && models.length > 0) {
-            // For Ollama apps without specific model, select first available
-            model = models[0];
-          } else if (models.length > 0) {
-            // For other apps, select the first model
-            model = models[0];
-          }
+          model = getDefaultModelForApp(currentApp, models);
+        }
           
           // Extract provider name from current app group using shared function if available
           let provider;

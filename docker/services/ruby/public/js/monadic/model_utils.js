@@ -1,6 +1,75 @@
 // Model utility functions for handling provider-specific model lists
 
 /**
+ * Provider-specific configuration for model selection behavior
+ * This allows customization without hardcoding in helper files
+ */
+const PROVIDER_MODEL_BEHAVIOR = {
+  openai: {
+    showAllModels: true,  // Show all available models from modelSpec
+    modelPattern: /^(gpt-|o[13]|chatgpt-)/  // Pattern to identify provider's models
+  },
+  anthropic: {
+    showAllModels: false  // Show only MDSL-specified models
+  },
+  claude: {
+    showAllModels: false  // Alias for anthropic
+  },
+  gemini: {
+    showAllModels: false
+  },
+  google: {
+    showAllModels: false  // Alias for gemini
+  },
+  cohere: {
+    showAllModels: false
+  },
+  mistral: {
+    showAllModels: false
+  },
+  perplexity: {
+    showAllModels: false
+  },
+  deepseek: {
+    showAllModels: false
+  },
+  xai: {
+    showAllModels: false
+  },
+  grok: {
+    showAllModels: false  // Alias for xai
+  },
+  ollama: {
+    showAllModels: false,
+    selectFirstModel: true  // Special behavior for Ollama
+  }
+};
+
+/**
+ * Get provider key from app group
+ * @param {String} group - The app group string
+ * @returns {String} The provider key for configuration lookup
+ */
+function getProviderKey(group) {
+  if (!group) return 'default';
+  
+  const groupLower = group.toLowerCase();
+  
+  // Map various group names to provider keys
+  if (groupLower === 'openai') return 'openai';
+  if (groupLower.includes('anthropic') || groupLower.includes('claude')) return 'anthropic';
+  if (groupLower.includes('gemini') || groupLower.includes('google')) return 'gemini';
+  if (groupLower.includes('cohere')) return 'cohere';
+  if (groupLower.includes('mistral')) return 'mistral';
+  if (groupLower.includes('perplexity')) return 'perplexity';
+  if (groupLower.includes('deepseek')) return 'deepseek';
+  if (groupLower.includes('grok') || groupLower.includes('xai')) return 'xai';
+  if (groupLower.includes('ollama')) return 'ollama';
+  
+  return 'default';
+}
+
+/**
  * Get all available models for a given app, considering provider-specific behavior
  * @param {Object} appConfig - The app configuration object
  * @returns {Array} Array of model names
@@ -8,32 +77,29 @@
 function getModelsForApp(appConfig) {
   if (!appConfig) return [];
   
-  const isOpenAI = appConfig["group"] && appConfig["group"].toLowerCase() === "openai";
+  const providerKey = getProviderKey(appConfig["group"]);
+  const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || { showAllModels: false };
   
-  if (isOpenAI) {
-    // For OpenAI apps, get all OpenAI models from modelSpec
-    const allOpenAIModels = Object.keys(window.modelSpec || {}).filter(model => {
-      // OpenAI models include: gpt-*, o1*, o3*, chatgpt-*
-      return model.startsWith('gpt-') || 
-             model.startsWith('o1') || 
-             model.startsWith('o3') || 
-             model.startsWith('chatgpt-');
+  if (providerConfig.showAllModels) {
+    // Get all models from modelSpec that match the provider's pattern
+    const allProviderModels = Object.keys(window.modelSpec || {}).filter(model => {
+      return providerConfig.modelPattern && providerConfig.modelPattern.test(model);
     });
     
-    // If MDSL specifies models, merge them with all OpenAI models
+    // If MDSL specifies models, merge them with all provider models
     if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
-      // Merge MDSL models with all OpenAI models, removing duplicates
-      return [...new Set([...mdslModels, ...allOpenAIModels])];
+      // Merge MDSL models with all provider models, removing duplicates
+      return [...new Set([...mdslModels, ...allProviderModels])];
     } else if (appConfig["model"]) {
-      // If only a single model is specified, still show all OpenAI models
-      return allOpenAIModels;
+      // If only a single model is specified, still show all provider models
+      return allProviderModels;
     } else {
-      // No model specified, show all OpenAI models
-      return allOpenAIModels;
+      // No model specified, show all provider models
+      return allProviderModels;
     }
   } else {
-    // For non-OpenAI providers, use MDSL-specified models only
+    // For providers that don't show all models, use MDSL-specified models only
     if (appConfig["models"] && appConfig["models"].length > 0) {
       return JSON.parse(appConfig["models"]);
     } else if (appConfig["model"]) {
@@ -53,13 +119,17 @@ function getModelsForApp(appConfig) {
 function getDefaultModelForApp(appConfig, availableModels) {
   if (!appConfig || !availableModels || availableModels.length === 0) return null;
   
-  const isOpenAI = appConfig["group"] && appConfig["group"].toLowerCase() === "openai";
-  const isOllama = appConfig["group"] && appConfig["group"].toLowerCase() === "ollama";
+  const providerKey = getProviderKey(appConfig["group"]);
+  const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || {};
   
-  if (isOllama && !appConfig["model"]) {
+  // Check for Ollama's special behavior
+  if (providerConfig.selectFirstModel && !appConfig["model"]) {
     return availableModels[0]; // Select first available model for Ollama
-  } else if (isOpenAI) {
-    // For OpenAI, prefer the first MDSL model if available
+  }
+  
+  // Check if provider shows all models (like OpenAI)
+  if (providerConfig.showAllModels) {
+    // Prefer the first MDSL model if available
     if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
       return mdslModels[0]; // Use first MDSL model as default
@@ -69,7 +139,7 @@ function getDefaultModelForApp(appConfig, availableModels) {
       return availableModels[0]; // Fallback to first available
     }
   } else {
-    // For other providers
+    // For providers that show only MDSL models
     if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
       return mdslModels[0];

@@ -6,18 +6,17 @@ RSpec.describe "GPT-5 Responses API" do
       gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano"]
       
       gpt5_models.each do |model|
-        # These models should be in RESPONSES_API_MODELS constant
-        expect(OpenAIHelper::RESPONSES_API_MODELS).to include(model)
+        # Spec-driven: GPT-5 uses Responses API per model_spec
+        expect(Monadic::Utils::ModelSpec.responses_api?(model)).to be true
       end
     end
 
-    it "identifies GPT-5 models as reasoning models" do
+    it "identifies GPT-5 models as reasoning models (spec-driven)" do
       gpt5_models = ["gpt-5", "gpt-5-mini", "gpt-5-nano"]
       
       gpt5_models.each do |model|
-        # Check if model matches reasoning model pattern
-        is_reasoning = OpenAIHelper::REASONING_MODELS.any? { |pattern| model.include?(pattern) }
-        expect(is_reasoning).to be true
+        # Spec-driven: reasoning models have reasoning_effort defined
+        expect(Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)).not_to be_nil
       end
     end
   end

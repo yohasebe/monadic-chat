@@ -7,6 +7,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-2025-08-07": {
@@ -16,6 +18,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-mini": {
@@ -25,6 +29,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-mini-2025-08-07": {
@@ -34,6 +40,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-nano": {
@@ -43,6 +51,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-nano-2025-08-07": {
@@ -52,6 +62,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "api_type": "responses",
+    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   // gpt-4.1 models
@@ -64,6 +76,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_web_search": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-4.1-2025-04-14": {
@@ -75,6 +89,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_web_search": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-4.1-mini": {
@@ -86,6 +102,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_web_search": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-4.1-mini-2025-04-14": {
@@ -97,6 +115,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_web_search": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-4.1-nano": {
@@ -108,6 +128,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-4.1-nano-2025-04-14": {
@@ -119,6 +140,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "api_type": "responses",
     "skip_in_progress_events": true
   },
   "gpt-5-chat-latest": {
@@ -211,42 +233,59 @@ const modelSpec = {
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_streaming": false,
+    "latency_tier": "slow"
   },
   "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true
   },
   "o4-mini-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true
   },
   "o3": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-mini": {
     "context_window" : [1, 200000],
@@ -265,27 +304,27 @@ const modelSpec = {
   "o1": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "tool_capability": true,
+    "tool_capability": false,
     "vision_capability": false
   },
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
+    "tool_capability": false,
     "vision_capability": false
   },
   "o1-mini": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
-    "tool_capability": true,
+    "tool_capability": false,
     "vision_capability": false
   },
   "o1-mini-2024-09-12": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
+    "tool_capability": false,
     "vision_capability": false
   },
   "o1-pro": {
@@ -293,14 +332,16 @@ const modelSpec = {
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_streaming": false
   },
   "o1-pro-2025-03-19": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_streaming": false
   },
   // O3 series models
   "o3": {
@@ -334,7 +375,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "supports_streaming": false
   },
   "o3-pro-2025-06-10": {
     "context_window": [1, 200000],

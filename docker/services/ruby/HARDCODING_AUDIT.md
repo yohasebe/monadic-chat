@@ -23,12 +23,10 @@ if current_model.to_s.include?("gpt-5") ||
 **Impact**: Streaming responses show duplicate characters if not handled
 **Recommendation**: Move to model_spec.js with `streaming_duplicate_fix: true` flag
 
-#### Responses API Model Detection (Lines 61, 95, 111)
-```ruby
-"gpt-5"  # Hardcoded in RESPONSES_API_MODELS array
-```
-**Impact**: New GPT-5 variants won't use Responses API automatically
-**Recommendation**: Use model capability flags in model_spec.js
+#### Responses API Model Detection (Migrated)
+Previously relied on a hardcoded `RESPONSES_API_MODELS` array. This has been removed.
+Now determined via `model_spec.js` (`api_type: "responses"`) and consumed by
+`Monadic::Utils::ModelSpec.responses_api?(model)`.
 
 #### Verbosity Support (Lines 488, 1145, 1163)
 ```ruby
@@ -39,14 +37,22 @@ if verbosity && model.to_s.include?("gpt-5")
 
 ### 🟡 Medium Risk Hardcoding
 
-#### Default Model Lists
-```ruby
-# Various arrays throughout the file
-RESPONSES_API_MODELS = ["gpt-5", ...]
-RESPONSES_API_WEBSEARCH_MODELS = ["gpt-5", ...]
-```
-**Impact**: Manual updates required for new models
-**Recommendation**: Generate from model_spec.js at runtime
+#### Default Model Lists (In Progress → Reduced)
+The `RESPONSES_API_MODELS`, `RESPONSES_API_WEBSEARCH_MODELS`, and `SEARCH_MODELS` arrays have been removed.
+Web search and endpoint selection now consult model_spec (`supports_web_search`, `api_type`).
+
+#### Reasoning Models (Migrated)
+Previously a `REASONING_MODELS` list was used for partial-match detection.
+Now reasoning capability is determined by the presence of `reasoning_effort` in `model_spec.js`.
+
+#### Slow Models (Migrated)
+Previously a `SLOW_MODELS` array governed when to display a long-running notice.
+Now this is driven by `latency_tier: "slow"` (or `is_slow_model: true`) in `model_spec.js`.
+
+#### Non-Tool Models (Migrated)
+Previously an explicit `NON_TOOL_MODELS` list enumerated models without tool support.
+Now this is driven by `tool_capability: false` in `model_spec.js` and consulted via
+`ModelSpec.get_model_property(model, "tool_capability")`.
 
 ## Claude Helper (lib/monadic/adapters/vendors/claude_helper.rb)
 

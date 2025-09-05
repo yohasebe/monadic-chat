@@ -143,6 +143,10 @@ module Monadic
         def supports_web_search?(model_name)
           get_model_property(model_name, "supports_web_search") == true
         end
+
+        def responses_api?(model_name)
+          get_model_property(model_name, "api_type") == "responses"
+        end
         
         def supports_parallel_function_calling?(model_name)
           get_model_property(model_name, "supports_parallel_function_calling") == true

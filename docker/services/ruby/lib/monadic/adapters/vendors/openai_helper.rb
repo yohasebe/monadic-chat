@@ -55,68 +55,15 @@ module OpenAIHelper
     "image"
   ]
 
-  # partial string match
-  REASONING_MODELS = [
-    "o3",
-    "o4",
-    "o1",
-    "gpt-5",
-    "gpt-5-mini",
-    "gpt-5-nano"
-    # Note: gpt-5-chat-latest excluded as it doesn't support reasoning_effort
-  ]
+  # Reasoning detection is spec-driven (see model_spec: reasoning_effort)
 
-  # complete string match
-  NON_TOOL_MODELS = [
-    "o1",
-    "o1-2024-12-17",
-    "o1-mini",
-    "o1-mini-2024-09-12",
-    "o1-preview",
-    "o1-preview-2024-09-12"
-  ]
+  # Tool capability is determined by model_spec (tool_capability: true/false)
 
-  # complete string match
-  SEARCH_MODELS = [
-    "gpt-4.1",
-    "gpt-4.1-mini",
-  ]
 
-  # complete string match
-  NON_STREAM_MODELS = [
-    "o1-pro",
-    "o1-pro-2025-03-19",
-    "o3-pro"
-  ]
+  # Streaming support is spec-driven (supports_streaming: true/false)
   
-  # Models that require the new responses API endpoint
-  RESPONSES_API_MODELS = [
-    "o3-pro",
-    "o3",
-    "o4-mini",
-    "gpt-5",
-    "gpt-5-mini",
-    "gpt-5-nano"
-  ]
+  # Latency notification is spec/config-driven (e.g., model_spec: latency_tier: "slow")
   
-  # Models that are known to be slow and need a "This may take a while" message
-  SLOW_MODELS = [
-    "o3-pro",
-    "o3"
-  ]
-  
-  
-  # Models that use responses API for web search
-  RESPONSES_API_WEBSEARCH_MODELS = [
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-5",
-    "gpt-5-mini",
-    "gpt-5-nano",
-    "o3",
-    "o3-pro",
-    "o4-mini"
-  ]
 
   # Native OpenAI web search tool configuration for responses API
   NATIVE_WEBSEARCH_TOOL = {
@@ -360,8 +307,8 @@ module OpenAIHelper
     # Store the original model for comparison later
     original_user_model = model
     
-    # Check if original model requires responses API
-    use_responses_api = RESPONSES_API_MODELS.include?(original_user_model)
+    # Check if original model requires Responses API via model_spec
+    use_responses_api = Monadic::Utils::ModelSpec.responses_api?(original_user_model)
     
     # Check if web search is enabled in settings
     # Handle both string and boolean values for websearch parameter
@@ -370,11 +317,11 @@ module OpenAIHelper
     # Check if web search is enabled
     # OpenAI web search requires Responses API according to official documentation
     # https://platform.openai.com/docs/guides/tools-web-search
-    use_responses_api_for_websearch = websearch_enabled && 
-                                     RESPONSES_API_WEBSEARCH_MODELS.include?(model)
+    use_responses_api_for_websearch = websearch_enabled &&
+                                      Monadic::Utils::ModelSpec.supports_web_search?(model)
     
     DebugHelper.debug("OpenAI web search check - websearch_enabled: #{websearch_enabled}, model: #{model}, use_responses_api_for_websearch: #{use_responses_api_for_websearch}", category: :api, level: :debug)
-    DebugHelper.debug("RESPONSES_API_WEBSEARCH_MODELS: #{RESPONSES_API_WEBSEARCH_MODELS.inspect}", category: :api, level: :debug)
+    # Model-spec driven; no local hardcoded lists
     
     # OpenAI only uses native web search, no Tavily support
     
@@ -440,19 +387,16 @@ module OpenAIHelper
       "model" => model,
     }
 
-    # Check if model supports reasoning_effort via ModelSpec
-    reasoning_model = if Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
-                        true
-                      else
-                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ model }
-                      end
-    non_stream_model = NON_STREAM_MODELS.any? { |non_stream_model| /\b#{non_stream_model}\b/ =~ model }
-    non_tool_model = NON_TOOL_MODELS.any? { |non_tool_model| /\b#{non_tool_model}\b/ =~ model }
-    search_model = SEARCH_MODELS.any? { |search_model| /\b#{search_model}\b/ =~ model }
+    # Check if model supports reasoning via model_spec (reasoning_effort present)
+    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
+    non_stream_model = (Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming") == false)
+    tool_capability = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") == true
+    non_tool_model = !tool_capability
+    supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model)
     
     # If websearch is enabled but the model doesn't support it, disable websearch
     # (No fallback - let the model work without web search capability)
-    if websearch_enabled && !search_model && !use_responses_api
+    if websearch_enabled && !supports_websearch && !use_responses_api
       websearch_enabled = false
       
       # Send system notification that web search is not available
@@ -483,7 +427,7 @@ module OpenAIHelper
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
       body.delete("max_completion_tokens")
-    elsif search_model
+    elsif supports_websearch
       body.delete("n")
       body.delete("temperature")
       body.delete("presence_penalty")
@@ -510,8 +454,8 @@ module OpenAIHelper
     end
 
     # GPT-5 models can use tools even though they are reasoning models
-    # Only skip tools for explicit non-tool models
-    # For GPT-5 and other reasoning models using Responses API, keep tools even on tool responses
+    # Only skip tools when the model_spec marks tool_capability as false
+    # For reasoning models using Responses API, keep tools even on tool responses
     skip_tools = non_tool_model || (role == "tool" && !use_responses_api)
     
     if skip_tools
@@ -843,21 +787,28 @@ module OpenAIHelper
     end
 
     if messages_containing_img
-      # Check if the current model has vision capability from model_spec
-      unless obj["vision_capability"]
-        original_model = body["model"]
-        body["model"] = "gpt-4.1"
-        body.delete("reasoning_effort")
-        
-        # Send system notification about model switch
-        if block && original_model != body["model"]
-          system_msg = {
-            "type" => "system_info",
-            "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
-          }
-          block.call system_msg
-        end
+      # Remove automatic fallback to a vision-capable model.
+      # Instead, if the chosen model does not support vision, return an explicit error.
+      supports_vision = !!obj["vision_capability"]
+      begin
+        # Fallback check via app helper (returns model string if capable, else nil)
+        supports_vision ||= !!MonadicApp.check_vision_capability(body["model"]) if defined?(MonadicApp)
+      rescue StandardError
+        # If capability check fails, assume not supported and proceed to error below
       end
+
+      unless supports_vision
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "OpenAI",
+          message: "This model does not support image input (vision). Please select a vision-capable model.",
+          code: 400
+        )
+        error_res = { "type" => "error", "content" => formatted_error }
+        block&.call error_res
+        return [error_res]
+      end
+
+      # Clean up any incompatible params when sending images
       body.delete("stop")
     end
 
@@ -878,8 +829,10 @@ module OpenAIHelper
       # Use responses API for o3-pro
       target_uri = "#{API_ENDPOINT}/responses"
       
-      # Send processing status only for long-running models (o3-pro, o3), not for fast models like GPT-5
-      if block && SLOW_MODELS.include?(original_user_model)
+      # Send processing status only for long-running models
+      is_slow = Monadic::Utils::ModelSpec.get_model_property(original_user_model, "latency_tier") == "slow" ||
+                Monadic::Utils::ModelSpec.get_model_property(original_user_model, "is_slow_model") == true
+      if block && is_slow
         processing_msg = {
           "type" => "processing_status",
           "content" => "This may take a while."
@@ -1383,12 +1336,8 @@ module OpenAIHelper
     end
 
     obj = session[:parameters]
-    # Special handling for gpt-5-chat-latest which doesn't support reasoning_effort
-    reasoning_model = if obj["model"] == "gpt-5-chat-latest"
-                        false
-                      else
-                        REASONING_MODELS.any? { |reasoning_model| /\b#{reasoning_model}\b/ =~ obj["model"] }
-                      end
+    # Determine reasoning model solely via model_spec
+    reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(obj["model"], "reasoning_effort")
 
     buffer = String.new
     texts = {}
@@ -2299,7 +2248,7 @@ module OpenAIHelper
   
   # Check if a model should use the Responses API
   def use_responses_api?(model)
-    RESPONSES_API_MODELS.include?(model)
+    Monadic::Utils::ModelSpec.responses_api?(model)
   end
   
   # Get a response by ID (for stateful conversations)

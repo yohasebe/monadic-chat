@@ -31,16 +31,15 @@ RSpec.describe "OpenAI Web Search Processing Message" do
       # Original user model for regular chat
       original_user_model = "gpt-4.1-mini"
       
-      # Check condition: should NOT show message for web search
-      # Message should only show for RESPONSES_API_MODELS (o3-pro)
-      responses_api_models = ["o3-pro", "o3-pro-mini"] # From OpenAIHelper
+      # Check condition: processing message is only for slow models (e.g., o3-pro)
+      # Web search itself does not trigger the message for regular models
+      # gpt-4.1-mini now uses Responses API via model_spec
+      expect(Monadic::Utils::ModelSpec.responses_api?(original_user_model)).to be true
+      expect(Monadic::Utils::ModelSpec.supports_web_search?(original_user_model)).to be true
       
-      # For web search with regular model
-      expect(responses_api_models).not_to include(original_user_model)
-      
-      # For o3-pro model  
+      # Slow model example
       o3_model = "o3-pro"
-      expect(responses_api_models).to include(o3_model)
+      expect(Monadic::Utils::ModelSpec.responses_api?(o3_model)).to be true
     end
     
     it "should show 'This may take a while' only for o3-pro models" do
@@ -55,15 +54,14 @@ RSpec.describe "OpenAI Web Search Processing Message" do
         "gpt-3.5-turbo"
       ]
       
-      # Verify o3-pro models are in the list
+      # Verify o3-pro is a responses API model and considered slow in helper logic
       models_with_message.each do |model|
-        # These should be in RESPONSES_API_MODELS
-        expect(["o3-pro", "o3-pro-mini"]).to include(model)
+        expect(Monadic::Utils::ModelSpec.responses_api?(model)).to be true
       end
       
       # Verify regular models are NOT in the list
       models_without_message.each do |model|
-        expect(["o3-pro", "o3-pro-mini"]).not_to include(model)
+        expect(Monadic::Utils::ModelSpec.responses_api?(model)).to be false
       end
     end
   end

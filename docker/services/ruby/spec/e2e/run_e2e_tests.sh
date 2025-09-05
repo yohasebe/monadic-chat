@@ -337,111 +337,28 @@ echo ""
 echo "Running E2E tests..."
 echo "===================="
 
+SUM_FMT="--format documentation"
+if [ "$SUMMARY_ONLY" = "1" ]; then
+  SUM_FMT="--format progress"
+fi
+SUM_ARGS="$SUM_FMT"
+
 case "$TEST_TARGET" in
-  "chat")
-    echo "Running Chat app tests only..."
-    bundle exec rspec spec/e2e/chat_workflow_spec.rb --format documentation --no-fail-fast
+  "jupyter_notebook"|"jupyter_grok")
+    echo "Running Jupyter (local ops) E2E..."
+    bundle exec rspec spec/e2e/jupyter_notebook_grok_spec.rb $SUM_ARGS --no-fail-fast
     ;;
-  "code_interpreter")
-    echo "Running Code Interpreter tests..."
-    bundle exec rspec spec/e2e/code_interpreter_spec.rb --format documentation --no-fail-fast
+  "monadic_context")
+    echo "Running Monadic context display E2E..."
+    bundle exec rspec spec/e2e/monadic_context_display_spec.rb $SUM_ARGS --no-fail-fast
     ;;
-  "code_interpreter_provider")
-    if [ -z "$TEST_PROVIDER" ]; then
-      echo "Error: Provider not specified"
-      exit 1
-    fi
-    echo "Running Code Interpreter tests for provider: $TEST_PROVIDER"
-    # Convert provider name to proper case
-    case "$TEST_PROVIDER" in
-      "openai")
-        PROVIDER_NAME="OpenAI"
-        ;;
-      "claude")
-        PROVIDER_NAME="Claude"
-        ;;
-      "gemini")
-        PROVIDER_NAME="Gemini"
-        ;;
-      "grok")
-        PROVIDER_NAME="Grok"
-        ;;
-      "mistral")
-        PROVIDER_NAME="Mistral"
-        ;;
-      "cohere")
-        PROVIDER_NAME="Cohere"
-        ;;
-      "deepseek")
-        PROVIDER_NAME="DeepSeek"
-        ;;
-      *)
-        # Fallback: capitalize first letter
-        PROVIDER_NAME=$(echo "$TEST_PROVIDER" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
-        ;;
-    esac
-    echo "Looking for test pattern: '$PROVIDER_NAME Provider'"
-    bundle exec rspec spec/e2e/code_interpreter_spec.rb --format documentation --no-fail-fast --example "$PROVIDER_NAME Provider"
-    ;;
-  "image_generator")
-    echo "Running Image Generator tests only..."
-    bundle exec rspec spec/e2e/image_generator_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "pdf_navigator")
-    echo "Running PDF Navigator tests only..."
-    bundle exec rspec spec/e2e/pdf_navigator_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "help")
-    echo "Running Monadic Help tests only..."
-    bundle exec rspec spec/e2e/monadic_help_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "ollama")
-    echo "Running Ollama provider tests only..."
-    bundle exec rspec spec/e2e/ollama_provider_spec.rb --format documentation --no-fail-fast
-    ;;
-  "research_assistant")
-    echo "Running Research Assistant tests only..."
-    bundle exec rspec spec/e2e/research_assistant_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "visual_web_explorer")
-    echo "Running Visual Web Explorer tests only..."
-    bundle exec rspec spec/e2e/visual_web_explorer_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "mermaid_grapher")
-    echo "Running Mermaid Grapher tests only..."
-    bundle exec rspec spec/e2e/mermaid_grapher_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "voice_chat")
-    echo "Running Voice Chat tests only..."
-    bundle exec rspec spec/e2e/voice_chat_real_audio_spec.rb --format documentation --no-fail-fast
-    ;;
-  "content_reader")
-    echo "Running Content Reader tests only..."
-    bundle exec rspec spec/e2e/content_reader_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "coding_assistant")
-    echo "Running Coding Assistant tests only..."
-    bundle exec rspec spec/e2e/coding_assistant_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "second_opinion")
-    echo "Running Second Opinion tests only..."
-    bundle exec rspec spec/e2e/second_opinion_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "jupyter_notebook")
-    echo "Running Jupyter Notebook tests only..."
-    bundle exec rspec spec/e2e/jupyter_notebook_workflow_spec.rb --format documentation --no-fail-fast
-    ;;
-  "chat_export_import")
-    echo "Running Chat Export/Import tests only..."
-    bundle exec rspec spec/e2e/chat_export_import_spec.rb --format documentation --no-fail-fast
-    ;;
-  "chat_plus_monadic_test")
-    echo "Running Chat Plus Monadic tests only..."
-    bundle exec rspec spec/e2e/chat_plus_monadic_test_spec.rb --format documentation --no-fail-fast
+  ""|"all")
+    echo "Running E2E wiring tests (no real APIs)..."
+    bundle exec rspec spec/e2e/jupyter_notebook_grok_spec.rb spec/e2e/monadic_context_display_spec.rb $SUM_ARGS --no-fail-fast
     ;;
   *)
-    echo "Running all E2E tests..."
-    bundle exec rspec spec/e2e --format documentation --no-fail-fast
+    echo "No E2E tests for target '$TEST_TARGET'."
+    echo "Real API scenarios moved to spec_api (see Rake tasks: spec_api:*)."
     ;;
 esac
 

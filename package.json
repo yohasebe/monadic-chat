@@ -3,7 +3,7 @@
   "productName": "Monadic Chat",
   "version": "1.0.0-beta.4",
   "description": "Launcher application responsible for starting and stopping Monadic Chat",
-  "main": "main.js",
+  "main": "app/main.js",
   "scripts": {
     "start": "electron .",
     "build:mac-arm64": "electron-builder --mac --arm64",
@@ -36,6 +36,7 @@
     "ws": "^8.17.0"
   },
   "build": {
+    "electronVersion": "32.1.2",
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [
@@ -49,7 +50,10 @@
       "icon": "icons/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "artifactName": "Monadic.Chat-${version}-${arch}.${ext}",
       "entitlements": "entitlements.mac.plist",
       "entitlementsInherit": "entitlements.mac.plist",
@@ -84,22 +88,15 @@
       }
     ],
     "files": [
-      "main.js",
-      "preload.js",
-      "webview-preload.js",
-      "mainScreen.js",
-      "index.html",
-      "settings.html",
-      "update-progress.html",
-      "update-splash.html",
-      "i18n.js",
-      "webUITranslations.js",
-      "translations/**/*",
+      "app/**/*",
       "icons/**/*"
     ],
     "afterSign": "notarize.js",
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "icon": "icons/icon.ico",
       "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
       "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06",
@@ -110,7 +107,10 @@
     },
     "linux": {
       "icon": "icons/monadic-chat.png",
-      "target": ["deb", "zip"],
+      "target": [
+        "deb",
+        "zip"
+      ],
       "artifactName": "monadic-chat_${version}_${arch}.${ext}",
       "defaultArch": "x64"
     }

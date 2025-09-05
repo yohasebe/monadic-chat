@@ -1,7 +1,7 @@
 require 'spec_helper'
 require_relative './e2e_helper'
 
-RSpec.describe "Monadic Apps Context Display", :e2e do
+RSpec.describe "Monadic Apps Context Display", :e2e, :no_api do
   include E2EHelper
   
   let(:base_url) { ENV['SERVER_URL'] || 'http://localhost:4567' }

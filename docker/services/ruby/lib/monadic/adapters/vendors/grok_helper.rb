@@ -172,48 +172,55 @@ module GrokHelper
       end
     end
     
-    # Add search_parameters if requested
+    # Add search parameters when requested (native Grok live search)
+    websearch = options["websearch"] == true || options["websearch"] == 'true'
     if options["search_parameters"]
       body["search_parameters"] = options["search_parameters"]
+    elsif websearch
+      body["search_parameters"] = { "mode" => "on", "return_citations" => true }
+      # Prefer a model that supports native search
+      model = GrokHelper.get_model_for_websearch(model, true)
+      body["model"] = model
     end
     
-    # Handle system message
+    # Handle system message (wrap as content parts)
     if options["system"]
       body["messages"] << {
         "role" => "system",
-        "content" => options["system"]
+        "content" => [ { "type" => "text", "text" => options["system"].to_s } ]
       }
     elsif options["custom_system_message"]
       body["messages"] << {
         "role" => "system",
-        "content" => options["custom_system_message"]
+        "content" => [ { "type" => "text", "text" => options["custom_system_message"].to_s } ]
       }
     elsif options["initial_prompt"]
       body["messages"] << {
         "role" => "system",
-        "content" => options["initial_prompt"]
+        "content" => [ { "type" => "text", "text" => options["initial_prompt"].to_s } ]
       }
     end
     
     # Add messages from options
     if options["messages"]
       options["messages"].each do |msg|
-        # Extract content with fallback to text
-        content = msg["content"] || msg["text"] || ""
-        
-        # Only add non-empty messages
-        if content.to_s.strip.length > 0
-          body["messages"] << {
-            "role" => msg["role"],
-            "content" => content
-          }
-        end
+        content_str = (msg["content"] || msg["text"] || "").to_s
+        next if content_str.strip.empty?
+        body["messages"] << {
+          "role" => msg["role"] || "user",
+          "content" => [ { "type" => "text", "text" => content_str } ]
+        }
       end
     elsif options["message"]
       body["messages"] << {
         "role" => "user",
-        "content" => options["message"]
+        "content" => [ { "type" => "text", "text" => options["message"].to_s } ]
       }
+    end
+
+    # Ensure at least one user message exists
+    if body["messages"].empty?
+      body["messages"] << { "role" => "user", "content" => [ { "type" => "text", "text" => "Hello" } ] }
     end
    
     # Set API endpoint
@@ -233,15 +240,26 @@ module GrokHelper
 
     # Process response
     if res && res.status && res.status.success?
-      parsed_response = JSON.parse(res.body)
-      return parsed_response.dig("choices", 0, "message", "content")
+      begin
+        parsed = JSON.parse(res.body.to_s)
+        if parsed.is_a?(Hash)
+          return parsed.dig("choices", 0, "message", "content") || parsed.dig("message", "content") || parsed["content"] || parsed.to_s
+        else
+          return parsed.to_s
+        end
+      rescue JSON::ParserError
+        return res.body.to_s
+      end
     else
-      error_response = (res && res.body) ? JSON.parse(res.body) : { "error" => "No response received" }
-      return Monadic::Utils::ErrorFormatter.api_error(
-        provider: "xAI",
-        message: error_response.dig("error", "message") || error_response["error"],
-        code: res.status.code
-      )
+      raw = res&.body.to_s
+      parsed_err = begin JSON.parse(raw) rescue raw end
+      msg = if parsed_err.is_a?(Hash)
+              parsed_err.dig("error","message") || parsed_err["error"] || parsed_err["message"] || raw
+            else
+              parsed_err.to_s
+            end
+      code = res&.status&.code
+      return Monadic::Utils::ErrorFormatter.api_error(provider: "xAI", message: msg, code: code)
     end
   rescue StandardError => e
     require_relative '../../utils/error_handler'

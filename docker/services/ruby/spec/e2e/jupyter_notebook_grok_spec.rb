@@ -4,7 +4,7 @@ require "spec_helper"
 require "json"
 require "fileutils"
 
-RSpec.describe "Jupyter Notebook Grok Integration", :e2e do
+RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
   let(:app_name) { "JupyterNotebookGrok" }
   let(:app) { 
     # Create a new instance of the app

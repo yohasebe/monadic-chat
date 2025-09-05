@@ -198,8 +198,8 @@ Monadic Chatのアプリケーションモードを選択します。"Standalone
 
 
 **Extra Logging** <br />
-詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは`~/monadic/log/extra.log`に保存されます。この設定は`~/monadic/config/env`ファイルで設定変数`MONADIC_DEBUG=api`を設定することと同等です。
+詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。この設定は概ね `MONADIC_DEBUG=api` を有効にすることに相当しますが、より細かなカテゴリやレベルの制御が必要な場合は、下記の統合デバッグ設定の変数を使用してください。
 
-注：より詳細なデバッグ制御には、`~/monadic/config/env`ファイルで統一デバッグシステムの設定変数を使用できます：
+注：より詳細なデバッグ制御には、`~/monadic/config/env` ファイルで統一デバッグシステムの設定変数を使用できます：
 - `MONADIC_DEBUG=api,embeddings`（カンマ区切りのカテゴリ）
 - `MONADIC_DEBUG_LEVEL=debug`（none, error, warning, info, debug, verbose）

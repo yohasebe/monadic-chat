@@ -237,70 +237,50 @@ module CohereHelper
     # Format messages for Cohere API
     messages = []
     
-    # Process messages
+    # Process messages (Cohere v2 expects content as an array of typed parts)
     if options["messages"]
-      # Add system message
+      # Add system message as a user preface to guide behavior (Cohere doesn't have strict system role semantics)
       system_msg = options["messages"].find { |m| m["role"].to_s.downcase == "system" }
       if system_msg
+        sys_text = system_msg["content"].to_s.strip
+        sys_text = "You are a helpful assistant." if sys_text.empty?
         messages << {
           "role" => "user",
-          "content" => "I want you to respond as if you were a user, not an assistant. " + system_msg["content"].to_s
+          "content" => [ { "type" => "text", "text" => sys_text } ]
         }
       end
-      
+
       # Process conversation messages
       options["messages"].each do |msg|
         next if msg["role"] == "system" # Skip system (already handled)
-        
-        # Map standard roles to Cohere roles
+
+        # Map roles
         role = case msg["role"].to_s.downcase
                when "user" then "user"
                when "assistant" then "assistant"
-               when "system" then "system"
                when "tool" then "tool"
-               else "user" # Default to user for unknown roles
+               else "user"
                end
-        
-        # Check if message has images (for vision-capable models)
+
+        # Build content parts
+        parts = []
+        text = (msg["content"] || msg["text"] || "").to_s
+        text = text.strip
+        parts << { "type" => "text", "text" => (text.empty? ? "(no content)" : text) }
+
+        # Add images if present
         if msg["images"] && msg["images"].any?
-          content = []
-          
-          # Add text content
-          text = msg["content"] || msg["text"] || ""
-          content << {
-            "type" => "text",
-            "text" => text.to_s
-          }
-          
-          # Add images
           msg["images"].each do |img|
-            if img["data"].start_with?("data:")
-              content << {
-                "type" => "image",
-                "image" => img["data"]
-              }
+            if img["data"].to_s.start_with?("data:")
+              parts << { "type" => "image", "image" => img["data"] }
             else
               mime_type = img["type"] || "image/jpeg"
-              content << {
-                "type" => "image",
-                "image" => "data:#{mime_type};base64,#{img["data"]}"
-              }
+              parts << { "type" => "image", "image" => "data:#{mime_type};base64,#{img["data"]}" }
             end
           end
-          
-          messages << {
-            "role" => role,
-            "content" => content
-          }
-        else
-          # Regular text-only message
-          content = msg["content"] || msg["text"] || ""
-          
-          messages << {
-            "role" => role,
-            "content" => content.to_s
-          }
         end
+
+        messages << { "role" => role, "content" => parts }
       end
     end
     

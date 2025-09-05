@@ -1,27 +1,21 @@
 # End-to-End (E2E) Tests
 
-This directory contains end-to-end tests that verify complete user workflows in Monadic Chat.
+This directory contains end-to-end tests that verify UI/server wiring and local workflows without calling real AI provider APIs. Real API coverage was moved to spec_api under spec/integration.
 
 ## Overview
 
-E2E tests simulate real user interactions with the system, testing the integration of all components including:
-- WebSocket communication
-- AI model interactions
-- File processing
-- Database operations
-- Container orchestration
+E2E tests simulate user interactions with the local server, focusing on:
+- WebSocket communication and message flow
+- Local tool execution and file operations
+- Basic app wiring and regressions
+Real provider API behavior is validated in spec/integration (see Rake tasks under spec_api).
 
 ## Test Structure
 
 ```
 e2e/
-├── chat_workflow_spec.rb              # Basic chat functionality
-├── code_interpreter_basic_spec.rb     # Core Code Interpreter tests
-├── code_interpreter_multi_provider_spec.rb  # Provider-specific tests
-├── code_interpreter_workflow_spec.rb  # Complex Code Interpreter workflows
-├── image_generator_workflow_spec.rb   # Image generation tests
-├── monadic_help_workflow_spec.rb      # Help system tests
-├── pdf_navigator_workflow_spec.rb     # PDF search tests
+├── jupyter_notebook_grok_spec.rb      # Jupyter local ops (no real API)
+├── monadic_context_display_spec.rb    # Monadic JSON display using mock responses
 ├── shared_examples/                   # Reusable test examples
 ├── e2e_helper.rb                      # WebSocket connection helpers
 ├── validation_helper.rb               # Flexible validation methods
@@ -30,9 +24,9 @@ e2e/
 
 ## Running Tests
 
-### All E2E Tests (automatic setup)
+### All E2E Tests (no real API)
 ```bash
-rake spec_e2e
+rake spec_e2e  # Does not hit real provider APIs
 ```
 
 ### Specific App Tests
@@ -44,12 +38,13 @@ rake spec_e2e:pdf_navigator      # PDF Navigator only
 rake spec_e2e:help              # Monadic Help only
 ```
 
-### Provider-Specific Tests
+Real API provider tests live in spec_api tasks. Examples:
 ```bash
-rake spec_e2e:code_interpreter_provider[openai]
-rake spec_e2e:code_interpreter_provider[claude]
-rake spec_e2e:code_interpreter_provider[gemini]
-# etc.
+# Non-media API smoke across providers (Ollama excluded by default)
+RUN_API=true PROVIDERS=openai,anthropic bundle exec rake spec_api:smoke
+
+# Media (image/voice) API tests
+RUN_API=true RUN_MEDIA=true bundle exec rake spec_api:media
 ```
 
 ### Manual Test Execution
@@ -61,11 +56,11 @@ bundle exec rspec spec/e2e/code_interpreter_workflow_spec.rb:23  # specific line
 
 ## Test Philosophy
 
-1. **Functional Validation**: Tests focus on whether features work, not exact output matching
-2. **Flexible Assertions**: Use pattern matching and existence checks rather than exact string comparisons
-3. **Provider Agnostic**: Tests adapt to different provider response formats
-4. **Minimal Redundancy**: Each test covers unique functionality
-5. **Clean Retry**: Custom retry mechanism provides clear feedback during retries
+1. **No real APIs**: E2E never invokes real provider endpoints
+2. **Functional wiring**: Validate message flow and UI/server glue
+3. **Minimal redundancy**: Real API scenarios belong to spec_api
+4. **Flexible assertions**: Prefer robust, behavior-oriented checks
+5. **Clean retry**: Custom retry helper available if needed
 
 ## Key Testing Patterns
 
@@ -86,9 +81,9 @@ skip "System error or tool failure" if system_error?(response)
 
 ## Prerequisites
 
-- Docker containers (automatically started by `rake spec_e2e`)
-- Server on localhost:4567 (automatically started if needed)
-- API keys configured in `~/monadic/config/env`
+- Docker containers for local services as needed (auto-started)
+- Server on `localhost:4567` (auto-started if needed)
+- No provider API keys required for E2E
 
 ## Writing New E2E Tests
 

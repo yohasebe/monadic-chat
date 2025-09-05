@@ -81,6 +81,7 @@ test_tts_input_*
 
 # Ignore internal development documentation
 CLAUDE.md
+AGENTS.md
 DEVELOPER_NOTES.md
 ARCHITECTURE_IMPROVEMENTS.md
 CLAUDE_DOCS/

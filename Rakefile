@@ -833,6 +833,81 @@ task :build do
   end
 end
 
+# API integration test tasks (real provider APIs)
+namespace :spec_api do
+  desc "Real API smoke (non-media). Use RUN_API=true PROVIDERS=openai,anthropic"
+  task :smoke do
+    ENV['RUN_API'] ||= 'true'
+    ENV['API_TIMEOUT'] ||= '90'
+    ENV['API_MAX_RETRIES'] ||= '0'
+    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
+    Dir.chdir("docker/services/ruby") do
+      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
+      sh "bundle exec rspec spec/integration/api_smoke #{fmt}"
+    end
+  end
+
+  desc "Real API media (image/video/voice). Use RUN_API=true RUN_MEDIA=true"
+  task :media do
+    ENV['RUN_API'] ||= 'true'
+    ENV['RUN_MEDIA'] ||= 'true'
+    ENV['API_TIMEOUT'] ||= '120'
+    ENV['API_MAX_RETRIES'] ||= '0'
+    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
+    Dir.chdir("docker/services/ruby") do
+      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
+      sh "bundle exec rspec spec/integration/api_media #{fmt}"
+    end
+  end
+
+  desc "Provider×App matrix (minimal checks). Use RUN_API=true PROVIDERS=..."
+  task :matrix do
+    ENV['RUN_API'] ||= 'true'
+    ENV['API_LOG'] ||= 'true'
+    ENV['API_TIMEOUT'] ||= '90'
+    ENV['API_MAX_RETRIES'] ||= '0'
+    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
+    Dir.chdir("docker/services/ruby") do
+      dir = 'spec/integration/provider_matrix'
+      if Dir.exist?(dir) && !Dir.glob(File.join(dir, '**', '*_spec.rb')).empty?
+        fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
+        sh "bundle exec rspec #{dir} #{fmt}"
+      else
+        puts "Matrix specs skipped (not defined)"
+      end
+    end
+  end
+
+  desc "Quick suite: CRITICAL apps × major providers (LEVEL_1)"
+  task :quick => [:smoke]
+
+  # Removed :daily and :weekly to simplify interface. Use :all or :full instead.
+
+  desc "All providers (excl. Ollama) × all non-media API tests"
+  task :all do
+    ENV['RUN_API'] ||= 'true'
+    ENV['API_LOG'] ||= 'true'
+    ENV['API_TIMEOUT'] ||= '90'
+    ENV['API_MAX_RETRIES'] ||= '0'
+    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
+    Dir.chdir("docker/services/ruby") do
+      # Run all specs tagged :api and not :media under integration
+      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
+      sh "bundle exec rspec spec/integration --tag api --tag ~media #{fmt}"
+      # Optionally run matrix if present (non-media only by tag)
+      dir = 'spec/integration/provider_matrix'
+      if Dir.exist?(dir) && !Dir.glob(File.join(dir, '**', '*_spec.rb')).empty?
+        sh "bundle exec rspec #{dir} --tag api --tag ~media #{fmt}"
+      else
+        puts "Matrix specs skipped (not defined)"
+      end
+    end
+  end
+
+  desc "Full suite: LEVEL_1+2+3 (media included)"
+  task :full => [:smoke, :matrix, :media]
+end
+
 # Test ruby code with rspec ./docker/services/ruby/spec
 task :spec do
   # Set environment variables for test database connection
@@ -887,18 +962,19 @@ task :spec do
   root_dir = __dir__
   
   # Run tests with the new structure
+  ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
   Dir.chdir("docker/services/ruby") do
+    fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
     puts "Running unit tests..."
-    sh "bundle exec rspec spec/unit --format documentation --no-fail-fast --no-profile"
-    
-    
+    sh "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
+
     # Run integration tests if available
     puts "\nRunning integration tests..."
-    sh "bundle exec rspec spec/integration --format documentation --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
-    
+    sh "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+
     # Run system tests
     puts "\nRunning system tests..."
-    sh "bundle exec rspec spec/system --format documentation --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
+    sh "bundle exec rspec spec/system #{fmt} --no-fail-fast --no-profile" rescue puts "System tests skipped (not available)"
   end
 ensure
   # Only stop pgvector if we started it
@@ -1213,6 +1289,68 @@ desc "Run Jupyter controller integration test"
 task :jupyter_integration do
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec/integration/jupyter_controller_integration_spec.rb --format documentation"
+  end
+end
+
+# Test summary utilities
+namespace :test_summary do
+  desc "Print a concise summary from the latest tmp/test_runs/*/rspec_report.json"
+  task :latest do
+    require 'json'
+    require 'time'
+    base = File.expand_path('tmp/test_runs', __dir__)
+    unless Dir.exist?(base)
+      puts "No test_runs directory found at #{base}"
+      next
+    end
+    # Find latest directory by timestamp
+    candidates = Dir.glob(File.join(base, '*/rspec_report.json')).sort
+    if candidates.empty?
+      puts "No rspec_report.json found under #{base}"
+      next
+    end
+    path = candidates.last
+    print_summary_from(path)
+  end
+
+  desc "Print a concise summary from a specific rspec_report.json path"
+  task :path, [:json_path] do |_t, args|
+    require 'json'
+    path = args[:json_path]
+    unless path && File.exist?(path)
+      puts "Provide a valid path: rake test_summary:path[./tmp/test_runs/<ts>/rspec_report.json]"
+      next
+    end
+    print_summary_from(path)
+  end
+
+  def print_summary_from(path)
+    require 'json'
+    data = JSON.parse(File.read(path))
+    c = data['counts'] || {}
+    dur = data['duration_seconds'] || 0
+    seed = data['seed']
+    puts "Counts: total=#{c['total']} passed=#{c['passed']} failed=#{c['failed']} pending=#{c['pending']} duration=#{dur}s seed=#{seed}"
+    examples = data['examples'] || []
+    failed = examples.select { |e| e['status'] == 'failed' }
+    pend   = examples.select { |e| e['status'] == 'pending' }
+    if failed.any?
+      puts "\nFailed (#{failed.size}):"
+      failed.first(50).each_with_index do |e, i|
+        loc = "#{e['file_path']}:#{e['line_number']}"
+        msg = e.dig('exception', 'message')
+        puts sprintf("%2d. %s — %s — %s", i+1, e['description'], loc, msg)
+      end
+    end
+    if pend.any?
+      puts "\nPending (#{pend.size}):"
+      pend.first(50).each_with_index do |e, i|
+        loc = "#{e['file_path']}:#{e['line_number']}"
+        msg = e['pending_message']
+        puts sprintf("%2d. %s — %s — %s", i+1, e['description'], loc, msg)
+      end
+    end
+    puts "\nSource: #{path}"
   end
 end
 

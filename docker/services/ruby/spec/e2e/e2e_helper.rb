@@ -41,6 +41,15 @@ require_relative 'validation_helper'
 module E2EHelper
   include E2ERetryHelper
   include ValidationHelper
+  
+  # No-op server control helpers for API-less E2E specs
+  def start_monadic_chat_server(*_args)
+    true
+  end
+  
+  def stop_monadic_chat_server(*_args)
+    true
+  end
   # Wait for server to be ready
   def wait_for_server(host: 'localhost', port: 4567, timeout: 30)
     Timeout.timeout(timeout) do
@@ -449,6 +458,17 @@ module E2EHelper
     else
       send_chat_message(ws_connection, "Hello", app: app_name, model: model, max_tokens: max_tokens)
       wait_for_response(ws_connection, max_tokens: max_tokens, timeout: timeout)
+    end
+  end
+end
+
+# By default, E2E は実 API を呼び出さない（役割分担: API は spec_api が担当）
+RSpec.configure do |config|
+  config.before(:each, type: :e2e) do |example|
+    # By default, block E2E tests to avoid real API usage.
+    # Allow tests explicitly marked with :no_api to run without RUN_API_E2E.
+    unless ENV['RUN_API_E2E'] == 'true' || example.metadata[:no_api]
+      skip 'E2E: 実API呼び出しはデフォルト無効です（RUN_API_E2E=true で有効化）。実APIテストは spec_api を使用してください。'
     end
   end
 end

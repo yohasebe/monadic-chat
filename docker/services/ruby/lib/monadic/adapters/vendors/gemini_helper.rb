@@ -376,6 +376,10 @@ module GeminiHelper
           end
         end
         
+        # Attempt a last-chance extraction before returning a parsing error
+        fallback_text = extract_text_from_response(parsed_response, 0, 5) rescue nil
+        return fallback_text if fallback_text && !fallback_text.to_s.strip.empty?
+
         # Unable to extract text from response - log the structure
         if CONFIG && CONFIG["EXTRA_LOGGING"]
           puts "GeminiHelper send_query ERROR: Unable to extract text. Response structure:"
@@ -502,7 +506,25 @@ module GeminiHelper
     end
     
     # Nothing found
+    # As a last resort, gather any string content from the structure
+    collected = []
+    gather_strings(response, collected)
+    text = collected.join(' ').strip
+    return text unless text.empty?
     nil
+  end
+
+  # Recursively collect all string leaves from a nested structure
+  def gather_strings(obj, out)
+    case obj
+    when String
+      s = obj.strip
+      out << s unless s.empty?
+    when Array
+      obj.each { |e| gather_strings(e, out) }
+    when Hash
+      obj.each_value { |v| gather_strings(v, out) }
+    end
   end
 
   # Gemini-specific websearch implementation using URL Context

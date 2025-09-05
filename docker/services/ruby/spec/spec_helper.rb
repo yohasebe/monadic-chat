@@ -61,6 +61,18 @@ require_relative 'support/custom_retry'
 
 # Load Docker container manager for automatic container startup
 require_relative 'support/docker_container_manager'
+require_relative 'support/text_response_assertions'
+
+# Load summary formatter (for compact summaries and artifacts)
+begin
+  require_relative 'support/summary_formatter'
+  RSpec.configure do |config|
+    # Always add summary formatter to generate artifacts; primary format still controlled by CLI
+    config.add_formatter Monadic::SummaryFormatter
+  end
+rescue LoadError
+  # Formatter is optional; tests can still run without it
+end
 
 # Basic RSpec configuration without mocks
 RSpec.configure do |config|
@@ -131,4 +143,5 @@ end
 # Make the helper available to all specs
 RSpec.configure do |config|
   config.include PostgreSQLConnectionHelper
+  config.include TextResponseAssertions
 end

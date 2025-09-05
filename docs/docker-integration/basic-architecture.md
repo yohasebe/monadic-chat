@@ -78,7 +78,7 @@ This container is used to operate a virtual web browser using Selenium for web s
 
 ### pgvector Container (`monadic-chat-pgvector-container`) :id=pgvector-container
 This container is used to store text embedding vector data on PostgreSQL for using pgvector.
-- **Port**: No exposed ports (internal use only)
+- **Port**: 5433 (host) → 5432 (container)
 - **Main features**: Vector similarity search, PDF content storage, help database
 - **Apps that use this container**: 
   - `PDF Navigator` - Stores and searches PDF content using embeddings

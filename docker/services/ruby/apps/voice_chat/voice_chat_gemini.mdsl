@@ -44,6 +44,7 @@ app "VoiceChatGemini" do
   llm do
     provider "gemini"
     model "gemini-2.5-flash"
+    reasoning_effort "minimal"
   end
   
   display_name "Voice Chat"

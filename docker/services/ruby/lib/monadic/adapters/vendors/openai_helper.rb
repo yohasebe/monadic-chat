@@ -1082,8 +1082,8 @@ module OpenAIHelper
       # Check if text.format was already set by configure_monadic_response
       if body["text"] && body["text"]["format"]
         responses_body["text"] = body["text"]
-        # Add verbosity to existing text object if specified for GPT-5
-        if body["verbosity"] && model.to_s.include?("gpt-5")
+        # Add verbosity to existing text object if model supports it (spec-driven)
+        if body["verbosity"] && Monadic::Utils::ModelSpec.supports_verbosity?(model)
           responses_body["text"]["verbosity"] = body["verbosity"]
         end
       elsif body["response_format"] && body["response_format"]["type"] == "json_object"
@@ -1100,8 +1100,8 @@ module OpenAIHelper
           }
         }
       else
-        # If no text.format but verbosity is specified for GPT-5
-        if body["verbosity"] && model.to_s.include?("gpt-5")
+        # If no text.format but verbosity is specified and supported
+        if body["verbosity"] && Monadic::Utils::ModelSpec.supports_verbosity?(model)
           responses_body["text"] = {
             "verbosity" => body["verbosity"]
           }

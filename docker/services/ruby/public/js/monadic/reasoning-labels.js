@@ -122,10 +122,10 @@ class ReasoningLabels {
     const descriptions = {
       'en': {
         'OpenAI': "Controls computational depth for reasoning",
-        'Anthropic': "Controls how deeply Claude thinks",
-        'Google': "Balances quality with processing time",
+        'Anthropic': "Controls how deeply Claude thinks through problems",
+        'Google': "Balances response quality with processing time",
         'xAI': "Adjusts Grok's reasoning depth",
-        'DeepSeek': "Enable/disable step-by-step reasoning",
+        'DeepSeek': "Enable or disable step-by-step reasoning",
         'Perplexity': "Controls search and analysis depth"
       },
       'ja': {

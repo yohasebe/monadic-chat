@@ -24,37 +24,38 @@ function uploadPdf(file, fileTitle) {
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
 
-  // Determine endpoint based on selected storage mode and provider/model
-  let endpoint = "/pdf";
-  try {
-    const storageMode = $('input[name="storage-mode"]:checked').val() || 'local';
-    const appName = $("#apps").val();
-    const model = $("#model").val();
-    const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : null;
-    const isOpenAI = group && group.toLowerCase() === 'openai';
-    const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
-    if (storageMode === 'cloud' && isOpenAI && supportsPdfUpload) {
-      endpoint = "/openai/pdf?action=upload";
-    } else {
-      endpoint = "/pdf";
-    }
-  } catch (_) {
-    endpoint = "/pdf";
-  }
-
-  // Use Promise for better async handling
+  // Resolve endpoint from server default (Settings)
   return new Promise((resolve, reject) => {
-    $.ajax({
-      url: endpoint,
-      type: "POST",
-      data: formData,
-      processData: false,
-      contentType: false,
-      dataType: "json", // Explicitly expect JSON response
-      timeout: 120000, // 2 minute timeout (PDF processing can take time)
-      success: resolve,
-      error: reject
-    });
+    $.getJSON('/api/pdf_storage_defaults')
+      .done(function(info) {
+        const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
+        const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
+        $.ajax({
+          url: endpoint,
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: "json", // Expect JSON response
+          timeout: 120000, // PDF processing can take time
+          success: resolve,
+          error: reject
+        });
+      })
+      .fail(function() {
+        // Fallback to local upload
+        $.ajax({
+          url: "/pdf",
+          type: "POST",
+          data: formData,
+          processData: false,
+          contentType: false,
+          dataType: "json",
+          timeout: 120000,
+          success: resolve,
+          error: reject
+        });
+      });
   });
 }
 

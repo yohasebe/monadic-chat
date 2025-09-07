@@ -159,6 +159,66 @@ class MonadicApp
     end
   end
 
+  # --- Generic Local PDF tool handlers (available to all apps) ---
+  def ensure_embeddings_db
+    if @embeddings_db.nil? && defined?(TextEmbeddings)
+      # Use per-app database name to avoid cross-app mixing
+      app_key = begin
+        self.class.name.to_s.strip.downcase.gsub(/[^a-z0-9_\-]/, '_')
+      rescue StandardError
+        'default'
+      end
+      base = "monadic_user_docs"
+      db_name = "#{base}_#{app_key}"
+      @embeddings_db = TextEmbeddings.new(db_name, recreate_db: false)
+    end
+    @embeddings_db
+  end
+
+  def find_closest_text(text:, top_n:)
+    db = ensure_embeddings_db
+    return { error: "Database not initialized" } unless db
+    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
+    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
+    db.find_closest_text(text, top_n: top_n, api_key: api_key) || { error: "Failed to find text" }
+  rescue => e
+    { error: "Error finding text: #{e.class.name} - #{e.message}" }
+  end
+
+  def find_closest_doc(text:, top_n:)
+    db = ensure_embeddings_db
+    return { error: "Database not initialized" } unless db
+    api_key = @api_key || (defined?(CONFIG) ? CONFIG["OPENAI_API_KEY"] : nil)
+    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
+    db.find_closest_doc(text, top_n: top_n, api_key: api_key) || { error: "Failed to find document" }
+  rescue => e
+    { error: "Error finding document: #{e.message}" }
+  end
+
+  def list_titles
+    db = ensure_embeddings_db
+    return { error: "Database not initialized" } unless db
+    db.list_titles
+  rescue => e
+    { error: "Error listing titles: #{e.message}" }
+  end
+
+  def get_text_snippet(doc_id:, position:)
+    db = ensure_embeddings_db
+    return { error: "Database not initialized" } unless db
+    db.get_text_snippet(doc_id, position)
+  rescue => e
+    { error: "Error getting snippet: #{e.message}" }
+  end
+
+  def get_text_snippets(doc_id:)
+    db = ensure_embeddings_db
+    return { error: "Database not initialized" } unless db
+    db.get_text_snippets(doc_id)
+  rescue => e
+    { error: "Error getting snippets: #{e.message}" }
+  end
+
   # Monadic methods are now provided by MonadicChat::AppExtensions
   # See lib/monadic/app_extensions.rb for implementation
   

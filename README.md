@@ -8,7 +8,7 @@
   
   ---
   
-  **🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
+**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base (Local/Cloud)](./docs/basic-usage/pdf_storage.md) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
   
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
   
@@ -190,3 +190,18 @@ Yoichiro HASEBE<br />
 ## License
 
 This software is available as open source under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+## PDF Knowledge Base (Local/Cloud)
+
+Monadic Chat can persist your PDFs either locally (PGVector) or in the OpenAI Vector Store, then answer questions grounded in those documents, with citations.
+
+- Storage modes: Local (PGVector) or Cloud (OpenAI Vector Store)
+- App‑scoped storage via a lightweight registry (`~/monadic/data/document_store_registry.json`)
+- Cloud upload deduplication (SHA256+size), safe cleanup from the Electron menu
+- UX: unified Local/Cloud list, per‑item/clear confirmations, status widgets
+
+- Mode selection: Use the Settings panel (PDF Storage Mode). You can also set `PDF_STORAGE_MODE=local|cloud` in `~/monadic/config/env`.
+- Backward compatibility: If `PDF_STORAGE_MODE` is not set, `PDF_DEFAULT_STORAGE` is honored.
+
+Read more:
+- User guide: `docs/basic-usage/pdf_storage.md`
+- Dev guide: `docs/developer/pdf_storage_integration.md`

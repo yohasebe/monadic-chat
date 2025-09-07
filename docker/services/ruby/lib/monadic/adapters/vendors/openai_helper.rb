@@ -111,6 +111,96 @@ module OpenAIHelper
     }
   }
 
+  # --- PDF storage routing helpers (DocumentStore switching) ---
+  def get_current_app_key(session)
+    raw = (defined?(session) ? (session.dig(:parameters, "app_name") || session[:current_app]) : nil)
+    raw = 'default' if raw.nil? || raw.to_s.strip.empty?
+    if defined?(Monadic::Utils::DocumentStoreRegistry)
+      Monadic::Utils::DocumentStoreRegistry.sanitize_app_key(raw)
+    else
+      raw.to_s.strip.downcase.gsub(/[^a-z0-9_\-]/, '_')
+    end
+  end
+
+  def resolve_openai_vs_id(session)
+    vs_id = nil
+    begin
+      # 1) session
+      vs_id ||= (defined?(session) ? session[:openai_vector_store_id] : nil)
+      # 2) app-specific ENV
+      if vs_id.nil? && defined?(CONFIG)
+        app_key = get_current_app_key(session).upcase
+        app_env = CONFIG["OPENAI_VECTOR_STORE_ID__#{app_key}"] rescue nil
+        vs_id = app_env.to_s.strip unless app_env.nil? || app_env.to_s.strip.empty?
+      end
+      # 3) registry
+      if vs_id.nil? && defined?(Monadic::Utils::DocumentStoreRegistry)
+        app_key = get_current_app_key(session)
+        vs_id ||= Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
+      end
+      # 4) global ENV
+      if vs_id.nil? && defined?(CONFIG)
+        env_vs = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip rescue ""
+        vs_id = env_vs unless env_vs.empty?
+      end
+      # 5) fallback meta file
+      if vs_id.nil? && defined?(Monadic::Utils::Environment)
+        meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
+        if File.exist?(meta_path)
+          begin
+            meta = JSON.parse(File.read(meta_path))
+            vs_id = meta["vector_store_id"] if meta && meta["vector_store_id"]
+          rescue StandardError
+            vs_id = nil
+          end
+        end
+      end
+    rescue StandardError
+      vs_id = nil
+    end
+    vs_id
+  end
+
+  def resolve_pdf_storage_mode(session)
+    begin
+      vs_present = !!resolve_openai_vs_id(session)
+      # Best-effort local presence check (global for now; app-specific namespaces to follow)
+      local_present = begin
+        defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB && Kernel.respond_to?(:list_pdf_titles) && !list_pdf_titles.empty?
+      rescue StandardError
+        false
+      end
+      session_mode = (defined?(session) ? session[:pdf_storage_mode].to_s.downcase : '')
+      # Session override takes precedence (immediate switch during runtime)
+      return 'local' if session_mode == 'local'
+      return 'cloud' if session_mode == 'cloud' && vs_present
+
+      # Determine configured mode (ENV), with backward compatibility
+      env_mode = begin
+        m = (defined?(CONFIG) ? (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local') : 'local')
+        m.to_s.downcase
+      rescue StandardError
+        'local'
+      end
+
+      # Honor configured mode when available; otherwise fall back to availability
+      if env_mode == 'cloud' && vs_present
+        'cloud'
+      elsif env_mode == 'local' && local_present
+        'local'
+      elsif vs_present
+        'cloud'
+      elsif local_present
+        'local'
+      else
+        # Neither available; return configured mode (sanitized)
+        %w[local cloud].include?(env_mode) ? env_mode : 'local'
+      end
+    rescue StandardError
+      'local'
+    end
+  end
+
 
   WEBSEARCH_PROMPT = <<~TEXT
 
@@ -347,6 +437,21 @@ module OpenAIHelper
       use_responses_api = true
     end
 
+    # Force Responses API when Cloud PDF file_search should be available
+    begin
+      app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
+      if app_has_docstore
+        vs_id_forcing = resolve_openai_vs_id(session)
+        mode_forcing = resolve_pdf_storage_mode(session)
+        if vs_id_forcing && mode_forcing != 'local'
+          use_responses_api = true
+          DebugHelper.debug("OpenAI: Forcing Responses API due to file_search availability (vs_id present, mode=#{mode_forcing})", category: :api, level: :info)
+        end
+      end
+    rescue StandardError
+      # conservative: do nothing
+    end
+
     message = nil
     data = nil
 
@@ -492,6 +597,41 @@ module OpenAIHelper
       
       # Get tools from app settings first
       app_tools = APPS[app]&.settings&.[]("tools")
+      # For first turn in cloud mode, suppress local DB tools to force cloud file_search first
+      begin
+        app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
+        user_turns = (session[:messages] || []).count { |m| m && m["role"] == "user" }
+        first_turn = user_turns <= 1
+        if app_has_docstore && first_turn
+          mode_now = resolve_pdf_storage_mode(session)
+          if mode_now != 'local' && app_tools && !app_tools.empty?
+            local_pdf_tools = %w[find_closest_text get_text_snippet list_titles find_closest_doc get_text_snippets]
+            filtered = app_tools.reject do |t|
+              fn = t.is_a?(Hash) ? t.dig("function", "name") : nil
+              local_pdf_tools.include?(fn)
+            end
+            if filtered.size != app_tools.size
+              app_tools = filtered
+              DebugHelper.debug("OpenAI: Suppressed local PDF tools on first turn to force cloud search", category: :api, level: :info)
+            end
+          end
+        end
+      rescue StandardError
+        # keep app_tools as-is on any error
+      end
+      # For PDF Navigator, suppress local DB tools when routing in cloud mode
+      begin
+        current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
+        if current_app.to_s == 'PDFNavigatorOpenAI'
+          resolved_mode = resolve_pdf_storage_mode(session)
+          if resolved_mode == 'cloud'
+            app_tools = []
+            DebugHelper.debug("PDFNavigator: Suppressing local tools (cloud mode)", category: :api, level: :debug)
+          end
+        end
+      rescue StandardError
+        # keep app_tools as-is on any error
+      end
       
       # Tool detection logging removed - not needed in production
       
@@ -516,6 +656,30 @@ module OpenAIHelper
         # No tools available from either source
         body.delete("tools")
         body.delete("tool_choice")
+      end
+      
+      # Add file_search tool for Chat Completions API as well (when app opts into pdf_vector_storage)
+      begin
+        app_has_docstore = APPS[app]&.settings&.[]("pdf_vector_storage")
+        # Only attach on Chat path when we are NOT going to use Responses API
+        if app_has_docstore && !use_responses_api
+          vs_id = resolve_openai_vs_id(session)
+          resolved_mode = resolve_pdf_storage_mode(session)
+          if vs_id && resolved_mode != 'local'
+            body["tools"] ||= []
+            body["tools"] << {
+              "type" => "file_search",
+              "description" => "Search for information in PDFs stored in OpenAI Vector Store.",
+              "file_search" => {
+                "vector_store_ids" => [vs_id],
+                "max_num_results" => 20
+              }
+            }
+            DebugHelper.debug("OpenAI(Chat): Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
+          end
+        end
+      rescue StandardError => e
+        DebugHelper.debug("OpenAI(Chat): Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)
       end
       
       # Basic tool logging kept for debugging tool issues
@@ -962,7 +1126,7 @@ module OpenAIHelper
         "model" => body["model"],
         "input" => input_messages,
         "stream" => body["stream"] || false,  # Default to false for responses API (o3-pro doesn't support streaming yet)
-        "store" => true  # Store responses for later retrieval by default
+        "store" => false  # Disable storage for lower latency
       }
       
       # Add reasoning configuration for reasoning models
@@ -1001,6 +1165,39 @@ module OpenAIHelper
             input_messages.shift
           end
         end
+      end
+
+      # If a Vector Store is configured and the app enables pdf_vector_storage,
+      # gently steer the model to use file_search in cloud mode.
+      begin
+        current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
+        vs_hint_id = resolve_openai_vs_id(session)
+        resolved_mode = resolve_pdf_storage_mode(session)
+        app_has_docstore = begin
+          APPS[current_app]&.settings&.[]("pdf_vector_storage")
+        rescue
+          false
+        end
+
+        if vs_hint_id && app_has_docstore && resolved_mode != 'local'
+          extra = <<~TXT
+          \n\nDOCUMENT SEARCH POLICY (Hybrid Ready):
+          - You have two sources: Local PDF DB (functions) and Cloud File Search (vector store).
+          - Call at most ONCE per source for a given user request.
+          - Prefer the source that is more likely to contain the answer. If the first source returns no relevant results, try the other ONCE.
+          - Do NOT loop or repeat similar searches. If both yield nothing, explain the limitation to the user.
+
+          When you cite results, include a compact metadata footer after an `---` divider with:
+          Doc Title, Snippet tokens, Snippet position. For example:
+          ---
+          Doc Title: <title>
+          Snippet tokens: <tokens>
+          Snippet position: <position>/<total>
+          TXT
+          responses_body["instructions"] = (responses_body["instructions"] || "") + extra
+        end
+      rescue StandardError
+        # no-op hint
       end
       
       # Ensure we have at least one message in input
@@ -1060,19 +1257,30 @@ module OpenAIHelper
         
         # Add custom function tools if available
         if body["tools"] && !body["tools"].empty?
-          # Convert function tools to Responses API format
-          # Responses API expects a flattened structure for functions
+          # Convert tools to Responses API format
+          # - Functions are flattened
+          # - Chat-style file_search entries are normalized to Responses style
           function_tools = body["tools"].map do |tool|
             tool_json = JSON.parse(tool.to_json)
-            
             if tool_json["type"] == "function" && tool_json["function"]
-              # Flatten the structure for Responses API
               {
                 "type" => "function",
                 "name" => tool_json["function"]["name"],
                 "description" => tool_json["function"]["description"],
                 "parameters" => tool_json["function"]["parameters"]
               }
+            elsif tool_json["type"] == "file_search"
+              begin
+                vs_id_conv = resolve_openai_vs_id(session)
+                max_n = tool_json.dig("file_search", "max_num_results") || 8
+                {
+                  "type" => "file_search",
+                  "vector_store_ids" => vs_id_conv ? [vs_id_conv] : [],
+                  "max_num_results" => max_n
+                }
+              rescue StandardError
+                tool_json
+              end
             else
               tool_json
             end
@@ -1091,13 +1299,26 @@ module OpenAIHelper
         
       end
 
-      # Attach File Search tool if session has an OpenAI vector store (PDF uploads)
+      # Compatibility: some models/efforts do not allow tools with reasoning enabled.
+      # If file_search (or any tool) is present alongside reasoning, drop reasoning to avoid
+      # invalid_request_error such as: "tools cannot be used with reasoning.effort 'minimal'".
       begin
-        if defined?(session) && session[:openai_vector_store_id]
+        if responses_body["tools"] && !responses_body["tools"].empty? && responses_body.key?("reasoning")
+          DebugHelper.debug("OpenAI: Removing reasoning config due to tools present (compatibility)", category: :api, level: :debug)
+          responses_body.delete("reasoning")
+        end
+      rescue StandardError
+        # no-op: conservative
+      end
+
+      # Attach File Search tool if an OpenAI vector store is configured and cloud mode is selected
+      begin
+        vs_id = resolve_openai_vs_id(session)
+        resolved_mode = resolve_pdf_storage_mode(session)
+
+        if vs_id && resolved_mode != 'local'
           responses_body["tools"] ||= []
-          vs_id = session[:openai_vector_store_id]
-          # Use built-in file_search tool shape
-          responses_body["tools"] << RESPONSES_API_BUILTIN_TOOLS["file_search"].call(vector_store_ids: [vs_id], max_num_results: 20)
+          responses_body["tools"] << RESPONSES_API_BUILTIN_TOOLS["file_search"].call(vector_store_ids: [vs_id], max_num_results: 8)
           DebugHelper.debug("OpenAI: Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
         end
       rescue => e
@@ -1607,6 +1828,32 @@ module OpenAIHelper
       tools.each { |tc| puts "  - #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments').to_s[0..200]}" }
     end
     
+    # Minimal guard: avoid repeated local PDF DB tool calls within a single turn
+    local_pdf_tools = %w[find_closest_text get_text_snippet list_titles find_closest_doc get_text_snippets]
+    seen_functions = {}
+    seen_local_group = false
+
+    filtered_tools = tools.select do |tc|
+      fname = tc.dig('function', 'name').to_s
+      # Drop exact duplicates by name+args
+      args_sig = tc.dig('function', 'arguments').to_s
+      sig = fname + '|' + args_sig
+      next false if seen_functions[sig]
+      seen_functions[sig] = true
+
+      if local_pdf_tools.include?(fname)
+        if seen_local_group
+          # Suppress repeated local DB calls to enforce retrial policy
+          DebugHelper.debug("Suppressing repeated local PDF tool call: #{fname}", category: :api, level: :info) rescue nil
+          next false
+        end
+        seen_local_group = true
+      end
+      true
+    end
+
+    tools = filtered_tools
+
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]

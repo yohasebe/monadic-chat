@@ -81,6 +81,7 @@
     "stopJupyterLab": "JupyterLabを停止",
     "importDocumentDB": "ドキュメントDBをインポート",
     "exportDocumentDB": "ドキュメントDBをエクスポート",
+    "cleanupCloudStorage": "クラウドPDFをクリーンアップ",
     "open": "開く",
     "openConsole": "コンソールを開く",
     "jupyterDisabled": "Jupyterが無効",
@@ -121,6 +122,8 @@
     "stoppingJupyterLab": "JupyterLabを停止しています...",
     "importingDocumentDB": "ドキュメントDBをインポートしています...",
     "exportingDocumentDB": "ドキュメントDBをエクスポートしています...",
+    "cleaningCloudStorage": "OpenAIのファイルとVector Storeをクリーンアップしています...",
+    "cloudCleanupFinished": "クラウドのクリーンアップ完了：ファイル {{files}} 件、Vector Store {{stores}} 件を削除しました。",
     "stoppingDockerServices": "Dockerサービスを停止しています...",
     "serverModeTitle": "Monadic Chat: <span style=\"color: #DC4C64; font-weight: bold;\">サーバーモード</span>",
     "serverModeDesc": "サーバーモードで実行中です。サービスは外部デバイスからアクセス可能です。",
@@ -182,6 +185,8 @@
     "quitDirectly": "直接終了",
     "confirmUninstall": "アンインストールの確認",
     "uninstallMessage": "Monadic Chatのすべてのイメージとコンテナが削除されます。続行しますか？",
+    "cleanupCloudConfirmTitle": "クラウドストレージのクリーンアップ",
+    "cleanupCloudConfirmMessage": "Monadic Chatが作成したVector Store（名前が 'monadic-' で始まるもの）と、それらに紐づくファイルをすべて削除します。よろしいですか？",
     "deleteAll": "すべて削除",
     "quit": "終了"
   }

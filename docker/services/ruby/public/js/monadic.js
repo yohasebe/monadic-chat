@@ -2321,14 +2321,40 @@ $(function () {
       const model = $("#model").val();
       const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
 
-      // Default selection: local
-      $("#storage-local").prop('checked', true);
-      // Enable/disable cloud option
-      if (isOpenAI && supportsPdfUpload) {
+      // Fetch server defaults and availability
+      $.getJSON('/api/pdf_storage_defaults').done(function(info) {
+        const pgAvailable = !!info.pgvector_available;
+        const defaultStorage = (info.default_storage || 'local').toLowerCase();
+
+        // Enable/disable by availability
+        $("#storage-local").prop('disabled', !pgAvailable);
+        // Always allow selecting Cloud to experiment; routing will still guard by provider
         $("#storage-cloud").prop('disabled', false);
-      } else {
-        $("#storage-cloud").prop('disabled', true);
-      }
+
+        // Decide selection
+        let select = 'local';
+        if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
+        if (select === 'cloud' && $("#storage-cloud").prop('disabled')) select = 'local';
+        if (select === 'local' && $("#storage-local").prop('disabled')) select = 'cloud';
+
+        if (select === 'cloud') {
+          $("#storage-cloud").prop('checked', true);
+        } else {
+          $("#storage-local").prop('checked', true);
+        }
+      }).fail(function() {
+        // Fallback: prefer local if enabled, else cloud
+        const pgAvailable = true;
+        $("#storage-local").prop('disabled', false);
+        $("#storage-cloud").prop('disabled', false);
+        $("#storage-local").prop('checked', true);
+      });
+    } catch (_) {}
+
+    // Set a friendly placeholder for file title
+    try {
+      const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
+      $("#file-title").attr('placeholder', ph);
     } catch (_) {}
   });
 
@@ -2368,11 +2394,15 @@ $(function () {
         // Refresh local PDF DB titles only for local ingestion
         if (!isOpenAIUpload) {
           ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+        } else {
+          // Auto-refresh cloud list on successful OpenAI upload
+          if (typeof refreshCloudPdfList === 'function') refreshCloudPdfList();
         }
         const uploadedFilename = response.filename || "PDF file";
         const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
         const providerNote = isOpenAIUpload ? ' (OpenAI)' : '';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}${providerNote}`, "success");
+        const dedupNote = (isOpenAIUpload && response.deduplicated) ? ' (deduplicated)' : '';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}${providerNote}${dedupNote}`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";
@@ -2520,6 +2550,129 @@ $(function () {
       const convertErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.convertError') : 'Error converting document';
       setAlert(`${convertErrorMsg}: ${errorMessage}`, "error");
     }
+  });
+
+  // Cloud PDF list handlers
+  async function refreshCloudPdfList() {
+    try {
+      const $list = $("#cloud-pdf-list");
+      if (!$list.length) return;
+      $list.html('<span class="text-secondary">Loading...</span>');
+      const res = await $.getJSON('/openai/pdf?action=list');
+      if (!res || !res.success) {
+        $list.html('<span class="text-danger">Failed to load</span>');
+        return;
+      }
+      // Update Cloud info (VS ID short + mode)
+      try {
+        const vs = res.vector_store_id || '';
+        const short = vs ? (vs.length > 14 ? vs.slice(0,6)+'…'+vs.slice(-6) : vs) : '(none)';
+        $("#cloud-pdf-info").text(`VS: ${short}`);
+      } catch (_) {}
+      const files = res.files || [];
+      if (files.length === 0) {
+        $list.html('<span class="text-secondary">(none)</span>');
+        return;
+      }
+      const rows = files.map(f => {
+        const name = (f.filename || f.id || '').replace(/</g,'&lt;');
+        const attrName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        const status = f.status || '';
+        return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom cloud-pdf-row">
+          <span class="cloud-pdf-name">${name} <span class="text-muted">${status ? '('+status+')' : ''}</span></span>
+          <button class="btn btn-sm btn-outline-secondary" data-action="cloud-delete-file" data-file-id="${f.id}" data-file-name="${attrName}"><i class="fa-regular fa-trash-can text-secondary"></i></button>
+        </div>`;
+      });
+      $list.html(rows.join(''));
+    } catch (e) {
+      $("#cloud-pdf-list").html('<span class="text-danger">Failed to load</span>');
+    }
+  }
+
+  $(document).on('click', '#cloud-pdf-refresh', function(e) {
+    e.preventDefault();
+    refreshCloudPdfList();
+  });
+
+  $(document).on('click', '#cloud-pdf-clear', async function(e) {
+    e.preventDefault();
+    try {
+      const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
+      if (!confirm(msg)) return;
+      await $.ajax({ url: '/openai/pdf?action=clear', type: 'DELETE' });
+      refreshCloudPdfList();
+      setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
+    } catch (err) {
+      setAlert('Failed to clear Cloud PDFs', 'error');
+    }
+  });
+
+  $(document).on('click', 'button[data-action="cloud-delete-file"]', async function(e) {
+    e.preventDefault();
+    const fid = $(this).data('file-id');
+    const fname = $(this).data('file-name') || $(this).closest('.cloud-pdf-row').find('.cloud-pdf-name').text().trim();
+    if (!fid) return;
+    // Detect iOS/iPadOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
+      if (!confirm(`${base} ${fname}?`)) return;
+      try {
+        await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
+        refreshCloudPdfList();
+        setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
+      } catch (err) {
+        setAlert('Failed to delete Cloud PDF', 'error');
+      }
+    } else {
+      // Reuse the same Bootstrap modal as local delete
+      $("#pdfDeleteConfirmation").modal("show");
+      $("#pdfToDelete").text(fname);
+      $("#pdfDeleteConfirmed").off("click").on("click", async function (event) {
+        event.preventDefault();
+        try {
+          await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
+          $("#pdfDeleteConfirmation").modal("hide");
+          $("#pdfToDelete").text("");
+          refreshCloudPdfList();
+          setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
+        } catch (err) {
+          $("#pdfDeleteConfirmation").modal("hide");
+          $("#pdfToDelete").text("");
+          setAlert('Failed to delete Cloud PDF', 'error');
+        }
+      });
+    }
+  });
+
+  // Initial fetch when pdf panel is present
+  setTimeout(refreshCloudPdfList, 500);
+
+  // Fetch and display overall PDF storage status (mode/local/cloud presence)
+  async function refreshPdfStorageStatus() {
+    try {
+      const res = await $.getJSON('/api/pdf_storage_status');
+      if (!res || !res.success) return;
+      const mode = res.mode || 'local';
+      const vs = res.vector_store_id || '';
+      const short = vs ? (vs.length > 14 ? vs.slice(0,6)+'…'+vs.slice(-6) : vs) : '(none)';
+      $("#cloud-pdf-info").text(`VS: ${short} · Mode: ${mode}`);
+      $("#local-pdf-info").text(res.local_present ? '(ready)' : '(empty)');
+    } catch (_) { /* ignore */ }
+  }
+  setTimeout(refreshPdfStorageStatus, 700);
+
+  // Local PDF controls
+  $(document).on('click', '#local-pdf-refresh', function(e) {
+    e.preventDefault();
+    if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+  });
+  $(document).on('click', '#local-pdf-clear', function(e) {
+    e.preventDefault();
+    const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllLocalPdfs') : 'Clear all Local PDFs?';
+    if (!confirm(msg)) return;
+    if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
   });
 
   $("#url").on("click", function (event) {

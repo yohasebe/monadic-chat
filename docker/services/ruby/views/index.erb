@@ -631,9 +631,24 @@
           </div>
 
           <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-database"></i> PDF Database</span></h5>
-            <div class="like-h6"><i class="fas fa-file-pdf"></i> Uploaded PDF</div>
-            <div class="mt-3" id="pdf-titles"></div>
+            <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span></h5>
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
+              <div class="d-flex align-items-center gap-2">
+                <button id="local-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                <button id="local-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+              </div>
+            </div>
+            <div class="mt-2" id="pdf-titles"></div>
+            <hr />
+            <div class="d-flex align-items-center justify-content-between mt-3">
+              <div class="like-h6"><i class="fas fa-cloud"></i> Cloud PDF (OpenAI) <small class="text-muted" id="cloud-pdf-info"></small></div>
+              <div class="d-flex align-items-center gap-2">
+                <button id="cloud-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                <button id="cloud-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+              </div>
+            </div>
+            <div id="cloud-pdf-list" class="mt-2"></div>
           </div>
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
@@ -1105,21 +1120,9 @@
           <div class="modal-body">
             <label class="form-label" for="file-title" data-i18n="ui.modals.fileTitleOptional">File Title (Optional)</label>
             <div class="mb-3">
-              <input data-i18n="[placeholder]ui.modals.fileTitlePlaceholder" placeholder="File name will be used if not provided" class="form-control form-control-sm" id="file-title"></input>
+              <input class="form-control form-control-sm" id="file-title" placeholder=""></input>
             </div>
-            <div class="mb-2">
-              <label class="form-label">Storage</label>
-              <div class="d-flex align-items-center gap-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="storage-mode" id="storage-local" value="local" checked>
-                  <label class="form-check-label" for="storage-local">Local (PGVector)</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="storage-mode" id="storage-cloud" value="cloud">
-                  <label class="form-check-label" for="storage-cloud">OpenAI (Vector Store)</label>
-                </div>
-              </div>
-            </div>
+            <!-- Storage selection is configured globally via Settings panel (PDF Storage Mode) -->
             <label for="fileFile" class="form-label" data-i18n="ui.modals.fileToImport">File to import</label>
             <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>

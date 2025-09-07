@@ -711,6 +711,17 @@ module WebSocketHelper
           else
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" }.to_json)
           end
+        when "DELETE_ALL_PDFS"
+          begin
+            titles = EMBEDDINGS_DB.list_titles.map { |t| t[:title] }
+            titles.each do |t|
+              EMBEDDINGS_DB.delete_by_title(t)
+            end
+            ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "All local PDFs deleted" }.to_json)
+            ws.send({ "type" => "pdf_titles", "content" => [] }.to_json)
+          rescue StandardError => e
+            ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" }.to_json)
+          end
         when "CHECK_TOKEN"
           # Store ui_language in session parameters if provided
           if obj["ui_language"]

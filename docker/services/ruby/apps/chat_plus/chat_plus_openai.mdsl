@@ -1,31 +1,31 @@
 app "ChatPlusOpenAI" do
   description do
     en <<~TEXT
-    Conversational AI with integrated web search capabilities. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI grounded in your PDFs. Import and persist documents locally or in OpenAI's Vector Store, then chat with citations from their contents. Web search is optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ja <<~TEXT
-    ウェブ検索機能を統合した会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    PDFを知識ベースとして会話するAI。文書をローカルまたはOpenAIのVector Storeに保存し、内容に基づいて（出典付きで）回答します。ウェブ検索は任意で有効化できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     zh <<~TEXT
-    集成网络搜索功能的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    以您的PDF为知识基础的对话AI。将文档持久化到本地或OpenAI向量存储，并基于其内容（附引用）进行对话；网页搜索为可选。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     ko <<~TEXT
-    웹 검색 기능이 통합된 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    PDF를 지식 기반으로 사용하는 대화형 AI. 문서를 로컬 또는 OpenAI Vector Store에 저장하고, 그 내용에 근거해 인용과 함께 대화합니다. 웹 검색은 선택 사항입니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     es <<~TEXT
-    IA conversacional con capacidades de búsqueda web integradas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional basada en tus PDF. Importa y guarda documentos localmente o en el Vector Store de OpenAI, y conversa citando su contenido. La búsqueda web es opcional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     fr <<~TEXT
-    IA conversationnelle avec recherche web intégrée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle ancrée dans vos PDF. Importez et conservez vos documents en local ou dans le Vector Store d’OpenAI, puis discutez en citant leur contenu. La recherche web est optionnelle. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
     
     de <<~TEXT
-    Konversations-KI mit integrierten Websuchfunktionen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI, die auf Ihren PDFs basiert. Dokumente lokal oder im OpenAI Vector Store speichern und mit Zitaten aus deren Inhalten chatten. Websuche ist optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"
@@ -96,6 +96,17 @@ app "ChatPlusOpenAI" do
     Always respond with valid JSON. The message field contains your response (including any tool results), and context tracks the conversation state.
     
     NEVER respond with plain text. ALWAYS use the JSON structure above, even after using tools.
+
+    ## PDF Document Search
+    You have access to PDF documents through two storage systems:
+    1) Local PDF Database — via the tools: find_closest_doc, find_closest_text, list_titles, get_text_snippet, get_text_snippets
+    2) Cloud Vector Store (OpenAI) — via the file_search tool when available
+
+    When the user asks about PDF content or documents:
+    - If the file_search tool is available, try it first to search across uploaded PDFs in the cloud
+    - If file_search returns no relevant results or is not available, use the local PDF tools
+    - Call at most ONCE per source for a given user request. Avoid repeated or looping searches
+    - Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position
   TEXT
   
   llm do
@@ -112,6 +123,7 @@ app "ChatPlusOpenAI" do
     initiate_from_assistant false
     image true
     pdf false
+    pdf_vector_storage true
     monadic true
     # enhanced_monadic_html true  # Temporarily disabled
   end

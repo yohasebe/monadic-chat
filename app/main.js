@@ -1169,6 +1169,143 @@ function openMainWindow() {
   mainWindow.focus();
 }
 
+// Clean up OpenAI Files and Vector Stores created by Monadic Chat
+async function cleanupOpenAIStorage() {
+  try {
+    const envPath = getEnvPath();
+    const envConfig = envPath ? readEnvFile(envPath) : {};
+    const apiKey = envConfig.OPENAI_API_KEY;
+    if (!apiKey) {
+      dialog.showErrorBox(i18n.t('dialogs.error'), 'OPENAI_API_KEY is not configured.');
+      return;
+    }
+
+    const res = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.yes')],
+      defaultId: 1,
+      title: i18n.t('dialogs.cleanupCloudConfirmTitle') || 'Cleanup Cloud Storage',
+      message: i18n.t('dialogs.cleanupCloudConfirmTitle') || 'Cleanup Cloud Storage',
+      detail: i18n.t('dialogs.cleanupCloudConfirmMessage') || "This will delete all Vector Stores whose names start with 'monadic-' and any files attached to them.",
+      icon: path.join(iconDir, 'app-icon.png')
+    });
+    if (res.response !== 1) return;
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('command-output', formatMessage('info', 'messages.cleaningCloudStorage'));
+    }
+
+    const https = require('https');
+    const base = 'api.openai.com';
+    function request(method, path, body) {
+      const opts = {
+        hostname: base,
+        port: 443,
+        path: `/v1${path}`,
+        method,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      };
+      return new Promise((resolve, reject) => {
+        const req = https.request(opts, (resp) => {
+          let data = '';
+          resp.on('data', (chunk) => data += chunk);
+          resp.on('end', () => {
+            try {
+              const json = data ? JSON.parse(data) : {};
+              resolve({ status: resp.statusCode, json });
+            } catch (e) {
+              resolve({ status: resp.statusCode, json: {} });
+            }
+          });
+        });
+        req.on('error', reject);
+        if (body) req.write(JSON.stringify(body));
+        req.end();
+      });
+    }
+
+    // List vector stores (first 100)
+    const vsList = await request('GET', '/vector_stores?limit=100');
+    const stores = (vsList.json && vsList.json.data) ? vsList.json.data : [];
+    const monadicStores = stores.filter(s => (s.name || '').toLowerCase().startsWith('monadic-'));
+
+    // Build a set of file IDs that are attached to non-monadic stores (protect them from deletion)
+    const nonMonadicFileIds = new Set();
+    for (const st of stores) {
+      const isMonadic = (st.name || '').toLowerCase().startsWith('monadic-');
+      if (isMonadic) continue;
+      try {
+        const fr = await request('GET', `/vector_stores/${st.id}/files?limit=200`);
+        const arr = (fr.json && fr.json.data) ? fr.json.data : [];
+        arr.forEach(f => nonMonadicFileIds.add(f.id));
+      } catch {}
+    }
+
+    // Build an allowlist of file IDs that were uploaded by Monadic Chat (from local meta files, best-effort)
+    const allowedFileIds = new Set();
+    try {
+      const dataDir = path.join(os.homedir(), 'monadic', 'data');
+      const metaPath = path.join(dataDir, 'pdf_navigator_openai.json');
+      if (fs.existsSync(metaPath)) {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        (meta.files || []).forEach(item => { if (item.file_id) allowedFileIds.add(item.file_id); });
+      }
+      const registryPath = path.join(dataDir, 'document_store_registry.json');
+      if (fs.existsSync(registryPath)) {
+        const reg = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+        Object.values(reg || {}).forEach(appEntry => {
+          if (appEntry && appEntry.files && Array.isArray(appEntry.files)) {
+            appEntry.files.forEach(fid => allowedFileIds.add(fid));
+          }
+        });
+      }
+    } catch {}
+    let deletedStores = 0;
+    let deletedFiles = 0;
+    for (const store of monadicStores) {
+      const vsId = store.id;
+      // List files in store
+      try {
+        const filesRes = await request('GET', `/vector_stores/${vsId}/files?limit=200`);
+        const files = (filesRes.json && filesRes.json.data) ? filesRes.json.data : [];
+        for (const f of files) {
+          const fid = f.id;
+          // Always detach from the monadic store
+          try { await request('DELETE', `/vector_stores/${vsId}/files/${fid}`); } catch {}
+          // Delete the File object only if:
+          // - it is NOT attached to any non-monadic store
+          // - AND it's in our allowlist (uploaded by Monadic Chat) if allowlist exists
+          const allowlistPresent = allowedFileIds.size > 0;
+          const allowed = allowlistPresent ? allowedFileIds.has(fid) : true;
+          if (!nonMonadicFileIds.has(fid) && allowed) {
+            try { await request('DELETE', `/files/${fid}`); deletedFiles++; } catch {}
+          }
+        }
+      } catch {}
+      // Delete store itself
+      try { await request('DELETE', `/vector_stores/${vsId}`); deletedStores++; } catch {}
+    }
+
+    // Remove local meta/registry files (best-effort)
+    try {
+      const dataDir = path.join(os.homedir(), 'monadic', 'data');
+      const metaPath = path.join(dataDir, 'pdf_navigator_openai.json');
+      if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+      const registryPath = path.join(dataDir, 'document_store_registry.json');
+      if (fs.existsSync(registryPath)) fs.unlinkSync(registryPath);
+    } catch {}
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('command-output', formatMessage('success', 'messages.cloudCleanupFinished', { files: deletedFiles, stores: deletedStores }));
+    }
+  } catch (err) {
+    dialog.showErrorBox(i18n.t('dialogs.error'), `Cloud cleanup failed: ${err.message}`);
+  }
+}
+
 let statusMenuItem = {
   label: `${i18n.t('menu.status')}: ${i18n.t('status.stopped')}`,
   enabled: false

@@ -310,6 +310,13 @@
         <!-- Category: Model Settings -->
         <div class="settings-category category-model">
           <h2 data-i18n="settings.categories.modelSettings"><i class="fas fa-robot"></i> Model Settings</h2>
+          
+          <label for="pdf-storage-mode-setting">PDF Storage Mode</label>
+          <select id="pdf-storage-mode-setting" name="pdf-storage-mode-setting">
+            <option value="local">Local (PGVector)</option>
+            <option value="cloud">Cloud (OpenAI Vector Store)</option>
+          </select>
+          <small class="text-muted">Changes may require app restart.</small>
         </div>
 
         <!-- Category: Voice & Audio -->
@@ -400,7 +407,8 @@
           DISTRIBUTED_MODE: distributedMode,
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
-          UI_LANGUAGE: document.getElementById('ui-language').value
+          UI_LANGUAGE: document.getElementById('ui-language').value,
+          PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -597,7 +605,13 @@
       apiInputs.forEach(input => {
         input.type = 'password';
       });
+
+      // Populate PDF storage mode from settings
+      window.electronAPI.onLoadSettings((data) => {
+        const mode = (data.PDF_STORAGE_MODE || data.PDF_DEFAULT_STORAGE || 'local').toLowerCase();
+        const sel = document.getElementById('pdf-storage-mode-setting');
+        sel.value = (mode === 'cloud') ? 'cloud' : 'local';
+      });
     </script>
   </body>
 </html>
-

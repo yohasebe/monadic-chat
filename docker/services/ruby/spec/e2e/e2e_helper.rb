@@ -462,13 +462,13 @@ module E2EHelper
   end
 end
 
-# By default, E2E は実 API を呼び出さない（役割分担: API は spec_api が担当）
+# By default, E2E tests do NOT call real provider APIs (separate responsibility: real API tests live under spec_api)
 RSpec.configure do |config|
   config.before(:each, type: :e2e) do |example|
     # By default, block E2E tests to avoid real API usage.
     # Allow tests explicitly marked with :no_api to run without RUN_API_E2E.
     unless ENV['RUN_API_E2E'] == 'true' || example.metadata[:no_api]
-      skip 'E2E: 実API呼び出しはデフォルト無効です（RUN_API_E2E=true で有効化）。実APIテストは spec_api を使用してください。'
+      skip 'E2E: Real API calls are disabled by default (enable with RUN_API_E2E=true). For real API tests, use spec_api.'
     end
   end
 end

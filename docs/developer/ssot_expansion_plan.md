@@ -1,197 +1,160 @@
-# SSOT拡張計画（OpenAI以外の各プロバイダへ適用）
+# SSOT Expansion Plan (Apply to Non‑OpenAI Providers)
 
-最終更新: 2025-09-05
+Last updated: 2025-09-05
 
-## 目的
-- モデル能力・制約・推奨パラメータの「単一の真実の源（SSOT）」を `model_spec.js` に集約し、各ベンダーヘルパーのハードコードやモデル名ヒューリスティックを段階的に削減する。
-- 既にOpenAIで進めた方針（Responses API判定、web検索、reasoning、tool可否、streaming可否、遅延通知、verbosityなど）を、他プロバイダにも安全に横展開する。
+## Goals
+- Centralize the “single source of truth (SSOT)” for model capabilities, constraints, and recommended params in `model_spec.js`, gradually removing hardcoded logic and name heuristics from vendor helpers.
+- Safely roll out what we did for OpenAI (Responses vs Chat selection, web search, reasoning, tool capability, streaming support, latency hints, verbosity, etc.) to other providers.
 
-## 適用範囲（優先順）
-1. Anthropic（Claude）
-2. Google（Gemini）
+## Scope and priority
+1. Anthropic (Claude)
+2. Google (Gemini)
 3. Cohere
-4. xAI（Grok）
+4. xAI (Grok)
 5. Mistral
 6. Perplexity
 7. DeepSeek
-8. Ollama（含むが、ローカル/可用性の都合で後段）
+8. Ollama (included, but later due to local/runtime availability)
 
-## 現状の問題（よくあるパターン）
-- ベンダーヘルパー内にモデル名やパターン（`include?("sonnet")` 等）での分岐が残っている。
-- ベンダー固有のエンドポイント選択や未対応パラメータの無効化が、SSOTではなく各所の条件分岐で実装されている。
-- 仕様差分（tool/JSON/streaming/visionなど）の扱いが分散し、追加SKU対応やドキュメント同期が重い。
+## Current issues (typical patterns)
+- Name/pattern‑based branches remain in helpers (e.g., `include?("sonnet")`).
+- Provider‑specific endpoint choices and parameter disabling are implemented ad‑hoc instead of via SSOT.
+- Capability differences (tools/JSON/streaming/vision) are scattered, making new SKU onboarding and docs sync expensive.
 
-## 目標（OpenAIでの成果を各社に展開）
-- 機能判定を `model_spec.js` に移す：
-  - `api_type`（responses/chat/completions 等）
+## Objectives (port OpenAI approach to others)
+- Move capability decisions into `model_spec.js`:
+  - `api_type` (responses/chat/completions)
   - `supports_web_search`
-  - `reasoning_effort`（配列: [options, default]）
-  - `tool_capability`（true/false）
-  - `supports_streaming`（true/false）
-  - `vision_capability`（true/false）
-  - `supports_verbosity`（true/false）
-  - `latency_tier`（"slow" など）
-- ベンダーヘルパーは「輸送＋最小の癖対応」に縮退（例: メッセージshapeやエラー正規化）。
+  - `reasoning_effort` ([options, default])
+  - `tool_capability` (true/false)
+  - `supports_streaming` (true/false)
+  - `vision_capability` (true/false)
+  - `supports_verbosity` (true/false)
+  - `latency_tier` (e.g., "slow")
+- Vendor helpers shrink to “transport + minimal quirks” (e.g., message shape, error normalization).
 
-## ベンダー別の着手ポイントと移行方針
+## Provider‑specific starting points and migration
 
-### Anthropic（Claude）
-- ファイル: `docker/services/ruby/lib/monadic/adapters/vendors/claude_helper.rb`
-- 代表的なハードコード例（想定）:
-  - thinking/sonnet/oplus系列の判定、JSONモード可否、tool呼び出し数制限など。
-- 移行:
-  - `reasoning_effort` または `supports_thinking` をspecに定義し、`supports?(:thinking)` 相当のゲートで制御。
-  - `tool_capability`/`supports_streaming`/`vision_capability` をspec化。
-  - エンドポイント・パラメータ（`system`→`developer`相当など）は正規化レイヤで共通化。
+### Anthropic (Claude)
+- File: `docker/services/ruby/lib/monadic/adapters/vendors/claude_helper.rb`
+- Typical hardcodes: thinking/sonnet/oplus detection, JSON mode allowance, tool‑call limits.
+- Migration:
+  - Define `reasoning_effort`/`supports_thinking` in spec and gate via `supports?(:thinking)` style checks.
+  - Spec‑gate `tool_capability`/`supports_streaming`/`vision_capability`.
+  - Unify endpoint/param differences in normalization layer (e.g., system→developer mapping).
 
-### Google（Gemini）
-- ファイル: `.../vendors/gemini_helper.rb`
-- 着点:
-  - contents/parts 形のメッセージ変換、function_declarations、画像入力/出力の扱い。
-- 移行:
-  - `vision_capability`/`tool_capability`/`supports_streaming` をspec化。
-  - 画像/ファイル入力の上限・併用制約を `constraints` に集約（例: tool+json 同時不可等）。
+### Google (Gemini)
+- File: `.../vendors/gemini_helper.rb`
+- Focus: contents/parts transformation, function_declarations, image IO handling.
+- Migration:
+  - Spec‑gate `vision_capability`/`tool_capability`/`supports_streaming`.
+  - Capture IO limits and mutual exclusions in `constraints` (e.g., tool+json).
 
 ### Cohere
-- ファイル: `.../vendors/cohere_helper.rb`
-- 着点:
-  - v2 typed partsのshape、reasoning相当の可否、JSON/ツール対応の差。
-- 移行:
-  - `tool_capability`/`supports_streaming`/`vision_capability`/`reasoning_effort`（対応する場合）をspec化。
+- File: `.../vendors/cohere_helper.rb`
+- Focus: v2 typed parts shape, reasoning equivalent, JSON/tools differences.
+- Migration:
+  - Spec‑gate `tool_capability`/`supports_streaming`/`vision_capability`/`reasoning_effort` where applicable.
 
-### xAI（Grok）
-- ファイル: `.../vendors/grok_helper.rb`
-- 着点:
-  - websearchのネイティブパラメータ、画像入力モデルの型、streamingイベントのバリエーション。
-- 移行:
-  - `supports_web_search`/`vision_capability`/`supports_streaming` をspec化。
+### xAI (Grok)
+- File: `.../vendors/grok_helper.rb`
+- Focus: native websearch params, image‑capable model types, streaming event varieties.
+- Migration:
+  - Spec‑gate `supports_web_search`/`vision_capability`/`supports_streaming`.
 
 ### Mistral
-- ファイル: `.../vendors/mistral_helper.rb`（存在する場合）
-- 着点:
-  - Chat/Tool/Streamingの有無、モデル系列（large/small/mini）での差。
-- 移行:
-  - `tool_capability`/`supports_streaming` をspec化。必要なら `latency_tier`。
+- File: `.../vendors/mistral_helper.rb` (if present)
+- Focus: presence of chat/tool/streaming; family differences (large/small/mini).
+- Migration:
+  - Spec‑gate `tool_capability`/`supports_streaming`; add `latency_tier` if needed.
 
 ### Perplexity
-- ファイル: `.../vendors/perplexity_helper.rb`
-- 着点:
-  - 検索内蔵/外部検索の区別、長文/streamingの仕様差。
-- 移行:
-  - `supports_web_search` をspec化。web検索は provider内蔵/外部ツールの区別を `capabilities.web_search.via` 等に拡張可。
+- File: `.../vendors/perplexity_helper.rb`
+- Focus: built‑in vs external search, long‑context/streaming differences.
+- Migration:
+  - Spec‑gate `supports_web_search`; extend `capabilities.web_search.via` for native vs external.
 
 ### DeepSeek
-- ファイル: `.../vendors/deepseek_helper.rb`
-- 着点:
-  - thinking/推論系の扱い、streaming差分、画像可否。
-- 移行:
-  - `reasoning_effort`/`supports_streaming`/`vision_capability` をspec化。
+- File: `.../vendors/deepseek_helper.rb`
+- Focus: thinking/reasoning handling, streaming variants, image capability.
+- Migration:
+  - Spec‑gate `reasoning_effort`/`supports_streaming`/`vision_capability`.
 
 ### Ollama
-- 着点:
-  - ローカル実行でのモデル多様性、API互換のばらつき。
-- 移行:
-  - `tool_capability`/`supports_streaming` をspec化（可用性に応じて段階的適用）。
+- Focus: local runtime model variety; API compatibility variance.
+- Migration:
+  - Spec‑gate `tool_capability`/`supports_streaming` (phase in by availability).
 
-## 共通の実装ガイド
-1. ModelSpecユーティリティの拡張（Ruby）
-   - `responses_api?(model)`（済）
-   - `supports_web_search?(model)`（済）
-   - `model_has_property?(model, "reasoning_effort")`（済）
-   - `get_model_property(model, key)`（済）
-   - 必要に応じて `supports_streaming?(model)` などシンタ糖を追加
-2. 正規化レイヤ
-   - メッセージshape（OpenAI messages / Gemini contents / Cohere typed parts / xAI array）への変換をユーティリティ化
-   - 未対応パラメータの除去・クランプ（`accepts`／`constraints` を仕様化できるとベター）
-3. レスポンス/エラー正規化
-   - 成功: `text`, `tool_calls`, `images`, `meta` の共通化
-   - 失敗: `Timeout`, `RateLimited`, `Validation`, `UnsupportedFeature`, `Parsing` 等
-4. ドキュメントとログ
-   - 仕様の拡張（`model_spec.js`）時は Developer Docs に追記
-   - EXTRA_LOGGING時に「適用能力」「無効化パラメータ」「選択エンドポイント」を簡潔に記録
+## Common implementation guide
+1. Extend ModelSpec utilities (Ruby)
+   - `responses_api?(model)`, `supports_web_search?(model)`, `model_has_property?(model, "reasoning_effort")`, `get_model_property(model, key)`
+   - Add syntactic helpers like `supports_streaming?(model)` if needed
+2. Normalization layer
+   - Utilities for message shape conversion (OpenAI messages / Gemini contents / Cohere typed parts / xAI arrays)
+   - Drop/Clamp unsupported params (specify via `accepts` / `constraints` where possible)
+3. Response/Error normalization
+   - Success: unify key fields (e.g., `text`), and normalize errors into a common structure
 
-## フィードバック反映（設計強化）
-- 能力スキーマの階層化（例）
-  - capabilities.web_search:
-    - type: "native" | "external" | "none"
-    - via: "parameter" | "tool" | "embedded"
-  - capabilities.thinking:
-    - type: "reasoning_effort" | "thinking_budget" | "custom"
-    - format: "structured" | "freeform"
-- バージョン管理の付帯情報（必要に応じて）
-  - api_version: プロバイダAPIの仕様バージョン
-  - spec_version: 当該エントリのスキーマ版
-  - deprecated_after: 廃止予定日
-- フォールバック戦略（3段階）
-  1) model_spec.js から取得
-  2) PROVIDER_DEFAULTS（プロバイダ既定）
-  3) 安全側デフォルト（無効化／非対応）
-- 緊急時オーバーライド（任意）: 例として Claude では `CLAUDE_LEGACY_MODE=true` で一時的に streaming/tools/vision/pdf を許可するガードを実装。段階導入時の回帰時に切り戻しが可能。
-  - テスト観点（後続）: `CLAUDE_LEGACY_MODE` を有効化した場合に全能力が上書きされることを 1 ケースで検証（環境変数の前後で `supports_streaming`/`tool_capability`/`vision_capability`/`supports_pdf` が true になる）。
-- 監視とロールバック
-  - CAPABILITY_AUDIT=1 で「どの能力をどの出所（spec/default/fallback）で判定したか」をログ
-  - 環境変数で旧ロジックに切り戻すガードを用意（段階導入時）
-- 移行ダッシュボード（任意）
-  - providerごとに機能の移行状態を簡易YAML/JSONで可視化（spec_driven/hybrid/legacy）
+- Emergency override (optional): e.g., for Claude, allow `CLAUDE_LEGACY_MODE=true` to temporarily enable streaming/tools/vision/pdf. Useful for rollback during phased rollout.
+  - Testing angle: add a single case verifying that enabling `CLAUDE_LEGACY_MODE` flips `supports_streaming`/`tool_capability`/`vision_capability`/`supports_pdf` to true.
+- Observability and rollback
+  - With `CAPABILITY_AUDIT=1`, log which capability was decided by which source (spec/default/fallback)
+  - Provide env‑guard to revert to legacy logic during rollout
+- Migration dashboard (optional)
+  - Lightweight YAML/JSON overview per provider (spec_driven/hybrid/legacy status)
 
-## 段階的移行（小さく安全に）
-- Phase 0（観測）:
-  - 各ヘルパーのモデル名分岐を棚卸し（`rg`で列挙）し、対応する能力語彙に落とし込む
-- Phase 1（spec-first, fallback併用）:
-  - 置換対象を1つに限定（例: `tool_capability` だけspecに寄せる）
-  - ヘルパーは `ModelSpec.get_model_property(model, "tool_capability")` を優先
-  - specが未定義のモデルのみ従来ロジックにフォールバック
-- Phase 2（正規化導入）:
-  - メッセージ変換/パラメータ正規化を共通化し、各ヘルパーから呼び出す
-- Phase 3（リスト撤廃）:
-  - specカバレッジが揃い次第、旧リスト/ヒューリスティックを削除
-- Phase 4（契約テスト）:
-  - specの有無で期待動作を検証（例: `tool_capability: false` のモデルにtoolsを送らない）
+## Phased rollout (small and safe)
+- Phase 0 (observe): Inventory name‑based branches (`rg` listing) and map them to capability vocabulary
+- Phase 1 (spec‑first with fallback): Prefer `ModelSpec.get_model_property(model, "tool_capability")`; fall back when undefined
+- Phase 2 (normalization): Share message/param normalization and call from helpers
+- Phase 3 (list removal): Remove legacy lists/heuristics once coverage is sufficient
+- Phase 4 (contract tests): Validate expected behavior via spec (e.g., don’t send tools when `tool_capability: false`)
 
-## テスト強化（spec駆動の自動チェック）
-- ModelSpec compliance（例）
-  - tool_capability=false のモデルに tools を送らない
-  - supports_streaming=false のモデルで stream=false 強制
-  - supports_web_search=true のモデルで web 検索注入が有効
-  - reasoning_effort の有無でパラメータ付与/削除が一致
+## Test reinforcement (spec‑driven checks)
+- ModelSpec compliance examples
+  - Do not send tools when `tool_capability=false`
+  - Force `stream=false` when `supports_streaming=false`
+  - Inject web search only when `supports_web_search=true`
+  - Add/remove reasoning params based on presence of `reasoning_effort`
 
-## リスクと対策
-- 仕様不足: 既存分岐の暗黙知がspecに未反映 → 観測ログ＋フォールバックで段階導入
-- タイミング競合（UI）: モデル/アプリ選択の順序・非同期 → 末尾トリガ/ヘルパー集約（今回の修正方針）
-- コスト/遅延: streaming/検索の誤判定 → specで`supports_streaming`/`supports_web_search`を必ず更新
+## Risks and mitigations
+- Spec gaps: implicit knowledge in existing branches → add observation logs and fallback; roll out gradually
+- UI timing: selection order/async → trailing triggers and helper consolidation
+- Cost/latency: mis‑classification for streaming/search → keep `supports_streaming`/`supports_web_search` updated in spec
 
-## 受け入れ基準（各ベンダー共通）
-- 主要アプリ（Chat/Chat Plus/Code Interpreter/Research Assistantなど）で、従来挙動からのレグレッションなし
-- 仕様更新のみで新SKUを有効化できる（ヘルパー未改変）
-- ログ/テストでspec駆動の分岐が確認できる
+## Acceptance criteria (all providers)
+- No regression across main apps (Chat/Chat Plus/Code Interpreter/Research Assistant, etc.)
+- New SKUs can be enabled by spec updates only (no helper changes)
+- Logs/tests clearly show spec‑driven branches
 
-## 作業リストのひな形（例）
-- Claude: `tool_capability`/`supports_streaming` をspec化→ヘルパー置換→軽いスモーク
-- Gemini: `vision_capability`/`tool_capability`/`supports_streaming` をspec化→置換
-- Cohere: `tool_capability`/`supports_streaming` 置換、typed parts 正規化の共通化
-- xAI: `supports_web_search`/`vision_capability`/`supports_streaming` 置換
-- Mistral/Perplexity/DeepSeek/Ollama: 同上（段階）
+## Example task list
+- Claude: specify `tool_capability`/`supports_streaming` → replace in helper → light smoke test
+- Gemini: specify `vision_capability`/`tool_capability`/`supports_streaming` → replace
+- Cohere: replace `tool_capability`/`supports_streaming`, unify typed parts normalization
+- xAI: replace `supports_web_search`/`vision_capability`/`supports_streaming`
+- Mistral/Perplexity/DeepSeek/Ollama: same (phased)
 
-## 優先順位（改訂提案）
-1. Anthropic（人気・中程度の複雑性）
-2. Gemini（人気・やや複雑）
-3. DeepSeek（シンプル）
-4. Cohere（中程度）
-5. xAI（中程度）
-6. Mistral（複雑）
-7. Perplexity（特殊）
-8. Ollama（最特殊）
+## Priority (proposal)
+1. Anthropic (popular, medium complexity)
+2. Gemini (popular, medium‑high complexity)
+3. DeepSeek (simple)
+4. Cohere (medium)
+5. xAI (medium)
+6. Mistral (complex)
+7. Perplexity (special)
+8. Ollama (most special)
 
-## 参照ファイル
+## References
 - model_spec: `docker/services/ruby/public/js/monadic/model_spec.js`
-- ModelSpecユーティリティ: `docker/services/ruby/lib/monadic/utils/model_spec.rb`
-- 各ベンダーヘルパー: `docker/services/ruby/lib/monadic/adapters/vendors/*_helper.rb`
-- UIユーティリティ/選択制御: `docker/services/ruby/public/js/monadic/*.js`
+- ModelSpec utilities: `docker/services/ruby/lib/monadic/utils/model_spec.rb`
+- Vendor helpers: `docker/services/ruby/lib/monadic/adapters/vendors/*_helper.rb`
+- UI utilities/selection control: `docker/services/ruby/public/js/monadic/*.js`
 
 ---
-この計画は「安全第一・小さく導入」を前提にしています。まずは各ベンダーで1つの能力（例: tool_capability）からspec駆動へ寄せ、成功体験を積みながら正規化・撤廃の射程を広げるのが最短・最安です。
+This plan prioritizes safety and small iterations. Start by moving one capability per provider (e.g., `tool_capability`) to spec‑driven control, build confidence, then expand normalization and remove legacy logic.
 
-## 次の一歩（提案）
-- Phase 0: Anthropic のヘルパーから `tool_capability` のみ specファースト化（未定義は旧ロジック）
-- Phase 1: `supports_streaming` を追加 → ヘルパー置換（未定義は旧ロジック）
-- ここまでで小さくPRを分割し、spec駆動テスト（最低限）を追加して回帰を防止
+## Next steps (proposal)
+- Phase 0: For Anthropic, make only `tool_capability` spec‑first (fallback to legacy when undefined)
+- Phase 1: Add `supports_streaming` → replace in helper (fallback when undefined)
+- Split into small PRs and add minimal spec‑driven tests to prevent regressions
+

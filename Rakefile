@@ -2081,3 +2081,58 @@ namespace :models do
     puts "=" * 80
   end
 end
+# -----------------------------------------------------------------------------
+# Unified Test Runner tasks (developer UX)
+# -----------------------------------------------------------------------------
+namespace :test do
+  desc "Show available test suites and options"
+  task :help do
+    require_relative 'lib/test_runner'
+    TestRunner.show_help
+  end
+
+  desc "Run tests with user-friendly interface"
+  task :run, [:suite, :options] do |_t, args|
+    require_relative 'lib/test_runner'
+    runner = TestRunner.new(args[:suite], args[:options])
+    runner.execute
+  end
+
+  desc "Run tests using predefined profile from .test-config.yml"
+  task :profile, [:name] do |_t, args|
+    require 'yaml'
+    require_relative 'lib/test_runner'
+    config_path = '.test-config.yml'
+    unless File.exist?(config_path)
+      puts "Profile config not found: #{config_path}"
+      exit 1
+    end
+    cfg = YAML.safe_load(File.read(config_path)) || {}
+    profiles = cfg['profiles'] || {}
+    profile = profiles[args[:name]]
+    if profile.nil?
+      puts "Profile '#{args[:name]}' not found"
+      puts "Available profiles: #{profiles.keys.join(', ')}"
+      exit 1
+    end
+    suites = profile['suites'] || []
+    common_opts = profile.reject { |k, _| k == 'suites' }
+    suites.each do |suite|
+      options_str = common_opts.map { |k, v| "#{k}=#{Array(v).join(',')}" }.join(',')
+      Rake::Task['test:run'].invoke(suite, options_str)
+      Rake::Task['test:run'].reenable
+    end
+  end
+
+  desc "List recent test results"
+  task :history, [:count] do |_t, args|
+    require_relative 'lib/test_runner'
+    TestRunner.show_history((args[:count] || 10).to_i)
+  end
+
+  desc "Compare two test runs (by run_id)"
+  task :compare, [:run1, :run2] do |_t, args|
+    require_relative 'lib/test_runner'
+    TestRunner.compare_runs(args[:run1], args[:run2])
+  end
+end

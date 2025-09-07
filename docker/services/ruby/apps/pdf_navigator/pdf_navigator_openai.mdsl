@@ -72,6 +72,9 @@ app "PDFNavigatorOpenAI" do
     4. If the initial search doesn't find what you need, explain this to the user rather than retrying
 
     Please make sure that if your response does not have a particular reference to a text snippet, you shouldn't include every property in the JSON object. Only include the properties that are relevant to the response.
+
+    ## PDF Document Search (Mandatory)
+    When answering questions about uploaded PDFs, you MUST consult the document store BEFORE drafting any answer. If a cloud vector store (file_search) is available, call it first; if it returns no relevant results, call the local PDF DB tools once. Do NOT ask for permission to search. Do NOT answer from general knowledge without first checking the document store. Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position.
   TEXT
   
   llm do

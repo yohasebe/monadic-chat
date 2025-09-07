@@ -18,6 +18,9 @@ app "ResearchAssistantOpenAI" do
     - The information would benefit from up-to-date sources
     
     Provide comprehensive, well-researched answers with relevant citations when possible.
+
+    ## PDF Document Search (Mandatory)
+    When answering questions about uploaded PDFs, you MUST consult the document store BEFORE drafting any answer. If a cloud vector store (file_search) is available, call it first; if it returns no relevant results, call the local PDF DB tools once. Do NOT ask for permission to search. Do NOT answer from general knowledge without first checking the document store. Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position.
   TEXT
 
   llm do
@@ -36,6 +39,7 @@ app "ResearchAssistantOpenAI" do
     initiate_from_assistant true  # Add this like Content Reader
     mathjax true
     image true
+    pdf_vector_storage true
   end
 
   tools do

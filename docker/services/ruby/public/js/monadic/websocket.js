@@ -1777,6 +1777,20 @@ let loadedApp = "Chat";
     }
 
     setCopyCodeButton(htmlContent);
+
+    // Compact PDF metadata block: group elements after the first <hr> into a .pdf-meta wrapper
+    try {
+      const $ct = htmlContent.find('.card-text');
+      const $hr = $ct.find('hr').first();
+      if ($hr.length) {
+        const $metaElems = $hr.nextAll().not('.pdf-meta');
+        if ($metaElems.length) {
+          const $wrap = $('<div class="pdf-meta"></div>');
+          $metaElems.detach().appendTo($wrap);
+          $hr.after($wrap);
+        }
+      }
+    } catch (_) {}
   }
 
   // Helper function to display an error message
@@ -3159,21 +3173,26 @@ let loadedApp = "Chat";
         break;
       }
       case "pdf_titles": {
-        const pdf_table = "<table class='table mt-1 mb-1'><tbody>" +
-          data["content"].map((title, index) => {
-            return `<tr><td>${title}</td><td class="align-middle text-end"><button id='pdf-del-${index}' type='button' class='btn btn-sm btn-secondary'><i class='fas fa-trash'></i></button></td></tr>`;
-          }).join("") +
-          "</tbody></table>";
-        $("#pdf-titles").html(pdf_table);
-        data["content"].map((title, index) => {
-          $(`#pdf-del-${index}`).click(function () {
+        const rows = data["content"].map((title, index) => {
+          const safeTitle = String(title).replace(/</g, '&lt;');
+          return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom pdf-db-row">`
+               +   `<span class="pdf-db-name">${safeTitle}</span>`
+               +   `<button id='pdf-del-${index}' type='button' class='btn btn-sm btn-outline-secondary'>`
+               +     `<i class='fa-regular fa-trash-can text-secondary'></i>`
+               +   `</button>`
+               + `</div>`;
+        }).join("");
+        $("#pdf-titles").html(rows || `<span class='text-secondary'>(none)</span>`);
+        data["content"].forEach((title, index) => {
+          $(`#pdf-del-${index}`).off('click').on('click', function () {
             // Detect iOS/iPadOS
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             
             if (isIOS) {
               // Use standard confirm dialog on iOS
-              if (confirm("Are you sure you want to delete PDF: " + title + "?")) {
+              const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
+              if (confirm(`${base} ${title}?`)) {
                 ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
               }
             } else {
@@ -3188,7 +3207,7 @@ let loadedApp = "Chat";
               });
             }
           });
-        })
+        });
         break
       }
       case "pdf_deleted": {

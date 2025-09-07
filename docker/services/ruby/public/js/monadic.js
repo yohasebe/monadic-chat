@@ -2663,6 +2663,17 @@ $(function () {
       $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
       // Local header: show ready only; remove redundant (empty)
       $("#local-pdf-info").text(res.local_present ? '(ready)' : '');
+
+      // Toggle sections based on current mode
+      const showCloud = (mode === 'cloud');
+      $('#cloud-pdf-section').toggle(showCloud);
+      $('#local-pdf-section').toggle(!showCloud);
+      // Auto-refresh the visible list to keep UI fresh
+      if (showCloud) {
+        refreshCloudPdfList();
+      } else {
+        if (window.ws) ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+      }
     } catch (_) { /* ignore */ }
   }
   setTimeout(refreshPdfStorageStatus, 700);

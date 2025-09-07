@@ -632,24 +632,28 @@
 
           <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
             <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span></h5>
-            <div class="d-flex align-items-center justify-content-between">
-              <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
-              <div class="d-flex align-items-center gap-2">
-                <button id="local-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                <button id="local-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+            <div id="local-pdf-section">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
+                <div class="d-flex align-items-center gap-2">
+                  <button id="local-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                  <button id="local-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+                </div>
               </div>
+              <div class="mt-2" id="pdf-titles"></div>
             </div>
-            <div class="mt-2" id="pdf-titles"></div>
             <hr />
-            <div class="d-flex align-items-center justify-content-between mt-3">
-              <div class="like-h6"><i class="fas fa-cloud"></i> Cloud PDF (OpenAI) <small class="text-muted" id="cloud-pdf-info"></small></div>
-              <div class="d-flex align-items-center gap-2">
-                <button id="cloud-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                <button id="cloud-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+            <div id="cloud-pdf-section">
+              <div class="d-flex align-items-center justify-content-between mt-3">
+                <div class="like-h6"><i class="fas fa-cloud"></i> Cloud PDF (OpenAI) <small class="text-muted" id="cloud-pdf-info"></small></div>
+                <div class="d-flex align-items-center gap-2">
+                  <button id="cloud-pdf-refresh" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                  <button id="cloud-pdf-clear" class="btn btn-sm btn-outline-secondary"><i class="fa-regular fa-trash-can"></i> Clear All</button>
+                </div>
               </div>
+              <div id="cloud-pdf-list" class="mt-2"></div>
+              <div id="cloud-pdf-meta" class="mt-1 text-muted small"></div>
             </div>
-            <div id="cloud-pdf-list" class="mt-2"></div>
-            <div id="cloud-pdf-meta" class="mt-1 text-muted small"></div>
           </div>
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">

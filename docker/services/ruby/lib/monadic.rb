@@ -49,12 +49,28 @@ post "/openai/pdf" do
       end
       puts "[OpenAI PDF] Uploaded file: filename=#{filename} file_id=#{file_id}"
 
-      # Ensure/create a session-scoped vector store
-      vs_id = session[:openai_vector_store_id]
+      # Resolve Vector Store ID (ENV -> fallback meta -> create new)
+      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
+      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+      vs_id = nil
+      # read fallback
+      fallback_vs = nil
+      if File.exist?(vs_meta_path)
+        begin
+          meta = JSON.parse(File.read(vs_meta_path))
+          fallback_vs = meta["vector_store_id"]
+        rescue StandardError
+          fallback_vs = nil
+        end
+      end
+      vs_id = (env_vs_id && !env_vs_id.empty?) ? env_vs_id : fallback_vs
+
       unless vs_id
+        # create a new VS for this app/system
+        name = "monadic-pdf-navigator-#{Time.now.utc.strftime('%Y%m%d')}-#{SecureRandom.hex(4)}"
         vs_res = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
           "#{api_base}/vector_stores",
-          body: { name: "monadic-session-#{SecureRandom.hex(6)}" }.to_json
+          body: { name: name }.to_json
         )
         unless vs_res.status.success?
           puts "[OpenAI PDF] Vector store creation failed: status=#{vs_res.status} body=#{vs_res.body.to_s[0..200]}"
@@ -67,8 +83,16 @@ post "/openai/pdf" do
           return { success: false, error: "Vector store creation response invalid" }.to_json
         end
         puts "[OpenAI PDF] Vector store ready: vs_id=#{vs_id}"
-        session[:openai_vector_store_id] = vs_id
-        session[:uploaded_openai_files] = []
+        # persist to fallback meta if ENV is not set
+        if env_vs_id.nil? || env_vs_id.empty?
+          begin
+            meta = { "vector_store_id" => vs_id, "files" => [] }
+            File.write(vs_meta_path, JSON.pretty_generate(meta))
+            puts "[OpenAI PDF] Tip: set OPENAI_VECTOR_STORE_ID=#{vs_id} in .env for reuse"
+          rescue StandardError => e
+            puts "[OpenAI PDF] Failed to write VS meta: #{e.message}"
+          end
+        end
       end
 
       # Add file to vector store
@@ -81,7 +105,18 @@ post "/openai/pdf" do
         return { success: false, error: "Adding file to vector store failed: #{add_res.status}" }.to_json
       end
       puts "[OpenAI PDF] Linked file to vector store: vs_id=#{vs_id} file_id=#{file_id}"
-      session[:uploaded_openai_files] << file_id
+      # Update fallback meta file with this file entry
+      if (env_vs_id.nil? || env_vs_id.empty?)
+        begin
+          meta = File.exist?(vs_meta_path) ? (JSON.parse(File.read(vs_meta_path)) rescue {}) : {}
+          meta["vector_store_id"] = vs_id
+          meta["files"] ||= []
+          meta["files"] << { "file_id" => file_id, "filename" => filename, "created_at" => Time.now.utc.iso8601 }
+          File.write(vs_meta_path, JSON.pretty_generate(meta))
+        rescue StandardError => e
+          puts "[OpenAI PDF] Failed to update VS meta: #{e.message}"
+        end
+      end
 
       { success: true, filename: filename, vector_store_id: vs_id, file_id: file_id }.to_json
 
@@ -103,7 +138,19 @@ get "/openai/pdf" do
   begin
     case action
     when "list"
-      vs_id = session[:openai_vector_store_id]
+      # Resolve VS from ENV or fallback
+      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
+      fallback_vs = nil
+      if File.exist?(vs_meta_path)
+        begin
+          meta = JSON.parse(File.read(vs_meta_path))
+          fallback_vs = meta["vector_store_id"]
+        rescue StandardError
+          fallback_vs = nil
+        end
+      end
+      vs_id = (env_vs_id && !env_vs_id.empty?) ? env_vs_id : fallback_vs
       return { success: true, files: [] }.to_json unless vs_id
       headers = { "Authorization" => "Bearer #{api_key}" }
       api_base = "https://api.openai.com/v1"
@@ -132,15 +179,57 @@ delete "/openai/pdf" do
   begin
     case action
     when "clear"
-      vs_id = session[:openai_vector_store_id]
-      if vs_id
-        headers = { "Authorization" => "Bearer #{api_key}" }
-        # best-effort delete (ignore failures)
-        api_base = "https://api.openai.com/v1"
-        HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}") rescue nil
+      headers = { "Authorization" => "Bearer #{api_key}" }
+      api_base = "https://api.openai.com/v1"
+      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
+      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+      fallback_vs = nil
+      if File.exist?(vs_meta_path)
+        begin
+          meta = JSON.parse(File.read(vs_meta_path))
+          fallback_vs = meta["vector_store_id"]
+        rescue StandardError
+          fallback_vs = nil
+        end
       end
-      session[:openai_vector_store_id] = nil
-      session[:uploaded_openai_files] = []
+      vs_id = (env_vs_id && !env_vs_id.empty?) ? env_vs_id : fallback_vs
+
+      if vs_id
+        if env_vs_id && !env_vs_id.empty?
+          # ENV固定: VS自体は残し、中身（ファイル）だけ削除
+          files_res = HTTP.headers(headers).get("#{api_base}/vector_stores/#{vs_id}/files")
+          if files_res.status.success?
+            data = (JSON.parse(files_res.body.to_s) rescue {})
+            (data["data"] || []).each do |f|
+              fid = f["id"]
+              begin
+                HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{fid}")
+              rescue StandardError; end
+              begin
+                HTTP.headers(headers).delete("#{api_base}/files/#{fid}")
+              rescue StandardError; end
+            end
+          end
+          # メタのfilesを空に
+          if File.exist?(vs_meta_path)
+            begin
+              meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
+              meta["files"] = []
+              File.write(vs_meta_path, JSON.pretty_generate(meta))
+            rescue StandardError; end
+          end
+        else
+          # ENV固定なし: VS自体を削除し、メタもクリア
+          begin
+            HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}")
+          rescue StandardError; end
+          if File.exist?(vs_meta_path)
+            begin
+              File.write(vs_meta_path, JSON.pretty_generate({}))
+            rescue StandardError; end
+          end
+        end
+      end
       { success: true }.to_json
     when "delete"
       file_id = params["file_id"]
@@ -148,7 +237,18 @@ delete "/openai/pdf" do
       headers = { "Authorization" => "Bearer #{api_key}" }
       api_base = "https://api.openai.com/v1"
       # Best-effort: remove from vector store (if present), then delete file
-      vs_id = session[:openai_vector_store_id]
+      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
+      fallback_vs = nil
+      if File.exist?(vs_meta_path)
+        begin
+          meta = JSON.parse(File.read(vs_meta_path))
+          fallback_vs = meta["vector_store_id"]
+        rescue StandardError
+          fallback_vs = nil
+        end
+      end
+      vs_id = (env_vs_id && !env_vs_id.empty?) ? env_vs_id : fallback_vs
       begin
         if vs_id
           HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{file_id}")
@@ -158,7 +258,14 @@ delete "/openai/pdf" do
       end
       del_res = HTTP.headers(headers).delete("#{api_base}/files/#{file_id}")
       if del_res.status.success?
-        session[:uploaded_openai_files]&.delete(file_id)
+        # update fallback meta if present
+        if File.exist?(vs_meta_path)
+          begin
+            meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
+            meta["files"] = (meta["files"] || []).reject { |f| f["file_id"] == file_id }
+            File.write(vs_meta_path, JSON.pretty_generate(meta))
+          rescue StandardError; end
+        end
         { success: true }.to_json
       else
         { success: false, error: "Failed to delete file: #{del_res.status}" }.to_json

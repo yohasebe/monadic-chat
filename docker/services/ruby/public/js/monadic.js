@@ -2312,6 +2312,24 @@ $(function () {
     $("#file-title").val("");
     $("#fileFile").val("");
     $("#fileModal").modal("show");
+
+    // Initialize storage mode radios based on current provider/model
+    try {
+      const appName = $("#apps").val();
+      const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : '';
+      const isOpenAI = group.toLowerCase() === 'openai';
+      const model = $("#model").val();
+      const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
+
+      // Default selection: local
+      $("#storage-local").prop('checked', true);
+      // Enable/disable cloud option
+      if (isOpenAI && supportsPdfUpload) {
+        $("#storage-cloud").prop('disabled', false);
+      } else {
+        $("#storage-cloud").prop('disabled', true);
+      }
+    } catch (_) {}
   });
 
   let fileTitle = "";

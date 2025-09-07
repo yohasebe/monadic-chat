@@ -1107,6 +1107,19 @@
             <div class="mb-3">
               <input data-i18n="[placeholder]ui.modals.fileTitlePlaceholder" placeholder="File name will be used if not provided" class="form-control form-control-sm" id="file-title"></input>
             </div>
+            <div class="mb-2">
+              <label class="form-label">Storage</label>
+              <div class="d-flex align-items-center gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="storage-mode" id="storage-local" value="local" checked>
+                  <label class="form-check-label" for="storage-local">Local (PGVector)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="storage-mode" id="storage-cloud" value="cloud">
+                  <label class="form-check-label" for="storage-cloud">OpenAI (Vector Store)</label>
+                </div>
+              </div>
+            </div>
             <label for="fileFile" class="form-label" data-i18n="ui.modals.fileToImport">File to import</label>
             <input class="form-control form-control-sm" id="fileFile" type="file" name="fileFile">
           </div>

@@ -24,18 +24,23 @@ function uploadPdf(file, fileTitle) {
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
 
-  // Determine endpoint based on current provider/model
+  // Determine endpoint based on selected storage mode and provider/model
   let endpoint = "/pdf";
   try {
+    const storageMode = $('input[name="storage-mode"]:checked').val() || 'local';
     const appName = $("#apps").val();
     const model = $("#model").val();
     const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : null;
     const isOpenAI = group && group.toLowerCase() === 'openai';
     const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
-    if (isOpenAI && supportsPdfUpload) {
+    if (storageMode === 'cloud' && isOpenAI && supportsPdfUpload) {
       endpoint = "/openai/pdf?action=upload";
+    } else {
+      endpoint = "/pdf";
     }
-  } catch (_) {}
+  } catch (_) {
+    endpoint = "/pdf";
+  }
 
   // Use Promise for better async handling
   return new Promise((resolve, reject) => {

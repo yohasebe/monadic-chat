@@ -6,6 +6,7 @@ require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 
 module CohereHelper
   include InteractionUtils
@@ -21,6 +22,8 @@ module CohereHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   VALID_ROLES = %w[user assistant system tool].freeze
+  # ENV key for emergency override
+  COHERE_LEGACY_MODE_ENV = "COHERE_LEGACY_MODE"
 
   # websearch tools
   WEBSEARCH_TOOLS = [
@@ -841,8 +844,51 @@ module CohereHelper
           "text" => msg["text"].to_s.strip
         }
         
-        # Add images
+        # Add images (SSOT-gated)
         msg["images"].each do |img|
+          begin
+            spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+            vision_capable = spec_vision.nil? ? true : !!spec_vision
+            spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+            pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
+          rescue StandardError
+            vision_capable = true
+            pdf_capable = false
+          end
+          if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+            vision_capable = true
+            pdf_capable = true
+          end
+          if img["type"] == "application/pdf"
+            unless pdf_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Cohere",
+                message: "This model does not support PDF input.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Cohere",
+              message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
+          unless vision_capable
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Cohere",
+              message: "This model does not support image input (vision).",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
           # Cohere expects base64 images with proper formatting
           if img["data"].start_with?("data:")
             content << {
@@ -890,6 +936,49 @@ module CohereHelper
         
         # Add images from the latest message
         latest_msg["images"].each do |img|
+          begin
+            spec_vision = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+            vision_capable = spec_vision.nil? ? true : !!spec_vision
+            spec_pdf = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+            pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
+          rescue StandardError
+            vision_capable = true
+            pdf_capable = false
+          end
+          if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+            vision_capable = true
+            pdf_capable = true
+          end
+          if img["type"] == "application/pdf"
+            unless pdf_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Cohere",
+                message: "This model does not support PDF input.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Cohere",
+              message: "Cohere does not support PDF input. Please paste relevant text or use a provider that supports PDFs (e.g., Perplexity via URL, Gemini, Claude).",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
+          unless vision_capable
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Cohere",
+              message: "This model does not support image input (vision).",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
           if img["data"].start_with?("data:")
             content << {
               "type" => "image",
@@ -943,10 +1032,24 @@ module CohereHelper
       end
     end
 
+    # SSOT: Resolve capabilities
+    begin
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+      streaming_source = spec_stream.nil? ? "fallback" : "spec"
+      supports_streaming = spec_stream.nil? ? true : !!spec_stream
+    rescue StandardError
+      streaming_source = "fallback"
+      supports_streaming = true
+    end
+    if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      streaming_source = "legacy"
+    end
+
     # Construct request body with v2 API compatible parameters
     body = {
       "model" => obj["model"],
-      "stream" => true,
+      "stream" => supports_streaming,
     }
 
     # Add optional parameters with validation
@@ -1023,14 +1126,19 @@ module CohereHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :cohere, app)
 
-    # Check if we need to switch to vision-capable model
+    # Check if we need to switch to vision-capable model (SSOT)
     if messages_containing_img
-      # Check if the current model has vision capability from model_spec
-      unless obj["vision_capability"]
+      begin
+        vprop = Monadic::Utils::ModelSpec.get_model_property(body["model"], "vision_capability")
+        current_vision = vprop == true
+      rescue StandardError
+        current_vision = true
+      end
+      unless current_vision
         original_model = body["model"]
-        body["model"] = "command-a-vision-07-2025"
-        
-        # Send system notification about model switch
+        # Prefer a known Cohere vision model if available in spec
+        vision_model = "command-a-vision-07-2025"
+        body["model"] = vision_model
         if block && original_model != body["model"]
           system_msg = {
             "type" => "system_info",
@@ -1067,6 +1175,24 @@ module CohereHelper
       end
     end # end of role != "tool"
 
+    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
+      tool_source = spec_tool.nil? ? "fallback" : "spec"
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_source = "fallback"
+      tool_capable = true
+    end
+    if ENV[COHERE_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_source = "legacy"
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
     # Handle tool results in v2 format
     # Only set messages if not already set by reasoning workaround
     if !body["messages"]
@@ -1099,6 +1225,29 @@ module CohereHelper
         "role" => "user",
         "content" => initial_message
       }
+    end
+
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{streaming_source})"
+        audit << "tools:#{tool_capable}(#{tool_source})"
+        # vision/pdf audit by spec
+        begin
+          vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+          vsrc = vprop.nil? ? "fallback" : "spec"
+          audit << "vision:#{!!vprop}(#{vsrc})"
+          pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+          psrc = pprop.nil? ? "fallback" : "spec"
+          audit << "pdf:#{!!pprop}(#{psrc})"
+        rescue
+        end
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Cohere SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
+        end
+      rescue
+      end
     end
 
     # Log the complete API request for debugging

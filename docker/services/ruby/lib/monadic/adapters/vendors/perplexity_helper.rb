@@ -4,11 +4,14 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 
 module PerplexityHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.perplexity.ai"
+  # ENV key for emergency override (optional)
+  PERPLEXITY_LEGACY_MODE_ENV = "PERPLEXITY_LEGACY_MODE"
 
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60 * 10
@@ -412,7 +415,20 @@ module PerplexityHelper
       "model" => model,
     }
 
-    body["stream"] = true
+    # SSOT: supports_streaming gate (default true)
+    begin
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming")
+      streaming_source = spec_stream.nil? ? "fallback" : "spec"
+      supports_streaming = spec_stream.nil? ? true : !!spec_stream
+    rescue StandardError
+      streaming_source = "fallback"
+      supports_streaming = true
+    end
+    if ENV[PERPLEXITY_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      streaming_source = "legacy"
+    end
+    body["stream"] = supports_streaming
     body["n"] = 1
 
     body["temperature"] = temperature if temperature
@@ -495,6 +511,24 @@ module PerplexityHelper
       end
     end # end of role != "tool"
 
+    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+      tool_source = spec_tool.nil? ? "fallback" : "spec"
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_source = "fallback"
+      tool_capable = true
+    end
+    if ENV[PERPLEXITY_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_source = "legacy"
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
     # The context is added to the body
     messages_containing_img = false
     system_message_modified = false
@@ -515,6 +549,69 @@ module PerplexityHelper
         if msg["images"] && role == "user"
           msg["images"].each do |img|
             messages_containing_img = true
+            # SSOT: gate vision/pdf by model capability
+            begin
+              spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
+              vision_source = spec_vision.nil? ? "fallback" : "spec"
+              vision_capable = spec_vision.nil? ? true : !!spec_vision
+            rescue StandardError
+              vision_source = "fallback"
+              vision_capable = true
+            end
+            if img["type"] == "application/pdf"
+              # SSOT: supports_pdf gate
+              begin
+                spec_pdf = Monadic::Utils::ModelSpec.get_model_property(model, "supports_pdf")
+                pdf_source = spec_pdf.nil? ? "fallback" : "spec"
+                pdf_capable = spec_pdf.nil? ? true : !!spec_pdf
+              rescue StandardError
+                pdf_source = "fallback"
+                pdf_capable = true
+              end
+              unless pdf_capable
+                formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                  provider: "Perplexity",
+                  message: "This model does not support PDF input.",
+                  code: 400
+                )
+                res = { "type" => "error", "content" => formatted_error }
+                block&.call res
+                return [res]
+              end
+
+              # If inline PDF upload is not explicitly enabled, require URL-based PDFs
+              unless ENV["PERPLEXITY_ENABLE_INLINE_PDF"] == "true"
+                formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                  provider: "Perplexity",
+                  message: "Perplexity requires PDFs via public URLs. Please include a PDF URL in your message text (pdf_url), for example using a Google Drive sharing link or any publicly accessible link.",
+                  code: 400
+                )
+                res = { "type" => "error", "content" => formatted_error }
+                block&.call res
+                return [res]
+              end
+
+              # Experimental inline mode: Perplexity expects URLs (pdf_url). Log and skip attaching.
+              if CONFIG["EXTRA_LOGGING"]
+                begin
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts("[#{Time.now}] WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment.")
+                  extra_log.close
+                rescue
+                end
+              end
+              next
+            end
+            unless vision_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Perplexity",
+                message: "This model does not support image input (vision).",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
             message["content"] << {
               "type" => "image_url",
               "image_url" => {
@@ -581,8 +678,8 @@ module PerplexityHelper
       body["tool_choice"] = "auto"
     end
 
-    # Check if this is a reasoning model (includes "reasoning" or starts with r followed by digits)
-    if obj["model"].include?("reasoning") || obj["model"].match?(/^r\d+/)
+    # Check if this is a reasoning model (SSOT)
+    if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) 
       body.delete("temperature")
       body.delete("tool_choice")
       body.delete("tools")
@@ -653,6 +750,25 @@ module PerplexityHelper
     # res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
     # block&.call res
     
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{streaming_source})"
+        audit << "tools:#{tool_capable}(#{tool_source})"
+        begin
+          vprop = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
+          vsrc = vprop.nil? ? "fallback" : "spec"
+          audit << "vision:#{!!vprop}(#{vsrc})"
+        rescue
+        end
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}")
+        extra_log.close
+      rescue
+      end
+    end
+
     # Call the API
     target_uri = "#{API_ENDPOINT}/chat/completions"
     headers["Accept"] = "text/event-stream"
@@ -664,8 +780,13 @@ module PerplexityHelper
       extra_log.puts("\n[#{Time.now}] Perplexity final API request:")
       extra_log.puts("URL: #{target_uri}")
       extra_log.puts("Model: #{body["model"]}")
-      extra_log.puts("Request body (first 1000 chars):")
-      extra_log.puts(JSON.pretty_generate(body).slice(0, 1000))
+      if body["attachments"]
+        extra_log.puts("Attachments: #{body["attachments"].map { |a| a["filename"] || a["mime_type"] }.inspect}")
+      end
+      extra_log.puts("Request body (first 1000 chars, attachments omitted):")
+      body_preview = body.dup
+      body_preview.delete("attachments")
+      extra_log.puts(JSON.pretty_generate(body_preview).slice(0, 1000))
       extra_log.close
     end
 
@@ -884,8 +1005,8 @@ module PerplexityHelper
               end
             end
             
-            # Only process <think> tags for reasoning models
-            if obj["model"].include?("reasoning") || obj["model"].match?(/^r\d+/)
+            # Only process <think> tags for reasoning models (SSOT)
+            if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) 
               if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: Extracting thinking blocks for reasoning model", category: :api, level: :info)
               end

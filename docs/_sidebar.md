@@ -56,5 +56,6 @@
     - [Rake Tasks](/developer/rake_tasks.md)
     - [Assets Management](/developer/assets.md)
     - [Code Organization](/developer/code_structure.md)
+    - [Hardcoding Audit](/developer/hardcoding_audit.md)
 
 - [Changelog](/changelog.md)

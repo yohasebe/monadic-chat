@@ -51,13 +51,21 @@ function updateAppSelectIcon(appValue) {
     appValue = $("#apps").val();
   }
   
-  // If apps object is not yet populated or app not found, do nothing
-  if (!appValue || !apps || !apps[appValue] || !apps[appValue]["icon"]) {
-    return;
+  // Try to obtain icon HTML from apps definition first
+  let iconHtml = (appValue && apps && apps[appValue]) ? apps[appValue]["icon"] : null;
+
+  // Fallback: derive icon from custom dropdown option if available
+  if (!iconHtml) {
+    const $opt = $(`.custom-dropdown-option[data-value="${appValue}"] span:first-child`).first();
+    if ($opt && $opt.length) {
+      iconHtml = $opt.html();
+    }
   }
-  
-  // Get the icon HTML from the apps object
-  const iconHtml = apps[appValue]["icon"];
+
+  // Final fallback: use a generic chat icon
+  if (!iconHtml) {
+    iconHtml = '<i class="fas fa-comment"></i>';
+  }
   
   // Update the icon in the static icon span
   $("#app-select-icon").html(iconHtml);
@@ -88,6 +96,10 @@ function updateAppSelectIcon(appValue) {
     }
   }
 }
+
+// Update the "model-selected" badge text in the menu panel
+// Uses current #model value, current app's provider group, and reasoning effort (if supported)
+// (reverted) updateModelSelectedBadge helper was removed
 
 
 function setCookie(name, value, days) {
@@ -503,6 +515,11 @@ window.loadParams = function(params, calledFor = "loadParams") {
   
   // Set flag to prevent model change handler from resetting reasoning_effort
   window.isLoadingParams = true;
+  if (window.logTL) window.logTL('loadParams_enter', {
+    calledFor,
+    app_name: params["app_name"],
+    has_initial_prompt: !!params["initial_prompt"]
+  });
   
   // Update AI Assistant info badge when model is loaded
   if (params.model) {
@@ -694,6 +711,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
   }
 
   $("#initial-prompt").val(params["initial_prompt"]).trigger("input");
+  if (window.logTL) window.logTL('initial_prompt_set', {
+    calledFor,
+    length: (params["initial_prompt"] || '').length
+  });
 
   if (params["ai_user_initial_prompt"]) {
     $("#ai-user-initial-prompt-toggle").prop("checked", true).trigger("change");
@@ -855,11 +876,16 @@ window.loadParams = function(params, calledFor = "loadParams") {
     $("#max-tokens-toggle").prop("checked", false).trigger("change");
   }
 
+  // (reverted) removed OpenAI PDF manager refresh hook after model updates
+
   // Set context size from configuration or use default
   $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
   
   // Reset the flag after loading is complete
   window.isLoadingParams = false;
+  if (window.logTL) window.logTL('loadParams_exit', { calledFor });
+
+  // (reverted) no deferred update here; proceedWithAppChange triggers model change as needed
 }
 
 function resetParams() {
@@ -1037,10 +1063,24 @@ function checkParams() {
   return true;
 }
 
-// Check if a model supports PDF input
-// PDF is supported only by OpenAI, Anthropic (Claude), and Google (Gemini) models with vision capability
+// Check if a model supports PDF file uploads (SSOT-driven)
+// If `supports_pdf_upload` is explicitly false, return false.
+// If `supports_pdf_upload` is true, return true.
+// Otherwise, fall back to `supports_pdf` (legacy behavior) to avoid regressions.
 function isPdfSupportedForModel(selectedModel) {
-  return /^(gpt-|o\d|o4|claude-|gemini-)/.test(selectedModel);
+  try {
+    if (typeof modelSpec !== 'undefined' && modelSpec[selectedModel]) {
+      const spec = modelSpec[selectedModel];
+      if (spec.hasOwnProperty('supports_pdf_upload')) {
+        return spec.supports_pdf_upload === true;
+      }
+      return !!spec["supports_pdf"];
+    }
+  } catch (e) {
+    // fall through to conservative default
+  }
+  // Conservative fallback if spec not loaded: disable
+  return false;
 }
 
 // Check if the current app supports image generation
@@ -1061,8 +1101,11 @@ function isMaskEditingEnabled(appName) {
   
   // Disable mask editor for Gemini Image Generator (uses semantic masking instead)
   if (appName && appName.includes("ImageGeneratorGemini")) {
-    return false;
-  }
+  return false;
+}
+
+// Helper: show/hide OpenAI PDF manager and refresh list
+// (reverted) removed OpenAI PDF manager utilities and handlers
   
   return apps[appName] && 
     (apps[appName].image_generation === true || 

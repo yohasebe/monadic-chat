@@ -32,7 +32,20 @@ module OpenAIHelper
 
   MODELS_N_LATEST = -1
 
-  # partial string match
+  # NOTE: This list intentionally remains (partial string match)
+  # Why it exists:
+  # - OpenAI's /models endpoint returns many non-chat SKUs (embeddings, TTS, moderation,
+  #   realtime, legacy families, image generators, etc.). Our UI lists available chat models,
+  #   so we defensively filter out obvious non-chat categories here to avoid confusing users.
+  # - This filter is ONLY used for model discovery (list_models). Capability gating elsewhere
+  #   must be driven by model_spec (SSOT).
+  # Trade-offs:
+  # - We prefer spec-driven allow/deny decisions, but spec may not include every SKU returned
+  #   by the provider. Keeping this coarse deny-list avoids surfacing irrelevant models when
+  #   spec coverage is incomplete.
+  # Future direction:
+  # - If provider returns richer metadata (categories/endpoints), or once spec coverage is
+  #   complete for discovery, we can remove this and rely solely on spec.
   EXCLUDED_MODELS = [
     "vision",
     "instruct",
@@ -1076,6 +1089,19 @@ module OpenAIHelper
         # Enable parallel tool calls by default
         responses_body["parallel_tool_calls"] = true
         
+      end
+
+      # Attach File Search tool if session has an OpenAI vector store (PDF uploads)
+      begin
+        if defined?(session) && session[:openai_vector_store_id]
+          responses_body["tools"] ||= []
+          vs_id = session[:openai_vector_store_id]
+          # Use built-in file_search tool shape
+          responses_body["tools"] << RESPONSES_API_BUILTIN_TOOLS["file_search"].call(vector_store_ids: [vs_id], max_num_results: 20)
+          DebugHelper.debug("OpenAI: Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
+        end
+      rescue => e
+        DebugHelper.debug("Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)
       end
       
       # Support for structured outputs and verbosity

@@ -8,6 +8,7 @@ require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 
 module MistralHelper
   include InteractionUtils
@@ -21,6 +22,8 @@ module MistralHelper
   WRITE_TIMEOUT  = 60
   MAX_RETRIES    = 5
   RETRY_DELAY    = 1
+  # ENV key for emergency override
+  MISTRAL_LEGACY_MODE_ENV = "MISTRAL_LEGACY_MODE"
 
   EXCLUDED_MODELS = [
     "embed",
@@ -395,7 +398,20 @@ module MistralHelper
       body["temperature"] = temperature || 0.7
     end
 
-    body["stream"] = true
+    # SSOT: supports_streaming gate (default true)
+    begin
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+      stream_src = spec_stream.nil? ? "fallback" : "spec"
+      supports_streaming = spec_stream.nil? ? true : !!spec_stream
+    rescue StandardError
+      stream_src = "fallback"
+      supports_streaming = true
+    end
+    if ENV[MISTRAL_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      stream_src = "legacy"
+    end
+    body["stream"] = supports_streaming
 
     # Set the max tokens
     body["max_tokens"] = max_tokens || 4096
@@ -463,6 +479,46 @@ module MistralHelper
     end
     end  # end of role != "tool"
 
+    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "tool_capability")
+      tool_src = spec_tool.nil? ? "fallback" : "spec"
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_src = "fallback"
+      tool_capable = true
+    end
+    if ENV[MISTRAL_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_src = "legacy"
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{stream_src})"
+        audit << "tools:#{tool_capable}(#{tool_src})"
+        begin
+          vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+          vsrc = vprop.nil? ? "fallback" : "spec"
+          pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+          psrc = pprop.nil? ? "fallback" : "spec"
+          audit << "vision:#{!!vprop}(#{vsrc})"
+          audit << "pdf:#{!!pprop}(#{psrc})"
+        rescue
+        end
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Mistral SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
+        end
+      rescue
+      end
+    end
+
     # Add all messages to body
     system_message_modified = false
     body["messages"] = context.reject do |msg|
@@ -490,8 +546,51 @@ module MistralHelper
           "text" => msg["text"]
         }
         
-        # Add images
+        # Add images (SSOT-gated)
         msg["images"].each do |img|
+          begin
+            vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+            vision_capable = vprop.nil? ? true : !!vprop
+            pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+            pdf_capable = pprop.nil? ? false : !!pprop
+          rescue StandardError
+            vision_capable = true
+            pdf_capable = false
+          end
+          if ENV[MISTRAL_LEGACY_MODE_ENV] == "true"
+            vision_capable = true
+            pdf_capable = true
+          end
+          if img["type"] == "application/pdf"
+            unless pdf_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Mistral",
+                message: "This model does not support PDF input.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Mistral",
+              message: "Please provide a public PDF URL in your message.",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
+          unless vision_capable
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Mistral",
+              message: "This model does not support image input (vision).",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
           content << {
             "type" => "image_url", 
             "image_url" => img["data"]  # Mistral expects the URL/base64 string directly

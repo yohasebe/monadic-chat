@@ -4,6 +4,7 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/model_spec"
 require 'strscan'
 require 'securerandom'
 
@@ -17,6 +18,8 @@ module DeepSeekHelper
   WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
+  # ENV key for emergency override
+  DEEPSEEK_LEGACY_MODE_ENV = "DEEPSEEK_LEGACY_MODE"
 
   # websearch tools (strict-mode compatible)
   WEBSEARCH_TOOLS = [
@@ -438,9 +441,22 @@ module DeepSeekHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
+    # SSOT: supports_streaming gate (default true)
+    begin
+      spec_stream = Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming")
+      stream_src = spec_stream.nil? ? "fallback" : "spec"
+      supports_streaming = spec_stream.nil? ? true : !!spec_stream
+    rescue StandardError
+      stream_src = "fallback"
+      supports_streaming = true
+    end
+    if ENV[DEEPSEEK_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      stream_src = "legacy"
+    end
     body = {
       "model" => model,
-      "stream" => true
+      "stream" => supports_streaming
     }
 
     body["max_tokens"] = max_tokens if max_tokens
@@ -541,6 +557,47 @@ module DeepSeekHelper
         body.delete("tool_choice")
       end
     end # end of role != "tool"
+
+    # SSOT: If the model is not tool-capable, remove tools/tool_choice
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+      tool_src = spec_tool.nil? ? "fallback" : "spec"
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_src = "fallback"
+      tool_capable = true
+    end
+    if ENV[DEEPSEEK_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_src = "legacy"
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{stream_src})"
+        audit << "tools:#{tool_capable}(#{tool_src})"
+        # Vision/pdf flags (from spec) for reference
+        begin
+          vprop = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
+          vsrc = vprop.nil? ? "fallback" : "spec"
+          pprop = Monadic::Utils::ModelSpec.get_model_property(model, "supports_pdf")
+          psrc = pprop.nil? ? "fallback" : "spec"
+          audit << "vision:#{!!vprop}(#{vsrc})"
+          audit << "pdf:#{!!pprop}(#{psrc})"
+        rescue
+        end
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] DeepSeek SSOT capabilities for #{model}: #{audit.join(', ')}"
+        end
+      rescue
+      end
+    end
 
     if role == "tool"
       body["messages"] += obj["function_returns"]

@@ -9,6 +9,7 @@ const modelSpec = {
     "supports_verbosity": true,
     "api_type": "responses",
     "supports_web_search": true,
+    "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
   "gpt-5-2025-08-07": {
@@ -31,6 +32,7 @@ const modelSpec = {
     "supports_verbosity": true,
     "api_type": "responses",
     "supports_web_search": true,
+    "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
   "gpt-5-mini-2025-08-07": {
@@ -77,6 +79,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
+    "supports_pdf_upload": true,
     "api_type": "responses",
     "skip_in_progress_events": true
   },
@@ -103,6 +106,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
+    "supports_pdf_upload": true,
     "api_type": "responses",
     "skip_in_progress_events": true
   },
@@ -153,6 +157,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
   // gpt-4o models
@@ -164,7 +169,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   "gpt-4o-2024-08-06": {
     "context_window" : [1, 128000],
@@ -174,7 +180,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   "gpt-4o-2024-11-20": {
     "context_window" : [1, 128000],
@@ -184,7 +191,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   "gpt-4o-2024-05-13": {
     "context_window" : [1, 128000],
@@ -194,7 +202,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   "chatgpt-4o-latest": {
     "context_window" : [1, 128000],
@@ -205,6 +214,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
   "gpt-4o-mini": {
@@ -215,7 +225,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   "gpt-4o-mini-2024-07-18": {
     "context_window" : [1, 128000],
@@ -225,7 +236,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_pdf_upload": true
   },
   // reasoning models
   "o3-pro-2025-06-10": {
@@ -521,6 +533,7 @@ const modelSpec = {
   // Anthropic models
   "claude-opus-4-1-20250805": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 32000], 32000],
     "tool_capability": true,
     "vision_capability": true,
@@ -530,10 +543,13 @@ const modelSpec = {
       "default": 10000,
       "max": null
     },
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true
   },
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 32000], 32000],
     "tool_capability": true,
     "vision_capability": true,
@@ -543,10 +559,17 @@ const modelSpec = {
       "default": 10000,
       "max": null
     },
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-sonnet-4-20250514": {
     "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
@@ -556,10 +579,17 @@ const modelSpec = {
       "default": 10000,
       "max": null
     },
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-3-7-sonnet-20250219": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
@@ -569,55 +599,85 @@ const modelSpec = {
       "default": 10000,
       "max": null
     },
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-3-5-sonnet-20240620": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": false,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_streaming": true,
+    "supports_pdf": true,
+    "beta_flags": [
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-3-5-sonnet-20241022": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": false,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_streaming": true,
+    "supports_pdf": true,
+    "beta_flags": [
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 1.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "vision_capability": false,
     "supports_thinking": false,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_streaming": true,
+    "supports_pdf": false
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [1, 4096],
     "temperature": [[0.0, 1.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": false,
-    "supports_web_search": false
+    "supports_web_search": false,
+    "supports_streaming": true,
+    "supports_pdf": true,
+    "beta_flags": [
+      "pdfs-2024-09-25"
+    ]
   },
   "claude-3-haiku-20240307": {
     "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
     "max_output_tokens" : [1, 4096],
     "temperature": [[0.0, 1.0], 1.0],
     "top_p": [0.0, 1.0],
     "tool_capability": true,
     "vision_capability": false,
+    "supports_streaming": true,
+    "supports_pdf": false,
     "supports_thinking": false,
     "supports_web_search": false
   },
@@ -788,7 +848,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-flash-lite": {
     "context_window" : [1048576],
@@ -809,7 +870,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-flash": {
     "context_window" : [1048576],
@@ -830,7 +892,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-flash-lite-preview-06-17": {
     "context_window" : [1048576],
@@ -851,7 +914,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-flash-preview-05-20": {
     "context_window" : [1048576],
@@ -860,7 +924,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -879,7 +944,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-pro-preview-06-05": {
     "context_window" : [1048576],
@@ -898,7 +964,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-pro-preview-05-06": {
     "context_window" : [1048576],
@@ -917,7 +984,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-pro-preview-03-25": {
     "context_window" : [1048576],
@@ -936,7 +1004,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   // Experimental models
   "gemini-2.5-pro-exp": {
@@ -956,7 +1025,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.5-pro-exp-03-25": {
     "context_window" : [1, 1000000],
@@ -975,7 +1045,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.0-pro-exp-02-05": {
     "context_window" : [1, 1048576],
@@ -984,6 +1055,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_pdf": true
   },
   "gemini-2.0-pro-exp": {
     "context_window" : [1, 1048576],
@@ -992,14 +1064,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-  },
-  "gemini-2.0-pro-exp-02-05": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
+    "supports_pdf": true
   },
   "gemini-2.0-flash-thinking-exp": {
     "context_window" : [1, 1048576],
@@ -1039,7 +1104,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.0-flash-001": {
     "context_window" : [1, 1048576],
@@ -1048,6 +1114,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_pdf": true
   },
   "gemini-2.0-flash": {
     "context_window" : [1, 1048576],
@@ -1056,7 +1123,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "supports_pdf": true
   },
   "gemini-2.0-flash-lite-preview": {
     "context_window" : [1, 1048576],
@@ -1065,6 +1133,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_pdf": true
   },
   "gemini-2.0-flash-lite-preview-02-05": {
     "context_window" : [1, 1048576],
@@ -1073,6 +1142,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_pdf": true
   },
   // Mistral models
   // codestral models
@@ -1348,7 +1418,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": false,
-    "supports_parallel_function_calling": true
+    "supports_parallel_function_calling": true,
+    "supports_pdf": false
   },
   "grok-2-1212": {
     "context_window" : [1, 131072],
@@ -1364,11 +1435,18 @@ const modelSpec = {
   "r1-1776": {
     "context_window" : [1, 128000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "reasoning_model": true
+    "reasoning_model": true,
+    "is_reasoning_model": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   "sonar-deep-research": {
     "context_window" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   "sonar-reasoning-pro": {
     "context_window" : [1, 128000],
@@ -1379,7 +1457,10 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 2.0], 1.0],
     "vision_capability": true,
     "is_reasoning_model": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   "sonar-reasoning": {
     "context_window" : [1, 128000],
@@ -1389,7 +1470,10 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0],
     "vision_capability": true,
-    "is_reasoning_model": true
+    "is_reasoning_model": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   "sonar-pro": {
     "context_window" : [1, 200000],
@@ -1398,7 +1482,10 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   "sonar": {
     "context_window" : [1, 128000],
@@ -1406,7 +1493,10 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 0.9],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
   },
   // DeepSeek models
   "deepseek-chat": {

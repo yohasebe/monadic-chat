@@ -54,6 +54,6 @@
     - [Rakeタスク](/ja/developer/rake_tasks.md)
     - [アセット管理](/ja/developer/assets.md)
     - [コード構成](/ja/developer/code_structure.md)
+    - [ハードコーディング監査](/developer/hardcoding_audit.md)
 
 - [更新履歴](/ja/changelog.md)
-

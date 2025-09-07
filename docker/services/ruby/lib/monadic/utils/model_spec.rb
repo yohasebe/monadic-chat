@@ -5,7 +5,8 @@ module Monadic
     class ModelSpec
       class << self
         def load_spec
-          @spec ||= begin
+          return @spec if @spec
+          begin
             # First, load the default model_spec.js
             spec_path = File.join(
               File.dirname(__FILE__), 
@@ -64,7 +65,7 @@ module Monadic
             
             # Then, apply overrides from models.json if it exists
             override_path = File.expand_path("~/monadic/config/models.json")
-            if File.exist?(override_path)
+            merged_spec = if File.exist?(override_path)
               begin
                 override_spec = JSON.parse(File.read(override_path))
                 # Deep merge the override spec into base spec
@@ -76,10 +77,13 @@ module Monadic
             else
               base_spec
             end
+            # Return normalized spec for caching
+            @spec = normalize_spec(merged_spec)
           rescue JSON::ParserError => e
             puts "Warning: Failed to parse model_spec.js: #{e.message}"
-            {}
+            @spec = {}
           end
+          @spec
         end
         
         def deep_merge_specs(base, override)
@@ -96,7 +100,7 @@ module Monadic
           end
           base
         end
-        
+
         def get_model_spec(model_name)
           load_spec[model_name] || {}
         end
@@ -109,6 +113,33 @@ module Monadic
         def get_model_property(model_name, property)
           spec = get_model_spec(model_name)
           spec[property.to_s]
+        end
+
+        # Canonicalized accessors (prefer these over raw get_model_property going forward)
+        def tool_capability?(model_name)
+          get_model_property(model_name, "tool_capability") != false
+        end
+
+        def supports_streaming?(model_name)
+          prop = get_model_property(model_name, "supports_streaming")
+          prop.nil? ? true : !!prop
+        end
+
+        def vision_capability?(model_name)
+          prop = get_model_property(model_name, "vision_capability")
+          prop.nil? ? true : !!prop
+        end
+
+        def supports_pdf?(model_name)
+          !!get_model_property(model_name, "supports_pdf")
+        end
+
+        def supports_pdf_upload?(model_name)
+          !!get_model_property(model_name, "supports_pdf_upload")
+        end
+
+        def supports_web_search?(model_name)
+          get_model_property(model_name, "supports_web_search") == true
         end
         
         def supports_verbosity?(model_name)
@@ -140,10 +171,6 @@ module Monadic
           get_model_property(model_name, "supports_thinking") == true
         end
         
-        def supports_web_search?(model_name)
-          get_model_property(model_name, "supports_web_search") == true
-        end
-
         def responses_api?(model_name)
           get_model_property(model_name, "api_type") == "responses"
         end
@@ -175,6 +202,47 @@ module Monadic
         def reload!
           @spec = nil
           load_spec
+        end
+
+        private
+
+        # Normalize alias properties into canonical names without removing the originals.
+        # This helps keep a single vocabulary across providers while staying backward compatible.
+        def normalize_spec(spec)
+          return spec unless spec.is_a?(Hash)
+
+          spec.each do |model, props|
+            next unless props.is_a?(Hash)
+
+            # reasoning_model -> is_reasoning_model
+            if props.key?("reasoning_model") && !props.key?("is_reasoning_model")
+              props["is_reasoning_model"] = !!props["reasoning_model"]
+            end
+
+            # websearch_capability / websearch -> supports_web_search
+            if !props.key?("supports_web_search")
+              if props.key?("websearch_capability")
+                props["supports_web_search"] = !!props["websearch_capability"]
+              elsif props.key?("websearch")
+                props["supports_web_search"] = !!props["websearch"]
+              end
+            end
+
+            # is_slow_model -> latency_tier: "slow"
+            if props["is_slow_model"] == true && !props.key?("latency_tier")
+              props["latency_tier"] = "slow"
+            end
+
+            # responses_api (bool) -> api_type: "responses"
+            if props["responses_api"] == true && !props.key?("api_type")
+              props["api_type"] = "responses"
+            end
+
+            # For UI clarity: if supports_pdf is true but supports_pdf_upload is explicitly false for some providers,
+            # keep as-is (Perplexity). Do not auto-populate supports_pdf_upload to avoid changing behavior.
+          end
+
+          spec
         end
       end
     end

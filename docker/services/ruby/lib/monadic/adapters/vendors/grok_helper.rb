@@ -11,6 +11,8 @@ module GrokHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20  # Balanced for Grok-4
   API_ENDPOINT = "https://api.x.ai/v1"
+  # ENV key for emergency override
+  GROK_LEGACY_MODE_ENV = "GROK_LEGACY_MODE"
 
   OPEN_TIMEOUT = 60
   READ_TIMEOUT = 300
@@ -25,8 +27,8 @@ module GrokHelper
   end
 
 
-  class << self
-    attr_reader :cached_models
+    class << self
+      attr_reader :cached_models
 
     def vendor_name
       "xAI"
@@ -68,31 +70,6 @@ module GrokHelper
       $MODELS[:grok] = nil
     end
     
-    # Load model specifications from model_spec.js
-    def load_model_spec
-      spec_file = File.join(File.dirname(__FILE__), "../../../../public/js/monadic/model_spec.js")
-      return {} unless File.exist?(spec_file)
-      
-      content = File.read(spec_file)
-      # Extract the JSON-like content
-      # Find the object definition
-      match = content.match(/const\s+modelSpec\s*=\s*(\{[\s\S]*?\n\});?/m)
-      return {} unless match
-      
-      json_content = match[1]
-      # Remove comments
-      json_content = json_content.gsub(%r{//[^\n]*}, "") # Remove single-line comments
-      
-      # Fix trailing commas (not valid in JSON)
-      json_content = json_content.gsub(/,(\s*[}\]])/, '\1')
-      
-      begin
-        JSON.parse(json_content)
-      rescue JSON::ParserError => e
-        puts "Warning: Failed to parse model_spec.js: #{e.message}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-        {}
-      end
-    end
     
     # Get appropriate model based on websearch requirement
     def get_model_for_websearch(requested_model, websearch_needed)
@@ -393,6 +370,20 @@ module GrokHelper
 
     # Disable streaming when processing tool results to avoid hanging
     body["stream"] = !disable_streaming
+    # SSOT: supports_streaming gate (default true when unspecified)
+    begin
+      spec_supports_streaming = Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming")
+      streaming_source = spec_supports_streaming.nil? ? "fallback" : "spec"
+      supports_streaming = spec_supports_streaming.nil? ? true : !!spec_supports_streaming
+    rescue StandardError
+      streaming_source = "fallback"
+      supports_streaming = true
+    end
+    if ENV[GROK_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      streaming_source = "legacy"
+    end
+    body["stream"] = false unless supports_streaming
     body["n"] = 1
     body["temperature"] = temperature if temperature
     body["presence_penalty"] = presence_penalty if presence_penalty
@@ -510,6 +501,25 @@ module GrokHelper
       body["parallel_function_calling"] = false
     end
     
+    # SSOT: If the model is not tool-capable, remove tools to avoid unsupported calls
+    begin
+      spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+      tool_capable_source = spec_tool_capable.nil? ? "fallback" : "spec"
+      tool_capable = spec_tool_capable.nil? ? true : !!spec_tool_capable
+    rescue StandardError
+      tool_capable_source = "fallback"
+      tool_capable = true
+    end
+    if ENV[GROK_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_capable_source = "legacy"
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+      body.delete("parallel_function_calling")
+    end
+
     # Debug log final tools being sent
     if CONFIG["EXTRA_LOGGING"] && body["tools"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -755,18 +765,57 @@ module GrokHelper
 
     if messages_containing_img
       original_model = body["model"]
-      # Use default vision model for grok
-      vision_model = "grok-2-vision-1212"
-      body["model"] = vision_model
-      body.delete("stop")
-      
-      # Send system notification about model switch
-      if block && original_model != body["model"]
-        system_msg = {
-          "type" => "system_info",
-          "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
-        }
-        block.call system_msg
+      begin
+        spec_vision = Monadic::Utils::ModelSpec.get_model_property(original_model, "vision_capability")
+        current_vision = spec_vision == true
+      rescue StandardError
+        current_vision = false
+      end
+      unless current_vision
+        # Find a vision-capable Grok model from SSOT
+        begin
+          spec = Monadic::Utils::ModelSpec.load_spec
+          candidates = spec.keys.select do |m|
+            m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
+          end
+          # Prefer grok-2-vision-1212 if defined
+          vision_model = candidates.include?("grok-2-vision-1212") ? "grok-2-vision-1212" : candidates.first
+        rescue StandardError
+          vision_model = nil
+        end
+        if vision_model && vision_model != original_model
+          body["model"] = vision_model
+          body.delete("stop")
+          if block
+            system_msg = {
+              "type" => "system_info",
+              "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
+            }
+            block.call system_msg
+          end
+        end
+      end
+    end
+
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{streaming_source})"
+        audit << "tools:#{tool_capable}(#{tool_capable_source})"
+        begin
+          vision_prop = Monadic::Utils::ModelSpec.get_model_property(body['model'], 'vision_capability')
+          vision_capable = vision_prop == true
+          vision_source = vision_prop.nil? ? 'fallback' : 'spec'
+          audit << "vision:#{vision_capable}(#{vision_source})"
+        rescue
+          # ignore
+        end
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Grok SSOT capabilities for #{body['model']}: #{audit.join(', ')}")
+        extra_log.close
+      rescue
+        # ignore logging errors
       end
     end
 

@@ -9,6 +9,169 @@ if ENV['PROFILE_STARTUP'] == 'true'
   at_exit { StartupProfiler.report }
 end
 
+# OpenAI Responses: PDF upload/list/clear (vector store)
+post "/openai/pdf" do
+  content_type :json
+  action = params["action"] || "upload"
+  api_key = CONFIG["OPENAI_API_KEY"]
+  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+
+  begin
+    case action
+    when "upload"
+      unless params["pdfFile"]
+        return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
+      end
+
+      file_param = params["pdfFile"]
+      filename = file_param["filename"]
+      tempfile = file_param["tempfile"]
+
+      # Upload file to OpenAI Files API
+      headers = {
+        "Authorization" => "Bearer #{api_key}"
+      }
+      form = {
+        purpose: "assistants",
+        file: HTTP::FormData::File.new(tempfile.path, filename: filename, content_type: "application/pdf")
+      }
+      api_base = "https://api.openai.com/v1"
+      upload_res = HTTP.headers(headers).post("#{api_base}/files", form: form)
+      unless upload_res.status.success?
+        puts "[OpenAI PDF] File upload failed: status=#{upload_res.status} body=#{upload_res.body.to_s[0..200]}"
+        return { success: false, error: "OpenAI file upload failed: #{upload_res.status}" }.to_json
+      end
+      upload_json = JSON.parse(upload_res.body.to_s) rescue nil
+      file_id = upload_json && upload_json["id"]
+      unless file_id
+        puts "[OpenAI PDF] Invalid file upload response: #{upload_res.body.to_s[0..200]}"
+        return { success: false, error: "OpenAI file upload response invalid" }.to_json
+      end
+      puts "[OpenAI PDF] Uploaded file: filename=#{filename} file_id=#{file_id}"
+
+      # Ensure/create a session-scoped vector store
+      vs_id = session[:openai_vector_store_id]
+      unless vs_id
+        vs_res = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
+          "#{api_base}/vector_stores",
+          body: { name: "monadic-session-#{SecureRandom.hex(6)}" }.to_json
+        )
+        unless vs_res.status.success?
+          puts "[OpenAI PDF] Vector store creation failed: status=#{vs_res.status} body=#{vs_res.body.to_s[0..200]}"
+          return { success: false, error: "Vector store creation failed: #{vs_res.status}" }.to_json
+        end
+        vs_json = JSON.parse(vs_res.body.to_s) rescue nil
+        vs_id = vs_json && vs_json["id"]
+        unless vs_id
+          puts "[OpenAI PDF] Invalid vector store response: #{vs_res.body.to_s[0..200]}"
+          return { success: false, error: "Vector store creation response invalid" }.to_json
+        end
+        puts "[OpenAI PDF] Vector store ready: vs_id=#{vs_id}"
+        session[:openai_vector_store_id] = vs_id
+        session[:uploaded_openai_files] = []
+      end
+
+      # Add file to vector store
+      add_res = HTTP.headers({ **headers, "Content-Type" => "application/json" }).post(
+        "#{api_base}/vector_stores/#{vs_id}/files",
+        body: { file_id: file_id }.to_json
+      )
+      unless add_res.status.success?
+        puts "[OpenAI PDF] Add file to vector store failed: status=#{add_res.status} body=#{add_res.body.to_s[0..200]}"
+        return { success: false, error: "Adding file to vector store failed: #{add_res.status}" }.to_json
+      end
+      puts "[OpenAI PDF] Linked file to vector store: vs_id=#{vs_id} file_id=#{file_id}"
+      session[:uploaded_openai_files] << file_id
+
+      { success: true, filename: filename, vector_store_id: vs_id, file_id: file_id }.to_json
+
+    else
+      status 400
+      { success: false, error: "Unsupported action" }.to_json
+    end
+  rescue => e
+    { success: false, error: "OpenAI PDF endpoint error: #{e.class}: #{e.message}" }.to_json
+  end
+end
+
+get "/openai/pdf" do
+  content_type :json
+  action = params["action"] || "list"
+  api_key = CONFIG["OPENAI_API_KEY"]
+  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+
+  begin
+    case action
+    when "list"
+      vs_id = session[:openai_vector_store_id]
+      return { success: true, files: [] }.to_json unless vs_id
+      headers = { "Authorization" => "Bearer #{api_key}" }
+      api_base = "https://api.openai.com/v1"
+      res = HTTP.headers(headers).get("#{api_base}/vector_stores/#{vs_id}/files")
+      if res.status.success?
+        body = JSON.parse(res.body.to_s) rescue { "data" => [] }
+        files = body["data"]&.map { |f| { id: f["id"], filename: f["filename"], status: f["status"] } } || []
+        { success: true, files: files }.to_json
+      else
+        { success: false, error: "Failed to fetch file list: #{res.status}" }.to_json
+      end
+    else
+      status 400
+      { success: false, error: "Unsupported action" }.to_json
+    end
+  rescue => e
+    { success: false, error: "OpenAI PDF list error: #{e.class}: #{e.message}" }.to_json
+  end
+end
+
+delete "/openai/pdf" do
+  content_type :json
+  action = params["action"] || "clear"
+  api_key = CONFIG["OPENAI_API_KEY"]
+  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+  begin
+    case action
+    when "clear"
+      vs_id = session[:openai_vector_store_id]
+      if vs_id
+        headers = { "Authorization" => "Bearer #{api_key}" }
+        # best-effort delete (ignore failures)
+        api_base = "https://api.openai.com/v1"
+        HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}") rescue nil
+      end
+      session[:openai_vector_store_id] = nil
+      session[:uploaded_openai_files] = []
+      { success: true }.to_json
+    when "delete"
+      file_id = params["file_id"]
+      return { success: false, error: "file_id required" }.to_json unless file_id
+      headers = { "Authorization" => "Bearer #{api_key}" }
+      api_base = "https://api.openai.com/v1"
+      # Best-effort: remove from vector store (if present), then delete file
+      vs_id = session[:openai_vector_store_id]
+      begin
+        if vs_id
+          HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{file_id}")
+        end
+      rescue
+        # ignore
+      end
+      del_res = HTTP.headers(headers).delete("#{api_base}/files/#{file_id}")
+      if del_res.status.success?
+        session[:uploaded_openai_files]&.delete(file_id)
+        { success: true }.to_json
+      else
+        { success: false, error: "Failed to delete file: #{del_res.status}" }.to_json
+      end
+    else
+      status 400
+      { success: false, error: "Unsupported action" }.to_json
+    end
+  rescue => e
+    { success: false, error: "OpenAI PDF clear error: #{e.class}: #{e.message}" }.to_json
+  end
+end
+
 require "active_support"
 require "active_support/core_ext/hash/indifferent_access"
 require "base64"

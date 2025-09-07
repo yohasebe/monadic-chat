@@ -24,10 +24,23 @@ function uploadPdf(file, fileTitle) {
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
 
+  // Determine endpoint based on current provider/model
+  let endpoint = "/pdf";
+  try {
+    const appName = $("#apps").val();
+    const model = $("#model").val();
+    const group = (window.apps && appName && window.apps[appName]) ? window.apps[appName]["group"] : null;
+    const isOpenAI = group && group.toLowerCase() === 'openai';
+    const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
+    if (isOpenAI && supportsPdfUpload) {
+      endpoint = "/openai/pdf?action=upload";
+    }
+  } catch (_) {}
+
   // Use Promise for better async handling
   return new Promise((resolve, reject) => {
     $.ajax({
-      url: "/pdf",
+      url: endpoint,
       type: "POST",
       data: formData,
       processData: false,

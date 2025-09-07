@@ -203,8 +203,10 @@ window.shims.uiUtils = {
       // Enable the button
       imageFileElement.prop("disabled", false);
       
-      // Update button text based on PDF support and image generation capability
-      const isPdfEnabled = /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
+      // Update button text based on PDF support and image generation capability (SSOT-aware)
+      const isPdfEnabled = (typeof window !== 'undefined' && window.isPdfSupportedForModel)
+        ? window.isPdfSupportedForModel(selectedModel)
+        : /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
       
       // If it's an image generation app, show "Image" regardless of PDF support
       const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';

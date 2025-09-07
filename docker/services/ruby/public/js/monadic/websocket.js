@@ -7,6 +7,20 @@ window.ws = ws;  // Make ws globally accessible
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 
+// Lightweight timeline logger to trace initialization order
+if (!window.logTL) {
+  window.logTL = function(event, payload) {
+    try {
+      const ts = new Date().toISOString();
+      const entry = Object.assign({ ts, event }, payload || {});
+      window._timeline = window._timeline || [];
+      window._timeline.push(entry);
+      // Keep console concise
+      console.log('[TL]', event, entry);
+    } catch (_) {}
+  };
+}
+
 // OpenAI API token verification
 let verified = null;
 
@@ -164,6 +178,8 @@ function setCopyCodeButton(element) {
     }
   });
 }
+
+// (reverted) removed OpenAI PDF manager refresh hook on model change
 
 // Note: Visibility change handler is defined later in the file
 
@@ -1528,7 +1544,8 @@ function connect_websocket(callback) {
   console.log(`[WebSocket] Connecting to: ${wsUrl}`);
   const ws = new WebSocket(wsUrl);
 
-  let loadedApp = "Chat";
+// Tracks which app was loaded from server parameters/import. Keep empty by default.
+let loadedApp = "Chat";
   let infoHtml = "";
 
   ws.onopen = function () {
@@ -1706,14 +1723,27 @@ function connect_websocket(callback) {
   }
 
   function updateAppAndModelSelection(parameters) {
+    // Mark import flow to preserve app/model/group during proceedWithAppChange
+    if (typeof window !== 'undefined') {
+      window.isImporting = true;
+      window.lastImportTime = Date.now();
+    }
     // Only update if the values are not already set correctly
     if (parameters.app_name && $("#apps").val() !== parameters.app_name) {
       $("#apps").val(parameters.app_name).trigger('change');
+      // Update overlay icon immediately to avoid blank state until proceedWithAppChange runs
+      if (typeof updateAppSelectIcon === 'function') {
+        setTimeout(() => updateAppSelectIcon(parameters.app_name), 0);
+      }
     }
     // Wait for app change to complete before setting model
     setTimeout(() => {
       if (parameters.model && $("#model").val() !== parameters.model) {
         $("#model").val(parameters.model).trigger('change');
+      }
+      // End of import flow; allow normal app/model changes afterwards
+      if (typeof window !== 'undefined') {
+        setTimeout(() => { window.isImporting = false; }, 500);
       }
     }, 200);
   }
@@ -2432,6 +2462,11 @@ function connect_websocket(callback) {
         console.log("Current pendingParameters:", window.pendingParameters);
         console.log("Current #apps value:", $("#apps").val());
         console.log("isUpdate check: apps has", Object.keys(apps).length, "keys");
+        window.logTL('apps_received', {
+          count: window.appsMessageCount,
+          hasAppsKeys: Object.keys(apps).length,
+          currentSelect: $("#apps").val()
+        });
         
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
@@ -2463,6 +2498,14 @@ function connect_websocket(callback) {
             }
           }
         } else {
+          // Persist full app data to the global map so downstream code can read system_prompt, etc.
+          try {
+            for (const [key, value] of Object.entries(data["content"])) {
+              apps[key] = value;
+            }
+            window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
+          } catch (_) {}
+
           // Prepare arrays for app classification
           let regularApps = [];
           let specialApps = {};
@@ -2652,7 +2695,12 @@ function connect_websocket(callback) {
             }, 100);
           }
           
-          // Select the default app: prefer Chat app if available
+          // If import payload specifies an app_name, or there is already a valid selection in #apps,
+          // skip auto-selection to avoid overriding an existing choice (import or user selection).
+          const importRequestedApp = data && data["content"] && data["content"]["app_name"];
+          const currentSelectVal = $("#apps").val();
+          const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
+          // Select the default app only when not importing and no valid selection exists
           let firstValidApp;
           
           // First, try to find a Chat app from OpenAI (if API key is available)
@@ -2660,7 +2708,7 @@ function connect_websocket(callback) {
             return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
           }).first();
           
-          if (openAIChatOption.length > 0) {
+          if (!importRequestedApp && !hasCurrentValidSelection && openAIChatOption.length > 0) {
             firstValidApp = openAIChatOption.val();
           } else {
             // Look for any Chat app from other providers
@@ -2669,17 +2717,19 @@ function connect_websocket(callback) {
               return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
             }).first();
             
-            if (anyChatOption.length > 0) {
+            if (!importRequestedApp && !hasCurrentValidSelection && anyChatOption.length > 0) {
               firstValidApp = anyChatOption.val();
             } else {
               // Fallback: select the first available non-disabled app
-              firstValidApp = $("#apps option").filter(function() {
-                return !$(this).prop('disabled') && !$(this).text().includes('──');
-              }).first().val();
+              if (!importRequestedApp && !hasCurrentValidSelection) {
+                firstValidApp = $("#apps option").filter(function() {
+                  return !$(this).prop('disabled') && !$(this).text().includes('──');
+                }).first().val();
+              }
             }
           }
           
-          if (firstValidApp) {
+          if (!importRequestedApp && !hasCurrentValidSelection && firstValidApp) {
             $("#apps").val(firstValidApp);
             
             // Set lastApp to prevent confirmation dialog on initial load
@@ -2729,16 +2779,44 @@ function connect_websocket(callback) {
               // Call proceedWithAppChange directly to ensure proper initialization
               // Use setTimeout to ensure DOM and all dependencies are ready
               setTimeout(function() {
+                const recentlyImported = (typeof window !== 'undefined' && window.lastImportTime) ? (Date.now() - window.lastImportTime < 1000) : false;
+                if (typeof window !== 'undefined' && (window.isImporting || recentlyImported || hasCurrentValidSelection)) {
+                  // Skip auto-selection during or right after import
+                  return;
+                }
+                window.logTL('auto_select_app', { firstValidApp });
                 if (typeof window.proceedWithAppChange === 'function') {
                   // Call proceedWithAppChange directly for reliable initialization
                   window.proceedWithAppChange(firstValidApp);
+                  window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
+                  
                 } else {
                   // Fallback to triggering change event if function not available
                   $("#apps").trigger('change');
+                  window.logTL('apps_change_triggered');
                 }
               }, 100);
             }
           }
+
+          // One-time initialization: if first APPS build resulted in a selected value but we didn't auto-select above
+          // (e.g., because hasCurrentValidSelection was true due to default selection), explicitly initialize.
+          setTimeout(function() {
+            try {
+              if (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded) {
+                const sel = $("#apps").val();
+                if (sel) {
+                  window.initialAppLoaded = true;
+                  window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
+                  if (typeof window.proceedWithAppChange === 'function') {
+                    window.proceedWithAppChange(sel);
+                  } else {
+                    $("#apps").trigger('change');
+                  }
+                }
+              }
+            } catch (_) {}
+          }, 150);
           
           // Update the AI User provider dropdown if the function is available
           if (typeof window.updateAvailableProviders === 'function') {
@@ -2777,12 +2855,14 @@ function connect_websocket(callback) {
           console.log("  - currentApp:", currentApp);
           console.log("  - isFirstAppsMessage:", isFirstAppsMessage);
           console.log("  - loadedApp:", loadedApp);
+          window.logTL('post_apps_maybe_reset', { currentApp, isFirstAppsMessage, loadedApp });
           
           // Only reset if this is the first apps message and no app is selected
           // OR if there's no loaded app from import
           if (isFirstAppsMessage && (!currentApp || currentApp === "") && !loadedApp) {
             console.log("Conditions met, calling resetParams");
             resetParams();
+            window.logTL('resetParams_called_after_apps');
           } else {
             console.log("Skipping resetParams - app already configured");
           }
@@ -2816,10 +2896,17 @@ function connect_websocket(callback) {
           
           // Call loadParams which will handle everything including model selection
           console.log("About to call loadParams...");
+          window.logTL('parameters_received', {
+            app_name: data["content"]["app_name"],
+            has_initial_prompt: !!data["content"]["initial_prompt"],
+            model: data["content"]["model"],
+            group: data["content"]["group"]
+          });
           
           // Check if loadParams is defined
           if (typeof loadParams === 'function') {
             loadParams(data["content"], "loadParams");
+            window.logTL('loadParams_called_from_parameters', { calledFor: 'loadParams' });
           } else if (typeof window.loadParams === 'function') {
             window.loadParams(data["content"], "loadParams");
           } else {

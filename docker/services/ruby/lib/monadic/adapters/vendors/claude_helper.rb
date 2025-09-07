@@ -29,6 +29,9 @@ module ClaudeHelper
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4
 
+  # ENV key for emergency override
+  LEGACY_MODE_ENV = "CLAUDE_LEGACY_MODE"
+
 
   # Native Anthropic web search tool
   NATIVE_WEBSEARCH_TOOL = {
@@ -124,6 +127,19 @@ module ClaudeHelper
     @thinking = nil
     @signature = nil
     super
+  end
+
+  private
+  # Resolve tool capability from SSOT with legacy override and source tag
+  def resolve_tool_capability(model)
+    spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+    source = spec_tool_capable.nil? ? "fallback" : "spec"
+    value = spec_tool_capable.nil? ? true : !!spec_tool_capable
+    if ENV[LEGACY_MODE_ENV] == "true"
+      value = true
+      source = "legacy"
+    end
+    [value, source]
   end
 
   # Function to write logs to file - enabled for debugging AI User issues
@@ -550,20 +566,36 @@ module ClaudeHelper
       context = []
     end
 
-    # Set the headers for the API request
+    # Set the headers for the API request (SSOT: beta flags spec-first)
+    spec_beta = Monadic::Utils::ModelSpec.get_model_property(model, "beta_flags")
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
-      "anthropic-beta" => "prompt-caching-2024-07-31,pdfs-2024-09-25,output-128k-2025-02-19,extended-cache-ttl-2025-04-11,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
+    # Only set beta header if explicitly specified in model_spec
+    if spec_beta.is_a?(Array) && !spec_beta.empty?
+      headers["anthropic-beta"] = spec_beta.join(",")
+    end
+
+    # Cache tool capability from spec (dedup lookups)
+    tool_capable, tool_capable_source = resolve_tool_capability(model)
 
     # Set the body for the API request
+    # SSOT: supports_streaming gate (default true when unspecified)
+    spec_supports_streaming = Monadic::Utils::ModelSpec.get_model_property(model, "supports_streaming")
+    supports_streaming_source = spec_supports_streaming.nil? ? "fallback" : "spec"
+    supports_streaming = spec_supports_streaming.nil? ? true : !!spec_supports_streaming
+    # Legacy override (emergency): force-enable streaming
+    if ENV[LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      supports_streaming_source = "legacy"
+    end
     body = {
       "system" => system_prompts,
       "model" => obj["model"],
-      "stream" => true
+      "stream" => supports_streaming
     }
     
     if budget_tokens
@@ -617,13 +649,13 @@ module ClaudeHelper
       elsif app_tools && !app_tools.empty?
         # If no tools_param but app has tools, use them
         body["tools"] = app_tools
-      elsif websearch_enabled
+      elsif websearch_enabled && use_native_websearch
         # Even if no other tools, we need to add web search tool
         body["tools"] = []
       end
       
-      # Add web search tool if enabled
-      if websearch_enabled
+      # Add web search tool if enabled and supported by spec
+      if websearch_enabled && use_native_websearch
         DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
         # Claude's web search tool requires specific format per documentation
         # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
@@ -645,13 +677,26 @@ module ClaudeHelper
       end
     end
     end  # end of if role != "tool"
+
+    # SSOT: If the model is not tool-capable, keep only native web_search tool (if any)
+    if body["tools"]
+      unless tool_capable
+        body["tools"].select! do |t|
+          (t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305"))
+        end
+      end
+    end
       
     # Only clean up if we have tools
     if body["tools"] && !body["tools"].empty?
       body["tools"].uniq!
       # Set tool_choice for non-thinking mode if not already set
       if !budget_tokens && role != "tool" && !body["tool_choice"]
-        body["tool_choice"] = { "type" => "auto" }
+        # only when tool-capable or websearch tool is present
+        has_websearch_tool = body["tools"].any? { |t| (t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305")) }
+        if tool_capable || has_websearch_tool
+          body["tool_choice"] = { "type" => "auto" }
+        end
       end
     else
       body.delete("tools")
@@ -689,8 +734,43 @@ module ClaudeHelper
 
       # Handle PDFs and images if present
       if obj["images"]
+        # SSOT: vision/pdf capability gates (default allow when unspecified)
+        begin
+          spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
+          supports_vision_source = spec_vision.nil? ? "fallback" : "spec"
+          supports_vision = spec_vision.nil? ? true : !!spec_vision
+          spec_pdf = Monadic::Utils::ModelSpec.get_model_property(model, "supports_pdf")
+          supports_pdf_source = spec_pdf.nil? ? "fallback" : "spec"
+          supports_pdf = spec_pdf.nil? ? true : !!spec_pdf
+        rescue StandardError => e
+          supports_vision = true
+          supports_pdf = true
+          supports_vision_source = supports_pdf_source = "fallback"
+          if defined?(Rails) && Rails.logger
+            Rails.logger.warn "[CLAUDE_SSOT] Failed to get capabilities: #{e.message}"
+          else
+            DebugHelper.debug("[CLAUDE_SSOT] Failed to get capabilities: #{e.message}", category: :api, level: :warn)
+          end
+        end
+        # Legacy override (emergency): force-enable vision/pdf
+      if ENV[LEGACY_MODE_ENV] == "true"
+        supports_vision = true
+        supports_pdf = true
+        supports_vision_source = supports_pdf_source = "legacy"
+      end
+
         obj["images"].each do |file|
           if file["type"] == "application/pdf"
+            unless supports_pdf
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Claude",
+                message: "This model does not support PDF input.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
             doc = {
               "type" => "document",
               "source" => {
@@ -708,6 +788,16 @@ module ClaudeHelper
             content.unshift(doc)
           else
             # Handle images
+            unless supports_vision
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Claude",
+                message: "This model does not support image input (vision).",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
             img = {
               "type" => "image",
               "source" => {
@@ -800,8 +890,30 @@ module ClaudeHelper
     # Configure monadic response format
     body = configure_monadic_response(body, :claude, app)
 
+    # Capability audit (optional)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{supports_streaming_source})"
+        if defined?(tool_capable_source) && tool_capable_source
+          audit << "tools:#{defined?(tool_capable) && tool_capable ? 'true' : 'false'}(#{tool_capable_source})"
+        end
+        if defined?(supports_vision_source)
+          audit << "vision:#{defined?(supports_vision) && supports_vision ? 'true' : 'false'}(#{supports_vision_source})"
+        end
+        if defined?(supports_pdf_source)
+          audit << "pdf:#{defined?(supports_pdf) && supports_pdf ? 'true' : 'false'}(#{supports_pdf_source})"
+        end
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude SSOT capabilities for #{obj["model"]}: #{audit.join(", ")}")
+        extra_log.close
+      rescue
+        # ignore logging errors
+      end
+    end
+
     # Debug final request body for web search
-    if websearch_enabled
+    if websearch_enabled && use_native_websearch
       DebugHelper.debug("Claude final request with web search - tools: #{body["tools"]&.map { |t| "#{t["type"]}:#{t["name"]}" }.join(", ")}", category: :api, level: :debug)
       
       # Additional logging for debugging

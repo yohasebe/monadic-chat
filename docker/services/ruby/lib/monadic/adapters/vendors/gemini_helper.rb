@@ -106,6 +106,9 @@ module GeminiHelper
 
   attr_reader :models
   attr_reader :cached_models
+  
+  # ENV key for emergency override (optional legacy override)
+  GEMINI_LEGACY_MODE_ENV = "GEMINI_LEGACY_MODE"
 
   def self.vendor_name
     "Google"
@@ -624,14 +627,35 @@ module GeminiHelper
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
 
-    # Use native Google search when websearch is enabled
-    websearch = obj["websearch"]
+    # Determine web search support via SSOT
+    requested_websearch = obj["websearch"] == true || obj["websearch"] == "true"
+    model_name = obj["model"]
+    spec_supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model_name)
+    use_native_websearch = requested_websearch && spec_supports_websearch
     
-    DebugHelper.debug("Gemini websearch enabled: #{websearch}", category: :api, level: :debug)
+    DebugHelper.debug("Gemini websearch requested: #{requested_websearch}, supports_web_search(spec): #{spec_supports_websearch}, enabled: #{use_native_websearch}", category: :api, level: :debug)
     
     # Handle thinking models based on reasoning_effort parameter presence
     reasoning_effort = obj["reasoning_effort"]
     is_thinking_model = !reasoning_effort.nil? && !reasoning_effort.empty?
+
+    # Resolve tool capability (SSOT + optional legacy override)
+    spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model_name, "tool_capability")
+    tool_capable_source = spec_tool_capable.nil? ? "fallback" : "spec"
+    tool_capable = spec_tool_capable.nil? ? true : !!spec_tool_capable
+    if ENV[GEMINI_LEGACY_MODE_ENV] == "true"
+      tool_capable = true
+      tool_capable_source = "legacy"
+    end
+
+    # Resolve supports_streaming for audit (default true)
+    spec_supports_streaming = Monadic::Utils::ModelSpec.get_model_property(model_name, "supports_streaming")
+    streaming_source = spec_supports_streaming.nil? ? "fallback" : "spec"
+    supports_streaming = spec_supports_streaming.nil? ? true : !!spec_supports_streaming
+    if ENV[GEMINI_LEGACY_MODE_ENV] == "true"
+      supports_streaming = true
+      streaming_source = "legacy"
+    end
 
     if role != "tool"
       message = obj["message"].to_s
@@ -770,6 +794,9 @@ module GeminiHelper
       message
     end
 
+    # Track if PDF is present for endpoint selection (default false)
+    has_pdf_part = false
+    
     if body["contents"].last && body["contents"].last["role"] == "user"
       # Apply monadic transformation if in monadic mode
       if obj["monadic"].to_s == "true" && role == "user"
@@ -791,13 +818,112 @@ module GeminiHelper
           break
         end
       end
-      obj["images"]&.each do |img|
-        body["contents"].last["parts"] << {
-          "inlineData" => {
-            "mimeType" => img["type"],
-            "data" => img["data"].split(",")[1]
-          }
-        }
+      
+      # SSOT: vision/pdf capability gates for inline data
+      if obj["images"] && obj["images"].is_a?(Array)
+        begin
+          spec_vision = Monadic::Utils::ModelSpec.get_model_property(model_name, "vision_capability")
+          vision_capable = spec_vision.nil? ? true : !!spec_vision
+          vision_capable_source = spec_vision.nil? ? "fallback" : "spec"
+          
+          spec_pdf = Monadic::Utils::ModelSpec.get_model_property(model_name, "supports_pdf")
+          # Conservative default for PDF: false unless explicitly enabled
+          pdf_capable = spec_pdf.nil? ? false : !!spec_pdf
+          pdf_capable_source = spec_pdf.nil? ? "fallback" : "spec"
+          
+          if ENV[GEMINI_LEGACY_MODE_ENV] == "true"
+            vision_capable = true
+            pdf_capable = true
+            vision_capable_source = "legacy"
+            pdf_capable_source = "legacy"
+          end
+        rescue StandardError => e
+          vision_capable = true
+          pdf_capable = false
+          vision_capable_source = "fallback"
+          pdf_capable_source = "fallback"
+          if defined?(Rails) && Rails.logger
+            Rails.logger.warn "[GEMINI_SSOT] Failed to get capabilities: #{e.message}"
+          else
+            DebugHelper.debug("[GEMINI_SSOT] Failed to get capabilities: #{e.message}", category: :api, level: :warn)
+          end
+        end
+
+        obj["images"].each do |file|
+          media_type = file["type"].to_s
+          if media_type == "application/pdf"
+            unless pdf_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Gemini",
+                message: "This model does not support PDF input.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            # Check PDF size limit (20MB for inline data)
+            max_pdf_size_mb = ENV['GEMINI_MAX_INLINE_PDF_MB']&.to_i || 20
+            # Extract base64 data (handle both data:URL and raw base64)
+            base64_data = if file["data"].include?(",")
+              file["data"].split(",")[1]
+            else
+              file["data"]
+            end
+            
+            # Estimate size (base64 is ~1.33x original size)
+            estimated_size_mb = (base64_data.length * 0.75 / 1024.0 / 1024.0).round(2)
+            if estimated_size_mb > max_pdf_size_mb
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Gemini",
+                message: "PDF file too large (#{estimated_size_mb}MB). Maximum size is #{max_pdf_size_mb}MB. Please use URL Context or compress the file.",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            
+            # PDF processing - add to parts as inline data
+            # PDFs should be placed before text for optimal processing
+            # Reference: https://ai.google.dev/gemini-api/docs/document-processing
+            pdf_part = {
+              "inlineData" => {
+                "mimeType" => "application/pdf",
+                "data" => base64_data
+              }
+            }
+            # Insert PDF at the beginning of parts for better processing
+            body["contents"].last["parts"].unshift(pdf_part)
+            has_pdf_part = true
+          elsif media_type.start_with?("image/")
+            unless vision_capable
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Gemini",
+                message: "This model does not support image input (vision).",
+                code: 400
+              )
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+              return [res]
+            end
+            body["contents"].last["parts"] << {
+              "inlineData" => {
+                "mimeType" => media_type,
+                "data" => file["data"].split(",")[1]
+              }
+            }
+          else
+            formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Gemini",
+              message: "Unsupported media type: #{media_type}",
+              code: 400
+            )
+            res = { "type" => "error", "content" => formatted_error }
+            block&.call res
+            return [res]
+          end
+        end
       end
     end
 
@@ -820,7 +946,7 @@ module GeminiHelper
       DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
       DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
       DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
-      DebugHelper.debug("Gemini websearch: #{websearch}", category: :api, level: :debug)
+      DebugHelper.debug("Gemini websearch: #{use_native_websearch}", category: :api, level: :debug)
       
       # Check if app_tools has actual function declarations
       has_function_declarations = false
@@ -832,7 +958,7 @@ module GeminiHelper
         end
       end
       
-      if has_function_declarations && websearch
+      if has_function_declarations && use_native_websearch
         # Both function declarations and web search are needed
         DebugHelper.debug("Gemini: Both function declarations and Google Search enabled", category: :api, level: :debug)
         
@@ -871,7 +997,7 @@ module GeminiHelper
             "mode" => "AUTO"
           }
         }
-      elsif websearch
+      elsif use_native_websearch
         # Use Google Search grounding tool for web search
         DebugHelper.debug("Gemini: Google Search enabled for web search", category: :api, level: :debug)
         
@@ -892,7 +1018,7 @@ module GeminiHelper
       # Check if user message contains URLs and add URL Context tool if needed
       if role == "user" && defined?(message) && message.is_a?(String) && message != ""
         url_pattern = %r{https?://[^\s<>"{}|\\^\[\]`]+}
-        if message.match?(url_pattern)
+        if use_native_websearch && message.match?(url_pattern)
           DebugHelper.debug("Gemini: URLs detected in message, adding URL Context tool", category: :api, level: :debug)
           
           # Add URL Context tool to existing tools or create new tools array
@@ -905,6 +1031,14 @@ module GeminiHelper
         end
       end
     end  # end of role != "tool"
+
+    # SSOT: If the model is not tool-capable, keep only google_search/url_context tools
+    if body["tools"] && !tool_capable
+      body["tools"].select! do |tool|
+        tool.is_a?(Hash) && (tool.key?("google_search") || tool.key?("url_context"))
+      end
+      body.delete("tool_config")
+    end
 
     if role == "tool"
       # Add tool results as a user message to continue the conversation
@@ -1025,8 +1159,8 @@ module GeminiHelper
       end
     end
     
-    # Add URL Context for web search functionality
-    if websearch && role == "user"
+    # Add URL Context for web search functionality (SSOT-gated)
+    if use_native_websearch && role == "user"
       DebugHelper.debug("Gemini: Adding URL Context for web search", category: :api, level: :debug)
       
       # Add the url_context tool to enable URL retrieval
@@ -1081,7 +1215,7 @@ module GeminiHelper
     
     # Debug logging
     if CONFIG["EXTRA_LOGGING"]  # Enable with EXTRA_LOGGING config setting
-      puts "[DEBUG Gemini] app=#{app}, websearch=#{websearch}, app_tools=#{app_tools.inspect}"
+      puts "[DEBUG Gemini] app=#{app}, websearch=#{use_native_websearch}, app_tools=#{app_tools.inspect}"
       puts "[DEBUG Gemini] Final request body:"
       puts JSON.pretty_generate(body.dup.tap { |b| 
         # Truncate long system prompts for readability
@@ -1093,10 +1227,25 @@ module GeminiHelper
           end
         end
       })
+      # Capability audit (tools/streaming/pdf)
+      begin
+        audit = []
+        audit << "streaming:#{supports_streaming}(#{streaming_source})"
+        audit << "tools:#{tool_capable}(#{tool_capable_source})"
+        # Add PDF capability if it was evaluated
+        if defined?(pdf_capable) && defined?(pdf_capable_source)
+          pdf_capable_source ||= "fallback"
+          audit << "pdf:#{pdf_capable}(#{pdf_capable_source})"
+        end
+        puts "[Gemini SSOT] capabilities for #{model_name}: #{audit.join(", ") }"
+      rescue
+        # ignore logging errors
+      end
     end
     
-    # Use v1beta for thinking models, v1alpha for others
-    endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
+    # Use v1beta for thinking models or PDF handling, v1alpha for others
+    # PDF requires v1beta endpoint for proper document processing
+    endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
     target_uri = "#{endpoint}/models/#{obj["model"]}:streamGenerateContent?key=#{api_key}"
 
 

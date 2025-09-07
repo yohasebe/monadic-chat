@@ -53,6 +53,7 @@ app "ChatPerplexity" do
     disabled !CONFIG["PERPLEXITY_API_KEY"]
     easy_submit false
     auto_speech false
+    image true
     initiate_from_assistant false
     websearch false
     group "Perplexity"

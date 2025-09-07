@@ -359,11 +359,12 @@ $(function () {
     // Set up model change handler to update the AI Assistant info badge
     $("#model").on("change", function() {
       const selectedModel = $(this).val();
-      // Extract provider from the current app group
+      // Extract provider from params.group first (synced in proceedWithAppChange), fallback to current app group
       let provider = "OpenAI";
       const currentApp = $("#apps").val();
-      if (apps[currentApp] && apps[currentApp].group) {
-        const group = apps[currentApp].group.toLowerCase();
+      const grp = (typeof params !== 'undefined' && params && params["group"]) ? params["group"] : (apps[currentApp] && apps[currentApp].group ? apps[currentApp].group : null);
+      if (grp) {
+        const group = grp.toLowerCase();
         if (group.includes("anthropic") || group.includes("claude")) {
           provider = "Anthropic";
         } else if (group.includes("gemini") || group.includes("google")) {
@@ -383,7 +384,7 @@ $(function () {
       // Update the badge in the AI User section with provider name and model
       const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
       $("#ai-assistant-info").html('<span style="color: #DC4C64;" data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">' + provider + '</span>').attr("data-model", selectedModel);
-      
+
       // Update model-selected text to follow the new multiline format
       if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
         const reasoningEffort = $("#reasoning-effort").val();
@@ -1220,6 +1221,13 @@ $(function () {
   // Function to handle the actual app change
   // Make it globally accessible for initialization from websocket.js
   window.proceedWithAppChange = function proceedWithAppChange(appValue) {
+    try {
+      if (window.logTL) {
+        const hasApp = !!(apps && apps[appValue]);
+        const sys = hasApp ? !!apps[appValue]["system_prompt"] : null;
+        window.logTL('proceedWithAppChange_enter', { appValue, hasApp, hasSystemPrompt: sys });
+      }
+    } catch (_) {}
     // Ensure params is initialized
     if (typeof params === 'undefined') {
       window.params = {};
@@ -1261,22 +1269,29 @@ $(function () {
     }
     // Preserve important values before Object.assign overwrites them
     const currentMathjax = $("#mathjax").prop('checked');
-    const preservedModel = params["model"];  // Preserve the model that was set by loadParams
-    const preservedAppName = params["app_name"]; // Preserve the app_name
-    const preservedGroup = params["group"]; // Preserve the group
+    // Preserve previous values only during import flows
+    const preservedModel = (typeof window !== 'undefined' && window.isImporting) ? params["model"] : null;  // Preserve the model that was set by loadParams
+    const preservedAppName = (typeof window !== 'undefined' && window.isImporting) ? params["app_name"] : null; // Preserve the app_name
+    // Do not carry over previous group's provider across app changes.
+    // If importing, we handle app selection earlier based on provider.
+    const preservedGroup = null;
     
     Object.assign(params, apps[appValue]);
     
+    // Fill initial_prompt from system_prompt if not present (common for Chat apps)
+    if (!params["initial_prompt"] && apps[appValue]["system_prompt"]) {
+      params["initial_prompt"] = apps[appValue]["system_prompt"];
+    }
+
     // Restore the preserved values if they were set (during import)
-    if (preservedModel) {
+    if (preservedModel && (typeof window !== 'undefined' && window.isImporting)) {
       params["model"] = preservedModel;
     }
-    if (preservedAppName) {
+    if (preservedAppName && (typeof window !== 'undefined' && window.isImporting)) {
       params["app_name"] = preservedAppName;
     }
-    if (preservedGroup) {
-      params["group"] = preservedGroup;
-    }
+    // Always align params.group to the selected app's group to avoid stale provider labels
+    params["group"] = apps[appValue]["group"];
     
     // Only set initiate_from_assistant to false if the app explicitly defines it as false
     // Don't override if it's already been set by setParams()
@@ -1288,11 +1303,22 @@ $(function () {
       params['mathjax'] = currentMathjax;
     }
     
-    // Only call loadParams if we're not already in the middle of loading params
-    // This prevents circular calls when importing
-    if (!window.isLoadingParams) {
-      loadParams(params, "changeApp");
-    }
+    // Ensure loadParams runs even if another async selection is in progress
+    // If a prior flow (e.g., provider auto-select) set isLoadingParams, defer and retry briefly
+    (function ensureLoadParams(retries = 0) {
+      if (!window.isLoadingParams) {
+        loadParams(params, "changeApp");
+        if (window.logTL) window.logTL('loadParams_called_from_proceed', { app: appValue, calledFor: 'changeApp' });
+        return;
+      }
+      if (retries >= 10) {
+        // As a last resort, proceed anyway to avoid missing initial prompt
+        loadParams(params, "changeApp");
+        if (window.logTL) window.logTL('loadParams_called_from_proceed_force', { app: appValue, calledFor: 'changeApp' });
+        return;
+      }
+      setTimeout(() => ensureLoadParams(retries + 1), 100);
+    })();
     
     // Update app icon in the select dropdown
     updateAppSelectIcon(appValue);
@@ -1313,11 +1339,7 @@ $(function () {
     }
 
     let model;
-    // CRITICAL FIX: If params has group (from import), ensure apps[appValue] uses it
-    // This fixes the issue where imported Gemini apps show OpenAI models
-    if (params["group"] && params["group"] !== apps[appValue]["group"]) {
-      apps[appValue]["group"] = params["group"];
-    }
+    // Never mutate apps[appValue].group here; app definitions are authoritative.
     
     // Use shared utility function to get models for the app
     let models = getModelsForApp(apps[appValue]);
@@ -2323,12 +2345,16 @@ $(function () {
         $("#file-spinner").hide();
         $("#fileModal button").prop('disabled', false);
         $("#fileModal").modal("hide");
-        
-        // Refresh PDF titles and show success message with filename
-        ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+        // Decide if this was uploaded to OpenAI or local DB
+        const isOpenAIUpload = !!(response.vector_store_id);
+        // Refresh local PDF DB titles only for local ingestion
+        if (!isOpenAIUpload) {
+          ws.send(JSON.stringify({ message: "PDF_TITLES" }));
+        }
         const uploadedFilename = response.filename || "PDF file";
         const uploadMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.uploadSuccess') : 'uploaded successfully';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}`, "success");
+        const providerNote = isOpenAIUpload ? ' (OpenAI)' : '';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> "${uploadedFilename}" ${uploadMsg}${providerNote}`, "success");
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Failed to process PDF";

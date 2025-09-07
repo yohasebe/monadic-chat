@@ -2563,11 +2563,12 @@ $(function () {
         $list.html('<span class="text-danger">Failed to load</span>');
         return;
       }
-      // Update Cloud info (VS ID short + mode)
+      // Update Cloud meta (move Vector Store ID to footer; keep header clean)
       try {
         const vs = res.vector_store_id || '';
-        const short = vs ? (vs.length > 14 ? vs.slice(0,6)+'…'+vs.slice(-6) : vs) : '(none)';
-        $("#cloud-pdf-info").text(`VS: ${short}`);
+        $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
+        // Do not show VS in header to avoid confusion
+        // Leave #cloud-pdf-info handling to status refresher
       } catch (_) {}
       const files = res.files || [];
       if (files.length === 0) {
@@ -2656,9 +2657,12 @@ $(function () {
       if (!res || !res.success) return;
       const mode = res.mode || 'local';
       const vs = res.vector_store_id || '';
-      const short = vs ? (vs.length > 14 ? vs.slice(0,6)+'…'+vs.slice(-6) : vs) : '(none)';
-      $("#cloud-pdf-info").text(`VS: ${short} · Mode: ${mode}`);
-      $("#local-pdf-info").text(res.local_present ? '(ready)' : '(empty)');
+      // Header: show mode only (no Vector Store ID here)
+      $("#cloud-pdf-info").text(mode ? `Mode: ${mode}` : '');
+      // Footer: full Vector Store ID when available
+      $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
+      // Local header: show ready only; remove redundant (empty)
+      $("#local-pdf-info").text(res.local_present ? '(ready)' : '');
     } catch (_) { /* ignore */ }
   }
   setTimeout(refreshPdfStorageStatus, 700);

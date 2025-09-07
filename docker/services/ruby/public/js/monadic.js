@@ -2657,8 +2657,6 @@ $(function () {
       if (!res || !res.success) return;
       const mode = res.mode || 'local';
       const vs = res.vector_store_id || '';
-      // Header: show mode only (no Vector Store ID here)
-      $("#cloud-pdf-info").text(mode ? `Mode: ${mode}` : '');
       // Footer: full Vector Store ID when available
       $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
       // Local header: show ready only; remove redundant (empty)

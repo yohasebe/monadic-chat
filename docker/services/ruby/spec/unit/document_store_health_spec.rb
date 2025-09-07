@@ -1,5 +1,5 @@
 require 'rspec'
-require_relative '../../../lib/monadic/document_store/openai_vector_store'
+require_relative '../../lib/monadic/document_store/openai_vector_store'
 
 RSpec.describe Monadic::DocumentStore::OpenAIVectorStore do
   let(:store) { described_class.new }
@@ -19,4 +19,3 @@ RSpec.describe Monadic::DocumentStore::OpenAIVectorStore do
     end
   end
 end
-

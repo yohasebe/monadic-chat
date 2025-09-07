@@ -208,29 +208,30 @@ module SecondOpinionAgent
   end
 
   def get_provider_helper(provider)
-    # Create a temporary object that includes the appropriate helper
-    case provider.downcase
-    when "openai"
-      Class.new { extend OpenAIHelper }.tap { |c| c.extend(OpenAIHelper) }
-    when "claude", "anthropic"
-      Class.new { extend ClaudeHelper }.tap { |c| c.extend(ClaudeHelper) }
-    when "gemini", "google"
-      Class.new { extend GeminiHelper }.tap { |c| c.extend(GeminiHelper) }
-    when "mistral"
-      Class.new { extend MistralHelper }.tap { |c| c.extend(MistralHelper) }
-    when "ollama"
-      Class.new { extend OllamaHelper }.tap { |c| c.extend(OllamaHelper) }
-    when "cohere"
-      Class.new { extend CohereHelper }.tap { |c| c.extend(CohereHelper) }
-    when "perplexity"
-      Class.new { extend PerplexityHelper }.tap { |c| c.extend(PerplexityHelper) }
-    when "grok"
-      Class.new { extend GrokHelper }.tap { |c| c.extend(GrokHelper) }
-    when "deepseek"
-      Class.new { extend DeepSeekHelper }.tap { |c| c.extend(DeepSeekHelper) }
-    else
-      raise "Unknown provider: #{provider}"
-    end
+    # Return an object instance that includes the appropriate helper
+    klass = case provider.downcase
+            when "openai"
+              Class.new { include OpenAIHelper }
+            when "claude", "anthropic"
+              Class.new { include ClaudeHelper }
+            when "gemini", "google"
+              Class.new { include GeminiHelper }
+            when "mistral"
+              Class.new { include MistralHelper }
+            when "ollama"
+              Class.new { include OllamaHelper }
+            when "cohere"
+              Class.new { include CohereHelper }
+            when "perplexity"
+              Class.new { include PerplexityHelper }
+            when "grok"
+              Class.new { include GrokHelper }
+            when "deepseek"
+              Class.new { include DeepSeekHelper }
+            else
+              raise "Unknown provider: #{provider}"
+            end
+    klass.new
   end
 
   def get_ollama_default_model

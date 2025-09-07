@@ -179,8 +179,9 @@ post "/openai/pdf" do
       end
       vs_id = session[:openai_vector_store_id]
       vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
+      # Prefer explicit ENV over registry for predictability
       vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
+      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
       vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
 
       unless vs_id
@@ -346,8 +347,8 @@ get "/openai/pdf" do
       end
       vs_id = session[:openai_vector_store_id]
       vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
       vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
+      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
       vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
       # Keep session in sync for downstream usage
       session[:openai_vector_store_id] = vs_id if vs_id
@@ -427,8 +428,8 @@ delete "/openai/pdf" do
       end
       vs_id = session[:openai_vector_store_id]
       vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
       vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
+      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
       vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
 
       if vs_id

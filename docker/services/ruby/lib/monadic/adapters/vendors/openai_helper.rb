@@ -133,15 +133,15 @@ module OpenAIHelper
         app_env = CONFIG["OPENAI_VECTOR_STORE_ID__#{app_key}"] rescue nil
         vs_id = app_env.to_s.strip unless app_env.nil? || app_env.to_s.strip.empty?
       end
-      # 3) registry
-      if vs_id.nil? && defined?(Monadic::Utils::DocumentStoreRegistry)
-        app_key = get_current_app_key(session)
-        vs_id ||= Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      end
-      # 4) global ENV
+      # 3) global ENV (explicit config should take precedence over registry)
       if vs_id.nil? && defined?(CONFIG)
         env_vs = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip rescue ""
         vs_id = env_vs unless env_vs.empty?
+      end
+      # 4) registry
+      if vs_id.nil? && defined?(Monadic::Utils::DocumentStoreRegistry)
+        app_key = get_current_app_key(session)
+        vs_id ||= Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
       end
       # 5) fallback meta file
       if vs_id.nil? && defined?(Monadic::Utils::Environment)

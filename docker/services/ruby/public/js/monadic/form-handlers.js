@@ -24,38 +24,40 @@ function uploadPdf(file, fileTitle) {
   formData.append("pdfFile", file);
   formData.append("pdfTitle", fileTitle);
 
-  // Resolve endpoint from server default (Settings)
+  // Resolve endpoint from server default (Settings).
+  // In unit-test environments, $.getJSON may be undefined; default to local.
   return new Promise((resolve, reject) => {
-    $.getJSON('/api/pdf_storage_defaults')
-      .done(function(info) {
-        const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
-        const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
-        $.ajax({
-          url: endpoint,
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          dataType: "json", // Expect JSON response
-          timeout: 120000, // PDF processing can take time
-          success: resolve,
-          error: reject
-        });
-      })
-      .fail(function() {
-        // Fallback to local upload
-        $.ajax({
-          url: "/pdf",
-          type: "POST",
-          data: formData,
-          processData: false,
-          contentType: false,
-          dataType: "json",
-          timeout: 120000,
-          success: resolve,
-          error: reject
-        });
-      });
+    const postTo = (endpoint) => $.ajax({
+      url: endpoint,
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      dataType: "json",
+      timeout: 120000,
+      success: resolve,
+      error: reject
+    });
+
+    try {
+      if (typeof $ !== 'undefined' && typeof $.getJSON === 'function') {
+        $.getJSON('/api/pdf_storage_defaults')
+          .done(function(info) {
+            const mode = ((info && info.default_storage) ? info.default_storage : 'local').toLowerCase();
+            const endpoint = (mode === 'cloud') ? "/openai/pdf?action=upload" : "/pdf";
+            postTo(endpoint);
+          })
+          .fail(function() {
+            postTo('/pdf');
+          });
+      } else {
+        // No $.getJSON available (e.g., tests) → default to local
+        postTo('/pdf');
+      }
+    } catch (_) {
+      // Safety net: default to local
+      postTo('/pdf');
+    }
   });
 }
 

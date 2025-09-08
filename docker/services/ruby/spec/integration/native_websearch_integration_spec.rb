@@ -112,8 +112,14 @@ RSpec.describe "Native Web Search Integration", :integration do
           "en" # Simple stub for testing
         end
       end
-      
+
       helper = TestClaude.new
+      # Ensure api_request is public for the test harness, regardless of module visibility changes
+      begin
+        TestClaude.send(:public, :api_request)
+      rescue StandardError
+        # ignore if already public or method missing
+      end
       
       # Create a test session
       session = {

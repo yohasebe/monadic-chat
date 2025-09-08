@@ -11,14 +11,14 @@ RSpec.describe "Gemini Tool Continuation" do
   
   describe "Gemini 2.5 Limitations" do
     it "LIMITATION: Cannot support both monadic mode and function calling simultaneously" do
-      # This is a known limitation of Gemini 2.5 models, documented in CLAUDE.md
+      # This is a known limitation of Gemini 2.5 models.
       # 
       # With reasoning_effort: minimal -> Function calling works, monadic mode breaks (JSON wrapped in ```)
       # Without reasoning_effort -> Monadic mode works, function calling breaks (generates pseudo-code)
       # 
       # This test is kept as documentation and will be enabled when/if Google fixes this limitation
       
-      skip "Gemini 2.5 fundamental limitation - cannot have both simultaneously (see CLAUDE.md)"
+      skip "Gemini 2.5 fundamental limitation - cannot have both simultaneously"
       
       # When this limitation is fixed, the test would verify:
       # 1. Tools are properly called with reasoning_effort: minimal

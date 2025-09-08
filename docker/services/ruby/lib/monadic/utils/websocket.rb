@@ -708,6 +708,10 @@ module WebSocketHelper
           res = EMBEDDINGS_DB.delete_by_title(title)
           if res
             ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "#{title} deleted successfully" }.to_json)
+            # Invalidate caches for mode/presence
+            begin
+              session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+            rescue StandardError; end
           else
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" }.to_json)
           end
@@ -719,6 +723,9 @@ module WebSocketHelper
             end
             ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "All local PDFs deleted" }.to_json)
             ws.send({ "type" => "pdf_titles", "content" => [] }.to_json)
+            begin
+              session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+            rescue StandardError; end
           rescue StandardError => e
             ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" }.to_json)
           end

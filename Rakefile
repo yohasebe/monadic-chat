@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
 require "fileutils"
-require "rspec/core/rake_task"
+begin
+  require "rspec/core/rake_task"
+rescue LoadError
+  # Allow listing/invoking non-RSpec tasks even if the gem isn't installed globally.
+end
 require "rubygems"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
@@ -2134,5 +2138,166 @@ namespace :test do
   task :compare, [:run1, :run2] do |_t, args|
     require_relative 'lib/test_runner'
     TestRunner.compare_runs(args[:run1], args[:run2])
+  end
+
+  desc "Run all tests (Ruby, JavaScript, Python) with unified runner"
+  task :all, [:api_level, :open] do |_t, args|
+    require_relative 'lib/test_runner'
+    require 'json'
+    require 'fileutils'
+
+    api_level = args[:api_level] || ENV['TEST_API_LEVEL'] || 'standard'
+    want_open = (args[:open].to_s == 'true' || ENV['OPEN_INDEX'] == 'true')
+    timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+    run_id = "all_#{timestamp}"
+    base = run_id
+
+    puts <<~BANNER
+      ╔═══════════════════════════════════════╗
+      ║   Monadic Chat - Full Test Suite     ║
+      ║   API Level: #{api_level.ljust(25)}║
+      ╔═══════════════════════════════════════╝
+    BANNER
+
+    results = {}
+    start_time = Time.now
+
+    # Ruby unit
+    puts "\n🧪 [1/5] Running Ruby unit tests..."
+    unit_run_id = "#{base}_unit"
+    results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,run_id=#{unit_run_id}\"]")
+
+    # Ruby integration
+    puts "\n🧪 [2/5] Running Ruby integration tests..."
+    integ_run_id = "#{base}_integration"
+    results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,run_id=#{integ_run_id}\"]")
+
+    # API (optional by level)
+    if api_level != 'none'
+      puts "\n🧪 [3/5] Running API tests..."
+      api_run_id = "#{base}_api"
+      results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,run_id=#{api_run_id}\"]")
+    else
+      puts "\n⏭️  [3/5] Skipping API tests (api_level=none)"
+      results[:api] = true
+    end
+
+    # JavaScript
+    puts "\n🧪 [4/5] Running JavaScript tests..."
+    results[:javascript] = system("npm test")
+
+    # Python
+    puts "\n🧪 [5/5] Running Python tests..."
+    results[:python] = system("rake pytest:all")
+
+    duration = Time.now - start_time
+    all_passed = results.values.all?
+
+    FileUtils.mkdir_p('tmp/test_results')
+    summary = {
+      run_id: run_id,
+      api_level: api_level,
+      timestamp: timestamp,
+      duration: duration.round(2),
+      results: results,
+      overall_status: all_passed ? 'passed' : 'failed'
+    }
+    File.write("tmp/test_results/#{run_id}.json", JSON.pretty_generate(summary))
+
+    # Generate a simple index HTML bundling suite reports
+    begin
+      require_relative 'lib/test_index_html'
+      suites = []
+      suites << { name: :unit,        run_id: unit_run_id,  status: results[:ruby_unit] }
+      suites << { name: :integration, run_id: integ_run_id, status: results[:ruby_integration] }
+      if api_level != 'none'
+        suites << { name: :api,      run_id: api_run_id,   status: results[:api] }
+      else
+        suites << { name: :api,      run_id: nil,          status: true }
+      end
+      suites << { name: :javascript,  run_id: nil,          status: results[:javascript] }
+      suites << { name: :python,      run_id: nil,          status: results[:python] }
+      idx_path = TestIndexHTML.generate('tmp/test_results', run_id, suites, File.join('tmp', 'test_results', "index_#{run_id}.html"))
+      puts "\n📄 Index report generated: #{idx_path}"
+      if want_open
+        if RUBY_PLATFORM =~ /darwin/i
+          system("open", idx_path)
+        else
+          puts "(Auto-open is only supported on macOS; skipping)"
+        end
+      end
+    rescue StandardError
+      # non-fatal
+    end
+
+    puts "\n" + "=" * 50
+    puts all_passed ? "✅ ALL TESTS PASSED!" : "❌ SOME TESTS FAILED"
+    puts "=" * 50
+    puts "Duration: #{duration.round(2)}s"
+    puts "Results saved to: tmp/test_results/#{run_id}.json"
+
+    if !all_passed
+      failed = results.select { |_, v| !v }.keys
+      puts "\nFailed components: #{failed.join(', ')}"
+    end
+
+    exit(all_passed ? 0 : 1)
+  end
+
+  desc "Run quick smoke tests (subset of all tests)"
+  task :smoke, [:api_level] do |_t, args|
+    api_level = args[:api_level] || 'none'
+    puts "🚬 Running smoke tests (api_level=#{api_level})..."
+    system("rake test:run[unit,\"api_level=#{api_level},focus=critical\"]")
+  end
+
+  desc "Run JavaScript tests via unified runner"
+  task :js do
+    require_relative 'lib/test_runner'
+    TestRunner.new('js').execute
+  end
+
+  desc "Run Python tests via unified runner"
+  task :python do
+    require_relative 'lib/test_runner'
+    TestRunner.new('python').execute
+  end
+
+  desc "Analyze last test run results and extract failures/pending"
+  task :analyze, [:run_id] do |_t, args|
+    require 'json'
+    require_relative 'lib/test_result_analyzer'
+    run_id = args[:run_id]
+    if run_id.nil?
+      latest = Dir.glob('tmp/test_results/*_meta.json').max_by { |f| File.mtime(f) }
+      run_id = latest && File.basename(latest).sub(/_meta\.json\z/, '')
+    end
+    if run_id.nil?
+      puts 'No test results found'
+      next
+    end
+    json_path = File.join('tmp', 'test_results', "#{run_id}.json")
+    TestResultAnalyzer.analyze_and_save(json_path, run_id)
+    puts "Analysis complete for #{run_id}"
+  end
+
+  desc "Generate HTML report for a test run (default: latest)"
+  task :report, [:run_id, :out] do |_t, args|
+    require 'fileutils'
+    require_relative 'lib/test_report_html'
+    results_dir = File.join('tmp', 'test_results')
+    FileUtils.mkdir_p(results_dir)
+    run_id = args[:run_id]
+    if run_id.nil?
+      latest = Dir.glob(File.join(results_dir, '*_meta.json')).max_by { |f| File.mtime(f) }
+      run_id = latest && File.basename(latest).sub(/_meta\.json\z/, '')
+    end
+    if run_id.nil?
+      puts 'No test results found'
+      next
+    end
+    out = args[:out] || File.join(results_dir, "report_#{run_id}.html")
+    path = TestReportHTML.generate(results_dir, run_id, out)
+    puts "HTML report generated: #{path}"
   end
 end

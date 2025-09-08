@@ -123,6 +123,11 @@ module OpenAIHelper
   end
 
   def resolve_openai_vs_id(session)
+    # Per-instance cache keyed by session-scoped cache version to avoid stale values
+    ver = (defined?(session) && session && session[:pdf_cache_version]) || 0
+    if instance_variable_defined?(:@cached_vs_id) && instance_variable_defined?(:@cached_vs_id_version)
+      return @cached_vs_id if @cached_vs_id_version == ver
+    end
     vs_id = nil
     begin
       # 1) session
@@ -158,22 +163,45 @@ module OpenAIHelper
     rescue StandardError
       vs_id = nil
     end
+    @cached_vs_id = vs_id
+    @cached_vs_id_version = ver
     vs_id
   end
 
   def resolve_pdf_storage_mode(session)
+    # Per-instance cache keyed by session-scoped version to avoid stale results
+    ver = (defined?(session) && session && session[:pdf_cache_version]) || 0
+    if instance_variable_defined?(:@cached_pdf_mode) && instance_variable_defined?(:@cached_pdf_mode_version)
+      return @cached_pdf_mode if @cached_pdf_mode_version == ver
+    end
     begin
       vs_present = !!resolve_openai_vs_id(session)
-      # Best-effort local presence check (global for now; app-specific namespaces to follow)
+      # Fast local presence check (prefer DB-level LIMIT 1; fallback to title listing if unavailable)
       local_present = begin
-        defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB && Kernel.respond_to?(:list_pdf_titles) && !list_pdf_titles.empty?
+        if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
+          if EMBEDDINGS_DB.respond_to?(:any_docs?)
+            EMBEDDINGS_DB.any_docs?
+          elsif Kernel.respond_to?(:list_pdf_titles)
+            !list_pdf_titles.empty?
+          else
+            false
+          end
+        else
+          false
+        end
       rescue StandardError
         false
       end
       session_mode = (defined?(session) ? session[:pdf_storage_mode].to_s.downcase : '')
       # Session override takes precedence (immediate switch during runtime)
-      return 'local' if session_mode == 'local'
-      return 'cloud' if session_mode == 'cloud' && vs_present
+      if session_mode == 'local'
+        @cached_pdf_mode = 'local'
+        return @cached_pdf_mode
+      end
+      if session_mode == 'cloud' && vs_present
+        @cached_pdf_mode = 'cloud'
+        return @cached_pdf_mode
+      end
 
       # Determine configured mode (ENV), with backward compatibility
       env_mode = begin
@@ -184,7 +212,7 @@ module OpenAIHelper
       end
 
       # Honor configured mode when available; otherwise fall back to availability
-      if env_mode == 'cloud' && vs_present
+      @cached_pdf_mode = if env_mode == 'cloud' && vs_present
         'cloud'
       elsif env_mode == 'local' && local_present
         'local'
@@ -196,7 +224,11 @@ module OpenAIHelper
         # Neither available; return configured mode (sanitized)
         %w[local cloud].include?(env_mode) ? env_mode : 'local'
       end
+      @cached_pdf_mode_version = ver
+      @cached_pdf_mode
     rescue StandardError
+      @cached_pdf_mode = 'local'
+      @cached_pdf_mode_version = ver
       'local'
     end
   end

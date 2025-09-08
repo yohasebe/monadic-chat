@@ -48,3 +48,10 @@ Migration
 - A safe, idempotent task migrates the legacy meta file `pdf_navigator_openai.json` into the new registry:
   - `rake vector_db:migrate_to_registry`
   - Scope: writes under app_key `default`. Extend as needed if you had multiple app scopes previously.
+
+Performance Notes
+- Request‑scoped caching: `resolve_pdf_storage_mode(session)` memoizes its decision per invocation context to avoid duplicate checks.
+- Vector Store ID lookup: `resolve_openai_vs_id(session)` memoizes per session cache version to prevent repeated ENV/registry/meta scans.
+- Fast local presence check: use `TextEmbeddings#any_docs?` (`SELECT 1 FROM docs LIMIT 1`) instead of listing all titles.
+- Config lookup: `get_pdf_storage_mode` is memoized; invalid values fall back to `local`.
+- Safety: all fast paths fall back to prior behavior on errors; no change to mode precedence or UI semantics.

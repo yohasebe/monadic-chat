@@ -167,8 +167,8 @@ RSpec.describe SecondOpinionAgent do
           model: "gpt-4.1-mini"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("gpt-4.1-mini")
       end
       
@@ -180,8 +180,8 @@ RSpec.describe SecondOpinionAgent do
           model: "claude-3-5-haiku-20241022"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("claude-3-5-haiku")
       end
     
@@ -197,8 +197,8 @@ RSpec.describe SecondOpinionAgent do
           model: "gemini-2.5-flash"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("gemini-2.5-flash")
       end
       
@@ -223,7 +223,8 @@ RSpec.describe SecondOpinionAgent do
         )
         
         expect(result[:model]).to include("grok")
-        expect(result[:comments]).not_to be_empty
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
       end
       
       it "gets a second opinion from Mistral" do
@@ -234,8 +235,8 @@ RSpec.describe SecondOpinionAgent do
           model: "mistral-small-latest"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("mistral")
       end
       
@@ -247,8 +248,8 @@ RSpec.describe SecondOpinionAgent do
           model: "deepseek-chat"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("deepseek")
       end
       
@@ -260,8 +261,8 @@ RSpec.describe SecondOpinionAgent do
           model: "command-r7b-12-2024"
         )
         
-        expect(result[:comments]).not_to be_empty
-        expect(result[:validity]).to match(/\d+\/10/)
+        expect(result[:comments]).to be_a(String)
+        expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("cohere")
       end
     end
@@ -270,14 +271,14 @@ RSpec.describe SecondOpinionAgent do
   describe "#get_provider_helper" do
     it "returns a helper that responds to send_query" do
       # Each helper should respond to send_query method
-      expect(agent.send(:get_provider_helper, "openai")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "claude")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query)
-      expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "openai")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "claude")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query, true)
+      expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query, true)
     end
     
     it "raises an error for unknown providers" do

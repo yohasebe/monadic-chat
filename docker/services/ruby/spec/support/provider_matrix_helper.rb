@@ -326,34 +326,35 @@ module ProviderMatrixHelper
     end
 
     def helper_for(provider)
+      # Return an instance that includes the helper module, matching app behavior
       case provider.to_s
       when 'openai'
         require_relative '../../lib/monadic/adapters/vendors/openai_helper'
-        Class.new { extend OpenAIHelper }
+        Class.new { include OpenAIHelper }.new
       when 'anthropic', 'claude'
         require_relative '../../lib/monadic/adapters/vendors/claude_helper'
-        Class.new { extend ClaudeHelper }
+        Class.new { include ClaudeHelper }.new
       when 'gemini'
         require_relative '../../lib/monadic/adapters/vendors/gemini_helper'
-        Class.new { extend GeminiHelper }
+        Class.new { include GeminiHelper }.new
       when 'mistral'
         require_relative '../../lib/monadic/adapters/vendors/mistral_helper'
-        Class.new { extend MistralHelper }
+        Class.new { include MistralHelper }.new
       when 'cohere'
         require_relative '../../lib/monadic/adapters/vendors/cohere_helper'
-        Class.new { extend CohereHelper }
+        Class.new { include CohereHelper }.new
       when 'perplexity'
         require_relative '../../lib/monadic/adapters/vendors/perplexity_helper'
-        Class.new { extend PerplexityHelper }
+        Class.new { include PerplexityHelper }.new
       when 'deepseek'
         require_relative '../../lib/monadic/adapters/vendors/deepseek_helper'
-        Class.new { extend DeepSeekHelper }
+        Class.new { include DeepSeekHelper }.new
       when 'xai', 'grok'
         require_relative '../../lib/monadic/adapters/vendors/grok_helper'
-        Class.new { extend GrokHelper }
+        Class.new { include GrokHelper }.new
       when 'ollama'
         require_relative '../../lib/monadic/adapters/vendors/ollama_helper'
-        Class.new { extend OllamaHelper }
+        Class.new { include OllamaHelper }.new
       else
         raise ArgumentError, "Unknown provider: #{provider}"
       end

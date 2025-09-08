@@ -422,7 +422,7 @@ end
 
 ?> **実験的機能**: MCP（Model Context Protocol）サポートは実験的な機能であり、将来のリリースで変更される可能性があります。
 
-Monadic Chatには実験的なMCPサーバーが含まれており、Claude DesktopやClaude Codeなどの外部AIアシスタントが標準化されたプロトコルを通じてMonadic Chatの機能にアクセスできます。
+Monadic Chatには実験的なMCPサーバーが含まれており、外部のAIアシスタントが標準化されたプロトコルを通じてMonadic Chatの機能にアクセスできます。
 
 ### MCPアダプターの構造
 

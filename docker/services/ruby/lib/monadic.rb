@@ -43,30 +43,39 @@ get "/api/pdf_storage_status" do
       end
     end
     cloud_present = !!vs_id
-    # Local presence
-    local_present = begin
-      arr = list_pdf_titles
-      arr.is_a?(Array) && !arr.empty?
-    rescue StandardError
+  # Local presence (fast check)
+  local_present = begin
+    if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
+      if EMBEDDINGS_DB.respond_to?(:any_docs?)
+        EMBEDDINGS_DB.any_docs?
+      else
+        arr = list_pdf_titles
+        arr.is_a?(Array) && !arr.empty?
+      end
+    else
       false
     end
+  rescue StandardError
+    false
+  end
     # Mode resolution (no hybrid)
     session_mode = (defined?(session) ? session[:pdf_storage_mode].to_s.downcase : '')
-    mode = if session_mode == 'local'
-      'local'
-    elsif session_mode == 'cloud' && cloud_present
-      'cloud'
-    elsif get_pdf_storage_mode == 'cloud' && cloud_present
-      'cloud'
-    elsif get_pdf_storage_mode == 'local' && local_present
-      'local'
-    elsif cloud_present
-      'cloud'
-    elsif local_present
-      'local'
-    else
-      get_pdf_storage_mode
-    end
+  configured_mode = get_pdf_storage_mode
+  mode = if session_mode == 'local'
+    'local'
+  elsif session_mode == 'cloud' && cloud_present
+    'cloud'
+  elsif configured_mode == 'cloud' && cloud_present
+    'cloud'
+  elsif configured_mode == 'local' && local_present
+    'local'
+  elsif cloud_present
+    'cloud'
+  elsif local_present
+    'local'
+  else
+    configured_mode
+  end
     { success: true, mode: mode, vector_store_id: vs_id, local_present: local_present, cloud_present: cloud_present }.to_json
   rescue StandardError => e
     status 500
@@ -295,6 +304,12 @@ post "/openai/pdf" do
         end
       end
 
+      # Invalidate caches for mode/presence
+      begin
+        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+      rescue StandardError
+        # no-op
+      end
       { success: true, filename: filename, vector_store_id: vs_id, file_id: file_id, deduplicated: (!uploaded_new_file) }.to_json
 
     else
@@ -477,6 +492,12 @@ delete "/openai/pdf" do
           rescue StandardError; end
         end
       end
+      # Bump session cache version to invalidate mode/presence caches
+      begin
+        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+      rescue StandardError
+        # no-op
+      end
       { success: true }.to_json
     when "delete"
       file_id = params["file_id"]
@@ -537,6 +558,10 @@ delete "/openai/pdf" do
         end
         begin
           Monadic::Utils::DocumentStoreRegistry.remove_cloud_file(app_key, file_id)
+        rescue StandardError; end
+        # Bump cache version
+        begin
+          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
         rescue StandardError; end
         { success: true }.to_json
       else
@@ -763,15 +788,12 @@ end
 
 # Determine configured PDF storage mode (ENV), with backward compatibility
 def get_pdf_storage_mode
+  return @pdf_storage_mode_cache if instance_variable_defined?(:@pdf_storage_mode_cache)
   begin
     mode = (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local').to_s.downcase
-    unless %w[local cloud].include?(mode)
-      puts "[PDF Storage] Invalid mode '#{mode}', falling back to 'local'" if CONFIG["EXTRA_LOGGING"]
-      return 'local'
-    end
-    mode
+    @pdf_storage_mode_cache = %w[local cloud].include?(mode) ? mode : 'local'
   rescue StandardError
-    'local'
+    @pdf_storage_mode_cache = 'local'
   end
 end
 
@@ -1661,6 +1683,12 @@ post "/pdf" do
         rescue StandardError
           # no-op
         end
+        # Invalidate caches for mode/presence
+        begin
+          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+        rescue StandardError
+          # no-op
+        end
         return { success: true, filename: params["pdfFile"]["filename"] }.to_json
       rescue TextEmbeddings::DatabaseError => e
         return { success: false, error: "Database error: #{e.message}" }.to_json
@@ -1707,6 +1735,10 @@ post "/pdf" do
         items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
       end
       EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
+      begin
+        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+      rescue StandardError
+      end
       return params["pdfFile"]["filename"]
     else
       session[:error] = "Error: No file selected. Please choose a PDF file to upload."

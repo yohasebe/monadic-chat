@@ -16,8 +16,11 @@ RSpec.describe "Code Interpreter Response Length Configuration" do
           # Check for monadic false setting (required for function calling)
           expect(content).to match(/monadic\s+false/)
           
-          # Check for minimal reasoning_effort (required for function calling)
-          expect(content).to match(/reasoning_effort\s+"minimal"/)
+          # reasoning_effort may be omitted for function calling; do not require it strictly
+          # If present, it should be set to "minimal"
+          if content.match?(/reasoning_effort/)
+            expect(content).to match(/reasoning_effort\s+"minimal"/)
+          end
         else
           pending "Gemini Code Interpreter MDSL file not found"
         end

@@ -81,7 +81,7 @@ RSpec.configure do |config|
   end
 
   # Mock framework is not used - all tests use real implementations
-  # See CLAUDE.md for testing philosophy and mock replacement strategies
+# Internal testing philosophy and mock strategies are documented in internal maintainer guides.
 
   config.shared_context_metadata_behavior = :apply_to_host_groups
   config.filter_run_when_matching :focus

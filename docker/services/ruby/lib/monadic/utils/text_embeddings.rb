@@ -224,6 +224,16 @@ class TextEmbeddings
     end
   end
 
+  # Fast existence check for any stored documents (used by routing/perf-sensitive code)
+  def any_docs?
+    with_retry("Docs presence check") do
+      res = @conn.exec("SELECT 1 FROM docs LIMIT 1")
+      res.ntuples > 0
+    end
+  rescue DatabaseError
+    false
+  end
+
   def get_text_snippets(doc_id)
     with_retry("Text snippets retrieval") do
       results = @conn.exec_params(

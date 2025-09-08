@@ -290,17 +290,25 @@
       setInitialHeights(currentRatio);
     });
   </script>
-    <script src="i18n.js"></script>
+    <!-- Use browser-friendly i18n (no Node require) -->
     <script src="webUITranslations.js"></script>
     <script src="mainScreen.js"></script>
     <script>
-      // Initialize i18n for message re-translation
-      window.i18n = new I18n();
-      // Set initial language from cookie
-      const uiLanguageCookie = document.cookie.match(/ui-language=([^;]+)/);
-      if (uiLanguageCookie) {
-        window.i18n.setLanguage(uiLanguageCookie[1]);
-      }
+      // Initialize i18n for message re-translation (guarded)
+      (function(){
+        try {
+          if (typeof window.i18n === 'undefined' && typeof I18n !== 'undefined') {
+            window.i18n = new I18n();
+          }
+          // Set initial language from cookie
+          const m = document.cookie && document.cookie.match(/ui-language=([^;]+)/);
+          if (m && m[1] && window.i18n && typeof window.i18n.setLanguage === 'function') {
+            window.i18n.setLanguage(m[1]);
+          }
+        } catch (e) {
+          console.warn('i18n init skipped:', e && e.message);
+        }
+      })();
     </script>
 </body>
 </html>

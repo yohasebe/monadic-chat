@@ -406,6 +406,62 @@ const webUITranslations = {
   }
 };
 
+// Compatibility: Provide a browser-friendly I18n when Node-based app/i18n.js is unavailable
+// (e.g., nodeIntegration=false). This wrapper mirrors the minimal API used by mainScreen.js:
+//   - new I18n();
+//   - setLanguage(lang)
+//   - t(key, params)
+// It sources messages from webUITranslations above.
+(function () {
+  if (typeof window === 'undefined') return;
+  if (typeof window.I18n === 'undefined') {
+    class I18n {
+      constructor() {
+        this.currentLanguage = 'en';
+        this.translations = webUITranslations;
+      }
+      setLanguage(language) {
+        if (this.translations[language]) {
+          this.currentLanguage = language;
+          return true;
+        }
+        console.warn(`Language ${language} not found, using English`);
+        this.currentLanguage = 'en';
+        return false;
+      }
+      t(key, replacements = {}) {
+        // Resolve nested keys like 'ui.messages.starting'
+        const parts = String(key).split('.');
+        let value = this.translations[this.currentLanguage];
+        let fallback = this.translations['en'];
+        for (const p of parts) {
+          value = value && value[p];
+          fallback = fallback && fallback[p];
+          if (!value && !fallback) return key;
+        }
+        let result = (value || fallback || key);
+        // Simple placeholder replacement: {{name}}
+        Object.keys(replacements || {}).forEach((name) => {
+          const re = new RegExp(`{{${name}}}`, 'g');
+          result = String(result).replace(re, replacements[name]);
+        });
+        return result;
+      }
+    }
+    window.I18n = I18n;
+    // Auto-initialize if not present to reduce race conditions
+    if (!window.i18n) {
+      try {
+        const inst = new I18n();
+        // Try cookie-based language
+        const m = document.cookie && document.cookie.match(/ui-language=([^;]+)/);
+        if (m && m[1]) inst.setLanguage(m[1]);
+        window.i18n = inst;
+      } catch (_) { /* no-op */ }
+    }
+  }
+})();
+
 // Web UI i18n helper class
 class WebUIi18n {
   constructor() {

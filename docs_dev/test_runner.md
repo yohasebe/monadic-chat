@@ -67,7 +67,7 @@ Troubleshooting
   - Run suites separately; avoid concurrent heavy workloads.
 
 Profiles (examples)
-- Define reusable profiles in `.test-config.yml` and run with `rake test:profile[ci]`.
+- Define reusable profiles in `config/test/test-config.yml` (fallback: `.test-config.yml`) and run with `rake test:profile[ci]`.
 
 Example:
 ```

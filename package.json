@@ -55,8 +55,8 @@
         "zip"
       ],
       "artifactName": "Monadic.Chat-${version}-${arch}.${ext}",
-      "entitlements": "entitlements.mac.plist",
-      "entitlementsInherit": "entitlements.mac.plist",
+      "entitlements": "config/electron/entitlements.mac.plist",
+      "entitlementsInherit": "config/electron/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "The microphone is required for voice input."
       }
@@ -91,7 +91,7 @@
       "app/**/*",
       "icons/**/*"
     ],
-    "afterSign": "notarize.js",
+    "afterSign": "scripts/notarize.js",
     "win": {
       "target": [
         "nsis",

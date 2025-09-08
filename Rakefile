@@ -2102,14 +2102,21 @@ namespace :test do
     runner.execute
   end
 
-  desc "Run tests using predefined profile from .test-config.yml"
+  desc "Run tests using predefined profile from config/test/test-config.yml (fallback: .test-config.yml)"
   task :profile, [:name] do |_t, args|
     require 'yaml'
     require_relative 'lib/test_runner'
-    config_path = '.test-config.yml'
+    # Prefer new path, fall back to legacy path for backward compatibility
+    config_path = ENV['TEST_PROFILE_PATH'] || 'config/test/test-config.yml'
     unless File.exist?(config_path)
-      puts "Profile config not found: #{config_path}"
-      exit 1
+      legacy = '.test-config.yml'
+      if File.exist?(legacy)
+        config_path = legacy
+        puts "[test:profile] Using legacy profile path: #{legacy}"
+      else
+        puts "Profile config not found: #{config_path} (or #{legacy})"
+        exit 1
+      end
     end
     cfg = YAML.safe_load(File.read(config_path)) || {}
     profiles = cfg['profiles'] || {}
@@ -2166,17 +2173,21 @@ namespace :test do
     puts "\n🧪 [1/5] Running Ruby unit tests..."
     unit_run_id = "#{base}_unit"
     results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,run_id=#{unit_run_id}\"]")
+    # Force-generate HTML in case formatter/json combo didn't emit
+    system("rake test:report[#{unit_run_id}]")
 
     # Ruby integration
     puts "\n🧪 [2/5] Running Ruby integration tests..."
     integ_run_id = "#{base}_integration"
     results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,run_id=#{integ_run_id}\"]")
+    system("rake test:report[#{integ_run_id}]")
 
     # API (optional by level)
     if api_level != 'none'
       puts "\n🧪 [3/5] Running API tests..."
       api_run_id = "#{base}_api"
       results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,run_id=#{api_run_id}\"]")
+      system("rake test:report[#{api_run_id}]")
     else
       puts "\n⏭️  [3/5] Skipping API tests (api_level=none)"
       results[:api] = true

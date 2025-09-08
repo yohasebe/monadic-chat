@@ -1,0 +1,28 @@
+# Monadic Chat Test Profiles (relocated from .test-config.yml)
+
+profiles:
+  quick:
+    suites: [unit]
+    timeout: 30
+
+  ci:
+    suites: [unit, integration]
+    format: json
+    save: true
+    docker: auto
+
+  full:
+    suites: [unit, integration, api, system]
+    providers: [openai, anthropic, gemini]
+    timeout: 120
+    save: true
+    format: documentation
+    docker: auto
+
+  daily:
+    suites: [api]
+    providers: [openai]
+    focus: critical
+    timeout: 120
+    save: true
+    format: documentation

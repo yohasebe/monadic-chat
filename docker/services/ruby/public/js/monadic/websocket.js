@@ -4215,6 +4215,10 @@ let loadedApp = "Chat";
       window.UIState.set('wsConnected', false);
       window.UIState.set('wsReconnecting', true);
     }
+    // Enter silent reconnect mode and show localized 'Stopped'
+    try { window.silentReconnectMode = true; } catch(_) {}
+    const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
+    setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
     reconnect_websocket(ws);
   }
 
@@ -4266,8 +4270,11 @@ function reconnect_websocket(ws, callback) {
   // Limit maximum reconnection attempts
   if (ws._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
-    const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
-    setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
+    // In silent mode, keep showing 'Stopped'; otherwise show failure
+    if (!window.silentReconnectMode) {
+      const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
+      setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
+    }
     
     // Properly clean up any pending timers
     ws._isReconnecting = false;
@@ -4319,10 +4326,11 @@ function reconnect_websocket(ws, callback) {
           connectionDetails = ` to ${host}:${port}`;
         }
         
-        // Show retry message
-        const message = `<i class='fa-solid fa-sync fa-spin'></i> Connecting${connectionDetails}...`;
-        
-        setAlert(message, "warning");
+        // In silent mode, do not spam connection messages
+        if (!window.silentReconnectMode) {
+          const message = `<i class='fa-solid fa-sync fa-spin'></i> Connecting${connectionDetails}...`;
+          setAlert(message, "warning");
+        }
         
         // Create new connection
         ws = connect_websocket(callback);
@@ -4357,6 +4365,8 @@ function reconnect_websocket(ws, callback) {
         
         // Update UI
         const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
+        // Clear silent mode and show connected status
+        try { window.silentReconnectMode = false; } catch(_) {}
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
         
         // Execute callback if provided
@@ -4406,10 +4416,14 @@ function handleVisibilityChange() {
             connectionMessage = ` to ${host}:${port}`;
           }
           
-          // Show reconnection message
-          const alertMessage = `<i class='fa-solid fa-server'></i> Connection lost${connectionMessage}`;
-            
-          setAlert(alertMessage, "warning");
+          // Show reconnection message unless in silent stopped mode
+          if (!window.silentReconnectMode) {
+            const alertMessage = `<i class='fa-solid fa-server'></i> ${getTranslation('ui.messages.connectionLost','Connection lost')}${connectionMessage}`;
+            setAlert(alertMessage, "warning");
+          } else {
+            const stoppedText = getTranslation('ui.messages.stopped', 'Stopped');
+            setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
+          }
           
           // Establish a new connection with proper callback
           ws = connect_websocket((newWs) => {
@@ -4424,6 +4438,7 @@ function handleVisibilityChange() {
                 : "<i class='fa-solid fa-circle-check'></i> Connected";
                 
               setAlert(successMessage, "info");
+              try { window.silentReconnectMode = false; } catch(_) {}
             }
           });
           break;

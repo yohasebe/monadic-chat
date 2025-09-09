@@ -2,54 +2,68 @@ FROM python:3.10-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
-# Install necessary packages
-# LaTeX packages for Concept Visualizer:
-# - texlive-latex-base: Basic LaTeX
-# - texlive-latex-extra: Additional LaTeX packages
-# - texlive-pictures: TikZ and PGF
-# - texlive-science: Scientific diagrams (including tikz-3dplot)
-# - texlive-pstricks: PSTricks for advanced graphics
-# - texlive-latex-recommended: Recommended packages
-# - texlive-fonts-extra: Additional fonts
-# - texlive-plain-generic: Generic packages
-# - texlive-lang-cjk: CJK language support
-# - latex-cjk-all: Complete CJK support
-# - dvisvgm: DVI to SVG converter
-# - pdf2svg: PDF to SVG converter (backup option)
+# Optional feature toggles (defaults are lean)
+ARG INSTALL_LATEX=false
+ARG PYOPT_NLTK=false
+ARG PYOPT_SPACY=false
+ARG PYOPT_SCIKIT=false
+ARG PYOPT_GENSIM=false
+ARG PYOPT_LIBROSA=false
+ARG PYOPT_MEDIAPIPE=false
+ARG PYOPT_TRANSFORMERS=false
+ARG IMGOPT_IMAGEMAGICK=false
+
+# Base OS packages (lean by default)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential wget curl git gnupg \
-    python3-dev graphviz libgraphviz-dev pkg-config \
-    libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
-    imagemagick libmagickwand-dev \
-    texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-    texlive-science texlive-pstricks texlive-latex-recommended \
-    texlive-fonts-extra texlive-plain-generic \
-    pdf2svg dvisvgm \
-    && fc-cache -fv \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+      build-essential wget curl git gnupg \
+      python3-dev graphviz libgraphviz-dev pkg-config \
+      libxml2-dev libxslt-dev \
+      pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
+    && fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
+# Optional: ImageMagick (convert/mogrify)
+RUN if [ "$IMGOPT_IMAGEMAGICK" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends imagemagick && \
+      apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Optional: LaTeX minimal set for Concept Visualizer / Syntax Tree
+RUN if [ "$INSTALL_LATEX" = "true" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends \
+        texlive-xetex texlive-latex-base texlive-fonts-recommended \
+        texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
+        texlive-science texlive-pstricks texlive-latex-recommended \
+        texlive-fonts-extra texlive-plain-generic \
+        pdf2svg dvisvgm && \
+      fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# Install base Python packages (stable, cached)
 RUN pip install -U pip && \
     pip install --no-cache-dir --default-timeout=1000 \
-    setuptools \
-    wheel \
-    jupyterlab ipywidgets plotly \
-    numpy  pandas statsmodels \
-    matplotlib seaborn \
-    gunicorn tiktoken flask \
-    pymupdf pymupdf4llm \
-    selenium html2text \
-    openpyxl python-docx python-pptx \
-    requests beautifulsoup4 \
-    lxml pygraphviz graphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    opencv-python moviepy==2.0.0.dev2
+      setuptools wheel \
+      jupyterlab ipywidgets plotly \
+      numpy pandas statsmodels \
+      matplotlib seaborn \
+      gunicorn tiktoken flask \
+      pymupdf pymupdf4llm \
+      selenium html2text \
+      openpyxl python-docx python-pptx \
+      requests beautifulsoup4 \
+      lxml pygraphviz graphviz pydotplus networkx pyvis \
+      svgwrite cairosvg tinycss cssselect pygal \
+      pyecharts pyecharts-snapshot \
+      opencv-python moviepy==2.0.0.dev2
+
+# Optional Python libs (each in its own layer for cache efficiency)
+RUN if [ "$PYOPT_NLTK" = "true" ]; then pip install --no-cache-dir nltk || true; else echo "skip nltk"; fi
+RUN if [ "$PYOPT_SPACY" = "true" ]; then pip install --no-cache-dir spacy==3.7.5 || true; else echo "skip spacy"; fi
+RUN if [ "$PYOPT_SCIKIT" = "true" ]; then pip install --no-cache-dir scikit-learn || true; else echo "skip scikit"; fi
+RUN if [ "$PYOPT_GENSIM" = "true" ]; then pip install --no-cache-dir gensim || true; else echo "skip gensim"; fi
+RUN if [ "$PYOPT_LIBROSA" = "true" ]; then pip install --no-cache-dir librosa || true; else echo "skip librosa"; fi
+RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then pip install --no-cache-dir mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
+RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then pip install --no-cache-dir transformers accelerate onnxruntime || true; else echo "skip transformers"; fi
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings
@@ -77,8 +91,3 @@ COPY flask /monadic/flask
 RUN ln -s /monadic/data /data
 
 COPY Dockerfile /monadic/Dockerfile
-
-# copy `pysetup.sh` to `/monadic` and run it
-COPY pysetup.sh /monadic/pysetup.sh
-RUN chmod +x /monadic/pysetup.sh
-RUN /monadic/pysetup.sh

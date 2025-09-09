@@ -39,7 +39,7 @@ class FlaskAppClient
         end
       rescue StandardError => e
         # Log warmup failure but don't block application startup
-        puts "[FlaskAppClient] Tokenizer warmup failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        puts "[FlaskAppClient] Tokenizer warmup failed: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       end
     end
   end

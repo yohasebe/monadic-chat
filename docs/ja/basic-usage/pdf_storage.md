@@ -37,4 +37,4 @@ Title: PDFストレージ（ローカル／クラウド）
 - FAQ：「Files を削除してストアが残っていると検索できる？」→ いいえ。ファイルが0ならヒットは0です。
 
 レジストリ
-- `~/monadic/data/document_store_registry.json` にアプリ別の Vector Store ID とファイルの記録（file_id／hash など）を保存します（原子的に書き込み）。
+- `~/monadic/data/document_store_registry.json` にアプリ別の Vector Store ID とファイルの記録（file_id／hash など）を保存します（安全な書き込み）。

@@ -364,3 +364,10 @@
   - Image generation feature added.
   - The initial version of Monadic Chat (1.0.0) has been released.
   - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.
+- [September 9, 2025] Install Options Rebuild, Atomic Update, Caching
+  - Install Options: Added progress stream and build summary (logs/health) in the window after Save → Rebuild
+  - Atomic Python image update: Build to temp tag → verify → retag only on success; failures keep current image
+  - Per-run logs: `~/monadic/log/build/python/<timestamp>/` with `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
+  - Health checks: Verify LaTeX (`pdflatex`), ImageMagick (`convert`), and selected Python libs (nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers)
+  - Error handling: Safer saving of Install Options with clear dialogs on failure
+  - Dockerfile caching: Split base pip layer and optional libs per RUN; removed `--no-cache` from Python build to leverage cache

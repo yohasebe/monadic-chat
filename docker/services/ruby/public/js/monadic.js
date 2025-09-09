@@ -129,6 +129,27 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     document.head.appendChild(script);
   }
+
+  // Apply visibility for URL/Doc buttons based on backend capabilities
+  try {
+    $.getJSON('/api/capabilities')
+      .done(function (cap) {
+        if (!cap || cap.success === false) return;
+        var seleniumEnabled = cap.selenium && cap.selenium.enabled === true;
+        var tavily = cap.providers && cap.providers.tavily === true;
+
+        if (!seleniumEnabled && !tavily) {
+          $('#doc').hide();
+          $('#url').hide();
+        } else if (!seleniumEnabled && tavily) {
+          $('#url').show();
+          $('#doc').show();
+        } else {
+          $('#doc').show();
+          $('#url').show();
+        }
+      });
+  } catch (e) { /* ignore */ }
   
   // Directly get textareas and set them up - avoid storing array reference
   const initialHeight = 100;
@@ -244,17 +265,35 @@ $(function () {
       $("#ai_user").show();
     }, 1000);
     
+    // --- AI User defaults (SSOT) ---
+    let aiUserDefaults = null;
+    async function fetchAiUserDefaults() {
+      try {
+        const resp = await fetch('/api/ai_user_defaults');
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        if (data && data.success) return data.defaults;
+        return null;
+      } catch (_) { return null; }
+    }
+
+    function getDefaultModelFromSSOT(provider) {
+      if (!aiUserDefaults) return null;
+      const ent = aiUserDefaults[provider];
+      return ent && ent.default_model ? ent.default_model : null;
+    }
+
     // Setup AI User provider selector - updated to filter by available API keys
     $("#ai_user_provider").on("change", function() {
       const provider = $(this).val();
       setCookie("ai_user_provider", provider, 30);
       updateProviderStyle(provider);
-      // Get provider name from the dropdown
-      const providerName = $("#ai_user_provider option:selected").text();
-      // Get model for the selected provider
-      const model = getDefaultModelForProvider(provider);
-      // Update the UI to show selected provider and model
-      $("#ai-user-model").text(`${providerName} (${model})`);
+      // Update badge with model and reasoning effort when available
+      if (!setAiUserBadge()) {
+        const providerName = $("#ai_user_provider option:selected").text();
+        const fallbackModel = getDefaultModelFromSSOT(provider) || $("#model").val() || getTranslation('ui.notConfigured','Not configured');
+        $("#ai-user-model").text(`${providerName} (${fallbackModel})`);
+      }
     });
     
     // Function that does nothing now - we're keeping the default btn-warning style
@@ -262,32 +301,7 @@ $(function () {
       // Intentionally left empty - we want to maintain the original btn-warning style
     }
     
-    // Helper function to get default model for AI User based on provider
-    function getDefaultModelForProvider(provider) {
-      // Match this with the server-side model selection in ai_user_agent.rb
-      const providerLower = provider.toLowerCase();
-      
-      if (providerLower.includes("anthropic") || providerLower.includes("claude")) {
-        return "claude-3-5-sonnet-20241022";
-      } else if (providerLower.includes("openai") || providerLower.includes("gpt")) {
-        return "gpt-4.1";
-      } else if (providerLower.includes("cohere") || providerLower.includes("command")) {
-        return "command-r-plus";
-      } else if (providerLower.includes("gemini") || providerLower.includes("google")) {
-        return "mini-2.0-flash";
-      } else if (providerLower.includes("mistral")) {
-        return "mistral-large-latest";
-      } else if (providerLower.includes("grok") || providerLower.includes("xai")) {
-        return "grok-2";
-      } else if (providerLower.includes("perplexity")) {
-        return "sonar";
-      } else if (providerLower.includes("deepseek")) {
-        return "deepseek-chat";
-      } else {
-        // Fallback to default model
-        return "gpt-4.1";
-      }
-    }
+    // Removed hardcoded getDefaultModelForProvider; use SSOT via /api/ai_user_defaults instead
     
     
     // Function to update available providers in dropdown based on API keys
@@ -297,10 +311,7 @@ $(function () {
       $("#ai_user_provider option").hide();
       
       // Loop through providers to check which ones have API keys available
-      if (verified === "full") {
-        // OpenAI is available for sure if verified is full
-        $("#ai_user_provider option[value='openai']").show();
-      }
+      // Show by apps groups first (backward compatibility)
       
       // Check for other providers' API keys
       for (const [key, app] of Object.entries(apps)) {
@@ -326,6 +337,21 @@ $(function () {
           $("#ai_user_provider option[value='perplexity']").show();
         }
       }
+
+      // Additionally filter by SSOT has_key if available
+      if (aiUserDefaults) {
+        const map = {
+          'openai':'openai','anthropic':'anthropic','gemini':'gemini','cohere':'cohere','mistral':'mistral','deepseek':'deepseek','grok':'grok','perplexity':'perplexity'
+        };
+        Object.keys(map).forEach(val => {
+          const ent = aiUserDefaults[val];
+          if (ent && ent.has_key) {
+            $("#ai_user_provider option[value='"+val+"']").show();
+          } else {
+            $("#ai_user_provider option[value='"+val+"']").hide();
+          }
+        });
+      }
       
       // If the currently selected provider is not available, select first available
       const currentProvider = $("#ai_user_provider").val();
@@ -339,22 +365,100 @@ $(function () {
       }
     }
     
-    // Load saved provider from cookie
-    const savedProvider = getCookie("ai_user_provider");
-    if (savedProvider) {
-      $("#ai_user_provider").val(savedProvider);
-      updateProviderStyle(savedProvider);
-      // Set the display text in status panel
+    // Helper to compute and set the AI User badge text robustly
+    function setAiUserBadge() {
+      const provider = $("#ai_user_provider").val();
+      if (!provider) return false;
       const providerName = $("#ai_user_provider option:selected").text();
-      const model = getDefaultModelForProvider(savedProvider);
-      $("#ai-user-model").text(`${providerName} (${model})`);
-    } else {
-      // Use default provider style (OpenAI)
-      updateProviderStyle("openai");
-      // Set default display text
-      const model = getDefaultModelForProvider("openai");
-      $("#ai-user-model").text(`OpenAI (${model})`);
+      const ssotModel = getDefaultModelFromSSOT(provider);
+      const currentModel = $("#model").val();
+      const model = ssotModel || currentModel;
+      if (model && providerName) {
+        // Compute reasoning effort default for this provider/model when supported
+        let effortSuffix = '';
+        try {
+          if (window.ReasoningMapper) {
+            // Map provider value to display name expected by ReasoningMapper
+            const map = { openai:'OpenAI', anthropic:'Anthropic', gemini:'Google', cohere:'Cohere', mistral:'Mistral', deepseek:'DeepSeek', grok:'xAI', perplexity:'Perplexity' };
+            const provDisplay = map[provider] || providerName;
+            if (ReasoningMapper.isSupported(provDisplay, model)) {
+              const opts = ReasoningMapper.getAvailableOptions(provDisplay, model) || [];
+              let defv = ReasoningMapper.getDefaultValue(provDisplay, model);
+              if (!defv || (opts.length && !opts.includes(defv))) {
+                defv = opts[0] || null;
+              }
+              if (defv) effortSuffix = ' - ' + defv;
+            }
+          }
+        } catch(_) {}
+        $("#ai-user-model").text(providerName + ' (' + model + effortSuffix + ')');
+        return true;
+      }
+      return false;
     }
+
+    // Load SSOT defaults then initialize provider and badge (no async IIFE for compatibility)
+    fetchAiUserDefaults().then(function(defs){
+      aiUserDefaults = defs || null;
+      window.updateAvailableProviders();
+      const savedProvider = getCookie('ai_user_provider');
+      var chosen = savedProvider;
+      if (!chosen || $("#ai_user_provider option[value='"+chosen+"']:visible").length === 0) {
+        var firstVisible = $("#ai_user_provider option:visible").first().val();
+        if (firstVisible) {
+          chosen = firstVisible;
+          $("#ai_user_provider").val(firstVisible);
+          setCookie('ai_user_provider', firstVisible, 30);
+        }
+      } else {
+        $("#ai_user_provider").val(chosen);
+      }
+      if (chosen) {
+        if (!setAiUserBadge()) {
+          $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+        }
+      } else {
+        $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+      }
+    }).catch(function(){
+      // fallback: just update available providers based on apps
+      window.updateAvailableProviders();
+      // Best-effort label update using current app model
+      var chosen = $("#ai_user_provider option:visible").first().val();
+      if (chosen) {
+        $("#ai_user_provider").val(chosen);
+        if (!setAiUserBadge()) {
+          $("#ai-user-model").text(getTranslation('ui.notConfigured','Not configured'));
+        }
+      }
+    });
+
+    // Robust initialization: observe #model for population and update badge when ready
+    (function ensureBadgeOnModelReady(){
+      try {
+        const modelSel = document.getElementById('model');
+        if (!modelSel || typeof MutationObserver === 'undefined') return; // Defensive
+        const observer = new MutationObserver(() => {
+          // Attempt to set badge whenever options or value change
+          if (setAiUserBadge()) {
+            observer.disconnect();
+          }
+        });
+        observer.observe(modelSel, { childList: true, subtree: true, attributes: true, attributeFilter: ['value'] });
+        // Also do a few timed retries in case observer misses
+        let tries = 0;
+        const tick = setInterval(() => {
+          tries += 1;
+          if (setAiUserBadge() || tries >= 10) {
+            clearInterval(tick);
+            try { observer.disconnect(); } catch(_) {}
+          }
+        }, 300);
+      } catch (e) {
+        // Last resort timed attempt without observer
+        setTimeout(setAiUserBadge, 1200);
+      }
+    })();
     
     // Set up model change handler to update the AI Assistant info badge
     $("#model").on("change", function() {

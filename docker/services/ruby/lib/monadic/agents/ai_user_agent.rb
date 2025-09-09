@@ -103,15 +103,106 @@ module AIUserAgent
     end
     
     # Prepare options for the API call with provider-specific settings
-    options = { 
+    # Compose request options. Avoid forcing temperature for models that disallow sampling.
+    options = {
       "messages" => focused_messages,
-      "temperature" => 0.7,  # Slightly higher temperature for more natural responses
       "ai_user_system_message" => system_message,
-      "model" => model  # Explicitly include model in options
+      "model" => model
     }.merge(system_option)
+    begin
+      # Only add temperature when model spec indicates it's not a reasoning/Responses API model
+      allow_sampling = !Monadic::Utils::ModelSpec.is_reasoning_model?(model) && !Monadic::Utils::ModelSpec.responses_api?(model)
+      options["temperature"] = 0.7 if allow_sampling
+    rescue StandardError
+      # On spec lookup failure, omit temperature to be safe
+    end
+
+    # If the model supports reasoning_effort, set a default value from spec so that
+    # AI User behavior aligns with the assistant model display.
+    begin
+      effort_cfg = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
+      if effort_cfg && effort_cfg[:options].is_a?(Array) && !effort_cfg[:options].empty?
+        default_effort = effort_cfg[:default]
+        default_effort = effort_cfg[:options].first unless effort_cfg[:options].include?(default_effort)
+        options["reasoning_effort"] = default_effort
+      end
+    rescue StandardError
+      # If lookup fails, skip setting reasoning_effort
+    end
+
+    # Anthropic: if model supports thinking but no reasoning_effort is present, set a default label
+    begin
+      if provider.to_s.downcase.include?("anthropic") && Monadic::Utils::ModelSpec.supports_thinking?(model)
+        options["reasoning_effort"] ||= "medium"
+      end
+    rescue StandardError
+      # Ignore lookup errors
+    end
+
+    # Gemini (Google): set a reasonable default when thinking is supported
+    begin
+      if provider.to_s.downcase.include?("gemini") && Monadic::Utils::ModelSpec.supports_thinking?(model)
+        # If can_disable is true, prefer 'low'; otherwise 'medium'
+        tb = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+        default_effort = (tb && tb["can_disable"]) ? "low" : "medium"
+        options["reasoning_effort"] ||= default_effort
+      end
+    rescue StandardError
+    end
+
+    # xAI (Grok): prefer low by default (helper maps minimal->low internally)
+    begin
+      if provider.to_s.downcase.include?("grok") || provider.to_s.downcase.include?("xai")
+        options["reasoning_effort"] ||= "low"
+      end
+    rescue StandardError
+    end
+
+    # Perplexity: if spec exposes reasoning_effort, use its default; else prefer 'low'
+    begin
+      if provider.to_s.downcase.include?("perplexity")
+        eff = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
+        if eff && eff[:options].is_a?(Array) && !eff[:options].empty?
+          defv = eff[:default]
+          options["reasoning_effort"] ||= (eff[:options].include?(defv) ? defv : eff[:options].first)
+        else
+          options["reasoning_effort"] ||= "low"
+        end
+      end
+    rescue StandardError
+    end
+
+    # Cohere: if model is a thinking/reasoning variant, enable reasoning path
+    begin
+      if provider.to_s.downcase.include?("cohere")
+        # Prefer enabling for reasoning models; helper will map appropriately
+        options["reasoning_effort"] ||= "enabled"
+      end
+    rescue StandardError
+    end
+
+    # DeepSeek: enable reasoning content by default for reasoner models; omit temperature later in helper
+    begin
+      if provider.to_s.downcase.include?("deepseek")
+        options["reasoning_content"] ||= "enabled"
+      end
+    rescue StandardError
+    end
     
     # Call the API
     begin
+      # Debug logging for diagnostics
+      if CONFIG && CONFIG['EXTRA_LOGGING'] == 'true'
+        begin
+          log_dir = File.join(Dir.home, 'monadic', 'log')
+          FileUtils.mkdir_p(log_dir) unless File.directory?(log_dir)
+          File.open(File.join(log_dir, 'ai_user_debug.log'), 'a') do |f|
+            f.puts("[#{Time.now}] provider=#{provider} model=#{model.inspect}")
+          end
+        rescue
+          # ignore logging failures
+        end
+      end
       # Send query to get AI user response with explicit model parameter
       result = app_instance.send_query(options, model: model)
       

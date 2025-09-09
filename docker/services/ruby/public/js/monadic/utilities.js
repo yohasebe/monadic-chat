@@ -759,14 +759,14 @@ window.loadParams = function(params, calledFor = "loadParams") {
           $dropdown.append(`<option value="${option}">${label}</option>`);
         });
         
-        // Set value
+        // Set value with safety: coerce to first available if default not supported
         let effortValue;
         if (reasoning_effort && availableOptions.includes(reasoning_effort)) {
           effortValue = reasoning_effort;
         } else {
-          effortValue = ReasoningMapper.getDefaultValue(provider, model) || availableOptions[0];
+          let suggested = ReasoningMapper.getDefaultValue(provider, model);
+          effortValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
         }
-        
         $dropdown.val(effortValue);
         $dropdown.prop('disabled', false);
         $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);

@@ -121,6 +121,15 @@ AIエージェントに数式を表示するときにはMathJax形式を使用�
 **AI User Provider**<br />
 AIユーザー機能で使用するプロバイダーをドロップダウンメニューから選択します。ドロップダウンには、設定で有効なAPIトークンを設定したプロバイダーのみが表示されます。AIユーザー機能は、あたかも人間のユーザーが書いたかのような応答を自動生成し、会話のテストや異なる入力に対するアシスタントの反応を確認するのに役立ちます。アシスタントが返信した後、AIユーザープロバイダーのドロップダウンの横にある`Run`ボタンをクリックすると、会話の履歴に基づいて自然な後続メッセージが生成され、送信前に編集することができます。この機能は複数のプロバイダー（OpenAI、Claude、Gemini、Cohere、Mistral、Perplexity、DeepSeek、Grok）をサポートし、プロバイダー固有のフォーマット要件を適切に処理します。
 
+セレクター横のバッジは、推論/思考に対応するモデルの場合は `Provider (model - effort)` の形式で表示され、それ以外のモデルでは `Provider (model)` と表示されます。初回ロード時も、モデル一覧の構築完了後に自動的に初期化されるため、再読み込みは不要です。送信時にはプロバイダーごとの既定（推論パラメータ）を自動適用し、未対応のパラメータ（例：推論モデルでのtemperatureなど）は送信しません。
+
+- OpenAI: reasoning/Responsesモデルに `reasoning_effort` を付与し、temperatureは送らない
+- Claude: `thinking` を有効化し、effortに応じた `budget_tokens` を安全な範囲で設定
+- Gemini: モデルの上限・プリセットに合わせて `thinkingBudget` を設定
+- xAI Grok: UIのeffortをプロバイダーの受理値に丸めて送信（例：minimal→low）
+- Cohere: reasoning系を有効化し、必要に応じて会話圧縮のワークアラウンドを適用
+- Perplexity, DeepSeek: 安全な既定を適用し、未対応のsampling設定は送信しない
+
 **Start from assistant**<br />
 オンにすると、会話を始める時にアシスタント側が最初の発話を行います。
 

@@ -58,6 +58,76 @@ After installation, when you first launch Monadic Chat:
 
 For detailed setup instructions, see the [Web Interface](../basic-usage/web-interface.md) section.
 
+## Install Options & Rebuild :id=install-options
+
+From the app menu “Actions → Install Options…”, choose optional components for the Python container.
+
+- LaTeX (minimal): Enables Concept Visualizer / Syntax Tree (requires OpenAI or Anthropic key)
+- Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `scikit-learn`, `gensim`, `librosa`, `transformers`
+- Tools: ImageMagick (`convert`/`mogrify`)
+- Selenium: When enabled, uses Selenium as before. When disabled with a Tavily key, From URL uses Tavily. Otherwise, #url/#doc buttons are hidden.
+
+Saving does not trigger a rebuild automatically. When ready, run Rebuild from the main console to update the Python image. The update is atomic (build → verify → promote on success) and progress/logs are streamed in the main console. A per-run summary and health check are written alongside the logs.
+
+Logs:
+
+- `~/monadic/log/build/python/<timestamp>/`
+  - `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
+
+NLTK and spaCy behavior
+
+- Enabling `nltk` installs the library only (no datasets/corpora are downloaded automatically).
+- Enabling `spacy` installs `spacy==3.7.5` only (no language models downloaded).
+- Recommended: add a `~/monadic/config/pysetup.sh` to fetch what you need during post-setup. Example:
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+python - <<'PY'
+import nltk
+for pkg in ["punkt","stopwords","averaged_perceptron_tagger","wordnet","omw-1.4","vader_lexicon"]:
+    nltk.download(pkg, raise_on_error=True)
+PY
+
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_lg
+```
+
+For Japanese and additional corpora
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+# spaCy Japanese models (pick one)
+python -m spacy download ja_core_news_sm
+# or: ja_core_news_md / ja_core_news_lg
+
+# NLTK extra corpora frequently used in examples
+python - <<'PY'
+import nltk
+for pkg in ["brown","reuters","movie_reviews","conll2000","wordnet_ic"]:
+    nltk.download(pkg, raise_on_error=True)
+PY
+```
+
+Full NLTK download (all datasets)
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+export NLTK_DATA=/monadic/data/nltk_data
+mkdir -p "$NLTK_DATA"
+
+python - <<'PY'
+import nltk, os
+nltk.download('all', download_dir=os.environ.get('NLTK_DATA','/monadic/data/nltk_data'))
+PY
+```
+Note: Downloading “all” is large (GBs) and may take considerable time.
+
 ## Preparation :id=preparation
 
 ### System Requirements :id=system-requirements

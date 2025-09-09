@@ -22,6 +22,12 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 - Ruby app runs inside the Ruby container
 - Auto-restart on failures (compose policies)
 
+### Python image build (verified promotion)
+- Rebuild is invoked via `docker/monadic.sh build_python_container`.
+- Build to a temporary tag → run post-setup if present (`~/monadic/config/pysetup.sh`) → health checks → retag to version/latest only on success.
+- On failure, the current image is preserved (no rollback needed).
+- For each run, logs/metadata/health are saved under `~/monadic/log/build/python/<timestamp>/`.
+
 ## Container Commands
 
 ```bash
@@ -48,6 +54,7 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - `~/monadic/data` → `/monadic/data` (shared data)
 - `~/monadic/config` → `/monadic/config` (API keys, settings)
 - `~/monadic/log` → `/monadic/log` (logs)
+  - Python Rebuild per-run: `~/monadic/log/build/python/<timestamp>/`
 
 ## Port Mappings (defaults)
 
@@ -77,3 +84,6 @@ lsof -i :4567
 
 # Change port in docker/compose.yml if needed
 ```
+### Slow rebuilds / cache misses
+- The Python Dockerfile is split into a base pip layer and per-option layers (one RUN per library) to leverage cache.
+- Toggling options or LaTeX/ImageMagick only re-executes the affected layers, avoiding full rebuilds.

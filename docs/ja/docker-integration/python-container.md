@@ -1,224 +1,150 @@
 # 標準 Python コンテナ
 
-Monadic Chat では、Python コンテナを使用して Python のコードを実行することができます。標準 Python コンテナは、`monadic-chat-python-container` という名前で提供されています。Python コンテナを使用することで、AI エージェントが Python のコードを実行し、その結果を返すことができます。
+Monadic Chat は `monadic-chat-python-container` 内で Python ツールを実行します。AI エージェントはこのコンテナでコードを実行し、結果を返します。
 
-標準 Python コンテナは下記の Dockerfile で構築されています：
+## Install Options（オプション機能）
 
-```dockerfile
-FROM python:3.10-slim-bookworm
-ARG PROJECT_TAG
-LABEL project=$PROJECT_TAG
+アプリの「Actions → Install Options…」から、Python コンテナに含める追加機能を選択できます。
 
-# Install necessary packages
-# LaTeX packages for Concept Visualizer:
-# - texlive-latex-base: Basic LaTeX
-# - texlive-latex-extra: Additional LaTeX packages
-# - texlive-pictures: TikZ and PGF
-# - texlive-science: Scientific diagrams (including tikz-3dplot)
-# - texlive-pstricks: PSTricks for advanced graphics
-# - texlive-latex-recommended: Recommended packages
-# - texlive-fonts-extra: Additional fonts
-# - texlive-plain-generic: Generic packages
-# - texlive-lang-cjk: CJK language support
-# - latex-cjk-all: Complete CJK support
-# - dvisvgm: DVI to SVG converter
-# - pdf2svg: PDF to SVG converter (backup option)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential wget curl git gnupg \
-    python3-dev graphviz libgraphviz-dev pkg-config \
-    libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
-    imagemagick libmagickwand-dev \
-    texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-    texlive-science texlive-pstricks texlive-latex-recommended \
-    texlive-fonts-extra texlive-plain-generic \
-    pdf2svg dvisvgm \
-    && fc-cache -fv \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+- LaTeX（最小構成）：Concept Visualizer / Syntax Tree 用（有効時のみUI表示、要 OpenAI/Anthropic キー）
+- Python ライブラリ（CPU）：`nltk` / `spacy(3.7.5)` / `scikit-learn` / `gensim` / `librosa` / `transformers`
+- Tools：ImageMagick（`convert`/`mogrify`）
+- Selenium：有効時は従来通りSeleniumを使用。無効かつ Tavily キーありなら From URL は Tavily 使用。どちらもなければ #url/#doc は非表示。
 
-# Install Python packages
-RUN pip install -U pip && \
-    pip install --no-cache-dir --default-timeout=1000 \
-    setuptools \
-    wheel \
-    jupyterlab ipywidgets plotly \
-    numpy  pandas statsmodels \
-    matplotlib seaborn \
-    gunicorn tiktoken flask \
-    pymupdf pymupdf4llm \
-    selenium html2text \
-    openpyxl python-docx python-pptx \
-    requests beautifulsoup4 \
-    lxml pygraphviz graphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    opencv-python moviepy==2.0.0.dev2
+保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は Install Options ウィンドウに表示され、ログは `~/monadic/log/build/python/<timestamp>/` に保存されます。
 
-# Set up JupyterLab user settings
-RUN mkdir -p /root/.jupyter/lab/user-settings
-COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
+NLTK と spaCy について:
+- `nltk` オプションはライブラリのみをインストールします。コーパス/データは自動ダウンロードされません。
+- `spacy` オプションは `spacy==3.7.5` のみをインストールします。`en_core_web_sm` や `en_core_web_lg` などの言語モデルは自動ダウンロードされません。
+- 推奨: `~/monadic/config/pysetup.sh` にダウンロード処理を記述し、ポストセットアップで取得してください（下記例）。
 
-# Set up Matplotlib configuration
-ENV MPLCONFIGDIR=/root/.config/matplotlib
-RUN mkdir -p /root/.config/matplotlib
-COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+## 検証後反映のビルドとヘルスチェック
 
-# Copy scripts and set permissions
-COPY scripts /monadic/scripts
-RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
-RUN mkdir -p /monadic/data/scripts
+- 一時タグでビルド → ポストセットアップ（`~/monadic/config/pysetup.sh` があれば実行）→ ヘルスチェック → 成功時のみ本番タグ（version/latest）へ差し替え。
+- ヘルスチェックでは `pdflatex`、`convert`、主要 Python ライブラリ（nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers）を確認し、`health.json` に保存します。
 
-# Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
-ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
-ENV PIP_ROOT_USER_ACTION=ignore
+## キャッシュ最適化
 
-# Copy Flask application
-COPY flask /monadic/flask
+- Dockerfile はベース層（共通 pip）とオプション層（ライブラリごと RUN）に分割し、キャッシュを最大限活用。
+- オプション変更・LaTeX/ImageMagick 切替でも必要な層だけ再実行され、フル再ビルドを回避。
 
-# Create symbolic link for data directory
-RUN ln -s /monadic/data /data
+## 追加ライブラリ（pysetup.sh）
 
-COPY Dockerfile /monadic/Dockerfile
+`~/monadic/config/pysetup.sh` を作成すると、Rebuild 後の「ポストセットアップ」で自動実行されます（Dockerfile 内に組み込みません）。
 
-# copy `pysetup.sh` to `/monadic` and run it
-COPY pysetup.sh /monadic/pysetup.sh
-RUN chmod +x /monadic/pysetup.sh
-RUN /monadic/pysetup.sh
-```
-
-## 事前インストール済みLaTeXパッケージ
-
-PythonコンテナにはConcept VisualizerやSyntax Treeなどの図形生成アプリのための包括的なLaTeXサポートが含まれています：
-
-### コアLaTeXパッケージ
-- `texlive-latex-base` - 基本的なLaTeX機能
-- `texlive-latex-extra` - 追加のLaTeXパッケージとツール
-- `texlive-fonts-recommended` - 標準LaTeXフォント
-- `texlive-lang-cjk` - CJK言語サポート
-- `latex-cjk-all` - LaTeX用の完全なCJKサポート
-
-### 特殊パッケージ
-- `texlive-science` - 3D視覚化用の`tikz-3dplot`を含む科学パッケージ
-- `texlive-pstricks` - PSTricksグラフィックパッケージ
-- `texlive-latex-recommended` - 推奨LaTeXパッケージ
-- `texlive-pictures` - TikZを含む図形描画パッケージ
-- `dvisvgm` - ベクターグラフィックス生成用のDVIからSVGへのコンバータ
-
-これらのパッケージにより、複雑な図表、フローチャート、3D視覚化、数学的図形の生成が可能になります。
-
-## 日本語フォントサポート
-
-Pythonコンテナには、matplotlibやその他の可視化ライブラリ用の日本語フォントサポートが含まれています。Noto Sans CJK JPフォントがインストールされ、`matplotlibrc`設定を通じて設定されています：
-
-- フォントファミリー: Noto Sans CJK JP
-- 設定ファイル: `/root/.config/matplotlib/matplotlibrc`
-- これにより、matplotlibのプロットや図で日本語テキストが正しく表示されます
-
-日本語テキストを含むチャートやプロットを生成する場合、追加の設定なしで自動的にフォントが使用されます。
-
-## ライブラリの追加
-
-追加のライブラリをインストールする場合は、下記のいずれかを行なってください。
-
-- configフォルダの `pysetup.sh`（`~/monadic/config/pysetup.sh`）にインストールスクリプトを追加して、Monadic Chat の環境構築時にライブラリをインストール（下記の例を参照）
-- [Dockerコンテナへのアクセス](./docker-access)を参照して、Monadic Chat の環境構築後に Python コンテナにログインしてライブラリをインストール
-- [Dockerコンテナの追加](../advanced-topics/adding-containers)を参照して、カスタマイズした Python コンテナを追加
-- [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues) でリクエストを送信
-
-## `pysetup.sh` の利用
-
-Python コンテナに追加のライブラリをインストールする場合、configフォルダ（`~/monadic/config/`）に `pysetup.sh` ファイルを作成し、インストールコマンドを追加してください。このファイルが存在する場合、コンテナのビルドプロセス中に`Dockerfile`の最後でスクリプトが実行され、ライブラリがインストールされます。ファイルを作成または変更した後、変更を反映させるにはコンテナのリビルドが必要です。
-
-### セットアップスクリプトの概要
-
-Monadic Chatは、configフォルダ内に3つのオプションのセットアップスクリプトをサポートしています：
-
-- `rbsetup.sh` - Rubyコンテナに追加のRuby gemをインストールする
-- `pysetup.sh` - Pythonコンテナに追加のPythonパッケージをインストールする
-- `olsetup.sh` - Ollamaコンテナのビルド時にOllamaモデルをダウンロードする
-
-これらのスクリプトは自動的に作成されません。コンテナ環境をカスタマイズしたい場合は、手動で作成する必要があります。以下は`pysetup.sh`スクリプトの例です。
-
-
-### 自然言語処理ライブラリのインストール
+例：
 
 ```sh
-# Install NLP libraries, data, and models
 pip install --no-cache-dir --default-timeout=1000 \
-    scikit-learn \
-    gensim\
-    librosa \
-    wordcloud \
-    nltk \
-    textblob \
-    spacy==3.7.5
-
-# Download NLTK data
+  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
 python -m nltk.downloader all
-# Download spaCy models
 python -m spacy download en_core_web_lg
 ```
 
-### 日本語形態素解析ライブラリのインストール
+推奨される最小セットの例
 
 ```sh
-# Install MeCab
-apt-get update && apt-get install -y --no-install-recommends \
-    mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-# Install mecab-python3
-pip install --no-cache-dir --default-timeout=1000 mecab-python3
+#!/usr/bin/env bash
+set -euo pipefail
+
+# NLTK: よく使う軽量セット
+python - <<'PY'
+import nltk
+for pkg in [
+  "punkt","stopwords","averaged_perceptron_tagger","wordnet","omw-1.4","vader_lexicon"
+]:
+    nltk.download(pkg, raise_on_error=True)
+print("NLTK datasets downloaded.")
+PY
+
+# spaCy: 英語モデル（small/large）
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_lg
+echo "spaCy en_core_web_sm/lg downloaded."
 ```
 
-### spaCy の日本語モデルのインストール
+自動ダウンロードしない理由
+- ベースイメージを小さく保ち、再ビルドを高速化するため
+- 環境ごとに必要なデータ/モデルのみ選んで導入できるため
+
+日本語モデル（spaCy）と追加のNLTKコーパス
 
 ```sh
-# Install Rust so that spaCy can handle Japanese
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source "$HOME/.cargo/env"
-export PATH="$HOME/.cargo/bin:$PATH"
-pip install setuptools-rust
-pip install sudachipy==0.6.8
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Download spaCy models
+# spaCy: 日本語モデル（用途に応じて選択）
+python -m spacy download ja_core_news_sm
+# または
 python -m spacy download ja_core_news_md
+# または
+python -m spacy download ja_core_news_lg
+
+# NLTK: 例やチュートリアルでよく使われる追加コーパス
+python - <<'PY'
+import nltk
+for pkg in [
+  # トークナイザー/品詞タグ付け
+  "punkt","averaged_perceptron_tagger",
+  # 語彙資源
+  "wordnet","omw-1.4","wordnet_ic",
+  # 実験用のコーパス
+  "brown","reuters","movie_reviews",
+  # チャンク/構文解析データ
+  "conll2000"
+]:
+    nltk.download(pkg, raise_on_error=True)
+print("Extra NLTK corpora downloaded.")
+PY
 ```
 
+NLTKをすべてダウンロード（フル）
 
-## Flask APIサーバー
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-Pythonコンテナはポート5070でFlask APIサーバーを実行し、トークン化サービスを提供します：
+# 共有データ配下に保存して永続化するのがおすすめ
+export NLTK_DATA=/monadic/data/nltk_data
+mkdir -p "$NLTK_DATA"
 
-- **場所**: `/monadic/flask/flask_server.py`
-- **ポート**: 5070
-- **エンドポイント**:
-  - `/health` - ヘルスチェックエンドポイント
-  - `/warmup` - トークナイザーエンコーディングの事前読み込み
-  - `/count_tokens` - テキストのトークン数をカウント
-  - `/get_tokens_sequence` - テキストからトークンシーケンスを取得
-  - `/decode_tokens` - トークンをテキストにデコード
-  - `/get_encoding_name` - モデルのエンコーディング名を取得
+python - <<'PY'
+import nltk, os
+target = os.environ.get('NLTK_DATA', '/monadic/data/nltk_data')
+nltk.download('all', download_dir=target)
+print(f"Downloaded all NLTK datasets to {target}")
+PY
+```
 
-Flaskサーバーはコンテナ起動時に自動的に開始され、Rubyバックエンドが使用する必須のトークン化サービスを提供します。
+注意: NLTKの全データはサイズが大きく（数GB）、ダウンロードに時間がかかります。空き容量にご注意ください。
 
-## スクリプトディレクトリ構造
+MeCab など追加の OS パッケージが必要な場合：
 
-Pythonコンテナには `/monadic/scripts/` 以下のサブディレクトリに整理された各種ユーティリティスクリプトが含まれています：
+```sh
+apt-get update && apt-get install -y --no-install-recommends \
+  mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+pip install --no-cache-dir mecab-python3
+```
+
+## 日本語フォント
+
+matplotlib 等で日本語表示できるよう、Noto CJK 系フォントと `matplotlibrc` を設定済みです。
+
+## Flask API サーバー（ポート 5070）
+
+- 位置: `/monadic/flask/flask_server.py`
+- エンドポイント: `/health`, `/warmup`, `/count_tokens`, `/get_tokens_sequence`, `/decode_tokens`, `/get_encoding_name` など
+- コンテナ起動時に自動起動し、Ruby 側から利用されます。
+
+## スクリプト構成
 
 ```
 /monadic/scripts/
-├── utilities/          # システムユーティリティ (sysinfo.sh, run_jupyter.sh)
-├── cli_tools/          # CLIツール (content_fetcher.py, webpage_fetcher.py)
-├── converters/         # ファイルコンバーター (pdf2txt.py, office2txt.py, extract_frames.py)
+├── utilities/          # システムユーティリティ (sysinfo.sh 等)
+├── cli_tools/          # CLIツール (content_fetcher.py 等)
+├── converters/         # 変換 (pdf2txt.py, office2txt.py 等)
 └── services/           # APIサービス (jupyter_controller.py)
 ```
 
-これらのスクリプトはPATHに追加され、コンテナ内でコマンドとして実行できます。これらのサブディレクトリ内のすべてのPythonおよびシェルスクリプトには、コンテナビルド時に実行権限が設定されます。
-
+PATH に追加され、コンテナ内で直接実行できます。

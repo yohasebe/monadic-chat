@@ -35,6 +35,12 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
 
+### Install Options & Rebuild
+
+- Configure optional components from `Actions → Install Options…` (LaTeX, Python libs, mediapipe, ImageMagick, Selenium).
+- Saving options does not auto-rebuild. Run Rebuild from the main console when ready; the process is atomic and logs/health are written under `~/monadic/log/build/python/<timestamp>/`.
+- Build logs are saved under `~/monadic/log/build/python/<timestamp>/`. Dockerfile layers are split to leverage cache for faster toggling.
+
 
 
 ## What is Grounding?

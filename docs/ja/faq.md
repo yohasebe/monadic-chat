@@ -9,6 +9,7 @@
 - [ユーザーインターフェース](#ユーザーインターフェース)
 - [設定と高度な使い方](#設定と高度な使い方)
 - [トラブルシューティング](#トラブルシューティング)
+- [Install Options と再ビルド](#install-options-と再ビルド)
 
 ---
 
@@ -251,6 +252,38 @@ pip install pandas numpy scikit-learn
 ```
 
 方法1では変更がコンテナ再起動後も保持されます。
+
+### Q: LaTeX アプリ（Concept Visualizer / Syntax Tree）を有効にするには？ :id=enable-latex
+
+**A**: `Actions → Install Options…` を開いて LaTeX を有効化してください。さらに OpenAI または Anthropic の API キーが必要です（キーがない場合はアプリは非表示のまま）。
+
+### Q: 「From URL / #doc」ボタンが表示されないのはなぜ？ :id=url-doc-hidden
+
+**A**: Selenium が無効で Tavily キーも未設定の場合、これらのボタンは非表示になります。Selenium が無効でも Tavily キーがある場合は「From URL」が Tavily を使用します。Selenium を有効化すると従来の経路に戻ります。
+
+### Q: 再ビルドのログとヘルスチェック結果はどこで確認できますか？ :id=rebuild-logs
+
+**A**: Save → Rebuild 後、Install Options ウィンドウに進捗と要約が表示されます。ファイルは `~/monadic/log/build/python/<timestamp>/` に保存されます：
+- `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
+
+### Q: 再ビルドが遅い。高速化するには？ :id=rebuild-speed
+
+**A**: Dockerfile をベース層とオプション層に分割しキャッシュを活用しています。キャッシュヒットを最大化するには：
+- 変更するオプションを最小限にする（変更がある層のみ再実行）
+- Docker のビルドキャッシュを有効にする
+- `pysetup.sh` を軽量に保つ（重い処理は時間を支配）
+- ネットワーク速度が apt/pip の速度に強く影響
+
+### Q: 再ビルドに失敗したらどうなりますか？ :id=rebuild-failure
+
+**A**: 現行イメージは保持されます（成功時のみ本番に反映する更新）。直近の実行ごとのフォルダのログを確認し、（例）`~/monadic/config/pysetup.sh` を修正して再試行してください。
+
+### Q: NLTK と spaCy のオプションでデータやモデルは自動でダウンロードされますか？ :id=nltk-spacy-auto
+
+**A**: いいえ。オプションはライブラリのみインストールします。
+- NLTK: ライブラリのみ。コーパス/データは自動ダウンロードしません。
+- spaCy: `spacy==3.7.5` のみ。`en_core_web_sm` や `en_core_web_lg` などのモデルは自動ダウンロードしません。
+- `~/monadic/config/pysetup.sh` にダウンロード処理を記述し、ポストセットアップで取得してください（Pythonコンテナのドキュメントに例があります）。
 
 ### Q: TTS発音をカスタマイズするには？ :id=tts-dictionary
 

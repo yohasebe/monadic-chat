@@ -213,6 +213,8 @@ module CohereHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
+    model = model.to_s.strip
+    model = nil if model.empty?
     # Use default model from CONFIG if not specified
     model ||= SystemDefaults.get_default_model('cohere')
     
@@ -288,13 +290,21 @@ module CohereHelper
     end
     
     # Prepare request body
+    # For Cohere reasoning/thinking models, omit temperature to avoid unsupported sampling parameters
+    is_thinking_model = false
+    begin
+      is_thinking_model = CohereHelper.is_thinking_model?(model)
+    rescue StandardError
+      is_thinking_model = false
+    end
+
     body = {
       "model" => model,
       "max_tokens" => options["max_tokens"] || 300,
-      "temperature" => options["temperature"] || 0.7,
       "messages" => messages,
       "stream" => false
     }
+    body["temperature"] = options["temperature"] || 0.7 unless is_thinking_model
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat"
@@ -1059,6 +1069,10 @@ module CohereHelper
     # Handle reasoning (thinking) parameter for command-a-reasoning models
     # Check if this is a reasoning model
     is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
+    # If reasoning model but not specified, set a safe default (enabled)
+    if is_reasoning_model && (obj["reasoning_effort"].nil? || obj["reasoning_effort"].to_s.strip.empty?)
+      obj["reasoning_effort"] = "enabled"
+    end
     if is_reasoning_model && obj["reasoning_effort"]
       # Check if we have conversation history with assistant messages
       has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }

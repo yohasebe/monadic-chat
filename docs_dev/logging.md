@@ -9,6 +9,17 @@ Common files:
 - `jupyter.log` — Jupyter cell additions/run logs.
 - `extra.log` — verbose, structured stream used for deep inspection (see below).
 
+## Build Logs (per-run)
+
+- Each Python rebuild writes logs to a dedicated per-run directory:
+- Location: `~/monadic/log/build/python/<timestamp>/`
+  - `docker_build.log`: Docker build stdout/stderr (includes verified promotion flow)
+  - `post_install.log`: Output from running `~/monadic/config/pysetup.sh` if present (optional)
+  - `health.json`: Health check results right after build (LaTeX/convert/Python libraries)
+  - `meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
+
+The Install Options window streams build output live and shows a summary (paths/health.json) on completion.
+
 ## Extra Logging
 
 - Toggleable in Settings → System → “Extra Logging”.
@@ -26,4 +37,4 @@ Common files:
 
 - For API-level diagnosis, combine `EXTRA_LOGGING=true` with `API_LOG=true` in test env.
 - When investigating Electron path issues, add temporary `console.log` in `app/main.js` and inspect DevTools.
-
+- If the Python container build fails, check the latest per-run directory for `docker_build.log` and `post_install.log`.

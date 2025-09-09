@@ -3,7 +3,7 @@ const modelSpec = {
   "gpt-5": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
@@ -15,7 +15,7 @@ const modelSpec = {
   "gpt-5-2025-08-07": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,

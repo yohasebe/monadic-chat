@@ -123,6 +123,15 @@ Request the AI agent to use MathJax format when displaying mathematical expressi
 **AI User Provider**<br />
 Select a provider for the AI User feature from the dropdown menu. The dropdown only shows providers for which you have configured valid API tokens in the settings. The AI User feature automatically generates responses as if they were written by a human user, helping to test conversations and see how the assistant responds to different inputs. After the assistant has replied, clicking the `Run` button next to the AI User provider dropdown will generate a natural follow-up message based on the conversation history, which you can edit before sending. This feature supports multiple providers (OpenAI, Claude, Gemini, Cohere, Mistral, Perplexity, DeepSeek, and Grok) and intelligently handles provider-specific formatting requirements.
 
+The badge next to the selector shows the resolved default as `Provider (model - effort)` when the selected model supports reasoning/thinking; otherwise it shows `Provider (model)`. On first load the badge initializes automatically after models are populated (no reload required). AI User requests also apply provider-specific defaults for reasoning parameters and omit unsupported ones. Examples:
+
+- OpenAI: adds `reasoning_effort` for reasoning/Responses models; omits `temperature` on those models
+- Claude: enables `thinking` and maps the effort to a safe `budget_tokens`
+- Gemini: configures `thinkingBudget` based on model presets/caps
+- xAI Grok: maps UI effort to provider-supported values (e.g., minimal→low)
+- Cohere: enables reasoning path and uses a conversation-compaction workaround when needed
+- Perplexity, DeepSeek: apply safe defaults and avoid unsupported sampling settings
+
 
 **Start from assistant**<br />
 When on, the assistant makes the first utterance when starting a conversation.
@@ -227,4 +236,3 @@ Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper
 This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
 !> **Warning:** The text from PDF files is converted to text embeddings and stored in the PGVector database. The database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Export the database using the `Export Document DB` feature to save and restore the data.
-

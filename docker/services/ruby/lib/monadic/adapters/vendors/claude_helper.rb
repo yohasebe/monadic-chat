@@ -129,6 +129,8 @@ module ClaudeHelper
     super
   end
 
+  # (removed duplicate public send_query to keep a single SSOT-driven implementation)
+
   private
   # Resolve tool capability from SSOT with legacy override and source tag
   def resolve_tool_capability(model)
@@ -167,7 +169,9 @@ module ClaudeHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model from SystemDefaults if not specified
+    # Resolve model via SSOT only (no hardcoded fallback)
+    model = model.to_s.strip
+    model = nil if model.empty?
     model ||= SystemDefaults.get_default_model('anthropic')
     
     # First try CONFIG, then fall back to ENV for the API key
@@ -238,6 +242,34 @@ module ClaudeHelper
       }]
     end
     
+    # Enable thinking for AI User when requested and supported
+    begin
+      supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(model)
+      effort = options["reasoning_effort"]
+      if supports_thinking && effort && effort != "none"
+        # Map effort -> budget fraction similar to api_request
+        user_max_tokens = max_tokens_value.to_i
+        case effort
+        when "minimal"
+          budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
+        when "low"
+          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+        when "medium"
+          budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
+        when "high"
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
+        else
+          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+        end
+        # Ensure budget below max_tokens
+        budget_tokens = (user_max_tokens * 0.8).to_i if budget_tokens >= user_max_tokens
+        body["temperature"] = 1
+        body["thinking"] = { "type": "enabled", "budget_tokens": budget_tokens }
+      end
+    rescue StandardError
+      # ignore
+    end
+
     # Set API endpoint
     target_uri = "#{API_ENDPOINT}/messages"
 
@@ -1471,4 +1503,7 @@ module ClaudeHelper
 
     data
   end
+  
+  # Ensure send_query is publicly callable by external agents (e.g., AIUserAgent)
+  public :send_query
 end

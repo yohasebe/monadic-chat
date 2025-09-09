@@ -62,6 +62,7 @@
     "running": "실행 중",
     "standaloneMode": "독립형 모드",
     "actions": "작업",
+    "installOptions": "설치 옵션",
     "checkForUpdates": "업데이트 확인",
     "uninstall": "이미지 및 컨테이너 제거",
     "buildAll": "모두 빌드",

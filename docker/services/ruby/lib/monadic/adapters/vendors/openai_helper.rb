@@ -311,7 +311,9 @@ module OpenAIHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model from SystemDefaults if not specified
+    # Resolve model via SSOT only (no hardcoded fallback)
+    model = model.to_s.strip
+    model = nil if model.empty?
     model ||= SystemDefaults.get_default_model('openai')
     
     # Convert symbol keys to string keys to support both formats
@@ -342,8 +344,28 @@ module OpenAIHelper
       body["messages"] = [{ "role" => "user", "content" => options["message"] }]
     end
     
-    # Add temperature if specified
-    body["temperature"] = options["temperature"].to_f if options["temperature"]
+    # Add temperature only when supported by the model
+    if options["temperature"]
+      begin
+        # Treat models marked as reasoning or responses API as not supporting custom temperature
+        disallow_sampling = Monadic::Utils::ModelSpec.is_reasoning_model?(model) ||
+                            Monadic::Utils::ModelSpec.responses_api?(model)
+        body["temperature"] = options["temperature"].to_f unless disallow_sampling
+      rescue StandardError
+        # On any spec lookup failure, be conservative and omit temperature
+      end
+    end
+
+    # Add reasoning_effort when provided and model supports it (reasoning family)
+    if options["reasoning_effort"]
+      begin
+        if Monadic::Utils::ModelSpec.is_reasoning_model?(model)
+          body["reasoning_effort"] = options["reasoning_effort"]
+        end
+      rescue StandardError
+        # ignore if spec lookup fails
+      end
+    end
     
     # Add response_format if specified (for structured JSON output)
     if options["response_format"] || options[:response_format]

@@ -62,6 +62,7 @@
     "running": "运行中",
     "standaloneMode": "单机模式",
     "actions": "操作",
+    "installOptions": "安装选项",
     "checkForUpdates": "检查更新",
     "uninstall": "卸载镜像和容器",
     "buildAll": "全部构建",

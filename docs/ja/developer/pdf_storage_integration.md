@@ -21,7 +21,7 @@ Title: PDF ストレージ統合（ローカル PGVector と OpenAI Vector Store
 - アップロード時の重複検知：SHA256＋サイズで同一判定、既存 file_id を再アタッチ（失敗時のみ1回リトライ）。
 
 レジストリ
-- 位置：`~/monadic/data/document_store_registry.json`（原子的書き込み）。
+- 位置：`~/monadic/data/document_store_registry.json`（安全な書き込み）。
 - 例：
 ```
 {

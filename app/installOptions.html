@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Install Options</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { display:flex; flex-direction:column; height:100vh; margin:0; padding:0; color:#333; background:#eeeeee; overflow:hidden; }
+    body, input, button, label { font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', 'Yu Gothic', sans-serif; }
+    h1 { margin:10px; font-size:14px; font-weight:600; }
+    #container { flex-grow:1; overflow-y:auto; padding:0 10px; height:calc(100vh - 55px); }
+    .category { margin-bottom:20px; padding:15px; background:#f9f9f9; border-radius:8px; border-left:4px solid #2196F3; }
+    .category h2 { font-size:13px; margin:0 0 12px 0; padding-bottom:6px; border-bottom:1px solid #e0e0e0; color:#555; }
+    .category h2 i { margin-right:8px; color:#2196F3; }
+    .row { display:flex; align-items:center; gap:8px; margin:6px 0; font-size:12px; }
+    .help { color:#6b7280; font-size:11px; }
+    input[type="checkbox"] { transform: scale(0.9); }
+    .button-group { border-top:1px solid #ccc; padding:12px; background:#eeeeee; display:flex; gap:8px; }
+    .button-group button { background:#ffc107; color:#000; border:none; border-radius:5px; padding:6px 12px; cursor:pointer; font-size:13px; height:30px; display:inline-flex; align-items:center; justify-content:center; }
+    .button-group button:hover { background:#e0ac07; }
+    .fa-icon { margin-right:6px; }
+    #io-save-message { display:none; color:#28a745; margin-left:10px; font-size:18px; vertical-align:middle; }
+    #io-save-message i { animation: checkmark 0.5s ease-in-out; }
+    @keyframes checkmark { 0% { transform: scale(0); opacity:0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity:1; } }
+  </style>
+  <script>
+    const ioT = {
+      en: { title:'Install Options', latex:'LaTeX', latexHelp:'Required for Concept Visualizer / Syntax Tree', pylibs:'Python Libraries (CPU)', pylibsHelp:'Pip-installed libraries for Python runtime. Models/datasets are not included; add them via your pysetup.sh if needed.', tools:'System Tools (CLI)', toolsHelp:'OS-level command-line tools available system-wide.', web:'Web Scraping', webHelp:'If disabled and Tavily API key is present, From URL will use Tavily. Otherwise #url/#doc buttons are hidden.', close:'Close', save:'Save' },
+      ja: { title:'インストールオプション', latex:'LaTeX', latexHelp:'Concept Visualizer / Syntax Tree に必要', pylibs:'Pythonライブラリ（CPU）', pylibsHelp:'Python実行環境のpipライブラリ。モデル/データは含まれません。必要に応じて pysetup.sh で追加してください。', tools:'システムツール（CLI）', toolsHelp:'OSレベルのコマンドラインツールとして利用できます。', web:'Webスクレイピング', webHelp:'無効かつ Tavily キー有りなら From URL は Tavily を利用。どちらも無い場合は #url/#doc を非表示。', close:'閉じる', save:'保存' },
+      ko: { title:'설치 옵션', latex:'LaTeX', latexHelp:'Concept Visualizer / Syntax Tree에 필요', pylibs:'Python 라이브러리 (CPU)', pylibsHelp:'Python 런타임용 pip 라이브러리입니다. 모델/데이터는 포함되지 않습니다. 필요 시 pysetup.sh로 추가하세요.', tools:'시스템 도구 (CLI)', toolsHelp:'OS 수준의 명령줄 도구를 전체 시스템에서 사용할 수 있습니다.', web:'웹 스크래핑', webHelp:'비활성화되어 있고 Tavily 키가 있으면 From URL은 Tavily를 사용합니다. 둘 다 없으면 #url/#doc 버튼이 숨겨집니다.', close:'닫기', save:'저장' },
+      zh: { title:'安装选项', latex:'LaTeX', latexHelp:'Concept Visualizer / Syntax Tree 需要', pylibs:'Python 库（CPU）', pylibsHelp:'用于 Python 运行时的 pip 库。不包含模型/数据；如需请通过 pysetup.sh 添加。', tools:'系统工具（CLI）', toolsHelp:'操作系统层面的命令行工具，系统范围可用。', web:'网页抓取', webHelp:'若禁用且已配置 Tavily API Key，则 From URL 使用 Tavily；否则隐藏 #url/#doc 按钮。', close:'关闭', save:'保存' },
+      es: { title:'Opciones de instalación', latex:'LaTeX', latexHelp:'Requerido para Concept Visualizer / Syntax Tree', pylibs:'Librerías de Python (CPU)', pylibsHelp:'Librerías instaladas con pip para el entorno de Python. No incluye modelos/datos; añádalos con pysetup.sh si es necesario.', tools:'Herramientas del sistema (CLI)', toolsHelp:'Herramientas de línea de comandos a nivel del sistema, disponibles globalmente.', web:'Rastreo web', webHelp:'Si está deshabilitado y hay una clave de Tavily, From URL usará Tavily; de lo contrario se ocultan los botones #url/#doc.', close:'Cerrar', save:'Guardar' },
+      de: { title:'Installationsoptionen', latex:'LaTeX', latexHelp:'Erforderlich für Concept Visualizer / Syntax Tree', pylibs:'Python-Bibliotheken (CPU)', pylibsHelp:'Per pip installierte Bibliotheken für die Python-Laufzeit. Modelle/Datasets sind nicht enthalten; bei Bedarf mit pysetup.sh ergänzen.', tools:'Systemwerkzeuge (CLI)', toolsHelp:'Befehlszeilenwerkzeuge auf Betriebssystemebene, systemweit verfügbar.', web:'Web Scraping', webHelp:'Wenn deaktiviert und ein Tavily-Schlüssel vorhanden ist, verwendet From URL Tavily; andernfalls werden #url/#doc ausgeblendet.', close:'Schließen', save:'Speichern' },
+      fr: { title:"Options d'installation", latex:'LaTeX', latexHelp:"Nécessaire pour Concept Visualizer / Syntax Tree", pylibs:'Bibliothèques Python (CPU)', pylibsHelp:"Bibliothèques pip pour l'environnement Python. Modèles/données non inclus ; ajoutez-les via pysetup.sh si nécessaire.", tools:"Outils système (CLI)", toolsHelp:"Outils en ligne de commande au niveau du système, disponibles globalement.", web:'Scraping Web', webHelp:"Si désactivé et qu'une clé Tavily est présente, From URL utilisera Tavily ; sinon les boutons #url/#doc sont masqués.", close:'Fermer', save:'Enregistrer' }
+    };
+    function detectLang(){
+      try {
+        const m = document.cookie.match(/ui-language=([^;]+)/);
+        if (m && m[1] && ioT[m[1]]) return m[1];
+      } catch(e) {}
+      const n=(navigator.language||'en').slice(0,2);
+      return ioT[n]?n:'en';
+    }
+    function applyTranslations(){ const L=ioT[detectLang()];
+      document.getElementById('io-title').textContent=L.title;
+      document.getElementById('head-latex-text').textContent=L.latex;
+      document.getElementById('help-latex').textContent=L.latexHelp;
+      document.getElementById('head-pylibs-text').textContent=L.pylibs;
+      document.getElementById('help-pylibs').textContent=L.pylibsHelp;
+      document.getElementById('head-tools-text').textContent=L.tools;
+      document.getElementById('help-tools').textContent=L.toolsHelp;
+      document.getElementById('head-web-text').textContent=L.web;
+      document.getElementById('help-web').textContent=L.webHelp;
+      document.getElementById('btn-close-text').textContent=L.close;
+      document.getElementById('btn-save-text').textContent=L.save; }
+    async function loadOptions() {
+      try {
+        applyTranslations();
+        const opts = await window.installOptionsAPI.get();
+        const ids = [
+          'INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA',
+          'PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','SELENIUM_ENABLED'
+        ];
+        ids.forEach(id => { const el = document.getElementById(id); if (el) el.checked = !!opts[id]; });
+      } catch(e) { console.error(e); }
+    }
+    async function saveOptions() {
+      const saveBtn = document.getElementById('btn-save');
+      if (saveBtn.dataset.saving === 'true') { return; }
+      saveBtn.dataset.saving = 'true';
+      saveBtn.disabled = true;
+      const grab = id => !!document.getElementById(id)?.checked;
+      const payload = {
+        INSTALL_LATEX: grab('INSTALL_LATEX'),
+        PYOPT_NLTK: grab('PYOPT_NLTK'),
+        PYOPT_SPACY: grab('PYOPT_SPACY'),
+        PYOPT_SCIKIT: grab('PYOPT_SCIKIT'),
+        PYOPT_GENSIM: grab('PYOPT_GENSIM'),
+        PYOPT_LIBROSA: grab('PYOPT_LIBROSA'),
+        PYOPT_MEDIAPIPE: grab('PYOPT_MEDIAPIPE'),
+        PYOPT_TRANSFORMERS: grab('PYOPT_TRANSFORMERS'),
+        IMGOPT_IMAGEMAGICK: grab('IMGOPT_IMAGEMAGICK'),
+        SELENIUM_ENABLED: grab('SELENIUM_ENABLED')
+      };
+      try {
+        await window.installOptionsAPI.save(payload);
+        const saveMsg = document.getElementById('io-save-message');
+        if (saveMsg) { saveMsg.style.display = 'inline-block'; }
+        // Keep panel open; hide checkmark and re-enable save after delay
+        setTimeout(() => {
+          if (saveMsg) saveMsg.style.display = 'none';
+          saveBtn.disabled = false;
+          saveBtn.dataset.saving = 'false';
+        }, 1200);
+      } catch(e) {
+        alert('Failed to save: ' + e.message);
+        saveBtn.disabled = false;
+        saveBtn.dataset.saving = 'false';
+      }
+    }
+    window.addEventListener('DOMContentLoaded', loadOptions);
+  </script>
+  </head>
+  <body>
+    <h1>Monadic Chat <span style="font-weight: normal;" id="io-title">Install Options</span></h1>
+    <div id="container">
+      <div class="category">
+        <h2><i class="fa-solid fa-diagram-project"></i> <span id="head-latex-text">LaTeX</span></h2>
+        <label class="row"><input type="checkbox" id="INSTALL_LATEX" /> Install LaTeX (minimal set for diagrams)</label>
+        <div class="help" id="help-latex">Required for Concept Visualizer / Syntax Tree</div>
+      </div>
+      <div class="category" style="border-left-color:#4CAF50;">
+        <h2><i class="fa-solid fa-boxes-stacked" style="color:#4CAF50;"></i> <span id="head-pylibs-text">Python Libraries (CPU)</span></h2>
+        <label class="row"><input type="checkbox" id="PYOPT_NLTK" /> nltk</label>
+        <label class="row"><input type="checkbox" id="PYOPT_SPACY" /> spaCy (3.7.5)</label>
+        <label class="row"><input type="checkbox" id="PYOPT_SCIKIT" /> scikit-learn</label>
+        <label class="row"><input type="checkbox" id="PYOPT_GENSIM" /> gensim</label>
+        <label class="row"><input type="checkbox" id="PYOPT_LIBROSA" /> librosa</label>
+        <label class="row"><input type="checkbox" id="PYOPT_MEDIAPIPE" /> mediapipe (CPU)</label>
+        <label class="row"><input type="checkbox" id="PYOPT_TRANSFORMERS" /> transformers (CPU only)</label>
+        <div class="help" id="help-pylibs">Pip-installed libraries for Python runtime. Models/datasets are not included; add them via your pysetup.sh if needed.</div>
+      </div>
+      <div class="category" style="border-left-color:#9C27B0;">
+        <h2><i class="fa-solid fa-wrench" style="color:#9C27B0;"></i> <span id="head-tools-text">System Tools (CLI)</span></h2>
+        <label class="row"><input type="checkbox" id="IMGOPT_IMAGEMAGICK" /> ImageMagick (convert/mogrify)</label>
+        <div class="help" id="help-tools">OS-level command-line tools available system-wide.</div>
+      </div>
+      <div class="category" style="border-left-color:#FF9800;">
+        <h2><i class="fa-solid fa-spider" style="color:#FF9800;"></i> <span id="head-web-text">Web Scraping</span></h2>
+        <label class="row"><input type="checkbox" id="SELENIUM_ENABLED" /> Enable Selenium container</label>
+        <div class="help" id="help-web">If disabled and Tavily API key is present, From URL will use Tavily. Otherwise #url/#doc buttons are hidden.</div>
+      </div>
+    </div>
+    <div class="button-group">
+      <button id="btn-save" onclick="saveOptions()"><i class="fa-solid fa-floppy-disk fa-icon"></i><span id="btn-save-text">Save</span></button>
+      <button id="btn-close" onclick="window.close()"><i class="fa-solid fa-xmark fa-icon"></i><span id="btn-close-text">Close</span></button>
+      <span id="io-save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
+    </div>
+  </body>
+</html>

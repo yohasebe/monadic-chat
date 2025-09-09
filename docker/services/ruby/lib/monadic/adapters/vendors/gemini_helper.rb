@@ -159,7 +159,9 @@ module GeminiHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
-    # Use default model from CONFIG if not specified
+    # Resolve model via SSOT only (no hardcoded fallback)
+    model = model.to_s.strip
+    model = nil if model.empty?
     model ||= SystemDefaults.get_default_model('gemini')
     
     # Convert symbol keys to string keys to support both formats

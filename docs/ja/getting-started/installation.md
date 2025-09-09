@@ -58,6 +58,76 @@ $ sudo apt install ./monadic-chat-*.deb
 
 詳細な設定手順については、[Webインターフェース](../basic-usage/web-interface.md)セクションを参照してください。
 
+## Install Options と再ビルド :id=install-options
+
+アプリのメニュー「Actions → Install Options…」から、Python コンテナに含めるオプションを選べます。
+
+- LaTeX（最小構成）: Concept Visualizer / Syntax Tree の有効化（OpenAI/Anthropic のキーが必要）
+- Python ライブラリ（CPU）: `nltk` / `spacy(3.7.5)` / `scikit-learn` / `gensim` / `librosa` / `transformers`
+- Tools: ImageMagick（`convert`/`mogrify`）
+- Selenium: 有効時は従来通り Selenium を使用。無効かつ Tavily キーありなら From URL は Tavily 使用。それ以外は #url/#doc 非表示。
+
+保存しても自動で再ビルドは行いません。準備ができたらメインコンソールから Rebuild を実行してください。再ビルドは一時タグでビルド→ヘルス確認→成功時のみ本番へ反映というアトミック更新で、進捗はメインコンソールに出力されます。完了後の要約やヘルスチェックはログと同じ場所に保存されます。
+
+ログ保存先:
+
+- `~/monadic/log/build/python/<timestamp>/`
+  - `docker_build.log` / `post_install.log` / `health.json` / `meta.json`
+
+NLTK と spaCy の挙動
+
+- `nltk` を有効にしてもライブラリのみインストール（データ/コーパスの自動ダウンロードは行いません）。
+- `spacy` を有効にしても `spacy==3.7.5` のみインストール（言語モデルの自動ダウンロードは行いません）。
+- 推奨: `~/monadic/config/pysetup.sh` にダウンロード処理を記述し、ポストセットアップで取得します。例:
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+python - <<'PY'
+import nltk
+for pkg in ["punkt","stopwords","averaged_perceptron_tagger","wordnet","omw-1.4","vader_lexicon"]:
+    nltk.download(pkg, raise_on_error=True)
+PY
+
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_lg
+```
+
+日本語モデルと追加コーパスの例
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+# spaCy 日本語モデル（いずれか）
+python -m spacy download ja_core_news_sm
+# もしくは: ja_core_news_md / ja_core_news_lg
+
+# NLTK 追加コーパス（例でよく使うもの）
+python - <<'PY'
+import nltk
+for pkg in ["brown","reuters","movie_reviews","conll2000","wordnet_ic"]:
+    nltk.download(pkg, raise_on_error=True)
+PY
+```
+
+NLTKをすべてダウンロードする場合（フル）
+
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+export NLTK_DATA=/monadic/data/nltk_data
+mkdir -p "$NLTK_DATA"
+
+python - <<'PY'
+import nltk, os
+nltk.download('all', download_dir=os.environ.get('NLTK_DATA','/monadic/data/nltk_data'))
+PY
+```
+※ 数GB規模で時間がかかります。十分な空き容量をご確認ください。
+
 ## 準備 :id=preparation
 
 ### システム要件 :id=system-requirements

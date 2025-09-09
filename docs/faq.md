@@ -9,6 +9,7 @@
 - [User Interface](#user-interface)
 - [Configuration & Advanced Usage](#configuration-advanced-usage)
 - [Troubleshooting](#troubleshooting)
+- [Install Options & Rebuild](#install-options-rebuild)
 
 ---
 
@@ -251,6 +252,38 @@ pip install pandas numpy scikit-learn
 ```
 
 Changes persist across container restarts with Method 1.
+
+### Q: How do I enable LaTeX apps (Concept Visualizer / Syntax Tree)? :id=enable-latex
+
+**A**: Open `Actions → Install Options…` and enable LaTeX. These apps also require an OpenAI or Anthropic API key; otherwise they remain hidden.
+
+### Q: Why are “From URL / #doc” buttons hidden? :id=url-doc-hidden
+
+**A**: When Selenium is disabled and no Tavily API key is configured, these buttons are hidden. If Selenium is disabled but a Tavily key exists, “From URL” uses Tavily. Enable Selenium to restore the original Selenium-based path.
+
+### Q: Where can I find rebuild logs and health results? :id=rebuild-logs
+
+**A**: Saving options no longer triggers a rebuild automatically. Run Rebuild from the main console when ready. Files are saved under `~/monadic/log/build/python/<timestamp>/`:
+- `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
+
+### Q: Rebuilds are slow. How can I speed them up? :id=rebuild-speed
+
+**A**: The Dockerfile is layer-split for caching (base vs optional libs). To maximize cache hits:
+- Avoid changing many options at once; only modified layers rebuild
+- Ensure Docker build cache is enabled
+- Keep `pysetup.sh` lightweight; heavy installs will dominate time
+- Stable network speeds significantly affect pip/apt install times
+
+### Q: What happens if a rebuild fails? :id=rebuild-failure
+
+**A**: The current image is preserved (atomic update). Check the latest per-run folder for logs, fix issues (e.g., `~/monadic/config/pysetup.sh`), and retry.
+
+### Q: Do NLTK and spaCy options also download datasets/models automatically? :id=nltk-spacy-auto
+
+**A**: No. The options install packages only to keep images lean.
+- NLTK: install library only; datasets are not auto-downloaded.
+- spaCy: install `spacy==3.7.5`; language models (e.g., `en_core_web_sm`, `en_core_web_lg`) are not auto-downloaded.
+- Use `~/monadic/config/pysetup.sh` to fetch datasets/models during post-setup. See Python container docs for an example snippet.
 
 ### Q: How do I customize TTS pronunciation? :id=tts-dictionary
 

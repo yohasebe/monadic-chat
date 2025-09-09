@@ -64,6 +64,10 @@ COPY apps/ $WORKSPACE/apps/
 COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
 COPY views/ $WORKSPACE/views/
+# Copy full config (used in dev) and also ensure defaults exist in a non-mounted path
+COPY config/ $WORKSPACE/config/
+RUN mkdir -p $WORKSPACE/internal_config && \
+    cp -f $WORKSPACE/config/system_defaults.json $WORKSPACE/internal_config/system_defaults.json
 
 # create directories log/, public/, tmp/, and tmp/pids/
 

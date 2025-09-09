@@ -36,6 +36,12 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 models via both Chat Completions and Responses APIs
 - **UI/UX Improvements**: Redesigned scroll buttons with better visibility and smooth animations
 
+### Install Options & Rebuild
+
+- Use Actions → Install Options… to choose optional components (LaTeX, Python libraries, mediapipe, ImageMagick, Selenium).
+- Saving options no longer auto-prompts a rebuild. When ready, run Rebuild explicitly from the main console. The Python image is updated atomically (temp tag → verify → swap) and won’t disrupt a running system.
+- Per-run logs and artifacts are written to `~/monadic/log/build/python/<timestamp>/` (e.g., `docker_build.log`, `post_install.log`, `health.json`, `meta.json`). Layers are split to maximize cache reuse when toggling options.
+
 ## Getting Started
 
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
@@ -72,6 +78,7 @@ Human users can use various tools to achieve their goals. However, in many cases
   - Linux (+ apt)
   - Ruby (+ gem)
   - Python (+ pip, Flask API server)
+    - Optional components toggled via Install Options (LaTeX/libraries/tools)
   - PGVector (+ PostgreSQL)
   - Selenium (+ Chrome/Chromium)
   - Ollama (optional, for local LLM models)
@@ -82,6 +89,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### AI User & Conversation Management
 
 - 🧠 **AI User feature** allowing the AI to generate responses as if coming from a human user
+  - Uses a single source of truth (SSOT) for provider defaults; the UI badge shows `Provider (model - effort)` when applicable.
+  - Requests apply provider-specific reasoning settings automatically (e.g., OpenAI reasoning_effort, Claude thinking budget, Gemini thinking config), and omit unsupported parameters like temperature on reasoning models.
 - 🎭 Maintains the user's **tone, style, and language** in AI-generated user messages
 - 🌐 Works with **multiple AI providers** including OpenAI, Claude, Gemini, Mistral, and more
 - 💾 **Export/import** chat data

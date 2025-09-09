@@ -529,7 +529,7 @@ function writeToScreen(text) {
     } else if (text.includes("[ERROR]:")) {
       // Error content
       const message = text.replace("[ERROR]:", "").trim();
-      htmlOutputElement.innerHTML += '<p style="color: red;">' + message + '</p>\n';
+      htmlOutputElement.innerHTML += '<p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> ' + message + '</p>\n';
       htmlMessageCount++;
       
       // Limit HTML messages to prevent memory issues
@@ -559,7 +559,7 @@ function writeToScreen(text) {
     console.error('Error processing command output:', error);
     // Notify user if an error occurs with more specific message
     const errorMessage = error.message || 'Unknown error';
-    htmlOutputElement.innerHTML += `<p style="color: red;">Error: ${errorMessage}</p>\n`;
+    htmlOutputElement.innerHTML += `<p><i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i> Error: ${errorMessage}</p>\n`;
     htmlMessageCount++;
     
     // Limit HTML messages to prevent memory issues
@@ -905,4 +905,3 @@ document.addEventListener('mousemove', function(e) {
 document.addEventListener('mouseup', function(_e) {
   isDragging = false;
 });
-

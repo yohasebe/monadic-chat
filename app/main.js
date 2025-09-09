@@ -660,6 +660,8 @@ class DockerManager {
   async runCommand(command, message, statusWhileCommand, statusAfterCommand) {
     // Track if this is a restart command
     const isRestart = command === 'restart';
+    const isBuildPython = command === 'build_python_container';
+    let buildTracker = isBuildPython ? { runDir: null, files: {}, status: 'in_progress' } : null;
     
     // Write the initial message to the screen
     writeToScreen(message);
@@ -767,6 +769,26 @@ class DockerManager {
               }
               
               writeToScreen(translatedOutput);
+
+              // Parse build markers to optionally summarize into main window messages
+              if (isBuildPython) {
+                const mDir = output.match(/\[BUILD_RUN_DIR\]\s+(.*)/);
+                if (mDir) buildTracker.runDir = mDir[1].trim();
+                const mBuild = output.match(/\[BUILD_LOG\]\s+(.*)/); if (mBuild) buildTracker.files.build_log = mBuild[1].trim();
+                const mPost = output.match(/\[POST_SETUP_LOG\]\s+(.*)/); if (mPost) buildTracker.files.post_install_log = mPost[1].trim();
+                const mHealth = output.match(/\[HEALTH_JSON\]\s+(.*)/); if (mHealth) buildTracker.files.health_json = mHealth[1].trim();
+                const mMeta = output.match(/\[META_JSON\]\s+(.*)/); if (mMeta) buildTracker.files.meta_json = mMeta[1].trim();
+                const mDone = output.match(/\[BUILD_COMPLETE\]\s+(success|failed)/);
+                if (mDone) {
+                  buildTracker.status = mDone[1] === 'success' ? 'success' : 'failed';
+                  // Emit a concise summary to the main window (messages area)
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    const icon = buildTracker.status === 'success' ? '<i class="fa-solid fa-circle-check" style="color:#2E7D32;"></i>' : '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>';
+                    const runDir = buildTracker.runDir ? buildTracker.runDir : '';
+                    mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} Python build ${buildTracker.status}. ${runDir ? 'Logs: '+runDir : ''}</p>`);
+                  }
+                }
+              }
               
               // Check for server started message
               if (data.toString().includes("[SERVER STARTED]")) {
@@ -1998,6 +2020,13 @@ function updateApplicationMenu() {
       label: i18n.t('menu.actions'),
       submenu: [
         {
+          label: i18n.t('menu.installOptions') || 'Install Options',
+          click: () => {
+            openInstallOptionsWindow();
+          }
+        },
+        { type: 'separator' },
+        {
           label: i18n.t('menu.start'),
           click: () => {
             openMainWindow();
@@ -2362,6 +2391,95 @@ function updateStatusIndicator(status) {
   // Update tray menu to reflect the new status
   updateContextMenu(false);
 }
+
+// ---------------- Install Options Window ----------------
+let installOptionsWindow = null;
+function openInstallOptionsWindow() {
+  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
+    installOptionsWindow.focus();
+    return;
+  }
+  installOptionsWindow = new BrowserWindow({
+    devTools: true,
+    width: 600,
+    minWidth: 600,
+    height: 400,
+    minHeight: 400,
+    resizable: true,
+    title: 'Install Options',
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    frame: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+  installOptionsWindow.loadFile(path.join(__dirname, 'installOptions.html'));
+  installOptionsWindow.once('ready-to-show', () => installOptionsWindow.show());
+  installOptionsWindow.on('closed', () => { installOptionsWindow = null; });
+}
+
+// IPC handlers for Install Options
+ipcMain.handle('get-install-options', async () => {
+  const envPath = getEnvPath();
+  const cfg = envPath ? readEnvFile(envPath) : {};
+  // Normalize booleans (strings to true/false)
+  const toBool = (v) => {
+    if (typeof v === 'boolean') return v;
+    if (!v) return false;
+    const s = String(v).toLowerCase();
+    return ['1','true','yes','on'].includes(s);
+  };
+  return {
+    INSTALL_LATEX: toBool(cfg.INSTALL_LATEX),
+    PYOPT_NLTK: toBool(cfg.PYOPT_NLTK),
+    PYOPT_SPACY: toBool(cfg.PYOPT_SPACY),
+    PYOPT_SCIKIT: toBool(cfg.PYOPT_SCIKIT),
+    PYOPT_GENSIM: toBool(cfg.PYOPT_GENSIM),
+    PYOPT_LIBROSA: toBool(cfg.PYOPT_LIBROSA),
+    PYOPT_MEDIAPIPE: toBool(cfg.PYOPT_MEDIAPIPE),
+    PYOPT_TRANSFORMERS: toBool(cfg.PYOPT_TRANSFORMERS),
+    IMGOPT_IMAGEMAGICK: toBool(cfg.IMGOPT_IMAGEMAGICK),
+    SELENIUM_ENABLED: toBool(cfg.SELENIUM_ENABLED)
+  };
+});
+
+let installOptionsSaving = false;
+ipcMain.handle('save-install-options', async (_e, options) => {
+  if (installOptionsSaving) {
+    return { success: true, skipped: true };
+  }
+  installOptionsSaving = true;
+  const envPath = getEnvPath();
+  if (!envPath) throw new Error('Config path not found');
+  const cfg = readEnvFile(envPath) || {};
+  const setBool = (k, v) => { cfg[k] = v ? 'true' : 'false'; };
+  setBool('INSTALL_LATEX', !!options.INSTALL_LATEX);
+  setBool('PYOPT_NLTK', !!options.PYOPT_NLTK);
+  setBool('PYOPT_SPACY', !!options.PYOPT_SPACY);
+  setBool('PYOPT_SCIKIT', !!options.PYOPT_SCIKIT);
+  setBool('PYOPT_GENSIM', !!options.PYOPT_GENSIM);
+  setBool('PYOPT_LIBROSA', !!options.PYOPT_LIBROSA);
+  setBool('PYOPT_MEDIAPIPE', !!options.PYOPT_MEDIAPIPE);
+  setBool('PYOPT_TRANSFORMERS', !!options.PYOPT_TRANSFORMERS);
+  setBool('IMGOPT_IMAGEMAGICK', !!options.IMGOPT_IMAGEMAGICK);
+  setBool('SELENIUM_ENABLED', !!options.SELENIUM_ENABLED);
+  try {
+    writeEnvFile(envPath, cfg);
+  } catch (err) {
+    console.error('Failed to save install options:', err);
+    dialog.showErrorBox(i18n.t('dialogs.error'), `Failed to save options: ${err.message}`);
+    installOptionsSaving = false;
+    throw new Error(`Failed to save: ${err.message}`);
+  }
+
+  // No rebuild prompt here. Rebuild must be initiated explicitly by the user
+  installOptionsSaving = false;
+  return { success: true };
+});
 
 function createMainWindow() {
   if (mainWindow) return;

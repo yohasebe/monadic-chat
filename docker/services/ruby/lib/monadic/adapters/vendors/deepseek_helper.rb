@@ -236,6 +236,8 @@ module DeepSeekHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
+    model = model.to_s.strip
+    model = nil if model.empty?
     # Use default model from CONFIG if not specified
     model ||= SystemDefaults.get_default_model('deepseek')
     
@@ -287,13 +289,21 @@ module DeepSeekHelper
     end
     
     # Prepare request body
+    # Determine if this is a reasoning model; omit temperature in that case
+    is_reasoning = false
+    begin
+      is_reasoning = Monadic::Utils::ModelSpec.supports_reasoning_content?(model)
+    rescue StandardError
+      is_reasoning = false
+    end
+
     body = {
       "model" => model,
       "stream" => false,
       "max_tokens" => options["max_tokens"] || 1000,
-      "temperature" => options["temperature"] || 0.7,
       "messages" => messages
     }
+    body["temperature"] = options["temperature"] || 0.7 unless is_reasoning
     
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"

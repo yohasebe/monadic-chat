@@ -62,6 +62,7 @@
     "running": "Ejecutando",
     "standaloneMode": "Modo Independiente",
     "actions": "Acciones",
+    "installOptions": "Opciones de instalación",
     "checkForUpdates": "Buscar Actualizaciones",
     "uninstall": "Desinstalar Imágenes y Contenedores",
     "buildAll": "Construir Todo",

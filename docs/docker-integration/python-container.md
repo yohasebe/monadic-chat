@@ -1,224 +1,154 @@
 # Standard Python Container
 
-Monadic Chat allows you to run Python code using Python containers. The standard Python container is provided under the name `monadic-chat-python-container`. By using the Python container, AI agents can execute Python code and return the results.
+Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents execute Python code inside this container and return results.
 
+## Install Options
 
-The standard Python container is built with the following Dockerfile:
+Use the Electron app “Actions → Install Options…” to choose optional components for the Python container:
 
-```dockerfile
-FROM python:3.10-slim-bookworm
-ARG PROJECT_TAG
-LABEL project=$PROJECT_TAG
+- LaTeX (minimal): Enables Concept Visualizer / Syntax Tree (only shown in UI when enabled)
+- Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `scikit-learn`, `gensim`, `librosa`, `transformers`
+- Tools: ImageMagick (`convert`/`mogrify`)
+- Selenium toggle: When disabled and Tavily key exists, From URL uses Tavily; otherwise #url/#doc is hidden
 
-# Install necessary packages
-# LaTeX packages for Concept Visualizer:
-# - texlive-latex-base: Basic LaTeX
-# - texlive-latex-extra: Additional LaTeX packages
-# - texlive-pictures: TikZ and PGF
-# - texlive-science: Scientific diagrams (including tikz-3dplot)
-# - texlive-pstricks: PSTricks for advanced graphics
-# - texlive-latex-recommended: Recommended packages
-# - texlive-fonts-extra: Additional fonts
-# - texlive-plain-generic: Generic packages
-# - texlive-lang-cjk: CJK language support
-# - latex-cjk-all: Complete CJK support
-# - dvisvgm: DVI to SVG converter
-# - pdf2svg: PDF to SVG converter (backup option)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential wget curl git gnupg \
-    python3-dev graphviz libgraphviz-dev pkg-config \
-    libxml2-dev libxslt-dev \
-    pandoc ffmpeg fonts-noto-cjk fonts-ipafont \
-    imagemagick libmagickwand-dev \
-    texlive-xetex texlive-latex-base texlive-fonts-recommended \
-    texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-    texlive-science texlive-pstricks texlive-latex-recommended \
-    texlive-fonts-extra texlive-plain-generic \
-    pdf2svg dvisvgm \
-    && fc-cache -fv \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+Saving does not auto-rebuild. When you explicitly run Rebuild from the main console, the Python image is built to a temporary tag, verified, and promoted only on success. Progress output appears in the main console. Logs and artifacts are saved under `~/monadic/log/build/python/<timestamp>/`.
 
-# Install Python packages
-RUN pip install -U pip && \
-    pip install --no-cache-dir --default-timeout=1000 \
-    setuptools \
-    wheel \
-    jupyterlab ipywidgets plotly \
-    numpy  pandas statsmodels \
-    matplotlib seaborn \
-    gunicorn tiktoken flask \
-    pymupdf pymupdf4llm \
-    selenium html2text \
-    openpyxl python-docx python-pptx \
-    requests beautifulsoup4 \
-    lxml pygraphviz graphviz pydotplus networkx pyvis \
-    svgwrite cairosvg tinycss cssselect pygal \
-    pyecharts pyecharts-snapshot \
-    opencv-python moviepy==2.0.0.dev2
+Notes on NLTK and spaCy:
+- Turning on the `nltk` option installs the package only. NLTK datasets/corpora are not downloaded automatically.
+- Turning on the `spacy` option installs `spacy==3.7.5` only. Language models (e.g., `en_core_web_sm`, `en_core_web_lg`) are not downloaded automatically.
+- Recommended: use `~/monadic/config/pysetup.sh` to fetch NLTK datasets and spaCy models during post-setup (see below for an example).
 
-# Set up JupyterLab user settings
-RUN mkdir -p /root/.jupyter/lab/user-settings
-COPY @jupyterlab /root/.jupyter/lab/user-settings/@jupyterlab
+## Verified build and health checks
 
-# Set up Matplotlib configuration
-ENV MPLCONFIGDIR=/root/.config/matplotlib
-RUN mkdir -p /root/.config/matplotlib
-COPY matplotlibrc /root/.config/matplotlib/matplotlibrc
+- Build to a temporary tag → verify → retag to version/latest only on success (keep current image on failure)
+- Immediately run health checks and write results to `health.json`:
+  - `pdflatex` (when LaTeX is enabled)
+  - `convert` (when ImageMagick is enabled)
+  - Python library import availability
 
-# Copy scripts and set permissions
-COPY scripts /monadic/scripts
-RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \;
-RUN mkdir -p /monadic/data/scripts
+## Cache optimization
 
-# Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
-ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
-ENV PIP_ROOT_USER_ACTION=ignore
+- Dockerfile split into a base layer (common pip set) and per-option layers (one RUN per library)
+- Toggling options reuses base layers and rebuilds only the affected layers
 
-# Copy Flask application
-COPY flask /monadic/flask
+## Adding libraries with pysetup.sh
 
-# Create symbolic link for data directory
-RUN ln -s /monadic/data /data
+Create `~/monadic/config/pysetup.sh` to run a post-setup step after rebuild (not embedded into the Dockerfile).
 
-COPY Dockerfile /monadic/Dockerfile
-
-# copy `pysetup.sh` to `/monadic` and run it
-COPY pysetup.sh /monadic/pysetup.sh
-RUN chmod +x /monadic/pysetup.sh
-RUN /monadic/pysetup.sh
-```
-
-## Pre-installed LaTeX Packages
-
-The Python container includes comprehensive LaTeX support for diagram generation apps like Concept Visualizer and Syntax Tree:
-
-### Core LaTeX Packages
-- `texlive-latex-base` - Basic LaTeX functionality
-- `texlive-latex-extra` - Additional LaTeX packages and tools
-- `texlive-fonts-recommended` - Standard LaTeX fonts
-- `texlive-lang-cjk` - CJK language support
-- `latex-cjk-all` - Complete CJK support for LaTeX
-
-### Specialized Packages
-- `texlive-science` - Scientific packages including `tikz-3dplot` for 3D visualizations
-- `texlive-pstricks` - PSTricks graphics package
-- `texlive-latex-recommended` - Recommended LaTeX packages
-- `texlive-pictures` - Picture drawing packages including TikZ
-- `dvisvgm` - DVI to SVG converter for generating vector graphics
-
-These packages enable generation of complex diagrams, flowcharts, 3D visualizations, and mathematical figures.
-
-## Japanese Font Support
-
-The Python container includes Japanese font support for matplotlib and other visualization libraries. The Noto Sans CJK JP font is installed and configured through `matplotlibrc` settings:
-
-- Font family: Noto Sans CJK JP
-- Configuration file: `/root/.config/matplotlib/matplotlibrc`
-- This enables proper rendering of Japanese text in matplotlib plots and figures
-
-When generating charts or plots with Japanese text, the font will be automatically used without additional configuration.
-
-## Adding Programs and Libraries
-
-If you want to install additional programs and libraries, you can do one of the following:
-
-- Add an installation script to `pysetup.sh` in the config folder (`~/monadic/config/pysetup.sh`) to install the library during Monadic Chat environment setup (see the example below).
-- Refer to [Docker Container Access](./docker-access) to log in to the Python container and install the library after setting up the Monadic Chat environment.
-- Refer to [Adding Containers](../advanced-topics/adding-containers) to add a customized Python container.
-- Submit a request via [GitHub Issues](https://github.com/yohasebe/monadic-chat/issues).
-
-## Usage of `pysetup.sh`
-
-To install additional libraries in the Python container, create a `pysetup.sh` file in the config folder (`~/monadic/config/`) and add installation commands. When this file exists, the script is executed at the end of the `Dockerfile` during the container build process, and the libraries are installed. After creating or modifying the file, you need to rebuild the container for the changes to take effect.
-
-### Setup Scripts Overview
-
-Monadic Chat supports three optional setup scripts in the config folder:
-
-- `rbsetup.sh` - For installing additional Ruby gems in the Ruby container
-- `pysetup.sh` - For installing additional Python packages in the Python container  
-- `olsetup.sh` - For downloading Ollama models when building the Ollama container
-
-These scripts are not created automatically. You need to create them manually if you want to customize the container environments. The following are examples of `pysetup.sh` scripts.
-
-### Installing Natural Language Processing Libraries
+Example:
 
 ```sh
-# Install NLP libraries, data, and models
+# Example: NLP libraries and models
 pip install --no-cache-dir --default-timeout=1000 \
-    scikit-learn \
-    gensim\
-    librosa \
-    wordcloud \
-    nltk \
-    textblob \
-    spacy==3.7.5
-
-# Download NLTK data
+  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
 python -m nltk.downloader all
-# Download spaCy models
 python -m spacy download en_core_web_lg
 ```
 
-### Installing Japanese Morphological Analysis Libraries
+Recommended minimal datasets/models
 
 ```sh
-# Install MeCab
-apt-get update && apt-get install -y --no-install-recommends \
-    mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-# Install mecab-python3
-pip install --no-cache-dir --default-timeout=1000 mecab-python3
+#!/usr/bin/env bash
+set -euo pipefail
+
+# NLTK: commonly used lightweight set
+python - <<'PY'
+import nltk
+for pkg in [
+  "punkt","stopwords","averaged_perceptron_tagger","wordnet","omw-1.4","vader_lexicon"
+]:
+    nltk.download(pkg, raise_on_error=True)
+print("NLTK datasets downloaded.")
+PY
+
+# spaCy: English models (small + large)
+python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_lg
+echo "spaCy en_core_web_sm/lg downloaded."
 ```
 
-### Installing spaCy Japanese Models
+Why not auto-download in Dockerfile?
+- Keeps base images lean and rebuilds fast
+- Lets you choose exactly which datasets/models to include per environment
+
+Japanese models (spaCy) and additional corpora (NLTK)
 
 ```sh
-# Install Rust so that spaCy can handle Japanese
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-source "$HOME/.cargo/env"
-export PATH="$HOME/.cargo/bin:$PATH"
-pip install setuptools-rust
-pip install sudachipy==0.6.8
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Download spaCy models
+# spaCy: Japanese models (choose size as needed)
+python -m spacy download ja_core_news_sm
+# or
 python -m spacy download ja_core_news_md
+# or
+python -m spacy download ja_core_news_lg
+
+# NLTK: additional corpora commonly used in examples and tutorials
+python - <<'PY'
+import nltk
+for pkg in [
+  # tokenizers + taggers
+  "punkt","averaged_perceptron_tagger",
+  # lexical resources
+  "wordnet","omw-1.4","wordnet_ic",
+  # corpora for experiments
+  "brown","reuters","movie_reviews",
+  # chunking / parsing datasets
+  "conll2000"
+]:
+    nltk.download(pkg, raise_on_error=True)
+print("Extra NLTK corpora downloaded.")
+PY
 ```
 
+Download all NLTK datasets (full)
 
-## Flask API Server
+```sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-The Python container runs a Flask API server on port 5070 that provides tokenization services:
+# Recommended: save under shared data so it persists
+export NLTK_DATA=/monadic/data/nltk_data
+mkdir -p "$NLTK_DATA"
 
-- **Location**: `/monadic/flask/flask_server.py`
-- **Port**: 5070
-- **Endpoints**:
-  - `/health` - Health check endpoint
-  - `/warmup` - Pre-load tokenizer encodings
-  - `/count_tokens` - Count tokens in text
-  - `/get_tokens_sequence` - Get token sequence from text
-  - `/decode_tokens` - Decode tokens back to text
-  - `/get_encoding_name` - Get encoding name for a model
+python - <<'PY'
+import nltk, os
+target = os.environ.get('NLTK_DATA', '/monadic/data/nltk_data')
+nltk.download('all', download_dir=target)
+print(f"Downloaded all NLTK datasets to {target}")
+PY
+```
 
-The Flask server is automatically started when the container launches and provides essential tokenization services used by the Ruby backend.
+Note: Full NLTK data is large (several GB) and takes time to download. Ensure sufficient disk space.
 
-## Scripts Directory Structure
+If additional OS packages are required (e.g., ImageMagick tools or MeCab), include apt commands:
 
-The Python container includes various utility scripts organized in subdirectories under `/monadic/scripts/`:
+```sh
+apt-get update && apt-get install -y --no-install-recommends \
+  mecab libmecab-dev mecab-utils mecab-ipadic-utf8 \
+  && apt-get clean && rm -rf /var/lib/apt/lists/*
+pip install --no-cache-dir mecab-python3
+```
+
+## Japanese fonts
+
+Noto CJK fonts and a configured `matplotlibrc` are included so matplotlib can render Japanese text properly.
+
+## Flask API Server (port 5070)
+
+- Entry: `/monadic/flask/flask_server.py`
+- Endpoints: `/health`, `/count_tokens`, `/get_tokens_sequence`, `/decode_tokens`, `/get_encoding_name`, etc.
+- Auto-starts with the container and is consumed by the Ruby backend.
+
+## Script layout
 
 ```
 /monadic/scripts/
-├── utilities/          # System utilities (sysinfo.sh, run_jupyter.sh)
-├── cli_tools/          # CLI tools (content_fetcher.py, webpage_fetcher.py)
-├── converters/         # File converters (pdf2txt.py, office2txt.py, extract_frames.py)
+├── utilities/          # System utilities (e.g., sysinfo.sh)
+├── cli_tools/          # CLI tools (e.g., content_fetcher.py)
+├── converters/         # Converters (pdf2txt.py, office2txt.py, etc.)
 └── services/           # API services (jupyter_controller.py)
 ```
 
-These scripts are added to the PATH and can be executed as commands within the container. All Python and shell scripts in these subdirectories have execute permissions set during container build.
-
+These directories are added to PATH so tools can be invoked directly inside the container.

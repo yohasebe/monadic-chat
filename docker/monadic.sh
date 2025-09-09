@@ -83,7 +83,8 @@ docker_start_log() {
     echo "Summary: All containers started successfully" >> "${log_file}"
   else
     echo "Summary: Some containers failed to start" >> "${log_file}"
-    echo "[HTML]: <p style='color: red;'><i class='fas fa-exclamation-circle'></i>Warning: Some containers failed to start. Check docker_startup.log for details.</p>"
+    # Emit a styled message consistent with app UI (icon + normal text, no red inline text)
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color:#DC4C64;'></i> Some containers failed to start. Check docker_startup.log for details.</p>"
     fi
 }
 
@@ -267,22 +268,157 @@ build_ruby_container() {
 
 # Function to build Python container only
 build_python_container() {
-  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
-  
-  # Create directory if it doesn't exist
-  mkdir -p "$(dirname "${log_file}")"
+  # Create per-run log dir
+  local ts=$(date +%Y%m%d_%H%M%S)
+  local run_dir="${HOME_DIR}/monadic/log/build/python/${ts}"
+  local build_log="${run_dir}/docker_build.log"
+  local post_log="${run_dir}/post_install.log"
+  local health_json="${run_dir}/health.json"
+  local meta_json="${run_dir}/meta.json"
+  mkdir -p "${run_dir}"
 
-  # build Python image only
+  # Echo discovery hints for Electron to pick up paths
+  echo "[BUILD_RUN_DIR] ${run_dir}"
+
+  # Resolve install options from user's env (SSOT)
+  local config_env="${HOME_DIR}/monadic/config/env"
+  # Helper to read KEY=VALUE (quotes trimmed). Falls back to 'false' when unset.
+  read_cfg_bool() {
+    local key="$1"; local defval="${2:-false}"
+    if [ -f "$config_env" ]; then
+      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
+      if [ -n "$line" ]; then
+        local val=${line#*=}
+        val=${val%""}; val=${val#""}
+        val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+        case "$val" in
+          true|1|yes|on) echo "true";;
+          false|0|no|off|"") echo "false";;
+          *) echo "$defval";;
+        esac
+        return
+      fi
+    fi
+    echo "$defval"
+  }
+
+  local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
+  local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
+  local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
+  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
+  local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
+  local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
+  local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
+  local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
+  local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
+
+  local build_args=
+  build_args+=" --build-arg INSTALL_LATEX=${INSTALL_LATEX}"
+  build_args+=" --build-arg PYOPT_NLTK=${PYOPT_NLTK}"
+  build_args+=" --build-arg PYOPT_SPACY=${PYOPT_SPACY}"
+  build_args+=" --build-arg PYOPT_SCIKIT=${PYOPT_SCIKIT}"
+  build_args+=" --build-arg PYOPT_GENSIM=${PYOPT_GENSIM}"
+  build_args+=" --build-arg PYOPT_LIBROSA=${PYOPT_LIBROSA}"
+  build_args+=" --build-arg PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}"
+  build_args+=" --build-arg PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}"
+  build_args+=" --build-arg IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}"
+
+  # Build Python image into a temporary tag for atomic swap
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
-  ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/python" 2>&1 | tee "${log_file}"
+  local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
+  echo "[DEBUG] build args:${build_args}" | tee -a "${build_log}"
+  echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
+  # Use cache to avoid reinstalling base when toggling options
+  if ! ${DOCKER} build -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
+    echo "[ERROR] Docker build failed" | tee -a "${build_log}"
+    echo "[BUILD_COMPLETE] failed"
+    return 1
+  fi
 
-  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
-  
-  # Don't call build_docker_compose here to avoid rebuilding the same container again
-  # build_docker_compose
+  # Optional post-setup: execute user's pysetup.sh if present (mounted config)
+  echo "[HTML]: <p>Running post-setup (pysetup.sh) if available . . .</p>" | tee -a "${post_log}"
+  if ! ${DOCKER} run --rm -v "${HOME_DIR}/monadic/config:/monadic/config" "${temp_tag}" sh -lc 'if [ -s /monadic/config/pysetup.sh ]; then bash /monadic/config/pysetup.sh; else echo "No pysetup.sh provided"; fi' 2>&1 | tee -a "${post_log}"; then
+    echo "[WARN] Post-setup script encountered errors" | tee -a "${post_log}"
+  fi
 
+  # Health checks (feature-aware)
+  echo "[HTML]: <p>Running health checks . . .</p>" | tee -a "${build_log}"
+  {
+    echo "{"
+    echo "  \"timestamp\": \"${ts}\"," 
+         "\"monadic_version\": \"${MONADIC_VERSION}\"," 
+         "\"host_os\": \"${HOST_OS}\"," 
+         "\"options\": {\"INSTALL_LATEX\": ${INSTALL_LATEX}, \"IMGOPT_IMAGEMAGICK\": ${IMGOPT_IMAGEMAGICK}, \"PYOPT_NLTK\": ${PYOPT_NLTK}, \"PYOPT_SPACY\": ${PYOPT_SPACY}, \"PYOPT_SCIKIT\": ${PYOPT_SCIKIT}, \"PYOPT_GENSIM\": ${PYOPT_GENSIM}, \"PYOPT_LIBROSA\": ${PYOPT_LIBROSA}, \"PYOPT_MEDIAPIPE\": ${PYOPT_MEDIAPIPE}, \"PYOPT_TRANSFORMERS\": ${PYOPT_TRANSFORMERS}} ,"
+    # LaTeX
+    if [ "${INSTALL_LATEX}" = "true" ]; then
+      ${DOCKER} run --rm "${temp_tag}" sh -lc 'pdflatex -version >/dev/null 2>&1'; LATEX_OK=$?
+      echo "  \"latex\": ${LATEX_OK:-1} == 0 ? true : false," | sed 's/ == 0 ? true : false/,/g' >/dev/null
+    fi
+  } >/dev/null
+  # Build structured JSON using python inside container for accurate booleans
+  ${DOCKER} run --rm "${temp_tag}" sh -lc "python - <<'PY'
+import json, shutil, os, importlib
+res = { 'checks': {} }
+res['checks']['latex'] = shutil.which('pdflatex') is not None
+res['checks']['imagemagick'] = shutil.which('convert') is not None
+mods = ['nltk','spacy','sklearn','gensim','librosa','mediapipe','transformers']
+res['checks']['python'] = { m: False for m in mods }
+for m in mods:
+  try:
+    importlib.import_module(m)
+    res['checks']['python'][m] = True
+  except Exception:
+    pass
+print(json.dumps(res))
+PY
+" > "${health_json}" 2>/dev/null || echo '{"checks": {}}' > "${health_json}"
+
+  # Write meta.json
+  cat > "${meta_json}" <<META
+{
+  "timestamp": "${ts}",
+  "monadic_version": "${MONADIC_VERSION}",
+  "host_os": "${HOST_OS}",
+  "image_temp_tag": "${temp_tag}",
+  "build_args": {
+    "INSTALL_LATEX": ${INSTALL_LATEX},
+    "PYOPT_NLTK": ${PYOPT_NLTK},
+    "PYOPT_SPACY": ${PYOPT_SPACY},
+    "PYOPT_SCIKIT": ${PYOPT_SCIKIT},
+    "PYOPT_GENSIM": ${PYOPT_GENSIM},
+    "PYOPT_LIBROSA": ${PYOPT_LIBROSA},
+    "PYOPT_MEDIAPIPE": ${PYOPT_MEDIAPIPE},
+    "PYOPT_TRANSFORMERS": ${PYOPT_TRANSFORMERS},
+    "IMGOPT_IMAGEMAGICK": ${IMGOPT_IMAGEMAGICK}
+  }
+}
+META
+
+  # If everything looks good, retag atomically to version and latest
+  echo "[HTML]: <p>Verifying image . . .</p>" | tee -a "${build_log}"
+  if ${DOCKER} run --rm "${temp_tag}" python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+    "${DOCKER}" tag "${temp_tag}" yohasebe/monadic-chat:${MONADIC_VERSION}
+    "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
+    "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
+    echo "[HTML]: <p>Python image updated successfully.</p>" | tee -a "${build_log}"
+  else
+    echo "[ERROR] Health verification failed; keeping current image" | tee -a "${build_log}"
+    "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
+    echo "[BUILD_COMPLETE] failed"
+    echo "Please check the following log files under: ${run_dir}"
+    return 1
+  fi
+
+  # Cleanup older images but keep logs
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+
+  echo "[BUILD_LOG] ${build_log}"
+  echo "[POST_SETUP_LOG] ${post_log}"
+  echo "[HEALTH_JSON] ${health_json}"
+  echo "[META_JSON] ${meta_json}"
+  echo "Please check the following log files under: ${run_dir}"
+  echo "[BUILD_COMPLETE] success"
 }
 
 # Function to build Ollama container

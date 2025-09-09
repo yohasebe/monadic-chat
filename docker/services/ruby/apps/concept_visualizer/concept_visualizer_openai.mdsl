@@ -132,7 +132,8 @@ app "ConceptVisualizerOpenAI" do
   TEXT
 
   features do
-    disabled !CONFIG["OPENAI_API_KEY"]
+    # Disabled unless LaTeX option is enabled AND provider key present
+    disabled (!CONFIG["INSTALL_LATEX"]) || (!CONFIG["OPENAI_API_KEY"]) 
     easy_submit false
     auto_speech false
     initiate_from_assistant true

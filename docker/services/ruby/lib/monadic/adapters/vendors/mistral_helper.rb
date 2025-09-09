@@ -152,6 +152,8 @@ module MistralHelper
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
+    model = model.to_s.strip
+    model = nil if model.empty?
     # Use default model from CONFIG if not specified
     model ||= SystemDefaults.get_default_model('mistral')
     

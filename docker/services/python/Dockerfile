@@ -1,6 +1,7 @@
 FROM python:3.10-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
+ENV MONADIC_COMPAT_VERSION="2025-09"
 
 # Optional feature toggles (defaults are lean)
 ARG INSTALL_LATEX=false

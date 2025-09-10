@@ -3,6 +3,7 @@
 FROM ruby:3.4.1-slim-bookworm AS build
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
+ENV MONADIC_COMPAT_VERSION="2025-09"
 
 RUN apt update && \
     apt install -y --no-install-recommends \
@@ -29,6 +30,7 @@ RUN bundle install -j4 && \
 FROM ruby:3.4.1-slim-bookworm
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
+ENV MONADIC_COMPAT_VERSION="2025-09"
 
 RUN apt update && \
     apt install -y --no-install-recommends \

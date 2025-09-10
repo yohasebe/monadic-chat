@@ -62,6 +62,24 @@ docker_start_log() {
   echo "Monadic Chat Version: ${MONADIC_VERSION}" >> "${log_file}"
   echo "----------------------------------------" >> "${log_file}"
 
+  # Compatibility check between control-plane (Ruby) and data-plane (Python)
+  local ruby_cp_ver=$(${DOCKER} inspect --format='{{range .Config.Env}}{{println .}}{{end}}' monadic-chat-ruby-container 2>/dev/null | grep '^MONADIC_COMPAT_VERSION=' | cut -d= -f2)
+  local python_dp_ver=$(${DOCKER} inspect --format='{{range .Config.Env}}{{println .}}{{end}}' monadic-chat-python-container 2>/dev/null | grep '^MONADIC_COMPAT_VERSION=' | cut -d= -f2)
+  ruby_cp_ver=${ruby_cp_ver:-unknown}
+  python_dp_ver=${python_dp_ver:-unknown}
+
+  echo "Compatibility Check:" >> "${log_file}"
+  echo "  Control-plane (Ruby):   ${ruby_cp_ver}" >> "${log_file}"
+  echo "  Data-plane (Python):   ${python_dp_ver}" >> "${log_file}"
+  echo "----------------------------------------" >> "${log_file}"
+
+  local compat_mismatch=false
+  if [ "${ruby_cp_ver}" != "${python_dp_ver}" ]; then
+    compat_mismatch=true
+    # Emit clear warning for UI and log expected vs actual
+    echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color:#DC4C64;'></i> Ruby control-plane is outdated; please rebuild Ruby. (expected=${python_dp_ver}, actual=${ruby_cp_ver})</p>"
+  fi
+
   local all_containers_running=true
   for container in ${containers}; do
     local status=$(${DOCKER} inspect --format='{{.State.Status}}' "${container}")
@@ -79,7 +97,7 @@ docker_start_log() {
     fi
   done
 
-  if ${all_containers_running}; then
+  if ${all_containers_running} && [ "${compat_mismatch}" = false ]; then
     echo "Summary: All containers started successfully" >> "${log_file}"
   else
     echo "Summary: Some containers failed to start" >> "${log_file}"

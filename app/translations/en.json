@@ -49,7 +49,50 @@
     "close": "Close",
     "help": "Help",
     "actions": "Actions",
-    "installOptions": "Install Options",
+  "installOptions": "Install Options",
+  "installOptionsPanel": {
+    "title": "Install Options",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Required for Concept Visualizer / Syntax Tree",
+        "items": {
+          "install": "Install LaTeX (minimal set for diagrams)"
+        }
+      },
+      "python": {
+        "title": "Python Libraries (CPU)",
+        "help": "Pip-installed libraries for Python runtime. Models/datasets are not included; add them via your pysetup.sh if needed.",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers (CPU only)"
+        }
+      },
+      "tools": {
+        "title": "System Tools (CLI)",
+        "help": "OS-level command-line tools available system-wide.",
+        "items": {
+          "imagemagick": "ImageMagick (convert/mogrify)"
+        }
+      },
+      "web": {
+        "title": "Web Scraping",
+        "help": "If disabled and Tavily API key is present, From URL will use Tavily. Otherwise #url/#doc buttons are hidden.",
+        "items": {
+          "selenium": "Enable Selenium container"
+        }
+      }
+    },
+    "buttons": {
+      "save": "Save",
+      "close": "Close"
+    }
+  },
     "start": "Start",
     "status": "Status",
     "mode": "Mode",

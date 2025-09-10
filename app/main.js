@@ -2481,6 +2481,30 @@ ipcMain.handle('save-install-options', async (_e, options) => {
   return { success: true };
 });
 
+// ---------------- Translations loader for renderer ----------------
+ipcMain.handle('get-translations', async (_e, lang) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const baseDir = path.join(__dirname, 'translations');
+    const safeLang = (lang || 'en').toLowerCase();
+    const candidate = path.join(baseDir, `${safeLang}.json`);
+    const fallback = path.join(baseDir, `en.json`);
+    let data = null;
+    if (fs.existsSync(candidate)) {
+      data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+    } else if (fs.existsSync(fallback)) {
+      data = JSON.parse(fs.readFileSync(fallback, 'utf8'));
+    } else {
+      return {};
+    }
+    return data || {};
+  } catch (err) {
+    console.error('Failed to load translations:', err);
+    return {};
+  }
+});
+
 function createMainWindow() {
   if (mainWindow) return;
   

@@ -118,6 +118,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Listen for UI language change
   onUILanguageChanged: (callback) => ipcRenderer.on('ui-language-changed', callback),
+
+  // Translations loader for renderer (Install Options, etc.)
+  getTranslations: (lang) => ipcRenderer.invoke('get-translations', lang)
 });
 
 // Install Options API (isolated renderer access)

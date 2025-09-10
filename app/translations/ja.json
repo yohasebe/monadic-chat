@@ -49,7 +49,50 @@
     "close": "閉じる",
     "help": "ヘルプ",
     "actions": "アクション",
-    "installOptions": "インストールオプション",
+  "installOptions": "インストールオプション",
+  "installOptionsPanel": {
+    "title": "インストールオプション",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Concept Visualizer / Syntax Tree に必要",
+        "items": {
+          "install": "LaTeX をインストール（図表用の最小セット）"
+        }
+      },
+      "python": {
+        "title": "Pythonライブラリ（CPU）",
+        "help": "Python実行環境のpipライブラリ。モデル/データは含まれません。必要に応じて pysetup.sh で追加してください。",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers（CPUのみ）"
+        }
+      },
+      "tools": {
+        "title": "システムツール（CLI）",
+        "help": "OSレベルのコマンドラインツールとして利用できます。",
+        "items": {
+          "imagemagick": "ImageMagick（convert/mogrify）"
+        }
+      },
+      "web": {
+        "title": "Webスクレイピング",
+        "help": "無効かつ Tavily キー有りなら From URL は Tavily を利用。どちらも無い場合は #url/#doc を非表示。",
+        "items": {
+          "selenium": "Selenium コンテナを有効化"
+        }
+      }
+    },
+    "buttons": {
+      "save": "保存",
+      "close": "閉じる"
+    }
+  },
     "start": "開始",
     "status": "ステータス",
     "mode": "モード",

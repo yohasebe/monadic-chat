@@ -62,7 +62,41 @@
     "running": "실행 중",
     "standaloneMode": "독립형 모드",
     "actions": "작업",
-    "installOptions": "설치 옵션",
+  "installOptions": "설치 옵션",
+  "installOptionsPanel": {
+    "title": "설치 옵션",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Concept Visualizer / Syntax Tree에 필요",
+        "items": { "install": "LaTeX 설치 (도표용 최소 세트)" }
+      },
+      "python": {
+        "title": "Python 라이브러리 (CPU)",
+        "help": "Python 런타임용 pip 라이브러리입니다. 모델/데이터는 포함되지 않습니다. 필요 시 pysetup.sh로 추가하세요.",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers (CPU only)"
+        }
+      },
+      "tools": {
+        "title": "시스템 도구 (CLI)",
+        "help": "OS 수준의 명령줄 도구를 전체 시스템에서 사용할 수 있습니다.",
+        "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
+      },
+      "web": {
+        "title": "웹 스크래핑",
+        "help": "비활성화되어 있고 Tavily 키가 있으면 From URL은 Tavily를 사용합니다. 둘 다 없으면 #url/#doc 버튼이 숨겨집니다.",
+        "items": { "selenium": "Selenium 컨테이너 사용" }
+      }
+    },
+    "buttons": { "save": "저장", "close": "닫기" }
+  },
     "checkForUpdates": "업데이트 확인",
     "uninstall": "이미지 및 컨테이너 제거",
     "buildAll": "모두 빌드",

@@ -49,7 +49,41 @@
     "close": "Schließen",
     "help": "Hilfe",
     "actions": "Aktionen",
-    "installOptions": "Installationsoptionen",
+  "installOptions": "Installationsoptionen",
+  "installOptionsPanel": {
+    "title": "Installationsoptionen",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Erforderlich für Concept Visualizer / Syntax Tree",
+        "items": { "install": "LaTeX installieren (Minimalsatz für Diagramme)" }
+      },
+      "python": {
+        "title": "Python-Bibliotheken (CPU)",
+        "help": "Per pip installierte Bibliotheken für die Python-Laufzeit. Modelle/Datasets sind nicht enthalten; bei Bedarf mit pysetup.sh ergänzen.",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers (CPU only)"
+        }
+      },
+      "tools": {
+        "title": "Systemwerkzeuge (CLI)",
+        "help": "Befehlszeilenwerkzeuge auf Betriebssystemebene, systemweit verfügbar.",
+        "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
+      },
+      "web": {
+        "title": "Web Scraping",
+        "help": "Wenn deaktiviert und ein Tavily-Schlüssel vorhanden ist, verwendet From URL Tavily; andernfalls werden #url/#doc ausgeblendet.",
+        "items": { "selenium": "Selenium-Container aktivieren" }
+      }
+    },
+    "buttons": { "save": "Speichern", "close": "Schließen" }
+  },
     "start": "Starten",
     "status": "Status",
     "mode": "Modus",

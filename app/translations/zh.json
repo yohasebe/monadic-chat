@@ -62,7 +62,41 @@
     "running": "运行中",
     "standaloneMode": "单机模式",
     "actions": "操作",
-    "installOptions": "安装选项",
+  "installOptions": "安装选项",
+  "installOptionsPanel": {
+    "title": "安装选项",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Concept Visualizer / Syntax Tree 需要",
+        "items": { "install": "安装 LaTeX（用于图表的最小集）" }
+      },
+      "python": {
+        "title": "Python 库（CPU）",
+        "help": "用于 Python 运行时的 pip 库。不包含模型/数据；如需请通过 pysetup.sh 添加。",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers (CPU only)"
+        }
+      },
+      "tools": {
+        "title": "系统工具（CLI）",
+        "help": "操作系统层面的命令行工具，系统范围可用。",
+        "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
+      },
+      "web": {
+        "title": "网页抓取",
+        "help": "若禁用且已配置 Tavily API Key，则 From URL 使用 Tavily；否则隐藏 #url/#doc 按钮。",
+        "items": { "selenium": "启用 Selenium 容器" }
+      }
+    },
+    "buttons": { "save": "保存", "close": "关闭" }
+  },
     "checkForUpdates": "检查更新",
     "uninstall": "卸载镜像和容器",
     "buildAll": "全部构建",

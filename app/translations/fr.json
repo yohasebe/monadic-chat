@@ -49,7 +49,41 @@
     "close": "Fermer",
     "help": "Aide",
     "actions": "Actions",
-    "installOptions": "Options d'installation",
+  "installOptions": "Options d'installation",
+  "installOptionsPanel": {
+    "title": "Options d'installation",
+    "categories": {
+      "latex": {
+        "title": "LaTeX",
+        "help": "Nécessaire pour Concept Visualizer / Syntax Tree",
+        "items": { "install": "Installer LaTeX (ensemble minimal pour les diagrammes)" }
+      },
+      "python": {
+        "title": "Bibliothèques Python (CPU)",
+        "help": "Bibliothèques pip pour l'environnement Python. Modèles/données non inclus ; ajoutez-les via pysetup.sh si nécessaire.",
+        "items": {
+          "nltk": "nltk",
+          "spacy": "spaCy (3.7.5)",
+          "scikit": "scikit-learn",
+          "gensim": "gensim",
+          "librosa": "librosa",
+          "mediapipe": "mediapipe (CPU)",
+          "transformers": "transformers (CPU only)"
+        }
+      },
+      "tools": {
+        "title": "Outils système (CLI)",
+        "help": "Outils en ligne de commande au niveau du système, disponibles globalement.",
+        "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
+      },
+      "web": {
+        "title": "Scraping Web",
+        "help": "Si désactivé et qu'une clé Tavily est présente, From URL utilisera Tavily ; sinon les boutons #url/#doc sont masqués.",
+        "items": { "selenium": "Activer le conteneur Selenium" }
+      }
+    },
+    "buttons": { "save": "Enregistrer", "close": "Fermer" }
+  },
     "start": "Démarrer",
     "status": "État",
     "mode": "Mode",

@@ -965,6 +965,31 @@ start_docker_compose() {
     fi
   }
 
+  # Final health summary to docker_startup.log
+  {
+    local startup_log="${HOME_DIR}/monadic/log/docker_startup.log"
+    mkdir -p "$(dirname "${startup_log}")"
+    local env_file="${HOME_DIR}/monadic/config/env"
+    local tries=15
+    local interval=2
+    if [ -f "$env_file" ]; then
+      local t=$(grep -E '^START_HEALTH_TRIES=' "$env_file" | cut -d= -f2 | tr -d '\r')
+      local s=$(grep -E '^START_HEALTH_INTERVAL=' "$env_file" | cut -d= -f2 | tr -d '\r')
+    fi
+    if echo "$t" | grep -Eq '^[0-9]+$'; then tries="$t"; fi
+    if echo "$s" | grep -Eq '^[0-9]+$'; then interval="$s"; fi
+    # Probe one last time
+    local state=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)
+    if [ "$state" != "healthy" ]; then
+      if curl -fsS http://localhost:4567/ >/dev/null 2>&1; then
+        state="healthy"
+      else
+        state="unhealthy"
+      fi
+    fi
+    echo "Final Health Summary: ${state} (tries=${tries}, interval=${interval}s)" >> "${startup_log}"
+  }
+
   # Start Ollama container if the image exists (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"

@@ -1173,7 +1173,8 @@ $(function () {
         $("#websearch").prop("disabled", false).removeAttr('title');
       } else {
         $("#websearch-badge").hide();
-        $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search');
+        const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
+        $("#websearch").prop("disabled", true).attr('title', tt);
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
@@ -1476,7 +1477,8 @@ $(function () {
         $("#websearch").prop("disabled", false).removeAttr('title');
       } else {
         $("#websearch-badge").hide();
-        $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search');
+        const tt2 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
+        $("#websearch").prop("disabled", true).attr('title', tt2);
       }
 
       $("#model").val(model);

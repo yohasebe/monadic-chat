@@ -1189,7 +1189,8 @@ function doResetActions(resetToDefaultApp = false) {
       $("#websearch-badge").hide();
     }
   } else {
-    $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search')
+    const tt3 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search'
+    $("#websearch").prop("disabled", true).attr('title', tt3)
     $("#websearch-badge").hide();
   }
 

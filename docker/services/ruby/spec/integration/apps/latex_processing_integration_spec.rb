@@ -6,6 +6,12 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:data_dir) { File.expand_path("~/monadic/data") }
   
+  # Helper: check if LaTeX toolchain is available in the Python container
+  def latex_available?
+    _out, _err, status = Open3.capture3("docker", "exec", container_name, "which", "latex")
+    status.success?
+  end
+  
   def cleanup_generated_files(pattern)
     Dir.glob(File.join(data_dir, pattern)).each do |file|
       FileUtils.rm_f(file)
@@ -13,6 +19,10 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   end
   
   describe "LaTeX installation in Python container" do
+    before(:all) do
+      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+    end
     it "has latex command available" do
       stdout, stderr, status = Open3.capture3("docker", "exec", container_name, "which", "latex")
       expect(status.success?).to be true
@@ -35,6 +45,10 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   end
   
   describe "Basic LaTeX compilation" do
+    before(:all) do
+      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+    end
     it "can compile simple TikZ document" do
       test_tex = <<~LATEX
         \\documentclass{standalone}
@@ -144,6 +158,10 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   end
   
   describe "Error handling" do
+    before(:all) do
+      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+    end
     it "reports error for invalid LaTeX syntax" do
       test_tex = <<~LATEX
         \\documentclass{standalone}

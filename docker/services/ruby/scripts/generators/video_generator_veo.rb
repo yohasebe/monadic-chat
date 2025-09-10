@@ -15,8 +15,8 @@ require "openssl"
 # Model selection
 # Default to the new fast model for quicker tests/execution
 USE_VEO3_FAST = true  # Default: faster Veo 3 model (lower quality but quicker)
-veo3model = "veo-3.0-generate-001"
-veo3fastmodel = "veo-3.0-fast-generate-001"
+VEO3_MODEL = "veo-3.0-generate-001"
+VEO3_FAST_MODEL = "veo-3.0-fast-generate-001"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function
@@ -592,11 +592,11 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
   # Determine current model selection
   # fast_mode: true -> fast; false -> quality; nil -> follow USE_VEO3_FAST
   if fast_mode == true
-    $current_model = veo3fastmodel
+    $current_model = VEO3_FAST_MODEL
   elsif fast_mode == false
-    $current_model = veo3model
+    $current_model = VEO3_MODEL
   else
-    $current_model = (USE_VEO3_FAST ? veo3fastmodel : veo3model)
+    $current_model = (USE_VEO3_FAST ? VEO3_FAST_MODEL : VEO3_MODEL)
   end
   STDERR.puts "Using Veo 3 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
   

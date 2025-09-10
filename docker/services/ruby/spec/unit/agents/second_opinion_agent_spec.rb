@@ -270,15 +270,15 @@ RSpec.describe SecondOpinionAgent do
   
   describe "#get_provider_helper" do
     it "returns a helper that responds to send_query" do
-      # Each helper should respond to send_query method
-      expect(agent.send(:get_provider_helper, "openai")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "claude")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query, true)
-      expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query, true)
+      # Each helper should respond to send_query method (public visibility is sufficient)
+      expect(agent.send(:get_provider_helper, "openai")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "claude")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "gemini")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "mistral")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "cohere")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "perplexity")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "grok")).to respond_to(:send_query)
+      expect(agent.send(:get_provider_helper, "deepseek")).to respond_to(:send_query)
     end
     
     it "raises an error for unknown providers" do

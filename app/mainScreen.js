@@ -416,8 +416,40 @@ function writeToScreen(text) {
     }
     
     
-    // Remove carriage return characters and trim
-    text = text.replace(/\r\n|\r|\n/g, '\n').trim();
+  // Remove carriage return characters and trim
+  text = text.replace(/\r\n|\r|\n/g, '\n').trim();
+
+  // Try to render known informational/success lines even if they arrive as plain text
+  const tryRenderInfoLine = (line) => {
+    // Patterns we want to surface as informational (blue) or success (green)
+    const infoPatterns = [
+      'Checking orchestration health',
+      'Refreshing Ruby control-plane',
+      'Starting Docker containers',
+      'Building',
+      'Rebuilding',
+      'Updating'
+    ];
+    const successPatterns = [
+      'Orchestration refreshed',
+      'Ready',
+      'Connected'
+    ];
+    const contains = (arr) => arr.some(p => line.toLowerCase().includes(p.toLowerCase()));
+    if (contains(infoPatterns)) {
+      htmlOutputElement.innerHTML += `<p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> ${line}</p>\n`;
+      htmlMessageCount++;
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      return true;
+    }
+    if (contains(successPatterns)) {
+      htmlOutputElement.innerHTML += `<p><i class='fa-solid fa-circle-check' style='color:#22ad50;'></i> ${line}</p>\n`;
+      htmlMessageCount++;
+      htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
+      return true;
+    }
+    return false;
+  };
 
     // Handle server start/stop events
     if (text === "[SERVER STOPPED]") {
@@ -546,6 +578,10 @@ function writeToScreen(text) {
       htmlOutputElement.scrollTop = htmlOutputElement.scrollHeight;
       return; // Don't process this as regular text
     } else {
+      // Try to render known info/success lines to HTML area first
+      if (tryRenderInfoLine(text)) {
+        return;
+      }
       // Regular output to the console log area
       logOutputElement.textContent += text + '\n';
       logLines++;

@@ -96,6 +96,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Close settings window
   closeSettings: () => ipcRenderer.send('close-settings'),
+  // Attempt-close notifications and confirmations
+  onAttemptCloseSettings: (callback) => ipcRenderer.on('attempt-close-settings', callback),
+  confirmCloseSettings: () => ipcRenderer.send('confirm-close-settings'),
   
   // Change UI language immediately
   changeUILanguage: (language) => ipcRenderer.send('change-ui-language', language),
@@ -127,4 +130,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 contextBridge.exposeInMainWorld('installOptionsAPI', {
   get: () => ipcRenderer.invoke('get-install-options'),
   save: (options) => ipcRenderer.invoke('save-install-options', options)
+});
+
+// Install Options window close flow
+contextBridge.exposeInMainWorld('installOptionsWindowAPI', {
+  onAttemptClose: (callback) => ipcRenderer.on('attempt-close-install-options', callback),
+  confirmClose: () => ipcRenderer.send('confirm-close-install-options')
 });

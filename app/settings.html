@@ -374,6 +374,21 @@
     </div>
 
     <script>
+      let settingsDirty = false;
+      let settingsInitialSnapshot = '';
+      const takeSettingsSnapshot = () => {
+        const form = document.getElementById('settings-form');
+        const obj = {};
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+          if (!el.id) return;
+          if (el.type === 'checkbox') {
+            obj[el.id] = !!el.checked;
+          } else {
+            obj[el.id] = el.value;
+          }
+        });
+        return JSON.stringify(obj);
+      };
       // Use the APIs exposed via preload.js instead of direct require
       // No need for toggling anymore as we've simplified the UI
       document.getElementById('distributed-mode').addEventListener('change', function() {
@@ -427,6 +442,11 @@
         setTimeout(() => {
           saveMessage.style.display = 'none';
         }, 2000);
+        // Mark clean after save via snapshot
+        settingsInitialSnapshot = takeSettingsSnapshot();
+        settingsDirty = false;
+        // Mark clean after save
+        settingsDirty = false;
         
         // Check if distributed mode has changed
         if (distributedMode !== previousMode) {
@@ -471,8 +491,48 @@
         }
       });
 
+      function showUnsavedDialog(onSave) {
+        const dialogHTML = `
+          <div id="unsavedDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+              background-color: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center; 
+              justify-content: center;">
+            <div style="background-color: #f8f9fa; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+                padding: 20px; max-width: 420px; font-family: 'Montserrat', sans-serif;">
+              <h3 style="margin-top: 0; color: #495057; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle') || 'Unsaved Changes'}</h3>
+              <p style="margin-bottom: 20px; color: #495057; font-weight: normal; font-size: 14px;">
+                ${settingsI18n.t('settings.messages.unsavedMessage') || 'You have unsaved changes. Save before closing?'}
+              </p>
+              <div style="text-align: right; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="unsavedCancel" style="background-color: #ddd; border: none; padding: 6px 12px; 
+                    border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
+                <button id="unsavedSave" style="background-color: #ffc107; border: none; padding: 6px 12px; 
+                    border-radius: 4px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
+              </div>
+            </div>
+          </div>`;
+        document.body.insertAdjacentHTML('beforeend', dialogHTML);
+        document.getElementById('unsavedCancel').addEventListener('click', () => {
+          document.getElementById('unsavedDialog')?.remove();
+        });
+        document.getElementById('unsavedSave').addEventListener('click', async () => {
+          try { await onSave?.(); } finally {
+            document.getElementById('unsavedDialog')?.remove();
+            window.electronAPI.closeSettings();
+          }
+        });
+      }
+
       document.getElementById('cancel').addEventListener('click', () => {
-        window.electronAPI.closeSettings();
+        // Recompute dirty via snapshot to avoid false prompts
+        settingsDirty = (takeSettingsSnapshot() !== settingsInitialSnapshot);
+        if (settingsDirty) {
+          showUnsavedDialog(() => {
+            // Trigger form submit to reuse existing save flow
+            document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
+          });
+        } else {
+          window.electronAPI.confirmCloseSettings();
+        }
       });
 
       // Listen for settings load event from the main process
@@ -517,11 +577,32 @@
         // Port settings have been removed since they don't affect Docker containers
         // Default values will be used instead
         
+        // Track dirty after initial population
+        settingsDirty = false;
+        const formEl = document.getElementById('settings-form');
+        formEl.querySelectorAll('input, select, textarea').forEach(el => {
+          el.addEventListener('change', () => { settingsDirty = true; });
+          el.addEventListener('input', () => { settingsDirty = true; });
+        });
+        // Take initial snapshot for diff-based dirty checking
+        settingsInitialSnapshot = takeSettingsSnapshot();
         // Hide the loading overlay once settings are loaded
         document.getElementById('loading-overlay').style.display = 'none';
       });
 
       window.electronAPI.requestSettings();
+      
+      // Handle OS/window close attempts from main process
+      window.electronAPI.onAttemptCloseSettings(() => {
+        const isDirtyNow = (takeSettingsSnapshot() !== settingsInitialSnapshot);
+        if (isDirtyNow) {
+          showUnsavedDialog(() => {
+            document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
+          });
+        } else {
+          window.electronAPI.confirmCloseSettings();
+        }
+      });
 
       // Listen for interface language changes and update UI
       document.getElementById('ui-language').addEventListener('change', (event) => {

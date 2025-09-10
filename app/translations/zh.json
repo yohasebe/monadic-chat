@@ -65,6 +65,7 @@
   "installOptions": "安装选项",
   "installOptionsPanel": {
     "title": "安装选项",
+    "messages": { "saved": "选项已保存" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -126,6 +127,9 @@
     "quit": "退出"
   },
   "dialogs": {
+    "unsavedChangesTitle": "未保存的更改",
+    "unsavedChangesMessage": "您有未保存的更改。是否在关闭前保存？",
+    "saveAndClose": "保存并关闭",
     "error": "错误",
     "warning": "警告",
     "info": "信息",

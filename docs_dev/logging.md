@@ -22,7 +22,11 @@ Notes:
   - `health.json`: Health check results right after build (LaTeX/convert/Python libraries)
   - `meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
 
-The Install Options window streams build output live and shows a summary (paths/health.json) on completion.
+Build progress and logs are shown in the main console. The Install Options window does not auto-trigger rebuilds and does not stream build output.
+
+Renderer message routing:
+- Only server-sent messages explicitly tagged as `[HTML]:` (or structured error tags) render into the `#messages` pane.
+- Plain command output always remains in the `#output` log area.
 
 ## Orchestration Health Probe (Start)
 

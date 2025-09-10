@@ -263,7 +263,7 @@ pip install pandas numpy scikit-learn
 
 ### Q: 再ビルドのログとヘルスチェック結果はどこで確認できますか？ :id=rebuild-logs
 
-**A**: Save → Rebuild 後、Install Options ウィンドウに進捗と要約が表示されます。ファイルは `~/monadic/log/build/python/<timestamp>/` に保存されます：
+**A**: 保存しても自動で再ビルドは行いません。メインコンソールから Rebuild を実行すると、進捗とログがメインコンソールに表示されます。ファイルは `~/monadic/log/build/python/<timestamp>/` に保存されます：
 - `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
 
 ### Q: 再ビルドが遅い。高速化するには？ :id=rebuild-speed

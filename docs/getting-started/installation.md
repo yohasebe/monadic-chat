@@ -67,7 +67,13 @@ From the app menu “Actions → Install Options…”, choose optional componen
 - Tools: ImageMagick (`convert`/`mogrify`)
 - Selenium: When enabled, uses Selenium as before. When disabled with a Tavily key, From URL uses Tavily. Otherwise, #url/#doc buttons are hidden.
 
-Saving does not trigger a rebuild automatically. When ready, run Rebuild from the main console to update the Python image. The update is atomic (build → verify → promote on success) and progress/logs are streamed in the main console. A per-run summary and health check are written alongside the logs.
+Panel behavior:
+- The Install Options window is modal and matches the Settings panel size.
+- Save does not close the window; a green check briefly confirms success.
+- If you click Close with unsaved changes, a confirmation dialog offers “Save and Close” or “Cancel”.
+- All labels, descriptions, and dialogs follow your UI language (EN/JA/ZH/KO/ES/DE/FR).
+
+Saving does not trigger a rebuild automatically. When ready, run Rebuild from the main console to update the Python image. The update is atomic (build → verify → promote on success) and progress/logs appear in the main console. A per-run summary and health check are written alongside the logs.
 
 Start behavior: When you click Start, the system runs an orchestration health check. If needed, the Ruby control-plane is automatically refreshed once (cache-friendly) and the startup proceeds. This is presented as informational prompts; finally a green “Ready” indicates success.
 

@@ -29,6 +29,15 @@
     @keyframes checkmark { 0% { transform: scale(0); opacity:0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity:1; } }
   </style>
   <script>
+    let ioDirty = false;
+    let ioTranslationsAll = null;
+    let ioInitialSnapshot = '';
+    const ioIds = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','SELENIUM_ENABLED'];
+    const takeIoSnapshot = () => {
+      const obj = {};
+      ioIds.forEach(id => { obj[id] = !!document.getElementById(id)?.checked; });
+      return JSON.stringify(obj);
+    };
     function detectLang(){
       try {
         const m = document.cookie.match(/ui-language=([^;]+)/);
@@ -40,6 +49,7 @@
     async function loadPanelTranslations() {
       const lang = detectLang();
       const all = await window.electronAPI.getTranslations(lang);
+      ioTranslationsAll = all || {};
       const t = (all && all.installOptionsPanel) ? all.installOptionsPanel : null;
       return t;
     }
@@ -48,6 +58,8 @@
       const get = (path, def='') => {
         try { return path.split('.').reduce((o,k)=> (o||{})[k], t) || def; } catch(e){ return def; }
       };
+      // Window title
+      try { document.title = get('title','Install Options'); } catch {}
       document.getElementById('io-title').textContent = get('title','Install Options');
       // LaTeX
       document.getElementById('head-latex-text').textContent = get('categories.latex.title','LaTeX');
@@ -80,6 +92,14 @@
       // Buttons
       document.getElementById('btn-close-text').textContent = get('buttons.close','Close');
       document.getElementById('btn-save-text').textContent = get('buttons.save','Save');
+      // Save check tooltip
+      const sm = document.getElementById('io-save-message');
+      if (sm) sm.setAttribute('title', get('messages.saved', 'Options saved'));
+    }
+    // Re-run translation on demand (called by main process after setting cookie)
+    async function installOptionsReloadTranslations() {
+      const panelT = await loadPanelTranslations();
+      applyTranslations(panelT);
     }
     async function loadOptions() {
       try {
@@ -114,6 +134,14 @@
       try {
         await window.installOptionsAPI.save(payload);
         const saveMsg = document.getElementById('io-save-message');
+        // Set translated tooltip
+        try {
+          const panelT = (ioTranslationsAll && ioTranslationsAll.installOptionsPanel) ? ioTranslationsAll.installOptionsPanel : null;
+          if (panelT && saveMsg) {
+            const get = (path, def='') => { try { return path.split('.').reduce((o,k)=> (o||{})[k], panelT) || def; } catch(e){ return def; } };
+            saveMsg.setAttribute('title', get('messages.saved','Options saved'));
+          }
+        } catch{}
         if (saveMsg) { saveMsg.style.display = 'inline-block'; }
         // Keep panel open; hide checkmark and re-enable save after delay
         setTimeout(() => {
@@ -121,13 +149,92 @@
           saveBtn.disabled = false;
           saveBtn.dataset.saving = 'false';
         }, 1200);
+        ioInitialSnapshot = takeIoSnapshot();
+        ioDirty = false;
       } catch(e) {
         alert('Failed to save: ' + e.message);
         saveBtn.disabled = false;
         saveBtn.dataset.saving = 'false';
       }
     }
+    function showIoUnsavedDialog(onSave) {
+      const d = (ioTranslationsAll && ioTranslationsAll.dialogs) ? ioTranslationsAll.dialogs : {};
+      const title = d.unsavedChangesTitle || 'Unsaved Changes';
+      const message = d.unsavedChangesMessage || 'You have unsaved changes. Save before closing?';
+      const saveAndClose = d.saveAndClose || 'Save and Close';
+      const cancel = d.cancel || 'Cancel';
+      const html = `
+        <div id="ioUnsavedDialog" style="position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 2000; display:flex; align-items:center; justify-content:center;">
+          <div style="background:#f8f9fa; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.2); padding:20px; max-width:420px; font-family: 'Montserrat', sans-serif;">
+            <h3 style="margin-top:0; color:#495057; font-size:16px; font-weight:600;">${title}</h3>
+            <p style="margin-bottom:20px; color:#495057; font-weight:normal; font-size:14px;">${message}</p>
+            <div style="text-align:right; display:flex; gap:8px; justify-content:flex-end;">
+              <button id="ioUnsavedCancel" style="background:#ddd; border:none; padding:6px 12px; border-radius:4px; color:#000; cursor:pointer; font-weight:500; font-size:13px;">${cancel}</button>
+              <button id="ioUnsavedSave" style="background:#ffc107; border:none; padding:6px 12px; border-radius:4px; color:#000; cursor:pointer; font-weight:600; font-size:13px;">${saveAndClose}</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.insertAdjacentHTML('beforeend', html);
+      document.getElementById('ioUnsavedCancel').addEventListener('click', () => {
+        document.getElementById('ioUnsavedDialog')?.remove();
+      });
+      document.getElementById('ioUnsavedSave').addEventListener('click', async () => {
+        try { await onSave?.(); } finally {
+          document.getElementById('ioUnsavedDialog')?.remove();
+          if (window.installOptionsWindowAPI) {
+            window.installOptionsWindowAPI.confirmClose();
+          } else {
+            window.close();
+          }
+        }
+      });
+    }
+    function handleCloseClick(){
+      // recompute dirty from snapshot
+      ioDirty = (takeIoSnapshot() !== ioInitialSnapshot);
+      if (!ioDirty) { 
+        if (window.installOptionsWindowAPI) { window.installOptionsWindowAPI.confirmClose(); } else { window.close(); }
+        return; 
+      }
+      showIoUnsavedDialog(() => saveOptions());
+    }
+    async function loadOptions(){
+      try {
+        const t = await loadPanelTranslations();
+        applyTranslations(t);
+        const opts = await window.installOptionsAPI.get();
+        ioIds.forEach(id => { const el = document.getElementById(id); if (el) el.checked = !!opts[id]; });
+        // attach dirty trackers
+        document.querySelectorAll('input[type="checkbox"]').forEach(el => {
+          el.addEventListener('change', () => { ioDirty = (takeIoSnapshot() !== ioInitialSnapshot); });
+        });
+        ioInitialSnapshot = takeIoSnapshot();
+        ioDirty = false;
+      } catch(e) { console.error(e); }
+    }
+    // OS close attempts
+    if (window.installOptionsWindowAPI && window.installOptionsWindowAPI.onAttemptClose) {
+      window.installOptionsWindowAPI.onAttemptClose(() => {
+        const dirty = (takeIoSnapshot() !== ioInitialSnapshot);
+        if (dirty) {
+          showIoUnsavedDialog(() => saveOptions());
+        } else {
+          window.installOptionsWindowAPI.confirmClose();
+        }
+      });
+    }
     window.addEventListener('DOMContentLoaded', loadOptions);
+    // React to UI language changes broadcast from main
+    if (window.electronAPI && window.electronAPI.onUILanguageChanged) {
+      window.electronAPI.onUILanguageChanged((_e, data) => {
+        try {
+          if (data && data.language) {
+            document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
+          }
+        } catch {}
+        installOptionsReloadTranslations();
+      });
+    }
   </script>
   </head>
   <body>
@@ -162,7 +269,7 @@
     </div>
     <div class="button-group">
       <button id="btn-save" onclick="saveOptions()"><i class="fa-solid fa-floppy-disk fa-icon"></i><span id="btn-save-text">Save</span></button>
-      <button id="btn-close" onclick="window.close()"><i class="fa-solid fa-xmark fa-icon"></i><span id="btn-close-text">Close</span></button>
+      <button id="btn-close" onclick="handleCloseClick()"><i class="fa-solid fa-xmark fa-icon"></i><span id="btn-close-text">Close</span></button>
       <span id="io-save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
     </div>
   </body>

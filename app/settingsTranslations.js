@@ -37,6 +37,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "Settings saved",
+        unsavedTitle: "Unsaved Changes",
+        unsavedMessage: "You have unsaved changes. Save before closing?",
+        saveAndClose: "Save and Close",
         modeChanged: "Mode Changed",
         modeChangeMessage: "Mode setting has been changed. The application needs to be restarted for this change to take effect. Please close and restart Monadic Chat manually.",
         ok: "OK"
@@ -80,6 +83,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "設定を保存しました",
+        unsavedTitle: "未保存の変更",
+        unsavedMessage: "保存していない変更があります。閉じる前に保存しますか？",
+        saveAndClose: "保存して閉じる",
         modeChanged: "モード変更",
         modeChangeMessage: "モード設定が変更されました。この変更を有効にするにはアプリケーションの再起動が必要です。Monadic Chatを手動で閉じて再起動してください。",
         ok: "OK"
@@ -123,6 +129,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "设置已保存",
+        unsavedTitle: "未保存的更改",
+        unsavedMessage: "您有未保存的更改。是否在关闭前保存？",
+        saveAndClose: "保存并关闭",
         modeChanged: "模式已更改",
         modeChangeMessage: "模式设置已更改。此更改需要重新启动应用程序才能生效。请手动关闭并重启Monadic Chat。",
         ok: "确定"
@@ -166,6 +175,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "설정이 저장되었습니다",
+        unsavedTitle: "저장되지 않은 변경 사항",
+        unsavedMessage: "저장하지 않은 변경 사항이 있습니다. 닫기 전에 저장하시겠습니까?",
+        saveAndClose: "저장하고 닫기",
         modeChanged: "모드 변경됨",
         modeChangeMessage: "모드 설정이 변경되었습니다. 이 변경 사항을 적용하려면 애플리케이션을 다시 시작해야 합니다. Monadic Chat를 수동으로 닫고 다시 시작하세요.",
         ok: "확인"
@@ -209,6 +221,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "Configuración guardada",
+        unsavedTitle: "Cambios sin guardar",
+        unsavedMessage: "Tienes cambios sin guardar. ¿Guardar antes de cerrar?",
+        saveAndClose: "Guardar y cerrar",
         modeChanged: "Modo Cambiado",
         modeChangeMessage: "La configuración del modo ha cambiado. La aplicación debe reiniciarse para que este cambio surta efecto. Por favor, cierre y reinicie Monadic Chat manualmente.",
         ok: "OK"
@@ -252,6 +267,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "Paramètres enregistrés",
+        unsavedTitle: "Modifications non enregistrées",
+        unsavedMessage: "Vous avez des modifications non enregistrées. Enregistrer avant de fermer ?",
+        saveAndClose: "Enregistrer et fermer",
         modeChanged: "Mode Modifié",
         modeChangeMessage: "Le paramètre de mode a été modifié. L'application doit être redémarrée pour que ce changement prenne effet. Veuillez fermer et redémarrer Monadic Chat manuellement.",
         ok: "OK"
@@ -295,6 +313,9 @@ const settingsTranslations = {
       },
       messages: {
         settingsSaved: "Einstellungen gespeichert",
+        unsavedTitle: "Nicht gespeicherte Änderungen",
+        unsavedMessage: "Sie haben nicht gespeicherte Änderungen. Vor dem Schließen speichern?",
+        saveAndClose: "Speichern und schließen",
         modeChanged: "Modus geändert",
         modeChangeMessage: "Die Moduseinstellung wurde geändert. Die Anwendung muss neu gestartet werden, damit diese Änderung wirksam wird. Bitte schließen und starten Sie Monadic Chat manuell neu.",
         ok: "OK"

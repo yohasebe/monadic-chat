@@ -65,6 +65,7 @@
   "installOptions": "설치 옵션",
   "installOptionsPanel": {
     "title": "설치 옵션",
+    "messages": { "saved": "옵션이 저장되었습니다" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -126,6 +127,9 @@
     "quit": "종료"
   },
   "dialogs": {
+    "unsavedChangesTitle": "저장되지 않은 변경 사항",
+    "unsavedChangesMessage": "저장하지 않은 변경 사항이 있습니다. 닫기 전에 저장하시겠습니까?",
+    "saveAndClose": "저장하고 닫기",
     "error": "오류",
     "warning": "경고",
     "info": "정보",

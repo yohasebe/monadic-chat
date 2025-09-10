@@ -52,6 +52,7 @@
   "installOptions": "Options d'installation",
   "installOptionsPanel": {
     "title": "Options d'installation",
+    "messages": { "saved": "Options enregistrées" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -197,6 +198,9 @@
     "versionInfo": "Monadic Chat app v{{appVersion}}  Image conteneur v{{containerVersion}}"
   },
   "dialogs": {
+    "unsavedChangesTitle": "Modifications non enregistrées",
+    "unsavedChangesMessage": "Vous avez des modifications non enregistrées. Enregistrer avant de fermer ?",
+    "saveAndClose": "Enregistrer et fermer",
     "error": "Erreur",
     "warning": "Avertissement",
     "info": "Information",

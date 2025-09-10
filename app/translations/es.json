@@ -65,6 +65,7 @@
   "installOptions": "Opciones de instalación",
   "installOptionsPanel": {
     "title": "Opciones de instalación",
+    "messages": { "saved": "Opciones guardadas" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -126,6 +127,9 @@
     "quit": "Salir"
   },
   "dialogs": {
+    "unsavedChangesTitle": "Cambios sin guardar",
+    "unsavedChangesMessage": "Tienes cambios sin guardar. ¿Guardar antes de cerrar?",
+    "saveAndClose": "Guardar y cerrar",
     "error": "Error",
     "warning": "Advertencia",
     "info": "Información",

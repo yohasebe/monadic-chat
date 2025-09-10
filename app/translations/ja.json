@@ -52,6 +52,7 @@
   "installOptions": "インストールオプション",
   "installOptionsPanel": {
     "title": "インストールオプション",
+    "messages": { "saved": "オプションを保存しました" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -232,6 +233,9 @@
     "cleanupCloudConfirmTitle": "クラウドストレージのクリーンアップ",
     "cleanupCloudConfirmMessage": "Monadic Chatが作成したVector Store（名前が 'monadic-' で始まるもの）と、それらに紐づくファイルをすべて削除します。よろしいですか？",
     "deleteAll": "すべて削除",
-    "quit": "終了"
+    "quit": "終了",
+    "unsavedChangesTitle": "未保存の変更",
+    "unsavedChangesMessage": "保存していない変更があります。閉じる前に保存しますか？",
+    "saveAndClose": "保存して閉じる"
   }
 }

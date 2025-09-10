@@ -783,7 +783,7 @@ class DockerManager {
                   buildTracker.status = mDone[1] === 'success' ? 'success' : 'failed';
                   // Emit a concise summary to the main window (messages area)
                   if (mainWindow && !mainWindow.isDestroyed()) {
-                    const icon = buildTracker.status === 'success' ? '<i class="fa-solid fa-circle-check" style="color:#2E7D32;"></i>' : '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>';
+                    const icon = buildTracker.status === 'success' ? '<i class="fa-solid fa-circle-check" style="color:#22ad50;"></i>' : '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>';
                     const runDir = buildTracker.runDir ? buildTracker.runDir : '';
                     mainWindow.webContents.send('command-output', `[HTML]: <p>${icon} Python build ${buildTracker.status}. ${runDir ? 'Logs: '+runDir : ''}</p>`);
                   }
@@ -2419,7 +2419,28 @@ function openInstallOptionsWindow() {
   });
   installOptionsWindow.loadFile(path.join(__dirname, 'installOptions.html'));
   installOptionsWindow.once('ready-to-show', () => installOptionsWindow.show());
+  // Inject UI language and trigger translation after load
+  installOptionsWindow.webContents.once('did-finish-load', () => {
+    const envPath = getEnvPath();
+    if (envPath) {
+      const envConfig = readEnvFile(envPath);
+      const uiLanguage = envConfig.UI_LANGUAGE || 'en';
+      installOptionsWindow.webContents.executeJavaScript(`
+        document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
+        if (typeof installOptionsReloadTranslations === 'function') {
+          installOptionsReloadTranslations();
+        }
+      `);
+    }
+  });
   installOptionsWindow.on('closed', () => { installOptionsWindow = null; });
+  // Route close attempts to renderer for unsaved-change prompt
+  installOptionsWindow.on('close', (event) => {
+    if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
+      event.preventDefault();
+      installOptionsWindow.webContents.send('attempt-close-install-options');
+    }
+  });
 }
 
 // IPC handlers for Install Options
@@ -2900,8 +2921,9 @@ function openSettingsWindow() {
     });
 
     settingsWindow.on('close', (event) => {
+      // Ask renderer if it wants to save before closing
       event.preventDefault();
-      settingsWindow.hide();
+      settingsWindow.webContents.send('attempt-close-settings');
     });
   }
   settingsWindow.show();
@@ -3454,9 +3476,18 @@ app.whenReady().then(() => {
 // Removed duplicate app.on('window-all-closed') and app.on('activate')
 
 ipcMain.on('close-settings', () => {
-  if (settingsWindow) {
-    settingsWindow.hide();
+  // Treat as an attempt to close; renderer decides to confirm or stay
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('attempt-close-settings');
   }
+});
+
+ipcMain.on('confirm-close-settings', () => {
+  if (settingsWindow) settingsWindow.hide();
+});
+
+ipcMain.on('confirm-close-install-options', () => {
+  if (installOptionsWindow) installOptionsWindow.destroy();
 });
 
 // Handle restart request from renderer process - removed automatic restart functionality

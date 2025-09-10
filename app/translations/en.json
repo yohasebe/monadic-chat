@@ -52,6 +52,7 @@
   "installOptions": "Install Options",
   "installOptionsPanel": {
     "title": "Install Options",
+    "messages": { "saved": "Options saved" },
     "categories": {
       "latex": {
         "title": "LaTeX",
@@ -230,6 +231,9 @@
     "confirmUninstall": "Confirm Uninstall",
     "uninstallMessage": "This will remove all the Monadic Chat images and containers. Do you want to continue?",
     "deleteAll": "Delete all",
-    "quit": "Quit"
+    "quit": "Quit",
+    "unsavedChangesTitle": "Unsaved Changes",
+    "unsavedChangesMessage": "You have unsaved changes. Save before closing?",
+    "saveAndClose": "Save and Close"
   }
 }

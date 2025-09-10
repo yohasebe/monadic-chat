@@ -84,10 +84,10 @@ START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
 
-ログ保存先:
+ログ保存先（実行ごとに上書き）:
 
-- `~/monadic/log/build/python/<timestamp>/`
-  - `docker_build.log` / `post_install.log` / `health.json` / `meta.json`
+- Python ビルド: `~/monadic/log/docker_build_python.log`, `~/monadic/log/post_install_python.log`, `~/monadic/log/python_health.json`, `~/monadic/log/python_meta.json`
+- Ruby / User / Ollama ビルド: `~/monadic/log/docker_build.log`
 
 NLTK と spaCy の挙動
 

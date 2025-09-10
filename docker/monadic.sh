@@ -332,17 +332,16 @@ build_python_container() {
   if [ "${_lock_acquired}" != true ]; then
     return 1
   fi
-  # Create per-run log dir
-  local ts=$(date +%Y%m%d_%H%M%S)
-  local run_dir="${HOME_DIR}/monadic/log/build/python/${ts}"
-  local build_log="${run_dir}/docker_build.log"
-  local post_log="${run_dir}/post_install.log"
-  local health_json="${run_dir}/health.json"
-  local meta_json="${run_dir}/meta.json"
-  mkdir -p "${run_dir}"
+  # Overwrite logs on each run (no per-run directories)
+  local logs_dir="${HOME_DIR}/monadic/log"
+  mkdir -p "${logs_dir}"
+  local build_log="${logs_dir}/docker_build_python.log"
+  local post_log="${logs_dir}/post_install_python.log"
+  local health_json="${logs_dir}/python_health.json"
+  local meta_json="${logs_dir}/python_meta.json"
 
   # Echo discovery hints for Electron to pick up paths
-  echo "[BUILD_RUN_DIR] ${run_dir}"
+  echo "[BUILD_RUN_DIR] ${logs_dir}"
 
   # Resolve install options from user's env (SSOT)
   local config_env="${HOME_DIR}/monadic/config/env"
@@ -389,6 +388,7 @@ build_python_container() {
 
   # Build Python image into a temporary tag for atomic swap
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
+  local ts=$(date +%Y%m%d_%H%M%S)
   local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
   echo "[DEBUG] build args:${build_args}" | tee -a "${build_log}"
   echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"

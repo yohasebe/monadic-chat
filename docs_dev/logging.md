@@ -13,14 +13,15 @@ Notes:
 - At Start, if the Ruby control‑plane health probe fails, the app performs a single cache‑friendly rebuild and retries. When this happens, `docker_startup.log` includes:
   - `Auto-rebuilt Ruby due to failed health probe`
 
-## Build Logs (per-run)
+## Build Logs
 
-- Each Python rebuild writes logs to a dedicated per-run directory:
-- Location: `~/monadic/log/build/python/<timestamp>/`
-  - `docker_build.log`: Docker build stdout/stderr (includes verified promotion flow)
-  - `post_install.log`: Output from running `~/monadic/config/pysetup.sh` if present (optional)
-  - `health.json`: Health check results right after build (LaTeX/convert/Python libraries)
-  - `meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
+- Python build (overwritten each run):
+  - `~/monadic/log/docker_build_python.log`: Docker build stdout/stderr (includes verified promotion flow)
+  - `~/monadic/log/post_install_python.log`: Output from running `~/monadic/config/pysetup.sh` if present (optional)
+  - `~/monadic/log/python_health.json`: Health check results right after build (LaTeX/convert/Python libraries)
+  - `~/monadic/log/python_meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
+- Ruby/User/Ollama build (overwritten each run):
+  - `~/monadic/log/docker_build.log`
 
 Build progress and logs are shown in the main console. The Install Options window does not auto-trigger rebuilds and does not stream build output.
 

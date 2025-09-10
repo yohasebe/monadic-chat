@@ -43,14 +43,45 @@ normalize_path() {
 
 # ---------------- Build concurrency lock ----------------
 LOCK_DIR="${HOME_DIR}/monadic/log/build.lock.d"
+# Treat a lock older than this as stale (seconds). Default: 2 hours
+: "${STALE_LOCK_MAX_SECS:=7200}"
 
 acquire_build_lock() {
-  # Try to acquire a simple directory lock
+  # Try to acquire a simple directory lock; handle stale locks
   if mkdir "${LOCK_DIR}" 2>/dev/null; then
-    # Stamp owner info (optional)
     echo $$ > "${LOCK_DIR}/pid" 2>/dev/null || true
+    date +%s > "${LOCK_DIR}/timestamp" 2>/dev/null || true
     return 0
   else
+    # If a lock exists, check staleness
+    if [ -d "${LOCK_DIR}" ]; then
+      # Determine the last modification time of the lock directory
+      now=$(date +%s)
+      if [ -f "${LOCK_DIR}/timestamp" ]; then
+        ts=$(cat "${LOCK_DIR}/timestamp" 2>/dev/null || echo 0)
+      else
+        # Fallback to filesystem mtime
+        if command -v stat >/dev/null 2>&1; then
+          case "$(uname -s)" in
+            Darwin) ts=$(stat -f %m "${LOCK_DIR}" 2>/dev/null || echo 0); ;;
+            *)      ts=$(stat -c %Y "${LOCK_DIR}" 2>/dev/null || echo 0); ;;
+          esac
+        else
+          ts=0
+        fi
+      fi
+      age=$(( now - ts ))
+      if [ "$age" -gt "$STALE_LOCK_MAX_SECS" ]; then
+        # Consider it stale; remove and acquire
+        rm -rf "${LOCK_DIR}" 2>/dev/null || true
+        if mkdir "${LOCK_DIR}" 2>/dev/null; then
+          echo $$ > "${LOCK_DIR}/pid" 2>/dev/null || true
+          date +%s > "${LOCK_DIR}/timestamp" 2>/dev/null || true
+          echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> Previous build lock was stale (age ${age}s). Continuing with a fresh build.</p>"
+          return 0
+        fi
+      fi
+    fi
     # Informational UI message (not a warning)
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> Another build is in progress. Please wait until it finishes.</p>"
     return 1

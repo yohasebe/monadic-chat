@@ -730,7 +730,11 @@ module OpenAIHelper
               }
             }
             DebugHelper.debug("OpenAI(Chat): Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
+          else
+            DebugHelper.debug("OpenAI(Chat): Skipping file_search (app_has_docstore=#{!!app_has_docstore}, vs_id_present=#{!!vs_id}, mode=#{resolved_mode}, app=#{app})", category: :api, level: :debug)
           end
+        else
+          DebugHelper.debug("OpenAI(Chat): Skipping file_search (use_responses_api=#{use_responses_api}, app_has_docstore=#{!!app_has_docstore}, app=#{app})", category: :api, level: :debug)
         end
       rescue StandardError => e
         DebugHelper.debug("OpenAI(Chat): Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)

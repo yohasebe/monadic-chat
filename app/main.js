@@ -2394,6 +2394,7 @@ function updateStatusIndicator(status) {
 
 // ---------------- Install Options Window ----------------
 let installOptionsWindow = null;
+let pendingCloseTimers = { settings: null, installOptions: null };
 function openInstallOptionsWindow() {
   if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
     installOptionsWindow.focus();
@@ -2439,6 +2440,16 @@ function openInstallOptionsWindow() {
     if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
       event.preventDefault();
       installOptionsWindow.webContents.send('attempt-close-install-options');
+      // Fallback: force close if renderer does not respond within 3s
+      if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
+      pendingCloseTimers.installOptions = setTimeout(() => {
+        try {
+          if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
+            console.warn('[Main] Forcing close of Install Options (renderer unresponsive)');
+            installOptionsWindow.destroy();
+          }
+        } catch (_) {}
+      }, 3000);
     }
   });
 }
@@ -2924,6 +2935,16 @@ function openSettingsWindow() {
       // Ask renderer if it wants to save before closing
       event.preventDefault();
       settingsWindow.webContents.send('attempt-close-settings');
+      // Fallback: force hide if renderer does not respond within 3s
+      if (pendingCloseTimers.settings) clearTimeout(pendingCloseTimers.settings);
+      pendingCloseTimers.settings = setTimeout(() => {
+        try {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            console.warn('[Main] Forcing hide of Settings (renderer unresponsive)');
+            settingsWindow.hide();
+          }
+        } catch (_) {}
+      }, 3000);
     });
   }
   settingsWindow.show();
@@ -3483,10 +3504,12 @@ ipcMain.on('close-settings', () => {
 });
 
 ipcMain.on('confirm-close-settings', () => {
+  if (pendingCloseTimers.settings) clearTimeout(pendingCloseTimers.settings);
   if (settingsWindow) settingsWindow.hide();
 });
 
 ipcMain.on('confirm-close-install-options', () => {
+  if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
   if (installOptionsWindow) installOptionsWindow.destroy();
 });
 

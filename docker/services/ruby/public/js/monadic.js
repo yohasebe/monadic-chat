@@ -1167,7 +1167,9 @@ $(function () {
     }
 
     if (modelSpec[selectedModel]) {
-      if (modelSpec[selectedModel].hasOwnProperty("tool_capability") && modelSpec[selectedModel]["tool_capability"]) {
+      const supportsWeb = (modelSpec[selectedModel]["supports_web_search"] === true) ||
+                          (modelSpec[selectedModel]["tool_capability"] === true); // fallback for tool-based providers
+      if (supportsWeb) {
         $("#websearch").prop("disabled", false);
       } else {
         $("#websearch-badge").hide();
@@ -1470,7 +1472,7 @@ $(function () {
         $("#model-selected").text(`${provider} (${model})`);
       }
 
-      if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
+      if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
         $("#websearch").prop("disabled", false);
       } else {
         $("#websearch-badge").hide();

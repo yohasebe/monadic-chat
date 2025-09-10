@@ -1181,7 +1181,7 @@ function doResetActions(resetToDefaultApp = false) {
 
   const model = $("#model").val();
 
-  if (modelSpec[model] && modelSpec[model].hasOwnProperty("tool_capability") && modelSpec[model]["tool_capability"]) {
+  if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
     $("#websearch").prop("disabled", false)
     if ($("#websearch").is(":checked")) {
       $("#websearch-badge").show();

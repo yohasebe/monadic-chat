@@ -2440,7 +2440,7 @@ module GeminiHelper
   end
   
   # Helper function to generate video with Veo model
-  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, session: nil)
+  def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
     
     # Try to get image data from session and create temporary file
     actual_image_path = nil
@@ -2617,6 +2617,16 @@ module GeminiHelper
     else
     end
     
+    # Select model speed (default fast). veo_model: 'fast'|'quality' or full model id
+    if veo_model && !veo_model.to_s.empty?
+      vm = veo_model.to_s.strip.downcase
+      if vm == 'quality' || vm.include?('veo-3.0-generate-001')
+        parts << "--quality"
+      elsif vm == 'fast' || vm.include?('veo-3.0-fast-generate-001')
+        parts << "--fast"
+      end
+    end
+
     # Create the bash command using Shellwords.join for proper escaping
     cmd = "bash -c #{Shellwords.escape(Shellwords.join(parts))}"
     

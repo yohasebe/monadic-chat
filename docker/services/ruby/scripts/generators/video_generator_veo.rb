@@ -13,9 +13,10 @@ require "openssl"
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
 
 # Model selection
-USE_VEO3_FAST = false  # Use faster Veo 3 model (lower quality but quicker)
-veo3model = "veo-3.0-generate-preview"
-veo3fastmodel = "veo-3.0-fast-generate-preview"
+# Default to the new fast model for quicker tests/execution
+USE_VEO3_FAST = true  # Default: faster Veo 3 model (lower quality but quicker)
+veo3model = "veo-3.0-generate-001"
+veo3fastmodel = "veo-3.0-fast-generate-001"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function
@@ -42,7 +43,7 @@ DEFAULT_OPTIONS = {
   person_generation: nil,        # Will be set based on model and image presence
   negative_prompt: nil,         # Optional negative prompt for Veo 3
   duration_seconds: 5,          # Default duration in seconds (Veo 3 generates 8 seconds)
-  fast_mode: false,             # Use fast generation mode for Veo 3
+  fast_mode: nil,               # nil = follow USE_VEO3_FAST, true = force fast, false = force quality
   debug: false                  # Debug mode flag
 }
 
@@ -588,7 +589,15 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
   STDERR.puts "Note: Veo 3 only supports 16:9 aspect ratio. Using 16:9." if aspect_ratio != "16:9"
   
   # Select between standard and fast Veo 3 models
-  $current_model = (USE_VEO3_FAST || fast_mode) ? "veo-3.0-fast-generate-preview" : "veo-3.0-generate-preview"
+  # Determine current model selection
+  # fast_mode: true -> fast; false -> quality; nil -> follow USE_VEO3_FAST
+  if fast_mode == true
+    $current_model = veo3fastmodel
+  elsif fast_mode == false
+    $current_model = veo3model
+  else
+    $current_model = (USE_VEO3_FAST ? veo3fastmodel : veo3model)
+  end
   STDERR.puts "Using Veo 3 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
   
   # Adjust person_generation based on whether image is provided
@@ -771,6 +780,10 @@ def parse_options
     
     opts.on("--fast", "Use fast generation mode (Veo 3 only, lower quality but quicker)") do
       options[:fast_mode] = true
+    end
+    
+    opts.on("--quality", "Use higher-quality model (slower)") do
+      options[:fast_mode] = false
     end
     
     opts.on("-h", "--help", "Show this help message") do

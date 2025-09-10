@@ -39,6 +39,19 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 - Configure optional components from `Actions → Install Options…` (LaTeX, Python libs, mediapipe, ImageMagick, Selenium).
 - Saving options does not auto-rebuild. Run Rebuild from the main console when ready; the process is atomic and logs/health are written under `~/monadic/log/build/python/<timestamp>/`.
+
+### Start Behavior & Auto-Recovery
+
+- When you click Start, the app brings containers up and performs an orchestration health check.
+- If the Ruby control-plane is not yet ready to coordinate the updated containers, it automatically refreshes (lightweight rebuild using Docker cache) once, then continues startup.
+- Messages appear as informational prompts (blue), and a green check marks success when the system is ready. If startup ultimately fails, see `~/monadic/log/docker_startup.log` for details (look for the line `Auto-rebuilt Ruby due to failed health probe`).
+
+Advanced (optional): you can adjust the Ruby health probe via `~/monadic/config/env`:
+
+```
+START_HEALTH_TRIES=20        # number of retries (default 15)
+START_HEALTH_INTERVAL=2      # seconds between retries (default 2)
+```
 - Build logs are saved under `~/monadic/log/build/python/<timestamp>/`. Dockerfile layers are split to leverage cache for faster toggling.
 
 

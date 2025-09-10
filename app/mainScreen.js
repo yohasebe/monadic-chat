@@ -421,6 +421,7 @@ function writeToScreen(text) {
 
     // Handle server start/stop events
     if (text === "[SERVER STOPPED]") {
+      try { window.silentReconnectMode = true; } catch(_) {}
       // Reset URL display flag on stop so restart shows it again
       networkUrlDisplayed = false;
       serverStarted = false;

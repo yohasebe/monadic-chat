@@ -4215,10 +4215,15 @@ let loadedApp = "Chat";
       window.UIState.set('wsConnected', false);
       window.UIState.set('wsReconnecting', true);
     }
-    // Enter silent reconnect mode and show localized 'Stopped'
-    try { window.silentReconnectMode = true; } catch(_) {}
-    const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
-    setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
+    // Show message based on current mode: if Stop操作による明示停止（silentモード）なら"Stopped"、
+    // それ以外は通常の Connection lost を案内
+    if (window.silentReconnectMode) {
+      const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
+      setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
+    } else {
+      const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');
+      setAlert(`<i class='fa-solid fa-server'></i> ${lostText}`, "warning");
+    }
     reconnect_websocket(ws);
   }
 

@@ -41,6 +41,26 @@ normalize_path() {
   echo "${path}" | sed 's|//|/|g'
 }
 
+# ---------------- Build concurrency lock ----------------
+LOCK_DIR="${HOME_DIR}/monadic/log/build.lock.d"
+
+acquire_build_lock() {
+  # Try to acquire a simple directory lock
+  if mkdir "${LOCK_DIR}" 2>/dev/null; then
+    # Stamp owner info (optional)
+    echo $$ > "${LOCK_DIR}/pid" 2>/dev/null || true
+    return 0
+  else
+    # Informational UI message (not a warning)
+    echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> Another build is in progress. Please wait until it finishes.</p>"
+    return 1
+  fi
+}
+
+release_build_lock() {
+  rm -rf "${LOCK_DIR}" 2>/dev/null || true
+}
+
 check_if_docker_desktop_is_running() {
   if "${DOCKER}" info >/dev/null 2>&1; then
     echo "1"
@@ -247,6 +267,11 @@ start_docker() {
 
 # Function to build Ruby container only
 build_ruby_container() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
   local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
@@ -266,10 +291,16 @@ build_ruby_container() {
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+  release_build_lock
 }
 
 # Function to build Python container only
 build_python_container() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
   # Create per-run log dir
   local ts=$(date +%Y%m%d_%H%M%S)
   local run_dir="${HOME_DIR}/monadic/log/build/python/${ts}"
@@ -334,6 +365,7 @@ build_python_container() {
   if ! ${DOCKER} build -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
     echo "[ERROR] Docker build failed" | tee -a "${build_log}"
     echo "[BUILD_COMPLETE] failed"
+    release_build_lock
     return 1
   fi
 
@@ -408,6 +440,7 @@ META
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[BUILD_COMPLETE] failed"
     echo "Please check the following log files under: ${run_dir}"
+    release_build_lock
     return 1
   fi
 
@@ -421,8 +454,7 @@ META
   echo "[META_JSON] ${meta_json}"
   echo "Please check the following log files under: ${run_dir}"
   echo "[BUILD_COMPLETE] success"
-  # Ensure Ruby control-plane is compatible with (new) Python data-plane
-  ensure_ruby_compat_with_python || true
+  release_build_lock
 }
 
 # Ensure Ruby control-plane matches Python data-plane compatibility
@@ -448,6 +480,11 @@ ensure_ruby_compat_with_python() {
 
 # Function to build Ollama container
 build_ollama_container() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
   local log_file="${HOME_DIR}/monadic/log/docker_build.log"
   
   # Create directory if it doesn't exist
@@ -517,15 +554,22 @@ build_ollama_container() {
     echo "Ollama container setup completed. Models are now available." | tee -a "${log_file}"
   else
     echo "Failed to build Ollama container" | tee -a "${log_file}"
+    release_build_lock
     return 1
   fi
   
   remove_older_images yohasebe/ollama
   remove_project_dangling_images
+  release_build_lock
 }
 
 # Function to build user containers
 build_user_containers() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
@@ -550,6 +594,7 @@ build_user_containers() {
   done
 
   if [ "$found_compose_files" = false ]; then
+    release_build_lock
     return 2  # Special return code for "no user containers found"
   fi
 
@@ -579,12 +624,19 @@ EOF
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
-  # After user containers rebuild, ensure Ruby is compatible with current Python contract
-  ensure_ruby_compat_with_python || true
+
+  # Informational message only; orchestration will self-check on next Start
+  echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> User containers updated. On the next Start, the system will check orchestration health and refresh Ruby automatically if needed.</p>"
+  release_build_lock
 }
 
 # Function to build Docker Compose with the option whether to use cache or not
 build_docker_compose() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
   # use or not use cache
   if [[ "$1" == "no-cache" ]]; then
     use_cache="--no-cache"
@@ -625,6 +677,7 @@ build_docker_compose() {
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+  release_build_lock
 }
 
 # Function to calculate hash for Dockerfile
@@ -865,12 +918,20 @@ start_docker_compose() {
   
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
+  # Informational flow for smoother UX
+  echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> Checking orchestration health . . .</p>"
+
   # After bringing up, validate Ruby health; if not healthy, rebuild Ruby once and retry
   wait_for_ruby_ready 15 2 || {
-    echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Rebuilding Ruby container to restore orchestration compatibility . . .</p>"
+    echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
+    # Append note to startup log for field diagnostics
+    echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
     build_ruby_container
     eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
-    wait_for_ruby_ready 15 2 || true
+    # Second probe (silent on success)
+    if wait_for_ruby_ready 15 2; then
+      echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color:#22ad50;'></i> Orchestration refreshed. Continuing startup . . .</p>"
+    fi
   }
 
   # Start Ollama container if the image exists (it uses a profile so needs explicit start)
@@ -1231,6 +1292,14 @@ exit 0
 wait_for_ruby_ready() {
   local max_tries=${1:-20}
   local sleep_sec=${2:-2}
+  # Allow overrides via ~/monadic/config/env
+  local env_file="${HOME_DIR}/monadic/config/env"
+  if [ -f "$env_file" ]; then
+    local t=$(grep -E '^START_HEALTH_TRIES=' "$env_file" | cut -d= -f2 | tr -d '\r')
+    local s=$(grep -E '^START_HEALTH_INTERVAL=' "$env_file" | cut -d= -f2 | tr -d '\r')
+    if echo "$t" | grep -Eq '^[0-9]+$'; then max_tries="$t"; fi
+    if echo "$s" | grep -Eq '^[0-9]+$'; then sleep_sec="$s"; fi
+  fi
   local tries=0
   while [ $tries -lt $max_tries ]; do
     local state=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)

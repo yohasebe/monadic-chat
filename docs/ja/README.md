@@ -33,6 +33,18 @@
 
 - メニュー `Actions → Install Options…` から、LaTeX/各種Pythonライブラリ/mediapipe/ImageMagick/Selenium を選択できます。
 - 保存しても自動の再ビルドは行いません。必要になったタイミングでメインコンソールから Rebuild を実行してください。処理はアトミックに行われ、ログ/health は `~/monadic/log/build/python/<timestamp>/` に保存されます。
+
+### Start 時の挙動と自動復旧
+
+- Start を押すと、コンテナを立ち上げた後にオーケストレーションのヘルスチェックを行います。
+- 必要に応じて Ruby（制御プレーン）を一度だけ軽量にリフレッシュ（Dockerキャッシュ利用）し、そのまま起動を続けます。メッセージは「情報」トーンで表示され、最終的に緑のチェックで「Ready」を示します。
+- うまくいかなかった場合は、`~/monadic/log/docker_startup.log` を確認してください（`Auto-rebuilt Ruby due to failed health probe` の行が目印です）。
+- ヘルスプローブは `~/monadic/config/env` で調整できます:
+
+```
+START_HEALTH_TRIES=20
+START_HEALTH_INTERVAL=2
+```
 - ログは `~/monadic/log/build/python/<timestamp>/` に保存。Dockerfile のレイヤー分割により、オプション切替時でも最小限のレイヤーのみ再構築されます。
 
 ## はじめよう

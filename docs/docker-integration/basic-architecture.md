@@ -160,3 +160,11 @@ When the application is updated, Monadic Chat intelligently determines which con
    - If no changes are detected, only the Ruby container is rebuilt
 
 This optimized rebuilding process saves time during updates when only Ruby code has changed, which is the most common update scenario.
+## Orchestration Health & Auto-Recovery
+
+At startup, the Ruby control-plane coordinates services and verifies health. If it detects the control-plane is not yet ready to manage updated containers (e.g., after Python or user container builds), it performs a single, cache-friendly refresh of the Ruby container and continues startup. This is presented to the user as informational status (not a warning), followed by a green success when ready.
+
+Diagnostics
+- The final startup summary lives in `~/monadic/log/docker_startup.log`.
+- When auto-refresh is invoked you will see: `Auto-rebuilt Ruby due to failed health probe`.
+- You can tune the probe with `START_HEALTH_TRIES` and `START_HEALTH_INTERVAL` in `~/monadic/config/env`.

@@ -69,6 +69,15 @@ From the app menu “Actions → Install Options…”, choose optional componen
 
 Saving does not trigger a rebuild automatically. When ready, run Rebuild from the main console to update the Python image. The update is atomic (build → verify → promote on success) and progress/logs are streamed in the main console. A per-run summary and health check are written alongside the logs.
 
+Start behavior: When you click Start, the system runs an orchestration health check. If needed, the Ruby control-plane is automatically refreshed once (cache-friendly) and the startup proceeds. This is presented as informational prompts; finally a green “Ready” indicates success.
+
+Probe tuning (optional) in `~/monadic/config/env`:
+
+```
+START_HEALTH_TRIES=20
+START_HEALTH_INTERVAL=2
+```
+
 Logs:
 
 - `~/monadic/log/build/python/<timestamp>/`

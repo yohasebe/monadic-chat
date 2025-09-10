@@ -391,3 +391,6 @@ SQL,sequel
 - Check [documentation](/) for detailed guides
 - Review [configuration reference](/reference/configuration.md)
 - See [quick start tutorial](/getting-started/quick-start.md) for basics
+### Q: I rebuilt the Python or user containers and then Start failed. Do I need to rebuild Ruby too?
+
+**A**: The Start command performs an orchestration health check and, if needed, automatically refreshes the Ruby control-plane once (using Docker cache) and continues startup. This is shown as informational messages in the console. If startup ultimately fails, check `~/monadic/log/docker_startup.log` (look for `Auto-rebuilt Ruby due to failed health probe`). You can tweak the health probe via `START_HEALTH_TRIES` and `START_HEALTH_INTERVAL` in `~/monadic/config/env`.

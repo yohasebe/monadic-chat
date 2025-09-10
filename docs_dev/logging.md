@@ -9,6 +9,10 @@ Common files:
 - `jupyter.log` — Jupyter cell additions/run logs.
 - `extra.log` — verbose, structured stream used for deep inspection (see below).
 
+Notes:
+- At Start, if the Ruby control‑plane health probe fails, the app performs a single cache‑friendly rebuild and retries. When this happens, `docker_startup.log` includes:
+  - `Auto-rebuilt Ruby due to failed health probe`
+
 ## Build Logs (per-run)
 
 - Each Python rebuild writes logs to a dedicated per-run directory:
@@ -19,6 +23,20 @@ Common files:
   - `meta.json`: Execution metadata (Monadic version, host OS, build args, etc.)
 
 The Install Options window streams build output live and shows a summary (paths/health.json) on completion.
+
+## Orchestration Health Probe (Start)
+
+- The Start command verifies that the Ruby control‑plane is ready to coordinate services. You can tune the probe via `~/monadic/config/env`:
+
+```
+START_HEALTH_TRIES=20
+START_HEALTH_INTERVAL=2
+```
+
+## Build Concurrency Guard
+
+- All build commands are serialized with a lightweight lock at `~/monadic/log/build.lock.d`.
+- If a build is already running, the UI shows an informational message and returns immediately.
 
 ## Extra Logging
 

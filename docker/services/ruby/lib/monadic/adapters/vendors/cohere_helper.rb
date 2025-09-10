@@ -755,11 +755,17 @@ module CohereHelper
     request_id = SecureRandom.hex(4)
 
     # Handle both string and boolean values for websearch parameter
-    websearch = CONFIG["TAVILY_API_KEY"] && (obj["websearch"] == "true" || obj["websearch"] == true)
+    has_tavily = !!CONFIG["TAVILY_API_KEY"]
+    requested_web = (obj["websearch"] == "true" || obj["websearch"] == true)
+    websearch = has_tavily && requested_web
     message = obj["message"]
     
     # Debug logging for websearch
-    DebugHelper.debug("Cohere websearch enabled: #{websearch}", category: :api, level: :info) if websearch
+    if websearch
+      DebugHelper.debug("Cohere websearch enabled", category: :api, level: :info)
+    else
+      DebugHelper.debug("Cohere websearch disabled (requested=#{requested_web}, has_tavily=#{has_tavily})", category: :api, level: :info)
+    end
 
     # Handle non-tool messages and update session
     if role != "tool"

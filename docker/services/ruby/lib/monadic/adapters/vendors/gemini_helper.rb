@@ -634,6 +634,9 @@ module GeminiHelper
     model_name = obj["model"]
     spec_supports_websearch = Monadic::Utils::ModelSpec.supports_web_search?(model_name)
     use_native_websearch = requested_websearch && spec_supports_websearch
+    unless use_native_websearch
+      DebugHelper.debug("Gemini websearch disabled (requested=#{requested_websearch}, supports=#{spec_supports_websearch})", category: :api, level: :info)
+    end
     
     DebugHelper.debug("Gemini websearch requested: #{requested_websearch}, supports_web_search(spec): #{spec_supports_websearch}, enabled: #{use_native_websearch}", category: :api, level: :debug)
     

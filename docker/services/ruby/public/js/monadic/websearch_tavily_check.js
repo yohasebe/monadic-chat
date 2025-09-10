@@ -36,10 +36,13 @@ function updateWebSearchState(provider, hasTavilyKey) {
   const model = $("#model").val();
   
   // First check if model has tool capability
-  if (!modelSpec[model] || !modelSpec[model].hasOwnProperty("tool_capability") || !modelSpec[model]["tool_capability"]) {
+  const supportsWeb = modelSpec[model] && (modelSpec[model]["supports_web_search"] === true || modelSpec[model]["tool_capability"] === true);
+  if (!supportsWeb) {
     // Model doesn't support tools at all
     websearchElement.prop("disabled", true);
     websearchBadge.hide();
+    const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
+    websearchElement.attr("title", tt);
     return;
   }
   
@@ -49,9 +52,9 @@ function updateWebSearchState(provider, hasTavilyKey) {
     websearchElement.prop("checked", false);  // Turn off
     websearchElement.prop("disabled", true);   // Disable
     websearchBadge.hide();
-    
     // Add tooltip to explain why it's disabled
-    websearchElement.attr("title", "Web search requires Tavily API key for " + provider);
+    const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchNeedsTavily') : 'Web Search requires a Tavily API key';
+    websearchElement.attr("title", tt);
   } else {
     // Either doesn't need Tavily or has the key
     websearchElement.prop("disabled", false);

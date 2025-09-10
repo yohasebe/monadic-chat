@@ -297,6 +297,9 @@ module GrokHelper
     
     # Enable native websearch only if the final model supports it via ModelSpec
     websearch_native = websearch && Monadic::Utils::ModelSpec.supports_web_search?(model)
+    unless websearch_native
+      DebugHelper.debug("Grok websearch disabled (requested=#{websearch}, supports=#{Monadic::Utils::ModelSpec.supports_web_search?(model)})", category: :api, level: :info)
+    end
     
     # Debug log websearch parameter
     if CONFIG["EXTRA_LOGGING"]

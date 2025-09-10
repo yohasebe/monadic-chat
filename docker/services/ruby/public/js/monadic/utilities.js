@@ -1182,14 +1182,14 @@ function doResetActions(resetToDefaultApp = false) {
   const model = $("#model").val();
 
   if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-    $("#websearch").prop("disabled", false)
+    $("#websearch").prop("disabled", false).removeAttr('title')
     if ($("#websearch").is(":checked")) {
       $("#websearch-badge").show();
     } else {
       $("#websearch-badge").hide();
     }
   } else {
-    $("#websearch").prop("disabled", true)
+    $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search')
     $("#websearch-badge").hide();
   }
 

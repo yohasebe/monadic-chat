@@ -1170,10 +1170,10 @@ $(function () {
       const supportsWeb = (modelSpec[selectedModel]["supports_web_search"] === true) ||
                           (modelSpec[selectedModel]["tool_capability"] === true); // fallback for tool-based providers
       if (supportsWeb) {
-        $("#websearch").prop("disabled", false);
+        $("#websearch").prop("disabled", false).removeAttr('title');
       } else {
         $("#websearch-badge").hide();
-        $("#websearch").prop("disabled", true);
+        $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search');
       }
 
       if (modelSpec[selectedModel].hasOwnProperty("temperature")) {
@@ -1473,10 +1473,10 @@ $(function () {
       }
 
       if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
-        $("#websearch").prop("disabled", false);
+        $("#websearch").prop("disabled", false).removeAttr('title');
       } else {
         $("#websearch-badge").hide();
-        $("#websearch").prop("disabled", true);
+        $("#websearch").prop("disabled", true).attr('title', 'Model does not support Web Search');
       }
 
       $("#model").val(model);

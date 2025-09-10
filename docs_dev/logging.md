@@ -50,6 +50,20 @@ START_HEALTH_INTERVAL=2
 - File path is centralized: `MonadicApp::EXTRA_LOG_FILE` (via `Monadic::Utils::Environment.extra_log_file`).
 - Many adapters/helpers append structured events here (e.g., provider requests/responses, tool invocations).
 
+### Log Rotation
+
+- To avoid unlimited growth, some logs rotate by size when `LOG_ROTATE_MAX_BYTES` (default 5MB) is exceeded.
+- Rotation keeps up to `LOG_ROTATE_MAX_FILES` (default 5) generations: `log`, `log.1`, `log.2`, ...
+- Currently applied to:
+  - `~/monadic/log/command.log`
+  - `~/monadic/log/jupyter.log`
+- Configure via `~/monadic/config/env`:
+
+```
+LOG_ROTATE_MAX_BYTES=10485760   # 10MB
+LOG_ROTATE_MAX_FILES=7          # keep 7 generations
+```
+
 ## Test Run Artifacts
 
 - Independent of runtime logs, RSpec runs write to `./tmp/test_runs/<timestamp>/`:

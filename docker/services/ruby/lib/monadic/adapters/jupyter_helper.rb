@@ -22,6 +22,10 @@ module MonadicHelper
     end
 
     begin
+      begin
+        Monadic::Utils::Environment.rotate_log(JUPYTER_LOG_FILE)
+      rescue StandardError
+      end
       File.open(JUPYTER_LOG_FILE, "a") do |f|
         f.puts "Time: #{Time.now}"
         f.puts "Cells: #{cells_str}"
@@ -67,6 +71,10 @@ module MonadicHelper
   # Log Jupyter-related errors for debugging
   def log_jupyter_error(operation, filename, cells, error_message)
     begin
+      begin
+        Monadic::Utils::Environment.rotate_log(JUPYTER_LOG_FILE)
+      rescue StandardError
+      end
       File.open(JUPYTER_LOG_FILE, "a") do |f|
         f.puts "ERROR Time: #{Time.now}"
         f.puts "Operation: #{operation}"

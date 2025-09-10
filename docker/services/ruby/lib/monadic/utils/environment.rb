@@ -78,6 +78,31 @@ module Monadic
         File.join(log_path, 'jupyter.log')
       end
 
+      # Simple size-based log rotation: file -> file.1 -> file.2 ... up to max_files
+      # Defaults: 5 MB, 5 files. Override via ENV LOG_ROTATE_MAX_BYTES / LOG_ROTATE_MAX_FILES
+      def rotate_log(file)
+        begin
+          max_bytes = (ENV['LOG_ROTATE_MAX_BYTES'] || (5 * 1024 * 1024)).to_i
+          max_files = (ENV['LOG_ROTATE_MAX_FILES'] || 5).to_i
+          return unless File.exist?(file)
+          return unless max_bytes > 0 && max_files > 0
+          return unless File.size(file) > max_bytes
+
+          # Shift old files
+          (max_files - 1).downto(1) do |i|
+            older = "#{file}.#{i}"
+            newer = "#{file}.#{i + 1}"
+            File.exist?(older) && File.rename(older, newer)
+          end
+          # Current -> .1
+          File.rename(file, "#{file}.1")
+          # Create empty current
+          File.open(file, 'w') { |f| f.write("") }
+        rescue StandardError => e
+          # Best-effort; ignore rotation failures
+        end
+      end
+
       # Shared volume paths (alias for data_path)
       def shared_volume
         data_path

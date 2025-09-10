@@ -637,6 +637,11 @@ class MonadicApp
 
     # output log data of input and output
     # create a log (COMMAND_LOG_FILE) to store the command and its output
+    begin
+      Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
+    rescue StandardError
+      # best-effort
+    end
     File.open(COMMAND_LOG_FILE, "a") do |f|
       f.puts "Time: #{Time.now}"
       f.puts "Command: #{command}"

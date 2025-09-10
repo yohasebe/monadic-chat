@@ -274,6 +274,12 @@ Image Generator apps are also available for the following models:
 
 This application generates videos using Google's Veo model through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
+Model versions (Veo 3):
+- `veo-3.0-fast-generate-001` — default (faster turnaround, good quality)
+- `veo-3.0-generate-001` — higher quality (slower)
+
+By default, the assistant uses the fast model. If you prefer higher quality, indicate so in your request (e.g., “use the quality model”); the tool switches accordingly.
+
 **Key Features:**
 - **Text-to-video generation**: Create videos from text descriptions
 - **Image-to-video generation**: Animate existing images by using them as the first frame
@@ -287,7 +293,7 @@ This application generates videos using Google's Veo model through the Gemini AP
 3. Specify the desired aspect ratio and person generation preferences
 4. The AI will process your request using Google's Veo model
 
-?> **Note:** Video generation typically takes 2-6 minutes to complete. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
+?> **Note:** Video generation typically takes 2–6 minutes. Using the fast model helps reduce turnaround time. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 
 **Example requests:**
 - "Create a video of a sunset over mountains" (text-to-video)
@@ -598,4 +604,3 @@ Jupyter Notebook apps are available for the following providers:
 This is an AI-powered help assistant for Monadic Chat. It provides contextual assistance based on the project's documentation, answering questions about features, usage, and troubleshooting in any language.
 
 The help system uses a pre-built knowledge base created from the English documentation. When you ask questions, it searches for relevant information and provides accurate answers based on the official documentation. For more details about the help system architecture, see [Help System](../advanced-topics/help-system.md).
-

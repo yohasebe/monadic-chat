@@ -62,23 +62,7 @@ docker_start_log() {
   echo "Monadic Chat Version: ${MONADIC_VERSION}" >> "${log_file}"
   echo "----------------------------------------" >> "${log_file}"
 
-  # Compatibility check between control-plane (Ruby) and data-plane (Python)
-  local ruby_cp_ver=$(${DOCKER} inspect --format='{{range .Config.Env}}{{println .}}{{end}}' monadic-chat-ruby-container 2>/dev/null | grep '^MONADIC_COMPAT_VERSION=' | cut -d= -f2)
-  local python_dp_ver=$(${DOCKER} inspect --format='{{range .Config.Env}}{{println .}}{{end}}' monadic-chat-python-container 2>/dev/null | grep '^MONADIC_COMPAT_VERSION=' | cut -d= -f2)
-  ruby_cp_ver=${ruby_cp_ver:-unknown}
-  python_dp_ver=${python_dp_ver:-unknown}
-
-  echo "Compatibility Check:" >> "${log_file}"
-  echo "  Control-plane (Ruby):   ${ruby_cp_ver}" >> "${log_file}"
-  echo "  Data-plane (Python):   ${python_dp_ver}" >> "${log_file}"
-  echo "----------------------------------------" >> "${log_file}"
-
-  local compat_mismatch=false
-  if [ "${ruby_cp_ver}" != "${python_dp_ver}" ]; then
-    compat_mismatch=true
-    # Emit clear warning for UI and log expected vs actual
-    echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color:#DC4C64;'></i> Ruby control-plane is outdated; please rebuild Ruby. (expected=${python_dp_ver}, actual=${ruby_cp_ver})</p>"
-  fi
+  # Compatibility marker no longer used. Rely on runtime health below.
 
   local all_containers_running=true
   for container in ${containers}; do
@@ -97,7 +81,7 @@ docker_start_log() {
     fi
   done
 
-  if ${all_containers_running} && [ "${compat_mismatch}" = false ]; then
+  if ${all_containers_running}; then
     echo "Summary: All containers started successfully" >> "${log_file}"
   else
     echo "Summary: Some containers failed to start" >> "${log_file}"
@@ -437,6 +421,29 @@ META
   echo "[META_JSON] ${meta_json}"
   echo "Please check the following log files under: ${run_dir}"
   echo "[BUILD_COMPLETE] success"
+  # Ensure Ruby control-plane is compatible with (new) Python data-plane
+  ensure_ruby_compat_with_python || true
+}
+
+# Ensure Ruby control-plane matches Python data-plane compatibility
+ensure_ruby_compat_with_python() {
+  local ruby_container_name="monadic-chat-ruby-container"
+  local ruby_cp_ver=$(${DOCKER} inspect --format='{{range .Config.Env}}{{println .}}{{end}}' ${ruby_container_name} 2>/dev/null | grep '^MONADIC_COMPAT_VERSION=' | cut -d= -f2)
+  ruby_cp_ver=${ruby_cp_ver:-none}
+
+  # Desired (target) version is taken from the Python Dockerfile in the working copy
+  local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
+  local target_ver=$(grep -E '^ENV[[:space:]]+MONADIC_COMPAT_VERSION=' "$python_dockerfile" | sed -E 's/.*MONADIC_COMPAT_VERSION="?([^"\n]+)"?.*/\1/' | tail -n1)
+  target_ver=${target_ver:-unknown}
+
+  if [ -z "$target_ver" ] || [ "$target_ver" = "unknown" ]; then
+    return 0
+  fi
+
+  if [ "$ruby_cp_ver" != "$target_ver" ]; then
+    echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Rebuilding Ruby container for compatibility (expected=${target_ver}, actual=${ruby_cp_ver}).</p>"
+    build_ruby_container
+  fi
 }
 
 # Function to build Ollama container
@@ -572,6 +579,8 @@ EOF
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
+  # After user containers rebuild, ensure Ruby is compatible with current Python contract
+  ensure_ruby_compat_with_python || true
 }
 
 # Function to build Docker Compose with the option whether to use cache or not
@@ -855,6 +864,14 @@ start_docker_compose() {
   remove_project_dangling_images
   
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+
+  # After bringing up, validate Ruby health; if not healthy, rebuild Ruby once and retry
+  wait_for_ruby_ready 15 2 || {
+    echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Rebuilding Ruby container to restore orchestration compatibility . . .</p>"
+    build_ruby_container
+    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+    wait_for_ruby_ready 15 2 || true
+  }
 
   # Start Ollama container if the image exists (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
@@ -1209,3 +1226,23 @@ import-db)
 esac
 
 exit 0
+
+# Wait for Ruby container to be healthy/ready
+wait_for_ruby_ready() {
+  local max_tries=${1:-20}
+  local sleep_sec=${2:-2}
+  local tries=0
+  while [ $tries -lt $max_tries ]; do
+    local state=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)
+    if [ "$state" = "healthy" ]; then
+      return 0
+    fi
+    # As a fallback, try an HTTP probe if running locally
+    if curl -fsS http://localhost:4567/ >/dev/null 2>&1; then
+      return 0
+    fi
+    tries=$((tries+1))
+    sleep "$sleep_sec"
+  done
+  return 1
+}

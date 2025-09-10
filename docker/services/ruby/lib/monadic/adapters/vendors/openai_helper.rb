@@ -1365,15 +1365,19 @@ module OpenAIHelper
         # no-op: conservative
       end
 
-      # Attach File Search tool if an OpenAI vector store is configured and cloud mode is selected
+      # Attach File Search tool only when the current app explicitly opts into PDF vector storage
       begin
+        current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
+        app_has_docstore = APPS[current_app]&.settings&.[]("pdf_vector_storage")
         vs_id = resolve_openai_vs_id(session)
         resolved_mode = resolve_pdf_storage_mode(session)
 
-        if vs_id && resolved_mode != 'local'
+        if app_has_docstore && vs_id && resolved_mode != 'local'
           responses_body["tools"] ||= []
           responses_body["tools"] << RESPONSES_API_BUILTIN_TOOLS["file_search"].call(vector_store_ids: [vs_id], max_num_results: 8)
-          DebugHelper.debug("OpenAI: Adding file_search tool with vector_store_id=#{vs_id}", category: :api, level: :debug)
+          DebugHelper.debug("OpenAI: Adding file_search tool with vector_store_id=#{vs_id} for app=#{current_app}", category: :api, level: :debug)
+        else
+          DebugHelper.debug("OpenAI: Skipping file_search tool (app_has_docstore=#{!!app_has_docstore}, vs_id_present=#{!!vs_id}, mode=#{resolved_mode}, app=#{current_app})", category: :api, level: :debug)
         end
       rescue => e
         DebugHelper.debug("Failed to attach file_search tool: #{e.message}", category: :api, level: :warning)

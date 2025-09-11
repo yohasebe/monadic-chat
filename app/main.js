@@ -236,111 +236,7 @@ function openWebViewWindow(url, forceReload = false) {
       console.error('Failed to inject focus button:', err);
     });
   });
-  // Make sure Menu is visible for standard edit commands
-  const editMenu = Menu.buildFromTemplate([
-    {
-      label: i18n.t('menu.edit'),
-      submenu: [
-        {
-          label: i18n.t('menu.undo'),
-          accelerator: 'CmdOrCtrl+Z',
-          click: () => {
-            webviewWindow.webContents.undo();
-          }
-        },
-        {
-          label: i18n.t('menu.redo'),
-          accelerator: process.platform === 'darwin' ? 'CmdOrCtrl+Shift+Z' : 'CmdOrCtrl+Y',
-          click: () => {
-            webviewWindow.webContents.redo();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: i18n.t('menu.cut'),
-          accelerator: 'CmdOrCtrl+X',
-          click: () => {
-            webviewWindow.webContents.cut();
-          }
-        },
-        {
-          label: i18n.t('menu.copy'),
-          accelerator: 'CmdOrCtrl+C',
-          click: () => {
-            webviewWindow.webContents.copy();
-          }
-        },
-        {
-          label: i18n.t('menu.paste'),
-          accelerator: 'CmdOrCtrl+V',
-          click: () => {
-            webviewWindow.webContents.paste();
-          }
-        },
-        { type: 'separator' },
-        {
-          label: i18n.t('menu.selectAll'),
-          accelerator: 'CmdOrCtrl+A',
-          click: () => {
-            webviewWindow.webContents.selectAll();
-          }
-        }
-      ]
-    },
-    {
-      label: i18n.t('menu.view'),
-      submenu: [
-        { 
-          label: i18n.t('menu.reload'),
-          accelerator: 'CmdOrCtrl+R',
-          click: () => {
-            webviewWindow.reload();
-          }
-        },
-        { 
-          label: i18n.t('menu.toggleDevTools'),
-          accelerator: 'CmdOrCtrl+Shift+I',
-          click: () => {
-            webviewWindow.webContents.toggleDevTools();
-          }
-        },
-        { type: 'separator' },
-        { 
-          label: i18n.t('menu.zoomIn'),
-          accelerator: 'CmdOrCtrl+Plus',
-          click: () => {
-            webviewWindow.webContents.send('zoom-in-menu');
-          }
-        },
-        { 
-          label: i18n.t('menu.zoomOut'),
-          accelerator: 'CmdOrCtrl+-',
-          click: () => {
-            webviewWindow.webContents.send('zoom-out-menu');
-          }
-        },
-        { 
-          label: i18n.t('menu.resetZoom'),
-          accelerator: 'CmdOrCtrl+0',
-          click: () => {
-            webviewWindow.webContents.send('zoom-reset-menu');
-          }
-        },
-        { type: 'separator' },
-        { 
-          label: i18n.t('menu.toggleFullscreen'),
-          accelerator: process.platform === 'darwin' ? 'Ctrl+Command+F' : 'F11',
-          click: () => {
-            const isFullScreen = webviewWindow.isFullScreen();
-            webviewWindow.setFullScreen(!isFullScreen);
-          }
-        }
-      ]
-    }
-  ]);
-  
-  // Apply menu to the webview window
-  webviewWindow.setMenu(editMenu);
+  // Use the global application menu for edit/view roles
   
   // Register built-in shortcuts but don't intercept most keyboard events
   webviewWindow.webContents.on('before-input-event', (event, input) => {
@@ -371,36 +267,10 @@ function openWebViewWindow(url, forceReload = false) {
         event.preventDefault();
         return;
       }
-      // Handle standard edit shortcuts
+      // Handle zoom shortcuts only; let edit shortcuts fall through
       if (input.meta || input.control) {
         const key = input.key.toLowerCase();
-        if (key === 'z' && !input.shift) {
-          webviewWindow.webContents.undo();
-          event.preventDefault();
-          return;
-        } else if ((key === 'z' && input.shift) || key === 'y') {
-          webviewWindow.webContents.redo();
-          event.preventDefault();
-          return;
-        } else if (key === 'x') {
-          webviewWindow.webContents.cut();
-          event.preventDefault();
-          return;
-        } else if (key === 'c') {
-          webviewWindow.webContents.copy();
-          event.preventDefault();
-          return;
-        } else if (key === 'v') {
-          webviewWindow.webContents.paste();
-          event.preventDefault();
-          return;
-        } else if (key === 'a') {
-          webviewWindow.webContents.selectAll();
-          event.preventDefault();
-          return;
-        }
-        // Handle zoom shortcuts
-        else if (key === '+' || key === '=' || (input.shift && key === ';')) {
+        if (key === '+' || key === '=' || (input.shift && key === ';')) {
           // Handle zoom in: Cmd/Ctrl + '+' or '=' or ';' (with shift for Japanese keyboard)
           const wc = webviewWindow.webContents;
           const current = wc.getZoomFactor();
@@ -439,6 +309,7 @@ function openWebViewWindow(url, forceReload = false) {
     webviewWindow = null;
   });
 }
+
 
 let dockerInstalled = false;
 let wsl2Installed = false;
@@ -1604,11 +1475,17 @@ function initializeApp() {
     tray.setContextMenu(contextMenu);
 
     extendedContextMenu({
+      // Enable common edit actions via mouse across all windows
+      showCopy: true,
+      showCut: true,
+      showPaste: true,
+      showSelectAll: true,
+      // Useful extras
       showSaveImageAs: true,
-      showInspectElement: true,
-      showSearchWithGoogle: false,
       showCopyImage: true,
-      showCopyImageAddress: true
+      showCopyImageAddress: true,
+      showInspectElement: true,
+      showSearchWithGoogle: false
     });
 
     createMainWindow();
@@ -1681,6 +1558,7 @@ function initializeApp() {
           case 'exit':
             quitApp(mainWindow);
             break;
+          // (removed) capture-chat-demo command
         }
       } catch (error) {
         console.error('Error during app initialization:', error);
@@ -2027,6 +1905,21 @@ function updateApplicationMenu() {
             quitApp(mainWindow);
           }
         }
+      ]
+    },
+    // Standard Edit menu with role-based items so shortcuts work
+    // in any focused window (including DevTools)
+    {
+      label: i18n.t('menu.edit'),
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { type: 'separator' },
+        { role: 'selectAll' }
       ]
     },
     {
@@ -2404,6 +2297,9 @@ function updateStatusIndicator(status) {
   // Update tray menu to reflect the new status
   updateContextMenu(false);
 }
+
+// IPC handler for programmatic chat capture (no Selenium)
+// (removed) capture-chat-screenshot IPC handler
 
 // ---------------- Install Options Window ----------------
 let installOptionsWindow = null;
@@ -2838,7 +2734,8 @@ function openBrowser(url, outside = false, forceOpen = false) {
         launchBrowser();
       } else {
         if (time == 0) {
-          writeToScreen("[HTML]: <p>Waiting for the server to start . . .</p>");
+          // Reduce UI noise: log to console output instead of user-facing messages
+          writeToScreen('Waiting for the server to start . . .');
         }
         time += interval;
         if (time >= timeout) {
@@ -2847,27 +2744,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
         }
       }
 
-// Opens an internal Electron window to display the app's web UI
-let webviewWindow = null;
-function openWebViewWindow(url) {
-  if (webviewWindow && !webviewWindow.isDestroyed()) {
-    webviewWindow.focus();
-    return;
-  }
-  webviewWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    },
-    title: 'Monadic Chat'
-  });
-  webviewWindow.loadURL(url);
-  webviewWindow.on('closed', () => {
-    webviewWindow = null;
-  });
-}
+// (Removed duplicate openWebViewWindow; unified earlier definition is used)
     });
   }, interval);
 }
@@ -2908,7 +2785,7 @@ function openSettingsWindow() {
         `);
       }
     });
-    // Enable standard edit shortcuts in settings window
+    // Context menu with standard edit actions for mouse operations
     extendedContextMenu({
       window: settingsWindow,
       showUndo: true,
@@ -2917,31 +2794,6 @@ function openSettingsWindow() {
       showCopy: true,
       showPaste: true,
       showSelectAll: true
-    });
-    // Handle keyboard shortcuts in settings window
-    settingsWindow.webContents.on('before-input-event', (event, input) => {
-      if (input.type === 'keyDown' && (input.meta || input.control)) {
-        const key = input.key.toLowerCase();
-        if (key === 'c') {
-          settingsWindow.webContents.copy();
-          event.preventDefault();
-        } else if (key === 'x') {
-          settingsWindow.webContents.cut();
-          event.preventDefault();
-        } else if (key === 'v') {
-          settingsWindow.webContents.paste();
-          event.preventDefault();
-        } else if (key === 'a') {
-          settingsWindow.webContents.selectAll();
-          event.preventDefault();
-        } else if (key === 'z' && !input.shift) {
-          settingsWindow.webContents.undo();
-          event.preventDefault();
-        } else if ((key === 'z' && input.shift) || key === 'y') {
-          settingsWindow.webContents.redo();
-          event.preventDefault();
-        }
-      }
     });
 
     settingsWindow.on('close', (event) => {

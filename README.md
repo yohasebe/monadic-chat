@@ -47,6 +47,28 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
 - [**Installation**](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
 
+### Keyboard & Clipboard
+
+- Copy/Paste works across the whole app, including DevTools and the internal browser.
+- Shortcuts: on macOS use `Cmd+C/V/A`, on Windows/Linux use `Ctrl+C/V/A`.
+- Right-click context menu provides Copy/Paste/Select All.
+
+Security note (internal browser): clipboard read/write is allowed only for the Web UI origin (`localhost:4567`, `127.0.0.1:4567`).
+
+### Startup Health Tuning
+
+- On Start, the app waits for the Ruby control‑plane to become healthy. Only if the container is explicitly unhealthy will it rebuild Ruby once (when enabled).
+- You can tune this behavior via `~/monadic/config/env`:
+
+```
+# Health probe window
+START_HEALTH_TRIES=20
+START_HEALTH_INTERVAL=2
+
+# Toggle automatic rebuild on health failure (default: true)
+AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
+```
+
 
 ## What is Grounding?
 

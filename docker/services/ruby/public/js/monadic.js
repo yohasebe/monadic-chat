@@ -1301,8 +1301,12 @@ $(function () {
     $("#appChangeConfirmation").modal("hide");
     // Apply the app change
     $("#apps").val(newAppValue);
-    // Reset messages array
-    messages = [];
+    // Reset messages via SessionState API (no direct assignment)
+    if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
+      window.SessionState.clearMessages();
+    } else {
+      try { window.messages = []; } catch (_) {}
+    }
     // Clear the discourse area
     $("#discourse").html("");
     // Reset to settings panel instead of continuing session

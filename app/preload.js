@@ -137,3 +137,5 @@ contextBridge.exposeInMainWorld('installOptionsWindowAPI', {
   onAttemptClose: (callback) => ipcRenderer.on('attempt-close-install-options', callback),
   confirmClose: () => ipcRenderer.send('confirm-close-install-options')
 });
+
+// (removed) experimental captureAPI

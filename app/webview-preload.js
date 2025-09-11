@@ -1,5 +1,15 @@
 const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
+// Trusted origins for clipboard access (internal Web UI only)
+const trustedHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
+function isTrustedOrigin() {
+  try {
+    return trustedHosts.has(window.location.host);
+  } catch {
+    return false;
+  }
+}
+
 // Expose API to focus the main Electron window from the webview
 contextBridge.exposeInMainWorld('electronAPI', {
   focusMainWindow: () => ipcRenderer.send('focus-main-window'),
@@ -12,12 +22,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
   // Clipboard access
-  readClipboard: () => clipboard.readText(),
-  writeClipboard: (text) => clipboard.writeText(text),
+  readClipboard: () => {
+    if (isTrustedOrigin()) {
+      return clipboard.readText();
+    }
+    console.warn('[clipboard] Blocked read from untrusted origin:', window.location && window.location.href);
+    return '';
+  },
+  writeClipboard: (text) => {
+    if (isTrustedOrigin()) {
+      clipboard.writeText(text != null ? String(text) : '');
+      return true;
+    }
+    console.warn('[clipboard] Blocked write from untrusted origin:', window.location && window.location.href);
+    return false;
+  },
   // Media permissions helper
   requestMediaPermissions: async () => {
+    // Avoid repeated prompts/logs after first success
+    if (window.__mediaPermissionGranted) {
+      return true;
+    }
     // This helps trigger the permission request explicitly for the webview
     try {
+      // Be quiet unless we're actually requesting for the first time
       console.log('Requesting media permissions...');
       // Request with more detailed options and constraints for better compatibility
       const constraints = {
@@ -32,19 +60,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
       
       // Clean up the stream after permissions are granted
       if (stream) {
-        console.log('Stream obtained successfully:', stream.id);
-        const audioTracks = stream.getAudioTracks();
-        console.log('Audio tracks:', audioTracks.length, audioTracks.map(t => t.label));
+        const verboseMediaLogs = false;
+        if (verboseMediaLogs) {
+          console.log('Stream obtained successfully:', stream.id);
+          const audioTracks = stream.getAudioTracks();
+          console.log('Audio tracks:', audioTracks.length, audioTracks.map(t => t.label));
+        }
         
         // Keep the stream active slightly longer to ensure permission is properly registered
         setTimeout(() => {
           stream.getTracks().forEach(track => {
-            console.log('Stopping track:', track.label);
+            const verbose = false;
+            if (verbose) console.log('Stopping track:', track.label);
             track.stop();
           });
         }, 500);
       }
       console.log('Media permissions granted!');
+      window.__mediaPermissionGranted = true;
       return true;
     } catch (err) {
       console.error('Failed to get media permissions:', err.name, err.message);
@@ -72,12 +105,12 @@ if (isMac) {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       // Attempt to enumerate and stop any active tracks
       navigator.mediaDevices.enumerateDevices()
-        .then(devices => {
+        .then(_devices => {
           // Just logging that we attempted cleanup
           console.log('Cleaning up media devices before unload');
         })
-        .catch(err => {
-          console.warn('Error cleaning up media devices:', err);
+        .catch(_err => {
+          // swallow errors; best-effort cleanup only
         });
     }
   });
@@ -277,7 +310,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 // Default to document.body for normal text
                 document.execCommand('selectAll');
               }
-            } catch (e) {
+            } catch {
               // Fallback if the above doesn't work
               document.execCommand('selectAll');
             }

@@ -986,20 +986,35 @@ start_docker_compose() {
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
   # Informational flow for smoother UX
-  echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> Checking orchestration health . . .</p>"
+  # Keep health check noise out of user-facing messages; log to output only
+  echo "Checking orchestration health . . ."
 
-  # After bringing up, validate Ruby health; if not healthy, rebuild Ruby once and retry
-  wait_for_ruby_ready 15 2 || {
-    echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
-    # Append note to startup log for field diagnostics
-    echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
-    build_ruby_container
-    eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
-    # Second probe (silent on success)
-    if wait_for_ruby_ready 15 2; then
-      echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color:#22ad50;'></i> Orchestration refreshed. Continuing startup . . .</p>"
+  # Tuning knob (can be set in ~/monadic/config/env)
+  AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=${AUTO_REFRESH_RUBY_ON_HEALTH_FAIL:-true}
+
+  # Single health probe controlled by START_HEALTH_TRIES/START_HEALTH_INTERVAL
+  if ! wait_for_ruby_ready; then
+    # Inspect current health status (fallback to HTTP probe)
+    health_status=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)
+    if [ -z "${health_status}" ]; then
+      if curl -fsS http://localhost:4567/ >/dev/null 2>&1; then
+        health_status="healthy"
+      else
+        health_status="unknown"
+      fi
     fi
-  }
+
+    # Only rebuild when explicitly unhealthy and auto-refresh is enabled
+    if [ "${health_status}" = "unhealthy" ] && [ "${AUTO_REFRESH_RUBY_ON_HEALTH_FAIL}" = "true" ]; then
+      echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#61b0ff;'></i> Refreshing Ruby control-plane for consistency. This typically takes less than a minute.</p>"
+      echo "Auto-rebuilt Ruby due to failed health probe" >> "${HOME_DIR}/monadic/log/docker_startup.log"
+      build_ruby_container
+      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
+      if wait_for_ruby_ready; then
+        echo "Orchestration refreshed. Continuing startup . . ."
+      fi
+    fi
+  fi
 
   # Final health summary to docker_startup.log
   {

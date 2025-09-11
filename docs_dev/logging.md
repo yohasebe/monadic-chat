@@ -10,7 +10,7 @@ Common files:
 - `extra.log` — verbose, structured stream used for deep inspection (see below).
 
 Notes:
-- At Start, if the Ruby control‑plane health probe fails, the app performs a single cache‑friendly rebuild and retries. When this happens, `docker_startup.log` includes:
+- At Start, the app probes Ruby control‑plane health. Only when the container is explicitly unhealthy and auto‑refresh is enabled does it rebuild Ruby once and retry. When this happens, `docker_startup.log` includes:
   - `Auto-rebuilt Ruby due to failed health probe`
 
 ## Build Logs
@@ -37,6 +37,18 @@ Renderer message routing:
 START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
+
+- Auto‑refresh toggle (optional):
+
+```
+# If set to false, the app will not rebuild Ruby automatically even on health failure
+AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
+```
+
+- Behavior summary:
+  - Healthy: continue.
+  - Starting/Unknown: keep waiting up to `START_HEALTH_*` (no rebuild).
+  - Unhealthy: rebuild Ruby once if `AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true`, then retry.
 
 ## Build Concurrency Guard
 

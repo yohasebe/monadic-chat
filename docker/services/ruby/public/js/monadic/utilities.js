@@ -951,10 +951,24 @@ function setParams() {
     
     // Get provider from current app
     const currentApp = $("#apps").val();
-    const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
-      ? window.getProviderFromGroup(window.apps[currentApp]["group"])
-      : "OpenAI";
+    let provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp]) 
+      ? window.getProviderFromGroup(window.apps[currentApp]["group"]) : "OpenAI";
     const model = params["model"];
+    // If model family suggests a different provider, prefer model-based inference
+    try {
+      const m = (model || '').toLowerCase();
+      const looksGemini = m.includes('gemini');
+      const looksClaude = m.includes('claude');
+      const looksGrok = m.includes('grok');
+      const looksDeepseek = m.includes('deepseek');
+      const looksPerplexity = m.includes('pplx') || m.includes('perplexity') || m.includes('sonar');
+      if (looksGemini) provider = 'Google';
+      else if (looksClaude) provider = 'Anthropic';
+      else if (looksGrok) provider = 'xAI';
+      else if (looksDeepseek) provider = 'DeepSeek';
+      else if (looksPerplexity) provider = 'Perplexity';
+      // Otherwise keep provider as-is (OpenAI or app group-derived)
+    } catch (_) {}
     
     if (window.ReasoningMapper) {
       // Map UI value to provider-specific parameter

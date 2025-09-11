@@ -1,3 +1,5 @@
+require 'fileutils'
+
 module Paths
   max_retries = 5
   retry_delay = 1

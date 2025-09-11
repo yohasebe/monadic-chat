@@ -387,8 +387,14 @@ get "/api/capabilities" do
     }
     resp.to_json
   rescue StandardError => e
-    status 500
-    { success: false, error: e.message }.to_json
+    # Be lenient: never 500 for capabilities; return defaults instead
+    {
+      success: false,
+      error: e.message,
+      latex: { enabled: false, available: false },
+      providers: { openai: false, anthropic: false, tavily: false },
+      selenium: { enabled: false }
+    }.to_json
   end
 end
 

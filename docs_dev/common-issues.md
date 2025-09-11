@@ -89,6 +89,22 @@ console.log('computed path:', computedPath);
 - Use `rake server:debug` for development
 - Disable unused containers in docker/compose.yml
 
+### Startup shows "Refreshing Ruby control‑plane" too often
+- What happens:
+  - On Start, the app probes Ruby control‑plane health. If it is only in `starting` state, rebuilding is not necessary and just waiting is sufficient.
+- Current behavior:
+  - The app waits based on `START_HEALTH_TRIES`/`START_HEALTH_INTERVAL` and rebuilds Ruby only when health is explicitly `unhealthy`.
+- How to tune:
+  - Extend wait window to accommodate slower machines:
+    ```
+    START_HEALTH_TRIES=30
+    START_HEALTH_INTERVAL=2
+    ```
+  - Disable auto‑refresh entirely (you will need to rebuild manually from the menu if truly broken):
+    ```
+    AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=false
+    ```
+
 ### Test suite taking too long
 ```bash
 # Run quick smoke tests only

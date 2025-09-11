@@ -2,7 +2,10 @@
 // - default (mock-friendly): JEST_MODE unset or any value other than 'no-mock'
 // - no-mock UI tests: JEST_MODE='no-mock'
 
+const path = require('path');
+
 const defaultConfig = {
+  rootDir: path.resolve(__dirname, '../..'),
   testEnvironment: 'jsdom',
   testMatch: ['**/test/**/*.test.js'],
   collectCoverage: false, // Temporarily disable coverage to avoid minimatch error
@@ -14,7 +17,7 @@ const defaultConfig = {
   coverageDirectory: 'coverage',
   transform: {},
   testPathIgnorePatterns: ['/node_modules/'],
-  setupFilesAfterEnv: ['./test/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.js'],
   moduleDirectories: ['node_modules', 'docker/services/ruby/public/js'],
   moduleNameMapper: {
     '^monadic/(.*)$': '<rootDir>/docker/services/ruby/public/js/monadic/$1',
@@ -26,6 +29,7 @@ const defaultConfig = {
 };
 
 const noMockConfig = {
+  rootDir: path.resolve(__dirname, '../..'),
   testEnvironment: 'jsdom',
   testMatch: ['**/test/frontend/no-mock/**/*.test.js'],
   setupFilesAfterEnv: [], // No global mocks

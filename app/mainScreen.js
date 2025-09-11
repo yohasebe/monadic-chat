@@ -170,8 +170,7 @@ function updateMonadicChatStatusUI(status) {
   // Debug output to console to help diagnose status issues
   console.log(`Updating status UI: ${status}, distributed mode: ${window.electronAPI.getDistributedMode()}`);
   
-  // Save original status for debugging
-  const originalStatus = status;
+  // (debug) originalStatus removed to avoid unused warnings
   
   
   // Special case: if we receive "Ready" status, handle differently based on mode
@@ -339,7 +338,7 @@ function writeToScreen(text) {
     try {
       // First try the API
       currentMode = window.electronAPI.getDistributedMode();
-    } catch (e) {
+    } catch {
       // Fallback to cookie
       const match = document.cookie.match(/distributed-mode=([^;]+)/);
       if (match) {
@@ -423,7 +422,7 @@ function writeToScreen(text) {
 
     // Handle server start/stop events
     if (text === "[SERVER STOPPED]") {
-      try { window.silentReconnectMode = true; } catch(_) {}
+      try { window.silentReconnectMode = true; } catch {}
       // Reset URL display flag on stop so restart shows it again
       networkUrlDisplayed = false;
       serverStarted = false;
@@ -616,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.electronAPI.onUpdateDistributedMode((_event, data) => {
     // Support both old format (string) and new format (object)
     const mode = typeof data === 'string' ? data : data.mode;
-    const localIP = typeof data === 'object' && data.localIP ? data.localIP : null;
+    const _localIP = typeof data === 'object' && data.localIP ? data.localIP : null;
     
     // Update system label icon based on mode
     updateSystemLabelForMode(mode === 'server' ? 'server' : 'off');
@@ -840,12 +839,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const translatableMessages = htmlOutput.querySelectorAll('[data-i18n-key]');
           translatableMessages.forEach(msg => {
             const key = msg.getAttribute('data-i18n-key');
-            const type = msg.getAttribute('data-i18n-type');
+            const _type = msg.getAttribute('data-i18n-type');
             const paramsStr = msg.getAttribute('data-i18n-params');
             let params = {};
             try {
               params = JSON.parse(paramsStr || '{}');
-            } catch (e) {
+            } catch {
               // Ignore parse errors
             }
             

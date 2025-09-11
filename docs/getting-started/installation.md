@@ -84,6 +84,14 @@ START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
 
+Dependency-aware Ruby rebuild
+- Ruby is rebuilt only when the Gem dependency fingerprint (SHA256 of `Gemfile` + `monadic.gemspec`) changes. The image carries this value as `com.monadic.gems_hash`; when it differs from your working copy, a refresh is performed using Docker cache so the bundle layer is reused whenever possible.
+- To force a clean rebuild for troubleshooting, set:
+
+```
+FORCE_RUBY_REBUILD_NO_CACHE=true
+```
+
 Logs (overwritten each run):
 
 - Python build: `~/monadic/log/docker_build_python.log`, `~/monadic/log/post_install_python.log`, `~/monadic/log/python_health.json`, `~/monadic/log/python_meta.json`

@@ -46,6 +46,14 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - If the Ruby control-plane is not yet ready to coordinate the updated containers, it automatically refreshes (lightweight rebuild using Docker cache) once, then continues startup.
 - Messages appear as informational prompts (blue), and a green check marks success when the system is ready. If startup ultimately fails, see `~/monadic/log/docker_startup.log` for details (look for the line `Auto-rebuilt Ruby due to failed health probe`).
 
+Dependency-aware Ruby rebuild
+- Ruby rebuilds are cache-friendly and happen only when Gem dependencies change. A fingerprint (SHA256 of `Gemfile` + `monadic.gemspec`) is embedded into the image label `com.monadic.gems_hash`; when it differs from the current working copy, the Ruby image is refreshed and the cache reuses the bundle layer whenever possible.
+- For diagnostics you can force a clean rebuild by setting in `~/monadic/config/env`:
+
+```
+FORCE_RUBY_REBUILD_NO_CACHE=true
+```
+
 Advanced (optional): you can adjust the Ruby health probe via `~/monadic/config/env`:
 
 ```

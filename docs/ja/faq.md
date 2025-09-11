@@ -278,6 +278,17 @@ pip install pandas numpy scikit-learn
 
 **A**: 現行イメージは保持されます（成功時のみ本番に反映する更新）。直近の実行ごとのフォルダのログを確認し、（例）`~/monadic/config/pysetup.sh` を修正して再試行してください。
 
+### Q: Ruby コンテナの再ビルドはいつ走りますか？頻発を避けるには？ :id=ruby-rebuild-when
+
+**A**: Ruby の再ビルドは必要時のみ行われます。
+- 起動時にオーケストレーションのヘルスチェックを行い、Ruby が更新後コンテナの調整に未準備な場合は一度だけキャッシュフレンドリーに更新します。
+- また、Gem 依存が変わった場合（`Gemfile` + `monadic.gemspec` の SHA256 指紋が不一致）のみ更新します。Docker のキャッシュにより bundle レイヤーは可能な限り再利用されます。
+- 診断目的で完全ノーキャッシュで再構築したい場合は、`~/monadic/config/env` に `FORCE_RUBY_REBUILD_NO_CACHE=true` を設定してください。
+
+### Q: 停止後に Web UI が「接続中…」と「接続が失われました」を交互に表示します。 :id=stop-connecting-flicker
+
+**A**: 意図的な停止では埋め込みブラウザの自動再接続を抑制し、ステータスは「Stopped」を表示します。外部ブラウザで開いたままのタブがある場合は、次回の Start 後にリロードしてください。
+
 ### Q: NLTK と spaCy のオプションでデータやモデルは自動でダウンロードされますか？ :id=nltk-spacy-auto
 
 **A**: いいえ。オプションはライブラリのみインストールします。

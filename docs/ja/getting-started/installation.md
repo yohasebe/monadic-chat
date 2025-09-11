@@ -84,6 +84,14 @@ START_HEALTH_TRIES=20
 START_HEALTH_INTERVAL=2
 ```
 
+依存指紋ベースの Ruby 再ビルド
+- Ruby は **Gem 依存が変わったときにのみ** 再ビルドされます。`Gemfile` と `monadic.gemspec` の SHA256 を画像ラベル `com.monadic.gems_hash` に保持し、作業コピーと異なる場合にだけ更新します。通常は bundle レイヤーがキャッシュ再利用されます。
+- トラブルシューティングで完全ノーキャッシュで再構築したい場合は、以下を設定してください：
+
+```
+FORCE_RUBY_REBUILD_NO_CACHE=true
+```
+
 ログ保存先（実行ごとに上書き）:
 
 - Python ビルド: `~/monadic/log/docker_build_python.log`, `~/monadic/log/post_install_python.log`, `~/monadic/log/python_health.json`, `~/monadic/log/python_meta.json`

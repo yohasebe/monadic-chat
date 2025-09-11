@@ -168,3 +168,9 @@ Diagnostics
 - The final startup summary lives in `~/monadic/log/docker_startup.log`.
 - When auto-refresh is invoked you will see: `Auto-rebuilt Ruby due to failed health probe`.
 - You can tune the probe with `START_HEALTH_TRIES` and `START_HEALTH_INTERVAL` in `~/monadic/config/env`.
+
+### Dependency Fingerprint for Ruby (Cache-Friendly Rebuild)
+
+- Ruby is refreshed only when Gem dependencies change. A fingerprint (SHA256 of `Gemfile` + `monadic.gemspec`) is embedded as an image label `com.monadic.gems_hash`.
+- At startup, if the current working copy’s fingerprint differs from the image label, a cache-friendly rebuild is performed so the bundle layer is reused when possible.
+- To force a clean rebuild for diagnostics: set `FORCE_RUBY_REBUILD_NO_CACHE=true` in `~/monadic/config/env`.

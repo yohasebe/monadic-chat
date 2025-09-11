@@ -160,3 +160,9 @@ Monadic Chatは、以下のようなオプションのDockerコンテナをサ�
    - 変更が検出されない場合、Rubyコンテナのみが再ビルドされます
 
 この最適化された再ビルドプロセスにより、最も一般的な更新シナリオであるRubyコードのみが変更された場合に、更新時間を短縮できます。
+
+## 依存指紋とキャッシュフレンドリーなRuby更新 :id=ruby-fingerprint
+
+- Ruby の更新は **Gem 依存が変わったときのみ** 行います。`Gemfile` と `monadic.gemspec` の SHA256 を `com.monadic.gems_hash` としてイメージに埋め込み、作業コピーと一致しない場合にだけ再ビルドします。
+- 再ビルドは Docker のキャッシュを活用し、可能な限り bundle レイヤーを再利用します。
+- 診断目的で完全ノーキャッシュにしたい場合は、`~/monadic/config/env` に `FORCE_RUBY_REBUILD_NO_CACHE=true` を設定してください。

@@ -278,6 +278,17 @@ Changes persist across container restarts with Method 1.
 
 **A**: The current image is preserved (atomic update). Check the latest per-run folder for logs, fix issues (e.g., `~/monadic/config/pysetup.sh`), and retry.
 
+### Q: When does the Ruby container rebuild run? Can I avoid frequent rebuilds? :id=ruby-rebuild-when
+
+**A**: Ruby rebuilds only when necessary.
+- At startup, Monadic Chat probes orchestration health; if Ruby isn’t ready to coordinate updated containers, it performs a one-time, cache-friendly refresh.
+- Separately, if Gem dependencies changed (fingerprint = SHA256 of `Gemfile` + `monadic.gemspec`), Ruby is refreshed. The bundle layer is reused via Docker cache whenever possible.
+- To force a clean rebuild for diagnostics, set `FORCE_RUBY_REBUILD_NO_CACHE=true` in `~/monadic/config/env`.
+
+### Q: After clicking Stop, the web UI alternates between “Connecting…” and “Connection lost”. :id=stop-connecting-flicker
+
+**A**: Intentional stops suppress noisy reconnect attempts in the embedded browser. The status shows “Stopped” during shutdown. If a tab was left open externally, refresh it after the next Start.
+
 ### Q: Do NLTK and spaCy options also download datasets/models automatically? :id=nltk-spacy-auto
 
 **A**: No. The options install packages only to keep images lean.

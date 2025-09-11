@@ -47,6 +47,14 @@ START_HEALTH_INTERVAL=2
 ```
 - ログは `~/monadic/log/build/python/<timestamp>/` に保存。Dockerfile のレイヤー分割により、オプション切替時でも最小限のレイヤーのみ再構築されます。
 
+依存指紋ベースの Ruby 再ビルド
+- Ruby の再ビルドは **Gem 依存が変わったときのみ** 行われ、Docker のキャッシュを活用します。`Gemfile` と `monadic.gemspec` の SHA256 を画像ラベル `com.monadic.gems_hash` に保存し、作業コピーと異なる場合だけ更新します。通常は bundle 層が再利用されるため高速です。
+- 診断用途で完全ノーキャッシュを強制したい場合は `~/monadic/config/env` に以下を設定します：
+
+```
+FORCE_RUBY_REBUILD_NO_CACHE=true
+```
+
 ## はじめよう
 
 - [**クイックスタートチュートリアル**](https://yohasebe.github.io/monadic-chat/#/ja/getting-started/quick-start) - 10分で始められます

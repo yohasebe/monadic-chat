@@ -11,7 +11,7 @@ set -euo pipefail
 #   bin/capture_ui.sh --url http://localhost:4567 --element "#status-message" [--out ~/monadic/data/screenshots]
 #   bin/capture_ui.sh --url http://localhost:4567 --fullpage true --out ~/monadic/data/screenshots
 
-URL="http://localhost:4567"
+URL="http://ruby_service:4567"
 ELEMENT=""
 FULLPAGE="false"
 OUT_DIR="${HOME}/monadic/data/screenshots"
@@ -49,7 +49,9 @@ fi
 
 mkdir -p "${OUT_DIR}"
 
-CMD=(python /monadic/scripts/cli_tools/webpage_fetcher.py --url "$URL" --mode png --filepath "/monadic/data/screenshots" --timeout-sec "$TIMEOUT")
+CMD=(python /monadic/scripts/cli_tools/webpage_fetcher.py --url "$URL" --mode png --filepath "/monadic/data/screenshots" --timeout-sec "$TIMEOUT" --width 1920 --height 1080 --device-scale 2.0)
+# Wait for Monadic UI to stabilize by default: spinner hidden
+CMD+=(--wait-css-hidden "#monadic-spinner")
 if [[ -n "${ELEMENT}" ]]; then
   CMD+=(--element "$ELEMENT")
 fi
@@ -59,4 +61,3 @@ echo "[INFO] Capturing: url=${URL} element='${ELEMENT}' fullpage=${FULLPAGE} -> 
 docker exec -i "${PY_CONT}" "${CMD[@]}"
 
 echo "[INFO] Host output dir: ${OUT_DIR}"
-

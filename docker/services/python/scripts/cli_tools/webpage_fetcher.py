@@ -119,18 +119,31 @@ def create_driver_options(args):
         Options: Configured Chrome options.
     """
     options = Options()
-    options.add_argument('--headless')
+    # Modern headless for Chrome 109+
+    options.add_argument('--headless=new')
     options.add_argument('--disable-gpu')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--no-sandbox')
-    options.add_argument('--start-maximized')
-    if args.mode == 'png':
-        options.add_argument('--window-size=1920,1080')
-    else:
+    options.add_argument('--hide-scrollbars')
+    # HiDPI & viewport sizing for crisp output
+    try:
+        width = int(getattr(args, 'width', 1920))
+        height = int(getattr(args, 'height', 1080))
+    except Exception:
+        width, height = 1920, 1080
+    try:
+        device_scale = float(getattr(args, 'device_scale', 2.0))
+    except Exception:
+        device_scale = 2.0
+    options.add_argument(f'--window-size={width},{height}')
+    options.add_argument(f'--force-device-scale-factor={device_scale}')
+    options.add_argument('--high-dpi-support=2')
+    if args.mode != 'png':
+        # Speed when only extracting text
         options.add_argument('--blink-settings=imagesEnabled=false')
     return options
 
-def take_full_page_screenshot(driver, output_path):
+def take_full_page_screenshot(driver, output_path, target_width=None):
     """
     Take a screenshot of the entire page with optimized waiting.
     Args:
@@ -149,6 +162,8 @@ def take_full_page_screenshot(driver, output_path):
     """)
     viewport_width = driver.execute_script("return window.innerWidth")
     viewport_height = driver.execute_script("return window.innerHeight")
+    if target_width and isinstance(target_width, int) and target_width > viewport_width:
+        viewport_width = target_width
     driver.set_window_size(viewport_width, total_height)
     time.sleep(1)
     driver.save_screenshot(output_path)
@@ -552,6 +567,20 @@ Examples:
                         help='Capture entire page as screenshot (PNG mode only, default: false)')
     parser.add_argument('--timeout-sec', type=int, default=30,
                         help='Maximum wait time in seconds (default: 30)')
+    parser.add_argument('--width', type=int, default=1920,
+                        help='Initial viewport width in pixels for PNG mode (default: 1920)')
+    parser.add_argument('--height', type=int, default=1080,
+                        help='Initial viewport height in pixels for PNG mode (default: 1080)')
+    parser.add_argument('--device-scale', type=float, default=2.0,
+                        help='Device scale factor for HiDPI screenshots (default: 2.0)')
+    parser.add_argument('--wait-css-visible', type=str,
+                        help='Wait until the given CSS selector is visible before capture')
+    parser.add_argument('--wait-css-hidden', type=str,
+                        help='Wait until the given CSS selector is hidden before capture')
+    parser.add_argument('--wait-text-selector', type=str,
+                        help='CSS selector whose textContent will be compared with --wait-text-equals')
+    parser.add_argument('--wait-text-equals', type=str,
+                        help='Text the target selector must match before capture')
     parser.add_argument('--print-text', action='store_true',
                         help='Print text content to stdout even in PNG mode')
     parser.add_argument('--keep-unknown', action='store_true',
@@ -624,6 +653,32 @@ def main():
             print(f"The page load timed out for {args.url}.", file=sys.stderr)
             sys.exit(1)
 
+        # Optional UI readiness waits (visibility/hidden/text)
+        try:
+            if getattr(args, 'wait_css_visible', None):
+                WebDriverWait(driver, args.timeout_sec).until(
+                    lambda d: d.execute_script(
+                        "var el=document.querySelector(arguments[0]);"
+                        "return !!el && el.offsetParent!==null && getComputedStyle(el).visibility!=='hidden' && getComputedStyle(el).display!=='none';",
+                        args.wait_css_visible)
+                )
+            if getattr(args, 'wait_css_hidden', None):
+                WebDriverWait(driver, args.timeout_sec).until(
+                    lambda d: d.execute_script(
+                        "var el=document.querySelector(arguments[0]);"
+                        "return !el || el.offsetParent===null || getComputedStyle(el).visibility==='hidden' || getComputedStyle(el).display==='none';",
+                        args.wait_css_hidden)
+                )
+            if getattr(args, 'wait_text_selector', None) and getattr(args, 'wait_text_equals', None):
+                WebDriverWait(driver, args.timeout_sec).until(
+                    lambda d: d.execute_script(
+                        "var el=document.querySelector(arguments[0]);"
+                        "return !!el && (el.textContent||'').trim()===arguments[1];",
+                        args.wait_text_selector, args.wait_text_equals)
+                )
+        except TimeoutException:
+            print("UI readiness wait timed out.", file=sys.stderr)
+
         # Find target element if specified
 
         element = None
@@ -644,7 +699,12 @@ def main():
                 element.screenshot(output_path)
             else:
                 if args.fullpage == 'true':
-                    take_full_page_screenshot(driver, output_path)
+                    tw = None
+                    try:
+                        tw = int(args.width)
+                    except Exception:
+                        tw = None
+                    take_full_page_screenshot(driver, output_path, target_width=tw)
                 else:
                     driver.save_screenshot(output_path)
             # Validate captured image

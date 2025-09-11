@@ -311,9 +311,25 @@ build_ruby_container() {
   # Reference assets_list.sh from the Ruby service directory
   mkdir -p "${ROOT_DIR}/services/ruby/bin/"
   
-  # build Ruby image only
+  # build Ruby image only (use cache by default)
   local dockerfile="${ROOT_DIR}/services/ruby/Dockerfile"
-  ${DOCKER} build --no-cache -f "${dockerfile}" -t yohasebe/monadic-chat:${MONADIC_VERSION} "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
+  # Compute gems fingerprint for labeling
+  local gems_hash
+  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
+    gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+  else
+    gems_hash="unknown"
+  fi
+  # Optional no-cache for diagnostics
+  local build_extra=""
+  if [ "${FORCE_RUBY_REBUILD_NO_CACHE}" = "true" ]; then
+    build_extra="--no-cache"
+  fi
+  ${DOCKER} build ${build_extra} \
+    --build-arg GEMS_FINGERPRINT="${gems_hash}" \
+    -f "${dockerfile}" \
+    -t yohasebe/monadic-chat:${MONADIC_VERSION} \
+    "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
   "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   
@@ -942,6 +958,26 @@ start_docker_compose() {
     fi
   elif [[ "$1" != "silent" ]]; then
     echo "[HTML]: <p>All containers are available. Moving on...</p>"
+  fi
+
+  # Ensure Ruby gem dependencies are up to date (fingerprint-based)
+  if command -v sha256sum >/dev/null 2>&1; then
+    if [ "$needs_full_rebuild" != true ]; then
+      # Only check when we didn't just rebuild everything
+      local gems_hash current_hash image_ref
+      if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
+        gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+        image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
+        if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
+          image_ref="yohasebe/monadic-chat:latest"
+        fi
+        current_hash=$(${DOCKER} inspect --format '{{ index .Config.Labels "com.monadic.gems_hash" }}' "${image_ref}" 2>/dev/null || true)
+        if [ -z "$current_hash" ] || [ "$current_hash" != "$gems_hash" ]; then
+          echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (dependencies changed) . . .</p>"
+          build_ruby_container
+        fi
+      fi
+    fi
   fi
 
   remove_older_images yohasebe/monadic-chat

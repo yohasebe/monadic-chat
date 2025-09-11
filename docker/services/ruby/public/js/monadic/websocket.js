@@ -2,6 +2,13 @@
 // set up the websocket
 //////////////////////////////
 
+// Respect a cookie that suppresses noisy reconnects after intentional stop
+try {
+  if (document.cookie && document.cookie.includes('silent_reconnect=true')) {
+    window.silentReconnectMode = true;
+  }
+} catch (_) {}
+
 let ws = connect_websocket();
 window.ws = ws;  // Make ws globally accessible
 let model_options;
@@ -4217,9 +4224,12 @@ let loadedApp = "Chat";
     }
     // Show message based on current mode: if Stop操作による明示停止（silentモード）なら"Stopped"、
     // それ以外は通常の Connection lost を案内
-    if (window.silentReconnectMode) {
+    if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
       const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
       setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
+      // Do not attempt reconnection in silent mode
+      try { stopPing(); } catch(_) {}
+      return;
     } else {
       const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');
       setAlert(`<i class='fa-solid fa-server'></i> ${lostText}`, "warning");
@@ -4260,6 +4270,12 @@ let reconnectionTimer = null; // Store the timer to allow cancellation
 
 // Improved WebSocket reconnection logic with proper cleanup and retry handling
 function reconnect_websocket(ws, callback) {
+  // In silent mode (intentional stop), suppress reconnection attempts
+  try {
+    if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
+      return;
+    }
+  } catch (_) {}
   // Prevent multiple reconnection attempts for the same WebSocket
   if (ws._isReconnecting) {
     console.log("Already attempting to reconnect, skipping duplicate attempt");
@@ -4370,8 +4386,11 @@ function reconnect_websocket(ws, callback) {
         
         // Update UI
         const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
-        // Clear silent mode and show connected status
-        try { window.silentReconnectMode = false; } catch(_) {}
+        // Clear silent mode and cookie when successfully connected again
+        try {
+          window.silentReconnectMode = false;
+          document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        } catch(_) {}
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
         
         // Execute callback if provided

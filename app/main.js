@@ -1635,6 +1635,19 @@ function initializeApp() {
               });
             break;
           case 'stop':
+            // Inform the embedded browser to suppress reconnect noise (show "Stopped")
+            try {
+              if (webviewWindow && !webviewWindow.isDestroyed()) {
+                webviewWindow.webContents.executeJavaScript(`
+                  try {
+                    window.silentReconnectMode = true;
+                    document.cookie = 'silent_reconnect=true; path=/';
+                  } catch(_) {}
+                `);
+              }
+            } catch (e) {
+              console.warn('Failed to set silentReconnectMode in webview:', e);
+            }
             dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped')
               .then(() => {
                 // Send reset display command after stop is complete

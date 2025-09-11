@@ -30,6 +30,10 @@ FROM ruby:3.4.1-slim-bookworm
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 
+# Fingerprint for Gem dependencies to enable smart cache/refresh
+ARG GEMS_FINGERPRINT=""
+LABEL com.monadic.gems_hash=$GEMS_FINGERPRINT
+
 RUN apt update && \
     apt install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \

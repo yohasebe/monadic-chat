@@ -26,7 +26,7 @@
     "@electron/notarize": "^3.0.1",
     "@eslint/js": "^9.11.1",
     "@jest/globals": "^29.7.0",
-    "electron": "^32.1.2",
+    "electron": ">=35.7.5",
     "electron-builder": "^25.0.5",
     "eslint": "^9.11.1",
     "eslint-plugin-node": "^11.1.0",
@@ -37,7 +37,7 @@
     "ws": "^8.17.0"
   },
   "build": {
-    "electronVersion": "32.1.2",
+    "electronVersion": "35.7.5",
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [
@@ -117,6 +117,7 @@
     }
   },
   "dependencies": {
+    "electron": ">=35.7.5",
     "dotenv": "^16.4.5",
     "electron-context-menu": "^3.6.1",
     "electron-updater": "^6.6.2"

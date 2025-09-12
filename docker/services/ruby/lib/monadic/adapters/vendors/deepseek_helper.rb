@@ -7,8 +7,10 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require 'strscan'
 require 'securerandom'
+require_relative '../base_vendor_helper'
 
 module DeepSeekHelper
+  include BaseVendorHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"

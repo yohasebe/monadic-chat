@@ -11,9 +11,11 @@ require_relative "../../utils/debug_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../monadic_provider_interface"
+require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 module OpenAIHelper
+  include BaseVendorHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler

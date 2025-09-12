@@ -5,8 +5,10 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../base_vendor_helper"
 
 module PerplexityHelper
+  include BaseVendorHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.perplexity.ai"

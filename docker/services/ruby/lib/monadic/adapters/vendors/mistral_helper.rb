@@ -9,8 +9,10 @@ require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../base_vendor_helper"
 
 module MistralHelper
+  include BaseVendorHelper
   include InteractionUtils
   include MonadicProviderInterface
   include MonadicSchemaValidator

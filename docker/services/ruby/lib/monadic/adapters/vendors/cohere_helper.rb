@@ -5,10 +5,12 @@ require_relative "../../utils/language_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
+require_relative "../base_vendor_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 
 module CohereHelper
+  include BaseVendorHelper
   include InteractionUtils
   include MonadicProviderInterface
   include MonadicSchemaValidator

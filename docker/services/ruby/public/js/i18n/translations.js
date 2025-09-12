@@ -102,6 +102,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "Tokens in all assistant messages",
       tokensInActiveMessages: "Tokens in all active messages",
       tokensInAllMessages: "Tokens in all messages",
+      tokenCount: {
+        localEstimate: "Token count is estimated locally."
+      },
       numberOfAllMessages: "Number of all messages",
       numberOfActiveMessages: "Number of active messages",
       voiceConversationOperationControl: "Voice Conversation Operation Control",
@@ -356,6 +359,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "すべてのアシスタントメッセージのトークン数",
       tokensInActiveMessages: "すべてのアクティブメッセージのトークン数",
       tokensInAllMessages: "すべてのメッセージのトークン数",
+      tokenCount: {
+        localEstimate: "トークン数はローカルで推定されています。"
+      },
       numberOfAllMessages: "すべてのメッセージ数",
       numberOfActiveMessages: "アクティブメッセージ数",
       voiceConversationOperationControl: "音声会話操作コントロール",
@@ -527,6 +533,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "所有助手消息的令牌数",
       tokensInActiveMessages: "所有活动消息的令牌数",
       tokensInAllMessages: "所有消息的令牌数",
+      tokenCount: {
+        localEstimate: "令牌计数为本地估算。"
+      },
       numberOfAllMessages: "所有消息数",
       numberOfActiveMessages: "活动消息数",
       dialog: "会话",
@@ -799,6 +808,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "모든 어시스턴트 메시지의 토큰 수",
       tokensInActiveMessages: "모든 활성 메시지의 토큰 수",
       tokensInAllMessages: "모든 메시지의 토큰 수",
+      tokenCount: {
+        localEstimate: "토큰 수는 로컬에서 추정됩니다."
+      },
       numberOfAllMessages: "모든 메시지 수",
       numberOfActiveMessages: "활성 메시지 수",
       dialog: "대화",
@@ -1043,6 +1055,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "Tokens en todos los mensajes del asistente",
       tokensInActiveMessages: "Tokens en todos los mensajes activos",
       tokensInAllMessages: "Tokens en todos los mensajes",
+      tokenCount: {
+        localEstimate: "El recuento de tokens es una estimación local."
+      },
       numberOfAllMessages: "Número de todos los mensajes",
       numberOfActiveMessages: "Número de mensajes activos",
       dialog: "Conversación",
@@ -1287,6 +1302,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "Jetons dans tous les messages assistant",
       tokensInActiveMessages: "Jetons dans tous les messages actifs",
       tokensInAllMessages: "Jetons dans tous les messages",
+      tokenCount: {
+        localEstimate: "Le nombre de jetons est estimé localement."
+      },
       numberOfAllMessages: "Nombre total de messages",
       numberOfActiveMessages: "Nombre de messages actifs",
       dialog: "Conversation",
@@ -1531,6 +1549,9 @@ const webUITranslations = {
       tokensInAssistantMessages: "Token in allen Assistentnachrichten",
       tokensInActiveMessages: "Token in allen aktiven Nachrichten",
       tokensInAllMessages: "Token in allen Nachrichten",
+      tokenCount: {
+        localEstimate: "Die Tokenzahl wird lokal geschätzt."
+      },
       numberOfAllMessages: "Anzahl aller Nachrichten",
       numberOfActiveMessages: "Anzahl aktiver Nachrichten",
       dialog: "Conversation",

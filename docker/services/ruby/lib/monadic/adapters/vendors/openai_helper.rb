@@ -2005,6 +2005,10 @@ module OpenAIHelper
     web_search_results = []
     file_search_results = []
     image_generation_status = {}
+    # Track usage reported by Responses API
+    usage_input_tokens = nil
+    usage_output_tokens = nil
+    usage_total_tokens = nil
 
     chunk_count = 0
     res.each do |chunk|
@@ -2332,6 +2336,13 @@ module OpenAIHelper
             when "response.completed", "response.done"
               # Response completed - extract final output
               response_data = json["response"] || json  # Handle both nested and flat structures
+              # Capture usage if present
+              usage = response_data["usage"] || json["usage"]
+              if usage.is_a?(Hash)
+                usage_input_tokens = usage["input_tokens"] || usage["prompt_tokens"] || usage_input_tokens
+                usage_output_tokens = usage["output_tokens"] || usage["completion_tokens"] || usage_output_tokens
+                usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
+              end
               
               
               if response_data && response_data["output"] && !response_data["output"].empty?
@@ -2497,7 +2508,6 @@ module OpenAIHelper
     if texts.any?
       complete_text = texts.values.join("")
       
-      
       response = {
         "choices" => [{
           "message" => {
@@ -2508,6 +2518,14 @@ module OpenAIHelper
         }],
         "model" => query["model"]
       }
+      # Attach usage if available
+      if usage_input_tokens || usage_output_tokens || usage_total_tokens
+        response["usage"] = {
+          "input_tokens" => usage_input_tokens,
+          "output_tokens" => usage_output_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
       
       # Add reasoning content if available
       if reasoning_content && !reasoning_content.empty?

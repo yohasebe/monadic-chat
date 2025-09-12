@@ -313,18 +313,7 @@ module MistralHelper
 
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
-    begin
-      api_key = CONFIG["MISTRAL_API_KEY"]
-      raise if api_key.nil?
-    rescue StandardError
-      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "Mistral",
-        env_var: "MISTRAL_API_KEY"
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
+    # API キー検証はユーザーメッセージ送信後に実施（UX統一）
 
     # Get parameters from session
     obj = session[:parameters]
@@ -363,7 +352,19 @@ module MistralHelper
           block&.call res
           session[:messages] << res["content"]
         end
-      end
+    end
+
+    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    api_key = CONFIG["MISTRAL_API_KEY"]
+    unless api_key && !api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Mistral",
+        env_var: "MISTRAL_API_KEY"
+      )
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
+    end
     end
 
     # Old messages in the session are set to inactive
@@ -718,6 +719,10 @@ module MistralHelper
     last_tool_use_start_idx = nil
     error_buffer = []
     finish_reason = nil
+    # Track usage if present (rare in streaming)
+    usage_prompt_tokens = nil
+    usage_completion_tokens = nil
+    usage_total_tokens = nil
 
     res.body.each do |chunk|
       # Handle encoding issues
@@ -757,6 +762,13 @@ module MistralHelper
           if json["error"]
             error_buffer << json["error"]["message"] || "Unknown error"
             next
+          end
+
+          # Capture usage if present on this chunk
+          if json["usage"].is_a?(Hash)
+            usage_prompt_tokens = json.dig("usage", "prompt_tokens") || usage_prompt_tokens
+            usage_completion_tokens = json.dig("usage", "completion_tokens") || usage_completion_tokens
+            usage_total_tokens = json.dig("usage", "total_tokens") || usage_total_tokens
           end
 
           # Extract content from delta if present
@@ -986,6 +998,15 @@ module MistralHelper
         }
       ]
     }
+
+    # Attach usage if captured
+    if usage_prompt_tokens || usage_completion_tokens || usage_total_tokens
+      response["usage"] = {
+        "prompt_tokens" => usage_prompt_tokens,
+        "completion_tokens" => usage_completion_tokens,
+        "total_tokens" => usage_total_tokens
+      }.compact
+    end
 
     # Add thinking if collected
     if thinking && !thinking.empty?

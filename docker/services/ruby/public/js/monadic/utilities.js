@@ -296,6 +296,7 @@ function listModels(models, openai = false) {
       <div class="json-item" data-key="stats" data-depth="0">
       <div class="json-toggle" onclick="toggleItem(this)">
       <i class="fas fa-chevron-right"></i> <span class="toggle-text">${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.clickToToggle') : 'click to toggle'}</span>
+      <span class="ms-2" title="${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokenCount.localEstimate') : 'Token count is estimated locally.'}"><i class="fas fa-info-circle"></i></span>
       </div>
       <div class="json-content" style="display: none;">
       <table class="table table-sm mb-0">

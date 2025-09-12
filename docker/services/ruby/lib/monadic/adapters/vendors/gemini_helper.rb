@@ -603,20 +603,6 @@ module GeminiHelper
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
 
-    begin
-      api_key = CONFIG["GEMINI_API_KEY"]
-      raise if api_key.nil?
-    rescue StandardError
-      # ERROR: GEMINI_API_KEY not found. Please set the GEMINI_API_KEY environment variable in the ~/monadic/config/env file.
-      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "Gemini",
-        env_var: "GEMINI_API_KEY"
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
-
     # Get the parameters from the session
     obj = session[:parameters]
     app = obj["app_name"]
@@ -684,6 +670,18 @@ module GeminiHelper
         session[:messages] << res["content"]
         block&.call res
       end
+    end
+
+    # After echoing the user message, validate API key and return a clear error if missing
+    api_key = CONFIG["GEMINI_API_KEY"]
+    unless api_key && !api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Gemini",
+        env_var: "GEMINI_API_KEY"
+      )
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Old messages in the session are set to inactive
@@ -1335,6 +1333,10 @@ module GeminiHelper
     finish_reason = nil
     @grounding_html = nil  # Store grounding metadata HTML to append to response
     @url_context_html = nil  # Store URL context metadata HTML to append to response
+    # Track usage metadata if provider returns it (non-streaming often)
+    usage_prompt_tokens = nil
+    usage_candidates_tokens = nil
+    usage_total_tokens = nil
 
     # Convert the HTTP::Response::Body to a string and then process line by line
     res.each_line do |chunk|
@@ -1378,6 +1380,16 @@ module GeminiHelper
                 end
               end
             end
+          end
+
+          # Capture usage metadata if available
+          # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
+          usage_md = json_obj["usageMetadata"] || json_obj["usage_metadata"]
+          if usage_md.is_a?(Hash)
+            usage_prompt_tokens = usage_md["promptTokenCount"] || usage_md["prompt_tokens"] || usage_prompt_tokens
+            usage_candidates_tokens = usage_md["candidatesTokenCount"] || usage_md["completion_tokens"] || usage_candidates_tokens
+            # Some variants include totalTokenCount
+            usage_total_tokens = usage_md["totalTokenCount"] || (usage_prompt_tokens.to_i + usage_candidates_tokens.to_i if usage_prompt_tokens && usage_candidates_tokens) || usage_total_tokens
           end
 
           candidates = json_obj["candidates"]
@@ -2099,6 +2111,15 @@ module GeminiHelper
           }
         ]
       }
+
+      # Attach normalized usage if available
+      if usage_prompt_tokens || usage_candidates_tokens || usage_total_tokens
+        response_data["usage"] = {
+          "input_tokens" => usage_prompt_tokens,
+          "output_tokens" => usage_candidates_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
       
       # Don't add thinking content to final response 
       # (it's already been streamed to the user during processing)

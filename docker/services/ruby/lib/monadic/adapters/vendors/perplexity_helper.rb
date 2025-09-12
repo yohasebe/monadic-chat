@@ -309,16 +309,7 @@ module PerplexityHelper
     end
     
     
-    unless api_key && !api_key.empty?
-      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "Perplexity",
-        env_var: "PERPLEXITY_API_KEY"
-      )
-      pp error_message
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return [res]
-    end
+    # API キー検証はユーザーメッセージ送信後に行う（UX整合）
     
     # Process the API request
 
@@ -374,6 +365,18 @@ module PerplexityHelper
         block&.call res
         session[:messages] << res["content"]
       end
+    end
+
+    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    unless api_key && !api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Perplexity",
+        env_var: "PERPLEXITY_API_KEY"
+      )
+      pp error_message
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return [res]
     end
 
     # Old messages in the session are set to inactive
@@ -919,6 +922,10 @@ module PerplexityHelper
     current_json = nil
     stopped = false
     json = nil
+    # Track usage from provider (often sent in the first chunk)
+    usage_prompt_tokens = nil
+    usage_completion_tokens = nil
+    usage_total_tokens = nil
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -947,6 +954,12 @@ module PerplexityHelper
               started = true
               extra_log.puts("\n[#{Time.now}] First Perplexity response chunk:")
               extra_log.puts(JSON.pretty_generate(json))
+              # Capture usage metrics if present on first chunk
+              if json["usage"]
+                usage_prompt_tokens = json.dig("usage", "prompt_tokens")
+                usage_completion_tokens = json.dig("usage", "completion_tokens")
+                usage_total_tokens = json.dig("usage", "total_tokens")
+              end
               # Check for citations in the response
               if json.dig("citations") || json.dig("sources") || json.dig("urls")
                 extra_log.puts("CITATIONS/SOURCES FOUND in response")
@@ -1330,6 +1343,15 @@ module PerplexityHelper
       text_result["choices"][0]["text"] = text_result["choices"][0]["message"]["content"]
       
       
+      # Attach usage if captured so downstream can avoid tokenizer calls
+      if usage_prompt_tokens || usage_completion_tokens || usage_total_tokens
+        text_result["usage"] = {
+          "prompt_tokens" => usage_prompt_tokens,
+          "completion_tokens" => usage_completion_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
+
       # Send DONE message after all processing is complete, not before
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res

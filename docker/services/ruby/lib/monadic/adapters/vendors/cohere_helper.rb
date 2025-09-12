@@ -718,19 +718,7 @@ module CohereHelper
     empty_tool_results = role == "empty_tool_results"
     num_retrial = 0
 
-    # Verify API key existence
-    begin
-      api_key = CONFIG["COHERE_API_KEY"]
-      raise if api_key.nil?
-    rescue StandardError
-      pp error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "Cohere",
-        env_var: "COHERE_API_KEY"
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
+    # Defer API キー検証はユーザーメッセージ送信後に行う（UX整合）
 
     # Get the parameters from the session
     obj = session[:parameters]
@@ -789,6 +777,18 @@ module CohereHelper
         block&.call res
         session[:messages] << res["content"]
       end
+    end
+
+    # ユーザーカード送信後に API キーを検証し、未設定なら明示エラーで終了
+    api_key = CONFIG["COHERE_API_KEY"]
+    unless api_key && !api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Cohere",
+        env_var: "COHERE_API_KEY"
+      )
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     # Initialize and manage message context
@@ -1386,6 +1386,10 @@ module CohereHelper
     current_tool_call = nil
     accumulated_tool_calls = []
     citations = []  # Store citation data
+    # Track usage metrics if present in streaming deltas
+    usage_input_tokens = nil
+    usage_output_tokens = nil
+    usage_total_tokens = nil
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -1532,6 +1536,13 @@ module CohereHelper
                     f.puts "=== END ERROR ===\n"
                   end
                 end
+                # Capture usage if present on message-end
+                if json["delta"]["usage"].is_a?(Hash)
+                  usage = json["delta"]["usage"]
+                  usage_input_tokens = usage["prompt_tokens"] || usage["input_tokens"] || usage_input_tokens
+                  usage_output_tokens = usage["completion_tokens"] || usage["output_tokens"] || usage_output_tokens
+                  usage_total_tokens = usage["total_tokens"] || (usage_input_tokens.to_i + usage_output_tokens.to_i if usage_input_tokens && usage_output_tokens) || usage_total_tokens
+                end
               end
             end
           rescue JSON::ParserError => e
@@ -1610,6 +1621,15 @@ module CohereHelper
         res = { "choices" => [{ "message" => { "content" => result } }] }
       end
       
+      # Attach usage if captured to result
+      if res.is_a?(Hash) && res["choices"].is_a?(Array) && (usage_input_tokens || usage_output_tokens || usage_total_tokens)
+        res["usage"] = {
+          "input_tokens" => usage_input_tokens,
+          "output_tokens" => usage_output_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
+
       # Send the result
       block&.call res
       
@@ -1642,7 +1662,7 @@ module CohereHelper
         res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
         block&.call res
         
-        [
+        response = [
           {
             "choices" => [
               {
@@ -1652,6 +1672,15 @@ module CohereHelper
             ]
           }
         ]
+        # Attach usage if captured
+        if usage_input_tokens || usage_output_tokens || usage_total_tokens
+          response[0]["usage"] = {
+            "input_tokens" => usage_input_tokens,
+            "output_tokens" => usage_output_tokens,
+            "total_tokens" => usage_total_tokens
+          }.compact
+        end
+        response
       else
         # No text content (only thinking or genuinely empty response)
         # Check if this was a reasoning model with thinking content

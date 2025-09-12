@@ -1483,6 +1483,8 @@ post "/load" do
             "mid" => mid, 
             "active" => true 
           }
+          # Preserve token count if present in import (for accurate stats without recomputation)
+          message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           
           # Add optional fields if present
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
@@ -1523,6 +1525,7 @@ post "/load" do
             html = text
           end
           message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+          message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
           message_obj["images"] = msg["images"] if msg["images"]
           message_obj

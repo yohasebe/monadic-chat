@@ -370,6 +370,7 @@ module ClaudeHelper
     )
   end
 
+  public
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
     
@@ -383,20 +384,8 @@ module ClaudeHelper
       extra_log.close
     end
 
-    begin
-      # First check CONFIG, then ENV for API key
-      api_key = CONFIG["ANTHROPIC_API_KEY"]
-      
-      raise if api_key.nil?
-    rescue StandardError => e
-      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "Claude",
-        env_var: "ANTHROPIC_API_KEY"
-      )
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
+    # Load API key (do not fail yet; we first echo the user message for UX consistency)
+    api_key = CONFIG["ANTHROPIC_API_KEY"]
 
     # Get the parameters from the session
     obj = session[:parameters]
@@ -524,6 +513,42 @@ module ClaudeHelper
 
     message = obj["message"].to_s
 
+    # Push the user message to the client as early as possible so the
+    # Web UI always shows the user's card even if later steps fail.
+    if message != "" && role == "user"
+      @thinking = nil
+      @signature = nil
+      res = { "type" => "user",
+              "content" => {
+                "role" => role,
+                "mid" => request_id,
+                "text" => obj["message"],
+                "html" => markdown_to_html(obj["message"]),
+                "lang" => detect_language(obj["message"]),
+                "active" => true
+              } }
+
+      res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
+      block&.call res
+      session[:messages] << res["content"]
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude: user message pushed early (mid=#{request_id})")
+        extra_log.close
+      end
+    end
+
+    # After echoing user message, validate API key and bail out with a clear error if missing
+    if api_key.nil? || api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "Claude",
+        env_var: "ANTHROPIC_API_KEY"
+      )
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
+    end
+
     # Store the original max_tokens value
     user_max_tokens = max_tokens
     
@@ -564,23 +589,7 @@ module ClaudeHelper
       budget_tokens = (max_tokens * 0.8).to_i
     end
 
-    if message != "" && role == "user"
-      @thinking = nil
-      @signature = nil
-      res = { "type" => "user",
-              "content" => {
-                "role" => role,
-                "mid" => request_id,
-                "text" => obj["message"],
-                "html" => markdown_to_html(obj["message"]),
-                "lang" => detect_language(obj["message"]),
-                "active" => true
-              } }
-
-      res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-      block&.call res
-      session[:messages] << res["content"]
-    end
+    # (user message already pushed earlier)
 
     # Set old messages in the session to inactive
     # and add active messages to the context
@@ -1063,6 +1072,10 @@ module ClaudeHelper
     tool_calls = []
     finish_reason = nil
     chunk_count = 0
+    # Track usage tokens reported by Anthropic streaming
+    usage_input_tokens = nil
+    usage_output_tokens = nil
+    usage_total_tokens = nil
 
     content_type = "text"
 
@@ -1098,6 +1111,23 @@ module ClaudeHelper
 
             if CONFIG["EXTRA_LOGGING"]
               extra_log.puts(JSON.pretty_generate(json))
+            end
+
+            # Capture usage from message lifecycle events
+            if json.dig("type") == "message_start"
+              usage = json.dig("message", "usage")
+              if usage
+                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
+              end
+            elsif json.dig("type") == "message_delta"
+              usage = json["usage"]
+              if usage
+                usage_input_tokens = usage["input_tokens"] if usage.key?("input_tokens")
+                usage_output_tokens = usage["output_tokens"] if usage.key?("output_tokens")
+                usage_total_tokens = (usage_input_tokens.to_i + usage_output_tokens.to_i) if usage_input_tokens && usage_output_tokens
+              end
             end
 
             if json.dig("type") == "content_block_stop"
@@ -1363,7 +1393,7 @@ module ClaudeHelper
       block&.call res
 
       # Return final response
-      [
+      result = [
         {
           "choices" => [
             {
@@ -1376,6 +1406,16 @@ module ClaudeHelper
           ]
         }
       ]
+
+      # Attach usage summary if available so downstream can consume without tokenizer
+      if usage_input_tokens || usage_output_tokens
+        result[0]["usage"] = {
+          "input_tokens" => usage_input_tokens,
+          "output_tokens" => usage_output_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
+      result
     end
   end
 

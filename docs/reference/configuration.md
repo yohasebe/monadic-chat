@@ -32,6 +32,7 @@ This page provides a comprehensive reference for all configuration options in Mo
 |----------|-------------|---------|---------|
 | `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `gpt-4o-mini` | `gpt-4o` |
 | `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `claude-3-5-sonnet-20241022` | `claude-3-5-haiku-20241022` |
+| `TOKEN_COUNT_SOURCE` | Token counting source policy | `python_only` | `provider_only` / `hybrid` |
 | `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `gemini-2.0-flash-exp` | `gemini-1.5-pro` |
 | `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `mistral-small-latest` | `mistral-large-latest` |
 | `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `command-r` | `command-r-plus` |

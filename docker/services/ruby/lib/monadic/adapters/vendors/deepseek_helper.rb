@@ -375,19 +375,7 @@ module DeepSeekHelper
 
     num_retrial = 0
 
-    begin
-      api_key = CONFIG["DEEPSEEK_API_KEY"]
-      raise if api_key.nil?
-    rescue StandardError
-      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
-        provider: "DeepSeek",
-        env_var: "DEEPSEEK_API_KEY"
-      )
-      pp error_message
-      res = { "type" => "error", "content" => error_message }
-      block&.call res
-      return []
-    end
+    # API キー検証はユーザーメッセージ送信後に実施（UX整合）
 
     obj = session[:parameters]
     app = obj["app_name"]
@@ -433,6 +421,19 @@ module DeepSeekHelper
         block&.call res
         session[:messages] << res["content"]
       end
+    end
+
+    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    api_key = CONFIG["DEEPSEEK_API_KEY"]
+    unless api_key && !api_key.to_s.strip.empty?
+      error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+        provider: "DeepSeek",
+        env_var: "DEEPSEEK_API_KEY"
+      )
+      pp error_message
+      res = { "type" => "error", "content" => error_message }
+      block&.call res
+      return []
     end
 
     session[:messages].each { |msg| msg["active"] = false }
@@ -721,6 +722,10 @@ module DeepSeekHelper
     texts = {}
     tools = {}
     finish_reason = nil
+    # Track usage tokens from final chunk
+    usage_prompt_tokens = nil
+    usage_completion_tokens = nil
+    usage_total_tokens = nil
 
     chunk_count = 0
     res.each do |chunk|
@@ -776,6 +781,13 @@ module DeepSeekHelper
                 DebugHelper.debug("DeepSeek detected tool_calls finish reason", category: :api, level: :debug)
               else
                 finish_reason = nil
+              end
+
+              # Capture usage if present on this chunk (DeepSeek sends at the end)
+              if json["usage"]
+                usage_prompt_tokens = json.dig("usage", "prompt_tokens") || usage_prompt_tokens
+                usage_completion_tokens = json.dig("usage", "completion_tokens") || usage_completion_tokens
+                usage_total_tokens = json.dig("usage", "total_tokens") || usage_total_tokens
               end
 
               # Process text content
@@ -1030,6 +1042,14 @@ module DeepSeekHelper
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
+      # Attach usage if captured so WebSocket can set assistant tokens without tokenizer
+      if usage_prompt_tokens || usage_completion_tokens || usage_total_tokens
+        text_result["usage"] = {
+          "prompt_tokens" => usage_prompt_tokens,
+          "completion_tokens" => usage_completion_tokens,
+          "total_tokens" => usage_total_tokens
+        }.compact
+      end
       [text_result]
     else
       # Return done message if no result

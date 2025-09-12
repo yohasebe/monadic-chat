@@ -894,6 +894,25 @@ module WebSocketHelper
 
               new_data["thinking"] = thinking if thinking
 
+              # Optional: Use provider-reported usage to set assistant tokens
+              # This is disabled by default to avoid confusion and keep a
+              # single source of truth (tiktoken/Flask) for token counting.
+              # Enable via CONFIG["TOKEN_COUNT_SOURCE"] = "provider_only" or "hybrid".
+              begin
+                source = (defined?(CONFIG) && CONFIG && CONFIG["TOKEN_COUNT_SOURCE"]) ? CONFIG["TOKEN_COUNT_SOURCE"].to_s.downcase : ""
+                provider_usage_enabled = %w[provider_only hybrid].include?(source)
+              rescue
+                provider_usage_enabled = false
+              end
+
+              if provider_usage_enabled
+                usage = last_one["usage"] || last_one.dig("choices", 0, "usage")
+                if usage && usage.is_a?(Hash)
+                  tokens = usage["output_tokens"] || usage["completion_tokens"]
+                  new_data["tokens"] = tokens.to_i if tokens
+                end
+              end
+
               @channel.push({
                 "type" => "html",
                 "content" => new_data

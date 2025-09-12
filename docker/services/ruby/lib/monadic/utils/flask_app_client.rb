@@ -9,11 +9,13 @@ class FlaskAppClient
   
   # Determine base URL based on environment
   BASE_URL = if Monadic::Utils::Environment.in_container?
-               # Inside Docker container, use service name
-               "http://python_service:5070"
+               # Inside Docker container, use service name and configured port
+               "http://python_service:#{PYTHON_PORT}"
              else
-               # Local development, use localhost
-               "http://0.0.0.0:5070"
+               # Local development: connect to loopback, not 0.0.0.0 (listen addr)
+               # 0.0.0.0 はサーバのバインド用であり、クライアント接続先としては不適切
+               host = (defined?(CONFIG) && CONFIG["PYTHON_HOST"]) || "127.0.0.1"
+               "http://#{host}:#{PYTHON_PORT}"
              end
 
   def initialize(model_name = "gpt-3.5-turbo")

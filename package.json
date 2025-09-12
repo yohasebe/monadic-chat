@@ -117,7 +117,6 @@
     }
   },
   "dependencies": {
-    "electron": ">=35.7.5",
     "dotenv": "^16.4.5",
     "electron-context-menu": "^3.6.1",
     "electron-updater": "^6.6.2"

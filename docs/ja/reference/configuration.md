@@ -34,7 +34,7 @@
 | `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `claude-3-5-sonnet-20241022` | `claude-3-5-haiku-20241022` |
 | `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `gemini-2.0-flash-exp` | `gemini-1.5-pro` |
 | `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `mistral-small-latest` | `mistral-large-latest` |
-| `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `command-r` | `command-r-plus` |
+| `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `command-a-03-2025` | `command-r-plus-08-2024` |
 | `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `grok-2-latest` | `grok-beta` |

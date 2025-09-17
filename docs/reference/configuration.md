@@ -35,7 +35,7 @@ This page provides a comprehensive reference for all configuration options in Mo
 | `TOKEN_COUNT_SOURCE` | Token counting source policy | `python_only` | `provider_only` / `hybrid` |
 | `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `gemini-2.0-flash-exp` | `gemini-1.5-pro` |
 | `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `mistral-small-latest` | `mistral-large-latest` |
-| `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `command-r` | `command-r-plus` |
+| `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `command-a-03-2025` | `command-r-plus-08-2024` |
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `llama-3.1-sonar-small-128k-online` | `llama-3.1-sonar-large-128k-online` |
 | `XAI_DEFAULT_MODEL` | Default model for Grok apps | `grok-2-latest` | `grok-beta` |

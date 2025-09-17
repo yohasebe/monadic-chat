@@ -1197,7 +1197,7 @@ module MonadicDSL
                     default_model = case provider_name
                                     when /anthropic|claude/ then "claude-3-5-sonnet-20241022"
                                     when /openai|gpt/ then "gpt-4.1"
-                                    when /cohere|command/ then "command-r-plus"
+                                    when /cohere|command/ then "command-a-03-2025"
                                     when /gemini|google/ then "gemini-2.0-flash"
                                     when /mistral/ then "mistral-large-latest"
                                     when /grok|xai/ then "grok-2"

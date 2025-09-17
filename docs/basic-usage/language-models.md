@@ -208,9 +208,8 @@ GEMINI_API_KEY=api_key
 By setting the Cohere API key, you can use apps that utilize Cohere's models.
 
 ### Available Models
-- **Command A Series**: command-a-03-2025 (latest), command-a-vision-07-2025 (vision capability)
-- **Command R Series**: command-r-plus-08-2024, command-r-08-2024
-- **Command Series**: command, command-light
+- **Command A Series**: command-a-03-2025 (latest), command-a-vision-07-2025 (vision capability), command-a-reasoning-08-2025 (reasoning), command-a-translate-08-2025 (translate)
+- **Command R Series**: command-r-plus-08-2024
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 

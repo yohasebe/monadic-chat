@@ -208,9 +208,8 @@ GEMINI_API_KEY=api_key
 CohereのAPIキーを設定すると、Cohereのモデルを用いたアプリを使用することができます。
 
 ### 利用可能なモデル
-- **Command Aシリーズ**: command-a-03-2025（最新）、command-a-vision-07-2025（ビジョン機能）
-- **Command Rシリーズ**: command-r-plus-08-2024、command-r-08-2024
-- **Commandシリーズ**: command、command-light
+- **Command Aシリーズ**: command-a-03-2025（最新）、command-a-vision-07-2025（ビジョン対応）、command-a-reasoning-08-2025（推論）、command-a-translate-08-2025（翻訳）
+- **Command Rシリーズ**: command-r-plus-08-2024
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 

@@ -97,3 +97,5 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+docs_dev/test_runs/
+docs_dev/memos/

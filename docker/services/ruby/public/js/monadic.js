@@ -1404,9 +1404,12 @@ $(function () {
     // Always align params.group to the selected app's group to avoid stale provider labels
     params["group"] = apps[appValue]["group"];
     
-    // Only set initiate_from_assistant to false if the app explicitly defines it as false
-    // Don't override if it's already been set by setParams()
-    if (apps[appValue] && apps[appValue].hasOwnProperty('initiate_from_assistant') && apps[appValue]['initiate_from_assistant'] === false) {
+    // Align initiate_from_assistant with the newly selected app.
+    const importingFlow = (typeof window !== 'undefined' && window.isImporting);
+    if (apps[appValue] && Object.prototype.hasOwnProperty.call(apps[appValue], 'initiate_from_assistant')) {
+      params['initiate_from_assistant'] = !!apps[appValue]['initiate_from_assistant'];
+    } else if (!importingFlow) {
+      // Default back to user-first conversations when the app does not specify the flag.
       params['initiate_from_assistant'] = false;
     }
     // Restore mathjax state if not explicitly set in app parameters

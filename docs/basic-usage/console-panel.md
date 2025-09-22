@@ -180,7 +180,7 @@ Select the theme for code syntax highlighting. The default is `pastie`.
 ![Settings Panel](../assets/images/settings-voice.png ':size=600')
 
 **STT_MODEL** <br />
-Select the model used for speech-to-text. Available models include `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` and `whisper-1`. The default is `gpt-4o-transcribe`.
+Select the model used for speech-to-text. The dropdown lists the STT models exposed by your configured providers (for example, OpenAI Whisper or transcribe models). Refer to the provider documentation for current options.
 
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.

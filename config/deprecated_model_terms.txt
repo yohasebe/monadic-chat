@@ -1,0 +1,22 @@
+# Terms that should not appear in documentation/translations.
+# Use lowercase for consistency; matching is case-insensitive.
+# Lines starting with # are ignored.
+
+# Deprecated Cohere models
+command-r
+command-r-plus
+command-r7b
+
+# Deprecated Grok models
+grok-3
+grok-4-latest
+
+# Deprecated OpenAI variants
+gpt-4o-search
+gpt-4o-2024-11-20
+gpt-4o-realtime
+gpt-4o-realtime-preview
+gpt-5
+
+# Legacy phrasing to avoid
+gp4-series

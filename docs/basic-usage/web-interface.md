@@ -147,9 +147,9 @@ When on, pressing the Enter key on the keyboard automatically sends the message 
 
 **Web Search**<br />
 When enabled, allows the AI to search the web for current information. This option is only available for models that support tool/function calling. The search behavior depends on the provider:
-- OpenAI (gpt-4.1/gpt-4.1-mini): Uses native web search via Responses API
-- Other providers: Uses Tavily API when configured
-- The AI decides when to search based on the query context
+- OpenAI models that support the Responses API's native search will use it automatically (see <https://platform.openai.com/docs/guides/reasoning/knowledge-retrieval>). Others fall back to the Tavily integration when configured.
+- For providers without native search, configure a Tavily API key so Monadic can issue external lookups where allowed.
+- The AI decides when to search based on the query context.
 
 
 **Start Session / Continue Session** <br />
@@ -204,26 +204,17 @@ Clicking the `Export` button saves the current settings and conversation data to
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
 **Text-to-Speech Provider**<br />
-Select the provider used for speech synthesis. You can choose between:
-- OpenAI (4o TTS, TTS, or TTS HD) - requires an OpenAI API key
-- ElevenLabs - requires an ElevenLabs API key
-- Gemini Flash TTS - requires a Gemini API key (uses gemini-2.5-flash-preview-tts model)
-- Gemini Pro TTS - requires a Gemini API key (uses gemini-2.5-pro-preview-tts model)
-- Web Speech API - uses your browser's built-in speech synthesis (no API key required)
+Select the provider used for speech synthesis. Monadic exposes the providers you have configured (for example, OpenAI Text-to-Speech, ElevenLabs, Gemini TTS, or the browser's Web Speech API). Refer to each provider's documentation for the latest model variants, required API keys, and capabilities.
 
 **Text-to-Speech Voice**<br />
-You can specify the voice used for speech synthesis. Available voices depend on the selected provider:
-- For OpenAI: Select from their predefined voice set (Alloy, Echo, Fable, etc.)
-- For ElevenLabs: Choose from your available ElevenLabs voices
-- For Gemini: Select from 8 available voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr)
-- For Web Speech API: Select from your system's available voices (varies by browser/operating system)
+You can specify the voice used for speech synthesis. Available voices depend on the selected provider; consult the provider's documentation or interface for the latest options. When using the Web Speech API, the list of voices depends on your browser and operating system.
 
 **Text-to-Speech Speed**<br />
-You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality when playing back text at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
+You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). Actual quality and supported ranges depend on the selected provider; consult provider documentation for guidance. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
 
 **Speech-to-Text (STT) Language**<br />
-Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the console settings (gpt-4o-transcribe by default).
-Reference: [Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
+Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the console settings; refer to the provider documentation for current model offerings.
+Reference: [OpenAI Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 
 ## PDF Database Display Panel :id=pdf-database-display-panel

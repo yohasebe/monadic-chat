@@ -246,7 +246,7 @@ app "MermaidGrapherOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4o-2024-11-20"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
     temperature 0.0
   end
   

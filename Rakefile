@@ -160,6 +160,15 @@ task :stop => "server:stop"
 desc "Show server status (alias for server:status)"
 task :status => "server:status"
 
+namespace :lint do
+  desc "Check docs/translations for deprecated model names"
+  task :deprecated_models do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('npm run lint:deprecated-models') || abort('Deprecated model lint failed')
+    end
+  end
+end
+
 # Define the list of files that should have consistent version numbers
 def version_files
   # Static files that always need version updates

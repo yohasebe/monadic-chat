@@ -16,13 +16,13 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 | DeepSeek | ❌ | ✅ | ✅⁴ |
 | Ollama | ❓ Model dependent⁸ | ❓ Model dependent⁸ | ✅⁴ |
 
-¹ Except o1, o1-mini, o3-mini  
-² Native web search for gpt-4.1/gpt-4.1-mini via Responses API, others use Tavily when available  
-³ Haiku models don't support vision  
-⁴ Web search via Tavily API (requires `TAVILY_API_KEY`)  
-⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
-⁶ grok-4-fast-reasoning / grok-4-fast-non-reasoning / grok-2-vision  
-⁷ command-a-vision models only  
+¹ Vision availability varies by OpenAI model family; refer to <https://platform.openai.com/docs/models> for specifics.  
+² Native web search for providers with built-in support; others can use Tavily when configured.  
+³ Anthropic indicates vision support per model at <https://docs.anthropic.com/claude/docs/models-overview>.  
+⁴ Web search via Tavily API (requires `TAVILY_API_KEY`).  
+⁵ Vision-capable models for Mistral are documented at <https://docs.mistral.ai/>.  
+⁶ xAI publishes Grok model details (including vision support) at <https://docs.x.ai/docs/models>.  
+⁷ Cohere outlines vision-enabled variants at <https://docs.cohere.com/docs/models>.  
 ⁸ Depends on specific model capabilities
 
 ## Default Models Configuration
@@ -33,7 +33,7 @@ You can configure default models for each provider by setting configuration vari
 # Default models for each provider
 OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
-COHERE_DEFAULT_MODEL=command-r-plus
+COHERE_DEFAULT_MODEL=command-a-03-2025
 GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
 GROK_DEFAULT_MODEL=grok-4-fast-reasoning
@@ -89,41 +89,30 @@ The reasoning/thinking selector in the Web UI intelligently adapts to each provi
 | Google | Thinking Mode | minimal, low, medium, high | Adjusts reasoning dial for Gemini 2.5 preview models |
 | xAI | Reasoning Effort | low, medium, high | Controls Grok's reasoning depth (no minimal option) |
 | DeepSeek | Reasoning Mode | Off (minimal), On (medium) | Enables/disables step-by-step reasoning |
-| Perplexity | Research Depth | minimal, low, medium, high | Controls web search and analysis depth for R1 models |
+| Perplexity | Research Depth | minimal, low, medium, high | Controls web search and analysis depth for Sonar models |
 
 ### Provider-Specific Reasoning Models
 
 #### OpenAI Reasoning Models
-- **O1 Series**: o1, o1-mini, o1-preview, o1-pro
-- **O3 Series**: o3, o3-pro
-- **O4 Series**: o4-mini
-- Use `reasoning_effort` parameter instead of temperature settings
+See <https://platform.openai.com/docs/guides/reasoning> for the latest reasoning-capable models. When a selected model supports reasoning, Monadic exposes the appropriate controls automatically.
 
 #### Anthropic Thinking Models
-- **Claude 4.0 Series**: claude-opus-4, claude-sonnet-4
-- Support thinking process with configurable token budget
-- Thinking budget ranges from 1024 (minimal) to 25000+ (high) tokens
+Refer to <https://docs.anthropic.com/claude/docs/thinking-with-claude> for details on Claude thinking budgets. Monadic maps the provider's settings to the UI automatically.
 
 #### Google Thinking Models
-- **Gemini 2.5 Preview Series**: gemini-2.5-flash-preview, gemini-2.5-pro-preview
-- **Gemini 2.0 Thinking**: gemini-2.0-flash-thinking-exp
-- Advanced reasoning with adjustable computing budget
+Consult <https://ai.google.dev/gemini-api/docs/reasoning> for Gemini reasoning capabilities. Supported models expose the reasoning selector in Monadic.
 
 #### xAI Grok Reasoning
-- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro
-- Supports reasoning_effort parameter (low, medium, high)
+Consult xAI's guidance for Grok reasoning capabilities. When a selected Grok model supports reasoning, Monadic exposes the `reasoning_effort` selector (low/medium/high) automatically.
 
 #### DeepSeek Reasoning
-- **deepseek-reasoner**: Dedicated reasoning model
-- Simple on/off control for step-by-step reasoning
+DeepSeek's official guidance covers the reasoning features available in their models. Monadic toggles reasoning mode automatically when the chosen model supports it.
 
 #### Perplexity Research Models
-- **Sonar Reasoning**: sonar-reasoning, sonar-reasoning-pro (recommended replacement for the retired R1 series)
-- Controls depth of web search and analysis
+Perplexity documents research depth options for Sonar at <https://docs.perplexity.ai/docs/model-cards>. Monadic maps those options to the unified selector.
 
 #### Mistral Reasoning Models
-- **Magistral Series**: magistral-medium, magistral-small
-- Multilingual reasoning capabilities (French, German, Spanish, Italian, etc.)
+Review Mistral's reasoning lineup in their documentation; Monadic surfaces the appropriate controls for supported models.
 
 ### Automatic Feature Detection
 
@@ -143,11 +132,8 @@ The Web UI automatically:
 
 Monadic Chat uses OpenAI's language models to provide features such as chat, speech recognition, speech synthesis, image generation, and video recognition. Therefore, it is recommended to set the OpenAI API key. However, if the model you want to use in the chat is not an OpenAI model, it is not necessary to set the OpenAI API key.
 
-### Available Models
-- **GPT-4.5 Series**: gpt-4.5-preview, gpt-4.5-preview-2025-02-27
-- **GPT-4.1 Series**: gpt-4.1, gpt-4.1-mini, gpt-4.1-nano (1M+ context window)
-- **GPT-4o Series**: gpt-4o, gpt-4o-mini, gpt-4o-audio-preview
-- **Reasoning Models**: o1, o1-mini, o1-pro, o3, o3-mini, o3-pro, o4-mini
+### Model Selection Guidance
+OpenAI frequently updates its catalogue. Refer to <https://platform.openai.com/docs/models> for the latest lineup and configure `OPENAI_DEFAULT_MODEL` as needed (Monadic defaults to `gpt-4.1`).
 
 Once the OpenAI API key is set, it is saved in the `~/monadic/config/env` file in the following format:
 
@@ -165,10 +151,8 @@ For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.
 
 By setting the Anthropic API key, you can use apps that utilize Claude.
 
-### Available Models
-- **Claude 4.0 Series**: claude-opus-4, claude-sonnet-4 (latest generation with reasoning)
-- **Claude 3.5 Series**: claude-3-5-sonnet-20241022, claude-3-5-haiku-20250122
-- **Claude 3 Series**: claude-3-opus, claude-3-sonnet, claude-3-haiku
+### Model Selection Guidance
+See <https://docs.anthropic.com/claude/docs/models-overview> for Anthropic's current models and set `ANTHROPIC_DEFAULT_MODEL` accordingly.
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -184,15 +168,8 @@ ANTHROPIC_API_KEY=api_key
 
 By setting the Google Gemini API key, you can use apps that utilize Gemini.
 
-### Available Models
-- **Gemini 2.5 Series**: 
-  - gemini-2.5-flash, gemini-2.5-pro (with adjustable reasoning dial)
-  - gemini-2.5-flash-preview-05-20, gemini-2.5-pro-exp-03-25 (experimental)
-  - Deep Think mode available for enhanced reasoning
-- **Gemini 2.0 Series**: 
-  - gemini-2.0-flash, gemini-2.0-flash-thinking-exp (thinking/reasoning models)
-  - 1M token context window
-- **Imagen 3**: imagen-3.0-generate-002 (for image generation)
+### Model Selection Guidance
+Google maintains the authoritative Gemini model list at <https://ai.google.dev/gemini-api/docs/models>. Choose the appropriate model via `GEMINI_DEFAULT_MODEL`.
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -206,9 +183,8 @@ GEMINI_API_KEY=api_key
 
 By setting the Cohere API key, you can use apps that utilize Cohere's models.
 
-### Available Models
-- **Command A Series**: command-a-03-2025 (latest), command-a-vision-07-2025 (vision capability), command-a-reasoning-08-2025 (reasoning), command-a-translate-08-2025 (translate)
-- **Command R Series**: command-r-plus-08-2024
+### Model Selection Guidance
+Monadic Chat does not catalogue Cohere models. Review Cohere's official model list (<https://docs.cohere.com/docs/models>) and set the preferred `COHERE_DEFAULT_MODEL` (default: `command-a-03-2025`).
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -222,14 +198,8 @@ COHERE_API_KEY=api_key
 
 By setting the Mistral AI API key, you can use apps that utilize Mistral.
 
-### Available Models
-- **Magistral Series**: magistral-medium, magistral-small (reasoning models)
-  - Multilingual reasoning in European languages
-  - 1,000 tokens/second performance
-- **Large Models**: mistral-large-latest, mistral-medium-latest (vision), mistral-small-latest (vision)
-- **Pixtral Series**: pixtral-large-latest, pixtral-large-2411, pixtral-12b-latest (all vision models)
-- **Small Models**: mistral-saba-latest, ministral-3b-latest, ministral-8b-latest
-- **Open Models**: open-mistral-nemo, codestral (code generation)
+### Model Selection Guidance
+For the latest Mistral portfolio, refer to <https://docs.mistral.ai/>. Adjust `MISTRAL_DEFAULT_MODEL` as needed (Monadic defaults to `mistral-large-latest`).
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -243,11 +213,8 @@ MISTRAL_API_KEY=api_key
 
 By setting the xAI API key, you can use apps that utilize Grok.
 
-### Available Models
-- **Grok 4 Fast Series**: grok-4-fast-reasoning (vision, reasoning), grok-4-fast-non-reasoning (vision, fast responses)
-- **Grok Code Fast**: grok-code-fast-1 (code generation & analysis)
-- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro (legacy reasoning)
-- **Grok 2 Vision**: grok-2-vision-1212 (vision)
+### Model Selection Guidance
+xAI publishes the authoritative Grok model matrix at <https://docs.x.ai/docs/models>. Configure `GROK_DEFAULT_MODEL` accordingly (default: `grok-4-fast-reasoning`).
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -261,11 +228,8 @@ XAI_API_KEY=api_key
 
 By setting the Perplexity API key, you can use apps that utilize Perplexity.
 
-### Available Models
-- **Sonar Series**: sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research
-  - Sonar Pro Reasoning is the recommended successor to the retired R1 models
-  - All include built-in web search capabilities
-  - Optimized for different use cases from quick searches to deep research
+### Model Selection Guidance
+Perplexity documents supported Sonar models at <https://docs.perplexity.ai/docs/model-cards>. Set `PERPLEXITY_DEFAULT_MODEL` (default: `sonar-reasoning-pro`) to match your use case.
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 
@@ -277,12 +241,7 @@ PERPLEXITY_API_KEY=api_key
 
 ![DeepSeek apps icon](../assets/icons/d.png ':size=40')
 
-By setting the DeepSeek API key, you can use apps that utilize DeepSeek. DeepSeek provides powerful AI models with function calling support. Available models include:
-
-- deepseek-chat (default)
-- deepseek-reasoner
-
-?> **Note:** DeepSeek's Code Interpreter app works best with simpler, direct prompts due to the model's sensitivity to prompt complexity.
+By setting the DeepSeek API key, you can use apps that utilize DeepSeek. Refer to the provider's documentation for the latest model list; Monadic defaults to `deepseek-chat`.
 
 ```
 DEEPSEEK_API_KEY=api_key
@@ -294,14 +253,9 @@ DEEPSEEK_API_KEY=api_key
 
 Ollama is now built into Monadic Chat! [Ollama](https://ollama.com/) is a platform that allows you to run language models locally. No API key is required since it runs on your own machine.
 
-### Popular Models
+### Discovering Models
 
-- **Llama 3.2** (1B, 3B) - Latest Llama model, excellent balance of performance and size
-- **Llama 3.1** (8B, 70B) - State-of-the-art model from Meta
-- **Gemma 2** (2B, 9B, 27B) - Google's lightweight models
-- **Qwen 2.5** (0.5B-72B) - Alibaba's models with various sizes
-- **Mistral** (7B) - Fast and capable model
-- **Phi 3** (3.8B, 14B) - Microsoft's efficient models
+Browse the Ollama library at <https://ollama.com/library> for the latest set of downloadable models. Specify your preferred default via `OLLAMA_DEFAULT_MODEL`.
 
 ### Setting Up Ollama
 

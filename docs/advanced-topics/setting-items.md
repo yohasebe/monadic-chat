@@ -161,7 +161,7 @@ app "ChatOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1-mini"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
     temperature 0.7
     max_tokens 4000
   end

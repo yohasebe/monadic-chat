@@ -1,227 +1,92 @@
-# ModelSpecUtils Extension Architecture
+# Model Specification Maintenance Guide
 
-## Current State Analysis
+This document defines the operational rules for maintaining `model_spec.js` and the Ruby helper layer that reads it. Treat it as the canonical playbook whenever we add, rename, or retire provider models.
 
-### What We Have
-1. **ModelSpecUtils Module**: Basic utility functions for reading model_spec.js
-2. **model_spec.js**: Central source of truth for model capabilities
-3. **Partial Dynamic Loading**: Some methods already use ModelSpecUtils
+## Source of Truth
 
-### Current Issues
-1. **Hardcoded Model Names**: Still present in various helper files
-2. **Special Case Logic**: Scattered across different providers
-3. **Inconsistent Model Selection**: Different approaches per provider
-4. **Manual Updates Required**: When new models are added
+- `docker/services/ruby/public/js/monadic/model_spec.js` is the single source of truth for model capabilities (token limits, flags, presets).
+- Ruby reads the same information by parsing the JS file via `ModelSpecUtils`.
+- No other file may carry authoritative capability tables or hard-coded model names. Derivative data (tests, docs) must always be regenerated from `model_spec.js` changes.
 
-## Proposed Architecture
+## Invariants
 
-### Phase 1: Core Infrastructure (Safe)
-Create foundation without breaking existing functionality:
+1. **Capability-driven lookups**: runtime code must call helpers (e.g., `ModelSpecUtils.default_for(provider)` or `ModelTokenUtils`) instead of referencing literal model IDs.
+2. **Environment overrides only**: defaults for each provider reside in `Monadic::Utils::SystemDefaults`. These should mirror what the UI exposes and respect `ENV` overrides.
+3. **Docs reference providers, not SKUs**: public docs link to provider model pages; we never publish a hard-coded list of SKUs. Internal docs may mention placeholders but must call out that developers replace them with official IDs.
+4. **Lint guardrails**: `scripts/lint/check_deprecated_models.rb` enforces the banned model term list under `config/deprecated_model_terms.txt`. Update the allow/deny list before touching `model_spec.js`.
 
-#### 1.1 Enhanced ModelSpecUtils Methods
-```ruby
-module ModelSpecUtils
-  # Provider-specific model selection strategies
-  def get_provider_strategy(provider)
-    # Returns selection strategy: :first, :latest, :most_capable, :custom
-  end
-  
-  # Get model by capability requirements
-  def find_model_by_capabilities(provider, required_caps, optional_caps = [])
-    # Returns best matching model based on requirements
-  end
-  
-  # Model version comparison
-  def compare_model_versions(model1, model2)
-    # Returns -1, 0, 1 for version comparison
-  end
-  
-  # Get latest model version for a base model
-  def get_latest_version(base_model_name)
-    # Returns latest dated version or base if no versions
-  end
-end
+## Change Workflow
+
+Use the following checklist whenever a model is added, renamed, or removed. Log outcomes in PR descriptions (even if CI is not in use).
+
+1. **Gather inputs**
+   - Confirm the provider announcement and note supported capabilities (vision, reasoning, tool use, etc.).
+   - Determine pricing/usage tier only if it affects default selection (otherwise keep it out of docs).
+
+2. **Update `model_spec.js`**
+   - Add or modify entries with accurate keys (provider naming convention, usually lowercase with hyphenated suffix).
+   - Set `max_output_tokens`, `context_window`, and capability flags. Use ranges when providers specify minimum/maximum; pick conservative defaults when optional.
+   - Maintain alphabetical order within each provider section to reduce diff noise.
+
+3. **Update defaults where required**
+   - If the provider should surface the new model by default, update `docker/services/ruby/lib/monadic/utils/system_defaults.rb` and the UI mapping in `app/main.js`.
+   - Document any new environment variables in `docs/reference/configuration.md` and the Japanese counterpart.
+
+4. **Sync documentation and samples**
+   - Replace placeholders or references in `docs/features/custom-models.md` (EN/JA) only when the capability set changes.
+   - Ensure `docs/basic-usage/language-models.md` (EN/JA) still points to official provider pages without embedding SKU lists.
+   - Update `docs/examples/models.json.example` if the schema changed.
+
+5. **Regenerate related tests**
+   - Frontend: adjust `test/frontend/model_spec.test.js` expectations.
+   - Ruby: extend or update specs that rely on capability counts (e.g., `spec/unit/api_models_endpoint_spec.rb`).
+   - Run the lint script: `npm run lint:deprecated-models`.
+   - Execute fast suites locally: `rake spec_unit` and `npm test`. For API-visible behavior, run `RUN_API=true rake spec_api:smoke` against the affected provider(s).
+
+6. **Audit deprecations**
+   - When a provider retires a model, remove it from `model_spec.js`, append the name to `config/deprecated_model_terms.txt`, and update the lint script if it should start failing on that term.
+   - Clean up docs/samples to eliminate any lingering references.
+
+## Review Checklist
+
+When reviewing a model update, confirm the following before merging:
+
+- [ ] `model_spec.js` syntax is valid (pass `npm run build:model-spec` or `node -c` equivalent).
+- [ ] Default model selection still works (`ModelSpecUtils.default_for(provider)` returns a valid key).
+- [ ] All required docs and translations are updated.
+- [ ] Lint (`npm run lint:deprecated-models`) and fast tests (`rake spec_unit`, `npm test`) ran locally and results are shared in the PR description.
+- [ ] API smoke instructions mention any new environment knobs if applicable.
+
+## Extension Tips
+
+- **New provider**: start by adding the provider to `ModelSpecUtils.providers`, create a default entry in `SystemDefaults`, extend `ProviderMatrixHelper` mapping, and add docs describing credential variables. Pilot with a single smoke spec before wiring every app.
+- **New capability flag**: introduce the flag in `model_spec.js`, then expose it in `ModelSpecUtils` and the UI (e.g., for new reasoning presets). Keep backward compatibility by defaulting to `false`.
+- **Reusable helpers**: if multiple providers share similar selection logic (e.g., “latest dated version”), prefer putting the utility in `ModelSpecUtils` rather than repeating conditionals in adapters.
+
+## Operational Notes
+
+- Because we do not run CI, each developer is responsible for executing the commands above and capturing the output in the PR description.
+- Maintain a short backlog of pending documentation or sample updates in `docs_dev/backlog.md` when the change will follow in a subsequent task.
+- If a rollout proves risky, gate new defaults behind an environment variable (e.g., `OPENAI_ENABLE_X_MODEL`). Remove the gate once the provider is stable in production.
+
+## Appendices
+
+### Useful Commands
+
+```bash
+# Validate lint guard rails
+npm run lint:deprecated-models
+
+# Regenerate frontend bundle (ensures model_spec parsing still works)
+npm run build
+
+# Focused API smoke test for a provider
+RUN_API=true PROVIDERS=openai rake spec_api:smoke
 ```
 
-#### 1.2 Provider Configuration Registry
-```ruby
-module ProviderConfig
-  PROVIDER_DEFAULTS = {
-    "openai" => {
-      strategy: :latest,
-      fallback_chain: ["gpt-4.1-mini", "gpt-4o-mini"],
-      special_cases: {
-        vision: :auto_detect,
-        reasoning: :explicit_flag
-      }
-    },
-    "claude" => {
-      strategy: :first,
-      fallback_chain: ["claude-3.5-sonnet-v4-20250805"],
-      special_cases: {
-        reasoning: :minimal_effort,
-        batch_processing: true
-      }
-    },
-    # ... other providers
-  }
-end
-```
+### Contacts
 
-### Phase 2: Migration Strategy (Medium Risk)
+- **ModelSpec steward**: Keep track of provider announcements and own lint term updates.
+- **Docs steward**: Ensure docs remain SKU-free and that translations stay in sync.
 
-#### 2.1 Helper Migration Pattern
-Each helper gets a standard interface:
-
-```ruby
-module GeminiHelper
-  def default_model
-    @default_model ||= ModelSpecUtils.get_default_model(
-      "gemini",
-      requirements: { tool_capability: true }
-    )
-  end
-  
-  def vision_model
-    @vision_model ||= ModelSpecUtils.get_vision_model("gemini") ||
-                      default_model
-  end
-  
-  def reasoning_model
-    @reasoning_model ||= ModelSpecUtils.find_model_by_capabilities(
-      "gemini",
-      required_caps: [:reasoning],
-      optional_caps: [:tool_capability]
-    )
-  end
-end
-```
-
-#### 2.2 Gradual Migration Path
-1. **Add new methods alongside existing** (no breaking changes)
-2. **Update one provider at a time** with comprehensive testing
-3. **Deprecate old methods** after verification
-4. **Remove deprecated code** in final phase
-
-### Phase 3: Advanced Features (Future)
-
-#### 3.1 Dynamic Model Discovery
-```ruby
-class ModelDiscovery
-  def self.scan_for_new_models
-    # Periodically check model_spec.js for updates
-    # Alert when new models detected
-    # Suggest configuration updates
-  end
-end
-```
-
-#### 3.2 Capability-Based Routing
-```ruby
-class ModelRouter
-  def route_request(request_type, provider)
-    case request_type
-    when :code_execution
-      find_best_code_model(provider)
-    when :image_generation
-      find_best_image_model(provider)
-    when :reasoning_task
-      find_best_reasoning_model(provider)
-    end
-  end
-end
-```
-
-## Implementation Plan
-
-### Stage 1: Foundation (Current Sprint)
-- [x] Create test suite for ModelSpecUtils
-- [ ] Enhance ModelSpecUtils with new methods
-- [ ] Add provider configuration registry
-- [ ] Create migration helper module
-
-### Stage 2: Provider Migration (Next Sprint)
-Priority order based on risk assessment:
-1. **Perplexity** - Simplest, no tools (Low risk)
-2. **Mistral** - Standard implementation (Low risk)
-3. **DeepSeek** - Has special schema handling (Medium risk)
-4. **Cohere** - Reasoning model handling (Medium risk)
-5. **Grok** - Live search features (Medium risk)
-6. **Gemini** - Vision/endpoint switching (High risk)
-7. **Claude** - Batch processing logic (High risk)
-8. **OpenAI** - Most complex, many models (High risk)
-
-### Stage 3: Validation & Cleanup
-- [ ] Comprehensive integration testing
-- [ ] Performance benchmarking
-- [ ] Deprecation notices
-- [ ] Documentation update
-- [ ] Final cleanup
-
-## Testing Strategy
-
-### Unit Tests
-```ruby
-RSpec.describe ModelSpecUtils do
-  describe ".find_model_by_capabilities" do
-    it "returns model matching all required capabilities"
-    it "prioritizes models with optional capabilities"
-    it "falls back to default when no match"
-    it "handles missing provider gracefully"
-  end
-end
-```
-
-### Integration Tests
-```ruby
-RSpec.describe "Provider Model Selection" do
-  providers.each do |provider|
-    it "selects appropriate default model"
-    it "handles vision requests correctly"
-    it "falls back gracefully on errors"
-    it "maintains backward compatibility"
-  end
-end
-```
-
-### Regression Tests
-- Ensure all existing apps continue to work
-- Verify model selection produces same results
-- Check performance is not degraded
-
-## Risk Mitigation
-
-### Rollback Plan
-1. Each change is feature-flagged
-2. Old code remains until fully validated
-3. Database of working model combinations maintained
-4. Automated rollback on test failure
-
-### Monitoring
-- Log all model selections with reasons
-- Track success/failure rates per model
-- Alert on unexpected model switches
-- Performance metrics for selection logic
-
-## Success Criteria
-
-1. **Zero Breaking Changes**: All existing functionality preserved
-2. **Improved Maintainability**: Single source of truth for models
-3. **Future-Proof**: Easy to add new models/providers
-4. **Better Testing**: Comprehensive test coverage
-5. **Documentation**: Clear migration guide for contributors
-
-## Timeline Estimate
-
-- **Phase 1**: 2-3 days (Foundation)
-- **Phase 2**: 5-7 days (Migration, 1 day per provider)
-- **Phase 3**: 2-3 days (Validation & Cleanup)
-- **Total**: ~2 weeks for complete migration
-
-## Next Immediate Steps
-
-1. Create ModelSpecUtils test file
-2. Implement enhanced methods in ModelSpecUtils
-3. Test with simplest provider (Perplexity)
-4. Document lessons learned
-5. Proceed with gradual migration
+Update this guide whenever the workflow or toolchain changes.

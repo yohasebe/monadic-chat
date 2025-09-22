@@ -133,7 +133,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       successes = 0
       
       test_queries.first(3).each do |query|
-        session = create_test_session("grok-4-latest", query, websearch: true)
+        session = create_test_session("grok-4-fast-reasoning", query, websearch: true)
         
         time = Benchmark.realtime do
           responses = []

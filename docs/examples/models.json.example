@@ -2,6 +2,7 @@
   "comment": "This is an example of custom models.json file",
   "comment2": "Place this file at ~/monadic/config/models.json",
   "comment3": "You can add new models or override existing model parameters",
+  "comment4": "Replace placeholder keys with actual provider model IDs (see official provider documentation)",
   
   "_example_new_model": {
     "context_window": [1, 200000],
@@ -16,7 +17,7 @@
   
   "_example_override": {
     "comment": "Override only specific parameters of existing models",
-    "gpt-4": {
+    "replace-with-your-openai-model": {
       "temperature": [[0.0, 2.0], 0.7],
       "context_window": [1, 32000]
     }

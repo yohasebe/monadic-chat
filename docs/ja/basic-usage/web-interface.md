@@ -205,26 +205,17 @@ Monadic Chatの現在の状況を示します。
 !> 音声機能を使用するには、Google Chrome、Microsoft Edge、またはSafariブラウザを使用する必要があります。
 
 **Text-to-Speech Provider**<br />
-音声合成に使用するプロバイダーを選択します。以下から選択できます：
-- OpenAI（4o TTS、TTS、またはTTS HD）- OpenAI APIキーが必要です
-- ElevenLabs - ElevenLabs APIキーが必要です
-- Gemini Flash TTS - Gemini APIキーが必要です（gemini-2.5-flash-preview-ttsモデルを使用）
-- Gemini Pro TTS - Gemini APIキーが必要です（gemini-2.5-pro-preview-ttsモデルを使用）
-- Web Speech API - ブラウザ内蔵の音声合成を使用します（APIキー不要）
+音声合成に使用するプロバイダーを選択します。設定済みのプロバイダー（例：OpenAI、ElevenLabs、Gemini TTS、ブラウザ内蔵の Web Speech API など）が選択肢に表示されます。利用可能なモデルや必要なAPIキーは各プロバイダーの公式ドキュメントを参照してください（Web Speech API はAPIキー不要）。
 
 **Text-to-Speech Voice**<br />
-音声合成に使用する声を指定できます。利用可能な声は選択したプロバイダーによって異なります：
-- OpenAI：事前定義された声のセット（Alloy、Echo、Fableなど）から選択
-- ElevenLabs：利用可能なElevenLabsの声から選択
-- Gemini：8つの利用可能な声から選択（Aoede、Charon、Fenrir、Kore、Orus、Puck、Schedar、Zephyr）
-- Web Speech API：システムで利用可能な声から選択（ブラウザ/オペレーティングシステムによって異なります）
+音声合成に使用する声を指定できます。利用可能な声は選択したプロバイダーに依存するため、最新の選択肢は各プロバイダーのドキュメントまたは管理画面で確認してください。Web Speech API の場合はブラウザやOSが提供する声の一覧が使用されます。
 
 **Text-to-Speech Speed**<br />
-音声合成の再生速度を0.7（遅い）から1.2（速い）の範囲で調整できます。一般に、ElevenLabsの声はOpenAIの声と比較して、速度を変更した場合の品質が優れています。Web Speech APIも速度調整をサポートしていますが、品質はブラウザやオペレーティングシステムによって異なる場合があります。
+音声合成の再生速度を0.7（遅い）から1.2（速い）の範囲で調整できます。品質や対応範囲は選択したプロバイダーによって異なるため、詳細はそれぞれの公式ドキュメントを参照してください。Web Speech APIも速度調整をサポートしていますが、品質はブラウザやオペレーティングシステムによって異なる場合があります。
 
 **Speech-to-Text (STT) Language**<br />
-音声認識にはSpeech-to-Text APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。Monadic Chatはコンソール設定で設定されたSTTモデルを使用します（デフォルトはgpt-4o-transcribe）。
-参考：[Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
+音声認識にはSpeech-to-Text APIを用いており、`Automatic` が選択されていると異なる言語による音声入力を自動で認識します。特定の言語を指定したい場合にはセレクターで言語を選択してください。Monadic Chatはコンソール設定で指定されたSTTモデルを使用します。最新のモデル情報は各プロバイダーのドキュメントを参照してください。
+参考：[OpenAI Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 ## PDFデータベース表示パネル :id=pdf-database-display-panel
 

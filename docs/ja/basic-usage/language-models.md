@@ -16,13 +16,13 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 | DeepSeek | ❌ | ✅ | ✅⁴ |
 | Ollama | ❓ モデル依存⁸ | ❓ モデル依存⁸ | ✅⁴ |
 
-¹ o1、o1-mini、o3-miniを除く  
-² gpt-4.1/gpt-4.1-miniはResponses API経由でネイティブWeb検索、その他は利用可能な場合Tavilyを使用  
-³ Haikuモデルはビジョン非対応  
-⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）  
-⁵ Pixtral、mistral-medium-latest、mistral-small-latestモデル  
-⁶ grok-4-fast-reasoning / grok-4-fast-non-reasoning / grok-2-vision  
-⁷ command-a-visionモデルのみ  
+¹ ビジョン対応状況は OpenAI ドキュメント (<https://platform.openai.com/docs/models>) を参照してください。  
+² ネイティブWeb検索があるプロバイダ以外は、設定済みであればTavilyを利用できます。  
+³ Anthropic のビジョン対応は <https://docs.anthropic.com/claude/docs/models-overview> を参照してください。  
+⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）。  
+⁵ Mistral のビジョン対応モデルは <https://docs.mistral.ai/> を参照してください。  
+⁶ xAI Grok のビジョン対応状況は <https://docs.x.ai/docs/models> に記載されています。  
+⁷ Cohere のビジョン対応モデルは <https://docs.cohere.com/docs/models> を参照してください。  
 ⁸ 使用する特定のモデルの機能に依存
 
 ## デフォルトモデルの設定
@@ -33,7 +33,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 # 各プロバイダのデフォルトモデル
 OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
-COHERE_DEFAULT_MODEL=command-r-plus
+COHERE_DEFAULT_MODEL=command-a-03-2025
 GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
 GROK_DEFAULT_MODEL=grok-4-fast-reasoning
@@ -89,41 +89,30 @@ Web UIの推論/思考セレクターは、各プロバイダの用語とオプ�
 | Google | Thinking Mode | minimal, low, medium, high | Gemini 2.5プレビューモデルの推論ダイヤルを調整 |
 | xAI | Reasoning Effort | low, medium, high | Grokの推論深度を制御（minimalオプションなし） |
 | DeepSeek | Reasoning Mode | Off (minimal), On (medium) | ステップバイステップ推論の有効/無効 |
-| Perplexity | Research Depth | minimal, low, medium, high | R1モデルのWeb検索と分析深度を制御 |
+| Perplexity | Research Depth | minimal, low, medium, high | SonarモデルのWeb検索と分析深度を制御 |
 
 ### プロバイダ別推論モデル
 
 #### OpenAI推論モデル
-- **O1シリーズ**: o1、o1-mini、o1-preview、o1-pro
-- **O3シリーズ**: o3、o3-pro
-- **O4シリーズ**: o4-mini
-- temperature設定の代わりに`reasoning_effort`パラメータを使用
+最新の推論対応モデルは <https://platform.openai.com/docs/guides/reasoning> を参照してください。対応モデルでは Monadic が `reasoning_effort` を自動的に表示します。
 
 #### Anthropic思考モデル
-- **Claude 4.0シリーズ**: claude-opus-4、claude-sonnet-4
-- 設定可能なトークン予算での思考プロセスをサポート
-- Thinking budgetは1024（minimal）から25000+（high）トークンの範囲
+Claude の思考モードについては <https://docs.anthropic.com/claude/docs/thinking-with-claude> を参照し、Monadic のUIで提示される設定に従ってください。
 
 #### Google思考モデル
-- **Gemini 2.5プレビューシリーズ**: gemini-2.5-flash-preview、gemini-2.5-pro-preview
-- **Gemini 2.0思考**: gemini-2.0-flash-thinking-exp
-- 調整可能な計算予算での高度な推論
+Gemini の推論機能は <https://ai.google.dev/gemini-api/docs/reasoning> に記載されています。対応モデルを選択すると、Monadic が推論セレクターを表示します。
 
 #### xAI Grok推論
-- **Grok 3シリーズ**: grok-3、grok-3-mini、grok-3-pro
-- reasoning_effortパラメータ（low、medium、high）をサポート
+xAI が公開する最新仕様に基づき、対応モデルでは `reasoning_effort`（low / medium / high）が自動的に表示されます。詳細は <https://docs.x.ai/docs/models> を参照してください。
 
 #### DeepSeek推論
-- **deepseek-reasoner**: 専用推論モデル
-- ステップバイステップ推論のシンプルなオン/オフ制御
+DeepSeek の推論機能は公式ドキュメントを参照してください。対応モデルでは Monadic が推論設定を自動的に有効化します。
 
 #### Perplexityリサーチモデル
-- **Sonar推論**: sonar-reasoning、sonar-reasoning-pro（廃止されたR1シリーズの推奨後継）
-- Web検索と分析の深度を制御
+Perplexity の Sonar モデルカード (<https://docs.perplexity.ai/docs/model-cards>) に記載されたリサーチ深度が Monadic のUIに反映されます。
 
 #### Mistral推論モデル
-- **Magistralシリーズ**: magistral-medium、magistral-small
-- 多言語推論機能（フランス語、ドイツ語、スペイン語、イタリア語など）
+Mistral の推論モデルについては公式ドキュメントを参照し、Monadic が提示するオプションを使用してください。
 
 ### 自動機能検出
 
@@ -143,11 +132,8 @@ Web UIは自動的に：
 
 Monadic Chatではチャットおよび音声認識、音声合成、画像生成、動画認識などの機能を提供するために、OpenAIの言語モデルを使用しています。そのためOpenAIのAPIキーを設定することをお勧めします。ただし、チャットで使いたいモデルがOpenAIのモデルでない場合、必ずしもOpenAIのAPIキーを設定する必要はありません。
 
-### 利用可能なモデル
-- **GPT-4.5シリーズ**: gpt-4.5-preview、gpt-4.5-preview-2025-02-27
-- **GPT-4.1シリーズ**: gpt-4.1、gpt-4.1-mini、gpt-4.1-nano（100万トークン以上のコンテキストウィンドウ）
-- **GPT-4oシリーズ**: gpt-4o、gpt-4o-mini、gpt-4o-audio-preview
-- **推論モデル**: o1、o1-mini、o1-pro、o3、o3-mini、o3-pro、o4-mini
+### モデル選択ガイダンス
+最新のラインアップは OpenAI 公式ドキュメント <https://platform.openai.com/docs/models> を参照し、`OPENAI_DEFAULT_MODEL`（デフォルト: `gpt-4.1`）を設定してください。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -165,10 +151,8 @@ OpenAIの言語モデルを用いたアプリについては、[基本アプリ]
 
 Anthropic APIキーを設定すると、Claudeを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Claude 4.0シリーズ**: claude-opus-4、claude-sonnet-4（推論機能を備えた最新世代）
-- **Claude 3.5シリーズ**: claude-3-5-sonnet-20241022、claude-3-5-haiku-20250122
-- **Claude 3シリーズ**: claude-3-opus、claude-3-sonnet、claude-3-haiku
+### モデル選択ガイダンス
+Anthropic の最新モデルは <https://docs.anthropic.com/claude/docs/models-overview> を参照し、`ANTHROPIC_DEFAULT_MODEL` を調整してください。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -184,15 +168,8 @@ ANTHROPIC_API_KEY=api_key
 
 Google Gemini APIキーを設定すると、Geminiを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Gemini 2.5シリーズ**: 
-  - gemini-2.5-flash、gemini-2.5-pro（推論レベルを調整可能）
-  - gemini-2.5-flash-preview-05-20、gemini-2.5-pro-exp-03-25（実験版）
-  - Deep Thinkモードで推論機能を強化可能
-- **Gemini 2.0シリーズ**: 
-  - gemini-2.0-flash、gemini-2.0-flash-thinking-exp（思考/推論モデル）
-  - 100万トークンのコンテキストウィンドウ
-- **Imagen 3**: imagen-3.0-generate-002（画像生成用）
+### モデル選択ガイダンス
+Google の Gemini モデル情報は <https://ai.google.dev/gemini-api/docs/models> に掲載されています。`GEMINI_DEFAULT_MODEL` を必要に応じて設定してください。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -206,9 +183,8 @@ GEMINI_API_KEY=api_key
 
 CohereのAPIキーを設定すると、Cohereのモデルを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Command Aシリーズ**: command-a-03-2025（最新）、command-a-vision-07-2025（ビジョン対応）、command-a-reasoning-08-2025（推論）、command-a-translate-08-2025（翻訳）
-- **Command Rシリーズ**: command-r-plus-08-2024
+### モデル選択ガイダンス
+最新のモデル一覧は Cohere 公式ドキュメント <https://docs.cohere.com/docs/models> を参照してください。`COHERE_DEFAULT_MODEL`（デフォルト: `command-a-03-2025`）を好みに合わせて設定します。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -222,14 +198,8 @@ COHERE_API_KEY=api_key
 
 Mistral APIキーを設定すると、Mistralを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Magistralシリーズ**: magistral-medium、magistral-small（推論モデル）
-  - 複数の言語での推論が可能（フランス語、ドイツ語、スペイン語、イタリア語など）
-  - 秒間1,000トークンのパフォーマンス
-- **大規模モデル**: mistral-large-latest、mistral-medium-latest（ビジョン）、mistral-small-latest（ビジョン）
-- **Pixtralシリーズ**: pixtral-large-latest、pixtral-large-2411、pixtral-12b-latest（すべてビジョンモデル）
-- **小規模モデル**: mistral-saba-latest、ministral-3b-latest、ministral-8b-latest
-- **オープンモデル**: open-mistral-nemo、codestral（コード生成）
+### モデル選択ガイダンス
+Mistral AI の最新ラインアップは <https://docs.mistral.ai/> を確認してください。`MISTRAL_DEFAULT_MODEL`（デフォルト: `mistral-large-latest`）を必要に応じて変更します。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -243,11 +213,8 @@ MISTRAL_API_KEY=api_key
 
 xAI APIキーを設定すると、Grokを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Grok 4 Fastシリーズ**: grok-4-fast-reasoning（ビジョン対応・推論）、grok-4-fast-non-reasoning（ビジョン対応・高速応答）
-- **Grok Code Fast**: grok-code-fast-1（コード生成・解析向け）
-- **Grok 3シリーズ**: grok-3、grok-3-mini、grok-3-pro（従来の推論モデル）
-- **Grok 2 Vision**: grok-2-vision-1212（ビジョン）
+### モデル選択ガイダンス
+xAI のモデル情報は <https://docs.x.ai/docs/models> を参照してください。`GROK_DEFAULT_MODEL`（デフォルト: `grok-4-fast-reasoning`）を設定して使用します。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -261,11 +228,8 @@ XAI_API_KEY=api_key
 
 Perplexity APIキーを設定すると、Perplexityを用いたアプリを使用することができます。
 
-### 利用可能なモデル
-- **Sonarシリーズ**: sonar、sonar-pro、sonar-reasoning、sonar-reasoning-pro、sonar-deep-research
-  - Sonar Pro Reasoningは廃止されたR1シリーズの推奨後継モデル
-  - 全てWeb検索機能を内蔵
-  - 簡単な検索から深いリサーチまで異なる用途に最適化
+### モデル選択ガイダンス
+Perplexity の Sonar モデルは <https://docs.perplexity.ai/docs/model-cards> にまとめられています。`PERPLEXITY_DEFAULT_MODEL`（デフォルト: `sonar-reasoning-pro`）を状況に応じて選択してください。
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 
@@ -277,12 +241,7 @@ PERPLEXITY_API_KEY=api_key
 
 ![DeepSeek apps icon](../assets/icons/d.png ':size=40')
 
-DeepSeek APIキーを設定すると、DeepSeekを用いたアプリを使用することができます。DeepSeekは関数呼び出しをサポートする強力なAIモデルを提供します。利用可能なモデル：
-
-- deepseek-chat（デフォルト）
-- deepseek-reasoner
-
-注意：DeepSeekのCode Interpreterアプリは、モデルがプロンプトの複雑さに敏感なため、シンプルで直接的なプロンプトで最も良く動作します。
+DeepSeek APIキーを設定すると、DeepSeekを用いたアプリを使用することができます。最新のモデルラインアップはプロバイダのドキュメントを参照し、`DEEPSEEK_DEFAULT_MODEL`（デフォルト: `deepseek-chat`）を必要に応じて変更してください。
 
 ```
 DEEPSEEK_API_KEY=api_key
@@ -294,14 +253,9 @@ DEEPSEEK_API_KEY=api_key
 
 OllamaはMonadic Chatに組み込まれました！[Ollama](https://ollama.com/)は、言語モデルをローカルで実行できるプラットフォームです。自分のマシンで動作するため、APIキーは不要です。
 
-### 人気のモデル
+### モデルの探し方
 
-- **Llama 3.2** (1B, 3B) - 最新のLlamaモデル、性能とサイズの優れたバランス
-- **Llama 3.1** (8B, 70B) - Metaによる最先端モデル
-- **Gemma 2** (2B, 9B, 27B) - Googleの軽量モデル
-- **Qwen 2.5** (0.5B-72B) - 様々なサイズから選べるAlibabaのモデル
-- **Mistral** (7B) - 高速で高性能なモデル
-- **Phi 3** (3.8B, 14B) - Microsoftの効率的なモデル
+最新のダウンロード可能モデルは <https://ollama.com/library> で確認し、`OLLAMA_DEFAULT_MODEL` に希望のモデルを指定してください。
 
 ### Ollamaのセットアップ
 

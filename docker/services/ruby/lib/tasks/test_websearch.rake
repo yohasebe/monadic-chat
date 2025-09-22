@@ -190,7 +190,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "grok-4-latest",
+              "model" => "grok-4-fast-reasoning",
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,

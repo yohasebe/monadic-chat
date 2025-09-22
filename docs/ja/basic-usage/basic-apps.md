@@ -140,8 +140,8 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 - Perplexity
 
 ?> **ウェブ検索機能について**: 
-> - **ネイティブ検索**：OpenAI（`gpt-4o-search-preview`モデル）、Anthropic Claude（`web_search_20250305`ツール）、xAI Grok（Live Search）、Google Gemini（ネイティブGoogle検索）、Perplexity（sonarモデルに組み込み）
-> - **Tavily API必須**：Mistral AI、Cohere、DeepSeek。[Tavily](https://tavily.com/)から無料APIキーを取得できます（月1,000回の無料API呼び出し）
+> - **ネイティブ検索**：Responses APIや各プロバイダーが提供するネイティブ検索機能（例：OpenAI、Anthropic、xAI Grok、Google Gemini、Perplexity Sonarなど）に対応したモデルを利用すると、自動的にネイティブ検索が実行されます。最新情報は各プロバイダーのドキュメントを参照してください。
+> - **Tavily API必須**：ネイティブ検索を提供しないプロバイダー（例：Mistral AI、Cohere、DeepSeek）では、[Tavily](https://tavily.com/) のAPIキーを設定することでWeb検索が利用可能になります（月1,000回の無料API呼び出し）。
 
 ## 言語関連 :id=language-related
 

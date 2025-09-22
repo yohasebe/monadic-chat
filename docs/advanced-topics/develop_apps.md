@@ -115,7 +115,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4o"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
   end
   
   system_prompt "You are a helpful assistant."
@@ -334,4 +334,3 @@ class MyAppOpenAI < MonadicApp
   end
 end
 ```
-

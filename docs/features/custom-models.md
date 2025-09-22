@@ -18,7 +18,7 @@ Monadic Chat allows you to customize model specifications by creating a custom `
 ## File Format
 
 The `models.json` file should contain a JSON object where:
-- Keys are model names (e.g., "gpt-4", "claude-3-opus")
+- Keys are provider model identifiers (replace placeholders with IDs from the official provider documentation)
 - Values are model specification objects
 
 ## Examples
@@ -27,7 +27,7 @@ The `models.json` file should contain a JSON object where:
 
 ```json
 {
-  "gpt-5-preview": {
+  "custom-openai-model": {
     "context_window": [1, 2000000],
     "max_output_tokens": [1, 200000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -41,17 +41,19 @@ The `models.json` file should contain a JSON object where:
 }
 ```
 
+> Replace the placeholder keys with model IDs from each provider's official documentation.
+
 ### Overriding Existing Model Parameters
 
 You can override specific parameters of existing models without redefining the entire specification:
 
 ```json
 {
-  "gpt-4": {
+  "replace-with-your-openai-model": {
     "temperature": [[0.0, 2.0], 0.7],
     "max_output_tokens": [1, 8192]
   },
-  "claude-3-opus-20240229": {
+  "replace-with-your-anthropic-model": {
     "temperature": [[0.0, 1.0], 0.5]
   }
 }
@@ -78,12 +80,12 @@ You can override specific parameters of existing models without redefining the e
 #### OpenAI
 - **reasoning_effort**: `[options_array, default]` - Controls reasoning intensity
   - Example: `[["minimal", "low", "medium", "high"], "low"]`
-  - Used by: GPT-5 series, o1 models
+  - Used by: OpenAI models that expose reasoning controls (see <https://platform.openai.com/docs/models>)
 
 #### Claude (Anthropic)
 - **thinking_budget**: `{min, default, max}` - Token budget for thinking
   - Example: `{"min": 1024, "default": 10000, "max": null}`
-  - Used by: Claude Opus 4, Claude Sonnet 4, Claude 3.7 Sonnet
+  - Used by: Claude models that expose thinking budgets (see <https://docs.anthropic.com/claude/docs>)
 - **supports_thinking**: `boolean` - Indicates thinking support
 
 #### Gemini (Google)
@@ -104,9 +106,9 @@ You can override specific parameters of existing models without redefining the e
     ```
 
 #### xAI (Grok)
-- **reasoning_effort**: `[options_array, default]` - Grok-3 models only
+- **reasoning_effort**: `[options_array, default]` - Applicable to xAI reasoning-capable models
   - Example: `[["low", "high"], "low"]`
-  - Note: NOT supported by Grok-4 models
+  - Check <https://docs.x.ai/docs/models> for model-specific support
 
 #### Other Providers
 - **supports_reasoning_content**: `boolean` - DeepSeek reasoner support

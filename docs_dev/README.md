@@ -15,6 +15,7 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
 
 - [Docker Architecture](docker-architecture.md) — Container structure, lifecycle, and management
 - [Common Issues](common-issues.md) — Frequent problems and their solutions
+- [Backlog](backlog.md) — Pending clean-up tasks and follow-ups
 
 ## Quick Start for New Developers
 
@@ -45,3 +46,7 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
    rake spec_unit  # Fast, no external dependencies
    RUN_API=true PROVIDERS=openai rake spec_api:smoke  # With real API
    ```
+
+## Lint Checks
+
+- Run `npm run lint:deprecated-models`（または `rake lint:deprecated_models`）で `docs/`・`docs_dev/`・`translations/` から旧モデル名を検出できます。必要に応じて `config/deprecated_model_terms.txt` を更新してください。

@@ -140,8 +140,8 @@ Research Assistant apps are also available for the following models:
 - Perplexity
 
 ?> **Web Search Functionality**: 
-> - **Native search**: OpenAI (`gpt-4o-search-preview` models), Anthropic Claude (`web_search_20250305` tool), xAI Grok (Live Search), Google Gemini (native Google Search), and Perplexity (built into sonar models)
-> - **Requires Tavily API**: Mistral AI, Cohere, and DeepSeek. You can obtain a free API key from [Tavily](https://tavily.com/) (1,000 free API calls per month)
+> - **Native search**: Providers that offer built-in search or retrieval capabilities (e.g., OpenAI Responses API, Anthropic's web search integration, xAI Grok Live Search, Google Gemini native search, Perplexity Sonar). Refer to each provider's documentation for the latest details.
+> - **Requires Tavily API**: Providers without native search (e.g., Mistral AI, Cohere, DeepSeek). You can obtain a free Tavily API key at [tavily.com](https://tavily.com/) (1,000 free API calls per month).
 
 ## Language Related :id=language-related
 

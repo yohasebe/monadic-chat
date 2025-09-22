@@ -7,6 +7,54 @@ require 'net/http'
 require 'base64'
 
 module ProviderMatrixHelper
+  PROVIDER_TIMEOUTS = {
+    'openai' => 45,
+    'anthropic' => 60,
+    'gemini' => 60,
+    'mistral' => 60,
+    'cohere' => 90,
+    'perplexity' => 90,
+    'deepseek' => 75,
+    'xai' => 75,
+    'ollama' => 90
+  }.freeze
+
+  PROVIDER_QPS = {
+    'openai' => 0.5,
+    'anthropic' => 0.5,
+    'gemini' => 0.4,
+    'mistral' => 0.4,
+    'cohere' => 0.3,
+    'perplexity' => 0.3,
+    'deepseek' => 0.35,
+    'xai' => 0.35,
+    'ollama' => 1.0
+  }.freeze
+
+  PROVIDER_MAX_RETRIES = {
+    'openai' => 3,
+    'anthropic' => 3,
+    'gemini' => 3,
+    'mistral' => 3,
+    'cohere' => 4,
+    'perplexity' => 4,
+    'deepseek' => 4,
+    'xai' => 3,
+    'ollama' => 2
+  }.freeze
+
+  PROVIDER_RETRY_BASE = {
+    'openai' => 0.6,
+    'anthropic' => 0.6,
+    'gemini' => 0.6,
+    'mistral' => 0.6,
+    'cohere' => 1.0,
+    'perplexity' => 1.0,
+    'deepseek' => 0.7,
+    'xai' => 0.7,
+    'ollama' => 0.5
+  }.freeze
+
   def require_run_api!
     skip('RUN_API is not enabled') unless ENV['RUN_API'] == 'true'
   end
@@ -53,15 +101,15 @@ module ProviderMatrixHelper
 
   class ProviderClient
     def initialize(provider)
-      @provider = provider
-      @timeout = (ENV['API_TIMEOUT'] || '30').to_i
+      @provider = provider.to_s
+      @timeout = fetch_provider_setting('API_TIMEOUT', PROVIDER_TIMEOUTS, 45, cast: :to_f)
       # Simple rate limiting (QPS)
-      qps = (ENV['API_RATE_QPS'] || '1').to_f
+      qps = fetch_provider_setting('API_RATE_QPS', PROVIDER_QPS, 1.0, cast: :to_f)
       @min_interval = qps > 0 ? 1.0 / qps : 0.0
       @last_request_at = 0.0
       # Retry configs
-      @max_retries = (ENV['API_MAX_RETRIES'] || '3').to_i
-      @retry_base = (ENV['API_RETRY_BASE'] || '0.5').to_f
+      @max_retries = fetch_provider_setting('API_MAX_RETRIES', PROVIDER_MAX_RETRIES, 3, cast: :to_i)
+      @retry_base = fetch_provider_setting('API_RETRY_BASE', PROVIDER_RETRY_BASE, 0.5, cast: :to_f)
     end
 
     # Thin wrappers over vendor helpers
@@ -264,6 +312,30 @@ module ProviderMatrixHelper
       end
     end
 
+    private
+
+    def fetch_provider_setting(base_key, defaults, fallback, cast:)
+      env_specific = ENV["#{base_key}_#{@provider.upcase}"]
+      value = env_specific unless env_specific.nil? || env_specific.empty?
+      if value.nil? || value.to_s.empty?
+        global = ENV[base_key]
+        value = global unless global.nil? || global.empty?
+      end
+      if (value.nil? || value.to_s.empty?) && defaults
+        value = defaults[@provider]
+      end
+      value = fallback if value.nil? || value.to_s.empty?
+
+      case cast
+      when :to_i
+        value.to_i
+      when :to_f
+        value.to_f
+      else
+        value
+      end
+    end
+  
     # Provider-specific option builder
     def build_options(prompt:, messages: nil, websearch: false)
       preface = "Ignore any missing or prior context. Respond directly and concisely."

@@ -18,7 +18,7 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 ## ファイル形式
 
 `models.json`ファイルは以下の形式のJSONオブジェクトを含む必要があります：
-- キー：モデル名（例："gpt-4"、"claude-3-opus"）
+- キー：各プロバイダが公開しているモデルID（プレースホルダーは公式ドキュメントのIDに置き換えてください）
 - 値：モデル仕様オブジェクト
 
 ## 例
@@ -27,7 +27,7 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 
 ```json
 {
-  "gpt-5-preview": {
+  "custom-openai-model": {
     "context_window": [1, 2000000],
     "max_output_tokens": [1, 200000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -41,17 +41,19 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 }
 ```
 
+> プレースホルダーのキーは各プロバイダの公式ドキュメントに記載されたモデルIDに置き換えてください。
+
 ### 既存モデルのパラメータのオーバーライド
 
 モデル全体を再定義することなく、特定のパラメータのみをオーバーライドできます：
 
 ```json
 {
-  "gpt-4": {
+  "replace-with-your-openai-model": {
     "temperature": [[0.0, 2.0], 0.7],
     "max_output_tokens": [1, 8192]
   },
-  "claude-3-opus-20240229": {
+  "replace-with-your-anthropic-model": {
     "temperature": [[0.0, 1.0], 0.5]
   }
 }
@@ -78,12 +80,12 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 #### OpenAI
 - **reasoning_effort**: `[オプション配列, デフォルト値]` - 推論の強度を制御
   - 例：`[["minimal", "low", "medium", "high"], "low"]`
-  - 対象：GPT-5シリーズ、o1モデル
+  - 対象：推論制御を提供するOpenAIモデル（最新情報は <https://platform.openai.com/docs/models> を参照）
 
 #### Claude (Anthropic)
 - **thinking_budget**: `{min, default, max}` - 思考用のトークン予算
   - 例：`{"min": 1024, "default": 10000, "max": null}`
-  - 対象：Claude Opus 4、Claude Sonnet 4、Claude 3.7 Sonnet
+  - 対象：thinking_budgetを公開しているClaudeモデル（最新情報は <https://docs.anthropic.com/claude/docs> を参照）
 - **supports_thinking**: `boolean` - 思考機能のサポート
 
 #### Gemini (Google)
@@ -104,9 +106,9 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
     ```
 
 #### xAI (Grok)
-- **reasoning_effort**: `[オプション配列, デフォルト値]` - Grok-3モデルのみ
+- **reasoning_effort**: `[オプション配列, デフォルト値]` - xAIの推論対応モデルで利用可能
   - 例：`[["low", "high"], "low"]`
-  - 注意：Grok-4モデルではサポートされません
+  - 最新のサポート状況は <https://docs.x.ai/docs/models> を参照してください
 
 #### その他のプロバイダ
 - **supports_reasoning_content**: `boolean` - DeepSeek reasonerサポート

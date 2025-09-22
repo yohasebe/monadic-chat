@@ -29,7 +29,8 @@ describe('Model Specification', () => {
     expect(modelSpec['claude-sonnet-4-20250514']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash-preview-05-20']).toBeDefined();
     expect(modelSpec['command-r-plus-08-2024']).toBeDefined();
-    expect(modelSpec['grok-3']).toBeDefined();
+    expect(modelSpec['command-r-08-2024']).toBeDefined();
+    expect(modelSpec['grok-4-fast-reasoning']).toBeDefined();
   });
   
   describe('OpenAI Models', () => {
@@ -93,11 +94,8 @@ describe('Model Specification', () => {
     it('should have different tool capabilities for different Cohere models', () => {
       // Newer model with tool support
       expect(modelSpec['command-r-plus-08-2024'].tool_capability).toBe(true);
-      
-      // Check another Cohere model
-      if (modelSpec['command']) {
-        expect(modelSpec['command'].tool_capability).toBe(true);
-      }
+      expect(modelSpec['command-r-08-2024'].tool_capability).toBe(true);
+      expect(modelSpec['command-a-03-2025'].tool_capability).toBe(true);
     });
   });
   

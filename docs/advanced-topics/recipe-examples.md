@@ -152,7 +152,7 @@ app "MathTutorOpenAI" do
   
   llm do
     provider "OpenAI"
-    model "gpt-4.1"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
     temperature 0.0
     presence_penalty 0.2
   end
@@ -286,7 +286,7 @@ app "NovelWriterOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
     temperature 0.5
     response_format({
       type: "json_schema",
@@ -465,7 +465,7 @@ app "SecondOpinionOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
     temperature 0.2
   end
 

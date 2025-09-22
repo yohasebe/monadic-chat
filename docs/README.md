@@ -116,8 +116,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Voice Interaction
 
-- 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
-- 🎙️ **Speech recognition** using the Speech-to-Text API (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
+- 🔈 **Text-to-speech** for AI assistant responses via OpenAI, ElevenLabs, Google Gemini, or the browser's Web Speech API
+- 🎙️ **Speech recognition** using provider Speech-to-Text APIs (e.g., OpenAI Whisper family); see provider docs for current models
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
@@ -125,8 +125,8 @@ Human users can use various tools to achieve their goals. However, in many cases
 
 ### Image/Video Recognition and Generation
 
-- 🖼️ **Image generation and editing** using OpenAI's gpt-image-1, Google Imagen 3 & Gemini 2.0 Flash, and xAI Grok
-- ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
+- 🖼️ **Image generation and editing** through provider vision models (OpenAI, Google Gemini/Imagen, xAI Grok, etc.)
+- ✏️ **Image editing** supported when the selected provider offers inpainting/masking capabilities
 - 🎭 **Mask editor** for precise control over which areas of an image to edit
 - 👀 Recognition and description of **uploaded images**
 - 📚 Upload and recognition of **multiple images**

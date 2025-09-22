@@ -246,8 +246,16 @@ module CohereHelper
     
     # Process messages (Cohere v2 expects content as an array of typed parts)
     if options["messages"]
-      # Add system message as a user preface to guide behavior (Cohere doesn't have strict system role semantics)
-      system_msg = options["messages"].find { |m| m["role"].to_s.downcase == "system" }
+      raw_messages = options["messages"].map do |entry|
+        if entry.respond_to?(:transform_keys)
+          entry.transform_keys { |key| key.to_s }
+        else
+          entry
+        end
+      end
+
+      # Add system message as a user preface to guide behaviour (Cohere doesn't have strict system role semantics)
+      system_msg = raw_messages.find { |m| m["role"].to_s.downcase == "system" }
       if system_msg
         sys_text = system_msg["content"].to_s.strip
         sys_text = "You are a helpful assistant." if sys_text.empty?
@@ -258,7 +266,7 @@ module CohereHelper
       end
 
       # Process conversation messages
-      options["messages"].each do |msg|
+      raw_messages.each do |msg|
         next if msg["role"] == "system" # Skip system (already handled)
 
         # Map roles
@@ -271,9 +279,29 @@ module CohereHelper
 
         # Build content parts
         parts = []
-        text = (msg["content"] || msg["text"] || "").to_s
-        text = text.strip
-        parts << { "type" => "text", "text" => (text.empty? ? "(no content)" : text) }
+        text_segments = []
+        content = msg["content"]
+
+        if content.is_a?(Array)
+          content.each do |item|
+            case item
+            when String
+              text_segments << item
+            when Hash
+              str = item["text"] || item[:text]
+              text_segments << str.to_s unless str.nil?
+            end
+          end
+        elsif content
+          text_segments << content.to_s
+        end
+
+        fallback_text = msg["text"] || msg[:text]
+        text_segments << fallback_text.to_s if fallback_text
+
+        text = text_segments.compact.join("\n").strip
+        text = "(no content)" if text.empty?
+        parts << { "type" => "text", "text" => text }
 
         # Add images if present
         if msg["images"] && msg["images"].any?

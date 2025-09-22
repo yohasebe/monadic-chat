@@ -14,16 +14,9 @@ Enter a message in the text area and click the `Send` button to send the message
 
 ## Uploading Images :id=uploading-images
 
-Uploading images is supported for the following models:
+Uploading images is supported for providers that expose vision-capable models (e.g., OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Perplexity). Consult each provider's documentation for the most up-to-date list of supported models.
 
-- OpenAI GPT
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI (Pixtral, Mistral Medium 2505)
-- Perplexity AI
-
-?> **Note:** PDF uploads are only supported by OpenAI (gpt-4.1, gpt-4o, o1 series), Claude, and Gemini models.
+?> **Note:** PDF uploads are available only for providers whose APIs natively support document attachments (for example, OpenAI, Anthropic Claude, and Google Gemini at the time of writing). Refer to provider documentation for current availability.
 
 Click `Image` (or `Image/PDF` for models that support PDF) to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
 
@@ -37,7 +30,7 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs :id=uploading-pdfs
 
-In Anthropic's Claude models, OpenAI's gpt-4.1, gpt-4.1-mini, gpt-4o, gpt-4o-mini, and o1 models, and Google Gemini models, PDF uploads are supported in addition to images. Click `Image/PDF` to select a PDF file to attach to the message.
+When using a provider that supports PDF uploads (such as OpenAI, Anthropic Claude, or Google Gemini), the `Image/PDF` button allows you to attach PDF files in addition to images. Availability depends on the selected model and provider features.
 
 
 <!-- ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400') -->
@@ -81,12 +74,7 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
-You can select the Speech-to-Text (STT) model in the console settings. Monadic Chat supports the following OpenAI STT models:
-- whisper-1
-- gpt-4o-mini-transcribe
-- gpt-4o-transcribe
-
-The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) provide improved accuracy and transcription quality. Monadic Chat automatically optimizes the audio format for each STT model to ensure the best possible transcription results.
+You can select the Speech-to-Text (STT) model in the console settings. Monadic Chat exposes the STT models that are available from your configured providers (for example, OpenAI Whisper and newer transcribe-capable models). Refer to the provider documentation for detailed capabilities; Monadic automatically optimizes audio formats for each supported model.
 
 
 ## Text-to-Speech Playback

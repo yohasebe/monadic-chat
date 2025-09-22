@@ -11,7 +11,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 | Gemini | ✅ All models | ✅ | ✅⁴ |
 | Mistral | ✅ Select models⁵ | ✅ | ✅⁴ |
 | Cohere | ✅ Vision models⁷ | ✅ | ✅⁴ |
-| xAI Grok | ✅ Vision models⁶ | ✅ | ✅ Native |
+| xAI Grok | ✅ Select models⁶ | ✅ | ✅ Native |
 | Perplexity | ✅ All models | ❌ | ✅ Native |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
 | Ollama | ❓ Model dependent⁸ | ❓ Model dependent⁸ | ✅⁴ |
@@ -21,7 +21,7 @@ Monadic Chat supports multiple AI model providers. Each provider offers differen
 ³ Haiku models don't support vision  
 ⁴ Web search via Tavily API (requires `TAVILY_API_KEY`)  
 ⁵ Pixtral, mistral-medium-latest, and mistral-small-latest models  
-⁶ grok-2-vision models only  
+⁶ grok-4-fast-reasoning / grok-4-fast-non-reasoning / grok-2-vision  
 ⁷ command-a-vision models only  
 ⁸ Depends on specific model capabilities
 
@@ -36,8 +36,8 @@ ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
 COHERE_DEFAULT_MODEL=command-r-plus
 GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
-GROK_DEFAULT_MODEL=grok-2
-PERPLEXITY_DEFAULT_MODEL=sonar
+GROK_DEFAULT_MODEL=grok-4-fast-reasoning
+PERPLEXITY_DEFAULT_MODEL=sonar-reasoning-pro
 DEEPSEEK_DEFAULT_MODEL=deepseek-chat
 OLLAMA_DEFAULT_MODEL=llama3.2:3b
 ```
@@ -244,9 +244,10 @@ MISTRAL_API_KEY=api_key
 By setting the xAI API key, you can use apps that utilize Grok.
 
 ### Available Models
-- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro (reasoning)
-- **Grok 2 Series**: grok-2, grok-2-mini, grok-2-vision-1212 (vision)
-- **Grok Beta**: grok-beta
+- **Grok 4 Fast Series**: grok-4-fast-reasoning (vision, reasoning), grok-4-fast-non-reasoning (vision, fast responses)
+- **Grok Code Fast**: grok-code-fast-1 (code generation & analysis)
+- **Grok 3 Series**: grok-3, grok-3-mini, grok-3-pro (legacy reasoning)
+- **Grok 2 Vision**: grok-2-vision-1212 (vision)
 
 Once set, the API key is saved in the `~/monadic/config/env` file in the following format:
 

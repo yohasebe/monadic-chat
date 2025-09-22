@@ -11,7 +11,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 | Gemini | ✅ 全モデル | ✅ | ✅⁴ |
 | Mistral | ✅ 一部モデル⁵ | ✅ | ✅⁴ |
 | Cohere | ✅ Visionモデル⁷ | ✅ | ✅⁴ |
-| xAI Grok | ✅ Visionモデル⁶ | ✅ | ✅ ネイティブ |
+| xAI Grok | ✅ 対応モデルあり⁶ | ✅ | ✅ ネイティブ |
 | Perplexity | ✅ 全モデル | ❌ | ✅ ネイティブ |
 | DeepSeek | ❌ | ✅ | ✅⁴ |
 | Ollama | ❓ モデル依存⁸ | ❓ モデル依存⁸ | ✅⁴ |
@@ -21,7 +21,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 ³ Haikuモデルはビジョン非対応  
 ⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）  
 ⁵ Pixtral、mistral-medium-latest、mistral-small-latestモデル  
-⁶ grok-2-visionモデルのみ  
+⁶ grok-4-fast-reasoning / grok-4-fast-non-reasoning / grok-2-vision  
 ⁷ command-a-visionモデルのみ  
 ⁸ 使用する特定のモデルの機能に依存
 
@@ -36,8 +36,8 @@ ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
 COHERE_DEFAULT_MODEL=command-r-plus
 GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
-GROK_DEFAULT_MODEL=grok-2
-PERPLEXITY_DEFAULT_MODEL=sonar
+GROK_DEFAULT_MODEL=grok-4-fast-reasoning
+PERPLEXITY_DEFAULT_MODEL=sonar-reasoning-pro
 DEEPSEEK_DEFAULT_MODEL=deepseek-chat
 OLLAMA_DEFAULT_MODEL=llama3.2:3b
 ```
@@ -244,9 +244,10 @@ MISTRAL_API_KEY=api_key
 xAI APIキーを設定すると、Grokを用いたアプリを使用することができます。
 
 ### 利用可能なモデル
-- **Grok 3シリーズ**: grok-3、grok-3-mini、grok-3-pro（推論）
-- **Grok 2シリーズ**: grok-2、grok-2-mini、grok-2-vision-1212（ビジョン）
-- **Grokベータ**: grok-beta
+- **Grok 4 Fastシリーズ**: grok-4-fast-reasoning（ビジョン対応・推論）、grok-4-fast-non-reasoning（ビジョン対応・高速応答）
+- **Grok Code Fast**: grok-code-fast-1（コード生成・解析向け）
+- **Grok 3シリーズ**: grok-3、grok-3-mini、grok-3-pro（従来の推論モデル）
+- **Grok 2 Vision**: grok-2-vision-1212（ビジョン）
 
 APIキーを設定すると、`~/monadic/config/env` ファイルに次の形式でAPIキーが保存されます。
 

@@ -1319,7 +1319,7 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": false,
+    "vision_capability": true,
     "websearch_capability": true,
     "supports_web_search": true,
     "supports_parallel_function_calling": true,
@@ -1332,7 +1332,7 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": false,
+    "vision_capability": true,
     "websearch_capability": true,
     "supports_web_search": true,
     "supports_parallel_function_calling": true

@@ -19,7 +19,7 @@
       "model": "grok-4-fast-reasoning"
     },
     "perplexity": {
-      "model": "sonar"
+      "model": "sonar-reasoning-pro"
     },
     "deepseek": {
       "model": "deepseek-chat"

@@ -39,7 +39,7 @@ RSpec.describe "xAI Live Search - Tube Screamer Query", :integration do
     session = {
       messages: [],
       parameters: {
-        "model" => "grok-4-0709",
+        "model" => "grok-4-fast-reasoning",
         "websearch" => true,
         "temperature" => 0.3,
         "max_tokens" => 1000,

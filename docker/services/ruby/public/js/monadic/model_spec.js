@@ -1160,7 +1160,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "supports_thinking": true
   },
-  "magistral-medium-latest": {
+  "magistral-small-2509": {
     "context_window" : [1, 40000],
     "max_output_tokens" : [1, 40000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -1168,6 +1168,26 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "supports_thinking": true
+  },
+  "magistral-medium-latest": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "supports_thinking": true,
+    "vision_capability": true
+  },
+  "magistral-medium-2509": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 128000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "supports_thinking": true,
+    "vision_capability": true
   },
   "devstral-medium-latest": {
     "context_window" : [1, 128000],
@@ -1293,24 +1313,26 @@ const modelSpec = {
     "tool_capability": true
   },
   // xAI models
-  "grok-4-0709": {
-    "context_window" : [1, 256000],
+  "grok-4-fast-reasoning": {
+    "context_window" : [1, 2000000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": false,
     "websearch_capability": true,
     "supports_web_search": true,
-    "supports_parallel_function_calling": true
+    "supports_parallel_function_calling": true,
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "is_reasoning_model": true
   },
-  "grok-4-0709-eu": {
-    "context_window" : [1, 256000],
+  "grok-4-fast-non-reasoning": {
+    "context_window" : [1, 2000000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "vision_capability": true,
+    "vision_capability": false,
     "websearch_capability": true,
     "supports_web_search": true,
     "supports_parallel_function_calling": true
@@ -1363,7 +1385,7 @@ const modelSpec = {
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"],
     "websearch_capability": false,
-    "fallback_for_websearch": "grok-4-0709",
+    "fallback_for_websearch": "grok-4-fast-reasoning",
     "supports_web_search": false,
     "supports_parallel_function_calling": false
   },

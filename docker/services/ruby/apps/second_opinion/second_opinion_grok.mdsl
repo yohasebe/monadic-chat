@@ -38,7 +38,7 @@ app "SecondOpinionGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-4-fast-reasoning"
     temperature 0.0
   end
 

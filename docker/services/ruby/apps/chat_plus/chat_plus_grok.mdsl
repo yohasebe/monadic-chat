@@ -69,7 +69,7 @@ TEXT
   
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-4-fast-reasoning"
     context_size 100
     parallel_function_calling true  # Enable parallel function calling for proper tool execution
   end

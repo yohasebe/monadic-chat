@@ -9,7 +9,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
     {
       parameters: {
         "app_name" => "JupyterNotebookGrok",
-        "model" => "grok-4-0709",
+        "model" => "grok-code-fast-1",
         "temperature" => 0.7,
         "max_tokens" => 4096,
         "tools" => true,

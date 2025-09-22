@@ -8,7 +8,7 @@ app "MathTutorGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-4-fast-reasoning"
     temperature 0.0
     max_tokens 4096
     tool_choice "auto"  # Enable tool usage

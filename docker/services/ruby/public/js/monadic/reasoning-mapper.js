@@ -110,7 +110,7 @@ class ReasoningMapper {
           
         case 'xAI':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-            return spec.reasoning_effort[0]; // ["low", "medium", "high"] - no minimal
+            return spec.reasoning_effort[0];
           }
           return null;
           
@@ -192,10 +192,14 @@ class ReasoningMapper {
   
   static _mapGrok(spec, uiValue) {
     if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-      // Grok doesn't support minimal, map it to low
-      const mappedValue = uiValue === 'minimal' ? 'low' : uiValue;
-      
-      if (spec.reasoning_effort[0].includes(mappedValue)) {
+      const supported = spec.reasoning_effort[0];
+      let mappedValue = uiValue;
+
+      if (!supported.includes(mappedValue) && uiValue === 'minimal' && supported.includes('low')) {
+        mappedValue = 'low';
+      }
+
+      if (supported.includes(mappedValue)) {
         return { reasoning_effort: mappedValue };
       }
     }

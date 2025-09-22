@@ -16,7 +16,7 @@
       "model": "mistral-large-latest"
     },
     "xai": {
-      "model": "grok-4-0709"
+      "model": "grok-4-fast-reasoning"
     },
     "perplexity": {
       "model": "sonar"

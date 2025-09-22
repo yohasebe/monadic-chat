@@ -26,8 +26,8 @@ global.modelSpec = {
       can_disable: true
     }
   },
-  'grok-4-0709': {
-    reasoning_effort: [['low', 'medium', 'high'], 'low']
+  'grok-4-fast-reasoning': {
+    reasoning_effort: [['minimal', 'low', 'medium', 'high'], 'medium']
   },
   'deepseek-reasoner': {
     reasoning_content: ['disabled', 'enabled']
@@ -64,7 +64,7 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok is supported', () => {
-      expect(ReasoningMapper.isSupported('xAI', 'grok-4-0709')).toBe(true);
+      expect(ReasoningMapper.isSupported('xAI', 'grok-4-fast-reasoning')).toBe(true);
     });
 
     test('DeepSeek is supported', () => {
@@ -97,8 +97,8 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok returns options without minimal', () => {
-      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-4-0709');
-      expect(options).toEqual(['low', 'medium', 'high']);
+      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-4-fast-reasoning');
+      expect(options).toEqual(['minimal', 'low', 'medium', 'high']);
     });
 
     test('DeepSeek returns limited options', () => {
@@ -124,8 +124,8 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok maps minimal to low', () => {
-      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4-0709', 'minimal');
-      expect(result).toEqual({ reasoning_effort: 'low' });
+      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4-fast-reasoning', 'minimal');
+      expect(result).toEqual({ reasoning_effort: 'minimal' });
     });
 
     test('DeepSeek maps to enabled/disabled', () => {
@@ -154,8 +154,8 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok returns spec default', () => {
-      const result = ReasoningMapper.getDefaultValue('xAI', 'grok-4-0709');
-      expect(result).toBe('low');
+      const result = ReasoningMapper.getDefaultValue('xAI', 'grok-4-fast-reasoning');
+      expect(result).toBe('medium');
     });
 
     test('DeepSeek returns medium', () => {

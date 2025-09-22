@@ -40,7 +40,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-4-fast-reasoning",
           "websearch" => true,
           "web_country" => "JP",
           "excluded_websites" => ["spam.com"],
@@ -106,7 +106,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-4-fast-reasoning",
           "websearch" => true,
           "included_x_handles" => ["@elonmusk"],
           "post_favorite_count" => 1000,
@@ -174,7 +174,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "grok-4-0709",
+          "model" => "grok-4-fast-reasoning",
           "websearch" => true,
           "date_from" => date_from,
           "date_to" => date_to,

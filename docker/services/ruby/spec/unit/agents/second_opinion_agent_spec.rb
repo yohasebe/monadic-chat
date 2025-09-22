@@ -47,7 +47,7 @@ RSpec.describe SecondOpinionAgent do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-20250514")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-2.5-flash")
-        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-0709")
+        expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-fast-reasoning")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
         expect(agent.send(:determine_provider_and_model, "cohere", nil)[1]).to eq("command-a-03-2025")
         expect(agent.send(:determine_provider_and_model, "perplexity", nil)[1]).to eq("sonar")
@@ -219,7 +219,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is water?",
           agent_response: "Water is H2O",
           provider: "xai",  # Should normalize to grok
-          model: "grok-4-0709"
+          model: "grok-4-fast-reasoning"
         )
         
         expect(result[:model]).to include("grok")

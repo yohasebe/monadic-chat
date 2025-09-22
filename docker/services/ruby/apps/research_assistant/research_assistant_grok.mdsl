@@ -29,7 +29,7 @@ app "ResearchAssistantGrok" do
 
   llm do
     provider "xai"
-    model "grok-4-0709"
+    model "grok-4-fast-reasoning"
   end
 
   display_name "Research Assistant"

@@ -82,7 +82,7 @@ TEXT
     
     # Add response_format for specific providers if needed
     if provider == "grok" && !content.include?("response_format")
-      content.sub!(/model "grok-.*?"/, "model \"grok-4-0709\"\n    response_format({ type: \"json_object\" })")
+      content.sub!(/model "grok-.*?"/, "model \"grok-4-fast-reasoning\"\n    response_format({ type: \"json_object\" })")
       puts "  - Added response_format for Grok"
     end
     

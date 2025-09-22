@@ -197,11 +197,11 @@ RSpec.describe "Native Web Search Integration", :integration do
       ]
       
       while attempt < max_attempts && !success
-        # Create a test session with increased max_tokens for grok-4-0709
+        # Create a test session with increased max_tokens for grok-4-fast-reasoning
         session = {
           messages: [],
           parameters: {
-            "model" => "grok-4-0709",
+            "model" => "grok-4-fast-reasoning",
             "websearch" => true,
             "temperature" => 0.3,  # Slightly higher temperature for more consistent responses
             "max_tokens" => 2000,  # Increased from 1000 to ensure sufficient response

@@ -118,8 +118,7 @@ Web UIの推論/思考セレクターは、各プロバイダの用語とオプ�
 - ステップバイステップ推論のシンプルなオン/オフ制御
 
 #### Perplexityリサーチモデル
-- **R1シリーズ**: r1-1776（DeepSeek-R1ベース）
-- **Sonar推論**: sonar-reasoning、sonar-reasoning-pro
+- **Sonar推論**: sonar-reasoning、sonar-reasoning-pro（廃止されたR1シリーズの推奨後継）
 - Web検索と分析の深度を制御
 
 #### Mistral推論モデル
@@ -262,11 +261,8 @@ XAI_API_KEY=api_key
 Perplexity APIキーを設定すると、Perplexityを用いたアプリを使用することができます。
 
 ### 利用可能なモデル
-- **R1シリーズ**: r1-1776（推論モデル、DeepSeek-R1ベース）
-  - 671Bパラメータ、160Kコンテキストウィンドウ
-  - 公平な応答を実現するためにpost-trainingを実施
-  - 推奨temperature: 0.5-0.7
 - **Sonarシリーズ**: sonar、sonar-pro、sonar-reasoning、sonar-reasoning-pro、sonar-deep-research
+  - Sonar Pro Reasoningは廃止されたR1シリーズの推奨後継モデル
   - 全てWeb検索機能を内蔵
   - 簡単な検索から深いリサーチまで異なる用途に最適化
 

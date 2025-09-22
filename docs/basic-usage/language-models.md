@@ -118,8 +118,7 @@ The reasoning/thinking selector in the Web UI intelligently adapts to each provi
 - Simple on/off control for step-by-step reasoning
 
 #### Perplexity Research Models
-- **R1 Series**: r1-1776 (based on DeepSeek-R1)
-- **Sonar Reasoning**: sonar-reasoning, sonar-reasoning-pro
+- **Sonar Reasoning**: sonar-reasoning, sonar-reasoning-pro (recommended replacement for the retired R1 series)
 - Controls depth of web search and analysis
 
 #### Mistral Reasoning Models
@@ -262,11 +261,8 @@ XAI_API_KEY=api_key
 By setting the Perplexity API key, you can use apps that utilize Perplexity.
 
 ### Available Models
-- **R1 Series**: r1-1776 (reasoning model, based on DeepSeek-R1)
-  - 671B parameters, 160K context window
-  - Post-trained for unbiased responses
-  - Recommended temperature: 0.5-0.7
 - **Sonar Series**: sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research
+  - Sonar Pro Reasoning is the recommended successor to the retired R1 models
   - All include built-in web search capabilities
   - Optimized for different use cases from quick searches to deep research
 

@@ -33,14 +33,13 @@ module PerplexityHelper
      "sonar-pro",
      "sonar-reasoning",
      "sonar-reasoning-pro",
-     "sonar-deep-research",
-     "r1-1776"
+     "sonar-deep-research"
     ]
   end
 
   # Get default model
   def self.get_default_model
-    "sonar-pro"
+    "sonar-reasoning-pro"
   end
 
   # Simple non-streaming chat completion

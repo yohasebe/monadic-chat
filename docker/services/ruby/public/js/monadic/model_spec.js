@@ -1412,15 +1412,6 @@ const modelSpec = {
     "supports_parallel_function_calling": true
   },
   // Perplexity models
-  "r1-1776": {
-    "context_window" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "reasoning_model": true,
-    "is_reasoning_model": true,
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
   "sonar-deep-research": {
     "context_window" : [1, 128000],
     "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],

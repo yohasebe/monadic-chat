@@ -2332,16 +2332,29 @@ function openInstallOptionsWindow() {
   // Inject UI language and trigger translation after load
   installOptionsWindow.webContents.once('did-finish-load', () => {
     const envPath = getEnvPath();
-    if (envPath) {
-      const envConfig = readEnvFile(envPath);
-      const uiLanguage = envConfig.UI_LANGUAGE || 'en';
-      installOptionsWindow.webContents.executeJavaScript(`
-        document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
-        if (typeof installOptionsReloadTranslations === 'function') {
-          installOptionsReloadTranslations();
+    let uiLanguage = 'en';
+    try {
+      if (envPath) {
+        const envConfig = readEnvFile(envPath);
+        if (envConfig.UI_LANGUAGE) {
+          uiLanguage = envConfig.UI_LANGUAGE;
         }
-      `);
+      }
+    } catch (err) {
+      console.warn('[InstallOptions] Failed to read UI language from env:', err.message);
     }
+    if ((!uiLanguage || uiLanguage === 'en') && typeof i18n.getLanguage === 'function') {
+      const currentLang = i18n.getLanguage();
+      if (currentLang) {
+        uiLanguage = currentLang;
+      }
+    }
+    installOptionsWindow.webContents.executeJavaScript(`
+      document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
+      if (typeof installOptionsReloadTranslations === 'function') {
+        installOptionsReloadTranslations();
+      }
+    `);
   });
   installOptionsWindow.on('closed', () => { installOptionsWindow = null; });
   // Route close attempts to renderer for unsaved-change prompt

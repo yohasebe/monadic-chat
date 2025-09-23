@@ -38,6 +38,12 @@
       ioIds.forEach(id => { obj[id] = !!document.getElementById(id)?.checked; });
       return JSON.stringify(obj);
     };
+    const extractPanelTranslations = (all) => {
+      if (!all) return null;
+      if (all.installOptionsPanel) return all.installOptionsPanel;
+      if (all.menu && all.menu.installOptionsPanel) return all.menu.installOptionsPanel;
+      return null;
+    };
     function detectLang(){
       try {
         const m = document.cookie.match(/ui-language=([^;]+)/);
@@ -50,7 +56,7 @@
       const lang = detectLang();
       const all = await window.electronAPI.getTranslations(lang);
       ioTranslationsAll = all || {};
-      const t = (all && all.installOptionsPanel) ? all.installOptionsPanel : null;
+      const t = extractPanelTranslations(ioTranslationsAll);
       return t;
     }
     function applyTranslations(t){
@@ -136,7 +142,7 @@
         const saveMsg = document.getElementById('io-save-message');
         // Set translated tooltip
         try {
-          const panelT = (ioTranslationsAll && ioTranslationsAll.installOptionsPanel) ? ioTranslationsAll.installOptionsPanel : null;
+          const panelT = extractPanelTranslations(ioTranslationsAll);
           if (panelT && saveMsg) {
             const get = (path, def='') => { try { return path.split('.').reduce((o,k)=> (o||{})[k], panelT) || def; } catch(e){ return def; } };
             saveMsg.setAttribute('title', get('messages.saved','Options saved'));
@@ -158,7 +164,7 @@
       }
     }
     function showIoUnsavedDialog(onSave) {
-      const d = (ioTranslationsAll && ioTranslationsAll.dialogs) ? ioTranslationsAll.dialogs : {};
+      const d = (ioTranslationsAll && (ioTranslationsAll.dialogs || (ioTranslationsAll.menu && ioTranslationsAll.menu.dialogs))) ? (ioTranslationsAll.dialogs || ioTranslationsAll.menu.dialogs) : {};
       const title = d.unsavedChangesTitle || 'Unsaved Changes';
       const message = d.unsavedChangesMessage || 'You have unsaved changes. Save before closing?';
       const saveAndClose = d.saveAndClose || 'Save and Close';

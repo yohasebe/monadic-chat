@@ -70,7 +70,7 @@
           "scikit": "scikit-learn",
           "gensim": "gensim",
           "librosa": "librosa",
-          "mediapipe": "mediapipe (CPU)",
+          "mediapipe": "mediapipe（CPUのみ）",
           "transformers": "transformers（CPUのみ）"
         }
       },

@@ -68,8 +68,8 @@
           "scikit": "scikit-learn",
           "gensim": "gensim",
           "librosa": "librosa",
-          "mediapipe": "mediapipe (CPU)",
-          "transformers": "transformers (CPU only)"
+          "mediapipe": "mediapipe (nur CPU)",
+          "transformers": "transformers (nur CPU)"
         }
       },
       "tools": {

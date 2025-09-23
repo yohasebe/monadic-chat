@@ -193,7 +193,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4o"
+    model "gpt-4.1"
   end
   
   system_prompt "あなたは役立つアシスタントです。"
@@ -403,7 +403,7 @@ class MyAppOpenAI < MonadicApp
     # パラメータの設定
     parameters = {
       message: {
-        model: "gpt-4o",
+        model: "gpt-4.1",
         messages: [
           {
             role: "user",

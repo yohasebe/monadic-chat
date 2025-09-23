@@ -125,7 +125,7 @@ RSpec.describe "Native Web Search Integration", :integration do
       session = {
         messages: [],
         parameters: {
-          "model" => "claude-3-5-sonnet-latest",
+          "model" => "claude-sonnet-4-20250514",
           "websearch" => true,
           "temperature" => 0.0,
           "max_tokens" => 1000,

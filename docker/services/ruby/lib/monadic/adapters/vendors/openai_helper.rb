@@ -24,6 +24,7 @@ module OpenAIHelper
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
+  REASONING_CONTEXT_MAX = 3
 
   OPEN_TIMEOUT = 20
   READ_TIMEOUT = 120
@@ -517,6 +518,10 @@ module OpenAIHelper
       # Reset model switch notification flag for new user messages
       if role == "user"
         session.delete(:model_switch_notified)
+        if app.to_s == "MonadicHelpOpenAI"
+          obj["help_topics_call_count"] = 0
+          obj.delete("help_topics_prev_queries")
+        end
       end
 
       # Apply monadic transformation if needed (for display purposes only)
@@ -1097,7 +1102,33 @@ module OpenAIHelper
             tool_calls = msg["tool_calls"] || msg[:tool_calls]
             # Convert assistant message with tool calls for Responses API
             output_items = []
-            
+
+            # Add reasoning content if present
+            reasoning_items_payload = msg["reasoning_items"] || msg[:reasoning_items]
+            if reasoning_items_payload && !reasoning_items_payload.empty?
+              Array(reasoning_items_payload).each do |entry|
+                unless entry.is_a?(Hash)
+                  next
+                end
+                normalized = entry.transform_keys { |k| k.to_s }
+                normalized["type"] ||= "reasoning"
+                output_items << normalized
+              end
+            else
+              reasoning_text = msg["reasoning_content"] || msg[:reasoning_content]
+              if reasoning_text && !reasoning_text.to_s.strip.empty?
+                output_items << {
+                  "type" => "reasoning",
+                  "content" => [
+                    {
+                      "type" => "output_text",
+                      "text" => reasoning_text.to_s
+                    }
+                  ]
+                }
+              end
+            end
+
             # Add text content if present
             if content
               output_items << {
@@ -1194,6 +1225,10 @@ module OpenAIHelper
         responses_body["reasoning"] = {
           "effort" => body["reasoning_effort"]
         }
+
+        if obj["reasoning_context"].is_a?(Array) && !obj["reasoning_context"].empty?
+          responses_body["reasoning"]["context"] = JSON.parse(JSON.generate(obj["reasoning_context"]))
+        end
       end
       
       # Add temperature and sampling parameters if not a reasoning model
@@ -1362,15 +1397,6 @@ module OpenAIHelper
       # Compatibility: some models/efforts do not allow tools with reasoning enabled.
       # If file_search (or any tool) is present alongside reasoning, drop reasoning to avoid
       # invalid_request_error such as: "tools cannot be used with reasoning.effort 'minimal'".
-      begin
-        if responses_body["tools"] && !responses_body["tools"].empty? && responses_body.key?("reasoning")
-          DebugHelper.debug("OpenAI: Removing reasoning config due to tools present (compatibility)", category: :api, level: :debug)
-          responses_body.delete("reasoning")
-        end
-      rescue StandardError
-        # no-op: conservative
-      end
-
       # Attach File Search tool only when the current app explicitly opts into PDF vector storage
       begin
         current_app = obj["app"] || (defined?(session) ? session.dig(:parameters, "app_name") : nil)
@@ -1919,6 +1945,8 @@ module OpenAIHelper
     tools = filtered_tools
 
     tools.each do |tool_call|
+      tool_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
       function_call = tool_call["function"]
       function_name = function_call["name"]
 
@@ -1941,25 +1969,60 @@ module OpenAIHelper
         memo
       end
 
-      begin
-        if argument_hash.empty?
-          function_return = APPS[app].send(function_name.to_sym)
-        else
-          function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      skip_function_execution = false
+      function_return = nil
+
+      if function_name == "find_help_topics" && app.to_s == "MonadicHelpOpenAI"
+        obj["help_topics_call_count"] = obj["help_topics_call_count"].to_i + 1
+        call_count = obj["help_topics_call_count"]
+
+        normalized_text = argument_hash[:text].to_s.strip
+        argument_hash[:text] = normalized_text unless normalized_text.empty?
+
+        top_n = argument_hash[:top_n].to_i
+        top_n = 12 if top_n <= 0
+        top_n = 15 if top_n > 15
+        argument_hash[:top_n] = top_n
+
+        chunks = argument_hash[:chunks_per_result].to_i
+        chunks = 2 if chunks <= 0
+        chunks = 3 if chunks > 3
+        argument_hash[:chunks_per_result] = chunks
+
+        obj["help_topics_prev_queries"] ||= []
+        downcased_query = normalized_text.downcase
+        duplicate_query = !downcased_query.empty? && obj["help_topics_prev_queries"].include?(downcased_query)
+        obj["help_topics_prev_queries"] << downcased_query unless downcased_query.empty?
+
+        if duplicate_query || call_count > 2
+          skip_function_execution = true
+          notice_key = call_count > 2 ? "search_limit_reached" : "duplicate_query_skipped"
+          notice_msg = call_count > 2 ? "Documentation search limited to two calls per request." : "Duplicate documentation search skipped."
+          function_return = JSON.generate({ "results" => [], "notice" => notice_key, "message" => notice_msg })
         end
-        
-        # Log the result for debugging
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
+      end
+
+      unless skip_function_execution
+        begin
+          if argument_hash.empty?
+            function_return = APPS[app].send(function_name.to_sym)
+          else
+            function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+          end
+          
+          # Log the result for debugging
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
+          end
+        rescue StandardError => e
+          pp e.message
+          pp e.backtrace
+          function_return = Monadic::Utils::ErrorFormatter.tool_error(
+            provider: "OpenAI",
+            tool_name: function_name,
+            message: e.message
+          )
         end
-      rescue StandardError => e
-        pp e.message
-        pp e.backtrace
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "OpenAI",
-          tool_name: function_name,
-          message: e.message
-        )
       end
 
       # Use the error handler module to check for repeated errors
@@ -1976,12 +2039,18 @@ module OpenAIHelper
         return api_request("tool", session, call_depth: call_depth, &block)
       end
 
-      context << {
+     context << {
         tool_call_id: tool_call["id"],
         role: "tool",
         name: function_name,
         content: function_return.to_s
       }
+
+      if CONFIG["EXTRA_LOGGING"]
+        duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - tool_start) * 1000).round(1)
+        query_preview = argument_hash[:text].to_s[0..80]
+        DebugHelper.debug("[ToolTiming] app=#{app} function=#{function_name} duration_ms=#{duration_ms} query=#{query_preview}", category: :metrics, level: :info)
+      end
     end
 
     obj["function_returns"] = context
@@ -2003,7 +2072,9 @@ module OpenAIHelper
     tools = {}
     finish_reason = nil
     current_tool_calls = []
-    reasoning_content = ""
+    reasoning_segments = []
+    reasoning_indices = {}
+    current_reasoning_id = nil
     web_search_results = []
     file_search_results = []
     image_generation_status = {}
@@ -2013,7 +2084,39 @@ module OpenAIHelper
     usage_total_tokens = nil
 
     chunk_count = 0
+
+    reasoning_extract_text = lambda do |content_array|
+      next "" unless content_array.is_a?(Array)
+      content_array.map do |entry|
+        if entry.is_a?(Hash)
+          type = entry["type"] || entry[:type]
+          text = entry["text"] || entry[:text]
+          if %w[output_text text].include?(type.to_s)
+            text.to_s
+          else
+            ""
+          end
+        else
+          ""
+        end
+      end.join
+    end
+
+    ensure_reasoning_segment = lambda do |rid|
+      identifier = rid || current_reasoning_id || :__default_reasoning__
+      index = reasoning_indices[identifier] if identifier && reasoning_indices.key?(identifier)
+
+      if index.nil?
+        index = reasoning_segments.length
+        reasoning_segments << { text: "" }
+        reasoning_indices[identifier] = index if identifier
+      end
+
+      reasoning_segments[index]
+    end
     res.each do |chunk|
+      event_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
       chunk_count += 1
@@ -2173,7 +2276,7 @@ module OpenAIHelper
             when "response.output_item.added"
               # New output item added
               item = json["item"]
-              
+
               if item && item["type"] == "function_call"
                 # Store the function name and ID for later use
                 item_id = item["id"]
@@ -2185,12 +2288,19 @@ module OpenAIHelper
                 end
                 res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                 block&.call res
+              elsif item && item["type"] == "reasoning"
+                rid = item["id"]
+                current_reasoning_id = rid if rid
+                segment = ensure_reasoning_segment.call(rid)
+                if item["content"]
+                  segment[:text] << reasoning_extract_text.call(item["content"])
+                end
               end
               
             when "response.output_item.done"
               # Output item completed
               item = json["item"]
-              
+
               if item && item["type"] == "function_call"
                 item_id = item["id"]
                 if item_id
@@ -2200,6 +2310,13 @@ module OpenAIHelper
                   tools[item_id]["arguments"] = item["arguments"] if item["arguments"]
                   tools[item_id]["call_id"] = item["call_id"] if item["call_id"]
                   tools[item_id]["completed"] = true
+                end
+              elsif item && item["type"] == "reasoning"
+                rid = item["id"]
+                current_reasoning_id = rid if rid
+                segment = ensure_reasoning_segment.call(rid)
+                if item["content"]
+                  segment[:text] << reasoning_extract_text.call(item["content"])
                 end
               end
               
@@ -2229,16 +2346,22 @@ module OpenAIHelper
               
             when "response.reasoning.delta"
               # Reasoning content delta
+              rid = json["item_id"] || current_reasoning_id
               delta = json.dig("delta", "text") || json["delta"]
               if delta
-                reasoning_content += delta
+                segment = ensure_reasoning_segment.call(rid)
+                segment[:text] << delta.to_s
+                current_reasoning_id = rid if rid
               end
-              
+
             when "response.reasoning.done"
               # Reasoning completed
+              rid = json["item_id"] || current_reasoning_id
               text = json["text"]
               if text
-                reasoning_content = text
+                segment = ensure_reasoning_segment.call(rid)
+                segment[:text] = text.to_s
+                current_reasoning_id = nil
               end
               
             when "response.web_search_call.in_progress"
@@ -2404,6 +2527,10 @@ module OpenAIHelper
             pp e.backtrace
             pp e.inspect
           end
+          if CONFIG["EXTRA_LOGGING"]
+            duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
+            DebugHelper.debug("[ResponsesTiming] app=#{app} event=#{event_type.inspect} duration_ms=#{duration_ms}", category: :metrics, level: :info)
+          end
         else
           scanner.terminate
         end
@@ -2479,19 +2606,40 @@ module OpenAIHelper
           
           # Build context with any text content so far
           context = []
+          message = {
+            "role" => "assistant",
+            "tool_calls" => tool_calls
+          }
+
           if texts.any?
             complete_text = texts.values.join("")
-            context << {
-              "role" => "assistant",
-              "content" => complete_text,
-              "tool_calls" => tool_calls
-            }
-          else
-            context << {
-              "role" => "assistant",
-              "tool_calls" => tool_calls
+            message["content"] = complete_text
+          end
+
+          reasoning_entries = reasoning_segments.filter_map do |segment|
+            text = segment[:text].to_s.strip
+            next if text.empty?
+            {
+              "type" => "reasoning",
+              "content" => [
+                {
+                  "type" => "output_text",
+                  "text" => text
+                }
+              ]
             }
           end
+
+          unless reasoning_entries.empty?
+            message["reasoning_items"] = reasoning_entries
+            reasoning_text_combined = reasoning_entries.map do |entry|
+              Array(entry["content"]).select { |c| c.is_a?(Hash) && c["type"] == "output_text" }.map { |c| c["text"] }
+            end.flatten.join("\n\n").strip
+            message["reasoning_content"] = reasoning_text_combined unless reasoning_text_combined.empty?
+            obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_entries.last(REASONING_CONTEXT_MAX)))
+          end
+
+          context << message
           
           new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
           
@@ -2529,9 +2677,24 @@ module OpenAIHelper
         }.compact
       end
       
-      # Add reasoning content if available
-      if reasoning_content && !reasoning_content.empty?
-        response["choices"][0]["message"]["reasoning_content"] = reasoning_content
+      reasoning_texts = reasoning_segments.map { |segment| segment[:text].to_s.strip }.reject(&:empty?)
+      if reasoning_texts.any?
+        response["choices"][0]["message"]["reasoning_content"] = reasoning_texts.join("\n\n")
+        obj["reasoning_context"] = JSON.parse(JSON.generate(reasoning_segments.filter_map do |segment|
+          text = segment[:text].to_s.strip
+          next if text.empty?
+          {
+            "type" => "reasoning",
+            "content" => [
+              {
+                "type" => "output_text",
+                "text" => text
+              }
+            ]
+          }
+        end.last(REASONING_CONTEXT_MAX)))
+      else
+        obj.delete("reasoning_context") if obj.key?("reasoning_context")
       end
       
       # Apply monadic transformation if needed

@@ -61,13 +61,14 @@ All values can be overridden per provider (for example `API_TIMEOUT_COHERE=120` 
 
 ## Result Summaries
 
-- A custom formatter emits artifacts under `./tmp/test_runs/<timestamp>/`:
+- A custom formatter emits artifacts under `./tmp/test_runs/<timestamp>/` (only the latest directory is kept by default):
   - `summary_compact.md` — short digest (LLM‑friendly)
   - `summary_full.md` — failures/pending details with filtered traces
   - `rspec_report.json` — machine‑readable
   - `env_meta.json` — env + git metadata
 - Latest shortcuts:
   - `./tmp/test_runs/latest` (symlink), `./tmp/test_runs/latest_compact.md`
+- To keep older runs, set `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`) before invoking the suite. Without this flag, previous run directories are removed automatically.
 - Print last summary in terminal:
   - `rake test_summary:latest`
 

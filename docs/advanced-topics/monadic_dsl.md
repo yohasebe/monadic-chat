@@ -29,7 +29,7 @@ app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.
   
   llm do
     provider "anthropic"
-    model "claude-3-5-sonnet-20241022"
+    model "claude-sonnet-4-20250514"
     temperature 0.7
   end
   
@@ -71,7 +71,7 @@ end
 ```ruby
 llm do
   provider "anthropic"  # AI provider (anthropic, openai, cohere, etc.)
-  model "claude-3-5-sonnet-20241022"  # Model name
+  model "claude-sonnet-4-20250514"  # Model name
   temperature 0.7  # Response randomness (0.0-1.0)
   max_tokens 4000  # Maximum response length
 end
@@ -186,7 +186,7 @@ app "Math Tutor" do
   
   llm do
     provider "anthropic"
-    model "claude-3-5-sonnet-20241022"
+    model "claude-sonnet-4-20250514"
     temperature 0.7
   end
   

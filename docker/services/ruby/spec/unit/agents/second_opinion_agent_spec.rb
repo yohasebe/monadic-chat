@@ -70,7 +70,7 @@ RSpec.describe SecondOpinionAgent do
     context "incomplete Claude model names" do
       it "detects and fixes incomplete Claude model names" do
         # This simulates the case where the model name is cut off
-        result = agent.send(:determine_provider_and_model, "claude", "claude-3-5-sonnet-2024-10")
+        result = agent.send(:determine_provider_and_model, "claude", "claude-sonnet-4-2025-05")
         expect(result[1]).to eq("claude-sonnet-4-20250514")
       end
     end
@@ -136,7 +136,7 @@ RSpec.describe SecondOpinionAgent do
       end
       
       it "returns false for providers without reasoning models" do
-        expect(SecondOpinionClaude.is_reasoning_model?("claude-3-5-sonnet-20241022")).to be false
+        expect(SecondOpinionClaude.is_reasoning_model?("claude-sonnet-4-20250514")).to be false
         expect(SecondOpinionCohere.is_reasoning_model?("command-r")).to be false
         expect(SecondOpinionPerplexity.is_reasoning_model?("sonar")).to be false
       end
@@ -258,9 +258,9 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is AI?",
           agent_response: "AI stands for Artificial Intelligence",
           provider: "cohere",
-          model: "command-r7b-12-2024"
+          model: "command-a-03-2025"
         )
-        
+
         expect(result[:comments]).to be_a(String)
         expect(result[:comments].strip).not_to be_empty
         expect(result[:model]).to include("cohere")

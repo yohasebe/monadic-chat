@@ -29,7 +29,7 @@ app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があ
   
   llm do
     provider "anthropic"
-    model "claude-3-5-sonnet-20241022"
+    model "claude-sonnet-4-20250514"
     temperature 0.7
   end
   
@@ -67,7 +67,7 @@ end
 ```ruby
 llm do
   provider "anthropic"  # AIプロバイダー (anthropic, openai, cohere, etc.)
-  model "claude-3-5-sonnet-20241022"  # モデル名
+  model "claude-sonnet-4-20250514"  # モデル名
   temperature 0.7  # レスポンスのランダム性 (0.0-1.0)
   max_tokens 4000  # 最大レスポンス長
 end
@@ -152,7 +152,7 @@ app "ChatClaude" do  # クラス名と正確に一致する必要があります
   
   llm do
     provider "anthropic"
-    model "claude-3-5-sonnet-20241022"
+    model "claude-sonnet-4-20250514"
     temperature 0.7
   end
   

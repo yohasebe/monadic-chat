@@ -38,6 +38,7 @@ app "ConceptVisualizerOpenAI" do
     provider "openai"
     model ["gpt-5", "gpt-4.1"]
     max_tokens 4000
+    reasoning_effort "minimal"
     temperature 0.0
   end
 

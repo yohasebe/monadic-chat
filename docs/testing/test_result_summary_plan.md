@@ -10,7 +10,7 @@
 - Non-goals for Phase 1: Jest/Pytest integration (planned in Phase 2).
 
 ## Outputs (per run)
-- Root: `./tmp/test_runs/<YYYYmmdd_HHMMSSZ>/`
+- Root: `./tmp/test_runs/<YYYYmmdd_HHMMSSZ>/` (older run directories are removed automatically unless `SUMMARY_PRESERVE_HISTORY` is set).
   - `summary_compact.md`: Short, scan-friendly digest for humans/LLMs.
   - `summary_full.md`: Detailed summary (full failure + pending details).
   - `rspec_report.json`: Machine-readable result summary (examples, status, timings, metadata).
@@ -70,7 +70,7 @@
   - Ruby, OS, container flags (best-effort).
 
 6) Defaults & Env Controls
-- `SUMMARY_DIR_ROOT=./tmp/test_runs` (overrideable).
+- `SUMMARY_DIR_ROOT=./tmp/test_runs` (overrideable). Older runs are pruned unless `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`).
 - `SUMMARY_ONLY=0` by default.
 - `SUMMARY_MAX_FAILS=50` (inline console cap).
 - `SUMMARY_MAX_PENDINGS=50` (compact cap).

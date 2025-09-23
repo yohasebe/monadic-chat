@@ -885,14 +885,19 @@ module WebSocketHelper
                 end
               end
 
-              new_data = { "mid" => SecureRandom.hex(4),
-                           "role" => "assistant",
-                           "text" => text,
-                           "html" => html,
-                           "lang" => detect_language(text),
-                           "active" => true } # detect_language is called only once here
+             new_data = { "mid" => SecureRandom.hex(4),
+                          "role" => "assistant",
+                          "text" => text,
+                          "html" => html,
+                          "lang" => detect_language(text),
+                          "active" => true } # detect_language is called only once here
 
-              new_data["thinking"] = thinking if thinking
+              if thinking && !thinking.to_s.strip.empty?
+                new_data["thinking"] = thinking
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("WebSocket: Attaching thinking block (length=#{thinking.to_s.length})", category: :ui, level: :info)
+                end
+              end
 
               # Optional: Use provider-reported usage to set assistant tokens
               # This is disabled by default to avoid confusion and keep a

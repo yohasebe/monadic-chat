@@ -41,6 +41,32 @@ normalize_path() {
   echo "${path}" | sed 's|//|/|g'
 }
 
+safe_rm() {
+  local target="$1"
+  rm -f "$target" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo rm -f "$target" 2>/dev/null || echo "[WARN] Unable to remove $target"
+    else
+      echo "[WARN] Unable to remove $target (insufficient permissions)"
+    fi
+  }
+}
+
+safe_touch() {
+  local target="$1"
+  touch "$target" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      if sudo touch "$target"; then
+        sudo chown "$(id -u)":"$(id -g)" "$target" 2>/dev/null || true
+      else
+        echo "[WARN] Unable to touch $target"
+      fi
+    else
+      echo "[WARN] Unable to touch $target (insufficient permissions)"
+    fi
+  }
+}
+
 # ---------------- Build concurrency lock ----------------
 LOCK_DIR="${HOME_DIR}/monadic/log/build.lock.d"
 # Treat a lock older than this as stale (seconds). Default: 2 hours
@@ -229,18 +255,18 @@ ensure_data_dir() {
   mkdir -p "${config_dir}"
   mkdir -p "${ollama_dir}"
 
-  rm -f "${log_dir}/command.log"
-  rm -f "${log_dir}/jupyter.log"
+  safe_rm "${log_dir}/command.log"
+  safe_rm "${log_dir}/jupyter.log"
 
   # remove extra.log if it exists
-  rm -f "${log_dir}/extra.log"
+  safe_rm "${log_dir}/extra.log"
 
   # clear rbsetup.sh, pysetup.sh and olsetup.sh in the root dir by overwriting default comments
   echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
   echo "# This file is overwritten by pysetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
   echo "# This file is overwritten by olsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ollama/olsetup.sh"
 
-  touch "${config_dir}/env"
+  safe_touch "${config_dir}/env"
 
   # Only show Ruby setup message when building Ruby container or all containers
   if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
@@ -478,6 +504,8 @@ META
   # If everything looks good, retag atomically to version and latest
   echo "[HTML]: <p>Verifying image . . .</p>" | tee -a "${build_log}"
   if ${DOCKER} run --rm "${temp_tag}" python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
+    "${DOCKER}" tag "${temp_tag}" yohasebe/python:${MONADIC_VERSION}
+    "${DOCKER}" tag yohasebe/python:${MONADIC_VERSION} yohasebe/python:latest
     "${DOCKER}" tag "${temp_tag}" yohasebe/monadic-chat:${MONADIC_VERSION}
     "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true

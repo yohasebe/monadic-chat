@@ -80,6 +80,7 @@ app "PDFNavigatorOpenAI" do
   llm do
     provider "OpenAI"
     model ["gpt-5", "gpt-4.1"]
+    reasoning_effort "minimal"
     temperature 0.0
   end
   

@@ -24,7 +24,7 @@
 - `RUN_API=true` — enable real API tests (default: off).
 - `RUN_MEDIA=true` — enable media tests (default: off).
 - `PROVIDERS=openai,anthropic,...` — limit target providers.
-- `MODELS__OPENAI=gpt-4o-mini` (per‑provider overrides). Otherwise resolve from `system_defaults.json`.
+- `MODELS__OPENAI=gpt-4.1-mini` (per-provider overrides). Otherwise resolve from `system_defaults.json`.
 - `API_TIMEOUT=30`, `API_RATE_QPS=1`, `API_MAX_REQUESTS=200`, `FAIL_FAST=false`.
 - `INCLUDE_OLLAMA=true` — include local Ollama in default provider set (otherwise excluded by default).
 

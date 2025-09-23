@@ -52,17 +52,7 @@
 
 <!-- > 📸 **スクリーンショットが必要**: 絵文字を伴う会話を表示するChatアプリのインターフェース -->
 
-下記の言語モデルでChatアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- DeepSeek
-- Cohere
-- Ollama (ローカルモデル)
+本アプリの対応プロバイダーはページ冒頭の表を参照してください。利用できるモデルの詳細は各プロバイダーの公式ドキュメントで確認してください。
 
 ### Chat Plus
 
@@ -80,7 +70,7 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成APIを用いて、音声でチャットを行うことができるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。このアプリは異なるAIモデルを使用して応答を生成できます。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
+選択したプロバイダーの音声認識APIとブラウザの音声合成APIを組み合わせ、音声でチャットを行えるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。このアプリは異なるAIモデルを使用して応答を生成できます。Google Chrome、Microsoft Edgeなど、ブラウザのText to Speech APIが動作するWebブラウザが必要です。
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
@@ -89,16 +79,7 @@ OpenAIのSpeech-to-Text API（音声認識）とブラウザの音声合成API�
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 
-下記の言語モデルでVoice Chatアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Cohere
-- DeepSeek
-- Perplexity
+Voice Chatの対応プロバイダーは冒頭の表を参照してください。音声入出力の品質や対応言語は各プロバイダーのAPI仕様に従います。
 
 ### Wikipedia
 
@@ -118,9 +99,9 @@ AIチャットボットが [MathJax](https://www.mathjax.org/) の数式表記�
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-このアプリは2段階の相談プロセスを提供します。**ステップ1**: 質問をすると、AIから初期回答を受け取ります。**ステップ2**: 「セカンドオピニオンを求める」「Claudeはどう思う？」「この答えを検証して」などのフレーズで検証を依頼すると、別のAIプロバイダー（Claude、Gemini、Mistralなど）が初期回答をレビューしコメントします。これにより、回答の正確性を確保し、複雑なトピックについて多様な視点を得ることができます。
+このアプリは2段階の相談プロセスを提供します。**ステップ1**: 質問をすると、AIから初期回答を受け取ります。**ステップ2**: 「セカンドオピニオンを求める」「別の視点で確認して」などのフレーズで検証を依頼すると、別のAIプロバイダーが初期回答をレビューしコメントします。これにより、回答の正確性を確保し、複雑なトピックについて多様な視点を得ることができます。
 
-Second Opinionアプリは、サポートされているすべてのモデルで利用可能です：OpenAI、Claude、Gemini、Mistral、Cohere、Perplexity、xAI Grok、DeepSeek、Ollama。
+Second Opinionアプリの対応状況は冒頭の表を参照してください。利用できるモデルやツールは各プロバイダーの公式ドキュメントで最新情報を確認してください。
 
 ### Research Assistant
 
@@ -128,20 +109,11 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 
 アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、強力なウェブ検索機能を持つインテリジェントな研究アシスタントとして機能します。オンラインソースから情報を取得・分析し、最新情報の検索、事実の検証、トピックの包括的な調査を支援します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、あなたの探究を進めます。
 
-下記の言語モデルでResearch Assistantアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI（Tavily API必須）
-- Cohere（Tavily API必須）
-- DeepSeek（Tavily API必須）
-- Perplexity
+Research Assistantの対応プロバイダーは冒頭の表を参照してください。プロバイダーによってはネイティブのWeb検索機能を備えている場合もあれば、外部サービス（例：Tavily）を設定する必要がある場合もあります。最新の要件は各プロバイダーの公式ドキュメントで確認してください。
 
 ?> **ウェブ検索機能について**: 
-> - **ネイティブ検索**：Responses APIや各プロバイダーが提供するネイティブ検索機能（例：OpenAI、Anthropic、xAI Grok、Google Gemini、Perplexity Sonarなど）に対応したモデルを利用すると、自動的にネイティブ検索が実行されます。最新情報は各プロバイダーのドキュメントを参照してください。
-> - **Tavily API必須**：ネイティブ検索を提供しないプロバイダー（例：Mistral AI、Cohere、DeepSeek）では、[Tavily](https://tavily.com/) のAPIキーを設定することでWeb検索が利用可能になります（月1,000回の無料API呼び出し）。
+> - **ネイティブ検索**：一部のプロバイダーは独自APIでWeb検索を提供しています。対応範囲や制限は各プロバイダーのドキュメントを参照してください。
+> - **外部サービス**：ネイティブ検索を提供しない場合は、Tavilyなどの外部Web検索APIを連携させて利用します。料金や利用条件は各サービスの案内に従ってください。
 
 ## 言語関連 :id=language-related
 
@@ -153,16 +125,7 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 
 <!-- > 📸 **スクリーンショットが必要**: 語学学習ガイダンスを伴う会話を表示するLanguage Practiceアプリ -->
 
-下記の言語モデルでLanguage Practiceアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- Cohere
-- DeepSeek
+Language Practiceの対応プロバイダーは冒頭の表を参照してください。音声合成や対話品質の違いは各プロバイダーのAPI仕様に従います。
 
 ### Language Practice Plus
 
@@ -177,7 +140,7 @@ Second Opinionアプリは、サポートされているすべてのモデルで
 
 ユーザーの入力テキストを別の言語に翻訳します。まず、AIアシスタントが翻訳先の言語を尋ねます。次に、ユーザーの入力テキストを指定された言語に翻訳します。特定の表現に関して、それらをどのように訳すかを指定したい場合は、入力テキストの該当箇所に括弧を付け、括弧内に翻訳表現を指定してください。
 
-TranslateアプリはOpenAIとCohereのモデルで利用可能です。
+Translateアプリの対応プロバイダーは冒頭の表を参照してください。対応言語や翻訳品質は各プロバイダーの多言語サポートに依存します。
 
 ### Voice Interpreter
 
@@ -185,7 +148,7 @@ TranslateアプリはOpenAIとCohereのモデルで利用可能です。
 
 ユーザーが音声入力で与えた内容を別の言語に翻訳し、音声合成で発話します。まず、アシスタントは翻訳先の言語を尋ねます。次に、入力されたテキストを指定された言語に翻訳します。
 
-Voice InterpreterアプリはOpenAIとCohereのモデルで利用可能です。
+Voice Interpreterの対応プロバイダーは冒頭の表を参照してください。音声入力・合成の仕様は各プロバイダーのドキュメントで確認してください。
 
 ## コンテンツ生成 :id=content-generation
 
@@ -201,7 +164,7 @@ Voice InterpreterアプリはOpenAIとCohereのモデルで利用可能です。
 
 説明に基づいて画像を生成するアプリケーションです。
 
-OpenAIバージョンは最新のgpt-image-1モデルを使用し、3つの主な操作をサポートしています：
+対応プロバイダーが高度な画像ワークフローを提供している場合、以下の3つの主な操作を利用できます：
 
 1. **画像生成**：テキストの説明から新しい画像を作成
 2. **画像編集**：テキストプロンプトとオプションのマスク画像を使用して既存の画像を修正
@@ -258,11 +221,7 @@ OpenAIバージョンは最新のgpt-image-1モデルを使用し、3つの主�
 
 生成されたすべての画像は`Shared Folder`に保存されると共に、チャット上でも表示されます。
 
-下記の言語モデルでImage Generatorアプリが利用可能です。
-
-- OpenAI（gpt-image-1を使用） - 画像生成、マスク描画による編集、バリエーション生成に対応
-- Google Gemini（Imagen 3とGemini 2.5 Flash Image Previewを使用） - 画像生成とセマンティック編集（手動マスク不要の自然言語ベース編集）に対応
-- xAI Grok - 画像生成に対応
+Image Generatorの対応プロバイダーは冒頭の表を参照してください。各プロバイダーが提供する画像生成・編集機能の詳細は公式ドキュメントで確認してください。
 
 ### Video Generator
 
@@ -305,16 +264,7 @@ Video GeneratorはGoogle Geminiモデルでのみ利用可能です。
 アシスタントと共同でメールの草稿を作成するためのアプリケーションです。ユーザーの要望や指定に応じて、アシスタントがメールの草稿を作成します。
 
 
-下記の言語モデルでMail Composerアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- Cohere
-- DeepSeek
+Mail Composerの対応プロバイダーは冒頭の表を参照してください。各モデルが提供する文体調整やトーン設定の機能は、プロバイダーのドキュメントで最新情報を確認してください。
 
 ### Mermaid Grapher
 
@@ -341,10 +291,7 @@ Video GeneratorはGoogle Geminiモデルでのみ利用可能です。
 Draw.io ダイアグラムを作成するためのアプリケーションです。必要な図の仕様を説明すると、AIエージェントがDraw.io XMLファイルを生成し、共有フォルダに保存します。生成されたファイルはDraw.ioにインポートして編集することができます。フローチャート、UMLダイアグラム、ER図、ネットワーク図、組織図、マインドマップ、BPMNダイアグラム、ベン図、ワイヤフレームなど、様々な種類の図を作成できます。
 
 
-下記の言語モデルでDrawIO Grapherアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
+DrawIO Grapherの対応プロバイダーは冒頭の表を参照してください。生成されるファイルの互換性は各プロバイダーのツール呼び出し仕様に依存します。
 
 ### Syntax Tree
 
@@ -361,10 +308,7 @@ Draw.io ダイアグラムを作成するためのアプリケーションです
 生成された構文木は透明背景のSVG画像として表示され、Web表示用にCSSでスタイリングされます。
 
 
-下記の言語モデルでSyntax Treeアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
+Syntax Treeの対応プロバイダーは冒頭の表を参照してください。複雑な構文木を生成する際の制限やツール呼び出しの仕様は、各プロバイダーのドキュメントを確認してください。
 
 ### Concept Visualizer :id=concept-visualizer
 
@@ -392,16 +336,13 @@ LaTeX/TikZを使用して、様々な概念や関係性を図式化するアプ�
 - 生成されたSVGファイルは共有フォルダに保存され、`/data/`エンドポイント経由で表示
 - 図式タイプに基づいて適切なTikZライブラリを自動的に検出・読み込み
 
-下記の言語モデルでConcept Visualizerアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
+Concept Visualizerの対応プロバイダーは冒頭の表を参照してください。生成できる図の複雑さや出力制限は各プロバイダーの仕様に従います。
 
 ### Speech Draft Helper
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-このアプリでは、AIエージェントにスピーチのドラフト作成を依頼することができます。ドラフトを一から作成することもできますし、既存のドラフトを、テキスト文字列、Wordファイル、PDFファイルの形で提出することもできます。AIエージェントはそれらを分析し、修正版を返します。また、必要であれば、スピーチをより魅力的で効果的なものにするための改善案やヒントを提供します。スピーチの音声ファイルを提供することもできます（OpenAIとElevenLabsはMP3形式、GeminiはWAV形式）。
+このアプリでは、AIエージェントにスピーチのドラフト作成を依頼することができます。ドラフトを一から作成することもできますし、既存のドラフトをテキスト、Word、PDF形式で提出することも可能です。AIエージェントは内容を分析し、修正版や改善案を提案します。必要に応じて、設定したテキスト読み上げプロバイダーがサポートする形式（例：MP3やWAV）で音声ファイルを生成できます。
 
 
 ## コンテンツ分析 :id=content-analysis
@@ -429,13 +370,9 @@ LaTeX/TikZを使用して、様々な概念や関係性を図式化するアプ�
 - ページレンダリングにSelenium WebDriverを使用
 - `webpage_fetcher.py`がHTMLからMarkdownへの変換を処理
 - テキスト抽出が失敗した場合、プロバイダー固有の画像認識APIにフォールバック
-- 各プロバイダー（OpenAI、Claude、Gemini、Grok）がネイティブ画像フォーマットを使用
+- 各プロバイダーは独自のビジョンAPI／画像フォーマットを利用しており、詳細は公式ドキュメントを参照してください。
 
-Visual Web Explorerアプリは以下のモデルで利用可能です:
-- OpenAI
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
+Visual Web Explorerの対応プロバイダーは冒頭の表を参照してください。スクリーンショット取得やOCRの仕様は各プロバイダーのドキュメントで確認してください。
 
 ### Video Describer
 
@@ -521,14 +458,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 <!-- > 📸 **スクリーンショットが必要**: コード実行と出力および生成されたプロットを表示するCode Interpreter -->
 
-下記の言語モデルでCode Interpreterアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude（コード実行には`run_code`ツールを使用）
-- Cohere
-- DeepSeek
-- Google Gemini
-- xAI Grok
+Code Interpreterの対応プロバイダーは冒頭の表を参照してください。コンテナ実行やコード長の制限など、ツール利用の詳細は各プロバイダーの公式ドキュメントで確認してください。
 
 ?> **注意:** Perplexityはツールコーリング（関数呼び出し）をサポートしていないため、Code Interpreterアプリは利用できません。Perplexityではコードの提案のみが可能で、実行はできません。
 
@@ -541,15 +471,7 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 ?> **注意:** Code InterpreterアプリはDocker上のPython環境でコードを実行することができますが、Coding Assistantアプリはコードの生成に特化しており、コードの実行は行いません。長いコードはいくつかの断片に分割し、分割点ごとに続きを表示するかをユーザーに問い合わせます。
 
 
-下記の言語モデルでCoding Assistantアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- DeepSeek
+Coding Assistantの対応プロバイダーは冒頭の表を参照してください。モデルごとの得意分野や推奨ユースケースは各プロバイダーの案内を参照してください。
 
 ### Jupyter Notebook :id=jupyter-notebook
 
@@ -562,12 +484,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 
 !> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
 
-下記のプロバイダーでJupyter Notebookアプリが利用可能です。
-
-- OpenAI
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
+Jupyter Notebookの対応プロバイダーは冒頭の表を参照してください。ツールコール回数やNotebookサイズの制限などは、各プロバイダーのドキュメントで確認してください。
 
 ?> **プロバイダー別の注意事項:**
 > - **Gemini**: ノートブックの作成とセルの追加を確実に行うため、`create_and_populate_jupyter_notebook`という統合関数を使用しています

@@ -95,12 +95,12 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
 
   def generate_chat_app_template(provider, api_key)
     model = case provider
-    when "claude" then "claude-3.5-sonnet"
+    when "claude" then "claude-sonnet-4-20250514"
     when "gemini" then "gemini-1.5-flash"
     when "mistral" then "mistral-large-latest"
     when "cohere" then "command-a-03-2025"
     when "perplexity" then "llama-3.3-sonar-large"
-    when "grok" then "grok-3"
+    when "grok" then "grok-4-fast-reasoning"
     when "deepseek" then "deepseek-chat"
     when "ollama" then "llama3.3"
     else "gpt-4.1-mini"

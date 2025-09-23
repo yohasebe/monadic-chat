@@ -53,6 +53,11 @@ API_LOG=true RUN_API=true rake spec_api:smoke
 3. Check browser console for CORS errors
 4. Restart server: `rake server:restart`
 
+### LaTeX-dependent apps (Concept Visualizer / Syntax Tree)
+- これらのツールは Python サービスを `INSTALL_LATEX=true` でビルドした環境を前提に設計されている。pdflatex + dvisvgm（および必要なフォント群）が揃った状態でのみ mdsl 側の `disabled` 条件が解除される。
+- Runtime で LaTeX ツールチェーンの有無を再判定したり、フォールバックを追加する必要はない。環境が不足している場合は Docker イメージを再ビルドして整える。
+- Ruby 側でシェルスクリプトを組み立てる際は、`needs_cjk` のようなフラグを先に Ruby で確定させてから文字列に埋め込む。未初期化のまま展開すると `bash: needs_cjk: unbound variable` のようなエラーが発生する。
+
 ## Development Tips
 
 ### Fast iteration on Ruby code

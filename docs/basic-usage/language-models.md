@@ -32,7 +32,7 @@ You can configure default models for each provider by setting configuration vari
 ```
 # Default models for each provider
 OPENAI_DEFAULT_MODEL=gpt-4.1
-ANTHROPIC_DEFAULT_MODEL=claude-3-5-sonnet-20241022
+ANTHROPIC_DEFAULT_MODEL=claude-sonnet-4-20250514
 COHERE_DEFAULT_MODEL=command-a-03-2025
 GEMINI_DEFAULT_MODEL=gemini-2.5-flash
 MISTRAL_DEFAULT_MODEL=mistral-large-latest
@@ -67,7 +67,7 @@ Web search is available in two ways:
 TAVILY_API_KEY=your_tavily_api_key
 
 # Model for web search when using reasoning models (o1, o3)
-WEBSEARCH_MODEL=gpt-4o-mini
+WEBSEARCH_MODEL=gpt-4.1-mini
 ```
 
 ### App Defaults
@@ -143,7 +143,7 @@ OPENAI_API_KEY=api_key
 
 For apps using OpenAI's language models, refer to the [Basic Apps](./basic-apps.md) section.
 
-?> For apps using OpenAI's gpt-4.1, gpt-4o, and gpt-4o-mini series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (See OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
+?> For apps using OpenAI's gpt-4.1 family (gpt-4.1, gpt-4.1-mini) or gpt-4o-series models, the "Predicted Outputs" feature is available. By using the string `__DATA__` as a separator in the prompt to distinguish between instructions to the AI agent and data to be corrected or processed by the AI agent, you can speed up the response from the AI and reduce the number of tokens (see OpenAI [Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).
 
 ## Anthropic Models
 
@@ -160,7 +160,7 @@ Once set, the API key is saved in the `~/monadic/config/env` file in the followi
 ANTHROPIC_API_KEY=api_key
 ```
 
-?> For apps using Anthropic Claude's Sonnet series models, OpenAI's gpt-4o, gpt-4o-mini, and o1 models, or Google Gemini models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [Uploading PDFs](./message-input.md#uploading-pdfs))
+?> For apps using Anthropic Claude's Sonnet series models, OpenAI's gpt-4.1 or gpt-4o series (including o1), or Google Gemini models, it is possible to upload a PDF directly and have the AI agent recognize its contents. (See [Uploading PDFs](./message-input.md#uploading-pdfs))
 
 ## Google Models
 

@@ -30,10 +30,10 @@
 
 | 変数名 | 説明 | デフォルト | 例 |
 |--------|------|------------|-----|
-| `OPENAI_DEFAULT_MODEL` | OpenAIアプリのデフォルトモデル | `gpt-4o-mini` | `gpt-4o` |
-| `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `claude-3-5-sonnet-20241022` | `claude-3-5-haiku-20241022` |
-| `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `gemini-2.0-flash-exp` | `gemini-1.5-pro` |
-| `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `mistral-small-latest` | `mistral-large-latest` |
+| `OPENAI_DEFAULT_MODEL` | OpenAIアプリのデフォルトモデル | `gpt-4.1` | `gpt-4.1-mini` |
+| `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `claude-sonnet-4-20250514` | `claude-3.5-haiku-20241022` |
+| `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `gemini-2.5-flash` | `gemini-1.5-pro` |
+| `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `mistral-large-latest` | `magistral-medium-2509` |
 | `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `command-a-03-2025` | `command-a-reasoning-08-2025` |
 | `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `sonar-reasoning-pro` | `sonar-reasoning` |
@@ -105,7 +105,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # モデル設定
-OPENAI_DEFAULT_MODEL=gpt-4o
+OPENAI_DEFAULT_MODEL=gpt-4.1
 
 # UI設定
 FONT_SIZE=18

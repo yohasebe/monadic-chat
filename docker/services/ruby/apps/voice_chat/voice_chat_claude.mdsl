@@ -43,7 +43,7 @@ app "VoiceChatClaude" do
   
   llm do
     provider "anthropic"
-    model "claude-3-5-sonnet-20241022"
+    model "claude-sonnet-4-20250514"
   end
   
   display_name "Voice Chat"

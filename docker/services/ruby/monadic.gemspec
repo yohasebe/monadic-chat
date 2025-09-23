@@ -64,7 +64,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rack", "~> 2.2"
   spec.add_dependency "rake"
   spec.add_dependency "redcarpet"
-  spec.add_dependency 'rexml', '>= 3.3.9'
+  spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "rouge", "~> 4.0"
   spec.add_dependency "sinatra", "~> 3.0"
   spec.add_dependency "thin", "~> 1.8"

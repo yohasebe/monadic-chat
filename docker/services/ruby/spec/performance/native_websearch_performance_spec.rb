@@ -96,7 +96,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       successes = 0
       
       test_queries.first(3).each do |query|
-        session = create_test_session("claude-3-5-sonnet-latest", query, websearch: true)
+        session = create_test_session("claude-sonnet-4-20250514", query, websearch: true)
         
         time = Benchmark.realtime do
           responses = []
@@ -209,7 +209,7 @@ RSpec.describe "Native Web Search Performance", :performance do
       end
       
       if CONFIG["ANTHROPIC_API_KEY"]
-        providers << { name: "Claude", model: "claude-3-5-sonnet-latest", helper_class: "ClaudeHelper" }
+        providers << { name: "Claude", model: "claude-sonnet-4-20250514", helper_class: "ClaudeHelper" }
       end
       
       if CONFIG["GEMINI_API_KEY"]

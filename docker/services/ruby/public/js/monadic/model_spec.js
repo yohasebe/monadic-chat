@@ -240,27 +240,6 @@ const modelSpec = {
     "supports_pdf_upload": true
   },
   // reasoning models
-  "o3-pro-2025-06-10": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow"
-  },
-  "o3-pro": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_streaming": false,
-    "latency_tier": "slow"
-  },
   "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
@@ -278,40 +257,6 @@ const modelSpec = {
     "vision_capability": true,
     "api_type": "responses",
     "supports_web_search": true
-  },
-  "o3": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow"
-  },
-  "o3-2025-04-16": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow"
-  },
-  "o3-mini": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": false
-  },
-  "o3-mini-2025-01-31": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": false
   },
   "o1": {
     "context_window" : [1, 200000],
@@ -365,7 +310,10 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-2025-04-16": {
     "context_window": [1, 200000],
@@ -376,7 +324,10 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-pro": {
     "context_window": [1, 200000],
@@ -388,7 +339,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
-    "supports_streaming": false
+    "supports_streaming": false,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-pro-2025-06-10": {
     "context_window": [1, 200000],
@@ -399,7 +353,10 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "api_type": "responses",
+    "supports_web_search": true,
+    "latency_tier": "slow"
   },
   "o3-mini": {
     "context_window": [1, 200000],
@@ -409,8 +366,9 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
+    "vision_capability": false,
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "api_type": "responses"
   },
   "o3-mini-2025-01-31": {
     "context_window": [1, 200000],
@@ -420,8 +378,9 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
+    "vision_capability": false,
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "api_type": "responses"
   },
   "o3-deep-research": {
     "context_window": [1, 200000],
@@ -621,7 +580,8 @@ const modelSpec = {
     "supports_pdf": true,
     "beta_flags": [
       "pdfs-2024-09-25"
-    ]
+    ],
+    "deprecated": true
   },
   "claude-3-5-sonnet-20241022": {
     "context_window" : [1, 200000],
@@ -637,7 +597,8 @@ const modelSpec = {
     "supports_pdf": true,
     "beta_flags": [
       "pdfs-2024-09-25"
-    ]
+    ],
+    "deprecated": true
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
@@ -650,7 +611,8 @@ const modelSpec = {
     "supports_thinking": false,
     "supports_web_search": true,
     "supports_streaming": true,
-    "supports_pdf": false
+    "supports_pdf": false,
+    "deprecated": true
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
@@ -722,15 +684,6 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "vision_capability": true
   },
-  "command-r7b-arabic-02-2025": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
-  },
   "command-a-reasoning-08-2025": {
     "context_window" : [1, 256000],
     "max_output_tokens" : [1, 32000],
@@ -742,33 +695,6 @@ const modelSpec = {
     "tool_capability": true,
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
-  },
-  "command-r-plus-08-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
-  },
-  "command-r-08-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
-  },
-  "command-r7b-12-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
   },
   "c4ai-aya-vision-8b": {
     "context_window" : [1, 8000],
@@ -1344,46 +1270,6 @@ const modelSpec = {
     "vision_capability": true,
     "websearch_capability": true,
     "supports_web_search": true,
-    "supports_parallel_function_calling": true
-  },
-  "grok-3": {
-    "context_window" : [1, 131072],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true
-  },
-  "grok-3-mini": {
-    "context_window" : [1, 131072],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true
-  },
-  "grok-3-fast": {
-    "context_window" : [1, 131072],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true
-  },
-  "grok-3-mini-fast": {
-    "context_window" : [1, 131072],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
-    "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
   "grok-code-fast-1": {

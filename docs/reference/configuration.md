@@ -30,11 +30,11 @@ This page provides a comprehensive reference for all configuration options in Mo
 
 | Variable | Description | Default | Example |
 |----------|-------------|---------|---------|
-| `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `gpt-4o-mini` | `gpt-4o` |
-| `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `claude-3-5-sonnet-20241022` | `claude-3-5-haiku-20241022` |
+| `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `gpt-4.1` | `gpt-4.1-mini` |
+| `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `claude-sonnet-4-20250514` | `claude-3.5-haiku-20241022` |
 | `TOKEN_COUNT_SOURCE` | Token counting source policy | `python_only` | `provider_only` / `hybrid` |
-| `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `gemini-2.0-flash-exp` | `gemini-1.5-pro` |
-| `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `mistral-small-latest` | `mistral-large-latest` |
+| `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `gemini-2.5-flash` | `gemini-1.5-pro` |
+| `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `mistral-large-latest` | `magistral-medium-2509` |
 | `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `command-a-03-2025` | `command-a-reasoning-08-2025` |
 | `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `deepseek-chat` | `deepseek-coder` |
 | `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `sonar-reasoning-pro` | `sonar-reasoning` |
@@ -106,7 +106,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Model Preferences
-OPENAI_DEFAULT_MODEL=gpt-4o
+OPENAI_DEFAULT_MODEL=gpt-4.1
 
 # UI Settings
 FONT_SIZE=18

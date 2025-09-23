@@ -52,17 +52,7 @@ This is a standard chat application. The AI responds to the text input by the us
 
 <!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
 
-Chat apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- DeepSeek
-- Cohere
-- Ollama (local models)
+Availability for this app follows the provider table at the top of this page. For current model offerings, refer to each provider's official documentation.
 
 ### Chat Plus
 
@@ -80,7 +70,7 @@ This is a chat application that is "monadic" and has additional features compare
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-This application allows you to chat using voice, utilizing OpenAI's Speech-to-Text recognition API and the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. The app can use different AI models to generate responses. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
+This application allows you to chat using voice, utilizing the configured provider's speech recognition API together with the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. The app can use different AI models to generate responses. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
@@ -89,16 +79,7 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 
-Voice Chat apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Cohere
-- DeepSeek
-- Perplexity
+Voice Chat supports the same providers indicated in the availability table. Model-specific capabilities (speech-to-text, TTS, etc.) depend on each provider's published API features.
 
 ### Wikipedia
 
@@ -118,9 +99,9 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-This app provides a two-step consultation process. **Step 1**: Ask your question and receive an initial answer from the AI. **Step 2**: Request verification by saying phrases like "Get a second opinion," "What does Claude think?" or "Verify this answer." The app will then consult another AI provider (Claude, Gemini, Mistral, etc.) to review and comment on the initial response. This helps ensure accuracy and provides diverse viewpoints on complex topics.
+This app provides a two-step consultation process. **Step 1**: Ask your question and receive an initial answer from the AI. **Step 2**: Request verification by saying phrases like "Get a second opinion" or "Double-check this answer." The app will then consult another AI provider to review and comment on the initial response. This helps ensure accuracy and provides diverse viewpoints on complex topics.
 
-Second Opinion apps are available for all supported models: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI Grok, DeepSeek, and Ollama.
+Second Opinion is available wherever the provider table lists support. Consult the provider documentation for the latest list of compatible models and tooling.
 
 ### Research Assistant
 
@@ -128,20 +109,11 @@ Second Opinion apps are available for all supported models: OpenAI, Claude, Gemi
 
 This app is designed to support academic and scientific research by serving as an intelligent research assistant with powerful web search capabilities. It retrieves and analyzes information from online sources, helping you find current information, verify facts, and research topics comprehensively. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your inquiries.
 
-Research Assistant apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude  
-- xAI Grok
-- Google Gemini
-- Mistral AI (requires Tavily API)
-- Cohere (requires Tavily API)
-- DeepSeek (requires Tavily API)
-- Perplexity
+Research Assistant availability matches the provider table above. Some providers include native web-search features, while others require an external service such as Tavily. Check each provider's official documentation for current capabilities and any extra configuration that may be needed.
 
 ?> **Web Search Functionality**: 
-> - **Native search**: Providers that offer built-in search or retrieval capabilities (e.g., OpenAI Responses API, Anthropic's web search integration, xAI Grok Live Search, Google Gemini native search, Perplexity Sonar). Refer to each provider's documentation for the latest details.
-> - **Requires Tavily API**: Providers without native search (e.g., Mistral AI, Cohere, DeepSeek). You can obtain a free Tavily API key at [tavily.com](https://tavily.com/) (1,000 free API calls per month).
+> - **Native search**: Offered by certain providers through their own APIs. Refer to provider docs for supported scopes and limits.
+> - **External services**: When native search is unavailable, you can connect to third-party web search APIs (for example, Tavily). Visit the relevant service documentation for pricing and usage limits.
 
 ## Language Related :id=language-related
 
@@ -152,16 +124,7 @@ Research Assistant apps are also available for the following models:
 This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
 
 
-Language Practice apps are available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- Cohere
-- DeepSeek
+Language Practice supports the providers indicated in the availability table. Refer to provider documentation for current model options and speech capabilities.
 
 ### Language Practice Plus
 
@@ -177,7 +140,7 @@ This is a language learning application where the conversation starts with the a
 
 This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
 
-Translate is available for OpenAI and Cohere models.
+Translate is available for the providers marked in the availability table. Specific language coverage depends on each provider's multilingual support.
 
 
 ### Voice Interpreter
@@ -186,7 +149,7 @@ Translate is available for OpenAI and Cohere models.
 
 This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
 
-Voice Interpreter is available for OpenAI and Cohere models.
+Voice Interpreter follows the provider availability shown in the table above. Speech input/output quality varies by provider—see their official docs for details.
 
 
 ## Content Generation :id=content-generation
@@ -202,9 +165,7 @@ This application is for co-writing novels with the assistant. The story unfolds 
 
 ![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
 
-This application generates images based on descriptions. 
-
-The OpenAI version uses the latest gpt-image-1 model and supports three main operations:
+This application generates images based on descriptions. When the selected provider supports advanced image workflows, the app can perform three main operations:
 
 1. **Image Generation**: Create new images from text descriptions
 2. **Image Editing**: Modify existing images using text prompts and optional masks
@@ -262,11 +223,7 @@ The editing process preserves the original image's composition and details while
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
 
-Image Generator apps are also available for the following models:
-
-- OpenAI (using gpt-image-1) - supports image generation, editing with mask drawing, and variation
-- Google Gemini (using Imagen 3 and Gemini 2.5 Flash Image Preview) - supports image generation and semantic editing (natural language-based editing without manual masks)
-- xAI Grok - supports image generation
+Image Generator is available with the providers indicated in the availability table. Editing and variation features depend on each provider's current image-generation offering—refer to their official documentation for supported operations and model names.
 
 ### Video Generator
 
@@ -309,16 +266,7 @@ Video Generator is available exclusively with Google Gemini models.
 This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
 
 
-Mail Composer apps are available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- Cohere
-- DeepSeek
+Mail Composer supports each provider shown in the availability table. Consult provider docs for stylistic features or tone controls offered by specific models.
 
 ### Mermaid Grapher
 
@@ -353,10 +301,7 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder.
 
 
-DrawIO Grapher apps are available for the following models:
-
-- OpenAI
-- Anthropic Claude
+DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
 
 ### Syntax Tree
 
@@ -373,10 +318,7 @@ This application generates linguistic syntax trees from sentences in multiple la
 The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.
 
 
-Syntax Tree apps are available for the following models:
-
-- OpenAI
-- Anthropic Claude
+Syntax Tree availability matches the provider table. Refer to provider documentation for supported reasoning or tool-call limits when generating complex trees.
 
 ### Concept Visualizer :id=concept-visualizer
 
@@ -404,16 +346,13 @@ The generated diagrams are displayed as editable SVG images that can be further 
 - Generated SVG files are saved to the shared folder and displayed via the `/data/` endpoint
 - Automatically detects and loads appropriate TikZ libraries based on diagram type
 
-Concept Visualizer apps are available for the following models:
-
-- OpenAI
-- Anthropic Claude
+Concept Visualizer supports the providers listed in the availability table. Diagram complexity and maximum output size may vary—see provider documentation for current limits.
 
 ### Speech Draft Helper
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. It can also generate audio files of the speech (MP3 format for OpenAI and ElevenLabs, WAV format for Gemini).
+This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. Audio export is available in the formats supported by the configured text-to-speech provider (for example, MP3 or WAV).
 
 
 ## Content Analysis :id=content-analysis
@@ -441,13 +380,9 @@ This application captures web pages as screenshots or extracts their text conten
 - Uses Selenium WebDriver for page rendering
 - `webpage_fetcher.py` handles HTML to Markdown conversion
 - Falls back to provider-specific image recognition APIs when text extraction fails
-- Each provider (OpenAI, Claude, Gemini, Grok) uses its native image format
+- Each provider uses its own native image and vision format; capabilities follow the official API specifications.
 
-Visual Web Explorer apps are available for the following models:
-- OpenAI
-- Anthropic Claude
-- Google Gemini
-- xAI Grok
+Visual Web Explorer is available with the providers marked in the availability table. Refer to provider documentation for current screenshot and OCR capabilities.
 
 ### Video Describer
 
@@ -543,15 +478,7 @@ This application allows the AI to create and execute program code. The execution
 
 <!-- > 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots -->
 
-Code Interpreter apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude (uses the `run_code` tool for code execution)
-- Cohere
-- DeepSeek
-- Google Gemini
-- xAI Grok
-- Mistral AI
+Code Interpreter availability matches the provider table. Tooling details—such as container execution support or code-length limits—are documented by each provider and may differ between models.
 
 ### Coding Assistant
 
@@ -562,16 +489,7 @@ This application is designed for writing computer program code. You can interact
 ?> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
 
 
-Coding Assistant apps are also available for the following models:
-
-- OpenAI
-- Anthropic Claude
-- xAI Grok
-- Google Gemini
-- Mistral AI
-- Perplexity
-- DeepSeek
-- Cohere
+Coding Assistant supports the providers indicated in the availability table. Review provider documentation for guidance on model strengths (reasoning, coding-specific features, etc.).
 
 ### Jupyter Notebook :id=jupyter-notebook
 
@@ -586,12 +504,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 !> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
 
-Jupyter Notebook apps are available for the following providers:
-
-- OpenAI
-- Anthropic Claude  
-- Google Gemini
-- xAI Grok
+Jupyter Notebook is available for the providers shown in the availability table. Some providers may impose stricter tool-call limits or notebook size constraints—check their official documentation for details.
 
 ?> **Provider-specific Notes:**
 > - **Gemini**: Uses a combined `create_and_populate_jupyter_notebook` function for better reliability when creating notebooks with cells

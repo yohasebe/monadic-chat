@@ -81,6 +81,7 @@ LOG_ROTATE_MAX_FILES=7          # keep 7 generations
 - Independent of runtime logs, RSpec runs write to `./tmp/test_runs/<timestamp>/`:
   - `summary_compact.md`, `summary_full.md`, `rspec_report.json`, `env_meta.json`.
   - Latest symlink: `./tmp/test_runs/latest`.
+- Older run directories are pruned automatically so that only the latest results remain. Set `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`) before running the suite if you need to keep historical artifacts.
 
 ## Tips
 

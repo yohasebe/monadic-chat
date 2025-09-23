@@ -96,11 +96,12 @@ module ClaudeHelper
         else
           # Return fallback models if API call fails during testing
           fallback_models = [
+            "claude-opus-4-20250514",
+            "claude-sonnet-4-20250514",
+            "claude-3-7-sonnet-20250219",
             "claude-3-opus-20240229",
             "claude-3-5-sonnet-20241022",
-            "claude-3-haiku-20240307",
-            "claude-opus-4-20250514",
-            "claude-sonnet-4-20250514"
+            "claude-3-haiku-20240307"
           ]
           $MODELS[:anthropic] = fallback_models
           return fallback_models
@@ -108,11 +109,12 @@ module ClaudeHelper
       rescue HTTP::Error, HTTP::TimeoutError, StandardError
         # Return fallback models if any error occurs
         fallback_models = [
+          "claude-opus-4-20250514",
+          "claude-sonnet-4-20250514",
+          "claude-3-7-sonnet-20250219",
           "claude-3-opus-20240229",
           "claude-3-5-sonnet-20241022",
-          "claude-3-haiku-20240307",
-          "claude-opus-4-20250514",
-          "claude-sonnet-4-20250514"
+          "claude-3-haiku-20240307"
         ]
         $MODELS[:anthropic] = fallback_models
         return fallback_models

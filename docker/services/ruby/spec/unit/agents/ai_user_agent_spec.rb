@@ -26,8 +26,12 @@ RSpec.describe AIUserAgent do
     stub_const('CONFIG', {
       "OPENAI_API_KEY" => "test-key",
       "ANTHROPIC_API_KEY" => "test-key",
-      "OPENAI_DEFAULT_MODEL" => "gpt-4",
-      "ANTHROPIC_DEFAULT_MODEL" => "claude-3"
+      "COHERE_API_KEY" => "test-key",
+      "OPENAI_DEFAULT_MODEL" => "gpt-4.1",
+      "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-20250514",
+      "COHERE_DEFAULT_MODEL" => "command-a-03-2025",
+      "GROK_DEFAULT_MODEL" => "grok-4-fast-reasoning",
+      "PERPLEXITY_DEFAULT_MODEL" => "sonar-reasoning-pro"
     })
     
     # Mock APPS global
@@ -335,28 +339,28 @@ RSpec.describe AIUserAgent do
   describe '#default_model_for_provider' do
     it 'returns configured model for provider' do
       model = agent.send(:default_model_for_provider, "openai")
-      expect(model).to eq("gpt-4")
-      
-      model = agent.send(:default_model_for_provider, "anthropic")
-      expect(model).to eq("claude-3")
-    end
-    
-    it 'returns default fallback when config not available' do
-      stub_const('CONFIG', {})
-      
-      model = agent.send(:default_model_for_provider, "openai")
-      expect(model).to eq("gpt-5")
+      expect(model).to eq("gpt-4.1")
       
       model = agent.send(:default_model_for_provider, "anthropic")
       expect(model).to eq("claude-sonnet-4-20250514")
     end
-    
+
+    it 'returns default fallback when config not available' do
+      stub_const('CONFIG', {})
+      
+      model = agent.send(:default_model_for_provider, "openai")
+      expect(model).to eq("gpt-4.1")
+      
+      model = agent.send(:default_model_for_provider, "anthropic")
+      expect(model).to eq("claude-sonnet-4-20250514")
+    end
+
     it 'handles various provider names' do
       providers_and_defaults = {
         "gemini" => "gemini-2.5-flash",
         "mistral" => "mistral-large-latest",
         "grok" => "grok-4-fast-reasoning",
-        "perplexity" => "sonar",
+        "perplexity" => "sonar-reasoning-pro",
         "deepseek" => "deepseek-chat",
         "cohere" => "command-a-03-2025"
       }

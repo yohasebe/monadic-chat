@@ -35,6 +35,7 @@ app "MonadicHelpOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5", "gpt-4.1"]
+    reasoning_effort "minimal"
     temperature 0.0
   end
   
@@ -82,10 +83,10 @@ app "MonadicHelpOpenAI" do
     
     **IMPORTANT**: You MUST use the provided tools to search the documentation database. DO NOT answer from general knowledge. Always:
     1. Use find_help_topics to search for relevant information
-    2. Use multiple search queries if needed to find the best results - BUT limit to 3 searches total
+    2. Run additional searches only when the initial results are insufficient (maximum 2 searches total)
     3. Base your answers ONLY on the search results from the documentation
     4. DO NOT repeatedly search for the same or similar terms
-    5. If initial searches don't find results, try ONCE with different keywords
+    5. If the first search doesn't find results, try ONE more time with different keywords
     6. If a feature exists in some apps but not others, explicitly state which apps support it
     7. NEVER generalize - if you only found information about specific apps, don't assume it applies to all apps
     8. VERIFY app recommendations match the user's need:
@@ -129,8 +130,9 @@ app "MonadicHelpOpenAI" do
     
     3. **Search Strategy** (ALWAYS EXECUTE THESE STEPS):
        - ALWAYS start by using find_help_topics to search the documentation
-       - Use top_n=20-30 for comprehensive results to ensure accuracy
-       - Perform MULTIPLE searches with different keywords:
+       - Begin with `top_n = 12` and `chunks_per_result = 2` for balanced coverage
+       - Only perform a second search if the first set of results clearly misses required information (maximum 2 searches per user request)
+       - When performing an additional search, vary the keywords:
          * Search for the exact feature/term mentioned
          * Search for related app names that might have the feature
          * Search for alternative terms (e.g., "voice" for "speech", "keyboard" for "shortcut")
@@ -151,7 +153,7 @@ app "MonadicHelpOpenAI" do
          * Mail Composer = Email writing only
          * Novel Writer = Creative writing only
          * Research Assistant = General information research
-       - If initial results are poor, try alternative search terms
+       - If initial results are poor, adjust keywords and perform the second (and final) search
        - NEVER skip the search step - all answers must be based on documentation
     
     4. **Answer Structure**:

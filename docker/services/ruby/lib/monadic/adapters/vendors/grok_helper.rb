@@ -23,7 +23,7 @@ module GrokHelper
   
   # Get default model
   def self.get_default_model
-    "grok-3-mini"
+    SystemDefaults.get_default_model('xai') || 'grok-4-fast-reasoning'
   end
 
 
@@ -140,7 +140,7 @@ module GrokHelper
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
     # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
-    if options["reasoning_effort"] && !model.include?("grok-4")
+    if options["reasoning_effort"] && !model.start_with?("grok-4")
       case options["reasoning_effort"]
       when "low", "minimal"
         body["reasoning_effort"] = "low"
@@ -394,7 +394,7 @@ module GrokHelper
     body["max_tokens"] = max_tokens if max_tokens
 
     # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
-    if reasoning_effort && !model.include?("grok-4")
+    if reasoning_effort && !model.start_with?("grok-4")
       case reasoning_effort
       when "low", "minimal"
         body["reasoning_effort"] = "low"

@@ -4,6 +4,7 @@
 $LOAD_PATH.uniq!
 
 require_relative "monadic/utils/document_store_registry"
+require_relative "monadic/utils/pdf_storage_config"
 
 # Optional startup profiling
 if ENV['PROFILE_STARTUP'] == 'true'
@@ -865,6 +866,14 @@ end
 
 # Determine configured PDF storage mode (ENV), with backward compatibility
 def get_pdf_storage_mode
+  begin
+    changed = Monadic::Utils::PdfStorageConfig.refresh_from_env
+    if changed && instance_variable_defined?(:@pdf_storage_mode_cache)
+      remove_instance_variable(:@pdf_storage_mode_cache)
+    end
+  rescue StandardError
+    # Ignore refresh errors; fall back to cached value if present.
+  end
   return @pdf_storage_mode_cache if instance_variable_defined?(:@pdf_storage_mode_cache)
   begin
     mode = (CONFIG["PDF_STORAGE_MODE"] || CONFIG["PDF_DEFAULT_STORAGE"] || 'local').to_s.downcase

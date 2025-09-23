@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'digest'
+require 'securerandom'
 require_relative "document_store"
 
 module Monadic
@@ -36,8 +38,14 @@ module Monadic
       def list
         # Use existing list_titles helper if available
         titles = []
-        titles = Kernel.respond_to?(:list_pdf_titles) ? list_pdf_titles : []
-        titles.map do |t|
+        if Kernel.respond_to?(:list_pdf_titles, true)
+          begin
+            titles = Kernel.send(:list_pdf_titles)
+          rescue StandardError
+            titles = []
+          end
+        end
+        Array(titles).map do |t|
           { id: Digest::SHA1.hexdigest(t), title: t, storage_type: STORAGE_TYPE, storage_id: nil, created_at: nil, size: nil, status: "ready" }
         end
       end
@@ -50,4 +58,3 @@ module Monadic
     end
   end
 end
-

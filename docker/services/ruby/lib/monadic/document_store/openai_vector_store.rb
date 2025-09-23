@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'securerandom'
 require_relative "document_store"
 
 module Monadic
@@ -51,4 +52,3 @@ module Monadic
     end
   end
 end
-

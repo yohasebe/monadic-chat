@@ -10,6 +10,7 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/debug_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/pdf_storage_config"
 require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
@@ -173,6 +174,14 @@ module OpenAIHelper
 
   def resolve_pdf_storage_mode(session)
     # Per-instance cache keyed by session-scoped version to avoid stale results
+    begin
+      if Monadic::Utils::PdfStorageConfig.refresh_from_env
+        remove_instance_variable(:@cached_pdf_mode) if instance_variable_defined?(:@cached_pdf_mode)
+        remove_instance_variable(:@cached_pdf_mode_version) if instance_variable_defined?(:@cached_pdf_mode_version)
+      end
+    rescue StandardError
+      # Ignore refresh issues and continue with existing cache.
+    end
     ver = (defined?(session) && session && session[:pdf_cache_version]) || 0
     if instance_variable_defined?(:@cached_pdf_mode) && instance_variable_defined?(:@cached_pdf_mode_version)
       return @cached_pdf_mode if @cached_pdf_mode_version == ver
@@ -184,8 +193,13 @@ module OpenAIHelper
         if defined?(EMBEDDINGS_DB) && EMBEDDINGS_DB
           if EMBEDDINGS_DB.respond_to?(:any_docs?)
             EMBEDDINGS_DB.any_docs?
-          elsif Kernel.respond_to?(:list_pdf_titles)
-            !list_pdf_titles.empty?
+          elsif Kernel.respond_to?(:list_pdf_titles, true)
+            begin
+              titles = Kernel.send(:list_pdf_titles)
+              titles.respond_to?(:empty?) ? !titles.empty? : false
+            rescue StandardError
+              false
+            end
           else
             false
           end

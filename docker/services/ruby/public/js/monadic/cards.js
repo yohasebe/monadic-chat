@@ -345,7 +345,7 @@ function attachEventListeners($card) {
     const ttsProvider = $("#tts-provider").val();
     let ttsVoice;
     
-    if (ttsProvider === "elevenlabs" || ttsProvider === "elevenlabs-flash" || ttsProvider === "elevenlabs-multilingual") {
+    if (ttsProvider === "elevenlabs" || ttsProvider === "elevenlabs-flash" || ttsProvider === "elevenlabs-multilingual" || ttsProvider === "elevenlabs-v3") {
       ttsVoice = $("#elevenlabs-tts-voice").val();
     } else if (ttsProvider === "webspeech") {
       ttsVoice = $("#webspeech-voice").val();

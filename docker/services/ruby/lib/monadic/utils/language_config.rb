@@ -120,7 +120,7 @@ module Monadic
           return "auto" if language_code.nil? || language_code == "auto"
           
           case provider
-          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
+          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
             # ElevenLabs uses full language codes
             language_code
           when "openai"
@@ -137,7 +137,7 @@ module Monadic
         # Check if provider supports explicit language specification for TTS
         def tts_supports_language?(provider)
           case provider
-          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "openai"
+          when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3", "openai"
             true
           when "gemini"
             false

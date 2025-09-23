@@ -631,7 +631,7 @@ module WebSocketHelper
         case msg
         when "TTS"
           provider = obj["provider"]
-          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
             voice = obj["elevenlabs_voice"]
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_voice"]
@@ -662,7 +662,7 @@ module WebSocketHelper
         when "TTS_STREAM"
           thread&.join
           provider = obj["provider"]
-          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
             voice = obj["elevenlabs_voice"]
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_voice"]
@@ -1154,7 +1154,7 @@ module WebSocketHelper
           
           # Extract TTS parameters
           provider = obj["tts_provider"]
-          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
+          if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
             voice = obj["elevenlabs_tts_voice"] 
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_tts_voice"]
@@ -1218,6 +1218,11 @@ module WebSocketHelper
           
           # Process each segment
           prev_texts_for_tts = []
+          segments = Array(segments)
+          if provider == "elevenlabs-v3"
+            combined_text = segments.join(" ").strip
+            segments = combined_text.empty? ? [] : [combined_text]
+          end
           
           # Start a new thread for TTS processing
           @tts_thread = Thread.new do
@@ -1240,7 +1245,11 @@ module WebSocketHelper
               end
               
               # Process this segment
-              previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+              previous_text = if provider == "elevenlabs-v3"
+                                 nil
+                               else
+                                 prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+                               end
               
               # Special handling for Web Speech API
               if provider == "webspeech" || provider == "web-speech"
@@ -1264,7 +1273,7 @@ module WebSocketHelper
               end
               
               # Store for context in next segment
-              prev_texts_for_tts << segment
+              prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
               
               # Create a special message for client to show TTS progress
               progress_message = {
@@ -1309,7 +1318,7 @@ module WebSocketHelper
           
           if obj["auto_speech"]
             provider = obj["tts_provider"]
-            if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual"
+            if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
               voice = obj["elevenlabs_tts_voice"] 
             elsif provider == "gemini-flash" || provider == "gemini-pro"
               voice = obj["gemini_tts_voice"]
@@ -1402,7 +1411,11 @@ module WebSocketHelper
                     if obj["auto_speech"] && !cutoff && !obj["monadic"]
                       text = split[0] || ""
                       if text.strip != ""
-                        previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+                        previous_text = if provider == "elevenlabs-v3"
+                                          nil
+                                        else
+                                          prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
+                                        end
                         
                         # Generate unique sequence ID for this audio chunk
                         sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}"
@@ -1426,7 +1439,7 @@ module WebSocketHelper
                         
                         # Only add to prev_texts if TTS was successful
                         if res_hash && res_hash["type"] != "error"
-                          prev_texts_for_tts << text
+                          prev_texts_for_tts << text unless provider == "elevenlabs-v3"
                           
                           # Use batch processing if enabled
                           if use_batch_processing

@@ -2998,7 +2998,7 @@ $(function () {
     $("#webspeech-voices").hide();
     
     // Show the appropriate voice selection based on provider
-    if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual") {
+    if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual" || params["tts_provider"] === "elevenlabs-v3") {
       $("#elevenlabs-voices").show();
     } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
       $("#gemini-voices").show();

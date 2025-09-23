@@ -206,6 +206,8 @@ Clicking the `Export` button saves the current settings and conversation data to
 **Text-to-Speech Provider**<br />
 Select the provider used for speech synthesis. Monadic exposes the providers you have configured (for example, OpenAI Text-to-Speech, ElevenLabs, Gemini TTS, or the browser's Web Speech API). Refer to each provider's documentation for the latest model variants, required API keys, and capabilities.
 
+- **ElevenLabs (v3 Alpha)** — When the ElevenLabs API key is present, Monadic also surfaces the new `eleven_v3` model. It delivers the most expressive voices ElevenLabs offers, but is currently in alpha: expect higher latency, a 3,000 character limit per request, and plan for user review of generated takes. Playback starts only after ElevenLabs finishes generating the entire clip (streaming is unavailable), so the UI waits before audio begins.
+
 **Text-to-Speech Voice**<br />
 You can specify the voice used for speech synthesis. Available voices depend on the selected provider; consult the provider's documentation or interface for the latest options. When using the Web Speech API, the list of voices depends on your browser and operating system.
 

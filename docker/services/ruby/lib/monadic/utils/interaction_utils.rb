@@ -289,6 +289,7 @@ module InteractionUtils
     num_retrial = 0
 
     val_speed = speed ? speed.to_f : 1.0
+    streaming_supported = true
 
     case provider
     when "openai-tts-4o", "openai-tts", "openai-tts-hd"
@@ -326,7 +327,7 @@ module InteractionUtils
       end
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
-    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
+    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
       api_key = CONFIG["ELEVENLABS_API_KEY"]
       headers = {
         "Content-Type" => "application/json",
@@ -334,6 +335,8 @@ module InteractionUtils
       }
 
       model = case provider
+              when "elevenlabs-v3"
+                "eleven_v3"
               when "elevenlabs-multilingual"
                 "eleven_multilingual_v2"
               when "elevenlabs-flash", "elevenlabs"
@@ -346,6 +349,8 @@ module InteractionUtils
         "text" => text_converted,
         "model_id" => model
       }
+
+      streaming_supported = provider != "elevenlabs-v3"
 
       if speed
         body["voice_settings"] = {
@@ -364,7 +369,11 @@ module InteractionUtils
       end
 
       output_format = "mp3_44100_128"
-      target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"
+      target_uri = if streaming_supported
+                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}/stream?output_format=#{output_format}"
+                   else
+                     "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+                   end
     when "web-speech", "webspeech"
       # For Web Speech API, we don't need to make an API call
       # Return early with a special response
@@ -655,17 +664,27 @@ module InteractionUtils
       t_index = 0
 
       if block_given?
-        # For non-OpenAI providers (Gemini, ElevenLabs), use existing chunking approach
-        res.body.each do |chunk|
+        if streaming_supported
+          # For non-OpenAI providers (Gemini, ElevenLabs) that support streaming, emit chunks as they arrive
+          res.body.each do |chunk|
+            t_index += 1
+            content = Base64.strict_encode64(chunk)
+            hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
+            block&.call hash_res
+          end
           t_index += 1
-          content = Base64.strict_encode64(chunk)
-          hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
+          finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
+          block&.call finish
+          return nil
+        else
+          # ElevenLabs v3 responds with a full file; deliver once even in streaming mode
+          encoded = Base64.strict_encode64(res.body.to_s)
+          hash_res = { "type" => "audio", "content" => encoded, "t_index" => 1, "finished" => false }
           block&.call hash_res
+          finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
+          block&.call finish
+          return nil
         end
-        t_index += 1
-        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-        block&.call finish
-        return nil
       else
         { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
       end

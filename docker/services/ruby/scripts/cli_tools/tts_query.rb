@@ -104,7 +104,7 @@ def tts_api_request(text,
   response = nil
 
   case provider
-  when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual"
+  when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
     # Try ENV first (for test environment)
     api_key = ENV["ELEVENLABS_API_KEY"]
     
@@ -126,6 +126,8 @@ def tts_api_request(text,
     end
     
     model = case provider
+            when "elevenlabs-v3"
+              "eleven_v3"
             when "elevenlabs-multilingual"
               "eleven_multilingual_v2"
             when "elevenlabs-flash", "elevenlabs"

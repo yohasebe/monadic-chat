@@ -3068,11 +3068,13 @@ let loadedApp = "Chat";
           // set ElevenLabs provider options enabled
           $("#elevenlabs-flash-provider-option").prop("disabled", false);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
+          $("#elevenlabs-v3-provider-option").prop("disabled", false);
           // Do not set ElevenLabs as default - prefer openai-tts-4o
         } else {
           // set ElevenLabs provider options disabled
           $("#elevenlabs-flash-provider-option").prop("disabled", true);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
+          $("#elevenlabs-v3-provider-option").prop("disabled", true);
         }
         $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {
@@ -3091,8 +3093,8 @@ let loadedApp = "Chat";
         
         // Apply saved cookie value for provider if it was elevenlabs
         const savedProvider = getCookie("tts-provider");
-        if (savedProvider === "elevenlabs") {
-          $("#tts-provider").val("elevenlabs").trigger("change");
+        if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
+          $("#tts-provider").val(savedProvider).trigger("change");
         }
         break;
       }

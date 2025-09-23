@@ -75,6 +75,7 @@ RSpec.describe Monadic::Utils::LanguageConfig do
         expect(described_class.tts_language_code("ja", "elevenlabs")).to eq("ja")
         expect(described_class.tts_language_code("ja", "elevenlabs-flash")).to eq("ja")
         expect(described_class.tts_language_code("ja", "elevenlabs-multilingual")).to eq("ja")
+        expect(described_class.tts_language_code("ja", "elevenlabs-v3")).to eq("ja")
       end
 
       it "returns 'auto' for auto setting" do
@@ -104,6 +105,7 @@ RSpec.describe Monadic::Utils::LanguageConfig do
       expect(described_class.tts_supports_language?("elevenlabs")).to be true
       expect(described_class.tts_supports_language?("elevenlabs-flash")).to be true
       expect(described_class.tts_supports_language?("elevenlabs-multilingual")).to be true
+      expect(described_class.tts_supports_language?("elevenlabs-v3")).to be true
     end
 
     it "returns false for providers that don't support explicit language" do

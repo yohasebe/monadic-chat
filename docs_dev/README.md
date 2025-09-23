@@ -51,3 +51,4 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
 ## Lint Checks
 
 - Run `npm run lint:deprecated-models` (or `rake lint:deprecated_models`) to scan `docs/`, `docs_dev/`, and `translations/` for deprecated model names. Update `config/deprecated_model_terms.txt` when new terms surface.
+- [Install Options translations](install_options_translations.md) — Rendering the modal with current UI locale and ensuring IPC wiring stays in sync

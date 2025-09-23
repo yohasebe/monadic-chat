@@ -15,6 +15,7 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
 
 - [Docker Architecture](docker-architecture.md) — Container structure, lifecycle, and management
 - [Common Issues](common-issues.md) — Frequent problems and their solutions
+- [Error Handling Architecture](error_handling.md) — Retry policies, pattern detection, and related specs
 - [Backlog](backlog.md) — Pending clean-up tasks and follow-ups
 
 ## Quick Start for New Developers
@@ -49,4 +50,4 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
 
 ## Lint Checks
 
-- Run `npm run lint:deprecated-models`（または `rake lint:deprecated_models`）で `docs/`・`docs_dev/`・`translations/` から旧モデル名を検出できます。必要に応じて `config/deprecated_model_terms.txt` を更新してください。
+- Run `npm run lint:deprecated-models` (or `rake lint:deprecated_models`) to scan `docs/`, `docs_dev/`, and `translations/` for deprecated model names. Update `config/deprecated_model_terms.txt` when new terms surface.

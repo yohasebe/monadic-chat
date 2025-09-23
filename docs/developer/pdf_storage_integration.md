@@ -35,6 +35,12 @@ Env defaults API
 - `GET /api/pdf_storage_defaults` returns `{ default_storage, pgvector_available }` where `default_storage` is derived from `PDF_STORAGE_MODE` (or legacy `PDF_DEFAULT_STORAGE`).
 - `GET /api/pdf_storage_status` returns `{ mode, vector_store_id, local_present, cloud_present }` (no `hybrid`).
 
+Dynamic config refresh
+- `Monadic::Utils::PdfStorageConfig.refresh_from_env` watches `~/monadic/config/env` and hot-reloads `PDF_STORAGE_MODE` / `PDF_DEFAULT_STORAGE` when the file timestamp changes.
+- The helper trims blank values: removing a key from the env file immediately reverts to the default without restarting the backend.
+- The refresh happens on the next API/UI poll (e.g., PDF imports, status widget). There is no polling daemon; the helper is invoked by request handlers so there is no added idle overhead.
+- Use `Monadic::Utils::PdfStorageConfig.reset_tracking!` in specs to force a re-read when simulating env changes.
+
 Styling
 - Local/Cloud list rows use a unified “row card” style.
 - Assistant messages wrap metadata under `.pdf-meta` for a compact footer.

@@ -29,9 +29,9 @@
 
 [Changelog](https://yohasebe.github.io/monadic-chat/#/ja/changelog)
 
-### Install Options と再ビルド
+### インストールオプションと再ビルド
 
-- メニュー `Actions → Install Options…` から、LaTeX/各種Pythonライブラリ/mediapipe/ImageMagick/Selenium を選択できます。
+- メニュー `アクション → インストールオプション…` から、LaTeX/各種Pythonライブラリ/mediapipe/ImageMagick/Selenium を選択できます。
 - 保存しても自動の再ビルドは行いません。必要になったタイミングでメインコンソールから Rebuild を実行してください。処理はアトミックに行われ、ログ/health は `~/monadic/log/build/python/<timestamp>/` に保存されます。
 
 ### Start 時の挙動と自動復旧
@@ -174,7 +174,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 📊 リアルタイム検証機能付き**DrawIO Grapher**と**Mermaid Grapher**アプリを使用した図表作成
 - 💎 プログラミング言語**Ruby**を使用した機能拡張
 - 🐍 プログラミング言語**Python**を使用した機能拡張
-  - Install Options で LaTeX や追加ライブラリ/ツールの有効化が可能
+  - インストールオプション で LaTeX や追加ライブラリ/ツールの有効化が可能
 - 🔍 OpenAI、Claude、Gemini、xAI Grok、Perplexityのネイティブ検索機能、およびその他のプロバイダ向けの[Tavily](https://tavily.com/) APIを使用した**Web検索**
 - 🌎 Seleniumを使用した**Webスクレイピング**
 - 📦 独自の**Dockerコンテナ**の追加

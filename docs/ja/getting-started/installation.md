@@ -58,9 +58,9 @@ $ sudo apt install ./monadic-chat-*.deb
 
 詳細な設定手順については、[Webインターフェース](../basic-usage/web-interface.md)セクションを参照してください。
 
-## Install Options と再ビルド :id=install-options
+## インストールオプションと再ビルド :id=install-options
 
-アプリのメニュー「Actions → Install Options…」から、Python コンテナに含めるオプションを選べます。
+アプリのメニュー「アクション → インストールオプション…」から、Python コンテナに含めるオプションを選べます。
 
 - LaTeX（最小構成）: Concept Visualizer / Syntax Tree の有効化（OpenAI/Anthropic のキーが必要）
 - Python ライブラリ（CPU）: `nltk` / `spacy(3.7.5)` / `scikit-learn` / `gensim` / `librosa` / `transformers`
@@ -68,7 +68,7 @@ $ sudo apt install ./monadic-chat-*.deb
 - Selenium: 有効時は従来通り Selenium を使用。無効かつ Tavily キーありなら From URL は Tavily 使用。それ以外は #url/#doc 非表示。
 
 パネルの仕様:
-- Install Optionsウィンドウはモーダルで、Settingsパネルと同サイズです。
+- インストールオプションウィンドウはモーダルで、Settingsパネルと同サイズです。
 - Save（保存）してもウィンドウは閉じません。保存成功は緑色のチェックで短く通知します。
 - 未保存の変更がある状態で Close を押すと、確認ダイアログ（「保存して閉じる／キャンセル」）が表示されます。
 - タイトル／説明／ボタン／ダイアログはUI言語（英/日/中/韓/西/独/仏）に追従します。

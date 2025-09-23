@@ -9,7 +9,7 @@
 - [ユーザーインターフェース](#ユーザーインターフェース)
 - [設定と高度な使い方](#設定と高度な使い方)
 - [トラブルシューティング](#トラブルシューティング)
-- [Install Options と再ビルド](#install-options-と再ビルド)
+- [インストールオプション と再ビルド](#install-options-と再ビルド)
 
 ---
 
@@ -251,7 +251,7 @@ pip install pandas numpy scikit-learn
 
 ### Q: LaTeX アプリ（Concept Visualizer / Syntax Tree）を有効にするには？ :id=enable-latex
 
-**A**: `Actions → Install Options…` を開いて LaTeX を有効化してください。さらに OpenAI または Anthropic の API キーが必要です（キーがない場合はアプリは非表示のまま）。
+**A**: `アクション → インストールオプション…` を開いて LaTeX を有効化してください。さらに OpenAI または Anthropic の API キーが必要です（キーがない場合はアプリは非表示のまま）。
 
 ### Q: 「From URL / #doc」ボタンが表示されないのはなぜ？ :id=url-doc-hidden
 

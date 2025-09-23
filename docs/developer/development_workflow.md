@@ -20,6 +20,7 @@ npm test
 - JavaScript tests: `test/frontend/`
 - Ruby tests: `docker/services/ruby/spec/`
 - App diagnostics: `docker/services/ruby/scripts/diagnostics/apps/{app_name}/`
+- No-mock UI tests live under `test/frontend/no-mock/`; run them with `npm run test:no-mock` (see `docs_dev/frontend/no_mock/README.md` for setup details).
 
 !> **Important:** Do not place test scripts in `apps/{app_name}/test/` directories
 
@@ -86,26 +87,6 @@ MONADIC_DEBUG=api
 - **UTF-8 Encoding**: All responses are properly handled with fallback encoding replacement
 - **Infinite Loop Prevention**: Tool calls are limited to prevent "Maximum function call depth exceeded" errors
 - **Graceful Degradation**: Missing API keys result in clear error messages, not crashes
-
-### Usage Examples :id=setup-usage-examples
-
-Add these settings to your `~/monadic/config/env` file:
-
-```
-# Enable web search debug output
-MONADIC_DEBUG=web_search
-MONADIC_DEBUG_LEVEL=debug
-
-# Enable multiple categories
-MONADIC_DEBUG=api,web_search,mdsl
-
-# Enable all debug output
-MONADIC_DEBUG=all
-MONADIC_DEBUG_LEVEL=verbose
-
-# API debugging (equivalent to Electron's "Extra Logging")
-MONADIC_DEBUG=api
-```
 
 ## MDSL Development Tools :id=mdsl-development-tools
 

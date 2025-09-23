@@ -22,7 +22,13 @@ Prompt Note
 - The prompt reflects the single configured source (local or cloud) and does not mention hybrid.
 
 Cleanup (Electron)
-- “Clean Up Cloud PDFs”: delete only monadic-* Vector Stores and app‑origin files (protects 3rd‑party usage).
+- “Clean Up Cloud PDFs”: delete only monadic-* Vector Stores and app-origin files (protects 3rd-party usage).
+
+Runtime config refresh
+- `Monadic::Utils::PdfStorageConfig` keeps `CONFIG` synchronized with `~/monadic/config/env` without a restart.
+- `refresh_from_env` is called by endpoints before serving PDF requests; when the env file mtime changes it reloads `PDF_STORAGE_MODE`/`PDF_DEFAULT_STORAGE`.
+- Empty values remove the key from `CONFIG`, so deleting a line from the env file immediately falls back to defaults the next time a request is handled.
+- Specs can invoke `reset_tracking!` to force the next request to re-read the env file.
 
 Open Items
 - Extend registry to local scope (namespaces migration), listing UI, and integration tests for dedup flows.

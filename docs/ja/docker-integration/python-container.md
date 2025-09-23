@@ -2,16 +2,16 @@
 
 Monadic Chat は `monadic-chat-python-container` 内で Python ツールを実行します。AI エージェントはこのコンテナでコードを実行し、結果を返します。
 
-## Install Options（オプション機能）
+## インストールオプション（オプション機能）
 
-アプリの「Actions → Install Options…」から、Python コンテナに含める追加機能を選択できます。
+アプリの「アクション → インストールオプション…」から、Python コンテナに含める追加機能を選択できます。
 
 - LaTeX（最小構成）：Concept Visualizer / Syntax Tree 用（有効時のみUI表示、要 OpenAI/Anthropic キー）
 - Python ライブラリ（CPU）：`nltk` / `spacy(3.7.5)` / `scikit-learn` / `gensim` / `librosa` / `transformers`
 - Tools：ImageMagick（`convert`/`mogrify`）
 - Selenium：有効時は従来通りSeleniumを使用。無効かつ Tavily キーありなら From URL は Tavily 使用。どちらもなければ #url/#doc は非表示。
 
-保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は Install Options ウィンドウに表示され、ログは `~/monadic/log/build/python/<timestamp>/` に保存されます。
+保存後に表示されるダイアログで「Rebuild now」を選ぶと、Python コンテナを成功時のみ本番に反映して再ビルドします。進捗と要約は インストールオプション ウィンドウに表示され、ログは `~/monadic/log/build/python/<timestamp>/` に保存されます。
 
 NLTK と spaCy について:
 - `nltk` オプションはライブラリのみをインストールします。コーパス/データは自動ダウンロードされません。

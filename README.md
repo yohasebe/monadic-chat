@@ -28,13 +28,13 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 [Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
 
-## Recent Updates (v0.9.9+)
+## Recent Updates (v0.10.x)
 
-- **Gemini Provider Enhancements**: Fixed Jupyter Notebook cell addition and Code Interpreter response completeness
-- **Dynamic Model Selection**: New ModelSpecUtils architecture eliminates hardcoded model names
-- **Enhanced Image Generation**: Improved mask editing with automatic recognition and `input_fidelity` parameter support
-- **GPT-5 Support**: Full compatibility with OpenAI's GPT-5 models via both Chat Completions and Responses APIs
-- **UI/UX Improvements**: Redesigned scroll buttons with better visibility and smooth animations
+- **PDF storage hot reload**: `PDF_STORAGE_MODE` / `PDF_DEFAULT_STORAGE` env changes apply instantly without restarting the Ruby service.
+- **Install Options localization**: The Install Options modal now follows the current UI language (English + Japanese, Simplified Chinese, Korean, Spanish, French, German).
+- **ElevenLabs v3 Alpha support**: TTS requests can use `eleven_v3`, with automatic handling of the non-streaming response format.
+- **Gemini tooling fixes**: Jupyter Notebook cells align with provider responses and Code Interpreter returns complete outputs.
+- **Model management**: ModelSpecUtils removes hardcoded model names and keeps GPT-5 endpoints in sync across providers.
 
 ### Install Options & Rebuild
 

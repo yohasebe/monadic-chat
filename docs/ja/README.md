@@ -4,13 +4,15 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
-<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1270_passing-success?style=for-the-badge" alt="Tests"></a>
+<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1358_passing-success?style=for-the-badge" alt="Tests"></a>
   
   ---
   
   **🎯 機能** · [マルチモーダル](/ja/basic-usage/basic-apps#マルチモーダル機能) · [Web検索](/ja/basic-usage/basic-apps#web検索統合) · [コード実行](/ja/basic-usage/basic-apps#code-interpreter) · [音声チャット](/ja/basic-usage/basic-apps#voice-chat)
   
   **🤖 対応プロバイダー** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
+  
+  **🌐 対応UI言語** · English · 日本語 · 简体中文 · 한국어 · Español · Français · Deutsch
   
   **🛠 使用技術** · Ruby · Electron · Docker · PostgreSQL · WebSocket
   

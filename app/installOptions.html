@@ -30,7 +30,7 @@
   </style>
   <script>
     let ioDirty = false;
-    let ioTranslationsAll = null;
+    let ioTranslations = { panel: null, dialogs: null, language: 'en' };
     let ioInitialSnapshot = '';
     const ioIds = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','SELENIUM_ENABLED'];
     const takeIoSnapshot = () => {
@@ -38,26 +38,16 @@
       ioIds.forEach(id => { obj[id] = !!document.getElementById(id)?.checked; });
       return JSON.stringify(obj);
     };
-    const extractPanelTranslations = (all) => {
-      if (!all) return null;
-      if (all.installOptionsPanel) return all.installOptionsPanel;
-      if (all.menu && all.menu.installOptionsPanel) return all.menu.installOptionsPanel;
-      return null;
-    };
-    function detectLang(){
+    async function fetchPanelTranslations() {
       try {
-        const m = document.cookie.match(/ui-language=([^;]+)/);
-        if (m && m[1]) return m[1];
-      } catch(e) {}
-      const n=(navigator.language||'en').slice(0,2);
-      return n || 'en';
-    }
-    async function loadPanelTranslations() {
-      const lang = detectLang();
-      const all = await window.electronAPI.getTranslations(lang);
-      ioTranslationsAll = all || {};
-      const t = extractPanelTranslations(ioTranslationsAll);
-      return t;
+        const data = await window.installOptionsAPI.getTranslations();
+        ioTranslations = data || { panel: null, dialogs: null, language: 'en' };
+        return ioTranslations.panel || null;
+      } catch (error) {
+        console.error('Failed to load install options translations:', error);
+        ioTranslations = { panel: null, dialogs: null, language: 'en' };
+        return null;
+      }
     }
     function applyTranslations(t){
       if (!t) return;
@@ -104,20 +94,8 @@
     }
     // Re-run translation on demand (called by main process after setting cookie)
     async function installOptionsReloadTranslations() {
-      const panelT = await loadPanelTranslations();
+      const panelT = await fetchPanelTranslations();
       applyTranslations(panelT);
-    }
-    async function loadOptions() {
-      try {
-        const panelT = await loadPanelTranslations();
-        applyTranslations(panelT);
-        const opts = await window.installOptionsAPI.get();
-        const ids = [
-          'INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA',
-          'PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','SELENIUM_ENABLED'
-        ];
-        ids.forEach(id => { const el = document.getElementById(id); if (el) el.checked = !!opts[id]; });
-      } catch(e) { console.error(e); }
     }
     async function saveOptions() {
       const saveBtn = document.getElementById('btn-save');
@@ -142,7 +120,7 @@
         const saveMsg = document.getElementById('io-save-message');
         // Set translated tooltip
         try {
-          const panelT = extractPanelTranslations(ioTranslationsAll);
+          const panelT = ioTranslations.panel || null;
           if (panelT && saveMsg) {
             const get = (path, def='') => { try { return path.split('.').reduce((o,k)=> (o||{})[k], panelT) || def; } catch(e){ return def; } };
             saveMsg.setAttribute('title', get('messages.saved','Options saved'));
@@ -164,7 +142,7 @@
       }
     }
     function showIoUnsavedDialog(onSave) {
-      const d = (ioTranslationsAll && (ioTranslationsAll.dialogs || (ioTranslationsAll.menu && ioTranslationsAll.menu.dialogs))) ? (ioTranslationsAll.dialogs || ioTranslationsAll.menu.dialogs) : {};
+      const d = ioTranslations.dialogs || {};
       const title = d.unsavedChangesTitle || 'Unsaved Changes';
       const message = d.unsavedChangesMessage || 'You have unsaved changes. Save before closing?';
       const saveAndClose = d.saveAndClose || 'Save and Close';
@@ -206,8 +184,8 @@
     }
     async function loadOptions(){
       try {
-        const t = await loadPanelTranslations();
-        applyTranslations(t);
+        const panel = await fetchPanelTranslations();
+        applyTranslations(panel);
         const opts = await window.installOptionsAPI.get();
         ioIds.forEach(id => { const el = document.getElementById(id); if (el) el.checked = !!opts[id]; });
         // attach dirty trackers
@@ -230,17 +208,12 @@
       });
     }
     window.addEventListener('DOMContentLoaded', loadOptions);
-    // React to UI language changes broadcast from main
-    if (window.electronAPI && window.electronAPI.onUILanguageChanged) {
-      window.electronAPI.onUILanguageChanged((_e, data) => {
-        try {
-          if (data && data.language) {
-            document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
-          }
-        } catch {}
+    if (window.electronAPI && typeof window.electronAPI.onUILanguageChanged === 'function') {
+      window.electronAPI.onUILanguageChanged(() => {
         installOptionsReloadTranslations();
       });
     }
+    // React to UI language changes broadcast from main
   </script>
   </head>
   <body>

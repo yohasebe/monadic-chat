@@ -2329,28 +2329,9 @@ function openInstallOptionsWindow() {
   });
   installOptionsWindow.loadFile(path.join(__dirname, 'installOptions.html'));
   installOptionsWindow.once('ready-to-show', () => installOptionsWindow.show());
-  // Inject UI language and trigger translation after load
+  // Trigger translation refresh after load
   installOptionsWindow.webContents.once('did-finish-load', () => {
-    const envPath = getEnvPath();
-    let uiLanguage = 'en';
-    try {
-      if (envPath) {
-        const envConfig = readEnvFile(envPath);
-        if (envConfig.UI_LANGUAGE) {
-          uiLanguage = envConfig.UI_LANGUAGE;
-        }
-      }
-    } catch (err) {
-      console.warn('[InstallOptions] Failed to read UI language from env:', err.message);
-    }
-    if ((!uiLanguage || uiLanguage === 'en') && typeof i18n.getLanguage === 'function') {
-      const currentLang = i18n.getLanguage();
-      if (currentLang) {
-        uiLanguage = currentLang;
-      }
-    }
     installOptionsWindow.webContents.executeJavaScript(`
-      document.cookie = "ui-language=${uiLanguage}; path=/; max-age=31536000";
       if (typeof installOptionsReloadTranslations === 'function') {
         installOptionsReloadTranslations();
       }
@@ -2400,6 +2381,21 @@ ipcMain.handle('get-install-options', async () => {
     SELENIUM_ENABLED: toBool(cfg.SELENIUM_ENABLED)
   };
 });
+
+ipcMain.handle('get-install-options-translations', async () => {
+    try {
+      const panel = (i18n.getSection('menu') || {}).installOptionsPanel || {};
+      const dialogs = i18n.getSection('dialogs') || {};
+      return {
+        panel,
+        dialogs,
+        language: i18n.getLanguage()
+      };
+    } catch (err) {
+      console.error('Failed to build install options translations:', err);
+      return { panel: {}, dialogs: {}, language: i18n.getLanguage() };
+    }
+  });
 
 let installOptionsSaving = false;
 ipcMain.handle('save-install-options', async (_e, options) => {
@@ -3212,6 +3208,9 @@ ipcMain.on('change-ui-language', (_event, language) => {
   // Also notify the internal browser if it exists
   if (internalBrowser && !internalBrowser.isDestroyed()) {
     internalBrowser.webContents.send('ui-language-changed', { language });
+  }
+  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
+    installOptionsWindow.webContents.send('ui-language-changed', { language });
   }
 });
 

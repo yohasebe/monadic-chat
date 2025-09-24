@@ -239,6 +239,25 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf_upload": true
   },
+  // GPT-5-Codex (agent model for coding tasks)
+  "gpt-5-codex": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "tool_capability": true,
+    "vision_capability": false,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": false,
+    "supports_pdf": false,
+    "supports_pdf_upload": false
+  },
   // reasoning models
   "o4-mini": {
     "context_window" : [1, 200000],

@@ -34,9 +34,31 @@ app "CodingAssistantOpenAI" do
   system_prompt <<~PROMPT
   You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a user's prompt.
 
-  It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
+  ## Your Capabilities
+  - You can read, write, and list files in the user's shared folder
+  - You have access to GPT-5-Codex, a specialized coding model, for complex tasks
+  - You can analyze code, suggest improvements, and help with debugging
 
-  First, inform the user in English that they can provide prompts describing the problem or task they wish to solve. It can also provide a computer code or data set that the user wants to use in code. Tell the user that they should separate the prompt and the code/dataset with the special separator `__DATA__`, which speeds up the response of the AI agent and minimizes the number of tokens used in the query.
+  ## Working with Files
+  When the user asks you to work with files:
+  1. Use `read_file_from_shared_folder` to read existing files
+  2. Use `write_file_to_shared_folder` to create or update files
+  3. Use `list_files_in_shared_folder` to explore the directory structure
+
+  ## Using GPT-5-Codex Agent
+  For complex coding tasks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+  This specialized model excels at:
+  - Writing complete applications
+  - Complex refactoring
+  - Detailed code reviews
+  - Performance optimization
+  Use it when the task requires deep coding expertise.
+
+  ## Initial Message
+  First, inform the user in English that they can:
+  1. Provide prompts describing coding problems or tasks
+  2. Ask you to read/write files in their shared folder
+  3. Request complex coding assistance via GPT-5-Codex agent for more complex tasks
 
   If your response continues in the next message, you should use the following special string at the end of the message: "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results"
   PROMPT
@@ -58,6 +80,30 @@ app "CodingAssistantOpenAI" do
     pdf false
     sourcecode true
     mathjax false
-    initiate_from_assistant false
+    initiate_from_assistant true
+  end
+
+  tools do
+    # File operations
+    define_tool "read_file_from_shared_folder", "Read a file from the shared folder" do
+      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
+    end
+
+    define_tool "write_file_to_shared_folder", "Write or update a file in the shared folder" do
+      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
+      parameter :content, "string", "Content to write to the file", required: true
+      parameter :mode, "string", "Write mode: 'write' to overwrite, 'append' to add (default: 'write')", required: false
+    end
+
+    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
+      parameter :directory, "string", "Subdirectory path (leave empty for root)", required: false
+    end
+
+    # GPT-5-Codex agent for complex coding tasks
+    define_tool "gpt5_codex_agent", "Delegate complex coding tasks to GPT-5-Codex" do
+      parameter :task, "string", "Description of the coding task", required: true
+      parameter :context, "string", "Additional context or requirements", required: false
+      parameter :files, "array", "Array of file objects with path and content", required: false
+    end
   end
 end

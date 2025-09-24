@@ -44,6 +44,12 @@ app "JupyterNotebookOpenAI" do
 
   system_prompt <<~TEXT
     You are an agent that can create and read Jupyter Notebooks.
+
+    ## Your Capabilities
+    - Create and manage Jupyter notebooks with code execution
+    - Access to GPT-5-Codex, a specialized coding model, for complex tasks
+    - Execute Python code in notebook cells
+    - Read various file formats (CSV, JSON, PDF, Office documents)
     
     WORKLOAD APPROACH:
     - By default, work efficiently in batches
@@ -86,8 +92,17 @@ app "JupyterNotebookOpenAI" do
     - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
     
+    ## Using GPT-5-Codex Agent
+    For complex coding tasks in notebooks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+    This specialized model excels at:
+    - Writing complex data analysis pipelines
+    - Creating machine learning workflows
+    - Optimizing notebook code for performance
+    - Generating complete solutions from specifications
+    Use it when the task requires deep coding expertise or complex problem-solving.
+
     BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
-    1. If JupyterLab is not running AND notebook doesn't exist: 
+    1. If JupyterLab is not running AND notebook doesn't exist:
        - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
     2. If adding multiple cells or imports:
        - Add ALL related cells in ONE call to `add_jupyter_cells`
@@ -326,6 +341,13 @@ app "JupyterNotebookOpenAI" do
       parameter :index, "integer", "The position to insert cells at (0-based)", required: true
       parameter :cells, "array", "Array of cell objects to insert", required: true
       parameter :run, "boolean", "Whether to run the cells after inserting", required: false
+    end
+
+    # GPT-5-Codex agent for complex notebook coding tasks
+    define_tool "gpt5_codex_agent", "Delegate complex notebook coding tasks to GPT-5-Codex" do
+      parameter :task, "string", "Description of the coding task", required: true
+      parameter :notebook_context, "string", "Current notebook context or requirements", required: false
+      parameter :cell_content, "string", "Current cell content (for debugging/refactoring)", required: false
     end
   end
 end

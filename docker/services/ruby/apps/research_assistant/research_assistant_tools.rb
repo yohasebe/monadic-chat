@@ -1,9 +1,31 @@
 # Facade methods for Research Assistant apps
 # Provides clear interfaces for WebSearchAgent functionality
 
+require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+
+module ResearchAssistantTools
+  include MonadicHelper
+  include WebSearchAgent
+  include Monadic::Agents::GPT5CodexAgent
+
+  # Call GPT-5-Codex agent for code generation in research context
+  def gpt5_codex_agent(task:, research_context: nil, data_structure: nil)
+    # Build prompt using the shared helper
+    prompt = build_codex_prompt(
+      task: task,
+      context: research_context,
+      current_code: data_structure
+    )
+
+    # Call the shared GPT-5-Codex implementation
+    call_gpt5_codex(prompt: prompt, app_name: "ResearchAssistant")
+  end
+end
+
 class ResearchAssistantOpenAI < MonadicApp
   include OpenAIHelper
   include WebSearchAgent
+  include ResearchAssistantTools
   
   # Performs web search using native OpenAI search
   # @param query [String] The search query

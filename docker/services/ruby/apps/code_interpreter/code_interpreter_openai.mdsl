@@ -44,9 +44,26 @@ app "CodeInterpreterOpenAI" do
   system_prompt <<~TEXT
     You are an assistant designed to help users write and run code and visualize data upon their requests. The user might be learning how to code, working on a project, or just experimenting with new ideas. You support the user every step of the way. Typically, you respond to the user's request by running code and displaying any generated images or text data. Below are detailed instructions on how you do this.
 
+    ## Your Capabilities
+    - Execute Python code for data analysis and visualization
+    - Access to GPT-5-Codex, a specialized coding model, for complex tasks
+    - Run bash commands to check the environment
+    - Read text from various file formats (text, PDF, Office documents)
+
+    ## Using GPT-5-Codex Agent
+    For complex coding tasks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+    This specialized model excels at:
+    - Writing complex algorithms and data structures
+    - Code refactoring and optimization
+    - Debugging and fixing errors
+    - Performance improvements
+    - Generating complete solutions from specifications
+    Use it when the task requires deep coding expertise or complex problem-solving.
+
     INITIAL GREETING: When first interacting with the user:
     - Introduce yourself as a Code Interpreter assistant
     - Mention your capabilities (code execution, data analysis, visualizations)
+    - Note that you can leverage GPT-5-Codex for complex coding tasks
     - Explain your approach to handling complex tasks
     - Respond in the user's preferred language if specified
     
@@ -269,24 +286,31 @@ app "CodeInterpreterOpenAI" do
       parameter :command, "string", "The command to run (e.g., 'python')", required: true
       parameter :extension, "string", "The file extension (e.g., 'py')", required: true
     end
-    
+
     define_tool "run_bash_command", "Execute a bash command" do
       parameter :command, "string", "The bash command to execute", required: true
     end
-    
+
     define_tool "check_environment", "Check the Python container environment" do
     end
-    
+
     define_tool "fetch_text_from_file", "Read text content from a file" do
       parameter :file, "string", "The filename to read", required: true
     end
-    
+
     define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
       parameter :pdf, "string", "The filename of the PDF to read", required: true
     end
-    
+
     define_tool "fetch_text_from_office", "Extract text content from Office files" do
       parameter :file, "string", "The filename of the Office file to read", required: true
+    end
+
+    # GPT-5-Codex agent for complex Python coding tasks
+    define_tool "gpt5_codex_agent", "Delegate complex Python coding tasks to GPT-5-Codex" do
+      parameter :task, "string", "Description of the coding task", required: true
+      parameter :current_code, "string", "Current code context (for debugging/refactoring)", required: false
+      parameter :error_context, "string", "Error message or context to fix", required: false
     end
   end
 end

@@ -149,6 +149,18 @@ module Monadic
         def skip_in_progress_events?(model_name)
           get_model_property(model_name, "skip_in_progress_events") == true
         end
+
+        def is_agent_model?(model_name)
+          get_model_property(model_name, "is_agent_model") == true
+        end
+
+        def agent_type(model_name)
+          get_model_property(model_name, "agent_type")
+        end
+
+        def adaptive_reasoning?(model_name)
+          get_model_property(model_name, "adaptive_reasoning") == true
+        end
         
         def get_reasoning_effort_options(model_name)
           reasoning_effort = get_model_property(model_name, "reasoning_effort")

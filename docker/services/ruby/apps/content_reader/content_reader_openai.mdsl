@@ -57,7 +57,7 @@ app "ContentReaderOpenAI" do
   llm do
     provider "OpenAI"
     model ["gpt-5", "gpt-4.1"]
-    reasoning_effort "minimal"
+    reasoning_effort "low"  # Changed from minimal - web_search requires low or higher
     temperature 0.0
     context_size 10
   end

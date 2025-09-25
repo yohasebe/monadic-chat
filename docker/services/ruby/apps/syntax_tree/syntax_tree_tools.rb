@@ -19,7 +19,7 @@ class SyntaxTreeOpenAI < MonadicApp
     cleaned_notation = bracket_notation.gsub(/\[\s*"([^"\[\]]+)"\s*\]/, '[\1]')
     
     # CRITICAL: Remove trailing spaces and extra brackets that cause LaTeX issues
-    # This handles cases like "[T た]] ]" where there's an extra bracket at the end
+    # This handles cases like "[T the]] ]" where there's an extra bracket at the end
     cleaned_notation = cleaned_notation.strip
     
     # Balance brackets - count and remove excess closing brackets

@@ -310,7 +310,7 @@ module PerplexityHelper
     end
     
     
-    # API キー検証はユーザーメッセージ送信後に行う（UX整合）
+    # API key validation is performed after user message is sent (for UX consistency)
     
     # Process the API request
 
@@ -368,7 +368,7 @@ module PerplexityHelper
       end
     end
 
-    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    # After sending user card, check API key. If not set, return error card and exit
     unless api_key && !api_key.to_s.strip.empty?
       error_message = Monadic::Utils::ErrorFormatter.api_key_error(
         provider: "Perplexity",

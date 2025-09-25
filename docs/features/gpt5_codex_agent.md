@@ -63,12 +63,16 @@ Assistant: [Automatically delegates to GPT-5-Codex for complex matplotlib code]
 - Maximum context window: 400,000 tokens
 - Maximum output: 128,000 tokens
 - No temperature or sampling parameters (uses deterministic generation)
+- Default timeout: 300 seconds (configurable via `GPT5_CODEX_TIMEOUT` environment variable)
+- Automatic access checking before delegation
+- Message format abstraction for compatibility
 
 ## Troubleshooting
 
 If you encounter issues with GPT-5-Codex:
-1. Ensure your OpenAI API key has access to GPT-5-Codex
-2. Check that you're using one of the supported applications
-3. For very large tasks, try breaking them into smaller pieces
+1. **Access Denied**: Ensure your OpenAI API key has access to GPT-5-Codex model
+2. **Timeout Errors**: For long-running tasks, increase timeout via `GPT5_CODEX_TIMEOUT` environment variable
+3. **Empty Responses**: Try breaking complex tasks into smaller, more specific pieces
+4. **Application Not Supported**: Verify you're using Coding Assistant, Code Interpreter, Jupyter Notebook, or Research Assistant
 
 For technical implementation details, developers can refer to the internal documentation.

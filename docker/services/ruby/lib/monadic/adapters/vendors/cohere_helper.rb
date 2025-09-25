@@ -748,7 +748,7 @@ module CohereHelper
     empty_tool_results = role == "empty_tool_results"
     num_retrial = 0
 
-    # Defer API キー検証はユーザーメッセージ送信後に行う（UX整合）
+    # Defer API key validation until after user message is sent (for UX consistency)
 
     # Get the parameters from the session
     obj = session[:parameters]
@@ -809,7 +809,7 @@ module CohereHelper
       end
     end
 
-    # ユーザーカード送信後に API キーを検証し、未設定なら明示エラーで終了
+    # After sending user card, validate API key and return explicit error if not set
     api_key = CONFIG["COHERE_API_KEY"]
     unless api_key && !api_key.to_s.strip.empty?
       error_message = Monadic::Utils::ErrorFormatter.api_key_error(

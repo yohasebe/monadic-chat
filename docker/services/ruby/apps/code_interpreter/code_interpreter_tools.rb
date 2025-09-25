@@ -17,7 +17,8 @@ module CodeInterpreterTools
     )
 
     # Call the shared GPT-5-Codex implementation
-    call_gpt5_codex(prompt: prompt, app_name: "CodeInterpreter")
+    # Code Interpreter might need longer timeout for complex algorithms
+    call_gpt5_codex(prompt: prompt, app_name: "CodeInterpreter", timeout: 360)
   end
 end
 

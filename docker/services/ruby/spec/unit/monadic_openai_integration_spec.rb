@@ -135,10 +135,10 @@ RSpec.describe "OpenAI Monadic Response Integration" do
       test_cases = [
         # Language Practice Plus format
         {
-          "message" => "こんにちは",
+          "message" => "Hello",
           "context" => {
-            "target_lang" => "Japanese",
-            "language_advice" => ["Use です/ます forms"]
+            "target_lang" => "French",
+            "language_advice" => ["Use formal vous form"]
           }
         },
         # Chat Plus format

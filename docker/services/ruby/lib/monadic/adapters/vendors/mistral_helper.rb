@@ -315,7 +315,7 @@ module MistralHelper
 
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
-    # API キー検証はユーザーメッセージ送信後に実施（UX統一）
+    # API key validation is performed after user message is sent (for UX consistency)
 
     # Get parameters from session
     obj = session[:parameters]
@@ -356,7 +356,7 @@ module MistralHelper
         end
     end
 
-    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    # After sending user card, check API key. If not set, return error card and exit
     api_key = CONFIG["MISTRAL_API_KEY"]
     unless api_key && !api_key.to_s.strip.empty?
       error_message = Monadic::Utils::ErrorFormatter.api_key_error(

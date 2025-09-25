@@ -527,7 +527,7 @@ delete "/openai/pdf" do
 
       if vs_id
         if env_vs_id && !env_vs_id.empty?
-          # ENV固定: VS自体は残し、中身（ファイル）だけ削除
+          # ENV fixed: Keep VS itself, delete only the contents (files)
           files_res = HTTP.headers(headers).get("#{api_base}/vector_stores/#{vs_id}/files")
           if files_res.status.success?
             data = (JSON.parse(files_res.body.to_s) rescue {})
@@ -541,7 +541,7 @@ delete "/openai/pdf" do
               rescue StandardError; end
             end
           end
-          # メタのfilesを空に
+          # Clear files in metadata
           if File.exist?(vs_meta_path)
             begin
               meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
@@ -549,12 +549,12 @@ delete "/openai/pdf" do
               File.write(vs_meta_path, JSON.pretty_generate(meta))
             rescue StandardError; end
           end
-          # レジストリ上も当該アプリのfilesを空に
+          # Also clear files for this app in registry
           begin
             Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
           rescue StandardError; end
         else
-          # ENV固定なし: VS自体を削除し、メタもクリア
+          # No ENV fixed: Delete VS itself and clear metadata
           begin
             HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}")
           rescue StandardError; end
@@ -563,7 +563,7 @@ delete "/openai/pdf" do
               File.write(vs_meta_path, JSON.pretty_generate({}))
             rescue StandardError; end
           end
-          # レジストリ上のVSとfilesをクリア
+          # Clear VS and files in registry
           begin
             Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
             Monadic::Utils::DocumentStoreRegistry.set_cloud_vs(app_key, nil)

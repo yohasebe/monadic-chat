@@ -377,7 +377,7 @@ module DeepSeekHelper
 
     num_retrial = 0
 
-    # API キー検証はユーザーメッセージ送信後に実施（UX整合）
+    # API key validation is performed after user message is sent (for UX consistency)
 
     obj = session[:parameters]
     app = obj["app_name"]
@@ -425,7 +425,7 @@ module DeepSeekHelper
       end
     end
 
-    # ユーザーカード送信後に API キー確認。無ければエラーカードを返して終了
+    # After sending user card, check API key. If not set, return error card and exit
     api_key = CONFIG["DEEPSEEK_API_KEY"]
     unless api_key && !api_key.to_s.strip.empty?
       error_message = Monadic::Utils::ErrorFormatter.api_key_error(

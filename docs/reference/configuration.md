@@ -4,6 +4,7 @@ This page provides a comprehensive reference for all configuration options in Mo
 
 ## Configuration Categories
 
+- [Configuration Priority](#configuration-priority)
 - [API Keys](#api-keys)
 - [Model Settings](#model-settings)
 - [System Settings](#system-settings)
@@ -11,6 +12,29 @@ This page provides a comprehensive reference for all configuration options in Mo
 - [Help System Settings](#help-system-settings)
 - [Development Settings](#development-settings)
 - [Container Settings](#container-settings)
+
+## Configuration Priority
+
+Monadic Chat uses the following priority order for configuration values (highest to lowest):
+
+1. **Environment Variables** (`~/monadic/config/env`)
+   - User-defined settings take highest priority
+   - Override all other configuration sources
+
+2. **System Defaults** (`config/system_defaults.json`)
+   - Provider-specific default models and settings
+   - Applied when no environment variable is set
+
+3. **Hardcoded Defaults**
+   - Built-in fallback values in the code
+   - Used as last resort when neither ENV nor system_defaults provide a value
+
+### Example
+
+For the OpenAI default model:
+- If `OPENAI_DEFAULT_MODEL=gpt-4.1-mini` is set in `~/monadic/config/env`, it will be used
+- Otherwise, the value from `system_defaults.json` (`gpt-4.1`) will be used
+- If neither exists, the hardcoded default in the application will be applied
 
 ## API Keys
 

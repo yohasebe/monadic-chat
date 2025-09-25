@@ -13,7 +13,7 @@ class FlaskAppClient
                "http://python_service:#{PYTHON_PORT}"
              else
                # Local development: connect to loopback, not 0.0.0.0 (listen addr)
-               # 0.0.0.0 はサーバのバインド用であり、クライアント接続先としては不適切
+               # 0.0.0.0 is for server binding, not appropriate as client connection destination
                host = (defined?(CONFIG) && CONFIG["PYTHON_HOST"]) || "127.0.0.1"
                "http://#{host}:#{PYTHON_PORT}"
              end

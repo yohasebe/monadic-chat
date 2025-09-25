@@ -38,9 +38,9 @@ RSpec.describe "Voice Chat Simple Integration", :integration do
         # Check provider-specific model
         case provider
         when "openai"
-          expect(content).to match(/gpt-4o|gpt-4/i)
+          expect(content).to match(/gpt-4o|gpt-4|gpt-5/i)
         when "claude"
-          expect(content).to match(/claude-3|claude-2/i)
+          expect(content).to match(/claude-3|claude-2|claude-sonnet/i)
         when "gemini"
           expect(content).to match(/gemini/i)
         end

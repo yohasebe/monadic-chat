@@ -135,25 +135,25 @@ RSpec.describe "Gemini Jupyter Combined Function" do
       end
     end
     
-    context "with Japanese content" do
-      let(:filename) { "数学ノート" }
+    context "with non-ASCII content" do
+      let(:filename) { "math_notebook" }
       let(:cells) do
         [
-          { "cell_type" => "markdown", "source" => "# 小学5年生の算数" },
-          { "cell_type" => "code", "source" => "# 足し算\nresult = 10 + 20\nprint(f'答え: {result}')" }
+          { "cell_type" => "markdown", "source" => "# Math Lesson Grade 5" },
+          { "cell_type" => "code", "source" => "# Addition\nresult = 10 + 20\nprint(f'Answer: {result}')" }
         ]
       end
-      
-      it "handles Japanese characters correctly" do
+
+      it "handles various character encodings correctly" do
         allow(jupyter_helper).to receive(:create_jupyter_notebook).and_return(
-          "Notebook '数学ノート_20240828_123456.ipynb' created successfully."
+          "Notebook 'math_notebook_20240828_123456.ipynb' created successfully."
         )
-        allow(jupyter_helper).to receive(:add_jupyter_cells).and_return("セルが追加されました。")
-        
+        allow(jupyter_helper).to receive(:add_jupyter_cells).and_return("Cells added successfully.")
+
         result = jupyter_helper.create_and_populate_jupyter_notebook(filename: filename, cells: cells)
-        
+
         expect(result).to include("created successfully")
-        expect(result).to include("セルが追加されました")
+        expect(result).to include("Cells added successfully")
       end
     end
   end

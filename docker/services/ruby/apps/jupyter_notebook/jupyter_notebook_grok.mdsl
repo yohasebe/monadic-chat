@@ -34,7 +34,7 @@ app "JupyterNotebookGrok" do
   
   llm do
     provider "xai"
-    model "grok-code-fast-1"
+    model "grok-4-fast-reasoning"
     temperature 0.0
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools
@@ -194,6 +194,13 @@ app "JupyterNotebookGrok" do
       parameter :index, "integer", "The position to insert cells at (0-based)", required: true
       parameter :cells, "array", "Array of cell objects to insert", required: true
       parameter :run, "boolean", "Whether to run the cells after inserting", required: false
+    end
+
+    # Grok-Code agent for complex code generation
+    define_tool "grok_code_agent", "Call Grok-Code-Fast-1 agent for complex notebook code generation" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :notebook_context, "string", "Context about the current notebook state", required: false
+      parameter :cell_content, "string", "Existing cell content to modify or reference", required: false
     end
   end
 end

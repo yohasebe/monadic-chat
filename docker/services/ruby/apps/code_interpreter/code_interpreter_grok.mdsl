@@ -35,7 +35,7 @@ app "CodeInterpreterGrok" do
 
   llm do
     provider "xai"
-    model "grok-code-fast-1"
+    model "grok-4-fast-reasoning"
     temperature 0.0
     tool_choice "auto"  # Default to auto, will be overridden when needed
     max_tokens 4096  # Ensure enough tokens for tool responses
@@ -343,6 +343,13 @@ app "CodeInterpreterGrok" do
     
     define_tool "fetch_text_from_office", "Extract text content from Office files" do
       parameter :file, "string", "The filename of the Office file to read", required: true
+    end
+
+    # Grok-Code agent for complex code generation
+    define_tool "grok_code_agent", "Call Grok-Code-Fast-1 agent for complex Python code generation tasks" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :current_code, "string", "Existing code to modify or debug", required: false
+      parameter :error_context, "string", "Error messages or context for debugging", required: false
     end
   end
 end

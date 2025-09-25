@@ -2,6 +2,7 @@
 # Provides clear interfaces for WebSearchAgent functionality
 
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module ResearchAssistantTools
   include MonadicHelper
@@ -19,6 +20,25 @@ module ResearchAssistantTools
 
     # Call the shared GPT-5-Codex implementation
     call_gpt5_codex(prompt: prompt, app_name: "ResearchAssistant")
+  end
+end
+
+module ResearchAssistantGrokTools
+  include MonadicHelper
+  include WebSearchAgent
+  include Monadic::Agents::GrokCodeAgent
+
+  # Call Grok-Code agent for code generation in research context
+  def grok_code_agent(task:, research_context: nil, data_structure: nil)
+    # Build prompt using the shared helper
+    prompt = build_grok_code_prompt(
+      task: task,
+      context: research_context,
+      current_code: data_structure
+    )
+
+    # Call the shared Grok-Code implementation
+    call_grok_code(prompt: prompt, app_name: "ResearchAssistantGrok")
   end
 end
 
@@ -77,13 +97,14 @@ end
 class ResearchAssistantGrok < MonadicApp
   include GrokHelper
   include WebSearchAgent
-  
+  include ResearchAssistantGrokTools
+
   # Performs web search using native Grok Live Search
   # @param query [String] The search query
   # @return [String] Search results
   def websearch_agent(query:)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query)
   rescue StandardError => e

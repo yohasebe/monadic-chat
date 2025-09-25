@@ -7,6 +7,51 @@ module MonadicHelper
                        Dir.home + "/monadic/log/jupyter.log"
                      end
 
+  # Japanese font configuration code for matplotlib
+  JAPANESE_FONT_SETUP = <<~PYTHON
+    # Configure matplotlib for Japanese text support
+    import matplotlib.pyplot as plt
+    import matplotlib.font_manager as fm
+    import warnings
+    import os
+
+    # Suppress font warnings
+    warnings.filterwarnings('ignore', message='Glyph .* missing from font')
+
+    # Configure Japanese fonts
+    try:
+        # Try to use Noto Sans CJK JP if available
+        font_paths = [
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+            '/usr/share/fonts/opentype/ipafont/ipag.ttf',
+            '/usr/share/fonts/truetype/ipafont/ipag.ttf'
+        ]
+
+        font_configured = False
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                fm.fontManager.addfont(font_path)
+                font_prop = fm.FontProperties(fname=font_path)
+                font_name = font_prop.get_name()
+                plt.rcParams['font.sans-serif'] = [font_name] + plt.rcParams['font.sans-serif']
+                font_configured = True
+                print(f"Japanese font configured: {font_name}")
+                break
+
+        if not font_configured:
+            # Fallback to system configuration
+            plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'IPAGothic', 'IPAPGothic'] + plt.rcParams['font.sans-serif']
+            print("Using system Japanese font configuration")
+
+        plt.rcParams['font.family'] = 'sans-serif'
+        plt.rcParams['axes.unicode_minus'] = False
+
+    except Exception as e:
+        print(f"Warning: Could not configure Japanese fonts: {e}")
+        print("Japanese text may not display correctly in plots")
+  PYTHON
+
   def unescape(text)
     text.gsub(/\\n/) { "\n" }
       .gsub(/\\'/) { "'" }
@@ -161,13 +206,16 @@ module MonadicHelper
                         MonadicApp::LOCAL_SHARED_VOL
                       end
       
-      exact_path = File.join(shared_volume, "#{filename}.ipynb")
-      
+      # Handle both with and without .ipynb extension
+      filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+      exact_path = File.join(shared_volume, filename_with_ext)
+
       # If exact file doesn't exist, look for files with timestamp pattern
       unless File.exist?(exact_path)
         # Handle case where Grok uses fake timestamp like "20241001_120000"
-        # Extract base name without any timestamp
-        base_name = filename.gsub(/_\d{8}_\d{6}$/, '')  # Remove fake timestamp if present
+        # Extract base name without any timestamp (and without extension)
+        base_without_ext = filename_with_ext.sub(/\.ipynb$/, '')
+        base_name = base_without_ext.gsub(/_\d{8}_\d{6}$/, '')  # Remove fake timestamp if present
         
         # Look for files with the same base name but different (real) timestamps
         pattern = File.join(shared_volume, "#{base_name}_*.ipynb")
@@ -278,6 +326,31 @@ module MonadicHelper
                                  retrial: true)
       else
         return "Error: The cells data provided could not be converted to JSON.\n#{original_cells}"
+      end
+    end
+
+    # Check if we need to add Japanese font setup
+    cells_array = JSON.parse(cells_in_json) rescue []
+    if cells_array.is_a?(Array) && needs_japanese_font_setup?(cells_array)
+      # Check if font setup is already present
+      has_font_setup = cells_array.any? do |cell|
+        cell["metadata"] && cell["metadata"]["tags"] && cell["metadata"]["tags"].include?("font-setup")
+      end
+
+      unless has_font_setup
+        # Find the first matplotlib import or create at beginning
+        import_index = cells_array.index do |cell|
+          source = cell["source"] || ""
+          source = source.join("\n") if source.is_a?(Array)
+          source.match?(/import\s+matplotlib|from\s+matplotlib/)
+        end
+
+        # Insert font setup right after imports or at the beginning
+        insert_position = import_index ? import_index + 1 : 0
+        cells_array.insert(insert_position, create_japanese_font_setup_cell)
+        cells_in_json = JSON.pretty_generate(cells_array)
+
+        puts "[DEBUG Jupyter] Added Japanese font setup cell at position #{insert_position}" if CONFIG["EXTRA_LOGGING"]
       end
     end
 
@@ -439,6 +512,32 @@ module MonadicHelper
     end
   end
   
+  # Helper method to create Japanese font setup cell
+  def create_japanese_font_setup_cell
+    {
+      "cell_type" => "code",
+      "source" => JAPANESE_FONT_SETUP,
+      "metadata" => {
+        "tags" => ["font-setup"]
+      }
+    }
+  end
+
+  # Check if notebook needs Japanese font setup
+  def needs_japanese_font_setup?(cells)
+    # Check if any cell contains Japanese text or matplotlib usage
+    cells.any? do |cell|
+      source = cell["source"] || cell[:source] || ""
+      source = source.join("\n") if source.is_a?(Array)
+
+      # Check for Japanese characters or matplotlib imports
+      source.match?(/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/) ||  # Japanese characters
+      source.match?(/import\s+matplotlib/) ||                          # matplotlib import
+      source.match?(/from\s+matplotlib/) ||                           # matplotlib from import
+      source.match?(/plt\./)                                          # plt usage
+    end
+  end
+
   def create_jupyter_notebook(filename:)
     begin
       # filename extension is not required and removed if provided
@@ -583,8 +682,10 @@ module MonadicHelper
   # Get all cells with their execution results
   def get_jupyter_cells_with_results(filename: "")
     return "Error: Filename is required." if filename.empty?
-    
-    notebook_path = File.join(Monadic::Utils::Environment.data_path, "#{filename}.ipynb")
+
+    # Handle both with and without .ipynb extension
+    filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
+    notebook_path = File.join(Monadic::Utils::Environment.data_path, filename_with_ext)
     
     return "Error: Notebook not found." unless File.exist?(notebook_path)
     

@@ -45,5 +45,16 @@ app "ResearchAssistantGrok" do
   end
 
   tools do
+    # Web search tool
+    define_tool "websearch_agent", "Perform web search using Grok's native live search capability" do
+      parameter :query, "string", "The search query", required: true
+    end
+
+    # Grok-Code agent for code generation in research context
+    define_tool "grok_code_agent", "Call Grok-Code-Fast-1 agent for code generation in research context" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :research_context, "string", "Context from the research findings", required: false
+      parameter :data_structure, "string", "Data structure or format to work with", required: false
+    end
   end
 end

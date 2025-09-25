@@ -1301,7 +1301,7 @@ const modelSpec = {
     "websearch_capability": false,
     "fallback_for_websearch": "grok-4-fast-reasoning",
     "supports_web_search": false,
-    "supports_parallel_function_calling": false
+    "supports_parallel_function_calling": true
   },
   "grok-2-vision-1212": {
     "context_window" : [1, 32768],

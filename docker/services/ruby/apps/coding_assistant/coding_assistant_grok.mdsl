@@ -43,7 +43,7 @@ app "CodingAssistantGrok" do
   
   llm do
     provider "xai"
-    model "grok-code-fast-1"
+    model "grok-4-fast-reasoning"
     temperature 0.0
   end
   
@@ -59,5 +59,29 @@ app "CodingAssistantGrok" do
     mathjax false
     initiate_from_assistant false
     group "xAI"
+  end
+
+  tools do
+    # File operations
+    define_tool "read_file_from_shared_folder", "Read a file from the shared folder" do
+      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
+    end
+
+    define_tool "write_file_to_shared_folder", "Write or update a file in the shared folder" do
+      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
+      parameter :content, "string", "Content to write to the file", required: true
+      parameter :mode, "string", "Write mode: 'write' to overwrite, 'append' to add (default: 'write')", required: false
+    end
+
+    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
+      parameter :directory, "string", "Subdirectory path (leave empty for root)", required: false
+    end
+
+    # Grok-Code agent for complex code generation
+    define_tool "grok_code_agent", "Call Grok-Code-Fast-1 agent for complex coding tasks" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :context, "string", "Additional context about the project or requirements", required: false
+      parameter :files, "array", "Array of file objects with path and content", required: false
+    end
   end
 end

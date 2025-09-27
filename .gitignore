@@ -89,6 +89,11 @@ PROVIDER_PROPERTIES_SUMMARY.md
 MDSL_INTERNALS.md
 FRONTEND_ARCHITECTURE.md
 
+# AutoForge app documentation (temporary planning files)
+docker/services/ruby/apps/auto_forge/ARCHITECTURE.md
+docker/services/ruby/apps/auto_forge/PLANNING.md
+docker/services/ruby/apps/auto_forge/UTILITIES_DESIGN.md
+
 # Test files
 test_*.rb
 

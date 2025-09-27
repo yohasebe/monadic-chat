@@ -2553,18 +2553,28 @@ let loadedApp = "Chat";
             }
           }
 
-          // Sort regular apps alphabetically by displayed text value
+          // Sort regular apps: Chat first, then alphabetically
           regularApps.sort((a, b) => {
             const textA = a[1]["display_name"] || a[1]["app_name"];
             const textB = b[1]["display_name"] || b[1]["app_name"];
+
+            // Put Chat first
+            if (textA === "Chat") return -1;
+            if (textB === "Chat") return 1;
+
             return textA.localeCompare(textB);
           });
 
-          // Sort apps within each special group alphabetically by displayed text value
+          // Sort apps within each special group: Chat first, then alphabetically
           for (const group of Object.keys(specialApps)) {
             specialApps[group].sort((a, b) => {
               const textA = a[1]["display_name"] || a[1]["app_name"];
               const textB = b[1]["display_name"] || b[1]["app_name"];
+
+              // Put Chat first
+              if (textA === "Chat") return -1;
+              if (textB === "Chat") return 1;
+
               return textA.localeCompare(textB);
             });
           }

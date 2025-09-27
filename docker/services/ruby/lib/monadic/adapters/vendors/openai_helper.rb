@@ -365,8 +365,10 @@ module OpenAIHelper
     if options["temperature"]
       begin
         # Treat models marked as reasoning or responses API as not supporting custom temperature
+        # Also explicitly exclude GPT-5 models
         disallow_sampling = Monadic::Utils::ModelSpec.is_reasoning_model?(model) ||
-                            Monadic::Utils::ModelSpec.responses_api?(model)
+                            Monadic::Utils::ModelSpec.responses_api?(model) ||
+                            model.to_s.downcase.include?("gpt-5")
         body["temperature"] = options["temperature"].to_f unless disallow_sampling
       rescue StandardError
         # On any spec lookup failure, be conservative and omit temperature
@@ -457,29 +459,29 @@ module OpenAIHelper
 
     # Handle max_tokens
     max_completion_tokens = obj["max_completion_tokens"]&.to_i || obj["max_tokens"]&.to_i
-    
+
+    # Store the original model for comparison later
+    original_user_model = model
+
     # If no max_tokens specified, use model defaults for reasoning models
     if max_completion_tokens.nil? || max_completion_tokens == 0
       require_relative '../../utils/model_token_utils'
       max_completion_tokens = ModelTokenUtils.get_max_tokens(original_user_model)
       DebugHelper.debug("OpenAI: Using default max_tokens #{max_completion_tokens} for model #{original_user_model}", category: :api, level: :info)
     end
-    
+
     # Get image generation flag
     image_generation = obj["image_generation"] == "true"
-    
+
     # Define shared folder path based on environment
     shared_folder = Monadic::Utils::Environment.shared_volume
-    
+
     temperature = obj["temperature"].to_f
     presence_penalty = obj["presence_penalty"].to_f
     frequency_penalty = obj["frequency_penalty"].to_f
     context_size = obj["context_size"].to_i
     request_id = SecureRandom.hex(4)
     message_with_snippet = nil
-
-    # Store the original model for comparison later
-    original_user_model = model
     
     # Check if original model requires Responses API via model_spec
     use_responses_api = Monadic::Utils::ModelSpec.responses_api?(original_user_model)
@@ -627,9 +629,12 @@ module OpenAIHelper
       body.delete("frequency_penalty")
     else
       body["n"] = 1
-      body["temperature"] = temperature if temperature
-      body["presence_penalty"] = presence_penalty if presence_penalty
-      body["frequency_penalty"] = frequency_penalty if frequency_penalty
+      # Don't add temperature for GPT-5 models
+      unless model.to_s.downcase.include?("gpt-5")
+        body["temperature"] = temperature if temperature
+        body["presence_penalty"] = presence_penalty if presence_penalty
+        body["frequency_penalty"] = frequency_penalty if frequency_penalty
+      end
       body["max_completion_tokens"] = max_completion_tokens if max_completion_tokens 
 
       if obj["response_format"]
@@ -1244,11 +1249,22 @@ module OpenAIHelper
           responses_body["reasoning"]["context"] = JSON.parse(JSON.generate(obj["reasoning_context"]))
         end
       end
-      
-      # Add temperature and sampling parameters if not a reasoning model
-      unless reasoning_model
+
+      # Check if this is a reasoning model or GPT-5 (which doesn't support temperature)
+      is_reasoning_model = Monadic::Utils::ModelSpec.model_has_property?(model, "reasoning_effort")
+      is_gpt5_model = model.to_s.downcase.include?("gpt-5")
+
+      # Add temperature and sampling parameters only if supported
+      # GPT-5 models and reasoning models don't support temperature/top_p
+      unless is_reasoning_model || is_gpt5_model
         responses_body["temperature"] = body["temperature"] if body["temperature"]
         responses_body["top_p"] = body["top_p"] if body["top_p"]
+      end
+
+      # Explicitly remove temperature/top_p for GPT-5 models (defensive programming)
+      if is_gpt5_model
+        responses_body.delete("temperature")
+        responses_body.delete("top_p")
       end
       
       # Add max_output_tokens if specified

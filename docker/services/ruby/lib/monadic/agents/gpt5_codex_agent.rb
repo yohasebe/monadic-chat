@@ -45,6 +45,11 @@ module Monadic
             puts "Timeout: #{actual_timeout} seconds"
           end
 
+          # Always show progress for GPT-5-Codex calls since they can take a while
+          if app_name
+            puts "[#{app_name}] 🤖 GPT-5-Codex is generating code... (typically takes 2-5 minutes)"
+          end
+
           # Check if we have the necessary methods (from OpenAIHelper or compatible module)
           unless respond_to?(:api_request)
             return {
@@ -231,8 +236,7 @@ module Monadic
         {
           parameters: {
             "model" => model,
-            "max_completion_tokens" => 128000,
-            "temperature" => 0.0
+            "max_completion_tokens" => 128000
           },
           messages: messages
         }

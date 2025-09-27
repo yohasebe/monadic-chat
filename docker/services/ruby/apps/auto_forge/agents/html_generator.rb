@@ -12,7 +12,7 @@ module AutoForge
       def generate(prompt, existing_content: nil, file_name: 'index.html')
         puts "[HTMLGenerator] Starting generation..." if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-        # Try multiple ways to get GPT-5-Codex access
+        # Get GPT-5-Codex access for code generation
         codex_caller = nil
 
         # Method 1: Check if app_instance has the method

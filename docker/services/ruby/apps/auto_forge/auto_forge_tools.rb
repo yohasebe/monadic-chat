@@ -2,6 +2,7 @@
 
 require_relative 'auto_forge'
 require_relative 'auto_forge_utils'
+require_relative 'auto_forge_debugger'
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
 
 # Tool methods for AutoForge MDSL application
@@ -236,5 +237,121 @@ module AutoForgeTools
     else
       "🗑️ Removed #{removed.size} old project(s):\n#{removed.map { |p| "  - #{p}" }.join("\n")}"
     end
+  end
+
+  def debug_application(params = {})
+    # Handle both nested and direct spec formats
+    spec = params['spec'] || params[:spec] || params
+
+    # Validate we have a project name
+    project_name = spec['name'] || spec[:name]
+    if project_name.nil? || project_name.empty?
+      return <<~RESPONSE
+        ❌ Missing project name
+
+        Please specify which project to debug:
+        {
+          "spec": {
+            "name": "ProjectName"
+          }
+        }
+      RESPONSE
+    end
+
+    # Find the project
+    project_info = AutoForgeUtils.find_recent_project(project_name)
+    unless project_info
+      return <<~RESPONSE
+        ❌ Project not found: #{project_name}
+
+        Use list_projects to see available projects.
+      RESPONSE
+    end
+
+    # Check if index.html exists
+    html_path = File.join(project_info[:path], 'index.html')
+    unless File.exist?(html_path)
+      return <<~RESPONSE
+        ❌ No index.html found in project: #{project_name}
+
+        Project path: #{project_info[:path]}
+      RESPONSE
+    end
+
+    # Check if Selenium is available
+    selenium_running = `docker ps --format "{{.Names}}"`.include?("monadic-selenium")
+    unless selenium_running
+      return <<~RESPONSE
+        ⚠️  Selenium container is not running
+
+        The debug feature requires the Selenium container to be active.
+        To enable debugging, please ensure Selenium is enabled in your Monadic Chat settings.
+
+        Note: The application can still be opened directly in your browser:
+        #{html_path}
+      RESPONSE
+    end
+
+    # Run the debugger
+    debugger = AutoForge::Debugger.new(@context)
+    result = debugger.debug_html(html_path)
+
+    # Format the response
+    if result[:success]
+      response = <<~RESPONSE
+        🔍 Debug Report for #{project_name}
+        =====================================
+
+        #{result[:summary].join("\n")}
+
+      RESPONSE
+
+      if result[:javascript_errors] && !result[:javascript_errors].empty?
+        response += "\n❌ JavaScript Errors:\n"
+        result[:javascript_errors].each do |error|
+          response += "  • #{error['message']}\n"
+        end
+      end
+
+      if result[:warnings] && !result[:warnings].empty?
+        response += "\n⚠️  Warnings:\n"
+        result[:warnings].each do |warning|
+          response += "  • #{warning['message']}\n"
+        end
+      end
+
+      if result[:tests] && !result[:tests].empty?
+        response += "\n🧪 Functionality Tests:\n"
+        result[:tests].each do |test|
+          status = test['passed'] ? "✅" : "❌"
+          response += "  #{status} #{test['test']}"
+          response += " (#{test['count']})" if test['count']
+          response += "\n"
+        end
+      end
+
+      if result[:performance]
+        response += "\n⚡ Performance Metrics:\n"
+        response += "  • Load Time: #{result[:performance]['loadTime']}ms\n" if result[:performance]['loadTime']
+        response += "  • DOM Ready: #{result[:performance]['domReadyTime']}ms\n" if result[:performance]['domReadyTime']
+        response += "  • Render Time: #{result[:performance]['renderTime']}ms\n" if result[:performance]['renderTime']
+      end
+
+      response += "\n📁 File Location: #{html_path}"
+      response
+    else
+      <<~RESPONSE
+        ❌ Debug failed
+
+        Error: #{result[:error]}
+
+        Please check that:
+        1. The Selenium container is running properly
+        2. The HTML file exists and is readable
+        3. There are no Docker networking issues
+      RESPONSE
+    end
+  rescue => e
+    "❌ Debug error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
   end
 end

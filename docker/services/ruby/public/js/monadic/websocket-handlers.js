@@ -231,11 +231,9 @@ function handleTokenVerification(data) {
     $('#api-token').val(data.token);
     $('#ai-user-initial-prompt').val(data.ai_user_initial_prompt);
     
-    // Update status to "Ready for input" after token verification
-    if (typeof setAlert === 'function') {
-      const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
-    }
+    // Don't show "Ready for input" immediately after token verification
+    // The actual ready state will be set when processing is complete
+    // Keep showing the current processing status (e.g., "Verifying token")
     
     return true;
   }

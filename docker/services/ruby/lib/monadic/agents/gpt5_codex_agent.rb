@@ -27,21 +27,26 @@ module Monadic
       # Default timeout for GPT-5-Codex requests (in seconds)
       # Can be overridden by GPT5_CODEX_TIMEOUT environment variable
       # GPT-5-Codex can adapt reasoning time from seconds to hours for complex tasks
-      # We set a practical limit of 15 minutes for interactive use
-      GPT5_CODEX_DEFAULT_TIMEOUT = (ENV['GPT5_CODEX_TIMEOUT'] || 900).to_i  # 15 minutes default
+      # We set a practical limit of 20 minutes for interactive use
+      GPT5_CODEX_DEFAULT_TIMEOUT = (ENV['GPT5_CODEX_TIMEOUT'] || 1200).to_i  # 20 minutes default
 
       # Call GPT-5-Codex agent for complex coding tasks
       # @param prompt [String] The complete prompt to send to GPT-5-Codex
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
+      # @param block [Proc] Block to call with progress updates (optional)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_gpt5_codex(prompt:, app_name: nil, timeout: nil)
+      def call_gpt5_codex(prompt:, app_name: nil, timeout: nil, &block)
         begin
           # Track timing for performance analysis
           start_time = Time.now
 
-          # Set timeout value
+          # Set timeout value with guard
           actual_timeout = timeout || GPT5_CODEX_DEFAULT_TIMEOUT
+          actual_timeout = GPT5_CODEX_DEFAULT_TIMEOUT unless actual_timeout.is_a?(Integer) && actual_timeout > 0
+
+          # Initialize progress thread variable at proper scope
+          progress_thread = nil
 
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
@@ -55,7 +60,21 @@ module Monadic
           # Always show progress for GPT-5-Codex calls since they can take a while
           if app_name
             puts "[#{app_name}] 🤖 GPT-5-Codex is generating code..."
-            puts "[#{app_name}]    Note: Complex tasks may take 5-15 minutes."
+            puts "[#{app_name}]    Note: Complex tasks may take 5-20 minutes."
+          end
+
+          # Start progress thread if block given and timeout is long enough
+          progress_enabled = !CONFIG || CONFIG["GPT5_CODEX_PROGRESS_ENABLED"] != false  # Default true
+          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
+          progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
+
+          if block_given? && actual_timeout > 120 && progress_enabled
+            progress_thread = start_progress_thread(
+              actual_timeout: actual_timeout,
+              interval: progress_interval,
+              app_name: app_name,
+              &block
+            )
           end
 
           # Debug logging
@@ -115,7 +134,7 @@ module Monadic
             api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
             Timeout::timeout(actual_timeout) do
-              results = api_request("user", session, call_depth: 0)
+              results = api_request("user", session, call_depth: 0, &block)
             end
 
             # Log API call duration
@@ -133,6 +152,9 @@ module Monadic
               timeout: true,
               success: false
             }
+          ensure
+            # Always clean up thread if it exists
+            cleanup_progress_thread(progress_thread)
           end
 
           # Parse the response
@@ -214,6 +236,9 @@ module Monadic
           end
 
         rescue StandardError => e
+          # Ensure thread cleanup even on exceptions
+          cleanup_progress_thread(progress_thread) if progress_thread
+
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             puts "[GPT5CodexAgent] EXCEPTION: #{e.class} - #{e.message}"
             puts "[GPT5CodexAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"
@@ -350,6 +375,169 @@ module Monadic
                    "While it can handle many coding tasks, GPT-5-Codex would provide " \
                    "more specialized code generation capabilities."
         }
+      end
+
+      # Start progress monitoring thread
+      # @param actual_timeout [Integer] Total timeout for the operation
+      # @param interval [Integer] Update interval in seconds
+      # @param app_name [String] Application name for logging
+      # @param block [Proc] Block to call with progress updates
+      # @return [Thread] The progress monitoring thread
+      def start_progress_thread(actual_timeout:, interval:, app_name:, &block)
+        # Get session ID from parent thread BEFORE creating new thread
+        parent_session_id = Thread.current[:websocket_session_id]
+
+        Thread.new do
+          Thread.current.report_on_exception = false
+          Thread.current[:app_name] = app_name
+
+          begin
+            # Use session ID from parent thread
+            session_id = parent_session_id
+
+            start_time = Time.now
+            last_update = start_time
+
+            while !Thread.current[:should_stop]
+              # Sleep in small increments for responsive shutdown
+              (interval * 2).times do
+                sleep 0.5
+                break if Thread.current[:should_stop]
+              end
+
+              break if Thread.current[:should_stop]
+
+              elapsed = Time.now - start_time
+              since_last = Time.now - last_update
+
+              if since_last >= interval
+                begin
+                  minutes = (elapsed / 60).floor
+                  remaining = actual_timeout - elapsed.to_i
+
+                  # Build message with guards
+                  progress_message = build_progress_message(minutes, remaining)
+
+                  # Create complete fragment object
+                  fragment = {
+                    "type" => "wait",
+                    "content" => progress_message,
+                    "source" => "GPT5CodexAgent",
+                    "elapsed" => elapsed.to_i,
+                    "remaining" => remaining
+                  }
+
+                  # Send through block if available
+                  if block
+                    block.call(fragment)
+                  elsif defined?(::WebSocketHelper)
+                    # Fallback to WebSocketHelper with session ID (or broadcast if no session)
+                    helper = ::WebSocketHelper
+                    if helper.respond_to?(:send_progress_fragment)
+                      helper.send_progress_fragment(fragment, session_id)
+
+                      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+                        if session_id
+                          puts "[GPT5CodexAgent] Sent progress to session #{session_id}: #{progress_message[0..50]}..."
+                        else
+                          puts "[GPT5CodexAgent] Broadcasting progress to all: #{progress_message[0..50]}..."
+                        end
+                      end
+                    end
+                  elsif defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+                    puts "[GPT5CodexAgent] Progress (no WebSocket): #{progress_message}"
+                  end
+
+                  last_update = Time.now
+                rescue => msg_error
+                  # Silently handle message building/sending errors
+                  if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+                    puts "[GPT5CodexAgent] Progress message error: #{msg_error.message}"
+                  end
+                end
+              end
+            end
+          rescue => e
+            # Silent handling - log only if extra logging enabled
+            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] Progress thread error: #{e.message}"
+            end
+          end
+        end
+      end
+
+      # Clean up progress monitoring thread
+      # @param thread [Thread] Thread to clean up
+      def cleanup_progress_thread(thread)
+        return unless thread
+
+        begin
+          thread[:should_stop] = true
+          thread.join(1.0)  # Wait max 1 second
+          thread.kill if thread.alive?  # Force kill if still running
+        rescue => e
+          # Even cleanup errors should be silent
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] Thread cleanup error: #{e.message}"
+          end
+        end
+      end
+
+      # Build progress message based on elapsed time
+      # @param minutes [Integer] Elapsed time in minutes
+      # @param remaining_seconds [Integer] Remaining seconds until timeout
+      # @return [String] HTML-formatted progress message
+      def build_progress_message(minutes, remaining_seconds)
+        # Guards for nil/invalid values
+        minutes = 0 unless minutes.is_a?(Integer) && minutes >= 0
+        remaining_seconds = 1200 unless remaining_seconds.is_a?(Integer)
+
+        time_str = format_elapsed_time(minutes)
+
+        # Add warning when approaching timeout
+        timeout_warning = if remaining_seconds < 120 && remaining_seconds > 0
+          " (Timeout in #{remaining_seconds} seconds)"
+        elsif remaining_seconds < 300 && remaining_seconds > 0
+          " (#{(remaining_seconds / 60).floor} minutes remaining)"
+        else
+          ""
+        end
+
+        # Use same HTML/icon format as existing wait messages
+        case minutes
+        when 0
+          "<i class='fas fa-robot'></i> GPT-5-Codex is analyzing requirements..."
+        when 1..2
+          "<i class='fas fa-laptop-code'></i> GPT-5-Codex is generating code (#{time_str} elapsed)...#{timeout_warning}"
+        when 3..4
+          "<i class='fas fa-cogs'></i> GPT-5-Codex is structuring the solution (#{time_str} elapsed)...#{timeout_warning}"
+        when 5..9
+          "<i class='fas fa-brain'></i> GPT-5-Codex is optimizing the implementation (#{time_str} elapsed)...#{timeout_warning}"
+        when 10..14
+          "<i class='fas fa-hourglass-half'></i> Complex task in progress (#{time_str} elapsed)#{timeout_warning}"
+        when 15..20
+          "<i class='fas fa-clock'></i> Advanced reasoning in progress (#{time_str} elapsed)#{timeout_warning}"
+        else
+          "<i class='fas fa-exclamation-triangle'></i> Extended processing (#{time_str} elapsed)#{timeout_warning}"
+        end
+      rescue => e
+        # Fallback message if formatting fails
+        "<i class='fas fa-spinner'></i> Processing..."
+      end
+
+      # Format elapsed time in human-readable format
+      # @param minutes [Integer] Time in minutes
+      # @return [String] Formatted time string
+      def format_elapsed_time(minutes)
+        return "less than a minute" if minutes < 1
+
+        if minutes == 1
+          "1 minute"
+        else
+          "#{minutes} minutes"
+        end
+      rescue
+        "several minutes"
       end
     end
   end

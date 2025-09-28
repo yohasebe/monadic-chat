@@ -11,6 +11,7 @@ require_relative "../../utils/debug_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/pdf_storage_config"
+require_relative "../../utils/json_repair"
 require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
@@ -114,6 +115,29 @@ module OpenAIHelper
       }
     }
   }
+
+  SMART_QUOTE_REPLACEMENTS = {
+    "“" => '"',
+    "”" => '"',
+    "„" => '"',
+    "‟" => '"',
+    "«" => '"',
+    "»" => '"',
+    "＂" => '"',
+    "〝" => '"',
+    "〞" => '"',
+    "﹁" => '"',
+    "﹂" => '"',
+    "﹃" => '"',
+    "﹄" => '"',
+    "‘" => "'",
+    "’" => "'",
+    "‚" => "'",
+    "‛" => "'",
+    "‹" => "'",
+    "›" => "'",
+    "＇" => "'"
+  }.freeze
 
   # --- PDF storage routing helpers (DocumentStore switching) ---
   def get_current_app_key(session)
@@ -1521,12 +1545,12 @@ module OpenAIHelper
     DebugHelper.debug("OpenAI API endpoint: #{target_uri}", category: :api, level: :debug)
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
 
-    # Use longer timeout for responses API as o3-pro can take minutes
+    # Use longer timeout for responses API as o3-pro and GPT-5-Codex can take many minutes
     timeout_settings = if use_responses_api
                         {
                           connect: OPEN_TIMEOUT,
                           write: WRITE_TIMEOUT,
-                          read: 600  # 10 minutes for o3-pro
+                          read: 1200  # 20 minutes for GPT-5-Codex and o3-pro
                         }
                       else
                         {
@@ -1980,16 +2004,8 @@ module OpenAIHelper
       function_call = tool_call["function"]
       function_name = function_call["name"]
 
-      begin
-        # Handle empty string arguments for tools with no parameters
-        if function_call["arguments"].to_s.strip.empty?
-          argument_hash = {}
-        else
-          argument_hash = JSON.parse(function_call["arguments"])
-        end
-      rescue JSON::ParserError
-        argument_hash = {}
-      end
+      argument_hash = parse_function_call_arguments(function_call["arguments"], function_name: function_name)
+      argument_hash = {} unless argument_hash.is_a?(Hash)
 
       argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
         # skip if the value is nil or null but not if it is of the string class
@@ -2087,6 +2103,61 @@ module OpenAIHelper
 
     # return Array
     api_request("tool", session, call_depth: call_depth, &block)
+  end
+
+  def normalize_function_call_arguments(raw_arguments)
+    return "" if raw_arguments.nil?
+
+    normalized = raw_arguments.dup
+
+    SMART_QUOTE_REPLACEMENTS.each do |original, replacement|
+      normalized.gsub!(original, replacement)
+    end
+
+    if normalized.respond_to?(:tr!)
+      normalized.tr!("｛｝［］【】〖〗｟｠", "{}[]{}{}()")
+      normalized.tr!("，、﹑﹐﹒", ',,,,,')
+      normalized.tr!("：﹕", '::')
+      normalized.gsub!('；', ',')
+    end
+
+    # Replace common whitespace variants that break JSON parsing
+    normalized.gsub!(/\u00A0/u, ' ')
+    normalized
+  end
+
+  def parse_function_call_arguments(raw_arguments, function_name: nil)
+    normalized = normalize_function_call_arguments(raw_arguments)
+    return {} if normalized.strip.empty?
+
+    JSON.parse(normalized)
+  rescue JSON::ParserError => e
+    repaired = JSONRepair.attempt_repair(normalized)
+    unless repaired.is_a?(Hash) && !repaired["_json_repair_failed"]
+      log_tool_argument_failure(function_name, normalized, error: e)
+      return {}
+    end
+
+    repaired
+  rescue StandardError => e
+    log_tool_argument_failure(function_name, normalized, error: e)
+    {}
+  end
+
+  def log_tool_argument_failure(function_name, arguments, error: nil)
+    return unless defined?(MonadicApp)
+    return unless MonadicApp.const_defined?(:EXTRA_LOG_FILE)
+
+    File.open(MonadicApp::EXTRA_LOG_FILE, 'a') do |f|
+      f.puts "[OpenAIHelper] Failed to parse tool arguments at #{Time.now}:"
+      f.puts "  Tool: #{function_name || 'unknown'}"
+      f.puts "  Error: #{error.class}: #{error.message}" if error
+      preview = arguments.to_s[0..500]
+      f.puts "  Arguments preview: #{preview}"
+      f.puts "---"
+    end
+  rescue StandardError
+    # Ignore logging failures
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)

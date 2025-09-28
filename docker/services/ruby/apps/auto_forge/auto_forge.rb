@@ -27,7 +27,7 @@ module AutoForge
     end
 
     # Main entry point - single execution only
-    def forge_project(spec)
+    def forge_project(spec, &block)
       # Initialize project state
       project_context = resolve_project_context(spec)
       return project_context if project_context[:error]
@@ -49,7 +49,7 @@ module AutoForge
         })
 
         # For single HTML experiment, we only generate one file
-        result = generate_single_html(spec)
+        result = generate_single_html(spec, &block)
 
         if result[:success]
           persist_project_context(project_context, spec)
@@ -214,7 +214,7 @@ module AutoForge
     end
 
     # Generate single HTML file with embedded CSS/JS
-    def generate_single_html(spec)
+    def generate_single_html(spec, &block)
       file_name = "index.html"
       file_path = File.join(@project_path, file_name)
 
@@ -240,7 +240,7 @@ module AutoForge
       generator = Agents::HtmlGenerator.new(@context)
 
       puts "[AutoForge] Calling generator.generate" if CONFIG && CONFIG["EXTRA_LOGGING"]
-      generation_result = generator.generate(prompt, existing_content: existing_content, file_name: file_name)
+      generation_result = generator.generate(prompt, existing_content: existing_content, file_name: file_name, &block)
 
       puts "[AutoForge] Generation result type: #{generation_result.class}, nil?: #{generation_result.nil?}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
@@ -354,7 +354,7 @@ module AutoForge
     end
 
     # Main method called from MDSL
-    def generate_application(spec)
+    def generate_application(spec, &block)
       # Normalize spec keys to symbols
       if spec.is_a?(Hash)
         spec = spec.transform_keys(&:to_sym) if spec.respond_to?(:transform_keys)
@@ -371,7 +371,7 @@ module AutoForge
       end
 
       # Delegate to orchestrator
-      @orchestrator.forge_project(spec)
+      @orchestrator.forge_project(spec, &block)
     end
 
     # Convenience method for simple apps

@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
 require 'timeout'
+require 'set'  # For session management with multiple connections
 require_relative '../agents/ai_user_agent'
 require_relative 'boolean_parser'
 
 module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
-  
+
   # Class variable to store WebSocket connections with thread safety
   @@ws_connections = []
   @@ws_mutex = Mutex.new
+  @@channel = nil  # Store EventMachine channel reference
   
   # Add a connection to the list (thread-safe)
   def self.add_connection(ws)
@@ -32,10 +34,10 @@ module WebSocketHelper
       event: "mcp_status",
       data: status
     }.to_json
-    
+
     # Create a copy of connections to avoid holding lock during I/O
     connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
-    
+
     connections_copy.each do |ws|
       begin
         # Check if WebSocket is open (Faye::WebSocket uses ready_state)
@@ -46,6 +48,221 @@ module WebSocketHelper
         # Log WebSocket send error and remove dead connection
         puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
         remove_connection(ws)
+      end
+    end
+  end
+
+  # Set the EventMachine channel for broadcasting
+  def self.set_channel(channel)
+    @@channel = channel
+  end
+
+  # Broadcast to all connected clients (thread-safe)
+  def self.broadcast_to_all(message)
+    # Use EventMachine channel if available (preferred)
+    if @@channel
+      begin
+        @@channel.push(message)
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocketHelper] Broadcasted via channel: #{message[0..100]}..."
+        end
+      rescue => e
+        puts "[WebSocketHelper] Channel broadcast error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      end
+    else
+      # Fallback to direct WebSocket sending
+      connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
+
+      connections_copy.each do |ws|
+        begin
+          # Check if WebSocket is open (Faye::WebSocket uses ready_state)
+          if ws && ws.ready_state == Faye::WebSocket::OPEN
+            ws.send(message)
+          end
+        rescue => e
+          # Log WebSocket send error and remove dead connection
+          puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          remove_connection(ws)
+        end
+      end
+    end
+  end
+
+  # ============= Progress Broadcasting Features =============
+
+  # Session management for progress updates
+  # One session ID can have multiple WebSocket connections (e.g., multiple tabs)
+  @@connections_by_session = Hash.new { |h, k| h[k] = Set.new }
+  @@session_mutex = Mutex.new
+
+  # Feature Flag for progress broadcasting
+  def self.progress_broadcast_enabled?
+    return false unless defined?(CONFIG)
+    CONFIG["WEBSOCKET_PROGRESS_ENABLED"] != false  # Default true
+  end
+
+  # Broadcast progress message to specific session or all
+  # @param fragment [Hash] Complete fragment object with progress info
+  # @param target_session_id [String, nil] Specific session to target
+  def self.broadcast_progress(fragment, target_session_id = nil)
+    return unless progress_broadcast_enabled?
+
+    # Build complete message
+    message = if fragment.is_a?(Hash)
+      fragment.merge("timestamp" => Time.now.to_f)
+    else
+      {
+        "type" => "wait",
+        "content" => fragment.to_s,
+        "timestamp" => Time.now.to_f
+      }
+    end
+
+    message_json = message.to_json
+
+    # Send to specific session or broadcast to all
+    if target_session_id
+      send_to_session(message_json, target_session_id)
+    else
+      broadcast_to_all(message_json)
+    end
+  rescue => e
+    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      puts "[WebSocketHelper] Error broadcasting progress: #{e.message}"
+    end
+  end
+
+  # Send message to specific session
+  def self.send_to_session(message_json, session_id)
+    return unless session_id
+
+    # IMPORTANT: Always use the channel to ensure messages appear in temp card
+    # Messages must go through the channel to be properly displayed in the UI
+    if @@channel
+      begin
+        # Parse the message to add session_id if not present
+        message_data = JSON.parse(message_json) rescue {}
+        message_data["session_id"] = session_id unless message_data["session_id"]
+
+        # Send via channel - this ensures it appears in temp card
+        @@channel.push(message_data.to_json)
+
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocketHelper] Sent to session #{session_id} via channel: #{message_json[0..100]}..."
+        end
+      rescue => e
+        puts "[WebSocketHelper] Channel send error for session #{session_id}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      end
+    else
+      # Fallback: direct send if no channel (shouldn't happen normally)
+      websockets = @@session_mutex.synchronize { @@connections_by_session[session_id].dup }
+
+      if websockets.empty?
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocketHelper] No connections found for session #{session_id}"
+        end
+        return
+      end
+
+      # Collect connections to remove (avoid modification during iteration)
+      to_remove = []
+
+      websockets.each do |ws|
+        begin
+          if ws && ws.ready_state == Faye::WebSocket::OPEN
+            ws.send(message_json)
+          else
+            to_remove << ws
+          end
+        rescue => e
+          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            puts "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}"
+          end
+          to_remove << ws
+        end
+      end
+
+      # Remove dead connections after iteration
+      unless to_remove.empty?
+        @@session_mutex.synchronize do
+          to_remove.each { |ws| @@connections_by_session[session_id].delete(ws) }
+        end
+
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}"
+        end
+      end
+    end
+  end
+
+  # Add WebSocket connection with session tracking
+  def self.add_connection_with_session(ws, session_id = nil)
+    # Add to regular connections list
+    add_connection(ws)
+
+    # Add to session tracking if session_id provided
+    if session_id
+      @@session_mutex.synchronize do
+        @@connections_by_session[session_id].add(ws)
+      end
+
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        count = @@session_mutex.synchronize { @@connections_by_session[session_id].size }
+        puts "[WebSocketHelper] Added connection for session #{session_id}, total: #{count}"
+      end
+    end
+  end
+
+  # Remove WebSocket connection with session tracking
+  def self.remove_connection_with_session(ws, session_id = nil)
+    # Remove from regular connections list
+    remove_connection(ws)
+
+    # Remove from session tracking if session_id provided
+    if session_id
+      @@session_mutex.synchronize do
+        @@connections_by_session[session_id].delete(ws)
+
+        # Remove empty session entries
+        if @@connections_by_session[session_id].empty?
+          @@connections_by_session.delete(session_id)
+        end
+      end
+
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        remaining = @@session_mutex.synchronize { @@connections_by_session[session_id]&.size || 0 }
+        puts "[WebSocketHelper] Removed connection for session #{session_id}, remaining: #{remaining}"
+      end
+    end
+  end
+
+  # Send progress fragment with type checking
+  def self.send_progress_fragment(fragment, target_session_id = nil)
+    return unless fragment.is_a?(Hash)
+
+    # Only send wait or fragment type messages
+    if fragment["type"] == "wait" || fragment["type"] == "fragment"
+      broadcast_progress(fragment, target_session_id)
+    end
+  end
+
+  # Clean up stale sessions periodically
+  def self.cleanup_stale_sessions
+    @@session_mutex.synchronize do
+      @@connections_by_session.each do |session_id, websockets|
+        # Collect dead connections
+        to_remove = []
+        websockets.each do |ws|
+          if ws.nil? || ws.ready_state != Faye::WebSocket::OPEN
+            to_remove << ws
+          end
+        end
+
+        # Remove after iteration
+        to_remove.each { |ws| websockets.delete(ws) }
+
+        # Remove empty sessions
+        @@connections_by_session.delete(session_id) if websockets.empty?
       end
     end
   end
@@ -584,52 +801,95 @@ module WebSocketHelper
   end
 
   def websocket_handler(env)
-    EventMachine.run do
-      queue = Queue.new
-      thread = nil
-      sid = nil
-      
-      # Create a new channel for each connection if it doesn't exist
-      @channel ||= EventMachine::Channel.new
+    # Don't start EventMachine if it's already running
+    if EventMachine.reactor_running?
+      handle_websocket_connection(env)
+    else
+      EventMachine.run do
+        handle_websocket_connection(env)
+      end
+    end
+  end
 
-      ws = Faye::WebSocket.new(env, nil, { ping: 15 })
-      ws.on :open do
-        sid = @channel.subscribe { |obj| ws.send(obj) }
-        # Add connection to the list for MCP broadcasting
-        WebSocketHelper.add_connection(ws)
+  def handle_websocket_connection(env)
+    queue = Queue.new
+    thread = nil
+    sid = nil
+
+    # Create a new channel for each connection if it doesn't exist
+    @channel ||= EventMachine::Channel.new
+
+    # Share the channel with WebSocketHelper for progress broadcasting
+    WebSocketHelper.set_channel(@channel)
+
+    # Generate or retrieve session ID for this WebSocket connection
+    ws_session_id = nil
+
+    # Try to get session ID from cookies
+    if env["HTTP_COOKIE"]
+      cookies = Rack::Utils.parse_cookies(env)
+      ws_session_id = cookies["_monadic_session_id"]
+    end
+
+    # If no session ID from cookies, try from the rack session if available
+    ws_session_id ||= session[:websocket_session_id] if defined?(session) && session.is_a?(Hash)
+
+    # Generate new session ID if none exists
+    if ws_session_id.nil?
+      ws_session_id = SecureRandom.uuid
+      session[:websocket_session_id] = ws_session_id if defined?(session) && session.is_a?(Hash)
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[WebSocket] Using session ID: #{ws_session_id} for new connection"
+    end
+
+    ws = Faye::WebSocket.new(env, nil, { ping: 15 })
+    ws.on :open do
+      sid = @channel.subscribe { |obj| ws.send(obj) }
+      # Add connection with session ID for progress broadcasting
+      WebSocketHelper.add_connection_with_session(ws, ws_session_id)
+
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[WebSocket] Connection opened for session #{ws_session_id}"
+      end
+    end
+
+    ws.on :message do |event|
+      # Websocket message logging removed for performance
+
+      # Set session ID in Thread.current for downstream processes
+      Thread.current[:websocket_session_id] = ws_session_id
+      Thread.current[:rack_session] = session if defined?(session) && session.is_a?(Hash)
+
+      begin
+        obj = JSON.parse(event.data)
+        # Normalize boolean values from JavaScript
+        obj = BooleanParser.parse_hash(obj)
+      rescue JSON::ParserError => e
+        DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
+        @channel.push({ "type" => "error", "content" => "invalid_message_format" }.to_json)
+        next
       end
 
-      ws.on :message do |event|
-        # Websocket message logging removed for performance
-        
-        begin
-          obj = JSON.parse(event.data)
-          # Normalize boolean values from JavaScript
-          obj = BooleanParser.parse_hash(obj)
-        rescue JSON::ParserError => e
-          DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
-          @channel.push({ "type" => "error", "content" => "invalid_message_format" }.to_json)
-          next
-        end
-        
-        msg = obj["message"] || ""
-        
-        # Debug logging for all messages when EXTRA_LOGGING is enabled
-        if CONFIG["EXTRA_LOGGING"] && msg == "UPDATE_LANGUAGE"
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
-          extra_log.puts("  Full obj: #{obj.inspect}")
-          extra_log.close
-        end
-        
-        # Debug logging for research assistant apps
-        if obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
-          puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
-          puts "[DEBUG WebSocket] App name from obj: #{obj["app_name"]}"
-        end
-        
-        case msg
-        when "TTS"
+      msg = obj["message"] || ""
+
+      # Debug logging for all messages when EXTRA_LOGGING is enabled
+      if CONFIG["EXTRA_LOGGING"] && msg == "UPDATE_LANGUAGE"
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
+        extra_log.puts("  Full obj: #{obj.inspect}")
+        extra_log.close
+      end
+
+      # Debug logging for research assistant apps
+      if obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
+        puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
+        puts "[DEBUG WebSocket] App name from obj: #{obj["app_name"]}"
+      end
+
+      case msg
+      when "TTS"
           provider = obj["provider"]
           if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
             voice = obj["elevenlabs_voice"]
@@ -1669,19 +1929,25 @@ module WebSocketHelper
             @channel.push({ "type" => "streaming_complete" }.to_json)
           end
         end
-        end
-
-      ws.on :close do |event|
-        # Remove connection from the list
-        WebSocketHelper.remove_connection(ws)
-        ws = nil
-        @channel.unsubscribe(sid)
       end
 
-      ws.rack_response
+    ws.on :close do |event|
+      # Remove connection with session ID from the list
+      WebSocketHelper.remove_connection_with_session(ws, ws_session_id)
+
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[WebSocket] Connection closed for session #{ws_session_id}"
+      end
+
+      # Clean up Thread.current
+      Thread.current[:websocket_session_id] = nil
+      Thread.current[:rack_session] = nil
+
+      ws = nil
+      @channel.unsubscribe(sid)
     end
-  rescue StandardError => e
-    # Error logging handled by main application
+
+    ws.rack_response
   end
   
   # Handle MCP configuration update

@@ -81,6 +81,38 @@ module AutoForgeTools
       context = context.merge(openai_api_key: ENV['OPENAI_API_KEY'])
     end
 
+    # Get session ID for progress broadcasting (multiple fallbacks)
+    session_id = nil
+
+    # Priority 1: Thread local WebSocket session ID
+    if Thread.current[:websocket_session_id]
+      session_id = Thread.current[:websocket_session_id]
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "[AutoForgeTools] Using WebSocket session ID from Thread.current: #{session_id}"
+      end
+    end
+
+    # Priority 2: Rack session
+    if session_id.nil? && Thread.current[:rack_session]
+      rack_session = Thread.current[:rack_session]
+      session_id = rack_session[:websocket_session_id] if rack_session.is_a?(Hash)
+      if session_id && CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "[AutoForgeTools] Using session ID from Rack session: #{session_id}"
+      end
+    end
+
+    # Priority 3: Instance variable @session (legacy)
+    if session_id.nil? && defined?(@session) && @session.is_a?(Hash)
+      session_id = @session[:websocket_session_id] || @session[:session_id]
+      if session_id && CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "[AutoForgeTools] Using session ID from instance variable: #{session_id}"
+      end
+    end
+
+    if session_id.nil? && CONFIG && CONFIG["EXTRA_LOGGING"]
+      puts "[AutoForgeTools] Warning: No session ID available for progress updates"
+    end
+
     # Debug logging to understand what self is
     puts "[AutoForgeTools] self class: #{self.class}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     puts "[AutoForgeTools] self responds to call_gpt5_codex: #{self.respond_to?(:call_gpt5_codex)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -99,18 +131,48 @@ module AutoForgeTools
     # Add self as app_instance so HtmlGenerator can access GPT-5-Codex methods
     context[:app_instance] = self
 
-    # Also add a callback as fallback
+    # Create progress callback for WebSocket broadcasting
+    progress_callback = lambda do |fragment|
+      # Try to send via WebSocketHelper with session ID
+      if defined?(::WebSocketHelper)
+        helper_class = ::WebSocketHelper
+
+        if helper_class.respond_to?(:send_progress_fragment)
+          begin
+            # Send with session ID for targeted delivery
+            helper_class.send_progress_fragment(fragment, session_id)
+
+            if CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[AutoForgeTools] Sent progress to session #{session_id}: #{fragment["content"][0..50]}..." if fragment["content"]
+            end
+          rescue => e
+            if CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[AutoForgeTools] Error sending progress: #{e.message}"
+            end
+          end
+        end
+      elsif CONFIG && CONFIG["EXTRA_LOGGING"]
+        # Fallback to console output when WebSocketHelper not available
+        puts "[AutoForgeTools] Progress (no WebSocket): #{fragment["content"]}" if fragment["content"]
+      end
+    end
+
+    # Also add a callback with progress support as fallback
     if self.respond_to?(:call_gpt5_codex)
-      context[:codex_callback] = ->(prompt, app_name) do
-        self.call_gpt5_codex(prompt: prompt, app_name: app_name)
+      context[:codex_callback] = ->(prompt, app_name, &block) do
+        # Use provided block or fall back to our progress callback
+        actual_block = block || progress_callback
+        self.call_gpt5_codex(prompt: prompt, app_name: app_name, &actual_block)
       end
     end
 
     app = AutoForge::App.new(context)
 
-    # Generate application
+    # Generate application with progress callback
     puts "\n⏳ Generating application with GPT-5-Codex... This may take 2-5 minutes for complex apps.\n"
-    result = app.generate_application(spec)
+
+    # Pass the progress callback to generate_application
+    result = app.generate_application(spec, &progress_callback)
 
     # Format response
     if result[:success]

@@ -785,7 +785,8 @@ CONFIG = {
   "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
   "EXTRA_LOGGING" => ENV["EXTRA_LOGGING"] == "true" || false,  # Check ENV first, then default to false
   "JUPYTER_PORT" => "8889",     # Default Jupyter port
-  "OLLAMA_AVAILABLE" => check_ollama_available  # Check if Ollama container is available
+  "OLLAMA_AVAILABLE" => check_ollama_available,  # Check if Ollama container is available
+  "WEBSOCKET_PROGRESS_ENABLED" => ENV["WEBSOCKET_PROGRESS_ENABLED"] != "false"  # Default to true, can be disabled via ENV
 }
 
 begin

@@ -9,7 +9,7 @@ module AutoForge
         @context = context || {}
       end
 
-      def generate(prompt, existing_content: nil, file_name: 'index.html')
+      def generate(prompt, existing_content: nil, file_name: 'index.html', &block)
         start_time = Time.now
         puts "[HTMLGenerator] Starting generation at #{start_time.strftime('%Y-%m-%d %H:%M:%S')}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
@@ -31,15 +31,16 @@ module AutoForge
           full_prompt = build_prompt(prompt, existing_content)
           puts "[HTMLGenerator] Calling GPT-5-Codex with prompt length: #{full_prompt.length}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-          # Call GPT-5-Codex through the proper method
+          # Call GPT-5-Codex through the proper method with block for progress updates
           result = if codex_caller.respond_to?(:call_gpt5_codex)
             codex_caller.call_gpt5_codex(
               prompt: full_prompt,
-              app_name: 'AutoForgeOpenAI'
+              app_name: 'AutoForgeOpenAI',
+              &block
             )
           else
-            # It's a callback
-            codex_caller.call(full_prompt, 'AutoForgeOpenAI')
+            # It's a callback - pass the block through
+            codex_caller.call(full_prompt, 'AutoForgeOpenAI', &block)
           end
 
           end_time = Time.now

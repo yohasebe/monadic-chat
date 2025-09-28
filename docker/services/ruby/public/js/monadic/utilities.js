@@ -401,52 +401,52 @@ function setAlert(text = "", alertType = "success") {
     } else if (msg === "") {
       msg = "Something went wrong.";
     }
-    
+
     // Create error card with system styling
     const errorCard = createCard("system", "<span class='text text-warning'><i class='fa-solid fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", msg);
-    
+
     // Add special class to identify error cards
     errorCard.addClass("error-message-card");
-    
+
     // Add special handler for the delete button directly on this card
     errorCard.find(".func-delete").off("click").on("click", function(e) {
       e.stopPropagation();
-      
+
       // Hide the tooltip first to prevent it from staying on screen
       $(this).tooltip('hide');
-      
+
       // Also remove any other tooltips that might be visible
       $('.tooltip').remove();
-      
+
       // Get the card and its ID
       const $card = $(this).closest(".card");
       const mid = $card.attr("id");
-      
+
       // Immediately remove from DOM
       $card.remove();
-      
+
       // Notify server to maintain consistency
       if (mid) {
         ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
         mids.delete(mid);
       }
-      
+
       // Success message - direct DOM access
       $("#status-message").html("<i class='fas fa-circle-check'></i> Error message removed");
       setAlertClass("success");
-      
+
       return false;
     });
-    
+
     // Disable the edit button for error cards
     errorCard.find(".func-edit").prop("disabled", true).css("opacity", "0.5");
-    
+
     // Append to discourse area
     $("#discourse").append(errorCard);
   } else {
     // Translate known status messages
     let displayText = text;
-    
+
     // Check for common status messages that need translation
     if (typeof text === 'string') {
       if (text.includes("CALLING FUNCTIONS")) {
@@ -465,7 +465,7 @@ function setAlert(text = "", alertType = "success") {
         displayText = `<i class='fas fa-brain'></i> ${getTranslation('ui.messages.spinnerThinking', 'Thinking')}`;
       }
     }
-    
+
     // Direct DOM access
     $("#status-message").html(`${displayText}`);
     setAlertClass(alertType);

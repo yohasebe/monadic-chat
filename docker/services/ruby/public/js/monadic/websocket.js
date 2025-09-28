@@ -1915,18 +1915,53 @@ let loadedApp = "Chat";
       
       case "wait": {
         callingFunction = true;
-        
+
         // Check if content is a translation key
         let waitContent = data["content"];
         if (waitContent === 'generating_ai_user_response') {
           waitContent = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
         }
-        
-        setAlert(waitContent, "warning");
-        
+
+        // Check if this is a GPT-5-Codex progress message
+        const isGPT5CodexProgress = waitContent && (
+          waitContent.includes('GPT-5-Codex') ||
+          waitContent.includes('minute') ||
+          waitContent.includes('elapsed') ||
+          (data["source"] && data["source"] === "GPT5CodexAgent")
+        );
+
+        if (isGPT5CodexProgress) {
+          // Display GPT-5-Codex progress in streaming temp card
+          // Create or get temporary card
+          let tempCard = $("#temp-card");
+          if (!tempCard.length) {
+            // Create a new temporary card for streaming text
+            tempCard = $(`
+              <div id="temp-card" class="card mt-3 streaming-card">
+                <div class="card-header p-2 ps-3 d-flex justify-content-between">
+                  <div class="fs-5 card-title mb-0">
+                    <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+                  </div>
+                </div>
+                <div class="card-body role-assistant">
+                  <div class="card-text"></div>
+                </div>
+              </div>
+            `);
+            $("#discourse").append(tempCard);
+          }
+
+          // Update the temp card with the progress message (message already contains icon)
+          $("#temp-card .card-text").html(`<div class="alert alert-warning mb-0">${waitContent}</div>`);
+          $("#temp-card").show();
+        } else {
+          // Regular wait messages go to status-message
+          setAlert(waitContent, "warning");
+        }
+
         // Show the spinner and update its message based on the content
         $("#monadic-spinner").show();
-        
+
         // Customize spinner message based on wait content
         if (data["content"].includes("CALLING FUNCTIONS")) {
           const callingFunctionsText = getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions');
@@ -2412,8 +2447,8 @@ let loadedApp = "Chat";
         // These operations are still needed regardless of which path handled the message
         if (handled) {
           verified = "full";
-          const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          // Don't show "Ready" immediately after token verification - keep showing the current processing status
+          // The actual ready state will be set when processing is complete
           
           // Enable OpenAI TTS options when token is verified
           $("#openai-tts-4o").prop("disabled", false);

@@ -10,6 +10,9 @@ module AutoForge
     end
 
     def debug_html(html_path, options = {})
+      start_time = Time.now
+      puts "[AutoForgeDebugger] Starting debug at #{start_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+
       unless File.exist?(html_path)
         return {
           success: false,
@@ -19,208 +22,83 @@ module AutoForge
 
       # Check if Selenium container is available
       unless selenium_available?
+        puts "[AutoForgeDebugger] Selenium not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
         return {
           success: false,
           error: "Selenium container is not available. Please ensure it's running."
         }
       end
 
-      # Create a temporary Python script for debugging
-      debug_script = create_debug_script(html_path, options)
+      puts "[AutoForgeDebugger] Selenium available, executing debug" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
-      # Execute the debug script
-      result = execute_debug_script(debug_script, html_path)
+      # Execute the debug script directly
+      result = execute_debug_script(html_path, options)
 
       # Parse and return results
-      format_debug_results(result)
-    ensure
-      # Clean up temporary files
-      File.delete(debug_script) if debug_script && File.exist?(debug_script)
+      formatted_result = format_debug_results(result)
+
+      end_time = Time.now
+      duration = end_time - start_time
+      puts "[AutoForgeDebugger] Debug completed at #{end_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      puts "[AutoForgeDebugger] Debug duration: #{duration.round(2)} seconds" if CONFIG && CONFIG["EXTRA_LOGGING"]
+
+      # Add timing info to result
+      formatted_result[:debug_timing] = {
+        start_time: start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        end_time: end_time.strftime('%Y-%m-%d %H:%M:%S'),
+        duration: duration.round(2)
+      }
+
+      formatted_result
     end
 
     private
 
     def selenium_available?
-      # Check if the Python container (which includes Selenium) is running
-      `docker ps --format "{{.Names}}"`.include?("monadic_python")
+      # Check if Selenium container is running
+      # Note: Changed from checking Python container to Selenium container
+      containers = `docker ps --format "{{.Names}}"`
+      selenium_available = containers.include?("monadic-chat-selenium-container") || containers.include?("monadic_selenium")
+      python_available = containers.include?("monadic-chat-python-container") || containers.include?("monadic_python")
+
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "[AutoForgeDebugger] Container check - Selenium: #{selenium_available}, Python: #{python_available}"
+      end
+
+      selenium_available && python_available
     end
 
-    def create_debug_script(html_path, options)
-      script_path = File.join(Dir.tmpdir, "debug_html_#{Time.now.to_i}.py")
 
-      script_content = <<~PYTHON
-        #!/usr/bin/env python
-        import sys
-        import json
-        import time
-        from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.common.by import By
-        from selenium.common.exceptions import WebDriverException, TimeoutException
-        import os
+    def execute_debug_script(html_path, options = {})
+      # Use send_command from MonadicApp (same as visual_web_explorer)
+      # This handles Docker execution properly through the established pattern
 
-        def debug_html(html_path):
-            results = {
-                'success': True,
-                'errors': [],
-                'warnings': [],
-                'console_logs': [],
-                'network_errors': [],
-                'javascript_errors': [],
-                'performance': {},
-                'functionality_tests': []
-            }
-
-            chrome_options = Options()
-            chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.set_capability('goog:loggingPrefs', {'browser': 'ALL', 'performance': 'ALL'})
-
-            driver = None
-            try:
-                # Connect to Selenium container
-                driver = webdriver.Remote(
-                    command_executor='http://selenium:4444/wd/hub',
-                    options=chrome_options
-                )
-
-                # Load the HTML file
-                file_url = f"file://{html_path}"
-                driver.get(file_url)
-
-                # Wait for page to load
-                time.sleep(2)
-
-                # Check for JavaScript errors
-                logs = driver.get_log('browser')
-                for log in logs:
-                    if log['level'] == 'SEVERE':
-                        results['javascript_errors'].append({
-                            'message': log['message'],
-                            'timestamp': log['timestamp']
-                        })
-                    elif log['level'] == 'WARNING':
-                        results['warnings'].append({
-                            'message': log['message'],
-                            'timestamp': log['timestamp']
-                        })
-                    else:
-                        results['console_logs'].append({
-                            'level': log['level'],
-                            'message': log['message'],
-                            'timestamp': log['timestamp']
-                        })
-
-                # Check page title
-                if driver.title:
-                    results['page_title'] = driver.title
-
-                # Check for common UI elements
-                results['functionality_tests'].append({
-                    'test': 'Page loads without critical errors',
-                    'passed': len(results['javascript_errors']) == 0
-                })
-
-                # Check for forms
-                forms = driver.find_elements(By.TAG_NAME, 'form')
-                if forms:
-                    results['functionality_tests'].append({
-                        'test': f'Found {len(forms)} form(s)',
-                        'passed': True,
-                        'count': len(forms)
-                    })
-
-                # Check for buttons
-                buttons = driver.find_elements(By.TAG_NAME, 'button')
-                inputs = driver.find_elements(By.CSS_SELECTOR, 'input[type="button"], input[type="submit"]')
-                total_buttons = len(buttons) + len(inputs)
-                if total_buttons > 0:
-                    results['functionality_tests'].append({
-                        'test': f'Found {total_buttons} button(s)',
-                        'passed': True,
-                        'count': total_buttons
-                    })
-
-                # Check for interactive elements
-                interactive = driver.find_elements(By.CSS_SELECTOR, 'input, textarea, select, button, a[href]')
-                results['functionality_tests'].append({
-                    'test': f'Found {len(interactive)} interactive element(s)',
-                    'passed': len(interactive) > 0,
-                    'count': len(interactive)
-                })
-
-                # Execute simple JavaScript to test if JS is working
-                try:
-                    js_test = driver.execute_script("return typeof document !== 'undefined' && document.body !== null;")
-                    results['functionality_tests'].append({
-                        'test': 'JavaScript execution',
-                        'passed': js_test
-                    })
-                except Exception as e:
-                    results['functionality_tests'].append({
-                        'test': 'JavaScript execution',
-                        'passed': False,
-                        'error': str(e)
-                    })
-
-                # Check viewport and responsive design
-                viewport = driver.execute_script("return {width: window.innerWidth, height: window.innerHeight};")
-                results['viewport'] = viewport
-
-                # Performance metrics
-                performance_timing = driver.execute_script("""
-                    var timing = window.performance.timing;
-                    return {
-                        'loadTime': timing.loadEventEnd - timing.navigationStart,
-                        'domReadyTime': timing.domContentLoadedEventEnd - timing.navigationStart,
-                        'renderTime': timing.domComplete - timing.domLoading
-                    };
-                """)
-                results['performance'] = performance_timing
-
-            except TimeoutException as e:
-                results['success'] = False
-                results['errors'].append(f"Page load timeout: {str(e)}")
-            except WebDriverException as e:
-                results['success'] = False
-                results['errors'].append(f"WebDriver error: {str(e)}")
-            except Exception as e:
-                results['success'] = False
-                results['errors'].append(f"Unexpected error: {str(e)}")
-            finally:
-                if driver:
-                    driver.quit()
-
-            return results
-
-        if __name__ == "__main__":
-            html_path = sys.argv[1] if len(sys.argv) > 1 else None
-            if not html_path:
-                print(json.dumps({'success': False, 'errors': ['No HTML file path provided']}))
-                sys.exit(1)
-
-            results = debug_html(html_path)
-            print(json.dumps(results, indent=2))
-      PYTHON
-
-      File.write(script_path, script_content)
-      script_path
-    end
-
-    def execute_debug_script(script_path, html_path)
-      # Make the HTML file accessible in the Python container
+      # The HTML file is already in ~/monadic/data which is mounted as /monadic/data in containers
+      # Convert host path to container path
       shared_volume = ENV['SHARED_VOLUME'] || File.expand_path('~/monadic/data')
-      temp_html = File.join(shared_volume, "temp_debug_#{Time.now.to_i}.html")
-      FileUtils.cp(html_path, temp_html)
+      if html_path.start_with?(shared_volume)
+        # Path is already in shared volume, just convert to container path
+        container_html_path = html_path.sub(shared_volume, '/monadic/data')
+      else
+        # File is outside shared volume, need to copy it (shouldn't happen with AutoForge)
+        temp_html = File.join(shared_volume, "temp_debug_#{Time.now.to_i}.html")
+        FileUtils.cp(html_path, temp_html)
+        container_html_path = "/monadic/data/#{File.basename(temp_html)}"
+      end
 
-      # Execute the script in the Python container
-      container_html_path = "/monadic/data/#{File.basename(temp_html)}"
-      command = "cd /monadic/data && python #{File.basename(script_path)} #{container_html_path}"
+      command = "debug_html.py #{container_html_path} --json"
 
       result = nil
-      output = `docker exec monadic_python #{command} 2>&1`
+      puts "[AutoForgeDebugger] Executing: #{command}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+
+      # Use send_command if available (when included in MonadicApp)
+      if respond_to?(:send_command)
+        output = send_command(command: command, container: "python")
+      else
+        # Fallback to direct docker exec (for standalone use)
+        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py #{container_html_path} --json"
+        output = `#{docker_command} 2>&1`
+      end
 
       begin
         result = JSON.parse(output)
@@ -231,8 +109,10 @@ module AutoForge
         }
       end
 
-      # Clean up temporary HTML file
-      File.delete(temp_html) if File.exist?(temp_html)
+      # Clean up temporary HTML file (only if we created one)
+      if defined?(temp_html) && temp_html && File.exist?(temp_html)
+        File.delete(temp_html)
+      end
 
       result
     end

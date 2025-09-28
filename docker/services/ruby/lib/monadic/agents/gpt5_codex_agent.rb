@@ -26,7 +26,9 @@ module Monadic
 
       # Default timeout for GPT-5-Codex requests (in seconds)
       # Can be overridden by GPT5_CODEX_TIMEOUT environment variable
-      GPT5_CODEX_DEFAULT_TIMEOUT = (ENV['GPT5_CODEX_TIMEOUT'] || 300).to_i  # 5 minutes default
+      # GPT-5-Codex can adapt reasoning time from seconds to hours for complex tasks
+      # We set a practical limit of 15 minutes for interactive use
+      GPT5_CODEX_DEFAULT_TIMEOUT = (ENV['GPT5_CODEX_TIMEOUT'] || 900).to_i  # 15 minutes default
 
       # Call GPT-5-Codex agent for complex coding tasks
       # @param prompt [String] The complete prompt to send to GPT-5-Codex
@@ -35,23 +37,41 @@ module Monadic
       # @return [Hash] Response with :code, :success, :model, and optionally :error
       def call_gpt5_codex(prompt:, app_name: nil, timeout: nil)
         begin
+          # Track timing for performance analysis
+          start_time = Time.now
+
           # Set timeout value
           actual_timeout = timeout || GPT5_CODEX_DEFAULT_TIMEOUT
 
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
-            puts "#{app_label}: Calling GPT-5-Codex agent"
-            puts "Prompt length: #{prompt.length} chars"
-            puts "Timeout: #{actual_timeout} seconds"
+            puts "[GPT5CodexAgent] ========== TIMING START =========="
+            puts "[GPT5CodexAgent] Start time: #{start_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+            puts "[GPT5CodexAgent] App: #{app_label}"
+            puts "[GPT5CodexAgent] Prompt length: #{prompt.length} chars"
+            puts "[GPT5CodexAgent] Timeout: #{actual_timeout} seconds"
           end
 
           # Always show progress for GPT-5-Codex calls since they can take a while
           if app_name
-            puts "[#{app_name}] 🤖 GPT-5-Codex is generating code... (typically takes 2-5 minutes)"
+            puts "[#{app_name}] 🤖 GPT-5-Codex is generating code..."
+            puts "[#{app_name}]    Note: Complex tasks may take 5-15 minutes."
+          end
+
+          # Debug logging
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] Starting call_gpt5_codex"
+            puts "[GPT5CodexAgent] App: #{app_name}"
+            puts "[GPT5CodexAgent] Self class: #{self.class}"
+            puts "[GPT5CodexAgent] Responds to api_request: #{respond_to?(:api_request)}"
           end
 
           # Check if we have the necessary methods (from OpenAIHelper or compatible module)
           unless respond_to?(:api_request)
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] ERROR: api_request not available"
+              puts "[GPT5CodexAgent] Included modules: #{self.class.included_modules.map(&:name).join(', ')}"
+            end
             return {
               error: "OpenAIHelper not available",
               success: false
@@ -60,6 +80,11 @@ module Monadic
 
           # Check if user has access to GPT-5-Codex
           unless has_gpt5_codex_access?
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] ERROR: No GPT-5-Codex access"
+              puts "[GPT5CodexAgent] API Key present: #{!CONFIG['OPENAI_API_KEY'].nil?}"
+              puts "[GPT5CodexAgent] API Key length: #{CONFIG['OPENAI_API_KEY']&.length}"
+            end
             # Provide user-friendly error message with fallback option
             error_message = build_access_error_message(app_name)
             return {
@@ -77,10 +102,29 @@ module Monadic
           # Note: OpenAIHelper already sets 600s timeout for Responses API
           # This is additional application-level timeout handling
           results = nil
+
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] About to call api_request"
+            puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
+          end
+
           begin
             require 'timeout'
+
+            # Track API call timing
+            api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+
             Timeout::timeout(actual_timeout) do
               results = api_request("user", session, call_depth: 0)
+            end
+
+            # Log API call duration
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              api_end_time = Time.now
+              api_duration = api_end_time - api_start_time
+              puts "[GPT5CodexAgent] API call completed"
+              puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
+              puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
             end
           rescue Timeout::Error
             return {
@@ -92,12 +136,26 @@ module Monadic
           end
 
           # Parse the response
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] API Response received"
+            puts "[GPT5CodexAgent] Results class: #{results.class}"
+            puts "[GPT5CodexAgent] Results: #{results.inspect[0..500]}"
+          end
+
           if results && results.is_a?(Array) && results.first
             response = results.first
+
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] First response: #{response.class}"
+              puts "[GPT5CodexAgent] Response keys: #{response.keys if response.is_a?(Hash)}"
+            end
 
             # Check if response contains an error (from API)
             if response.is_a?(Hash) && (response["error"] || response[:error])
               error_msg = response["error"] || response[:error]
+              if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+                puts "[GPT5CodexAgent] API returned error: #{error_msg}"
+              end
               return {
                 error: error_msg,
                 success: false
@@ -106,6 +164,9 @@ module Monadic
 
             # Check if response is an API error string
             if response.is_a?(String) && response.include?("[OpenAI] API Error:")
+              if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+                puts "[GPT5CodexAgent] API error string: #{response}"
+              end
               return {
                 error: response,
                 success: false
@@ -120,10 +181,21 @@ module Monadic
 
             # Check if we actually got content
             if content.nil? || content.to_s.strip.empty?
+              if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+                puts "[GPT5CodexAgent] Content is empty or nil"
+              end
               return {
                 error: "GPT-5-Codex returned empty response",
                 success: false
               }
+            end
+
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] Success! Content length: #{content.length}"
+              total_time = Time.now - start_time
+              puts "[GPT5CodexAgent] ========== TIMING END =========="
+              puts "[GPT5CodexAgent] Total processing time: #{total_time.round(2)} seconds"
+              puts "[GPT5CodexAgent] ================================"
             end
 
             {
@@ -132,6 +204,9 @@ module Monadic
               model: "gpt-5-codex"
             }
           else
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] No valid response from API"
+            end
             {
               error: "No response from GPT-5-Codex",
               success: false
@@ -139,6 +214,10 @@ module Monadic
           end
 
         rescue StandardError => e
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] EXCEPTION: #{e.class} - #{e.message}"
+            puts "[GPT5CodexAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"
+          end
           {
             error: "Error calling GPT-5-Codex: #{e.message}",
             suggestion: "Try breaking the task into smaller pieces",

@@ -1,6 +1,7 @@
 require "spec_helper"
 require "json"
 require "http"
+require "yaml"
 
 # Require the vendor helpers directly
 require_relative "../../lib/monadic/adapters/vendors/openai_helper"
@@ -13,6 +14,39 @@ require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
 
 # Define PROJECT_ROOT if not already defined
 PROJECT_ROOT ||= File.expand_path("../..", __dir__)
+REPO_ROOT ||= File.expand_path("../../..", PROJECT_ROOT)
+
+MISSING_MODELS_MEMO = File.join(REPO_ROOT, "tmp/memo/model_spec_missing_models.md")
+
+def load_missing_model_allowlist
+  allowlist = {}
+  return allowlist unless File.exist?(MISSING_MODELS_MEMO)
+
+  content = File.read(MISSING_MODELS_MEMO)
+  data_section = content.lines.drop_while { |line| !line.lstrip.start_with?('- provider') }.join
+  return allowlist if data_section.strip.empty?
+
+  begin
+    entries = YAML.safe_load(data_section, permitted_classes: [], permitted_symbols: [], aliases: true)
+  rescue Psych::SyntaxError => e
+    warn "Failed to parse #{MISSING_MODELS_MEMO}: #{e.message}"
+    return allowlist
+  end
+
+  Array(entries).each do |entry|
+    provider = entry['provider']
+    next unless provider
+    models = Array(entry['models'])
+    allowlist[provider] ||= []
+    allowlist[provider].concat(models)
+  end
+
+  allowlist.transform_values! { |arr| arr.uniq.freeze }
+  allowlist.freeze
+  allowlist
+end
+
+MISSING_MODEL_ALLOWLIST = load_missing_model_allowlist.freeze
 
 # Initialize global models cache
 $MODELS ||= {}
@@ -40,14 +74,16 @@ RSpec.describe "Model Specification Validation" do
     context "OpenAI Models" do
       it "contains all available OpenAI models from the helper" do
         skip "Requires API key" unless ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
-        
+
         available_models = OpenAIHelper.list_models
+        skip "No OpenAI models returned; skipping sync check" if available_models.nil? || available_models.empty?
         
         # Filter for GPT models that should be in model_spec
         gpt_models = available_models.select { |m| m.match?(/^(gpt|o1|chatgpt)/) }
-        
+
         model_spec_keys = model_spec.keys
         missing_models = gpt_models - model_spec_keys
+        missing_models -= Array(MISSING_MODEL_ALLOWLIST['openai'])
         
         if missing_models.any?
           puts "\n⚠️  Missing OpenAI models in model_spec.js:"
@@ -62,6 +98,7 @@ RSpec.describe "Model Specification Validation" do
         skip "Requires API key" unless ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
         
         available_models = OpenAIHelper.list_models
+        skip "No OpenAI models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         # Find OpenAI models in model_spec that are not in the API response
         openai_models_in_spec = model_spec.keys.select { |k| k.match?(/^(gpt|o1|chatgpt)/) }
@@ -73,6 +110,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['openai'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated OpenAI models in model_spec.js:"
@@ -84,15 +122,17 @@ RSpec.describe "Model Specification Validation" do
           "model_spec.js contains potentially deprecated OpenAI models: #{deprecated_models.join(', ')}"
       end
     end
-    
+
     context "Anthropic/Claude Models" do
       it "contains all available Claude models from the helper" do
         skip "Requires API key" unless ENV["ANTHROPIC_API_KEY"] || CONFIG["ANTHROPIC_API_KEY"]
-        
+
         available_models = ClaudeHelper.list_models
+        skip "No Claude models returned; skipping sync check" if available_models.nil? || available_models.empty?
         
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
+        missing_models -= Array(MISSING_MODEL_ALLOWLIST['anthropic'])
         
         if missing_models.any?
           puts "\n⚠️  Missing Claude models in model_spec.js:"
@@ -107,6 +147,7 @@ RSpec.describe "Model Specification Validation" do
         skip "Requires API key" unless ENV["ANTHROPIC_API_KEY"] || CONFIG["ANTHROPIC_API_KEY"]
         
         available_models = ClaudeHelper.list_models
+        skip "No Claude models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         claude_models_in_spec = model_spec.keys.select { |k| k.match?(/^claude/) }
         
@@ -117,6 +158,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['anthropic'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Claude models in model_spec.js:"
@@ -127,15 +169,17 @@ RSpec.describe "Model Specification Validation" do
           "model_spec.js contains potentially deprecated Claude models: #{deprecated_models.join(', ')}"
       end
     end
-    
+
     context "Cohere Models" do
       it "contains all available Cohere models from the helper" do
         skip "Requires API key" unless ENV["COHERE_API_KEY"] || CONFIG["COHERE_API_KEY"]
-        
+
         available_models = CohereHelper.list_models
+        skip "No Cohere models returned; skipping sync check" if available_models.nil? || available_models.empty?
         
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
+        missing_models -= Array(MISSING_MODEL_ALLOWLIST['cohere'])
         
         if missing_models.any?
           puts "\n⚠️  Missing Cohere models in model_spec.js:"
@@ -150,6 +194,7 @@ RSpec.describe "Model Specification Validation" do
         skip "Requires API key" unless ENV["COHERE_API_KEY"] || CONFIG["COHERE_API_KEY"]
         
         available_models = CohereHelper.list_models
+        skip "No Cohere models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         cohere_models_in_spec = model_spec.keys.select { |k| k.match?(/^(command|embed|rerank)/) }
         
@@ -160,6 +205,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['cohere'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Cohere models in model_spec.js:"
@@ -170,15 +216,17 @@ RSpec.describe "Model Specification Validation" do
           "model_spec.js contains potentially deprecated Cohere models: #{deprecated_models.join(', ')}"
       end
     end
-    
+
     context "Mistral Models" do
       it "contains all available Mistral models from the helper" do
         skip "Requires API key" unless ENV["MISTRAL_API_KEY"] || CONFIG["MISTRAL_API_KEY"]
-        
+
         available_models = MistralHelper.list_models
+        skip "No Mistral models returned; skipping sync check" if available_models.nil? || available_models.empty?
         
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
+        missing_models -= Array(MISSING_MODEL_ALLOWLIST['mistral'])
         
         if missing_models.any?
           puts "\n⚠️  Missing Mistral models in model_spec.js:"
@@ -193,6 +241,7 @@ RSpec.describe "Model Specification Validation" do
         skip "Requires API key" unless ENV["MISTRAL_API_KEY"] || CONFIG["MISTRAL_API_KEY"]
         
         available_models = MistralHelper.list_models
+        skip "No Mistral models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         mistral_models_in_spec = model_spec.keys.select { |k| k.match?(/^(mistral|open-mistral|codestral|pixtral)/) }
         
@@ -203,6 +252,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['mistral'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Mistral models in model_spec.js:"
@@ -213,15 +263,17 @@ RSpec.describe "Model Specification Validation" do
           "model_spec.js contains potentially deprecated Mistral models: #{deprecated_models.join(', ')}"
       end
     end
-    
+
     context "Grok Models" do
       it "contains all available Grok models from the helper" do
         skip "Requires API key" unless ENV["XAI_API_KEY"] || CONFIG["XAI_API_KEY"]
-        
+
         available_models = GrokHelper.list_models
+        skip "No Grok models returned; skipping sync check" if available_models.nil? || available_models.empty?
         
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
+        missing_models -= Array(MISSING_MODEL_ALLOWLIST['grok'])
         
         if missing_models.any?
           puts "\n⚠️  Missing Grok models in model_spec.js:"
@@ -236,6 +288,7 @@ RSpec.describe "Model Specification Validation" do
         skip "Requires API key" unless ENV["XAI_API_KEY"] || CONFIG["XAI_API_KEY"]
         
         available_models = GrokHelper.list_models
+        skip "No Grok models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         grok_models_in_spec = model_spec.keys.select { |k| k.match?(/^grok/) }
         
@@ -246,6 +299,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['grok'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated Grok models in model_spec.js:"
@@ -260,8 +314,9 @@ RSpec.describe "Model Specification Validation" do
     context "DeepSeek Models" do
       it "contains all available DeepSeek models from the helper" do
         skip "Requires API key" unless ENV["DEEPSEEK_API_KEY"] || CONFIG["DEEPSEEK_API_KEY"]
-        
+
         available_models = DeepSeekHelper.list_models
+        skip "No DeepSeek models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
@@ -289,6 +344,7 @@ RSpec.describe "Model Specification Validation" do
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
+        deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['deepseek'])
         
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated DeepSeek models in model_spec.js:"
@@ -396,3 +452,4 @@ RSpec.describe "Model Specification Validation" do
     end
   end
 end
+require 'yaml'

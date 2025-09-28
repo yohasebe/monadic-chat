@@ -10,7 +10,8 @@ module AutoForge
       end
 
       def generate(prompt, existing_content: nil, file_name: 'index.html')
-        puts "[HTMLGenerator] Starting generation..." if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+        start_time = Time.now
+        puts "[HTMLGenerator] Starting generation at #{start_time.strftime('%Y-%m-%d %H:%M:%S')}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
         # Get GPT-5-Codex access for code generation
         codex_caller = nil
@@ -41,6 +42,10 @@ module AutoForge
             codex_caller.call(full_prompt, 'AutoForgeOpenAI')
           end
 
+          end_time = Time.now
+          duration = end_time - start_time
+          puts "[HTMLGenerator] GPT-5-Codex returned at #{end_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[HTMLGenerator] Generation took #{duration.round(2)} seconds" if CONFIG && CONFIG["EXTRA_LOGGING"]
           puts "[HTMLGenerator] GPT-5-Codex result: #{result.inspect[0..500]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
           if result && result[:success]
@@ -64,13 +69,21 @@ module AutoForge
             end
           else
             puts "[HTMLGenerator] Failed - result: #{result.inspect}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-            return nil
+            # Return detailed error information instead of nil
+            error_msg = if result && result[:error]
+              result[:error]
+            elsif result && result[:timeout]
+              "GPT-5-Codex request timed out. The task may be too complex."
+            else
+              "GPT-5-Codex generation failed"
+            end
+            return { mode: :error, error: error_msg, details: result }
           end
         else
           puts "[HTMLGenerator] No app_instance or call_gpt5_codex not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
           puts "[HTMLGenerator] app_instance: #{@context[:app_instance].class}" if CONFIG && CONFIG["EXTRA_LOGGING"]
           puts "[HTMLGenerator] responds to call_gpt5_codex: #{@context[:app_instance]&.respond_to?(:call_gpt5_codex)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-          return nil
+          return { mode: :error, error: "GPT-5-Codex integration not available", details: nil }
         end
       end
 

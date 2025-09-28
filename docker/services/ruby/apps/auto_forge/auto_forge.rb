@@ -253,6 +253,10 @@ module AutoForge
       puts "[AutoForge] Normalized result: #{normalized_result.inspect[0..200]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
       case normalized_result
+      in { mode: :error, error: error_msg, details: details }
+        puts "[AutoForge] Generation failed with error: #{error_msg}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "[AutoForge] Error details: #{details.inspect}" if CONFIG && CONFIG["EXTRA_LOGGING"] && details
+        return { success: false, error: error_msg, details: details }
       in { mode: :patch, patch: patch_text }
         puts "[AutoForge] Applying patch to file" if CONFIG && CONFIG["EXTRA_LOGGING"]
         apply_patch_to_file(file_path, patch_text)

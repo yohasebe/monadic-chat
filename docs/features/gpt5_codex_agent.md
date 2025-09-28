@@ -66,6 +66,7 @@ Assistant: [Automatically delegates to GPT-5-Codex for complex matplotlib code]
 - Default timeout: 300 seconds (configurable via `GPT5_CODEX_TIMEOUT` environment variable)
 - Automatic access checking before delegation
 - Message format abstraction for compatibility
+- Progress updates displayed every minute during long-running operations
 
 ## Troubleshooting
 

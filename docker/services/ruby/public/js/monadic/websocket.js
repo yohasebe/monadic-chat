@@ -1923,14 +1923,59 @@ let loadedApp = "Chat";
         }
 
         // Check if this is a GPT-5-Codex progress message
-        const isGPT5CodexProgress = waitContent && (
-          waitContent.includes('GPT-5-Codex') ||
-          waitContent.includes('minute') ||
-          waitContent.includes('elapsed') ||
-          (data["source"] && data["source"] === "GPT5CodexAgent")
+        // Priority: explicit source field > content analysis
+        const isGPT5CodexProgress = (
+          // Explicit source identification (most reliable)
+          (data["source"] && data["source"] === "GPT5CodexAgent") ||
+          // Fallback: content analysis (must have GPT-5-Codex AND time indicator)
+          (waitContent &&
+           waitContent.includes('GPT-5-Codex') &&
+           (waitContent.includes('minute') || waitContent.includes('elapsed')))
         );
 
         if (isGPT5CodexProgress) {
+          // Build localized message if i18n data is available
+          let displayContent = waitContent;
+          if (data["minutes"] !== undefined) {
+            const minutes = data["minutes"];
+            const remaining = data["remaining"];
+            let messageKey;
+
+            // Select appropriate message based on time elapsed
+            if (minutes <= 1) {
+              messageKey = 'gpt5CodexGenerating';
+            } else if (minutes <= 2) {
+              messageKey = 'gpt5CodexStructuring';
+            } else if (minutes <= 3) {
+              messageKey = 'gpt5CodexAnalyzing';
+            } else if (minutes <= 4) {
+              messageKey = 'gpt5CodexOptimizing';
+            } else {
+              messageKey = 'gpt5CodexFinalizing';
+            }
+
+            // Get localized base message
+            let localizedMessage = getTranslation(`ui.messages.${messageKey}`, waitContent);
+
+            // Add elapsed time
+            const elapsedText = getTranslation('ui.messages.elapsedTime', '{minutes} minute(s) elapsed')
+              .replace('{minutes}', minutes);
+
+            // Build full message
+            displayContent = `<i class="fas fa-laptop-code" style="color: #4285f4;"></i> ${localizedMessage} (${elapsedText})`;
+
+            // Add remaining time only when approaching timeout (less than 5 minutes remaining)
+            if (remaining > 0 && remaining <= 5) {
+              const remainingText = getTranslation('ui.messages.remainingTime', '{minutes} minute(s) remaining')
+                .replace('{minutes}', remaining);
+              displayContent += ` - ${remainingText}`;
+            }
+            displayContent += '...';
+          } else if (!waitContent.includes('<i class="fas')) {
+            // Add icon if not already present in fallback content
+            displayContent = `<i class="fas fa-laptop-code" style="color: #4285f4;"></i> ${waitContent}`;
+          }
+
           // Display GPT-5-Codex progress in streaming temp card
           // Create or get temporary card
           let tempCard = $("#temp-card");
@@ -1951,8 +1996,8 @@ let loadedApp = "Chat";
             $("#discourse").append(tempCard);
           }
 
-          // Update the temp card with the progress message (message already contains icon)
-          $("#temp-card .card-text").html(`<div class="alert alert-warning mb-0">${waitContent}</div>`);
+          // Update the temp card with the progress message (using info style instead of warning)
+          $("#temp-card .card-text").html(`<div class="alert alert-info mb-0" style="background-color: #f8f9fa; border-color: #dee2e6; color: #495057;">${displayContent}</div>`);
           $("#temp-card").show();
         } else {
           // Regular wait messages go to status-message
@@ -2447,8 +2492,13 @@ let loadedApp = "Chat";
         // These operations are still needed regardless of which path handled the message
         if (handled) {
           verified = "full";
-          // Don't show "Ready" immediately after token verification - keep showing the current processing status
-          // The actual ready state will be set when processing is complete
+          // Only show "Ready" if there are no pending operations
+          // Check if we're waiting for additional processing (like app initialization)
+          if (!callingFunction && $("#monadic-spinner").is(":hidden")) {
+            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          }
+          // Otherwise keep showing the current processing status
           
           // Enable OpenAI TTS options when token is verified
           $("#openai-tts-4o").prop("disabled", false);

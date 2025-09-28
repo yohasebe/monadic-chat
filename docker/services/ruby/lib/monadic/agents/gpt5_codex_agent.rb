@@ -418,13 +418,14 @@ module Monadic
                   # Build message with guards
                   progress_message = build_progress_message(minutes, remaining)
 
-                  # Create complete fragment object
+                  # Create complete fragment object with i18n data
                   fragment = {
                     "type" => "wait",
                     "content" => progress_message,
                     "source" => "GPT5CodexAgent",
                     "elapsed" => elapsed.to_i,
-                    "remaining" => remaining
+                    "minutes" => minutes,
+                    "remaining" => remaining.to_i
                   }
 
                   # Send through block if available

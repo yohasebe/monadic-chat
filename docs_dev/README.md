@@ -16,6 +16,7 @@ This documentation is for Monadic Chat contributors and maintainers. It compleme
 - [Docker Architecture](docker-architecture.md) — Container structure, lifecycle, and management
 - [Common Issues](common-issues.md) — Frequent problems and their solutions
 - [Error Handling Architecture](error_handling.md) — Retry policies, pattern detection, and related specs
+- [WebSocket Progress Broadcasting](websocket_progress_broadcasting.md) — Long-running operation progress updates
 - [Backlog](backlog.md) — Pending clean-up tasks and follow-ups
 
 ## Quick Start for New Developers

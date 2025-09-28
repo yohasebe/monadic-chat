@@ -10,6 +10,7 @@ require_relative 'utils/state_manager'
 require_relative 'utils/prompt_builder'
 require_relative 'utils/file_operations'
 require_relative 'agents/html_generator'
+require_relative 'agents/cli_generator'
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
 
 module AutoForge
@@ -41,15 +42,25 @@ module AutoForge
 
       mark_executed!(@project_id)
 
+      # Check project type from spec
+      project_type = value_from_spec(spec, :project_type) ||
+                    value_from_spec(spec, 'project_type') ||
+                    'web'
+
       begin
         log_execution(@project_id, {
           action: "use_directory",
           path: @project_path,
-          existing: project_context[:existing]
+          existing: project_context[:existing],
+          type: project_type
         })
 
-        # For single HTML experiment, we only generate one file
-        result = generate_single_html(spec, &block)
+        # Branch based on type
+        result = if project_type == 'cli'
+          generate_single_cli(spec, &block)
+        else
+          generate_single_html(spec, &block)
+        end
 
         if result[:success]
           persist_project_context(project_context, spec)
@@ -280,6 +291,115 @@ module AutoForge
       else
         result
       end
+    end
+
+    # Generate single CLI script
+    def generate_single_cli(spec, &block)
+      # Determine file name
+      project_name = value_from_spec(spec, :name) || 'tool'
+      safe_name = project_name.downcase.gsub(/[^a-z0-9]+/, '_')
+
+      # Check for existing script (for modifications)
+      existing_files = Dir.glob(File.join(@project_path, "#{safe_name}*"))
+                          .reject { |f| f.end_with?('.json', '.md', '.txt') }
+      existing_file = existing_files.first
+
+      existing_content = nil
+      if existing_file && File.exist?(existing_file)
+        existing_content = File.read(existing_file)
+        file_name = File.basename(existing_file)
+        puts "[AutoForge] Found existing CLI script: #{file_name}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      else
+        file_name = nil  # Will be determined after generation
+      end
+
+      # Build prompt
+      prompt = build_single_cli_prompt(spec, existing_content: existing_content)
+
+      log_execution(@project_id, {
+        action: "generate_file",
+        file: file_name || "cli_script",
+        prompt_length: prompt.length
+      })
+
+      # Generate using CLIGenerator
+      generator = Agents::CLIGenerator.new(@context)
+
+      # Generate with same callback pattern as HTML
+      result = generator.generate(
+        prompt: prompt,
+        app_name: project_name,
+        &block
+      )
+
+      # Check result format (same as HtmlGenerator returns)
+      unless result && result[:success]
+        error_msg = result ? result[:error] : "No response from generator"
+        return { success: false, error: error_msg }
+      end
+
+      # Extract code from result
+      code = result[:code]
+
+      unless code && code.strip.length > 0
+        return { success: false, error: "Generated code is empty" }
+      end
+
+      # Determine file name if not existing
+      unless file_name
+        script_info = detect_script_language(code)
+        file_name = "#{safe_name}#{script_info[:extension]}"
+      end
+
+      file_path = File.join(@project_path, file_name)
+
+      # Write the script
+      File.write(file_path, code)
+
+      # Make executable on Unix-like systems
+      if RUBY_PLATFORM !~ /mswin|mingw|cygwin/
+        File.chmod(0755, file_path)
+      end
+
+      # Store CLI-specific info in context
+      store = @context[:auto_forge] || {}
+      store[:project_type] = 'cli'
+      store[:main_file] = file_name
+      store[:language] = detect_script_language(code)[:language]
+      @context[:auto_forge] = store
+
+      log_execution(@project_id, {
+        action: "file_written",
+        file: file_name,
+        size: code.length,
+        executable: true
+      })
+
+      { success: true, file: file_name }
+    end
+
+    def build_single_cli_prompt(spec, existing_content: nil)
+      # Use existing PromptBuilder module patterns
+      build_prompt_from_spec(spec, format: 'cli', existing_content: existing_content)
+    end
+
+    def detect_script_language(content)
+      # Check shebang line
+      first_line = content.lines.first.to_s.strip
+
+      return { language: 'python', extension: '.py' } if first_line =~ /#!.*python/
+      return { language: 'ruby', extension: '.rb' } if first_line =~ /#!.*ruby/
+      return { language: 'javascript', extension: '.js' } if first_line =~ /#!.*node/
+      return { language: 'bash', extension: '.sh' } if first_line =~ /#!.*bash/
+      return { language: 'perl', extension: '.pl' } if first_line =~ /#!.*perl/
+
+      # Fallback: content analysis
+      return { language: 'python', extension: '.py' } if content =~ /^import |^from .+ import/m
+      return { language: 'ruby', extension: '.rb' } if content =~ /^require |^class \w+/m
+      return { language: 'javascript', extension: '.js' } if content =~ /^const |^function |^let |^var /m
+
+      # Default
+      { language: 'shell', extension: '.sh' }
     end
 
     def apply_patch_to_file(file_path, patch_text)

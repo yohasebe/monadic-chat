@@ -2,6 +2,8 @@
 
 require 'fileutils'
 require 'securerandom'
+require 'set'
+require 'json'
 
 require_relative 'auto_forge'
 require_relative 'auto_forge_utils'
@@ -74,9 +76,17 @@ module AutoForgeTools
       RESPONSE
     end
 
+    # Detect project type from spec
+    project_type = detect_project_type(spec)
+
+    # Set both string and symbol keys to ensure compatibility
+    spec['project_type'] = project_type
+    spec[:project_type] = project_type
+
     # Create app instance with context
     # Ensure context includes API key from environment if not already present
     context = @context || {}
+    @context ||= context
     if ENV['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
       context = context.merge(openai_api_key: ENV['OPENAI_API_KEY'])
     end
@@ -174,17 +184,60 @@ module AutoForgeTools
     # Pass the progress callback to generate_application
     result = app.generate_application(spec, &progress_callback)
 
+    # Store project info in context for additional file generation
+    if result[:success]
+      auto_forge = context[:auto_forge] || {}
+      auto_forge[:project_path] = result[:project_path]
+      auto_forge[:project_type] = project_type
+      auto_forge[:project_id] = result[:project_id]
+      auto_forge[:main_file] = result[:files_created]&.first if project_type == 'cli'
+      context[:auto_forge] = auto_forge
+      context['auto_forge'] = auto_forge
+    end
+
     # Format response
     if result[:success]
-      <<~RESPONSE
-        ✅ Application generated successfully!
+      if project_type == 'cli'
+          main_file = result[:files_created]&.first || 'script'
+        suggestions = suggest_cli_additional_files(result[:project_path], main_file)
+        suggestion_section = if suggestions.any?
+          <<~TEXT
 
-        📁 Project Path: #{result[:project_path]}
-        📄 Files Created: #{result[:files_created]&.join(', ') || 'index.html'}
+            I can also create these optional files if helpful:
+            #{format_cli_suggestions(suggestions)}
 
-        To view your application, open:
-        #{File.join(result[:project_path], 'index.html')}
-      RESPONSE
+            Just let me know if you need any of them.
+          TEXT
+        else
+          ""
+        end
+
+        response_body = <<~TEXT
+          ✅ CLI tool successfully generated!
+
+          📁 Location: #{result[:project_path]}
+          📄 Main script: #{main_file}
+
+          To use:
+          1. Navigate to: cd #{result[:project_path]}
+          2. Make executable: chmod +x #{main_file}
+          3. Run: ./#{main_file} --help
+        TEXT
+
+        response_body << suggestion_section unless suggestion_section.empty?
+
+        response_body.rstrip
+      else
+        <<~RESPONSE
+          ✅ Web application generated successfully!
+
+          📁 Project Path: #{result[:project_path]}
+          📄 Files Created: #{result[:files_created]&.join(', ') || 'index.html'}
+
+          To view your application, open:
+          #{File.join(result[:project_path], 'index.html')}
+        RESPONSE
+      end
     else
       # Strip any HTML tags from error messages to prevent rendering issues
       safe_error = (result[:error] || "Unknown error").to_s.gsub(/<[^>]*>/, '').strip[0..500]
@@ -308,6 +361,40 @@ module AutoForgeTools
     end
   end
 
+  def generate_additional_file(params = {})
+    file_type = params['file_type'] || params[:file_type]
+
+    unless file_type
+      return "❌ Missing required parameter: file_type"
+    end
+
+    # Handle both symbol and string keys for context
+    context = @context || {}
+    auto_forge = context[:auto_forge] || context['auto_forge'] || {}
+
+    # Try both key formats for retrieval
+    project_path = auto_forge[:project_path] || auto_forge['project_path']
+    project_type = auto_forge[:project_type] || auto_forge['project_type'] ||
+                   auto_forge[:current_project_type] || auto_forge['current_project_type']
+
+    unless project_path && File.exist?(project_path)
+      return "❌ No active project found. Please generate the main application first."
+    end
+
+    unless project_type == 'cli'
+      return "ℹ️ Additional files are only available for CLI projects."
+    end
+
+    # Generate the requested file
+    result = generate_cli_additional_file(project_path, file_type)
+
+    if result[:success]
+      "✅ Created #{result[:filename]}"
+    else
+      "❌ Failed: #{result[:error]}"
+    end
+  end
+
   def debug_application(params = {})
     context = resolve_project_context(params)
 
@@ -406,6 +493,263 @@ module AutoForgeTools
   end
 
   private
+
+  def detect_project_type(spec)
+    # Check both string and symbol keys
+    description = (spec['description'] || spec[:description] || '').to_s.downcase
+    name = (spec['name'] || spec[:name] || '').to_s.downcase
+    type_hint = (spec['type'] || spec[:type] || '').to_s.downcase
+
+    # CLI detection
+    return 'cli' if type_hint.match?(/cli|command|tool|script|utility/)
+    return 'web' if type_hint.match?(/web|html|app|dashboard/)
+
+    # Keyword-based detection
+    cli_keywords = %w[cli command script tool utility analyzer converter parser terminal]
+    web_keywords = %w[web app dashboard interface ui page site browser]
+
+    cli_score = cli_keywords.count { |w| description.include?(w) || name.include?(w) }
+    web_score = web_keywords.count { |w| description.include?(w) || name.include?(w) }
+
+    cli_score > web_score ? 'cli' : 'web'
+  end
+
+  def generate_cli_additional_file(project_path, file_type)
+    case file_type.to_s.downcase
+    when 'readme'
+      create_readme(project_path)
+    when 'config'
+      create_config_template(project_path)
+    when 'requirements', 'dependencies'
+      create_dependencies(project_path)
+    else
+      { success: false, error: "Unknown file type: #{file_type}" }
+    end
+  end
+
+  def create_readme(project_path)
+    main_script, _content = read_cli_script(project_path)
+
+    return { success: false, error: "No main script found" } unless main_script
+
+    script_name = File.basename(main_script)
+    project_name = File.basename(project_path).split('_').first
+
+    readme = <<~README
+      # #{project_name}
+
+      Generated by AutoForge on #{Time.now.strftime('%Y-%m-%d')}
+
+      ## Usage
+
+      ```bash
+      chmod +x #{script_name}
+      ./#{script_name} --help
+      ```
+
+      ## Requirements
+
+      See script header for details.
+    README
+
+    File.write(File.join(project_path, 'README.md'), readme)
+    { success: true, filename: 'README.md' }
+  end
+
+  def create_config_template(project_path)
+    main_script, content = read_cli_script(project_path)
+
+    return { success: false, error: "No main script found" } unless main_script && content
+
+    preview = content[0, 500]
+    ext = File.extname(main_script)
+
+    case ext
+    when '.py'
+      config = "# Configuration file\n[settings]\ndebug = false\nverbose = false\n"
+      filename = 'config.ini'
+    when '.rb'
+      config = "# Configuration file\ndebug: false\nverbose: false\n"
+      filename = 'config.yml'
+    when '.js'
+      config = "{\n  \"debug\": false,\n  \"verbose\": false\n}\n"
+      filename = 'config.json'
+    else
+      config = "# Configuration file\nDEBUG=false\nVERBOSE=false\n"
+      filename = 'config.cfg'
+    end
+
+    File.write(File.join(project_path, filename), config)
+    { success: true, filename: filename }
+  end
+
+  def create_dependencies(project_path)
+    main_script, content = read_cli_script(project_path)
+
+    return { success: false, error: "No main script found" } unless main_script && content
+
+    ext = File.extname(main_script)
+    dependencies = detect_external_dependencies(content, ext)
+
+    case ext
+    when '.py'
+      filename = 'requirements.txt'
+      body = dependencies.any? ? dependencies.sort.join("\n") : "# No external dependencies detected\n"
+      File.write(File.join(project_path, filename), body)
+      { success: true, filename: filename }
+    when '.rb'
+      filename = 'Gemfile'
+      body = if dependencies.any?
+        gems = dependencies.sort.map { |d| "gem '#{d}'" }.join("\n")
+        "source 'https://rubygems.org'\n\n#{gems}\n"
+      else
+        "# No external dependencies detected\n"
+      end
+      File.write(File.join(project_path, filename), body)
+      { success: true, filename: filename }
+    when '.js'
+      filename = 'package.json'
+      body = if dependencies.any?
+        deps_json = dependencies.sort.map { |d| "    \"#{d}\": \"latest\"" }.join(",\n")
+        "{\n  \"name\": \"autoforge-cli\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {\n#{deps_json}\n  }\n}\n"
+      else
+        "{\n  \"name\": \"autoforge-cli\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {}\n}\n"
+      end
+      File.write(File.join(project_path, filename), body)
+      { success: true, filename: filename }
+    else
+      filename = 'dependencies.txt'
+      File.write(File.join(project_path, filename), "# No external dependencies detected\n")
+      { success: true, filename: filename }
+    end
+  end
+
+  # Load standard library lists from external configuration
+  def load_standard_libraries
+    config_file = File.join(File.dirname(__FILE__), 'config', 'standard_libraries.json')
+    if File.exist?(config_file)
+      begin
+        config = JSON.parse(File.read(config_file))
+        {
+          python: Set.new(config['python'] || []),
+          ruby: Set.new(config['ruby'] || []),
+          node: Set.new(config['node'] || [])
+        }
+      rescue JSON::ParserError => e
+        puts "[AutoForge] Error loading standard libraries config: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+        default_standard_libraries
+      end
+    else
+      puts "[AutoForge] Standard libraries config not found, using defaults" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      default_standard_libraries
+    end
+  end
+
+  def default_standard_libraries
+    {
+      python: Set.new(%w[
+        argparse array base64 calendar collections concurrent decimal errno fcntl
+        functools glob hashlib heapq http io itertools json logging math os pathlib
+        random re sched shutil signal socket statistics string struct subprocess sys
+        tempfile textwrap threading time typing uuid xml zipfile datetime zoneinfo
+        gzip csv ssl sqlite3 unicodedata platform getpass inspect pprint
+      ]),
+      ruby: Set.new(%w[
+        abbrev base64 benchmark bigdecimal cgi csv date dbm digest drb etc fcntl
+        fileutils find forwardable getoptlong ipaddr logger mathn monitor mutex_m
+        net/ftp net/http net/imap net/pop net/smtp open-uri optparse ostruct pathname
+        pp pstore resolv securerandom set shell tempfile time yaml zlib json
+      ]),
+      node: Set.new(%w[
+        assert buffer child_process crypto dns events fs http https net os path
+        process readline stream string_decoder timers tty url util zlib
+      ])
+    }
+  end
+
+  # Lazy load standard libraries
+  def standard_libraries
+    @standard_libraries ||= load_standard_libraries
+  end
+
+  def suggest_cli_additional_files(project_path, main_file)
+    suggestions = []
+
+    readme_path = File.join(project_path, 'README.md')
+    suggestions << :readme unless File.exist?(readme_path)
+
+    script_path, content = read_cli_script(project_path)
+    return suggestions unless script_path && content
+
+    ext = File.extname(script_path)
+
+    suggestions << :config if cli_script_uses_config?(content)
+    suggestions << :dependencies if detect_external_dependencies(content, ext).any?
+
+    suggestions
+  rescue StandardError => e
+    puts "[AutoForge] Error in suggest_cli_additional_files: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    suggestions
+  end
+
+  def format_cli_suggestions(suggestions)
+    suggestions.map do |type|
+      case type
+      when :readme then "• README (usage instructions)"
+      when :config then "• Config template (sample settings)"
+      when :dependencies then "• Dependencies file (e.g. requirements.txt)"
+      else nil
+      end
+    end.compact.join("\n")
+  end
+
+  def read_cli_script(project_path)
+    store = ensure_context_hash[:auto_forge] || {}
+    store = @context['auto_forge'] if store.empty? && @context.is_a?(Hash) && @context['auto_forge'].is_a?(Hash)
+    main_candidate = store[:main_file] || store['main_file']
+
+    if main_candidate
+      candidate_path = File.join(project_path, main_candidate)
+      return [candidate_path, File.read(candidate_path)] if File.exist?(candidate_path)
+    end
+
+    fallback = Dir.glob(File.join(project_path, '*')).find do |f|
+      File.file?(f) && !f.end_with?('.json', '.md', '.txt') && File.read(f, 100).include?('#!')
+    end
+
+    return [fallback, File.read(fallback)] if fallback
+
+    [nil, nil]
+  rescue StandardError => e
+    puts "[AutoForge] Error in read_cli_script: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    [nil, nil]
+  end
+
+  def cli_script_uses_config?(content)
+    return false unless content
+
+    !!(content =~ /configparser|ConfigParser|yaml|toml|dotenv|--config|config file/i)
+  end
+
+  def detect_external_dependencies(content, extension)
+    return [] unless content
+
+    case extension
+    when '.py'
+      imports = content.scan(/^(?:import|from)\s+([a-zA-Z_][\w]*)/).flatten.map { |m| m.split('.').first.downcase }.uniq
+      imports.reject { |mod| standard_libraries[:python].include?(mod) }
+    when '.rb'
+      requires = content.scan(/^require\s+['"]([^'"]+)['"]/).flatten.map { |mod| mod.downcase }.uniq
+      requires.reject { |mod| mod.start_with?('.') || standard_libraries[:ruby].include?(mod) }
+    when '.js'
+      requires = content.scan(/require\(['"]([^'"]+)['"]\)/).flatten
+      imports = content.scan(/import\s+.*?from\s+['"]([^'"]+)['"]/).flatten
+      modules = (requires + imports).map { |mod| mod.downcase }.uniq
+      modules.reject { |mod| mod.start_with?('.') || standard_libraries[:node].include?(mod) }
+    else
+      []
+    end
+  end
 
   def handle_fix_response(user_response, diagnosis)
     response = (user_response || '').downcase

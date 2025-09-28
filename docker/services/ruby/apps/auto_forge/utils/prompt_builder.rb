@@ -37,6 +37,16 @@ module AutoForge
         TEMPLATE
       }.freeze
 
+      # Main entry point for prompt building
+      def build_prompt_from_spec(spec, format: 'html', existing_content: nil)
+        if format == 'cli'
+          build_cli_prompt_from_spec(spec, existing_content)
+        else
+          # Default to HTML prompt building
+          build_single_html_prompt(spec, existing_content: existing_content)
+        end
+      end
+
       # Build prompt for single HTML generation
       def build_single_html_prompt(spec, existing_content: nil, file_name: 'index.html')
         template = ERB.new(TEMPLATES[:single_html], trim_mode: '-')
@@ -70,6 +80,35 @@ module AutoForge
         end
 
         ensure_reasonable_length(prompt)
+      end
+
+      # Build prompt for CLI tool generation
+      def build_cli_prompt_from_spec(spec, existing_content)
+        name = spec[:name] || spec['name']
+        description = spec[:description] || spec['description']
+        features = spec[:features] || spec['features'] || []
+
+        base_prompt = <<~PROMPT
+          Project: #{name}
+          Description: #{description}
+          #{features.any? ? "Features:\n" + features.map { |f| "- #{f}" }.join("\n") : ""}
+        PROMPT
+
+        if existing_content
+          <<~PROMPT
+            Modify this existing CLI script:
+            ```
+            #{existing_content}
+            ```
+
+            Requirements:
+            #{base_prompt}
+
+            Generate the complete updated script. Output only code.
+          PROMPT
+        else
+          base_prompt
+        end
       end
 
       # Build prompt from template and context

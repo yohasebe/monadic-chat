@@ -1,0 +1,19 @@
+{
+  "python": [
+    "argparse", "array", "base64", "calendar", "collections", "concurrent", "decimal", "errno", "fcntl",
+    "functools", "glob", "hashlib", "heapq", "http", "io", "itertools", "json", "logging", "math", "os", "pathlib",
+    "random", "re", "sched", "shutil", "signal", "socket", "statistics", "string", "struct", "subprocess", "sys",
+    "tempfile", "textwrap", "threading", "time", "typing", "uuid", "xml", "zipfile", "datetime", "zoneinfo",
+    "gzip", "csv", "ssl", "sqlite3", "unicodedata", "platform", "getpass", "inspect", "pprint", "itertools"
+  ],
+  "ruby": [
+    "abbrev", "base64", "benchmark", "bigdecimal", "cgi", "csv", "date", "dbm", "digest", "drb", "etc", "fcntl",
+    "fileutils", "find", "forwardable", "getoptlong", "ipaddr", "logger", "mathn", "monitor", "mutex_m",
+    "net/ftp", "net/http", "net/imap", "net/pop", "net/smtp", "open-uri", "optparse", "ostruct", "pathname",
+    "pp", "pstore", "resolv", "securerandom", "set", "shell", "tempfile", "time", "yaml", "zlib", "json"
+  ],
+  "node": [
+    "assert", "buffer", "child_process", "crypto", "dns", "events", "fs", "http", "https", "net", "os", "path",
+    "process", "readline", "stream", "string_decoder", "timers", "tty", "url", "util", "zlib"
+  ]
+}

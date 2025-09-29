@@ -44,7 +44,7 @@ RSpec.describe SecondOpinionAgent do
     
     context "model defaults" do
       it "uses correct default models for each provider" do
-        expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-20250514")
+        expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-5-20250929")
         expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-4.1")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-2.5-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-fast-reasoning")
@@ -62,7 +62,7 @@ RSpec.describe SecondOpinionAgent do
       end
       
       it "handles empty model strings by using defaults" do
-        expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-4-20250514")
+        expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-4-5-20250929")
         expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-4.1")
       end
     end
@@ -70,8 +70,8 @@ RSpec.describe SecondOpinionAgent do
     context "incomplete Claude model names" do
       it "detects and fixes incomplete Claude model names" do
         # This simulates the case where the model name is cut off
-        result = agent.send(:determine_provider_and_model, "claude", "claude-sonnet-4-2025-05")
-        expect(result[1]).to eq("claude-sonnet-4-20250514")
+        result = agent.send(:determine_provider_and_model, "claude", "claude-sonnet-4-5-2025-09")
+        expect(result[1]).to eq("claude-sonnet-4-5-20250929")
       end
     end
   end
@@ -136,7 +136,7 @@ RSpec.describe SecondOpinionAgent do
       end
       
       it "returns false for providers without reasoning models" do
-        expect(SecondOpinionClaude.is_reasoning_model?("claude-sonnet-4-20250514")).to be false
+        expect(SecondOpinionClaude.is_reasoning_model?("claude-sonnet-4-5-20250929")).to be false
         expect(SecondOpinionCohere.is_reasoning_model?("command-r")).to be false
         expect(SecondOpinionPerplexity.is_reasoning_model?("sonar")).to be false
       end

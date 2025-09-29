@@ -36,7 +36,7 @@ app "SyntaxTreeClaude" do
 
   llm do
     provider "claude"
-    model "claude-sonnet-4-20250514"  # Latest Sonnet 4 version
+    model "claude-sonnet-4-5-20250929"  # Latest Sonnet 4 version
     temperature 0.0
   end
 

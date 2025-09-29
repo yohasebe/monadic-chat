@@ -28,7 +28,7 @@ RSpec.describe AIUserAgent do
       "ANTHROPIC_API_KEY" => "test-key",
       "COHERE_API_KEY" => "test-key",
       "OPENAI_DEFAULT_MODEL" => "gpt-4.1",
-      "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-20250514",
+      "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-5-20250929",
       "COHERE_DEFAULT_MODEL" => "command-a-03-2025",
       "GROK_DEFAULT_MODEL" => "grok-4-fast-reasoning",
       "PERPLEXITY_DEFAULT_MODEL" => "sonar-reasoning-pro"
@@ -342,7 +342,7 @@ RSpec.describe AIUserAgent do
       expect(model).to eq("gpt-4.1")
       
       model = agent.send(:default_model_for_provider, "anthropic")
-      expect(model).to eq("claude-sonnet-4-20250514")
+      expect(model).to eq("claude-sonnet-4-5-20250929")
     end
 
     it 'returns default fallback when config not available' do
@@ -352,7 +352,7 @@ RSpec.describe AIUserAgent do
       expect(model).to eq("gpt-4.1")
       
       model = agent.send(:default_model_for_provider, "anthropic")
-      expect(model).to eq("claude-sonnet-4-20250514")
+      expect(model).to eq("claude-sonnet-4-5-20250929")
     end
 
     it 'handles various provider names' do

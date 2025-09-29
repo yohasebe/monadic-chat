@@ -115,7 +115,7 @@ namespace :test do
           session = {
             messages: [],
             parameters: {
-              "model" => "claude-sonnet-4-20250514",
+              "model" => "claude-sonnet-4-5-20250929",
               "message" => test_query,
               "websearch" => true,
               "temperature" => 0.0,

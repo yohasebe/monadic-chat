@@ -97,7 +97,7 @@ module ClaudeHelper
           # Return fallback models if API call fails during testing
           fallback_models = [
             "claude-opus-4-20250514",
-            "claude-sonnet-4-20250514",
+            "claude-sonnet-4-5-20250929",
             "claude-3-7-sonnet-20250219",
             "claude-3-opus-20240229",
             "claude-3-5-sonnet-20241022",

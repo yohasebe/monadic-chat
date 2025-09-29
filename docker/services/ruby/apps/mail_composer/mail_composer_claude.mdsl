@@ -47,7 +47,7 @@ app "MailComposerClaude" do
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    model "claude-sonnet-4-5-20250929"
     temperature 0.3
   end
   

@@ -1218,7 +1218,7 @@ module MonadicDSL
                     # Use environment variable with string interpolation in generated code
                     # Include provider-specific default fallback value if no env var
                     default_model = case provider_name
-                                    when /anthropic|claude/ then "claude-sonnet-4-20250514"
+                                    when /anthropic|claude/ then "claude-sonnet-4-5-20250929"
                                     when /openai|gpt/ then "gpt-4.1"
                                     when /cohere|command/ then "command-a-03-2025"
                                     when /gemini|google/ then "gemini-2.0-flash"

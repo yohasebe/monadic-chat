@@ -703,7 +703,7 @@ class MonadicApp
     # Default model based on provider
     provider_defaults = {
       "openai" => "gpt-4.1",
-      "anthropic" => "claude-sonnet-4-20250514",
+      "anthropic" => "claude-sonnet-4-5-20250929",
       "cohere" => "command-a-03-2025",
       "gemini" => "gemini-2.5-flash",
       "mistral" => "mistral-large-latest",

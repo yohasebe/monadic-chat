@@ -1,6 +1,17 @@
+require_relative 'progress_broadcaster'
+
 module VideoAnalyzeAgent
+  include Monadic::Agents::ProgressBroadcaster
+
   def analyze_video(file:, fps: 1, query: nil)
     return "Error: file is required." if file.to_s.empty?
+
+    # Send initial progress message
+    force_progress_message(
+      message: "Analyzing video content",
+      app_name: "VideoAnalyzer",
+      i18n_key: "videoAnalyzing"
+    ) rescue nil
 
     split_command = <<~CMD
       bash -c 'extract_frames.py "#{file}" ./ --fps #{fps} --format png --json --audio'

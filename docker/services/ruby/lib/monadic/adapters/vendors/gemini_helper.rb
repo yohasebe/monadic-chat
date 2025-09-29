@@ -39,12 +39,15 @@ require_relative "../../utils/system_defaults"
 #    - Function calls not working: Add reasoning_effort: minimal
 #    - Tool call limits: Separate info tools from action tools
 #
+require_relative '../../agents/progress_broadcaster'
+
 module GeminiHelper
   include BaseVendorHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
   include MonadicProviderInterface
+  include Monadic::Agents::ProgressBroadcaster
   include MonadicSchemaValidator
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
@@ -2734,16 +2737,25 @@ module GeminiHelper
     require 'json'
     require 'base64'
     require 'tempfile'
-    
+
     begin
       api_key = CONFIG["GEMINI_API_KEY"]
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
-      
+
       # For editing operations, force use of Gemini model (Imagen3 doesn't support editing)
       if operation == "edit"
         model = "gemini"
       end
-      
+
+      # Send progress message for image generation
+      if respond_to?(:force_progress_message)
+        force_progress_message(
+          message: "Generating image with #{model == 'imagen3' ? 'Imagen 3' : 'Gemini'}",
+          app_name: "ImageGenerator",
+          i18n_key: "imageGenerating"
+        ) rescue nil
+      end
+
       # If Imagen 3 is selected for generation, use direct API implementation
       if model == "imagen3" && operation == "generate"
         return generate_image_with_imagen_direct(prompt: prompt)

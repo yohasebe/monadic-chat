@@ -52,6 +52,44 @@ module Monadic
         )
       end
 
+      # Force send progress message immediately
+      # Use this when you need to ensure a progress message is shown
+      # @param message [String] The message to send
+      # @param app_name [String] Application name
+      # @param i18n_key [String, nil] Optional i18n key for localization
+      def force_progress_message(message:, app_name: nil, i18n_key: nil)
+        progress_data = {
+          "type" => "wait",
+          "content" => message,
+          "source" => app_name || self.class.name.split('::').last,
+          "minutes" => 0
+        }
+
+        # Add i18n data if provided
+        if i18n_key
+          progress_data["i18n"] = { i18n_key => true }
+        end
+
+        # Try all available methods to send the message
+        if defined?(::WebSocketHelper)
+          helper = ::WebSocketHelper
+          if helper.respond_to?(:send_progress_fragment)
+            session_id = Thread.current[:websocket_session_id]
+            helper.send_progress_fragment(progress_data, session_id)
+
+            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+              puts "[ProgressBroadcaster] Forced progress message sent: #{message}"
+            end
+            return true
+          end
+        end
+
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "[ProgressBroadcaster] Warning: Could not force send progress message"
+        end
+        false
+      end
+
       # Execute block with progress tracking
       # @param app_name [String] Application name
       # @param message [String] Progress message

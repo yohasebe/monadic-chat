@@ -72,10 +72,17 @@ module Monadic
           }
         end
 
+        # Always send immediate progress notification
+        # This ensures users see feedback even for quick operations
+        initial_message = "Delegating to Grok-Code agent for code generation"
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "[GrokCodeAgent] Sending initial progress: #{initial_message}"
+        end
+
         # Execute with progress tracking
         with_progress_tracking(
           app_name: app_name || "GrokCode",
-          message: "Grok-Code is generating code",
+          message: initial_message,
           interval: 30,  # Grok-Code is relatively fast, so 30 second interval
           timeout: actual_timeout,
           i18n_key: "grokCodeGenerating",

@@ -40,6 +40,16 @@ module CodeInterpreterGrokTools
 
   # Call Grok-Code agent for complex Python code generation tasks
   def grok_code_agent(task:, current_code: nil, error_context: nil)
+    # Immediately send progress notification when tool is called
+    # This provides instant feedback to the user
+    if respond_to?(:force_progress_message)
+      force_progress_message(
+        message: "Delegating to Grok-Code specialist agent",
+        app_name: "GrokCode",
+        i18n_key: "grokCodeDelegating"
+      )
+    end
+
     # Debug logging for progress tracking
     if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       puts "[CodeInterpreterGrokTools] Starting grok_code_agent"

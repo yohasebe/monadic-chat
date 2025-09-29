@@ -69,6 +69,9 @@ module Monadic
           progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
 
           if block_given? && actual_timeout > 120 && progress_enabled
+            # Send initial progress message immediately (no elapsed time)
+            send_initial_progress_message(app_name: app_name, &block)
+
             progress_thread = start_progress_thread(
               actual_timeout: actual_timeout,
               interval: progress_interval,
@@ -293,6 +296,29 @@ module Monadic
       end
 
       private
+
+      # Send initial progress message when GPT-5-Codex starts
+      def send_initial_progress_message(app_name:, &block)
+        return unless block_given?
+
+        # Prepare i18n data for initial message
+        progress_data = {
+          "type" => "wait",
+          "content" => "GPT-5-Codex is generating code",
+          "source" => "GPT5CodexAgent",
+          "minutes" => 0,  # 0 means initial message, no elapsed time
+          "i18n" => {
+            "gpt5CodexGenerating" => true
+          }
+        }
+
+        # Send via block callback
+        block.call(progress_data)
+      rescue => e
+        if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[GPT5CodexAgent] Error sending initial progress: #{e.message}"
+        end
+      end
 
       # Get the message content field name that api_request expects
       # Current Monadic Chat uses "text" field internally

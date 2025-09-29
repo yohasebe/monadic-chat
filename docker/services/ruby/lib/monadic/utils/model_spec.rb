@@ -182,7 +182,11 @@ module Monadic
         def supports_thinking?(model_name)
           get_model_property(model_name, "supports_thinking") == true
         end
-        
+
+        def supports_context_management?(model_name)
+          get_model_property(model_name, "supports_context_management") == true
+        end
+
         def responses_api?(model_name)
           get_model_property(model_name, "api_type") == "responses"
         end

@@ -642,6 +642,49 @@ module ClaudeHelper
       "model" => obj["model"],
       "stream" => supports_streaming
     }
+
+    # Add context management for supported models
+    begin
+      supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
+      if supports_context_management && role != "tool"
+        # Default context management configuration
+        # Trigger at 100K tokens, keep 5 recent tool uses, clear at least 10K tokens
+        body["context_management"] = {
+          "edits" => [
+            {
+              "type" => "clear_tool_uses_20250919",
+              "trigger" => {
+                "type" => "input_tokens",
+                "value" => 100000
+              },
+              "keep" => {
+                "type" => "tool_uses",
+                "value" => 5
+              },
+              "clear_at_least" => {
+                "type" => "input_tokens",
+                "value" => 10000
+              }
+            }
+          ]
+        }
+
+        # Add beta header for context management
+        headers["anthropic-beta"] ||= []
+        headers["anthropic-beta"] = Array(headers["anthropic-beta"])
+        unless headers["anthropic-beta"].include?("context-management-2025-06-27")
+          headers["anthropic-beta"] << "context-management-2025-06-27"
+        end
+        headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
+      end
+    rescue StandardError => e
+      # Log error but continue without context management
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude: Failed to check context management support: #{e.message}")
+        extra_log.close
+      end
+    end
     
     if budget_tokens
       body["max_tokens"] = max_tokens

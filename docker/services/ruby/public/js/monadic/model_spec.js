@@ -523,7 +523,8 @@ const modelSpec = {
     },
     "supports_web_search": true,
     "supports_pdf": true,
-    "supports_streaming": true
+    "supports_streaming": true,
+    "supports_context_management": true
   },
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
@@ -540,6 +541,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_streaming": true,
+    "supports_context_management": true,
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
       "pdfs-2024-09-25"
@@ -560,6 +562,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_streaming": true,
+    "supports_context_management": true,
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
       "pdfs-2024-09-25"
@@ -580,13 +583,11 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_streaming": true,
+    "supports_context_management": true,
     "context_awareness": true,
-    "memory_tool": true,
-    "context_editing": true,
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25",
-      "context-management-2025-06-27"
+      "pdfs-2024-09-25"
     ]
   },
   "claude-3-7-sonnet-20250219": {

@@ -48,9 +48,6 @@ module Monadic
           actual_timeout = timeout || GPT5_CODEX_DEFAULT_TIMEOUT
           actual_timeout = GPT5_CODEX_DEFAULT_TIMEOUT unless actual_timeout.is_a?(Integer) && actual_timeout > 0
 
-          # Initialize progress thread variable at proper scope
-          progress_thread = nil
-
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
             puts "[GPT5CodexAgent] ========== TIMING START =========="
@@ -129,7 +126,6 @@ module Monadic
               puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
             end
 
-          begin
             require 'timeout'
 
             begin
@@ -156,7 +152,6 @@ module Monadic
                 success: false
               }
             end
-          end  # End of with_progress_tracking block
 
           # Parse the response
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -235,11 +230,9 @@ module Monadic
               success: false
             }
           end
+        end  # End of with_progress_tracking block
 
         rescue StandardError => e
-          # Ensure thread cleanup even on exceptions
-          cleanup_progress_thread(progress_thread) if progress_thread
-
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             puts "[GPT5CodexAgent] EXCEPTION: #{e.class} - #{e.message}"
             puts "[GPT5CodexAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"

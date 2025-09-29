@@ -565,6 +565,30 @@ const modelSpec = {
       "pdfs-2024-09-25"
     ]
   },
+  "claude-sonnet-4-5-20250929": {
+    "context_window" : [1, 1000000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 64000], 64000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "context_awareness": true,
+    "memory_tool": true,
+    "context_editing": true,
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25",
+      "context-management-2025-06-27"
+    ]
+  },
   "claude-3-7-sonnet-20250219": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",

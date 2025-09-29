@@ -7,7 +7,7 @@ module Monadic
     module ClaudeOpusAgent
       include ClaudeHelper
 
-      CLAUDE_MODEL = 'claude-opus-4-1-20250805'.freeze
+      CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'.freeze
 
       def claude_opus_agent(prompt, app_name = 'ClaudeOpusAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
         progress_payload = {

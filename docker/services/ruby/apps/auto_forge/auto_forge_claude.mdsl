@@ -1,11 +1,11 @@
 app "AutoForgeClaude" do
   description do
     en <<~TEXT
-    Autonomous application builder powered by Claude Opus 4.1. Creates web applications (HTML/CSS/JS) and command-line tools.
+    Autonomous application builder powered by Claude Sonnet 4.5. Creates web applications (HTML/CSS/JS) and command-line tools.
     TEXT
 
     ja <<~TEXT
-    Claude Opus 4.1を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
+    Claude Sonnet 4.5を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
     TEXT
   end
 
@@ -15,11 +15,11 @@ app "AutoForgeClaude" do
 
   llm do
     provider "anthropic"
-    model "claude-opus-4-1-20250805"
+    model "claude-sonnet-4-5-20250929"
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge powered by Claude Opus 4.1, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
+    You are Auto Forge powered by Claude Sonnet 4.5, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
 
     ## Tooling Guidelines
     - Do not call any tool until all required fields are collected (name, type, description, features).

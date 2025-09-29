@@ -31,11 +31,12 @@ RUN if [ "$IMGOPT_IMAGEMAGICK" = "true" ]; then \
 # Optional: LaTeX minimal set for Concept Visualizer / Syntax Tree
 RUN if [ "$INSTALL_LATEX" = "true" ]; then \
       apt-get update && apt-get install -y --no-install-recommends \
-        texlive-xetex texlive-latex-base texlive-fonts-recommended \
-        texlive-latex-extra texlive-pictures texlive-lang-cjk latex-cjk-all \
-        texlive-science texlive-pstricks texlive-latex-recommended \
-        texlive-fonts-extra texlive-plain-generic \
-        pdf2svg dvisvgm && \
+        texlive-xetex texlive-luatex texlive-latex-base texlive-latex-recommended \
+        texlive-latex-extra texlive-pictures \
+        texlive-fonts-recommended texlive-fonts-extra texlive-plain-generic \
+        texlive-lang-cjk latex-cjk-all texlive-lang-japanese \
+        texlive-science texlive-pstricks \
+        latexmk ghostscript dvisvgm pdf2svg && \
       fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*; \
     fi
 

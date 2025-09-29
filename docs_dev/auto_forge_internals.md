@@ -2,7 +2,7 @@
 
 ## Overview
 
-AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5's orchestration capabilities with GPT-5-Codex's code generation expertise.
+AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5 or Claude Opus orchestration with provider-specific code generation (GPT-5-Codex or Claude Opus).
 
 ## Architecture
 
@@ -11,12 +11,12 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 ```
 ┌─────────────────────────────────────┐
 │         MDSL Framework              │
-│     (auto_forge_openai.mdsl)        │
+│ (auto_forge_openai/claude.mdsl)     │
 └────────────┬────────────────────────┘
              │
 ┌────────────▼────────────────────────┐
 │      Orchestration Layer            │
-│         (GPT-5 via Chat API)        │
+│   (GPT-5 / Claude Opus via API)     │
 │   - User interaction                │
 │   - Planning & coordination         │
 │   - Tool invocation                 │
@@ -33,24 +33,24 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
              │
 ┌────────────▼────────────────────────┐
 │    Code Generation Layer            │
-│  (GPT-5-Codex via Responses API)    │
-│   - HTML/CSS/JS generation          │
-│   - via GPT5CodexAgent              │
+│ (GPT-5-Codex / Claude Opus API)     │
+│   - HTML/CSS/JS/CLI generation      │
+│   - via provider agents             │
 └─────────────────────────────────────┘
 ```
 
 ### Key Components
 
-#### 1. MDSL Configuration (`auto_forge_openai.mdsl`)
-- Defines the app interface and system prompt
-- Configures available models (GPT-5, GPT-5-Codex, GPT-4.1)
-- Registers tool methods
-- Uses Chat Completions API for orchestration
+#### 1. MDSL Configuration (`auto_forge_openai.mdsl`, `auto_forge_claude.mdsl`)
+- Defines the app interface and system prompt for each provider
+- Configures available models (GPT-5/GPT-5-Codex for OpenAI, Claude Opus 4.1 for Claude)
+- Registers tool methods, including `generate_additional_file`
+- Uses the provider's chat/responses API for orchestration
 
 #### 2. Tool Methods (`auto_forge_tools.rb`)
 - Implements the core logic for each tool
-- Includes `GPT5CodexAgent` module for code generation
-- Handles project management and file I/O
+- Includes `GPT5CodexAgent` and `ClaudeOpusAgent` for provider-specific code generation
+- Handles project management, optional CLI asset generation, and file I/O
 - Coordinates between orchestration and code generation
 
 #### 3. Application Logic (`auto_forge.rb`)
@@ -75,32 +75,33 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 - Selenium integration
 - JavaScript error detection
 - Performance metrics collection
-- Functionality testing
+- Functionality testing (web apps only, with retry + log filtering)
 
 ## API Usage Patterns
 
 ### Model Selection Logic
 
 ```ruby
-# Orchestration uses models from MDSL (GPT-5 or GPT-5-Codex)
-# Both use Responses API automatically when detected by OpenAIHelper
+# Orchestration uses models from MDSL (GPT-5/GPT-5-Codex for OpenAI, Claude Opus for Claude)
+# Provider helpers route to the correct Responses API automatically.
 
-# Code generation always uses GPT-5-Codex via dedicated agent
-call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
+# Code generation is delegated to the provider-specific agent
+call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')          # OpenAI
+claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
 ```
 
 ### Responses API vs Chat API
 
 1. **Orchestration (MDSL)**:
-   - Uses model specified in MDSL
-   - OpenAIHelper automatically routes to Responses API for GPT-5/GPT-5-Codex
-   - Handles tool calls and structured responses
+   - Uses models specified per app (`auto_forge_openai` vs `auto_forge_claude`)
+   - Provider helpers (OpenAIHelper / ClaudeHelper) handle API routing
+   - Manages tool calls and structured responses
 
-2. **Code Generation (GPT5CodexAgent)**:
-   - Always uses GPT-5-Codex
-   - Direct Responses API call via `/v1/responses`
-   - No temperature/sampling parameters
-   - Adaptive reasoning for complex code
+2. **Code Generation (Provider Agents)**:
+   - GPT-5-Codex via `GPT5CodexAgent` for OpenAI
+   - Claude Opus via `ClaudeOpusAgent` for Claude
+   - Both use the provider's Responses API with deterministic parameters
+   - Shared prompt builders and output sanitizers ensure consistent artifacts
 
 ## File Management
 
@@ -133,6 +134,24 @@ call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
 }
 ```
 
+## Provider Variants & Progress Broadcasting
+
+- Two MDSL apps wrap the shared tool layer: `auto_forge_openai` (GPT-5 orchestration + GPT-5-Codex generation) and `auto_forge_claude` (Claude Opus 4.1 orchestration + generation).
+- `Monadic::Agents::ClaudeOpusAgent` mirrors the GPT-5-Codex contract by emitting `wait` fragments with `source: "ClaudeOpusAgent"` so the WebSocket layer can stream updates into the temp card.
+- Progress fragments optionally include `minutes`/`remaining` values; when missing, the UI still displays provider-specific status text.
+- Web UI translation keys (`claudeOpusGenerating`, etc.) were added for every locale to keep progress messages localized.
+
+### CLI Optional File Suggestions
+
+- `suggest_cli_additional_files` inspects the generated script to decide which optional files to offer:
+  - README is suggested only when a README is absent.
+  - Config templates trigger when the script references config parsers (`configparser`, YAML, `--config`, etc.).
+  - Dependency manifests are offered when imports go beyond the per-language standard library set defined in `standard_libraries`.
+  - Usage examples (USAGE.md) are suggested when argument parsing libraries (argparse, OptionParser, click, etc.) are detected.
+  - A “custom asset” entry is always included to remind the orchestrator that arbitrary files can be generated on demand.
+- `generate_additional_file` re-validates project context (project path, type, and main file) before writing to disk.
+- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through the provider agent (`codex_callback`, `call_gpt5_codex`, or `claude_opus_agent`) using a rich prompt that includes the main script excerpt and existing files.
+
 ## Error Handling
 
 ### Common Error Patterns
@@ -145,7 +164,7 @@ call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
 2. **Generation Errors**:
    - Placeholder HTML (173 bytes) → Mock generator conflict (resolved)
    - Empty response → Timeout or API issues
-   - Long generation time → Normal for GPT-5-Codex (2-5 minutes)
+   - Long generation time → Normal for GPT-5-Codex / Claude Opus (2-5 minutes)
 
 3. **File System Errors**:
    - Unicode project names → Fixed with proper encoding
@@ -184,7 +203,7 @@ call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
 
 ## Performance Considerations
 
-### GPT-5-Codex Timing
+### Generation Timing
 - Simple apps: 30-60 seconds
 - Medium complexity: 1-3 minutes
 - Complex apps: 2-5 minutes
@@ -194,7 +213,7 @@ call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
 1. Reuse existing content for modifications
 2. Cache project lookups
 3. Parallel tool execution where possible
-4. Minimal prompt size for GPT-5-Codex
+4. Keep prompts concise to reduce generation time across providers
 
 ## Testing
 
@@ -205,6 +224,10 @@ call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')
 - Context persistence
 - File operations
 - Error handling
+
+# spec/unit/apps/auto_forge/auto_forge_cli_additional_files_spec.rb
+- CLI optional file suggestion heuristics
+- Additional file generation guardrails
 ```
 
 ### Integration Tests

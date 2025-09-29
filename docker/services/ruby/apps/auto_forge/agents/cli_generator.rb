@@ -15,21 +15,31 @@ module AutoForge
 
       def generate(prompt:, app_name: 'CLI Tool', &block)
         full_prompt = build_generation_prompt(prompt)
+        agent = (@context[:agent] || :openai).to_sym
+        agent_name = agent == :claude ? 'ClaudeOpusAgent' : app_name
 
-        # Use same pattern as HtmlGenerator
-        if @codex_callback
-          # Use the callback with proper interface
-          result = @codex_callback.call(full_prompt, app_name, &block)
-        elsif @app_instance && @app_instance.respond_to?(:call_gpt5_codex)
-          # Direct call with proper interface
-          result = @app_instance.call_gpt5_codex(
-            prompt: full_prompt,
-            app_name: app_name,
-            &block
-          )
-        else
-          return { success: false, error: "No GPT-5-Codex access available" }
-        end
+        result =
+          if agent == :claude
+            if @codex_callback
+              @codex_callback.call(full_prompt, agent_name, &block)
+            elsif @app_instance && @app_instance.respond_to?(:claude_opus_agent)
+              @app_instance.claude_opus_agent(full_prompt, agent_name, &block)
+            else
+              return { success: false, error: "No Claude Opus access available" }
+            end
+          else
+            if @codex_callback
+              @codex_callback.call(full_prompt, agent_name, &block)
+            elsif @app_instance && @app_instance.respond_to?(:call_gpt5_codex)
+              @app_instance.call_gpt5_codex(
+                prompt: full_prompt,
+                app_name: agent_name,
+                &block
+              )
+            else
+              return { success: false, error: "No GPT-5-Codex access available" }
+            end
+          end
 
         # Process result (same format as HtmlGenerator)
         process_codex_response(result)

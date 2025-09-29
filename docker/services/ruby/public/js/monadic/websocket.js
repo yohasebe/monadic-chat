@@ -1927,6 +1927,7 @@ let loadedApp = "Chat";
         const isAgentProgress = (
           data["source"] && (
             data["source"] === "GPT5CodexAgent" ||
+            data["source"] === "ClaudeOpusAgent" ||
             data["source"] === "GrokCode" ||
             data["source"] === "ImageGenerator" ||
             data["source"] === "VideoAnalyzer" ||
@@ -1945,10 +1946,11 @@ let loadedApp = "Chat";
             const minutes = data["minutes"];
             const remaining = data["remaining"];
             let messageKey;
+            let iconHtml = '<i class="fas fa-laptop-code"></i>';
 
             // Select appropriate message based on agent source and time elapsed
-            // For GPT-5-Codex, use specific messages
             if (data["source"] === "GPT5CodexAgent") {
+              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
               if (minutes <= 1) {
                 messageKey = 'gpt5CodexGenerating';
               } else if (minutes <= 2) {
@@ -1959,6 +1961,19 @@ let loadedApp = "Chat";
                 messageKey = 'gpt5CodexOptimizing';
               } else {
                 messageKey = 'gpt5CodexFinalizing';
+              }
+            } else if (data["source"] === "ClaudeOpusAgent") {
+              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
+              if (minutes <= 1) {
+                messageKey = 'claudeOpusGenerating';
+              } else if (minutes <= 2) {
+                messageKey = 'claudeOpusStructuring';
+              } else if (minutes <= 3) {
+                messageKey = 'claudeOpusAnalyzing';
+              } else if (minutes <= 4) {
+                messageKey = 'claudeOpusOptimizing';
+              } else {
+                messageKey = 'claudeOpusFinalizing';
               }
             } else {
               // For other agents, use generic progress messages
@@ -1978,10 +1993,10 @@ let loadedApp = "Chat";
             if (minutes > 0) {
               const elapsedText = getTranslation('ui.messages.elapsedTime', '{minutes} minute(s) elapsed')
                 .replace('{minutes}', minutes);
-              displayContent = `<i class="fas fa-laptop-code"></i> ${localizedMessage} (${elapsedText})`;
+              displayContent = `${iconHtml} ${localizedMessage} (${elapsedText})`;
             } else {
               // Initial message without elapsed time
-              displayContent = `<i class="fas fa-laptop-code"></i> ${localizedMessage}`;
+              displayContent = `${iconHtml} ${localizedMessage}`;
             }
 
             // Add remaining time only when approaching timeout (less than 5 minutes remaining)
@@ -1993,7 +2008,13 @@ let loadedApp = "Chat";
             displayContent += '...';
           } else if (!waitContent.includes('<i class="fas')) {
             // Add icon if not already present in fallback content
-            displayContent = `<i class="fas fa-laptop-code"></i> ${waitContent}`;
+            let iconHtml = '<i class="fas fa-laptop-code"></i>';
+            if (data["source"] === "GPT5CodexAgent") {
+              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
+            } else if (data["source"] === "ClaudeOpusAgent") {
+              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
+            }
+            displayContent = `${iconHtml} ${waitContent}`;
           }
 
           // Display agent progress in streaming temp card
@@ -2016,8 +2037,8 @@ let loadedApp = "Chat";
             $("#discourse").append(tempCard);
           }
 
-          // Update the temp card with the progress message (using normal text color)
-          $("#temp-card .card-text").html(`<div class="alert mb-0" style="background-color: #f8f9fa; border-color: #dee2e6; color: inherit;">${displayContent}</div>`);
+          // Update the temp card with the progress message using the card's standard text styling
+          $("#temp-card .card-text").html(`<div class="mb-0" style="color: inherit;">${displayContent}</div>`);
           $("#temp-card").show();
         } else {
           // Regular wait messages go to status-message

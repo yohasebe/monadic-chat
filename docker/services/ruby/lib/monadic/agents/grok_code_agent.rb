@@ -4,12 +4,9 @@
 # This module provides a common implementation for apps that need to
 # delegate complex coding tasks to Grok-Code-Fast-1 via the xAI API.
 
-require_relative 'progress_broadcaster'
-
 module Monadic
   module Agents
     module GrokCodeAgent
-      include ProgressBroadcaster
       # Check if the user has access to Grok-Code model
       # @return [Boolean] true if Grok-Code is available
       def has_grok_code_access?
@@ -35,133 +32,111 @@ module Monadic
       # @param prompt [String] The complete prompt to send to Grok-Code
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
-      # @param block [Proc] Block to call with progress updates (optional)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_grok_code(prompt:, app_name: nil, timeout: nil, &block)
-        # Set timeout value
-        actual_timeout = timeout || GROK_CODE_DEFAULT_TIMEOUT
+      def call_grok_code(prompt:, app_name: nil, timeout: nil)
+        begin
+          # Set timeout value
+          actual_timeout = timeout || GROK_CODE_DEFAULT_TIMEOUT
 
-        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          app_label = app_name || self.class.name
-          puts "[GrokCodeAgent] EventMachine reactor: #{EventMachine.reactor_running? rescue 'unknown'}"
-          puts "[GrokCodeAgent] WebSocket session: #{Thread.current[:websocket_session_id] || 'none'}"
-          puts "[GrokCodeAgent] Calling Grok-Code agent"
-          puts "[GrokCodeAgent] App: #{app_label}"
-          puts "[GrokCodeAgent] Prompt length: #{prompt.length} chars"
-          puts "[GrokCodeAgent] Timeout: #{actual_timeout} seconds"
-          puts "[GrokCodeAgent] Block provided: #{block_given?}"
-        end
+          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            app_label = app_name || self.class.name
+            puts "#{app_label}: Calling Grok-Code agent"
+            puts "Prompt length: #{prompt.length} chars"
+            puts "Timeout: #{actual_timeout} seconds"
+          end
 
-        # Check if we have the necessary methods (from GrokHelper or compatible module)
-        unless respond_to?(:api_request)
-          return {
-            error: "GrokHelper not available",
-            success: false
-          }
-        end
-
-        # Check if user has access to Grok-Code
-        unless has_grok_code_access?
-          # Provide user-friendly error message with fallback option
-          error_message = build_access_error_message(app_name)
-          return {
-            error: error_message[:error],
-            suggestion: error_message[:suggestion],
-            fallback: error_message[:fallback],
-            success: false
-          }
-        end
-
-        # Always send immediate progress notification
-        # This ensures users see feedback even for quick operations
-        initial_message = "Delegating to Grok-Code agent for code generation"
-        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          puts "[GrokCodeAgent] Sending initial progress: #{initial_message}"
-        end
-
-        # Execute with progress tracking
-        with_progress_tracking(
-          app_name: app_name || "GrokCode",
-          message: initial_message,
-          interval: 30,  # Grok-Code is relatively fast, so 30 second interval
-          timeout: actual_timeout,
-          i18n_key: "grokCodeGenerating",
-          progress_callback: block
-        ) do
-          begin
-            # Create a proper session object for the API call using abstraction layer
-            session = build_session(prompt: prompt, model: "grok-code-fast-1")
-
-            # Call api_request with timeout handling
-            results = nil
-            begin
-              require 'timeout'
-              Timeout::timeout(actual_timeout) do
-                results = api_request("user", session, call_depth: 0)
-              end
-            rescue Timeout::Error
-              return {
-                error: "Grok-Code request timed out after #{actual_timeout} seconds",
-                suggestion: "The task may be too complex. Try breaking it into smaller parts.",
-                timeout: true,
-                success: false
-              }
-            end
-
-              # Parse the response
-            if results && results.is_a?(Array) && results.first
-              response = results.first
-
-              # Check if response contains an error (from API)
-              if response.is_a?(Hash) && (response["error"] || response[:error])
-                error_msg = response["error"] || response[:error]
-                return {
-                  error: error_msg,
-                  success: false
-                }
-              end
-
-              # Check if response is an API error string
-              if response.is_a?(String) && response.include?("[xAI] API Error:")
-                return {
-                  error: response,
-                  success: false
-                }
-              end
-
-              content = if response.is_a?(Hash)
-                          response["content"] || response[:content] || response.dig("choices", 0, "message", "content")
-                        else
-                          response.to_s
-                        end
-
-              # Check if we actually got content
-              if content.nil? || content.to_s.strip.empty?
-                return {
-                  error: "Grok-Code returned empty response",
-                  success: false
-                }
-              end
-
-              {
-                code: content,
-                success: true,
-                model: "grok-code-fast-1"
-              }
-            else
-              {
-                error: "No response from Grok-Code",
-                success: false
-              }
-            end
-
-          rescue StandardError => e
-            {
-              error: "Error calling Grok-Code: #{e.message}",
-              suggestion: "Try breaking the task into smaller pieces",
+          # Check if we have the necessary methods (from GrokHelper or compatible module)
+          unless respond_to?(:api_request)
+            return {
+              error: "GrokHelper not available",
               success: false
             }
           end
+
+          # Check if user has access to Grok-Code
+          unless has_grok_code_access?
+            # Provide user-friendly error message with fallback option
+            error_message = build_access_error_message(app_name)
+            return {
+              error: error_message[:error],
+              suggestion: error_message[:suggestion],
+              fallback: error_message[:fallback],
+              success: false
+            }
+          end
+
+          # Create a proper session object for the API call using abstraction layer
+          session = build_session(prompt: prompt, model: "grok-code-fast-1")
+
+          # Call api_request with timeout handling
+          results = nil
+          begin
+            require 'timeout'
+            Timeout::timeout(actual_timeout) do
+              results = api_request("user", session, call_depth: 0)
+            end
+          rescue Timeout::Error
+            return {
+              error: "Grok-Code request timed out after #{actual_timeout} seconds",
+              suggestion: "The task may be too complex. Try breaking it into smaller parts.",
+              timeout: true,
+              success: false
+            }
+          end
+
+          # Parse the response
+          if results && results.is_a?(Array) && results.first
+            response = results.first
+
+            # Check if response contains an error (from API)
+            if response.is_a?(Hash) && (response["error"] || response[:error])
+              error_msg = response["error"] || response[:error]
+              return {
+                error: error_msg,
+                success: false
+              }
+            end
+
+            # Check if response is an API error string
+            if response.is_a?(String) && response.include?("[xAI] API Error:")
+              return {
+                error: response,
+                success: false
+              }
+            end
+
+            content = if response.is_a?(Hash)
+                        response["content"] || response[:content] || response.dig("choices", 0, "message", "content")
+                      else
+                        response.to_s
+                      end
+
+            # Check if we actually got content
+            if content.nil? || content.to_s.strip.empty?
+              return {
+                error: "Grok-Code returned empty response",
+                success: false
+              }
+            end
+
+            {
+              code: content,
+              success: true,
+              model: "grok-code-fast-1"
+            }
+          else
+            {
+              error: "No response from Grok-Code",
+              success: false
+            }
+          end
+
+        rescue StandardError => e
+          {
+            error: "Error calling Grok-Code: #{e.message}",
+            suggestion: "Try breaking the task into smaller pieces",
+            success: false
+          }
         end
       end
 

@@ -1,0 +1,51 @@
+app "AutoForgeClaude" do
+  description do
+    en <<~TEXT
+    Autonomous application builder powered by Claude Opus 4.1. Creates web applications (HTML/CSS/JS) and command-line tools.
+    TEXT
+
+    ja <<~TEXT
+    Claude Opus 4.1を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
+    TEXT
+  end
+
+  icon "hammer"
+  display_name "Auto Forge"
+  initiate_from_assistant true
+
+  llm do
+    provider "anthropic"
+    model "claude-opus-4-1-20250805"
+  end
+
+  system_prompt <<~TEXT
+    You are Auto Forge powered by Claude Opus 4.1, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
+
+    ## Tooling Guidelines
+    - Do not call any tool until all required fields are collected (name, type, description, features).
+    - Use generate_application for the primary artifact only once per specification.
+    - After generating a CLI project, offer generate_additional_file only when the file would be genuinely useful (e.g., README for usage, requirements when dependencies exist, config when the tool needs customization). Do not suggest unnecessary files.
+    - Offer Selenium-based debugging exclusively for HTML/CSS/JavaScript web applications.
+  TEXT
+
+  tools do
+    define_tool "generate_application", "Generate a complete application" do
+      parameter :spec, "object", "Application specification including name, type, description, and features", required: true
+    end
+
+    define_tool "validate_specification", "Validate the application specification" do
+      parameter :spec, "object", "Specification to validate", required: false
+    end
+
+    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    end
+
+    define_tool "debug_application", "Debug a generated web application using Selenium" do
+      parameter :spec, "object", "Specification with project name to debug", required: true
+    end
+
+    define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
+      parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+    end
+  end
+end

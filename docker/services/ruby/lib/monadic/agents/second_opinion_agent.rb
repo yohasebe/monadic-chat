@@ -1,19 +1,10 @@
 require_relative "../utils/system_defaults"
-require_relative 'progress_broadcaster'
 
 module SecondOpinionAgent
-  include Monadic::Agents::ProgressBroadcaster
 
   def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
-
-    # Send progress message
-    force_progress_message(
-      message: "Getting second opinion from #{target_provider}",
-      app_name: "SecondOpinion",
-      i18n_key: "secondOpinionProcessing"
-    ) rescue nil
     
     # Debug output to track the issue
     puts "SecondOpinionAgent DEBUG: Input provider=#{provider.inspect}, model=#{model.inspect}"

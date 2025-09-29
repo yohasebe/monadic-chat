@@ -6,7 +6,7 @@ Monadic Chat runs Python tools in `monadic-chat-python-container`. AI agents exe
 
 Use the Electron app “Actions → Install Options…” to choose optional components for the Python container:
 
-- LaTeX (minimal): Enables Concept Visualizer / Syntax Tree (only shown in UI when enabled)
+- LaTeX (with CJK support): Enables Concept Visualizer / Syntax Tree. Installs TeX Live (xelatex/luatex), CJK packages, ghostscript, dvisvgm/pdf2svg so Japanese/Chinese/Korean trees render out of the box (only shown in UI when enabled)
 - Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `scikit-learn`, `gensim`, `librosa`, `transformers`
 - Tools: ImageMagick (`convert`/`mogrify`)
 - Selenium toggle: When disabled and Tavily key exists, From URL uses Tavily; otherwise #url/#doc is hidden

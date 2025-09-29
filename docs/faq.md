@@ -251,7 +251,7 @@ Changes persist across container restarts with Method 1.
 
 ### Q: How do I enable LaTeX apps (Concept Visualizer / Syntax Tree)? :id=enable-latex
 
-**A**: Open `Actions → Install Options…` and enable LaTeX. These apps also require an OpenAI or Anthropic API key; otherwise they remain hidden.
+**A**: Open `Actions → Install Options…` and enable LaTeX. The rebuild pulls TeX Live (xelatex/luatex), dvisvgm/pdf2svg, Ghostscript, and CJK packages so Concept Visualizer / Syntax Tree can render Japanese/Chinese/Korean diagrams. These apps also require an OpenAI or Anthropic API key; otherwise they remain hidden.
 
 ### Q: Why are “From URL / #doc” buttons hidden? :id=url-doc-hidden
 

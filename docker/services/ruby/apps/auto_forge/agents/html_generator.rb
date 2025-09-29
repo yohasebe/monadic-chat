@@ -13,41 +13,59 @@ module AutoForge
         start_time = Time.now
         puts "[HTMLGenerator] Starting generation at #{start_time.strftime('%Y-%m-%d %H:%M:%S')}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-        # Get GPT-5-Codex access for code generation
+        agent = (@context[:agent] || :openai).to_sym
+
+        # Select appropriate code generation interface
         codex_caller = nil
 
-        # Method 1: Check if app_instance has the method
-        if @context[:app_instance] && @context[:app_instance].respond_to?(:call_gpt5_codex)
-          puts "[HTMLGenerator] Using app_instance for GPT-5-Codex" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-          codex_caller = @context[:app_instance]
-        # Method 2: Check if there's a codex_callback
-        elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
-          puts "[HTMLGenerator] Using codex_callback for GPT-5-Codex" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-          codex_caller = @context[:codex_callback]
+        if agent == :claude
+          if @context[:app_instance] && @context[:app_instance].respond_to?(:claude_opus_agent)
+            puts "[HTMLGenerator] Using app_instance for Claude Opus" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            codex_caller = @context[:app_instance]
+          elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
+            puts "[HTMLGenerator] Using codex_callback for Claude Opus" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            codex_caller = @context[:codex_callback]
+          end
+        else
+          if @context[:app_instance] && @context[:app_instance].respond_to?(:call_gpt5_codex)
+            puts "[HTMLGenerator] Using app_instance for GPT-5-Codex" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            codex_caller = @context[:app_instance]
+          elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
+            puts "[HTMLGenerator] Using codex_callback for GPT-5-Codex" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            codex_caller = @context[:codex_callback]
+          end
         end
 
         if codex_caller
           # Build appropriate prompt
           full_prompt = build_prompt(prompt, existing_content)
-          puts "[HTMLGenerator] Calling GPT-5-Codex with prompt length: #{full_prompt.length}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+          agent_name = agent == :claude ? 'Claude Opus' : 'GPT-5-Codex'
+          puts "[HTMLGenerator] Calling #{agent_name} with prompt length: #{full_prompt.length}" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-          # Call GPT-5-Codex through the proper method with block for progress updates
-          result = if codex_caller.respond_to?(:call_gpt5_codex)
-            codex_caller.call_gpt5_codex(
-              prompt: full_prompt,
-              app_name: 'AutoForgeOpenAI',
-              &block
-            )
-          else
-            # It's a callback - pass the block through
-            codex_caller.call(full_prompt, 'AutoForgeOpenAI', &block)
-          end
+          result =
+            if agent == :claude
+              if codex_caller.respond_to?(:claude_opus_agent)
+                codex_caller.claude_opus_agent(full_prompt, 'ClaudeOpusAgent', &block)
+              else
+                codex_caller.call(full_prompt, 'ClaudeOpusAgent', &block)
+              end
+            else
+              if codex_caller.respond_to?(:call_gpt5_codex)
+                codex_caller.call_gpt5_codex(
+                  prompt: full_prompt,
+                  app_name: 'AutoForgeOpenAI',
+                  &block
+                )
+              else
+                codex_caller.call(full_prompt, 'AutoForgeOpenAI', &block)
+              end
+            end
 
           end_time = Time.now
           duration = end_time - start_time
-          puts "[HTMLGenerator] GPT-5-Codex returned at #{end_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[HTMLGenerator] #{agent_name} returned at #{end_time.strftime('%Y-%m-%d %H:%M:%S')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
           puts "[HTMLGenerator] Generation took #{duration.round(2)} seconds" if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[HTMLGenerator] GPT-5-Codex result: #{result.inspect[0..500]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[HTMLGenerator] #{agent_name} result: #{result.inspect[0..500]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
           if result && result[:success]
             code = result[:code]
@@ -76,15 +94,17 @@ module AutoForge
             elsif result && result[:timeout]
               "GPT-5-Codex request timed out. The task may be too complex."
             else
-              "GPT-5-Codex generation failed"
+              agent == :claude ? "Claude Opus generation failed" : "GPT-5-Codex generation failed"
             end
             return { mode: :error, error: error_msg, details: result }
           end
         else
-          puts "[HTMLGenerator] No app_instance or call_gpt5_codex not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[HTMLGenerator] app_instance: #{@context[:app_instance].class}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[HTMLGenerator] responds to call_gpt5_codex: #{@context[:app_instance]&.respond_to?(:call_gpt5_codex)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-          return { mode: :error, error: "GPT-5-Codex integration not available", details: nil }
+          if CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[HTMLGenerator] No suitable code generation method available"
+            puts "[HTMLGenerator] agent: #{agent}, app_instance: #{@context[:app_instance].class if @context[:app_instance]}"
+          end
+          error_msg = agent == :claude ? "Claude Opus integration not available" : "GPT-5-Codex integration not available"
+          return { mode: :error, error: error_msg, details: nil }
         end
       end
 

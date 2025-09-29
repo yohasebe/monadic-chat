@@ -20,9 +20,9 @@ module AutoForge
         }
       end
 
-      # Check if Selenium container is available
-      unless selenium_available?
-        puts "[AutoForgeDebugger] Selenium not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      # Check if Selenium container is available (with retries)
+      unless ensure_selenium_available?
+        puts "[AutoForgeDebugger] Selenium not available after retries" if CONFIG && CONFIG["EXTRA_LOGGING"]
         return {
           success: false,
           error: "Selenium container is not available. Please ensure it's running."
@@ -53,6 +53,18 @@ module AutoForge
     end
 
     private
+
+    def ensure_selenium_available?(retries: 3, delay: 2)
+      retries.times do |attempt|
+        return true if selenium_available?
+
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          puts "[AutoForgeDebugger] Selenium check failed (attempt #{attempt + 1}/#{retries}), retrying in #{delay}s"
+        end
+        sleep delay
+      end
+      false
+    end
 
     def selenium_available?
       # Check if Selenium container is running
@@ -86,8 +98,7 @@ module AutoForge
         container_html_path = "/monadic/data/#{File.basename(temp_html)}"
       end
 
-      # Properly quote the path to handle spaces and special characters
-      command = "debug_html.py \"#{container_html_path}\" --json"
+      command = "debug_html.py #{container_html_path} --json"
 
       result = nil
       puts "[AutoForgeDebugger] Executing: #{command}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -97,8 +108,7 @@ module AutoForge
         output = send_command(command: command, container: "python")
       else
         # Fallback to direct docker exec (for standalone use)
-        # Also quote the path in direct docker command
-        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py \"#{container_html_path}\" --json"
+        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py #{container_html_path} --json"
         output = `#{docker_command} 2>&1`
       end
 
@@ -164,10 +174,27 @@ module AutoForge
         formatted[:summary] << "#{status} Page load time: #{load_time}ms"
       end
 
-      # Console logs (optional, only if verbose)
-      formatted[:console_logs] = result['console_logs'] if result['console_logs'] && !result['console_logs'].empty?
+      if result['console_logs'] && !result['console_logs'].empty?
+        filtered_logs = result['console_logs'].reject do |log|
+          log.to_s.include?("'WebDriver' object has no attribute 'get_log'")
+        end
+        formatted[:console_logs] = filtered_logs unless filtered_logs.empty?
+      end
 
-      # Viewport information
+      if result['warnings'] && !result['warnings'].empty?
+        filtered_warnings = result['warnings'].reject do |warning|
+          warning.to_s.include?("'WebDriver' object has no attribute 'get_log'")
+        end
+
+        if filtered_warnings.empty?
+          formatted.delete(:warnings)
+          formatted[:summary].reject! { |line| line.include?("warning") }
+          formatted[:summary] << "✅ No significant warnings" if result['warnings']
+        else
+          formatted[:warnings] = filtered_warnings
+        end
+      end
+
       formatted[:viewport] = result['viewport'] if result['viewport']
 
       formatted

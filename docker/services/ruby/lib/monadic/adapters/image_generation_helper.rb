@@ -1,8 +1,4 @@
-require_relative '../agents/progress_broadcaster'
-
 module MonadicHelper
-  include Monadic::Agents::ProgressBroadcaster
-
   # Adapter for OpenAI function generate_image
   # Accepts keyword args from function call: operation, model, prompt, images, mask, n, size, quality, output_format, background, output_compression
   def generate_image_with_openai(operation:, model:, prompt: nil, images: nil, mask: nil,
@@ -69,14 +65,6 @@ module MonadicHelper
     end
     
     cmd = parts.join(' ')
-
-    # Send progress message for image generation
-    force_progress_message(
-      message: "Generating image with #{model}",
-      app_name: "ImageGenerator",
-      i18n_key: "imageGenerating"
-    ) rescue nil
-
     send_command(command: cmd, container: "ruby")
   end
 
@@ -85,14 +73,7 @@ module MonadicHelper
     require 'json'
     
     command = "image_generator_grok.rb -p \"#{prompt}\""
-
-    # Send progress message for image generation
-    force_progress_message(
-      message: "Generating image with Grok",
-      app_name: "ImageGenerator",
-      i18n_key: "imageGenerating"
-    ) rescue nil
-
+    
     # Get the command output with its standard prefix
     result = send_command(command: command, container: "ruby")
     

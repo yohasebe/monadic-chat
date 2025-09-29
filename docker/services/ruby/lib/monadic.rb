@@ -1308,6 +1308,9 @@ configure do
   set :api_key, CONFIG["OPENAI_API_KEY"]
   set :elevenlabs_api_key, CONFIG["ELEVENLABS_API_KEY"]
   enable :cross_origin
+
+  # Configure headers for Electron WebView compatibility
+  set :protection, :except => [:frame_options]
   
   # Add MIME type for WebAssembly files
   mime_type :wasm, 'application/wasm'

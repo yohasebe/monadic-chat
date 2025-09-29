@@ -8,7 +8,6 @@ import argparse
 import json
 import sys
 import time
-import urllib.parse
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -50,9 +49,6 @@ def debug_html(html_path):
     driver = None
 
     try:
-        # Normalize and validate path
-        html_path = str(Path(html_path).resolve())
-
         # Check if file exists
         if not Path(html_path).exists():
             results['success'] = False
@@ -65,10 +61,9 @@ def debug_html(html_path):
         selenium_connect_time = time.time() - selenium_connect_start
         results['selenium_timing']['connect_time'] = round(selenium_connect_time, 2)
 
-        # Load the HTML file with proper URL encoding for special characters
+        # Load the HTML file
         page_load_start = time.time()
-        # Properly encode the file path for URL
-        file_url = "file://" + urllib.parse.quote(html_path, safe='/')
+        file_url = f"file://{html_path}"
         driver.get(file_url)
 
         # Wait for page to load
@@ -172,17 +167,10 @@ def debug_html(html_path):
 
     except WebDriverException as e:
         results['success'] = False
-        error_msg = f"WebDriver error: {str(e)}"
-        # Add helpful context for common issues
-        if "file://" in str(e):
-            error_msg += " (Note: File path may contain special characters)"
-        results['errors'].append(error_msg)
+        results['errors'].append(f"WebDriver error: {str(e)}")
     except Exception as e:
         results['success'] = False
-        error_msg = f"Unexpected error: {str(e)}"
-        # Add debugging info
-        error_msg += f" | HTML path: {html_path if 'html_path' in locals() else 'unknown'}"
-        results['errors'].append(error_msg)
+        results['errors'].append(f"Unexpected error: {str(e)}")
     finally:
         if driver:
             driver.quit()
@@ -200,23 +188,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Validate input
-    try:
-        # Strip any quotes that might have been included
-        html_path = args.html_path.strip('"').strip("'")
-    except Exception as e:
-        results = {
-            'success': False,
-            'errors': [f"Invalid path argument: {str(e)}"]
-        }
-        if args.json:
-            print(json.dumps(results, indent=2))
-        else:
-            print(f"ERROR: {results['errors'][0]}")
-        sys.exit(1)
-
     # Run debug
-    results = debug_html(html_path)
+    results = debug_html(args.html_path)
 
     # Output results
     if args.json:

@@ -62,7 +62,7 @@ For detailed setup instructions, see the [Web Interface](../basic-usage/web-inte
 
 From the app menu “Actions → Install Options…”, choose optional components for the Python container.
 
-- LaTeX (minimal): Enables Concept Visualizer / Syntax Tree (requires OpenAI or Anthropic key)
+- LaTeX (with TeX Live + CJK): Enables Concept Visualizer / Syntax Tree with built-in Japanese/Chinese/Korean support (requires OpenAI or Anthropic key)
 - Python libraries (CPU): `nltk`, `spacy (3.7.5)`, `scikit-learn`, `gensim`, `librosa`, `transformers`
 - Tools: ImageMagick (`convert`/`mogrify`)
 - Selenium: When enabled, uses Selenium as before. When disabled with a Tavily key, From URL uses Tavily. Otherwise, #url/#doc buttons are hidden.

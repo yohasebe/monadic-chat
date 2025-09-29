@@ -4,12 +4,9 @@
 # This module provides a common implementation for apps that need to
 # delegate complex coding tasks to GPT-5-Codex via the Responses API.
 
-require_relative 'progress_broadcaster'
-
 module Monadic
   module Agents
     module GPT5CodexAgent
-      include ProgressBroadcaster
       # Check if the user has access to GPT-5-Codex model
       # @return [Boolean] true if GPT-5-Codex is available
       def has_gpt5_codex_access?
@@ -48,6 +45,9 @@ module Monadic
           actual_timeout = timeout || GPT5_CODEX_DEFAULT_TIMEOUT
           actual_timeout = GPT5_CODEX_DEFAULT_TIMEOUT unless actual_timeout.is_a?(Integer) && actual_timeout > 0
 
+          # Initialize progress thread variable at proper scope
+          progress_thread = nil
+
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
             puts "[GPT5CodexAgent] ========== TIMING START =========="
@@ -61,6 +61,20 @@ module Monadic
           if app_name
             puts "[#{app_name}] 🤖 GPT-5-Codex is generating code..."
             puts "[#{app_name}]    Note: Complex tasks may take 5-20 minutes."
+          end
+
+          # Start progress thread if block given and timeout is long enough
+          progress_enabled = !CONFIG || CONFIG["GPT5_CODEX_PROGRESS_ENABLED"] != false  # Default true
+          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
+          progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
+
+          if block_given? && actual_timeout > 120 && progress_enabled
+            progress_thread = start_progress_thread(
+              actual_timeout: actual_timeout,
+              interval: progress_interval,
+              app_name: app_name,
+              &block
+            )
           end
 
           # Debug logging
@@ -100,58 +114,48 @@ module Monadic
             }
           end
 
-          # Use ProgressBroadcaster for progress tracking
-          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
-          progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
+          # Create a proper session object for the API call using abstraction layer
+          session = build_session(prompt: prompt, model: "gpt-5-codex")
 
-          # Execute with progress tracking
-          with_progress_tracking(
-            app_name: app_name || "GPT5Codex",
-            message: "GPT-5-Codex is generating code",
-            interval: progress_interval,
-            timeout: actual_timeout,
-            i18n_key: "gpt5CodexGenerating",
-            progress_callback: block
-          ) do
-            # Create a proper session object for the API call using abstraction layer
-            session = build_session(prompt: prompt, model: "gpt-5-codex")
+          # Call api_request with timeout handling
+          # Note: OpenAIHelper already sets 600s timeout for Responses API
+          # This is additional application-level timeout handling
+          results = nil
 
-            # Call api_request with timeout handling
-            # Note: OpenAIHelper already sets 600s timeout for Responses API
-            # This is additional application-level timeout handling
-            results = nil
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] About to call api_request"
+            puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
+          end
 
-            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] About to call api_request"
-              puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
-            end
-
+          begin
             require 'timeout'
 
-            begin
-              # Track API call timing
-              api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            # Track API call timing
+            api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-              Timeout::timeout(actual_timeout) do
-                results = api_request("user", session, call_depth: 0)
-              end
-
-              # Log API call duration
-              if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-                api_end_time = Time.now
-                api_duration = api_end_time - api_start_time
-                puts "[GPT5CodexAgent] API call completed"
-                puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
-                puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
-              end
-            rescue Timeout::Error
-              return {
-                error: "GPT-5-Codex request timed out after #{actual_timeout} seconds",
-                suggestion: "The task may be too complex. Try breaking it into smaller parts.",
-                timeout: true,
-                success: false
-              }
+            Timeout::timeout(actual_timeout) do
+              results = api_request("user", session, call_depth: 0, &block)
             end
+
+            # Log API call duration
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              api_end_time = Time.now
+              api_duration = api_end_time - api_start_time
+              puts "[GPT5CodexAgent] API call completed"
+              puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
+              puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+            end
+          rescue Timeout::Error
+            return {
+              error: "GPT-5-Codex request timed out after #{actual_timeout} seconds",
+              suggestion: "The task may be too complex. Try breaking it into smaller parts.",
+              timeout: true,
+              success: false
+            }
+          ensure
+            # Always clean up thread if it exists
+            cleanup_progress_thread(progress_thread)
+          end
 
           # Parse the response
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -230,9 +234,11 @@ module Monadic
               success: false
             }
           end
-        end  # End of with_progress_tracking block
 
         rescue StandardError => e
+          # Ensure thread cleanup even on exceptions
+          cleanup_progress_thread(progress_thread) if progress_thread
+
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             puts "[GPT5CodexAgent] EXCEPTION: #{e.class} - #{e.message}"
             puts "[GPT5CodexAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"
@@ -287,29 +293,6 @@ module Monadic
       end
 
       private
-
-      # Send initial progress message when GPT-5-Codex starts
-      def send_initial_progress_message(app_name:, &block)
-        return unless block_given?
-
-        # Prepare i18n data for initial message
-        progress_data = {
-          "type" => "wait",
-          "content" => "GPT-5-Codex is generating code",
-          "source" => "GPT5CodexAgent",
-          "minutes" => 0,  # 0 means initial message, no elapsed time
-          "i18n" => {
-            "gpt5CodexGenerating" => true
-          }
-        }
-
-        # Send via block callback
-        block.call(progress_data)
-      rescue => e
-        if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[GPT5CodexAgent] Error sending initial progress: #{e.message}"
-        end
-      end
 
       # Get the message content field name that api_request expects
       # Current Monadic Chat uses "text" field internally
@@ -395,7 +378,6 @@ module Monadic
       end
 
       # Start progress monitoring thread
-      # @deprecated Use ProgressBroadcaster#with_progress_tracking instead
       # @param actual_timeout [Integer] Total timeout for the operation
       # @param interval [Integer] Update interval in seconds
       # @param app_name [String] Application name for logging

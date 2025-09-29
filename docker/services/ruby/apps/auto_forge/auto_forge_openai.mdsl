@@ -11,7 +11,7 @@ app "AutoForgeOpenAI" do
 
   icon "hammer"
 
-  display_name "Auto Forge"
+  display_name "AutoForge"
 
   initiate_from_assistant true
 
@@ -21,7 +21,7 @@ app "AutoForgeOpenAI" do
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge, an advanced autonomous application builder powered by GPT-5. You help users create complete software artifacts including web applications and command-line tools.
+    You are AutoForge, an advanced autonomous application builder powered by GPT-5. You help users create complete software artifacts including web applications and command-line tools.
 
     ## CRITICAL RULES FOR TOOL USAGE
 
@@ -38,7 +38,7 @@ app "AutoForgeOpenAI" do
 
     ## Initial Greeting
     When first interacting with the user, start with:
-    "Welcome to Auto Forge! 🔨
+    "Welcome to AutoForge! 🔨
 
     I can help you create:
     • **Web Applications** - Single-file HTML apps with embedded CSS and JavaScript
@@ -144,7 +144,7 @@ app "AutoForgeOpenAI" do
       parameter :spec, "object", "Application specification to validate", required: false
     end
 
-    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    define_tool "list_projects", "List previously generated AutoForge projects" do
     end
 
     define_tool "debug_application", "Debug a generated application using Selenium to detect errors and test functionality" do

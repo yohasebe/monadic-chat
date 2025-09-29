@@ -92,6 +92,42 @@ function openWebViewWindow(url, forceReload = false) {
     webviewWindow.focus();
     return;
   }
+
+  // Create a custom session for the WebView with specific permissions
+  const { session } = require('electron');
+  const customSession = session.fromPartition('persist:monadicchat', {
+    cache: true
+  });
+
+  // Configure the session to allow localhost resources
+  customSession.webRequest.onBeforeSendHeaders(
+    { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
+    (details, callback) => {
+      // Add necessary headers for localhost requests
+      details.requestHeaders['Origin'] = 'http://localhost:4567';
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+
+  // Modify CSP headers to allow localhost resources
+  customSession.webRequest.onHeadersReceived(
+    { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
+    (details, callback) => {
+      const responseHeaders = { ...details.responseHeaders };
+
+      // Remove restrictive CSP if present
+      delete responseHeaders['content-security-policy'];
+      delete responseHeaders['Content-Security-Policy'];
+
+      // Add permissive CSP for localhost
+      responseHeaders['Content-Security-Policy'] = [
+        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: about: ws: wss: 'self' http://localhost:* http://127.0.0.1:*;"
+      ];
+
+      callback({ responseHeaders });
+    }
+  );
+
   webviewWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -106,8 +142,9 @@ function openWebViewWindow(url, forceReload = false) {
       nodeIntegration: false,
       contextIsolation: true,
       spellcheck: false, // Disable spellcheck as it can interfere with keyboard events
-      // Enable media permissions for microphone access
-      webSecurity: true,
+      // Use custom session with proper security
+      session: customSession,
+      webSecurity: true, // Re-enable web security
       allowRunningInsecureContent: false,
       // Enable DevTools for debugging
       devTools: true
@@ -127,7 +164,15 @@ function openWebViewWindow(url, forceReload = false) {
     }
   });
   
+  // Clear cache to ensure fresh CSS load
+  webviewWindow.webContents.session.clearCache();
+
   webviewWindow.loadURL(url);
+
+  // Open DevTools only if debugging
+  if (process.env.DEBUG_CSS) {
+    webviewWindow.webContents.openDevTools();
+  }
   
   // Set interface language when page loads
   webviewWindow.webContents.on('did-finish-load', () => {
@@ -2470,7 +2515,7 @@ function createMainWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
-      contentSecurityPolicy: "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://raw.githubusercontent.com; img-src 'self' data:; worker-src 'self';",
+      contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
       devTools: true, // Enable developer tools
       spellcheck: false // Disable spellcheck to avoid IMKit related errors
     },

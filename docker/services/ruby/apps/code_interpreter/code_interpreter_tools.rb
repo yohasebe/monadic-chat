@@ -40,24 +40,6 @@ module CodeInterpreterGrokTools
 
   # Call Grok-Code agent for complex Python code generation tasks
   def grok_code_agent(task:, current_code: nil, error_context: nil)
-    # Immediately send progress notification when tool is called
-    # This provides instant feedback to the user
-    if respond_to?(:force_progress_message)
-      force_progress_message(
-        message: "Delegating to Grok-Code specialist agent",
-        app_name: "GrokCode",
-        i18n_key: "grokCodeDelegating"
-      )
-    end
-
-    # Debug logging for progress tracking
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-      puts "[CodeInterpreterGrokTools] Starting grok_code_agent"
-      puts "[CodeInterpreterGrokTools] WebSocketHelper defined: #{defined?(::WebSocketHelper)}"
-      puts "[CodeInterpreterGrokTools] EventMachine running: #{EventMachine.reactor_running? rescue 'not loaded'}"
-      puts "[CodeInterpreterGrokTools] WebSocket session: #{Thread.current[:websocket_session_id] || 'none'}"
-    end
-
     # Build prompt using the shared helper
     prompt = build_grok_code_prompt(
       task: task,
@@ -67,13 +49,7 @@ module CodeInterpreterGrokTools
 
     # Call the shared Grok-Code implementation
     # Code Interpreter might need longer timeout for complex algorithms
-    result = call_grok_code(prompt: prompt, app_name: "CodeInterpreterGrok", timeout: 360)
-
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-      puts "[CodeInterpreterGrokTools] Result received: #{result[:success] ? 'success' : 'failed'}"
-    end
-
-    result
+    call_grok_code(prompt: prompt, app_name: "CodeInterpreterGrok", timeout: 360)
   end
 end
 

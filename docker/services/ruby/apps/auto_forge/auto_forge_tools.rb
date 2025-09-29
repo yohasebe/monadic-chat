@@ -11,12 +11,14 @@ require_relative 'auto_forge_debugger'
 require_relative 'agents/error_explainer'
 require_relative 'utils/codex_response_analyzer'
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/claude_opus_agent'
 
 # Tool methods for AutoForge MDSL application
 # Uses GPT-5 for orchestration and GPT-5-Codex for code generation
 module AutoForgeTools
   include MonadicHelper
   include Monadic::Agents::GPT5CodexAgent
+  include Monadic::Agents::ClaudeOpusAgent
 
   DIAGNOSIS_TIMEOUT = 30 * 60
 
@@ -48,6 +50,8 @@ module AutoForgeTools
 
     # Handle both nested and direct spec formats
     spec = params['spec'] || params[:spec]
+    agent = params['agent'] || params[:agent] || :openai
+    agent = agent.to_sym rescue :openai
 
     # If no spec key, check if params itself is the spec
     if spec.nil? && params.is_a?(Hash)
@@ -138,8 +142,9 @@ module AutoForgeTools
       puts "[AutoForgeTools] Included modules: #{self.class.included_modules.map(&:name).join(', ')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     end
 
-    # Add self as app_instance so HtmlGenerator can access GPT-5-Codex methods
+    # Add self as app_instance so generators can access codegen methods
     context[:app_instance] = self
+    context[:agent] = agent
 
     # Create progress callback for WebSocket broadcasting
     progress_callback = lambda do |fragment|
@@ -167,19 +172,29 @@ module AutoForgeTools
       end
     end
 
-    # Also add a callback with progress support as fallback
-    if self.respond_to?(:call_gpt5_codex)
-      context[:codex_callback] = ->(prompt, app_name, &block) do
-        # Use provided block or fall back to our progress callback
-        actual_block = block || progress_callback
-        self.call_gpt5_codex(prompt: prompt, app_name: app_name, &actual_block)
+    # Configure code generation callback based on agent
+    context[:codex_callback] = case agent
+    when :claude
+      if self.respond_to?(:claude_opus_agent)
+        ->(prompt, app_name, &block) do
+          actual_block = block || progress_callback
+          self.claude_opus_agent(prompt, app_name || 'ClaudeOpusAgent', &actual_block)
+        end
+      end
+    else
+      if self.respond_to?(:call_gpt5_codex)
+        ->(prompt, app_name, &block) do
+          actual_block = block || progress_callback
+          self.call_gpt5_codex(prompt: prompt, app_name: app_name || 'AutoForgeOpenAI', &actual_block)
+        end
       end
     end
 
     app = AutoForge::App.new(context)
 
     # Generate application with progress callback
-    puts "\n⏳ Generating application with GPT-5-Codex... This may take 2-5 minutes for complex apps.\n"
+    agent_name = agent == :claude ? 'Claude Opus' : 'GPT-5-Codex'
+    puts "\n⏳ Generating application with #{agent_name}... This may take 2-5 minutes for complex apps.\n"
 
     # Pass the progress callback to generate_application
     result = app.generate_application(spec, &progress_callback)
@@ -192,7 +207,11 @@ module AutoForgeTools
       auto_forge[:project_id] = result[:project_id]
       auto_forge[:main_file] = result[:files_created]&.first if project_type == 'cli'
       context[:auto_forge] = auto_forge
-      context['auto_forge'] = auto_forge
+      context['auto_forge'] = auto_forge if context.respond_to?(:[])
+      if @context.is_a?(Hash)
+        @context[:auto_forge] = auto_forge
+        @context['auto_forge'] = auto_forge
+      end
     end
 
     # Format response
@@ -363,10 +382,8 @@ module AutoForgeTools
 
   def generate_additional_file(params = {})
     file_type = params['file_type'] || params[:file_type]
-
-    unless file_type
-      return "❌ Missing required parameter: file_type"
-    end
+    file_name = params['file_name'] || params[:file_name]
+    instructions = params['instructions'] || params[:instructions]
 
     # Handle both symbol and string keys for context
     context = @context || {}
@@ -385,8 +402,26 @@ module AutoForgeTools
       return "ℹ️ Additional files are only available for CLI projects."
     end
 
-    # Generate the requested file
-    result = generate_cli_additional_file(project_path, file_type)
+    # Allow fully custom file generation when file_name and instructions are present
+    if file_name && instructions
+      result = generate_custom_cli_file(project_path, file_name, instructions)
+      return result[:success] ? "✅ Created #{result[:filename]}" : "❌ Failed: #{result[:error]}"
+    end
+
+    unless file_type
+      return <<~MSG.rstrip
+        ❌ Missing required parameter: file_type
+
+        You can also provide both "file_name" and "instructions" to generate any custom text-based file.
+      MSG
+    end
+
+    result = generate_cli_additional_file(
+      project_path,
+      file_type,
+      file_name: file_name,
+      instructions: instructions
+    )
 
     if result[:success]
       "✅ Created #{result[:filename]}"
@@ -514,16 +549,33 @@ module AutoForgeTools
     cli_score > web_score ? 'cli' : 'web'
   end
 
-  def generate_cli_additional_file(project_path, file_type)
-    case file_type.to_s.downcase
-    when 'readme'
+  def generate_cli_additional_file(project_path, file_type, options = {})
+    key = file_type.to_s.downcase.to_sym
+
+    case key
+    when :readme
       create_readme(project_path)
-    when 'config'
+    when :config
       create_config_template(project_path)
-    when 'requirements', 'dependencies'
+    when :requirements, :dependencies
       create_dependencies(project_path)
+    when :usage_examples
+      generate_usage_examples_file(project_path, options)
     else
-      { success: false, error: "Unknown file type: #{file_type}" }
+      if options[:instructions] || options['instructions']
+        inferred_name = options[:file_name] || options['file_name'] || default_filename_for_symbol(key)
+        generate_custom_cli_file(project_path, inferred_name, options[:instructions] || options['instructions'])
+      else
+        {
+          success: false,
+          error: <<~ERROR.rstrip
+            Unknown file type: #{file_type}
+
+            Provide both "file_name" and "instructions" to generate a custom text file, for example:
+            generate_additional_file({ "file_name": "USAGE.md", "instructions": "Document advanced usage scenarios with command examples." })
+          ERROR
+        }
+      end
     end
   end
 
@@ -676,29 +728,53 @@ module AutoForgeTools
     suggestions = []
 
     readme_path = File.join(project_path, 'README.md')
-    suggestions << :readme unless File.exist?(readme_path)
+    suggestions << build_cli_suggestion(:readme, label: 'README (usage instructions)') unless File.exist?(readme_path)
 
     script_path, content = read_cli_script(project_path)
-    return suggestions unless script_path && content
+    return append_custom_suggestion(suggestions) unless script_path && content
 
     ext = File.extname(script_path)
+    normalized_content = content.to_s
 
-    suggestions << :config if cli_script_uses_config?(content)
-    suggestions << :dependencies if detect_external_dependencies(content, ext).any?
+    if cli_script_uses_config?(normalized_content)
+      suggestions << build_cli_suggestion(:config, label: 'Config template (sample settings)')
+    end
 
-    suggestions
+    if detect_external_dependencies(normalized_content, ext).any?
+      suggestions << build_cli_suggestion(:dependencies, label: 'Dependencies file (e.g. requirements.txt)')
+    end
+
+    if cli_script_has_argument_parser?(normalized_content)
+      suggestions << build_cli_suggestion(
+        :usage_examples,
+        label: 'Usage examples (USAGE.md)',
+        file_name: 'USAGE.md',
+        instructions_hint: 'Describe common commands, flags, and sample outputs.'
+      )
+    end
+
+    append_custom_suggestion(suggestions)
   rescue StandardError => e
     puts "[AutoForge] Error in suggest_cli_additional_files: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-    suggestions
+    append_custom_suggestion(suggestions)
   end
 
   def format_cli_suggestions(suggestions)
-    suggestions.map do |type|
-      case type
-      when :readme then "• README (usage instructions)"
-      when :config then "• Config template (sample settings)"
-      when :dependencies then "• Dependencies file (e.g. requirements.txt)"
-      else nil
+    Array(suggestions).map do |entry|
+      if entry.is_a?(Hash)
+        key = entry[:key] || :custom
+        label = entry[:label] || key.to_s.split('_').map(&:capitalize).join(' ')
+        hint = build_cli_suggestion_hint(entry)
+        next nil unless hint
+        "• #{label} — #{hint}"
+      else
+        case entry
+        when :readme then "• README (usage instructions)"
+        when :config then "• Config template (sample settings)"
+        when :dependencies then "• Dependencies file (e.g. requirements.txt)"
+        else
+          "• Custom asset — provide \"file_name\" and \"instructions\" to generate any text-based file"
+        end
       end
     end.compact.join("\n")
   end
@@ -731,6 +807,12 @@ module AutoForgeTools
     !!(content =~ /configparser|ConfigParser|yaml|toml|dotenv|--config|config file/i)
   end
 
+  def cli_script_has_argument_parser?(content)
+    return false unless content
+
+    !!(content =~ /argparse|ArgumentParser|optparse|OptionParser|click::|Typer|Thor::|OptionParser.new/i)
+  end
+
   def detect_external_dependencies(content, extension)
     return [] unless content
 
@@ -751,6 +833,168 @@ module AutoForgeTools
     end
   end
 
+  def generate_usage_examples_file(project_path, options = {})
+    file_name = options[:file_name] || options['file_name'] || 'USAGE.md'
+    instructions = options[:instructions] || options['instructions'] || <<~DESC.strip
+      Create a Markdown document that teaches users how to run the CLI tool. Include:
+      - A short summary of what the tool does.
+      - A table or list of important command-line flags and options.
+      - At least three realistic usage scenarios with the exact commands and expected outputs.
+      - Troubleshooting tips for common mistakes.
+    DESC
+
+    generate_custom_cli_file(project_path, file_name, instructions, usage_examples: true)
+  end
+
+  def generate_custom_cli_file(project_path, file_name, instructions, usage_examples: false)
+    validation = validate_custom_file_request(file_name, instructions)
+    return validation unless validation[:success]
+
+    target_file = File.join(project_path, validation[:file_name])
+    generator = resolve_text_generator
+
+    unless generator
+      return { success: false, error: 'No code generation agent available for additional file creation.' }
+    end
+
+    prompt = build_custom_file_prompt(project_path, validation[:file_name], validation[:instructions], usage_examples: usage_examples)
+
+    result = generator.call(prompt, 'AutoForgeAdditionalFile')
+    normalized = normalize_text_generation_result(result)
+
+    return { success: false, error: normalized[:error] } unless normalized[:success]
+
+    File.write(target_file, normalized[:content])
+
+    { success: true, filename: validation[:file_name] }
+  rescue StandardError => e
+    {
+      success: false,
+      error: e.message
+    }
+  end
+
+  def validate_custom_file_request(file_name, instructions)
+    unless file_name && file_name.is_a?(String)
+      return { success: false, error: 'Missing required parameter: file_name' }
+    end
+
+    sanitized = sanitize_filename(file_name)
+
+    unless sanitized
+      return { success: false, error: 'Invalid file name. Use simple names without directory separators.' }
+    end
+
+    trimmed_instructions = instructions.to_s.strip
+
+    if trimmed_instructions.empty?
+      return { success: false, error: 'Please provide "instructions" describing the purpose and desired content.' }
+    end
+
+    { success: true, file_name: sanitized, instructions: trimmed_instructions }
+  end
+
+  def sanitize_filename(name)
+    candidate = name.to_s.strip
+    return nil if candidate.empty?
+    return nil if candidate.match?(%r{[\/\\]}) || candidate.include?(" ") || candidate.include?('..')
+
+    sanitized = candidate.gsub(/[^a-z0-9._-]/i, '_')
+    sanitized = sanitized[0, 128]
+    return nil if sanitized.empty? || sanitized.start_with?('.')
+    sanitized
+  end
+
+  def resolve_text_generator
+    context_hash = ensure_context_hash
+    callback = context_hash[:codex_callback]
+    return callback if callback.respond_to?(:call)
+
+    agent = (context_hash[:agent] || :openai).to_sym
+
+    if agent == :claude
+      if respond_to?(:claude_opus_agent)
+        ->(prompt, app_name = 'ClaudeOpusAgent', &block) { claude_opus_agent(prompt, app_name, &block) }
+      else
+        nil
+      end
+    else
+      if respond_to?(:call_gpt5_codex)
+        ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_gpt5_codex(prompt: prompt, app_name: app_name, &block) }
+      else
+        nil
+      end
+    end
+  end
+
+  def build_custom_file_prompt(project_path, file_name, instructions, usage_examples: false)
+    script_path, script_content = read_cli_script(project_path)
+    script_excerpt = truncate_text(script_content.to_s, 4000)
+
+    existing_files = Dir.children(project_path).reject { |f| f.start_with?('.') }.sort.join(', ')
+    project_name = File.basename(project_path)
+
+    additional_guidance = if usage_examples
+      <<~GUIDE
+        Structure:
+        - Introduction
+        - Quick start section
+        - Detailed scenarios (each with command, explanation, expected output)
+        - Troubleshooting / tips
+      GUIDE
+    else
+      ''
+    end
+
+    <<~PROMPT
+      You are assisting with the AutoForge CLI project "#{project_name}".
+      Create a new text file named "#{file_name}" in the project root.
+
+      Main script excerpt:
+      ```
+      #{script_excerpt}
+      ```
+
+      Existing files: #{existing_files}
+
+      Purpose:
+      #{instructions}
+
+      #{additional_guidance}
+
+      Requirements:
+      - Produce complete, ready-to-use content tailored to the script.
+      - Use Markdown formatting if the filename ends with .md or .markdown.
+      - Do not include placeholder text or instructions to "fill in later".
+      - Output ONLY the file contents with no surrounding commentary or code fences.
+    PROMPT
+  end
+
+  def normalize_text_generation_result(result)
+    return { success: false, error: 'No response from generation agent' } if result.nil?
+
+    if result.is_a?(Hash)
+      return { success: false, error: fetch_from_hash(result, :error) || 'Unknown error' } if fetch_from_hash(result, :success) == false
+
+      text = fetch_from_hash(result, :code) || fetch_from_hash(result, :content) || fetch_from_hash(result, :text)
+      return { success: false, error: 'Empty response' } if text.nil? || text.strip.empty?
+      cleaned = strip_code_fences(text)
+      return { success: true, content: cleaned }
+    end
+
+    cleaned = strip_code_fences(result.to_s)
+    cleaned.strip.empty? ? { success: false, error: 'Empty response' } : { success: true, content: cleaned }
+  end
+
+  def strip_code_fences(text)
+    text.to_s.gsub(/```[a-zA-Z0-9_-]*\n?/, '').gsub(/```/, '').strip
+  end
+
+  def truncate_text(text, limit)
+    return '' unless text
+
+    text.length <= limit ? text : text[0, limit] + "\n…"
+  end
   def handle_fix_response(user_response, diagnosis)
     response = (user_response || '').downcase
 
@@ -1330,6 +1574,43 @@ module AutoForgeTools
   def ensure_context_hash
     @context = {} unless @context.is_a?(Hash)
     @context
+  end
+
+  def append_custom_suggestion(existing)
+    return existing if existing.any? { |entry| entry.is_a?(Hash) && entry[:key] == :custom }
+
+    hint = 'Provide "file_name" and "instructions" to generate any additional text asset (e.g. USAGE.md, CHANGELOG.md, SAMPLE_DATA.txt).'
+    existing << build_cli_suggestion(:custom, label: 'Custom asset', instructions_hint: hint)
+    existing
+  end
+
+  def build_cli_suggestion(key, attributes = {})
+    { key: key }.merge(attributes)
+  end
+
+  def build_cli_suggestion_hint(entry)
+    key = entry[:key]
+
+    case key
+    when :readme, :config, :dependencies
+      "use `generate_additional_file({ \"file_type\": \"#{key}\" })`"
+    when :usage_examples
+      "use `generate_additional_file({ \"file_type\": \"usage_examples\" })` (optional: override with `file_name` or `instructions`)"
+    when :custom
+      entry[:instructions_hint] || "provide \"file_name\" and \"instructions\" to the tool request"
+    else
+      "provide \"file_name\" and \"instructions\" to generate this file"
+    end
+  end
+
+  def default_filename_for_symbol(key)
+    case key
+    when :usage_examples then 'USAGE.md'
+    when :changelog then 'CHANGELOG.md'
+    when :env then '.env.example'
+    else
+      "#{key.to_s.gsub(/[^a-z0-9]+/i, '_')}.txt"
+    end
   end
 
   def format_ms(value)

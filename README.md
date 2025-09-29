@@ -35,6 +35,8 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 - **ElevenLabs v3 Alpha support**: TTS requests can use `eleven_v3`, with automatic handling of the non-streaming response format.
 - **Gemini tooling fixes**: Jupyter Notebook cells align with provider responses and Code Interpreter returns complete outputs.
 - **Model management**: ModelSpecUtils removes hardcoded model names and keeps GPT-5 endpoints in sync across providers.
+- **Auto Forge enhancements**: Claude-powered generation now mirrors GPT-5 progress in the streaming card, and CLI projects only offer relevant optional files—including on-demand custom text assets.
+- **LaTeX option upgrades**: Rebuilding with the LaTeX install option now bundles TeX Live, Ghostscript, dvisvgm/pdf2svg, and CJK packages so Concept Visualizer / Syntax Tree render Japanese/Chinese/Korean trees without manual tweaks.
 
 ### Install Options & Rebuild
 
@@ -156,6 +158,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Specialized Applications
 
 - 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
+- 🛠️ **Auto Forge** - Artifact Builder that creates single-file web apps and CLI tools with provider-specific orchestration (OpenAI, Claude)
 - 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
 - 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
 - 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)

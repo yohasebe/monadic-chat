@@ -5,7 +5,7 @@ require 'time'
 require 'json'
 require_relative 'utils/path_config'
 
-# Utility module for Auto Forge project management
+# Utility module for AutoForge project management
 module AutoForgeUtils
   class ProjectCreationError < StandardError; end
 
@@ -22,7 +22,6 @@ module AutoForgeUtils
     safe_name = base_name.strip
                         .gsub(/[<>:"|?*\\\/]/, '_')  # Remove filesystem-unsafe characters
                         .gsub(/[\x00-\x1f\x7f]/, '_')  # Remove control characters
-                        .gsub(/\s+/, '_')               # Replace spaces with underscores
                         .gsub(/\.{2,}/, '_')            # Replace multiple dots
                         .gsub(/_{2,}/, '_')             # Replace multiple underscores
                         .gsub(/^[._]|[._]$/, '')       # Remove leading/trailing dots or underscores
@@ -62,7 +61,7 @@ module AutoForgeUtils
     raise ProjectCreationError, "Failed to create project directory: #{e.message}"
   end
 
-  # List existing Auto Forge projects
+  # List existing AutoForge projects
   # @return [Array<Hash>] List of project information
   def self.list_projects
     base_path = AutoForge::Utils::PathConfig.project_base_path

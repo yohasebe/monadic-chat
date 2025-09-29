@@ -2050,24 +2050,6 @@ module OpenAIHelper
 
       unless skip_function_execution
         begin
-          # Send immediate progress message for agent delegations
-          if function_name == "gpt5_codex_agent" && defined?(::WebSocketHelper)
-            progress_data = {
-              "type" => "wait",
-              "content" => "Delegating to GPT-5-Codex specialist agent",
-              "source" => "GPT5Codex",
-              "minutes" => 0,
-              "i18n" => { "gpt5CodexDelegating" => true }
-            }
-
-            session_id = Thread.current[:websocket_session_id]
-            ::WebSocketHelper.send_progress_fragment(progress_data, session_id) rescue nil
-
-            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-              puts "[OpenAIHelper] Sent progress message for gpt5_codex_agent tool"
-            end
-          end
-
           if argument_hash.empty?
             function_return = APPS[app].send(function_name.to_sym)
           else

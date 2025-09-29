@@ -1,29 +1,35 @@
 # AutoForge / Artifact Builder
 
-AutoForge (marketed as "Artifact Builder") is an autonomous application builder that creates complete, single-file web applications through intelligent AI orchestration.
+AutoForge (marketed as "Artifact Builder") is an autonomous application builder that creates complete, single-file web applications *and* command-line tools through intelligent AI orchestration.
 
 ## Overview
 
-AutoForge uses GPT-5 for planning and orchestration, combined with GPT-5-Codex for high-quality code generation. It creates self-contained HTML applications with embedded CSS and JavaScript, requiring no external dependencies.
+AutoForge uses GPT-5 or Claude Opus 4.1 for planning and orchestration, combined with provider-specific code generation (GPT-5-Codex or Claude Opus). It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
 
 ## Key Features
 
 ### 1. Intelligent Application Generation
-- **Autonomous Planning**: GPT-5 analyzes requirements and creates detailed implementation plans
-- **Production-Ready Code**: GPT-5-Codex generates complete, working applications
-- **Single-File Output**: All code is contained in one HTML file for easy deployment
+- **Autonomous Planning**: GPT-5 or Claude Opus analyzes requirements and creates detailed implementation plans.
+- **Provider-Specific Codegen**: GPT-5-Codex or Claude Opus delivers production-ready artifacts.
+- **Single-File Output**: Web apps ship as a single HTML file; CLI tools ship as a standalone script.
 
-### 2. Project Management
-- **Automatic Organization**: Projects are saved with timestamps and descriptive names
-- **Unicode Support**: Full support for international characters in project names
-- **Modification Support**: Existing applications can be updated iteratively
-- **Project Listing**: View all previously generated projects
+### 2. CLI Tool Support
+- **Language Detection**: AutoForge selects Python, Ruby, Node.js, or other languages based on the requested behaviour.
+- **Optional Assets on Demand**: README, config templates, and dependency manifests are only suggested when a project actually benefits from them.
+- **Actionable Guidance**: Post-generation instructions include permissions, execution commands, and next steps.
+- **Custom Text Assets**: Provide a `file_name` and `instructions` to generate any additional Markdown, config, or documentation file you need.
 
-### 3. Debugging with Selenium (Optional)
-- **Automated Testing**: Runs applications in headless Chrome via Selenium
-- **Error Detection**: Identifies JavaScript errors and console warnings
-- **Performance Metrics**: Measures load time, DOM ready, and render time
-- **Functionality Tests**: Verifies interactive elements work correctly
+### 3. Project Management
+- **Automatic Organization**: Projects are saved with timestamps and descriptive names.
+- **Unicode Support**: Full support for international characters in project names.
+- **Modification Support**: Existing applications can be updated iteratively.
+- **Project Listing**: View all previously generated projects.
+
+### 4. Debugging with Selenium (Optional, Web Apps Only)
+- **Automated Testing**: Runs applications in headless Chrome via Selenium.
+- **Error Detection**: Identifies JavaScript errors and console warnings.
+- **Performance Metrics**: Measures load time, DOM ready, and render time.
+- **Functionality Tests**: Verifies interactive elements work correctly.
 
 ## How to Use
 
@@ -47,6 +53,13 @@ Artifact Builder can create various types of web applications:
 - Markdown editors
 - Color palette generators
 
+Artifact Builder also supports CLI utilities such as:
+- Runtime and environment inspectors
+- Data conversion scripts (CSV/JSON/XML)
+- Backup and archiving helpers
+- Log analyzers and stream processors
+- File organizers and bulk rename tools
+
 ### Tool Commands
 
 The system provides several tools you can request:
@@ -67,7 +80,7 @@ Example:
 ```
 
 #### `debug_application`
-Tests an existing application using Selenium (requires Selenium container).
+Tests an existing web application using Selenium (requires Selenium container).
 
 Example:
 ```json
@@ -84,13 +97,29 @@ Shows all previously generated projects with their locations and creation times.
 #### `validate_specification`
 Checks if your application specification is complete before generation.
 
+#### `generate_additional_file`
+Available for CLI projects. Generates optional assets when they add clear value:
+- `readme` – usage instructions for the generated script.
+- `config` – template config file when the tool references configuration inputs.
+- `requirements` – dependency list (for example, `requirements.txt` or `Gemfile`) when non-standard libraries are detected.
+- `usage_examples` – Markdown guide with real-world scenarios (automatically suggested for tools with rich flag parsing).
+- **Custom file** – supply both `file_name` and `instructions` to materialize any text-based artifact (e.g., `USAGE.md`, `CHANGELOG.md`, `.env.example`).
+
+Example (custom asset):
+```json
+{
+  "file_name": "USAGE.md",
+  "instructions": "Document three typical workflows with commands and expected output."
+}
+```
+
 ## Technical Details
 
 ### Architecture
-- **Orchestration Layer**: GPT-5 handles planning, user interaction, and tool coordination
-- **Code Generation Layer**: GPT-5-Codex generates the actual HTML/CSS/JavaScript code
-- **File Management**: Ruby backend manages project storage and retrieval
-- **Debug Layer**: Python/Selenium integration for automated testing
+- **Orchestration Layer**: GPT-5 (OpenAI) or Claude Opus 4.1 (Claude) handles planning, user interaction, and tool coordination via MDSL apps.
+- **Code Generation Layer**: GPT-5-Codex or Claude Opus produces the web/CLI artifact.
+- **File Management**: The Ruby backend manages project storage, context persistence, and optional file generation.
+- **Debug Layer**: Python/Selenium integration provides automated testing for web apps.
 
 ### File Storage
 Projects are stored in `~/monadic/data/auto_forge/` with the following structure:
@@ -100,6 +129,9 @@ auto_forge/
 │   └── index.html
 ├── Calculator_20250127_151234/
 │   └── index.html
+├── runtimes-lister_20250928_234449/
+│   ├── runtimes_lister.py
+│   └── README.md (optional)
 └── ...
 ```
 
@@ -126,7 +158,7 @@ To create a new version from scratch:
 2. This will create a new project folder with a fresh implementation
 
 ### Debugging Report
-When debug_application is used, you receive:
+When `debug_application` is used for web apps, you receive:
 - JavaScript error list
 - Console warnings
 - Functionality test results (forms, buttons, interactive elements)
@@ -140,30 +172,31 @@ When debug_application is used, you receive:
 - OpenAI API key with access to GPT-5 and GPT-5-Codex
 
 ### Optional Requirements
-- Docker with Selenium container for debugging features
-- Python container for Selenium integration
+- Docker with Selenium container for debugging features (web apps only)
+- Python container for Selenium integration (for Selenium tests)
 
 ## Limitations
 
-1. **Single-File Applications**: All code must fit in one HTML file
-2. **No External Dependencies**: Cannot use external libraries or frameworks
-3. **Client-Side Only**: No server-side functionality
+1. **Single-File Applications**: Web projects must fit in one HTML file; CLI projects remain single-script utilities.
+2. **No External Dependencies**: Web apps avoid external CDNs. CLI tools auto-generate dependency manifests only when non-standard libraries are detected.
+3. **Client-Side Only**: Web projects are purely client-side with no server component.
 4. **One App Per Session**: Focus on one application per conversation
 
 ## Best Practices
 
 1. **Clear Requirements**: Provide detailed descriptions of desired functionality
 2. **Iterative Development**: Start simple and add features progressively
-3. **Test Regularly**: Use debug_application after generation to catch issues
+3. **Test Regularly**: Use `debug_application` after generating web apps to catch issues
 4. **Meaningful Names**: Use descriptive project names for easy identification
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Files Not Generated**: GPT-5-Codex can take 2-5 minutes for complex apps
+1. **Files Not Generated**: GPT-5-Codex or Claude Opus can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
 2. **Selenium Not Available**: Ensure Docker Selenium container is running
 3. **Unicode Characters**: Project names with special characters are fully supported
+4. **Custom file requests rejected**: Make sure the filename is simple (no directories) and include clear instructions describing the desired content.
 
 ### Error Messages
 
@@ -171,11 +204,10 @@ When debug_application is used, you receive:
 - "Selenium container is not running": Enable Selenium in Monadic Chat settings
 - "Project not found": Check the exact project name with list_projects
 
-## Model Selection
+## Provider Support & Progress Updates
 
-AutoForge supports multiple models:
-- **GPT-5**: Recommended for optimal orchestration
-- **GPT-5-Codex**: Available for both orchestration and code generation
-- **GPT-4.1**: Fallback option for basic functionality
+AutoForge supports multiple providers:
+- **OpenAI Auto Forge**: GPT-5 orchestrates the workflow while GPT-5-Codex handles code generation.
+- **Claude Auto Forge**: Claude Opus 4.1 orchestrates and generates code via the Claude Responses API.
 
-Note: GPT-5 and GPT-5-Codex use the Responses API, which may have different performance characteristics than standard models.
+Both variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.

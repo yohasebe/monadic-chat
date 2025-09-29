@@ -75,12 +75,27 @@ module Monadic
           helper = ::WebSocketHelper
           if helper.respond_to?(:send_progress_fragment)
             session_id = Thread.current[:websocket_session_id]
+
+            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+              puts "[ProgressBroadcaster] Attempting to force send progress message"
+              puts "[ProgressBroadcaster] Message: #{message}"
+              puts "[ProgressBroadcaster] Session ID: #{session_id || 'nil (will broadcast to all)'}"
+            end
+
             helper.send_progress_fragment(progress_data, session_id)
 
             if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-              puts "[ProgressBroadcaster] Forced progress message sent: #{message}"
+              puts "[ProgressBroadcaster] Forced progress message sent successfully"
             end
             return true
+          else
+            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+              puts "[ProgressBroadcaster] WebSocketHelper does not respond to send_progress_fragment"
+            end
+          end
+        else
+          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            puts "[ProgressBroadcaster] WebSocketHelper not defined"
           end
         end
 

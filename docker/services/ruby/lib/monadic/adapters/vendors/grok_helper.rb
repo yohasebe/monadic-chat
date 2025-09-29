@@ -1429,6 +1429,24 @@ module GrokHelper
       end
 
       begin
+        # Send immediate progress message for agent delegations
+        if function_name == "grok_code_agent" && defined?(::WebSocketHelper)
+          progress_data = {
+            "type" => "wait",
+            "content" => "Delegating to Grok-Code specialist agent",
+            "source" => "GrokCode",
+            "minutes" => 0,
+            "i18n" => { "grokCodeDelegating" => true }
+          }
+
+          session_id = Thread.current[:websocket_session_id]
+          ::WebSocketHelper.send_progress_fragment(progress_data, session_id) rescue nil
+
+          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            puts "[GrokHelper] Sent progress message for grok_code_agent tool"
+          end
+        end
+
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
         
         # GROK-SPECIFIC FIX: Check if SVG files were created with HTML escaping

@@ -22,6 +22,7 @@ module AutoForgeUtils
     safe_name = base_name.strip
                         .gsub(/[<>:"|?*\\\/]/, '_')  # Remove filesystem-unsafe characters
                         .gsub(/[\x00-\x1f\x7f]/, '_')  # Remove control characters
+                        .gsub(/\s+/, '_')               # Replace spaces with underscores
                         .gsub(/\.{2,}/, '_')            # Replace multiple dots
                         .gsub(/_{2,}/, '_')             # Replace multiple underscores
                         .gsub(/^[._]|[._]$/, '')       # Remove leading/trailing dots or underscores

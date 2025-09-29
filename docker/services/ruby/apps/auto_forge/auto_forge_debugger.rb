@@ -86,7 +86,8 @@ module AutoForge
         container_html_path = "/monadic/data/#{File.basename(temp_html)}"
       end
 
-      command = "debug_html.py #{container_html_path} --json"
+      # Properly quote the path to handle spaces and special characters
+      command = "debug_html.py \"#{container_html_path}\" --json"
 
       result = nil
       puts "[AutoForgeDebugger] Executing: #{command}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -96,7 +97,8 @@ module AutoForge
         output = send_command(command: command, container: "python")
       else
         # Fallback to direct docker exec (for standalone use)
-        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py #{container_html_path} --json"
+        # Also quote the path in direct docker command
+        docker_command = "docker exec -w /monadic/data monadic-chat-python-container python /monadic/scripts/utilities/debug_html.py \"#{container_html_path}\" --json"
         output = `#{docker_command} 2>&1`
       end
 

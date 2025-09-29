@@ -111,24 +111,33 @@ module Monadic
         if block_given?
           # Use block callback (e.g., AutoForge)
           block.call(progress_data)
-        elsif defined?(::WebSocketHelper) && EventMachine.reactor_running?
+        elsif defined?(::WebSocketHelper)
           # Use WebSocketHelper for broadcast
-          session_id = Thread.current[:websocket_session_id]
+          # Note: We don't check EventMachine.reactor_running? here because:
+          # 1. WebSocketHelper handles its own EventMachine requirements internally
+          # 2. Checking here can cause false negatives in tool execution contexts
+          helper = ::WebSocketHelper
+          if helper.respond_to?(:send_progress_fragment)
+            session_id = Thread.current[:websocket_session_id]
 
-          # WebSocketHelper.send_progress_fragment(fragment, target_session_id = nil)
-          # Session ID nil = broadcast to all
-          ::WebSocketHelper.send_progress_fragment(progress_data, session_id)
+            # WebSocketHelper.send_progress_fragment(fragment, target_session_id = nil)
+            # Session ID nil = broadcast to all
+            helper.send_progress_fragment(progress_data, session_id)
 
-          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-            puts "[ProgressBroadcaster] Sent via WebSocketHelper: #{progress_data["content"]}"
-            puts "[ProgressBroadcaster] Session ID: #{session_id || 'broadcast to all'}"
+            if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+              if session_id
+                puts "[ProgressBroadcaster] Sent progress to session #{session_id}: #{progress_data["content"]}"
+              else
+                puts "[ProgressBroadcaster] Broadcasting progress to all: #{progress_data["content"]}"
+              end
+            end
+          elsif defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+            puts "[ProgressBroadcaster] Warning: WebSocketHelper does not respond to send_progress_fragment"
           end
         else
           # Cannot send progress
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-            puts "[ProgressBroadcaster] Warning: Cannot send progress"
-            puts "[ProgressBroadcaster] EventMachine running: #{EventMachine.reactor_running? rescue false}"
-            puts "[ProgressBroadcaster] WebSocketHelper defined: #{defined?(::WebSocketHelper)}"
+            puts "[ProgressBroadcaster] Warning: Cannot send progress (no WebSocketHelper)"
           end
         end
       end

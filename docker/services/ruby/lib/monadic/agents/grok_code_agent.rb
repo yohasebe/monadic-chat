@@ -49,6 +49,7 @@ module Monadic
           puts "[GrokCodeAgent] App: #{app_label}"
           puts "[GrokCodeAgent] Prompt length: #{prompt.length} chars"
           puts "[GrokCodeAgent] Timeout: #{actual_timeout} seconds"
+          puts "[GrokCodeAgent] Block provided: #{block_given?}"
         end
 
         # Check if we have the necessary methods (from GrokHelper or compatible module)

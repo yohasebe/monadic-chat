@@ -52,12 +52,9 @@ RSpec.describe Monadic::Agents::ProgressBroadcaster do
 
     context 'without block callback' do
       before do
-        # Mock EventMachine
-        stub_const("EventMachine", double("EventMachine"))
-        allow(EventMachine).to receive(:reactor_running?).and_return(true)
-
         # Mock WebSocketHelper
         stub_const("WebSocketHelper", double("WebSocketHelper"))
+        allow(WebSocketHelper).to receive(:respond_to?).with(:send_progress_fragment).and_return(true)
         allow(WebSocketHelper).to receive(:send_progress_fragment)
       end
 
@@ -147,9 +144,10 @@ RSpec.describe Monadic::Agents::ProgressBroadcaster do
 
       broadcaster.with_progress_tracking(
         app_name: "TestApp",
-        message: "Starting"
-      ) do |data|
-        received_messages << data if data
+        message: "Starting",
+        progress_callback: ->(data) { received_messages << data if data }
+      ) do
+        "test result"
       end
 
       expect(received_messages).not_to be_empty

@@ -4,9 +4,12 @@
 # This module provides a common implementation for apps that need to
 # delegate complex coding tasks to GPT-5-Codex via the Responses API.
 
+require_relative 'progress_broadcaster'
+
 module Monadic
   module Agents
     module GPT5CodexAgent
+      include ProgressBroadcaster
       # Check if the user has access to GPT-5-Codex model
       # @return [Boolean] true if GPT-5-Codex is available
       def has_gpt5_codex_access?
@@ -63,23 +66,6 @@ module Monadic
             puts "[#{app_name}]    Note: Complex tasks may take 5-20 minutes."
           end
 
-          # Start progress thread if block given and timeout is long enough
-          progress_enabled = !CONFIG || CONFIG["GPT5_CODEX_PROGRESS_ENABLED"] != false  # Default true
-          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
-          progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
-
-          if block_given? && actual_timeout > 120 && progress_enabled
-            # Send initial progress message immediately (no elapsed time)
-            send_initial_progress_message(app_name: app_name, &block)
-
-            progress_thread = start_progress_thread(
-              actual_timeout: actual_timeout,
-              interval: progress_interval,
-              app_name: app_name,
-              &block
-            )
-          end
-
           # Debug logging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             puts "[GPT5CodexAgent] Starting call_gpt5_codex"
@@ -117,48 +103,60 @@ module Monadic
             }
           end
 
-          # Create a proper session object for the API call using abstraction layer
-          session = build_session(prompt: prompt, model: "gpt-5-codex")
+          # Use ProgressBroadcaster for progress tracking
+          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
+          progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
 
-          # Call api_request with timeout handling
-          # Note: OpenAIHelper already sets 600s timeout for Responses API
-          # This is additional application-level timeout handling
-          results = nil
+          # Execute with progress tracking
+          with_progress_tracking(
+            app_name: app_name || "GPT5Codex",
+            message: "GPT-5-Codex is generating code",
+            interval: progress_interval,
+            timeout: actual_timeout,
+            i18n_key: "gpt5CodexGenerating",
+            progress_callback: block
+          ) do
+            # Create a proper session object for the API call using abstraction layer
+            session = build_session(prompt: prompt, model: "gpt-5-codex")
 
-          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] About to call api_request"
-            puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
-          end
+            # Call api_request with timeout handling
+            # Note: OpenAIHelper already sets 600s timeout for Responses API
+            # This is additional application-level timeout handling
+            results = nil
+
+            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[GPT5CodexAgent] About to call api_request"
+              puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
+            end
 
           begin
             require 'timeout'
 
-            # Track API call timing
-            api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            begin
+              # Track API call timing
+              api_start_time = Time.now if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
 
-            Timeout::timeout(actual_timeout) do
-              results = api_request("user", session, call_depth: 0, &block)
-            end
+              Timeout::timeout(actual_timeout) do
+                results = api_request("user", session, call_depth: 0)
+              end
 
-            # Log API call duration
-            if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              api_end_time = Time.now
-              api_duration = api_end_time - api_start_time
-              puts "[GPT5CodexAgent] API call completed"
-              puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
-              puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+              # Log API call duration
+              if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+                api_end_time = Time.now
+                api_duration = api_end_time - api_start_time
+                puts "[GPT5CodexAgent] API call completed"
+                puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
+                puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+              end
+            rescue Timeout::Error
+              return {
+                error: "GPT-5-Codex request timed out after #{actual_timeout} seconds",
+                suggestion: "The task may be too complex. Try breaking it into smaller parts.",
+                timeout: true,
+                success: false
+              }
             end
-          rescue Timeout::Error
-            return {
-              error: "GPT-5-Codex request timed out after #{actual_timeout} seconds",
-              suggestion: "The task may be too complex. Try breaking it into smaller parts.",
-              timeout: true,
-              success: false
-            }
-          ensure
-            # Always clean up thread if it exists
-            cleanup_progress_thread(progress_thread)
-          end
+          end  # End of with_progress_tracking block
 
           # Parse the response
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -404,6 +402,7 @@ module Monadic
       end
 
       # Start progress monitoring thread
+      # @deprecated Use ProgressBroadcaster#with_progress_tracking instead
       # @param actual_timeout [Integer] Total timeout for the operation
       # @param interval [Integer] Update interval in seconds
       # @param app_name [String] Application name for logging

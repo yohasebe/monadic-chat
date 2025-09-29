@@ -162,7 +162,7 @@ module Monadic
       # Send progress message via block or WebSocketHelper
       def send_progress_message(progress_data, &block)
         if block_given?
-          # Use block callback (e.g., AutoForge)
+          # Use block callback (e.g., Auto Forge)
           block.call(progress_data)
         elsif defined?(::WebSocketHelper)
           # Use WebSocketHelper for broadcast

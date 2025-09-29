@@ -5,7 +5,7 @@ require 'time'
 require 'json'
 require_relative 'utils/path_config'
 
-# Utility module for AutoForge project management
+# Utility module for Auto Forge project management
 module AutoForgeUtils
   class ProjectCreationError < StandardError; end
 
@@ -62,7 +62,7 @@ module AutoForgeUtils
     raise ProjectCreationError, "Failed to create project directory: #{e.message}"
   end
 
-  # List existing AutoForge projects
+  # List existing Auto Forge projects
   # @return [Array<Hash>] List of project information
   def self.list_projects
     base_path = AutoForge::Utils::PathConfig.project_base_path

@@ -1922,36 +1922,53 @@ let loadedApp = "Chat";
           waitContent = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
         }
 
-        // Check if this is a GPT-5-Codex progress message
-        // Priority: explicit source field > content analysis
-        const isGPT5CodexProgress = (
-          // Explicit source identification (most reliable)
-          (data["source"] && data["source"] === "GPT5CodexAgent") ||
-          // Fallback: content analysis (must have GPT-5-Codex AND time indicator)
-          (waitContent &&
-           waitContent.includes('GPT-5-Codex') &&
-           (waitContent.includes('minute') || waitContent.includes('elapsed')))
+        // Check if this is an agent progress message (from internal agents)
+        // These should be displayed in temp card, not status-message
+        const isAgentProgress = (
+          data["source"] && (
+            data["source"] === "GPT5CodexAgent" ||
+            data["source"] === "GrokCode" ||
+            data["source"] === "ImageGenerator" ||
+            data["source"] === "VideoAnalyzer" ||
+            data["source"] === "SecondOpinion" ||
+            // Add other agent sources as needed
+            data["source"].includes("Agent") ||
+            data["source"].includes("Generator") ||
+            data["source"].includes("Analyzer")
+          )
         );
 
-        if (isGPT5CodexProgress) {
-          // Build localized message if i18n data is available
+        if (isAgentProgress) {
+          // Build localized message if i18n data is available for agent progress
           let displayContent = waitContent;
           if (data["minutes"] !== undefined) {
             const minutes = data["minutes"];
             const remaining = data["remaining"];
             let messageKey;
 
-            // Select appropriate message based on time elapsed
-            if (minutes <= 1) {
-              messageKey = 'gpt5CodexGenerating';
-            } else if (minutes <= 2) {
-              messageKey = 'gpt5CodexStructuring';
-            } else if (minutes <= 3) {
-              messageKey = 'gpt5CodexAnalyzing';
-            } else if (minutes <= 4) {
-              messageKey = 'gpt5CodexOptimizing';
+            // Select appropriate message based on agent source and time elapsed
+            // For GPT-5-Codex, use specific messages
+            if (data["source"] === "GPT5CodexAgent") {
+              if (minutes <= 1) {
+                messageKey = 'gpt5CodexGenerating';
+              } else if (minutes <= 2) {
+                messageKey = 'gpt5CodexStructuring';
+              } else if (minutes <= 3) {
+                messageKey = 'gpt5CodexAnalyzing';
+              } else if (minutes <= 4) {
+                messageKey = 'gpt5CodexOptimizing';
+              } else {
+                messageKey = 'gpt5CodexFinalizing';
+              }
             } else {
-              messageKey = 'gpt5CodexFinalizing';
+              // For other agents, use generic progress messages
+              if (minutes <= 1) {
+                messageKey = 'agentProcessing';
+              } else if (minutes <= 3) {
+                messageKey = 'agentAnalyzing';
+              } else {
+                messageKey = 'agentFinalizing';
+              }
             }
 
             // Get localized base message
@@ -1979,7 +1996,7 @@ let loadedApp = "Chat";
             displayContent = `<i class="fas fa-laptop-code"></i> ${waitContent}`;
           }
 
-          // Display GPT-5-Codex progress in streaming temp card
+          // Display agent progress in streaming temp card
           // Create or get temporary card
           let tempCard = $("#temp-card");
           if (!tempCard.length) {

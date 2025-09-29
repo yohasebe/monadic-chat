@@ -30,6 +30,29 @@ app "ResearchAssistantClaude" do
     temperature 0.0
   end
 
+  # Custom context management for research tasks
+  # More aggressive clearing for web search results
+  context_management do
+    edits [
+      {
+        type: "clear_tool_uses_20250919",
+        trigger: {
+          type: "input_tokens",
+          value: 50000  # Trigger earlier for research (50K instead of 100K)
+        },
+        keep: {
+          type: "tool_uses",
+          value: 3  # Keep fewer recent searches (3 instead of 5)
+        },
+        clear_at_least: {
+          type: "input_tokens",
+          value: 15000  # Clear more tokens at once (15K instead of 10K)
+        },
+        exclude_tools: []  # Clear all tools including web_search
+      }
+    ]
+  end
+
   display_name "Research Assistant"
 
   features do

@@ -647,27 +647,35 @@ module ClaudeHelper
     begin
       supports_context_management = Monadic::Utils::ModelSpec.supports_context_management?(obj["model"])
       if supports_context_management && role != "tool"
-        # Default context management configuration
-        # Trigger at 100K tokens, keep 5 recent tool uses, clear at least 10K tokens
-        body["context_management"] = {
-          "edits" => [
-            {
-              "type" => "clear_tool_uses_20250919",
-              "trigger" => {
-                "type" => "input_tokens",
-                "value" => 100000
-              },
-              "keep" => {
-                "type" => "tool_uses",
-                "value" => 5
-              },
-              "clear_at_least" => {
-                "type" => "input_tokens",
-                "value" => 10000
+        # Check for app-specific context management settings
+        app_context_management = APPS[app]&.settings&.[]("context_management")
+
+        if app_context_management
+          # Use app-specific configuration
+          body["context_management"] = app_context_management
+        else
+          # Use default context management configuration
+          # Trigger at 100K tokens, keep 5 recent tool uses, clear at least 10K tokens
+          body["context_management"] = {
+            "edits" => [
+              {
+                "type" => "clear_tool_uses_20250919",
+                "trigger" => {
+                  "type" => "input_tokens",
+                  "value" => 100000
+                },
+                "keep" => {
+                  "type" => "tool_uses",
+                  "value" => 5
+                },
+                "clear_at_least" => {
+                  "type" => "input_tokens",
+                  "value" => 10000
+                }
               }
-            }
-          ]
-        }
+            ]
+          }
+        end
 
         # Add beta header for context management
         headers["anthropic-beta"] ||= []

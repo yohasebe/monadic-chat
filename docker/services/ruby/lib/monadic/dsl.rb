@@ -829,6 +829,14 @@ module MonadicDSL
       SimplifiedFeatureConfiguration.new(@state).instance_eval(&block)
     end
     
+    def context_management(&block)
+      if block_given?
+        config = ContextManagementConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:context_management] = config.to_hash
+      end
+    end
+
     def tools(tools_array = nil, &block)
       if tools_array
         # Direct array of tools provided (e.g., for Gemini/OpenAI style)
@@ -860,7 +868,22 @@ module MonadicDSL
       end
     end
   end
-  
+
+  # Context Management Configuration DSL
+  class ContextManagementConfiguration
+    def initialize
+      @config = {}
+    end
+
+    def edits(edits_array)
+      @config[:edits] = edits_array
+    end
+
+    def to_hash
+      @config
+    end
+  end
+
   # LLM Configuration for simplified syntax
   class LLMConfiguration
     # Map newer parameter names to standard ones

@@ -685,6 +685,15 @@ module ClaudeHelper
         end
         headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
       end
+
+      # Add beta header for model_context_window_exceeded stop reason
+      # Required for models before Sonnet 4.5 (safe to include for all models)
+      headers["anthropic-beta"] ||= []
+      headers["anthropic-beta"] = Array(headers["anthropic-beta"])
+      unless headers["anthropic-beta"].include?("model-context-window-exceeded-2025-08-26")
+        headers["anthropic-beta"] << "model-context-window-exceeded-2025-08-26"
+      end
+      headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
     rescue StandardError => e
       # Log error but continue without context management
       if CONFIG["EXTRA_LOGGING"]
@@ -1218,6 +1227,14 @@ module ClaudeHelper
                   finish_reason = "tool_use"
                   res1 = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
                   block&.call res1
+                when "pause_turn"
+                  finish_reason = "pause_turn"
+                when "refusal"
+                  finish_reason = "refusal"
+                when "stop_sequence"
+                  finish_reason = "stop_sequence"
+                when "model_context_window_exceeded"
+                  finish_reason = "model_context_window_exceeded"
                 end
               end
             else
@@ -1262,6 +1279,14 @@ module ClaudeHelper
                   finish_reason = "length"
                 when "end_turn"
                   finish_reason = "stop"
+                when "pause_turn"
+                  finish_reason = "pause_turn"
+                when "refusal"
+                  finish_reason = "refusal"
+                when "stop_sequence"
+                  finish_reason = "stop_sequence"
+                when "model_context_window_exceeded"
+                  finish_reason = "model_context_window_exceeded"
                 end
               end
             end

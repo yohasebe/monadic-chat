@@ -1,10 +1,9 @@
 require 'cgi'
 require_relative '../../lib/monadic/adapters/latex_helper'
 
-class SyntaxTreeOpenAI < MonadicApp
-  include OpenAIHelper
+# Shared tools for Syntax Tree (provider-independent)
+module SyntaxTreeTools
   include LatexHelper
-
 
   def render_syntax_tree(bracket_notation:, language:)
     return "Error: bracket notation is required." if bracket_notation.to_s.empty?
@@ -488,16 +487,15 @@ class SyntaxTreeOpenAI < MonadicApp
   end
 end
 
-# Claude version
+# OpenAI version uses shared tools
+class SyntaxTreeOpenAI < MonadicApp
+  include OpenAIHelper
+  include SyntaxTreeTools
+end
+
+# Claude version uses shared tools
 class SyntaxTreeClaude < MonadicApp
   include ClaudeHelper
-  include LatexHelper
-
-  def render_syntax_tree(bracket_notation:, language:)
-    SyntaxTreeOpenAI.new.render_syntax_tree(
-      bracket_notation: bracket_notation,
-      language: language
-    )
-  end
+  include SyntaxTreeTools
 end
 

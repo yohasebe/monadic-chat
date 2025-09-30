@@ -1,8 +1,8 @@
 require 'cgi'
 require_relative '../../lib/monadic/adapters/latex_helper'
 
-class ConceptVisualizerOpenAI < MonadicApp
-  include OpenAIHelper
+# Shared tools for Concept Visualizer (provider-independent)
+module ConceptVisualizerTools
   include LatexHelper
 
   def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english")
@@ -397,21 +397,14 @@ class ConceptVisualizerOpenAI < MonadicApp
   end
 end
 
-# Claude version inherits all functionality
+# OpenAI version uses shared tools
+class ConceptVisualizerOpenAI < MonadicApp
+  include OpenAIHelper
+  include ConceptVisualizerTools
+end
+
+# Claude version uses shared tools
 class ConceptVisualizerClaude < MonadicApp
   include ClaudeHelper
-  include LatexHelper
-
-  def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english")
-    ConceptVisualizerOpenAI.new.generate_concept_diagram(
-      diagram_type: diagram_type,
-      tikz_code: tikz_code,
-      title: title,
-      language: language
-    )
-  end
-  
-  def list_diagram_examples(category: nil)
-    ConceptVisualizerOpenAI.new.list_diagram_examples(category: category)
-  end
+  include ConceptVisualizerTools
 end

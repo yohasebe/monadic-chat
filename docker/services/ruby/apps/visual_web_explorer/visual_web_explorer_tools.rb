@@ -131,28 +131,27 @@ module VisualWebExplorerTools
         first_screenshot = result[:screenshots].first
         # Use unified environment module for path resolution
         image_path = File.join(Monadic::Utils::Environment.data_path, first_screenshot)
-        
+
+        # Validate image path
+        validation_result = validate_file_path(image_path)
+        if validation_result.is_a?(Hash)
+          return {
+            success: false,
+            error: "Invalid screenshot path: #{validation_result[:error]}"
+          }
+        end
+
         analysis_prompt = "Extract all text content from this webpage screenshot. Format the output as clean Markdown with proper headings, lists, and paragraphs. Include all visible text but exclude navigation elements and advertisements if possible."
-        
+
         begin
-          # Check if file exists with fallback
+          # Check if file exists
           unless File.exist?(image_path)
-            # Try alternative path if first path fails
-            alternative_path = Monadic::Utils::Environment.in_container? ?
-                                "/monadic/data/#{first_screenshot}" :
-                                File.join(Dir.home, "monadic", "data", first_screenshot)
-            
-            if File.exist?(alternative_path)
-              image_path = alternative_path
-            else
-              # If still not found, provide detailed error
-              return {
-                success: false,
-                error: "Screenshot file not found. Tried paths: #{image_path} and #{alternative_path}. Environment: #{Monadic::Utils::Environment.in_container? ? 'container' : 'local'}"
-              }
-            end
+            return {
+              success: false,
+              error: "Screenshot file not found at: #{image_path}"
+            }
           end
-          
+
           # Read the image and encode it
           image_data = File.read(image_path)
           base64_image = Base64.strict_encode64(image_data)
@@ -163,60 +162,12 @@ module VisualWebExplorerTools
                       else 'image/png'
                       end
           
-          # Prepare the message with image
-          provider = @settings["provider"] || "openai"
-          
-          case provider
-          when "claude"
-            # Use Claude's native image format
-            messages = [{
-              "role" => "user",
-              "content" => [
-                {"type" => "text", "text" => analysis_prompt},
-                {
-                  "type" => "image",
-                  "source" => {
-                    "type" => "base64",
-                    "media_type" => mime_type,
-                    "data" => base64_image
-                  }
-                }
-              ]
-            }]
-          when "gemini"
-            # Use Gemini's inline data format
-            messages = [{
-              "role" => "user",
-              "parts" => [
-                {"text" => analysis_prompt},
-                {
-                  "inlineData" => {
-                    "mimeType" => mime_type,
-                    "data" => base64_image
-                  }
-                }
-              ]
-            }]
-          when "grok"
-            # Use Grok's OpenAI-compatible format
-            messages = [{
-              "role" => "user",
-              "content" => [
-                {"type" => "text", "text" => analysis_prompt},
-                {
-                  "type" => "image_url",
-                  "image_url" => {
-                    "url" => "data:#{mime_type};base64,#{base64_image}",
-                    "detail" => "high"
-                  }
-                }
-              ]
-            }]
-          else
-            # Default to OpenAI format or use analyze_image
-            text_result = analyze_image(message: analysis_prompt, image_path: image_path)
-            
-            return {
+          # Use analyze_image helper for all providers
+          # This provides a unified interface that handles provider-specific formats
+          text_result = analyze_image(message: analysis_prompt, image_path: image_path)
+
+          if text_result && !text_result.empty?
+            {
               success: true,
               message: "Text extracted using image recognition",
               content: text_result,
@@ -224,24 +175,10 @@ module VisualWebExplorerTools
               screenshots: result[:screenshots],
               gallery_html: create_screenshot_gallery(result[:screenshots])
             }
-          end
-          
-          # Make API request using the appropriate provider
-          response = api_request(messages: messages, max_tokens: 4000)
-          
-          if response && response["content"]
-            {
-              success: true,
-              message: "Text extracted using #{provider} image recognition",
-              content: response["content"],
-              method: "image_recognition_#{provider}",
-              screenshots: result[:screenshots],
-              gallery_html: create_screenshot_gallery(result[:screenshots])
-            }
           else
             {
               success: false,
-              error: "Image recognition failed - no response from #{provider}"
+              error: "Image recognition returned empty result"
             }
           end
         rescue => e

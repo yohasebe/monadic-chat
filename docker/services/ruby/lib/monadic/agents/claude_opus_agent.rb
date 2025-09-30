@@ -1,15 +1,23 @@
 # frozen_string_literal: true
 
-require_relative '../adapters/vendors/claude_helper'
-
 module Monadic
   module Agents
     module ClaudeOpusAgent
-      include ClaudeHelper
-
       CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'.freeze
 
       def claude_opus_agent(prompt, app_name = 'ClaudeOpusAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
+        # Check if we have the necessary methods (from ClaudeHelper or compatible module)
+        unless respond_to?(:send_query)
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[ClaudeOpusAgent] ERROR: send_query not available"
+            puts "[ClaudeOpusAgent] Included modules: #{self.class.included_modules.map(&:name).join(', ')}"
+          end
+          return {
+            error: "ClaudeHelper not available",
+            success: false
+          }
+        end
+
         progress_payload = {
           'type' => 'wait',
           'content' => 'Claude Opus is generating code…',

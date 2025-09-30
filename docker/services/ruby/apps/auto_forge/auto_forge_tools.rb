@@ -17,8 +17,6 @@ require_relative '../../lib/monadic/agents/claude_opus_agent'
 # Uses GPT-5 for orchestration and GPT-5-Codex for code generation
 module AutoForgeTools
   include MonadicHelper
-  include Monadic::Agents::GPT5CodexAgent
-  include Monadic::Agents::ClaudeOpusAgent
 
   DIAGNOSIS_TIMEOUT = 30 * 60
 
@@ -173,20 +171,21 @@ module AutoForgeTools
     end
 
     # Configure code generation callback based on agent
+    # Dynamically extend the appropriate agent module to avoid helper conflicts
     context[:codex_callback] = case agent
     when :claude
-      if self.respond_to?(:claude_opus_agent)
-        ->(prompt, app_name, &block) do
-          actual_block = block || progress_callback
-          self.claude_opus_agent(prompt, app_name || 'ClaudeOpusAgent', &actual_block)
-        end
+      # Extend ClaudeOpusAgent to get claude_opus_agent method
+      self.extend(Monadic::Agents::ClaudeOpusAgent) unless self.respond_to?(:claude_opus_agent)
+      ->(prompt, app_name, &block) do
+        actual_block = block || progress_callback
+        self.claude_opus_agent(prompt, app_name || 'ClaudeOpusAgent', &actual_block)
       end
     else
-      if self.respond_to?(:call_gpt5_codex)
-        ->(prompt, app_name, &block) do
-          actual_block = block || progress_callback
-          self.call_gpt5_codex(prompt: prompt, app_name: app_name || 'AutoForgeOpenAI', &actual_block)
-        end
+      # Extend GPT5CodexAgent to get call_gpt5_codex method
+      self.extend(Monadic::Agents::GPT5CodexAgent) unless self.respond_to?(:call_gpt5_codex)
+      ->(prompt, app_name, &block) do
+        actual_block = block || progress_callback
+        self.call_gpt5_codex(prompt: prompt, app_name: app_name || 'AutoForgeOpenAI', &actual_block)
       end
     end
 
@@ -580,6 +579,12 @@ module AutoForgeTools
   end
 
   def create_readme(project_path)
+    # Validate project path
+    validation_result = validate_file_path(project_path)
+    if validation_result.is_a?(Hash)
+      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    end
+
     main_script, _content = read_cli_script(project_path)
 
     return { success: false, error: "No main script found" } unless main_script
@@ -604,11 +609,23 @@ module AutoForgeTools
       See script header for details.
     README
 
-    File.write(File.join(project_path, 'README.md'), readme)
+    readme_path = File.join(project_path, 'README.md')
+    readme_validation = validate_file_path(readme_path)
+    if readme_validation.is_a?(Hash)
+      return { success: false, error: "Invalid README path: #{readme_validation[:error]}" }
+    end
+
+    File.write(readme_path, readme)
     { success: true, filename: 'README.md' }
   end
 
   def create_config_template(project_path)
+    # Validate project path
+    validation_result = validate_file_path(project_path)
+    if validation_result.is_a?(Hash)
+      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    end
+
     main_script, content = read_cli_script(project_path)
 
     return { success: false, error: "No main script found" } unless main_script && content
@@ -631,11 +648,23 @@ module AutoForgeTools
       filename = 'config.cfg'
     end
 
-    File.write(File.join(project_path, filename), config)
+    config_path = File.join(project_path, filename)
+    config_validation = validate_file_path(config_path)
+    if config_validation.is_a?(Hash)
+      return { success: false, error: "Invalid config path: #{config_validation[:error]}" }
+    end
+
+    File.write(config_path, config)
     { success: true, filename: filename }
   end
 
   def create_dependencies(project_path)
+    # Validate project path
+    validation_result = validate_file_path(project_path)
+    if validation_result.is_a?(Hash)
+      return { success: false, error: "Invalid project path: #{validation_result[:error]}" }
+    end
+
     main_script, content = read_cli_script(project_path)
 
     return { success: false, error: "No main script found" } unless main_script && content
@@ -647,8 +676,6 @@ module AutoForgeTools
     when '.py'
       filename = 'requirements.txt'
       body = dependencies.any? ? dependencies.sort.join("\n") : "# No external dependencies detected\n"
-      File.write(File.join(project_path, filename), body)
-      { success: true, filename: filename }
     when '.rb'
       filename = 'Gemfile'
       body = if dependencies.any?
@@ -657,8 +684,6 @@ module AutoForgeTools
       else
         "# No external dependencies detected\n"
       end
-      File.write(File.join(project_path, filename), body)
-      { success: true, filename: filename }
     when '.js'
       filename = 'package.json'
       body = if dependencies.any?
@@ -667,13 +692,20 @@ module AutoForgeTools
       else
         "{\n  \"name\": \"autoforge-cli\",\n  \"version\": \"1.0.0\",\n  \"dependencies\": {}\n}\n"
       end
-      File.write(File.join(project_path, filename), body)
-      { success: true, filename: filename }
     else
       filename = 'dependencies.txt'
-      File.write(File.join(project_path, filename), "# No external dependencies detected\n")
-      { success: true, filename: filename }
+      body = "# No external dependencies detected\n"
     end
+
+    # Validate the target file path
+    file_path = File.join(project_path, filename)
+    file_validation = validate_file_path(file_path)
+    if file_validation.is_a?(Hash)
+      return { success: false, error: "Invalid file path: #{file_validation[:error]}" }
+    end
+
+    File.write(file_path, body)
+    { success: true, filename: filename }
   end
 
   # Load standard library lists from external configuration
@@ -1255,6 +1287,18 @@ module AutoForgeTools
     if manual_path && !manual_path.empty?
       expanded_path = File.expand_path(manual_path)
 
+      # Validate the path is within the shared folder
+      data_dir = Monadic::Utils::Environment.data_path
+      validation_result = validate_file_path(expanded_path)
+      if validation_result.is_a?(Hash)
+        return {
+          success: false,
+          error_type: :invalid_path,
+          project_name: project_name,
+          error: "Invalid project path: #{validation_result[:error]}"
+        }
+      end
+
       unless Dir.exist?(expanded_path)
         return {
           success: false,
@@ -1266,6 +1310,17 @@ module AutoForgeTools
       end
 
       html_path = File.join(expanded_path, 'index.html')
+
+      # Validate HTML path as well
+      html_validation = validate_file_path(html_path)
+      if html_validation.is_a?(Hash)
+        return {
+          success: false,
+          error_type: :invalid_path,
+          project_name: project_name,
+          error: "Invalid HTML path: #{html_validation[:error]}"
+        }
+      end
 
       unless File.exist?(html_path)
         return {

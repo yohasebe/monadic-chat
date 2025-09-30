@@ -44,6 +44,24 @@ namespace :server do
   desc "Start the Monadic server in daemonized mode"
   task :start do
     puts "Starting Monadic server..."
+
+    # Check if vendor assets are available
+    vendor_js_path = File.expand_path("docker/services/ruby/public/vendor/js/jquery.min.js")
+    vendor_css_path = File.expand_path("docker/services/ruby/public/vendor/css/bootstrap.min.css")
+
+    unless File.exist?(vendor_js_path) && File.exist?(vendor_css_path)
+      puts "\n" + "="*80
+      puts "📦 Vendor assets not found. Downloading required files..."
+      puts "="*80 + "\n"
+
+      # Download vendor assets
+      Rake::Task['download_vendor_assets'].invoke
+
+      puts "\n" + "="*80
+      puts "✅ Vendor assets downloaded successfully"
+      puts "="*80 + "\n"
+    end
+
     sh "./bin/monadic_server.sh start"
   end
   
@@ -54,12 +72,7 @@ namespace :server do
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
     puts "Extra logging: enabled (forced in debug mode)"
-    
-    # Check if Ollama container exists and set OLLAMA_AVAILABLE accordingly
-    ollama_exists = system("docker ps -a --format '{{.Names}}' | grep -q 'monadic-chat-ollama-container'")
-    ENV['OLLAMA_AVAILABLE'] = ollama_exists ? 'true' : 'false'
-    puts "Ollama container: #{ollama_exists ? 'detected' : 'not found'}"
-    
+
     # Check for API keys in environment or config file
     require 'dotenv'
     config_path = File.expand_path("~/monadic/config/env")
@@ -110,7 +123,24 @@ namespace :server do
         puts "Missing API keys for: #{missing_keys.join(', ')}"
       end
     end
-    
+
+    # Check if vendor assets are available
+    vendor_js_path = File.expand_path("docker/services/ruby/public/vendor/js/jquery.min.js")
+    vendor_css_path = File.expand_path("docker/services/ruby/public/vendor/css/bootstrap.min.css")
+
+    unless File.exist?(vendor_js_path) && File.exist?(vendor_css_path)
+      puts "\n" + "="*80
+      puts "📦 Vendor assets not found. Downloading required files..."
+      puts "="*80 + "\n"
+
+      # Download vendor assets
+      Rake::Task['download_vendor_assets'].invoke
+
+      puts "\n" + "="*80
+      puts "✅ Vendor assets downloaded successfully"
+      puts "="*80 + "\n"
+    end
+
     sh "./bin/monadic_server.sh debug"
   end
   

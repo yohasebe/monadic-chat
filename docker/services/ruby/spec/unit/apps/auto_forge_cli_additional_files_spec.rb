@@ -3,7 +3,7 @@
 require_relative '../../../spec_helper'
 require 'tmpdir'
 
-require_relative '../../../../apps/auto_forge/auto_forge_tools'
+require_relative '../../../apps/auto_forge/auto_forge_tools'
 
 RSpec.describe 'AutoForge CLI optional files' do
   let(:helper_class) do

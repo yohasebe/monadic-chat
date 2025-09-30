@@ -2,8 +2,8 @@
 
 require 'spec_helper'
 require 'fileutils'
-require_relative '../../../../apps/auto_forge/auto_forge_tools'
-require_relative '../../../../apps/auto_forge/auto_forge_utils'
+require_relative '../../../apps/auto_forge/auto_forge_tools'
+require_relative '../../../apps/auto_forge/auto_forge_utils'
 
 RSpec.describe 'AutoForge debugging (integration)', type: :integration do
   include AutoForgeTools

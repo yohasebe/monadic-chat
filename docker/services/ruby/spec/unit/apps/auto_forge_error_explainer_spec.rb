@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../../apps/auto_forge/agents/error_explainer'
+require_relative '../../../apps/auto_forge/agents/error_explainer'
 
 RSpec.describe AutoForge::Agents::ErrorExplainer do
   subject(:explainer) { described_class.new }

@@ -98,11 +98,11 @@ module MonadicDSL
       if defined?(Monadic::Utils::MDSLValidator) && app_state
         begin
           provider = determine_provider(app_state)
-          model = app_state.llm_settings[:model] || app_state.llm_settings[:models]&.first
-          
+          model = app_state.settings[:model] || app_state.settings[:models]&.first
+
           if provider && model
             validation_result = Monadic::Utils::MDSLValidator.validate_reasoning_parameters(
-              app_state.llm_settings,
+              app_state.settings,
               provider,
               model
             )
@@ -154,8 +154,8 @@ module MonadicDSL
     
     def determine_provider(app_state)
       # Determine provider from app_state
-      if app_state.respond_to?(:llm_settings)
-        provider = app_state.llm_settings[:provider]
+      if app_state.respond_to?(:settings)
+        provider = app_state.settings[:provider]
         return provider if provider
         
         # Try to infer from group

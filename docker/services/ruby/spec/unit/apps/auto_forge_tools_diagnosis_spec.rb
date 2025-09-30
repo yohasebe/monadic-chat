@@ -4,9 +4,9 @@ require 'spec_helper'
 require 'tmpdir'
 require 'fileutils'
 
-require_relative '../../../../apps/auto_forge/auto_forge_tools'
-require_relative '../../../../apps/auto_forge/agents/error_explainer'
-require_relative '../../../../apps/auto_forge/utils/codex_response_analyzer'
+require_relative '../../../apps/auto_forge/auto_forge_tools'
+require_relative '../../../apps/auto_forge/agents/error_explainer'
+require_relative '../../../apps/auto_forge/utils/codex_response_analyzer'
 
 RSpec.describe AutoForgeTools do
   subject(:tool) do

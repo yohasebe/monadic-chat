@@ -84,11 +84,15 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Start Docker containers if on Mac
-  if is_mac?
-    start_script = File.join(DOCKER_HOME, "support_scripts", "mac-start-docker.sh")
-    mac_docker_start = File.read(start_script)
-    system(mac_docker_start)
+  # Check if Docker is running
+  unless system("docker info > /dev/null 2>&1")
+    puts "\n" + "="*80
+    puts "⚠️  Docker Desktop is not running"
+    puts "="*80
+    puts "\nPlease start Docker Desktop before running this command."
+    puts "You can use 'electron .' to start the Electron app which will"
+    puts "automatically start Docker Desktop, or start it manually.\n"
+    exit 1
   end
 
   # Stop existing Ruby container if running
@@ -126,7 +130,7 @@ def start_server(opts)
   cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
   cmd += " --log #{File.join(LOG_DIR, "server.log")}" if opts[:log]
   cmd += " --daemonize" if opts[:daemonize]
-  
+
   if opts[:log] || !opts[:daemonize]
     puts "Starting server in debug mode..."
     exec(cmd)

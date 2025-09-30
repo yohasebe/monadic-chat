@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require_relative '../../../../apps/auto_forge/utils/codex_response_analyzer'
+require_relative '../../../apps/auto_forge/utils/codex_response_analyzer'
 
 RSpec.describe AutoForge::Utils::CodexResponseAnalyzer do
   describe '.analyze_response' do

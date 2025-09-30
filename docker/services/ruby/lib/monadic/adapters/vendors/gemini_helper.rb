@@ -2828,16 +2828,14 @@ module GeminiHelper
       # Use the new image generation model
       model_name = "gemini-2.5-flash-image-preview"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.read_timeout = 300 # 5 minutes timeout
-      
+
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
-      
-      response = http.request(request)
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+        http.request(request)
+      end
       
       if response.code == '200'
         result = JSON.parse(response.body)
@@ -2972,16 +2970,14 @@ module GeminiHelper
       
       # Make API request to Imagen 3
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict?key=#{api_key}")
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.read_timeout = 300 # 5 minutes timeout
-      
+
       request = Net::HTTP::Post.new(uri)
       request['Content-Type'] = 'application/json'
       request.body = request_body.to_json
-      
-      response = http.request(request)
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+        http.request(request)
+      end
       
       if response.code == '200'
         result = JSON.parse(response.body)

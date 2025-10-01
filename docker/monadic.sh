@@ -430,11 +430,9 @@ build_python_container() {
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
 
   # Detect if install options have changed since last build
-  echo "[DEBUG] Entering option change detection logic" | tee -a "${build_log}"
   local prev_options_file="${logs_dir}/python_build_options.txt"
   local use_no_cache=false
   local changed_options=""
-  echo "[DEBUG] Options file path: ${prev_options_file}" | tee -a "${build_log}"
 
   if [ -f "$prev_options_file" ]; then
     # Compare each option with previous build
@@ -493,9 +491,6 @@ build_python_container() {
     cache_flag="--no-cache"
   fi
 
-  echo "[DEBUG] use_no_cache=${use_no_cache}" | tee -a "${build_log}"
-  echo "[DEBUG] cache_flag='${cache_flag}'" | tee -a "${build_log}"
-  echo "[DEBUG] build args:${build_args}" | tee -a "${build_log}"
   echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
 
   # Build with appropriate cache strategy

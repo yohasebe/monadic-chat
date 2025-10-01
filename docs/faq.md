@@ -264,11 +264,25 @@ Changes persist across container restarts with Method 1.
 
 ### Q: Rebuilds are slow. How can I speed them up? :id=rebuild-speed
 
-**A**: The Dockerfile is layer-split for caching (base vs optional libs). To maximize cache hits:
-- Avoid changing many options at once; only modified layers rebuild
-- Ensure Docker build cache is enabled
-- Keep `pysetup.sh` lightweight; heavy installs will dominate time
+**A**: Monadic Chat uses smart build caching to automatically optimize rebuild speed:
+
+**Automatic Optimization:**
+- **Options unchanged**: Fast rebuild using Docker cache (~1-2 minutes)
+- **Options changed**: Complete rebuild with `--no-cache` (~15-30 minutes)
+- System automatically detects changes and chooses the appropriate strategy
+
+**How it works:**
+- Previous build options are saved to `~/monadic/log/python_build_options.txt`
+- Before each build, current options are compared with saved options
+- If any option differs (e.g., `INSTALL_LATEX` changed from `false` to `true`), `--no-cache` is used
+- If options are unchanged, Docker cache is used for fast rebuilds
+
+**Additional tips:**
+- Change only necessary options to avoid triggering full rebuilds
+- Keep `pysetup.sh` lightweight; heavy installs will dominate build time
 - Stable network speeds significantly affect pip/apt install times
+
+**After rebuild:** The Python container automatically restarts to use the new image immediately
 
 ### Q: What happens if a rebuild fails? :id=rebuild-failure
 

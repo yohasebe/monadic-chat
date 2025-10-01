@@ -11,6 +11,8 @@
 - [ヘルプシステム設定](#ヘルプシステム設定)
 - [開発設定](#開発設定)
 - [コンテナ設定](#コンテナ設定)
+- [インストールオプション](#インストールオプション)
+- [PDF処理設定](#pdf処理設定)
 
 ## APIキー
 
@@ -86,6 +88,55 @@
 | `POSTGRES_PORT` | PostgreSQLポート | `5432` | 標準PostgreSQLポート |
 | `POSTGRES_USER` | PostgreSQLユーザー | `postgres` | データベースユーザー |
 | `POSTGRES_PASSWORD` | PostgreSQLパスワード | `postgres` | データベースパスワード |
+
+## インストールオプション
+
+これらのオプションはPythonコンテナにインストールされる追加パッケージを制御します。変更には**アクション → Pythonコンテナビルド**からのコンテナ再ビルドが必要です。
+
+| 変数名 | 説明 | 必須となるアプリ | デフォルト |
+|--------|------|-----------------|------------|
+| `INSTALL_LATEX` | LaTeXツールチェーン（TeX Live、dvisvgm、CJKパッケージ） | Syntax Tree、Concept Visualizer | `false` |
+| `PYOPT_NLTK` | 自然言語処理ツールキット | NLPアプリケーション | `false` |
+| `PYOPT_SPACY` | spaCy NLPライブラリ（v3.7.5） | 高度なNLPタスク | `false` |
+| `PYOPT_SCIKIT` | scikit-learn機械学習ライブラリ | 機械学習アプリケーション | `false` |
+| `PYOPT_GENSIM` | トピックモデリングライブラリ | テキスト分析 | `false` |
+| `PYOPT_LIBROSA` | オーディオ分析ライブラリ | 音声処理 | `false` |
+| `PYOPT_MEDIAPIPE` | コンピュータビジョンフレームワーク | ビジョンアプリケーション | `false` |
+| `PYOPT_TRANSFORMERS` | Hugging Face Transformers | 深層学習NLP | `false` |
+| `IMGOPT_IMAGEMAGICK` | ImageMagick画像処理 | 高度な画像操作 | `false` |
+
+### インストールオプションの設定方法
+
+**GUI経由（推奨）：**
+1. Electronアプリメニュー：**アクション → インストールオプション**
+2. 必要なオプションを切り替え
+3. **保存**をクリック
+4. メニュー：**アクション → Pythonコンテナビルド**
+
+**設定ファイル経由：**
+```bash
+# ~/monadic/config/env
+INSTALL_LATEX=true
+PYOPT_NLTK=true
+PYOPT_LIBROSA=true
+```
+
+### スマートビルドキャッシング
+
+ビルドシステムは自動的にリビルド速度を最適化します：
+
+- **オプション未変更**：キャッシュを使用した高速リビルド（約1〜2分）
+- **オプション変更**：`--no-cache`を使用した完全リビルド（約15〜30分）
+- **自動再起動**：ビルド成功後、コンテナが自動的に再起動
+
+以前のビルドオプションは`~/monadic/log/python_build_options.txt`で追跡されます。システムは現在のオプションと以前のビルドを比較し、信頼性を確保しながら速度を最大化するため、必要な場合のみ`--no-cache`を使用します。
+
+### 重要な注意事項
+
+- LaTeXパッケージには完全なTeX Live、CJK言語サポート、日本語/中国語/韓国語テキストレンダリング用のdvisvgmが含まれます
+- NLTKとspaCyオプションはパッケージのみをインストールします。データセット/モデルは`pysetup.sh`経由で別途ダウンロードする必要があります
+- 変更はリビルド後すぐに有効になります。手動でコンテナを再起動する必要はありません
+- ビルド失敗時は現在のイメージが保持されます（アトミック更新）
 
 ## PDF処理設定
 

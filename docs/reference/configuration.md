@@ -12,6 +12,8 @@ This page provides a comprehensive reference for all configuration options in Mo
 - [Help System Settings](#help-system-settings)
 - [Development Settings](#development-settings)
 - [Container Settings](#container-settings)
+- [Install Options](#install-options)
+- [PDF Processing Settings](#pdf-processing-settings)
 
 ## Configuration Priority
 
@@ -111,6 +113,55 @@ For the OpenAI default model:
 | `POSTGRES_PORT` | PostgreSQL port | `5432` | Standard PostgreSQL port |
 | `POSTGRES_USER` | PostgreSQL user | `postgres` | Database user |
 | `POSTGRES_PASSWORD` | PostgreSQL password | `postgres` | Database password |
+
+## Install Options
+
+These options control which optional packages are installed in the Python container. Changes require rebuilding the Python container via **Actions → Build Python Container**.
+
+| Variable | Description | Required For | Default |
+|----------|-------------|--------------|---------|
+| `INSTALL_LATEX` | LaTeX toolchain (TeX Live, dvisvgm, CJK packages) | Syntax Tree, Concept Visualizer | `false` |
+| `PYOPT_NLTK` | Natural Language Toolkit | NLP applications | `false` |
+| `PYOPT_SPACY` | spaCy NLP library (v3.7.5) | Advanced NLP tasks | `false` |
+| `PYOPT_SCIKIT` | scikit-learn machine learning library | ML applications | `false` |
+| `PYOPT_GENSIM` | Topic modeling library | Text analysis | `false` |
+| `PYOPT_LIBROSA` | Audio analysis library | Audio processing | `false` |
+| `PYOPT_MEDIAPIPE` | Computer vision framework | Vision applications | `false` |
+| `PYOPT_TRANSFORMERS` | Hugging Face Transformers | Deep learning NLP | `false` |
+| `IMGOPT_IMAGEMAGICK` | ImageMagick image processing | Advanced image operations | `false` |
+
+### Configuring Install Options
+
+**Via GUI (Recommended):**
+1. Open Electron app menu: **Actions → Install Options**
+2. Toggle desired options
+3. Click **Save**
+4. Menu: **Actions → Build Python Container**
+
+**Via Config File:**
+```bash
+# ~/monadic/config/env
+INSTALL_LATEX=true
+PYOPT_NLTK=true
+PYOPT_LIBROSA=true
+```
+
+### Smart Build Caching
+
+The build system automatically optimizes rebuild speed:
+
+- **Options unchanged**: Fast rebuild using cache (~1-2 minutes)
+- **Options changed**: Complete rebuild with `--no-cache` (~15-30 minutes)
+- **Auto-restart**: Container automatically restarts after successful build
+
+Previous build options are tracked in `~/monadic/log/python_build_options.txt`. The system compares current options with the previous build and uses `--no-cache` only when necessary to ensure reliability while maximizing speed.
+
+### Important Notes
+
+- LaTeX packages include full TeX Live, CJK language support, and dvisvgm for Japanese/Chinese/Korean text rendering
+- NLTK and spaCy options install packages only; datasets/models must be downloaded separately via `pysetup.sh`
+- Changes take effect immediately after rebuild; no manual container restart needed
+- Failed builds preserve the current image (atomic updates)
 
 ## PDF Processing Settings
 

@@ -985,8 +985,12 @@ module PerplexityHelper
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
               content = delta["content"]
 
+              if CONFIG["EXTRA_LOGGING"] && content
+                DebugHelper.debug("Perplexity: content type: #{content.class}, preview: #{content.to_s[0..50]}", category: :api, level: :debug)
+              end
+
               # Check if content is a Hash (JSON format) or String (tag format)
-              if content.is_a?(Hash)
+              if content && content.is_a?(Hash)
                 # JSON format (like Cohere): {"thinking": "...", "text": "..."}
                 if thinking_text = content["thinking"]
                   unless thinking_text.strip.empty?
@@ -1009,16 +1013,25 @@ module PerplexityHelper
                 else
                   fragment = ""
                 end
-              else
+              elsif content
                 # String format (tag format): "<think>...</think>"
                 fragment = content.to_s
 
                 # Accumulate in buffer to handle split tags
                 think_tag_buffer << fragment
 
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("Perplexity: think_tag_buffer length: #{think_tag_buffer.length}, preview: #{think_tag_buffer[0..100]}", category: :api, level: :debug)
+                end
+
                 # Try to extract complete thinking blocks from buffer
                 while think_tag_buffer =~ /<think>(.*?)<\/think>/m
                   thinking_text = $1.strip
+
+                  if CONFIG["EXTRA_LOGGING"]
+                    DebugHelper.debug("Perplexity: Extracted thinking: #{thinking_text[0..100]}", category: :api, level: :info)
+                  end
+
                   unless thinking_text.empty?
                     thinking << thinking_text
 
@@ -1041,6 +1054,9 @@ module PerplexityHelper
                 # This prevents <think> tags from appearing during streaming
                 fragment = fragment.gsub(/<think>.*?<\/think>/m, '')
                 fragment = fragment.gsub(/<\/?think>/, '')
+              else
+                # content is nil - skip this delta
+                fragment = ""
               end
             else
               # Non-reasoning models

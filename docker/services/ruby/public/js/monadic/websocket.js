@@ -2081,7 +2081,7 @@ let loadedApp = "Chat";
           tempReasoningCard = $(`
             <div id="temp-reasoning-card" class="card mt-3 streaming-card border-info">
               <div class="card-header p-2 ps-3 bg-info bg-opacity-10">
-                <div class="fs-6 card-title mb-0">
+                <div class="fs-6 card-title mb-0 text-muted">
                   <span><i class="fas fa-brain"></i></span> <span class="fw-bold">${titleText}</span>
                 </div>
               </div>

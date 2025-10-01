@@ -1,7 +1,79 @@
 require "spec_helper"
 
 RSpec.describe "Perplexity Thinking Content Extraction" do
-  describe "Think tag extraction from fragments" do
+  describe "JSON format thinking extraction (current API)" do
+    it "extracts thinking content from JSON delta" do
+      delta = {
+        "content" => {
+          "thinking" => "Let me analyze this problem step by step"
+        }
+      }
+
+      content = delta["content"]
+      thinking_text = content["thinking"] if content
+
+      expect(thinking_text).to eq("Let me analyze this problem step by step")
+    end
+
+    it "handles both thinking and text content simultaneously" do
+      delta = {
+        "content" => {
+          "thinking" => "Reasoning about the answer",
+          "text" => "The answer is"
+        }
+      }
+
+      content = delta["content"]
+      thinking_text = content["thinking"] if content
+      text_content = content["text"] if content
+
+      expect(thinking_text).to eq("Reasoning about the answer")
+      expect(text_content).to eq("The answer is")
+    end
+
+    it "handles empty thinking content" do
+      delta = {
+        "content" => {
+          "thinking" => ""
+        }
+      }
+
+      content = delta["content"]
+      thinking_text = content["thinking"] if content
+
+      expect(thinking_text).to eq("")
+      expect(thinking_text.strip.empty?).to be true
+    end
+
+    it "handles missing thinking field" do
+      delta = {
+        "content" => {
+          "text" => "Regular response without thinking"
+        }
+      }
+
+      content = delta["content"]
+      thinking_text = content["thinking"] if content
+
+      expect(thinking_text).to be_nil
+    end
+
+    it "joins thinking fragments correctly (like Cohere)" do
+      thinking_fragments = [
+        "Let ",
+        "me ",
+        "think ",
+        "about ",
+        "this."
+      ]
+
+      result = thinking_fragments.join("")
+
+      expect(result).to eq("Let me think about this.")
+    end
+  end
+
+  describe "Think tag extraction from fragments (old format)" do
     it "extracts thinking content from <think> tags" do
       fragment = "Some text <think>This is reasoning content</think> More text"
 

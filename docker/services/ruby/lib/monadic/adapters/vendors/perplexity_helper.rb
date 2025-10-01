@@ -917,8 +917,6 @@ module PerplexityHelper
     buffer = String.new
     texts = {}
     thinking = []
-    think_buffer = String.new  # Buffer for incomplete <think> tags
-    inside_think_tag = false   # Track if we're inside a <think> block
     tools = {}
     finish_reason = nil
     started = false
@@ -982,57 +980,41 @@ module PerplexityHelper
             choice["message"] ||= delta.dup
             choice["message"]["content"] ||= ""
 
-            fragment = delta["content"].to_s
-            processed_fragment = String.new
-
-            # For reasoning models, handle <think> tags properly
+            # Handle thinking content for reasoning models (JSON format like Cohere)
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
-              # Process fragment character by character to handle split tags
-              i = 0
-              while i < fragment.length
-                # Check if we're starting a <think> tag
-                if !inside_think_tag && fragment[i..-1].start_with?("<think>")
-                  inside_think_tag = true
-                  think_buffer.clear
-                  i += 7  # Skip "<think>"
-                  next
-                end
+              if content = delta["content"]
+                # Check for thinking field (similar to Cohere)
+                if thinking_text = content["thinking"]
+                  unless thinking_text.strip.empty?
+                    # Store thinking content for final response
+                    thinking << thinking_text
 
-                # Check if we're ending a <think> tag
-                if inside_think_tag && fragment[i..-1].start_with?("</think>")
-                  inside_think_tag = false
-
-                  # Send accumulated thinking content
-                  unless think_buffer.strip.empty?
-                    thinking << think_buffer.strip
-
+                    # Send thinking content to UI in real-time
                     res = {
                       "type" => "thinking",
-                      "content" => think_buffer.strip
+                      "content" => thinking_text
                     }
                     block&.call res
                   end
-
-                  think_buffer.clear
-                  i += 8  # Skip "</think>"
-                  next
                 end
 
-                # Accumulate character based on current state
-                if inside_think_tag
-                  think_buffer << fragment[i]
+                # Handle regular text content
+                if text = content["text"]
+                  choice["message"]["content"] << text
+                  fragment = text
                 else
-                  processed_fragment << fragment[i]
+                  fragment = ""
                 end
-
-                i += 1
+              else
+                # Fallback for string content (old format)
+                fragment = delta["content"].to_s
+                choice["message"]["content"] << fragment
               end
-
-              fragment = processed_fragment
+            else
+              # Non-reasoning models
+              fragment = delta["content"].to_s
+              choice["message"]["content"] << fragment
             end
-
-            # Accumulate the processed fragment (with thinking content removed)
-            choice["message"]["content"] << fragment
 
             if fragment.length > 0
               res = {
@@ -1085,18 +1067,15 @@ module PerplexityHelper
               end
               
               # Extract citation references from thinking blocks to preserve them
-              # Note: With the state machine implementation, thinking content is already
-              # extracted during streaming and <think> tags are already removed from content.
-              # This section should not match any tags, but is kept as a safety net.
+              # Note: With JSON format (current API), thinking content is separated from text.
+              # This <think> tag removal is kept for backward compatibility with old format.
               preserved_citations = []
-              match_count = 0
               processed_content = original_content.gsub(/<think>(.*?)<\/think>\s*/m) do
-                match_count += 1
                 think_content = $1
 
-                # This should not happen with state machine implementation
+                # This should only happen with old API format (pre-JSON)
                 if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Perplexity: WARNING - Found <think> tag in final processing (should have been removed by state machine)", category: :api, level: :warning)
+                  DebugHelper.debug("Perplexity: Found <think> tag in final processing (old format)", category: :api, level: :info)
                 end
 
                 # Extract any citation references from the thinking block
@@ -1109,10 +1088,6 @@ module PerplexityHelper
                 end
 
                 "" # Remove the thinking block
-              end
-
-              if CONFIG["EXTRA_LOGGING"] && match_count == 0
-                DebugHelper.debug("Perplexity: No <think> tags found in final processing (expected with state machine)", category: :api, level: :debug)
               end
               
               # Check if citations were lost during thinking removal

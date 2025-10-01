@@ -93,6 +93,59 @@ RSpec.describe "Perplexity Thinking Content Extraction" do
     end
   end
 
+  describe "Fragment-level tag removal" do
+    it "removes complete tag pairs from fragment" do
+      fragment = "Answer: <think>reasoning</think> The result"
+
+      # First remove complete pairs
+      processed = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+      # Then remove any remaining partial tags
+      processed = processed.gsub(/<\/?think>/, '')
+
+      expect(processed).to eq("Answer: The result")
+    end
+
+    it "removes opening tag when split across fragments" do
+      fragment = "Answer: <think>partial"
+
+      # Remove complete pairs (none in this fragment)
+      processed = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+      # Remove partial tags
+      processed = processed.gsub(/<\/?think>/, '')
+
+      expect(processed).to eq("Answer: partial")
+    end
+
+    it "removes closing tag when split across fragments" do
+      fragment = "thinking</think> The result"
+
+      # Remove complete pairs (none in this fragment)
+      processed = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+      # Remove partial tags
+      processed = processed.gsub(/<\/?think>/, '')
+
+      expect(processed).to eq("thinking The result")
+    end
+
+    it "handles fragment with only opening tag" do
+      fragment = "Answer: <think>"
+
+      processed = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+      processed = processed.gsub(/<\/?think>/, '')
+
+      expect(processed).to eq("Answer: ")
+    end
+
+    it "handles fragment with only closing tag" do
+      fragment = "</think> The result"
+
+      processed = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+      processed = processed.gsub(/<\/?think>/, '')
+
+      expect(processed).to eq(" The result")
+    end
+  end
+
   describe "Citation preservation during thinking removal" do
     it "extracts citations from thinking blocks" do
       think_content = "Let me search [1] and check [2]"

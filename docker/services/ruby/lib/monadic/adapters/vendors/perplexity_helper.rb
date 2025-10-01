@@ -985,8 +985,8 @@ module PerplexityHelper
 
             # For reasoning models, check if fragment contains <think> tags
             # and send thinking content to frontend in real-time (like DeepSeek)
-            if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) && fragment.include?("<think>")
-              # Extract thinking content from this fragment
+            if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) && (fragment.include?("<think>") || fragment.include?("</think>"))
+              # Extract thinking content from complete tag pairs in this fragment
               fragment.scan(/<think>(.*?)<\/think>/m) do |match|
                 thinking_text = match[0].strip
                 unless thinking_text.empty?
@@ -998,6 +998,13 @@ module PerplexityHelper
                   block&.call res
                 end
               end
+
+              # Remove complete <think>...</think> pairs from fragment
+              fragment = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
+
+              # Also remove any remaining <think> or </think> tags
+              # (these may be split across fragments)
+              fragment = fragment.gsub(/<\/?think>/, '')
             end
 
             if fragment.length > 0

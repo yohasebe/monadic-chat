@@ -981,6 +981,10 @@ module PerplexityHelper
             choice["message"] ||= delta.dup
             choice["message"]["content"] ||= ""
 
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Perplexity: Processing delta for model: #{obj["model"]}, is_reasoning: #{Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])}", category: :api, level: :debug)
+            end
+
             # Handle thinking content for reasoning models
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
               content = delta["content"]

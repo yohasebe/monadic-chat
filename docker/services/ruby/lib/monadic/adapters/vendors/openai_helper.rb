@@ -2395,9 +2395,17 @@ module OpenAIHelper
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
                 # Reasoning content can be in item["content"] or item["summary"]
-                if item["summary"]
-                  # With summary: "auto", reasoning text is in the summary field
-                  segment[:text] << item["summary"].to_s
+                if item["summary"].is_a?(Array)
+                  # With summary: "auto", reasoning text is in the summary array
+                  # Extract text from summary_text items
+                  summary_text = item["summary"].map do |entry|
+                    if entry.is_a?(Hash) && entry["type"] == "summary_text"
+                      entry["text"].to_s
+                    else
+                      ""
+                    end
+                  end.join("\n\n")
+                  segment[:text] << summary_text unless summary_text.empty?
                 elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
                 end
@@ -2422,9 +2430,17 @@ module OpenAIHelper
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
                 # Reasoning content can be in item["content"] or item["summary"]
-                if item["summary"]
-                  # With summary: "auto", reasoning text is in the summary field
-                  segment[:text] << item["summary"].to_s
+                if item["summary"].is_a?(Array)
+                  # With summary: "auto", reasoning text is in the summary array
+                  # Extract text from summary_text items
+                  summary_text = item["summary"].map do |entry|
+                    if entry.is_a?(Hash) && entry["type"] == "summary_text"
+                      entry["text"].to_s
+                    else
+                      ""
+                    end
+                  end.join("\n\n")
+                  segment[:text] << summary_text unless summary_text.empty?
                 elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
                 end

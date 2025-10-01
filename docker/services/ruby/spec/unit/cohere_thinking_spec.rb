@@ -78,22 +78,39 @@ RSpec.describe "Cohere Thinking Content Extraction" do
   end
 
   describe "Thinking content accumulation" do
-    it "joins multiple thinking fragments correctly" do
+    it "concatenates small thinking fragments without separators" do
+      # Cohere sends thinking in small fragments during streaming
       thinking_content = [
-        "First, let's identify the problem",
-        "Next, consider the constraints",
-        "Finally, formulate the solution"
+        "Let ",
+        "me ",
+        "analyze ",
+        "this ",
+        "step ",
+        "by ",
+        "step."
       ]
 
-      result = thinking_content.join("\n\n")
+      result = thinking_content.join("")
 
-      expect(result).to eq("First, let's identify the problem\n\nNext, consider the constraints\n\nFinally, formulate the solution")
+      expect(result).to eq("Let me analyze this step by step.")
+    end
+
+    it "handles multiple sentence fragments" do
+      thinking_content = [
+        "First, let's identify the problem. ",
+        "Next, consider the constraints. ",
+        "Finally, formulate the solution."
+      ]
+
+      result = thinking_content.join("")
+
+      expect(result).to eq("First, let's identify the problem. Next, consider the constraints. Finally, formulate the solution.")
     end
 
     it "handles empty thinking array" do
       thinking_content = []
 
-      result = thinking_content.join("\n\n")
+      result = thinking_content.join("")
 
       expect(result).to eq("")
       expect(thinking_content.empty?).to be true
@@ -114,11 +131,11 @@ RSpec.describe "Cohere Thinking Content Extraction" do
   describe "Response message structure" do
     it "includes thinking in message when available" do
       message = { "content" => "Final answer" }
-      thinking_content = ["Step 1", "Step 2"]
+      thinking_content = ["Step 1: ", "Analyze the problem. ", "Step 2: ", "Formulate solution."]
 
-      message["thinking"] = thinking_content.join("\n\n") unless thinking_content.empty?
+      message["thinking"] = thinking_content.join("") unless thinking_content.empty?
 
-      expect(message["thinking"]).to eq("Step 1\n\nStep 2")
+      expect(message["thinking"]).to eq("Step 1: Analyze the problem. Step 2: Formulate solution.")
       expect(message["content"]).to eq("Final answer")
     end
 
@@ -126,7 +143,7 @@ RSpec.describe "Cohere Thinking Content Extraction" do
       message = { "content" => "Final answer" }
       thinking_content = []
 
-      message["thinking"] = thinking_content.join("\n\n") unless thinking_content.empty?
+      message["thinking"] = thinking_content.join("") unless thinking_content.empty?
 
       expect(message.key?("thinking")).to be false
     end

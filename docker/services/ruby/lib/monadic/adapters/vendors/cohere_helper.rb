@@ -1716,8 +1716,10 @@ module CohereHelper
         ]
 
         # Add thinking content if collected
+        # Note: Cohere sends thinking in small fragments during streaming,
+        # so we concatenate without extra separators
         if thinking_content && !thinking_content.empty?
-          response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("\n\n")
+          response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("")
         end
 
         # Attach usage if captured

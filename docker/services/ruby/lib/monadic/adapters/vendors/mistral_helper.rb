@@ -777,11 +777,33 @@ module MistralHelper
           if json["choices"] && json["choices"][0] && json["choices"][0]["delta"]
             delta = json["choices"][0]["delta"]
 
+            # Check for new format thinking chunks (Magistral 2507/2509+)
+            if delta["type"] == "thinking" && delta["thinking"].is_a?(Array)
+              # Extract thinking text from structured format
+              thinking_text = delta["thinking"].filter_map do |chunk|
+                if chunk.is_a?(Hash) && chunk["type"] == "text"
+                  chunk["text"]
+                end
+              end.join
+
+              unless thinking_text.empty?
+                thinking_buffer << thinking_text
+                thinking << thinking_text
+
+                # Send thinking content to frontend (like Claude/OpenAI)
+                res = {
+                  "type" => "thinking",
+                  "content" => thinking_text
+                }
+                block&.call res
+              end
+            end
+
             # Check if this delta contains content
             if delta["content"]
               content = delta["content"]
-              
-              
+
+
               # Check if this is a Magistral model and process thinking blocks
               # Updated pattern to match magistral-medium-latest
               if obj["model"] && obj["model"].match?(/magistral/i)
@@ -791,7 +813,7 @@ module MistralHelper
                 end
                 # For Magistral models, collect all content and process thinking blocks later
                 content_buffer += content
-                
+
                 # Don't send content to client yet - we'll process it after streaming is complete
                 # This is necessary because <think> tags may be split across multiple chunks
               else

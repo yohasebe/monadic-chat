@@ -60,7 +60,13 @@ Expected log output:
 [INFO] Install options changed: INSTALL_LATEX(false→true)
 [INFO] Using --no-cache to ensure changes are applied
 [HTML]: <p>Starting Python image build (atomic) . . .</p>
+...
+[INFO] Saved build options to ~/monadic/log/python_build_options.txt
+[HTML]: <p>Restarting Python container to use new image...</p>
+[INFO] Python container restarted successfully
 ```
+
+The system automatically restarts the Python container after a successful build to ensure the new image is immediately used.
 
 ### Rebuilding Without Changes
 
@@ -89,6 +95,7 @@ The `read_cfg_bool` function in `monadic.sh` checks options in this order:
 3. If any option differs → use_no_cache=true
 4. Build with appropriate cache strategy
 5. On success → save current options to file
+6. If Python container is running → restart it to use new image
 ```
 
 ### Why This Matters

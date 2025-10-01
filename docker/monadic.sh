@@ -584,6 +584,19 @@ PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}
 IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}
 OPTIONS
     echo "[INFO] Saved build options to ${prev_options_file}" | tee -a "${build_log}"
+
+    # Restart Python container if running to use the new image
+    local python_container_name="monadic-chat-python-container"
+    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^${python_container_name}$"; then
+      echo "[HTML]: <p>Restarting Python container to use new image...</p>" | tee -a "${build_log}"
+      if ${DOCKER} compose -f "${COMPOSE_MAIN}" ${COMPOSE_OVERRIDE} restart python_service 2>&1 | tee -a "${build_log}"; then
+        echo "[INFO] Python container restarted successfully" | tee -a "${build_log}"
+      else
+        echo "[WARNING] Failed to restart Python container. Please restart manually." | tee -a "${build_log}"
+      fi
+    else
+      echo "[INFO] Python container not running. New image will be used on next start." | tee -a "${build_log}"
+    fi
   else
     echo "[ERROR] Health verification failed; keeping current image" | tee -a "${build_log}"
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true

@@ -2394,7 +2394,11 @@ module OpenAIHelper
                 rid = item["id"]
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
-                if item["content"]
+                # Reasoning content can be in item["content"] or item["summary"]
+                if item["summary"]
+                  # With summary: "auto", reasoning text is in the summary field
+                  segment[:text] << item["summary"].to_s
+                elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
                 end
               end
@@ -2417,7 +2421,11 @@ module OpenAIHelper
                 rid = item["id"]
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
-                if item["content"]
+                # Reasoning content can be in item["content"] or item["summary"]
+                if item["summary"]
+                  # With summary: "auto", reasoning text is in the summary field
+                  segment[:text] << item["summary"].to_s
+                elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
                 end
               end

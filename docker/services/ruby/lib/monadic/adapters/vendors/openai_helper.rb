@@ -1266,7 +1266,8 @@ module OpenAIHelper
       # Add reasoning configuration for reasoning models
       if body["reasoning_effort"]
         responses_body["reasoning"] = {
-          "effort" => body["reasoning_effort"]
+          "effort" => body["reasoning_effort"],
+          "summary" => "auto"  # Required to receive reasoning content in output
         }
 
         if obj["reasoning_context"].is_a?(Array) && !obj["reasoning_context"].empty?

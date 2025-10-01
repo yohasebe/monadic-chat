@@ -1,4 +1,12 @@
 - [August 27, 2025] Latest Updates
+  - **Thinking/Reasoning Process Display**: Comprehensive implementation across all providers
+    - Fixed Cohere thinking fragment concatenation (word-level fragments)
+    - Implemented Perplexity dual-format support (JSON + XML tags)
+    - Added fragment suppression for tag-based formats to prevent duplicate display
+    - Fixed temp-reasoning-card header text color for visual consistency
+    - Created comprehensive test coverage (57 examples across 8 providers)
+    - Test files: openai_reasoning, claude_thinking, deepseek_reasoning, gemini_thinking
+    - Updated documentation: docs_dev/ruby_service/thinking_reasoning_display.md
   - **UI/UX Improvements and Bug Fixes**
     - Second Opinion App: Fixed Japanese text display issue in temp-card
     - Cancel Query Button: Fixed spinner visibility and adjusted height to 28px

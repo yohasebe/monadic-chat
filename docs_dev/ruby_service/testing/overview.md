@@ -48,6 +48,16 @@ We've implemented several shared testing utilities to improve code reuse and con
    - `mistral_helper_spec.rb` - Tests for Mistral API integration
    - `perplexity_helper_spec.rb` - Tests for Perplexity API integration
 
+5. **Thinking/Reasoning Process Display**
+   - `openai_reasoning_spec.rb` - Tests for OpenAI o1/o3 reasoning content extraction
+   - `claude_thinking_spec.rb` - Tests for Claude Sonnet 4.5+ thinking content blocks
+   - `deepseek_reasoning_spec.rb` - Tests for DeepSeek reasoner/r1 reasoning content
+   - `gemini_thinking_spec.rb` - Tests for Gemini 2.0 thinking mode with thought parts
+   - `grok_reasoning_spec.rb` - Tests for Grok reasoning content extraction
+   - `mistral_reasoning_spec.rb` - Tests for Mistral reasoning content extraction
+   - `cohere_thinking_spec.rb` - Tests for Cohere thinking content (JSON format)
+   - `perplexity_thinking_spec.rb` - Tests for Perplexity dual-format thinking (JSON + tags)
+
 ## Test Design Principles
 
 1. **Isolation** - Tests use namespaces to avoid conflicts between different test files

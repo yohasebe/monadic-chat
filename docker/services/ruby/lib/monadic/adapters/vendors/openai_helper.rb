@@ -1269,10 +1269,7 @@ module OpenAIHelper
           "effort" => body["reasoning_effort"],
           "summary" => "auto"  # Required to receive reasoning content in output
         }
-
-        if obj["reasoning_context"].is_a?(Array) && !obj["reasoning_context"].empty?
-          responses_body["reasoning"]["context"] = JSON.parse(JSON.generate(obj["reasoning_context"]))
-        end
+        # Note: reasoning_context is for internal use only, not sent to API
       end
 
       # Check if this is a reasoning model or GPT-5 (which doesn't support temperature)

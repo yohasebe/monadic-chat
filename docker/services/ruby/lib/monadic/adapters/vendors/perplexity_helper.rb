@@ -981,17 +981,15 @@ module PerplexityHelper
             choice["message"] ||= delta.dup
             choice["message"]["content"] ||= ""
 
-            if CONFIG["EXTRA_LOGGING"]
-              DebugHelper.debug("Perplexity: Processing delta for model: #{obj["model"]}, is_reasoning: #{Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])}", category: :api, level: :debug)
-            end
+            # Temporary: Always log for debugging
+            DebugHelper.debug("Perplexity: Processing delta for model: #{obj["model"]}, is_reasoning: #{Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])}", category: :api, level: :debug)
 
             # Handle thinking content for reasoning models
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
               content = delta["content"]
 
-              if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: content is #{content.nil? ? 'nil' : content.class}, preview: #{content.to_s[0..50] rescue 'N/A'}", category: :api, level: :debug)
-              end
+              # Temporary: Always log for debugging
+              DebugHelper.debug("Perplexity: content is #{content.nil? ? 'nil' : content.class}, preview: #{content.to_s[0..50] rescue 'N/A'}", category: :api, level: :debug)
 
               # Check if content is a Hash (JSON format) or String (tag format)
               if content && content.is_a?(Hash)
@@ -1024,17 +1022,15 @@ module PerplexityHelper
                 # Accumulate in buffer to handle split tags
                 think_tag_buffer << fragment
 
-                if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Perplexity: think_tag_buffer length: #{think_tag_buffer.length}, preview: #{think_tag_buffer[0..100]}", category: :api, level: :debug)
-                end
+                # Temporary: Always log for debugging
+                DebugHelper.debug("Perplexity: think_tag_buffer length: #{think_tag_buffer.length}, preview: #{think_tag_buffer[0..100]}", category: :api, level: :debug)
 
                 # Try to extract complete thinking blocks from buffer
                 while think_tag_buffer =~ /<think>(.*?)<\/think>/m
                   thinking_text = $1.strip
 
-                  if CONFIG["EXTRA_LOGGING"]
-                    DebugHelper.debug("Perplexity: Extracted thinking: #{thinking_text[0..100]}", category: :api, level: :info)
-                  end
+                  # Temporary: Always log for debugging
+                  DebugHelper.debug("Perplexity: Extracted thinking: #{thinking_text[0..100]}", category: :api, level: :info)
 
                   unless thinking_text.empty?
                     thinking << thinking_text

@@ -2210,7 +2210,7 @@ module OpenAIHelper
 
       if index.nil?
         index = reasoning_segments.length
-        reasoning_segments << { text: "" }
+        reasoning_segments << { text: String.new }
         reasoning_indices[identifier] = index if identifier
       end
 

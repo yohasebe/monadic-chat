@@ -917,6 +917,7 @@ module PerplexityHelper
     buffer = String.new
     texts = {}
     thinking = []
+    think_tag_buffer = String.new  # Buffer for incomplete <think> tags (tag format)
     tools = {}
     finish_reason = nil
     started = false
@@ -1012,9 +1013,12 @@ module PerplexityHelper
                 # String format (tag format): "<think>...</think>"
                 fragment = content.to_s
 
-                # Extract complete thinking blocks from this fragment
-                fragment.scan(/<think>(.*?)<\/think>/m) do |match|
-                  thinking_text = match[0].strip
+                # Accumulate in buffer to handle split tags
+                think_tag_buffer << fragment
+
+                # Try to extract complete thinking blocks from buffer
+                while think_tag_buffer =~ /<think>(.*?)<\/think>/m
+                  thinking_text = $1.strip
                   unless thinking_text.empty?
                     thinking << thinking_text
 
@@ -1025,6 +1029,9 @@ module PerplexityHelper
                     }
                     block&.call res
                   end
+
+                  # Remove the processed tag from buffer
+                  think_tag_buffer.sub!(/<think>.*?<\/think>/m, '')
                 end
 
                 # For now, accumulate the entire fragment (including tags)

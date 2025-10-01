@@ -1243,6 +1243,7 @@ function doResetActions(resetToDefaultApp = false) {
   $("#discourse").html("").hide();
   $("#chat").html("")
   $("#temp-card").hide();
+  $("#temp-reasoning-card").remove();
   $("#config").show();
   $("#back-to-settings").hide();
   $("#parameter-panel").hide();

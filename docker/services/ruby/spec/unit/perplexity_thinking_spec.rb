@@ -93,6 +93,96 @@ RSpec.describe "Perplexity Thinking Content Extraction" do
     end
   end
 
+  describe "State machine for split tag handling" do
+    it "handles opening tag split across fragments" do
+      # Simulate state machine processing
+      inside_think_tag = false
+      think_buffer = String.new
+      content_buffer = String.new
+
+      # Fragment 1: "Answer: <think>partial"
+      fragment1 = "Answer: <think>partial"
+      i = 0
+      while i < fragment1.length
+        if !inside_think_tag && fragment1[i..-1].start_with?("<think>")
+          inside_think_tag = true
+          think_buffer.clear
+          i += 7
+          next
+        end
+
+        if inside_think_tag
+          think_buffer << fragment1[i]
+        else
+          content_buffer << fragment1[i]
+        end
+        i += 1
+      end
+
+      expect(content_buffer).to eq("Answer: ")
+      expect(think_buffer).to eq("partial")
+      expect(inside_think_tag).to be true
+
+      # Fragment 2: " thinking</think> 42"
+      fragment2 = " thinking</think> 42"
+      i = 0
+      while i < fragment2.length
+        if inside_think_tag && fragment2[i..-1].start_with?("</think>")
+          inside_think_tag = false
+          think_buffer.clear
+          i += 8
+          next
+        end
+
+        if inside_think_tag
+          think_buffer << fragment2[i]
+        else
+          content_buffer << fragment2[i]
+        end
+        i += 1
+      end
+
+      expect(content_buffer).to eq("Answer:  42")
+      expect(inside_think_tag).to be false
+    end
+
+    it "handles complete tags in single fragment" do
+      inside_think_tag = false
+      think_buffer = String.new
+      content_buffer = String.new
+      thinking_captured = []
+
+      fragment = "Answer: <think>reasoning</think> 42"
+      i = 0
+      while i < fragment.length
+        if !inside_think_tag && fragment[i..-1].start_with?("<think>")
+          inside_think_tag = true
+          think_buffer.clear
+          i += 7
+          next
+        end
+
+        if inside_think_tag && fragment[i..-1].start_with?("</think>")
+          inside_think_tag = false
+          thinking_captured << think_buffer.strip unless think_buffer.strip.empty?
+          think_buffer.clear
+          i += 8
+          next
+        end
+
+        if inside_think_tag
+          think_buffer << fragment[i]
+        else
+          content_buffer << fragment[i]
+        end
+        i += 1
+      end
+
+      expect(content_buffer).to eq("Answer:  42")
+      expect(thinking_captured).to eq(["reasoning"])
+    end
+  end
+
   describe "Fragment-level tag removal" do
     it "removes complete tag pairs from fragment" do
       fragment = "Answer: <think>reasoning</think> The result"

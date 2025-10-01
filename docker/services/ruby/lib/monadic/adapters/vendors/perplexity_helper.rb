@@ -917,6 +917,8 @@ module PerplexityHelper
     buffer = String.new
     texts = {}
     thinking = []
+    think_buffer = String.new  # Buffer for incomplete <think> tags
+    inside_think_tag = false   # Track if we're inside a <think> block
     tools = {}
     finish_reason = nil
     started = false
@@ -981,34 +983,55 @@ module PerplexityHelper
             choice["message"]["content"] ||= ""
 
             fragment = delta["content"].to_s
+            processed_fragment = String.new
 
-            # For reasoning models, extract and remove <think> tags BEFORE accumulating
-            if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) && (fragment.include?("<think>") || fragment.include?("</think>"))
-              # Extract thinking content from complete tag pairs in this fragment
-              fragment.scan(/<think>(.*?)<\/think>/m) do |match|
-                thinking_text = match[0].strip
-                unless thinking_text.empty?
-                  # Add to thinking array for final response
-                  thinking << thinking_text
-
-                  # Send thinking content to UI in real-time
-                  res = {
-                    "type" => "thinking",
-                    "content" => thinking_text
-                  }
-                  block&.call res
+            # For reasoning models, handle <think> tags properly
+            if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
+              # Process fragment character by character to handle split tags
+              i = 0
+              while i < fragment.length
+                # Check if we're starting a <think> tag
+                if !inside_think_tag && fragment[i..-1].start_with?("<think>")
+                  inside_think_tag = true
+                  think_buffer.clear
+                  i += 7  # Skip "<think>"
+                  next
                 end
+
+                # Check if we're ending a <think> tag
+                if inside_think_tag && fragment[i..-1].start_with?("</think>")
+                  inside_think_tag = false
+
+                  # Send accumulated thinking content
+                  unless think_buffer.strip.empty?
+                    thinking << think_buffer.strip
+
+                    res = {
+                      "type" => "thinking",
+                      "content" => think_buffer.strip
+                    }
+                    block&.call res
+                  end
+
+                  think_buffer.clear
+                  i += 8  # Skip "</think>"
+                  next
+                end
+
+                # Accumulate character based on current state
+                if inside_think_tag
+                  think_buffer << fragment[i]
+                else
+                  processed_fragment << fragment[i]
+                end
+
+                i += 1
               end
 
-              # Remove complete <think>...</think> pairs from fragment
-              fragment = fragment.gsub(/<think>(.*?)<\/think>\s*/m, '')
-
-              # Also remove any remaining <think> or </think> tags
-              # (these may be split across fragments)
-              fragment = fragment.gsub(/<\/?think>/, '')
+              fragment = processed_fragment
             end
 
-            # Accumulate the processed fragment (with tags already removed)
+            # Accumulate the processed fragment (with thinking content removed)
             choice["message"]["content"] << fragment
 
             if fragment.length > 0

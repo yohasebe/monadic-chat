@@ -1034,9 +1034,13 @@ module PerplexityHelper
                   think_tag_buffer.sub!(/<think>.*?<\/think>/m, '')
                 end
 
-                # For now, accumulate the entire fragment (including tags)
-                # Tags will be removed in final processing
+                # Accumulate the entire fragment (including tags) for final processing
                 choice["message"]["content"] << fragment
+
+                # Remove think tags from fragment before sending to UI for streaming display
+                # This prevents <think> tags from appearing during streaming
+                fragment = fragment.gsub(/<think>.*?<\/think>/m, '')
+                fragment = fragment.gsub(/<\/?think>/, '')
               end
             else
               # Non-reasoning models

@@ -2394,23 +2394,35 @@ module OpenAIHelper
                 rid = item["id"]
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
+
                 # Reasoning content can be in item["content"] or item["summary"]
                 if item["summary"].is_a?(Array)
                   # With summary: "auto", reasoning text is in the summary array
                   # Extract text from summary_text items
-                  summary_text = item["summary"].map do |entry|
-                    if entry.is_a?(Hash) && entry["type"] == "summary_text"
-                      entry["text"].to_s
-                    else
-                      ""
+                  summary_text = item["summary"].filter_map do |entry|
+                    next unless entry.is_a?(Hash) && entry["type"] == "summary_text"
+
+                    text = entry["text"]
+                    if text.nil? || text.to_s.empty?
+                      STDERR.puts "[OpenAI] Reasoning summary_text entry with no text: #{entry.inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                      next
                     end
+
+                    text.to_s
                   end.join("\n\n")
-                  segment[:text] << summary_text unless summary_text.empty?
+
+                  if summary_text.empty?
+                    STDERR.puts "[OpenAI] Reasoning summary array returned no text: #{item["summary"].inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                  else
+                    segment[:text] << summary_text
+                  end
                 elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
+                else
+                  STDERR.puts "[OpenAI] Reasoning item has neither summary nor content: #{item.inspect}" if ENV["EXTRA_LOGGING"] == "true"
                 end
               end
-              
+
             when "response.output_item.done"
               # Output item completed
               item = json["item"]
@@ -2429,20 +2441,32 @@ module OpenAIHelper
                 rid = item["id"]
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
+
                 # Reasoning content can be in item["content"] or item["summary"]
                 if item["summary"].is_a?(Array)
                   # With summary: "auto", reasoning text is in the summary array
                   # Extract text from summary_text items
-                  summary_text = item["summary"].map do |entry|
-                    if entry.is_a?(Hash) && entry["type"] == "summary_text"
-                      entry["text"].to_s
-                    else
-                      ""
+                  summary_text = item["summary"].filter_map do |entry|
+                    next unless entry.is_a?(Hash) && entry["type"] == "summary_text"
+
+                    text = entry["text"]
+                    if text.nil? || text.to_s.empty?
+                      STDERR.puts "[OpenAI] Reasoning summary_text entry with no text: #{entry.inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                      next
                     end
+
+                    text.to_s
                   end.join("\n\n")
-                  segment[:text] << summary_text unless summary_text.empty?
+
+                  if summary_text.empty?
+                    STDERR.puts "[OpenAI] Reasoning summary array returned no text: #{item["summary"].inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                  else
+                    segment[:text] << summary_text
+                  end
                 elsif item["content"]
                   segment[:text] << reasoning_extract_text.call(item["content"])
+                else
+                  STDERR.puts "[OpenAI] Reasoning item has neither summary nor content: #{item.inspect}" if ENV["EXTRA_LOGGING"] == "true"
                 end
               end
               
@@ -2470,11 +2494,12 @@ module OpenAIHelper
                 tools[item_id]["completed"] = true
               end
               
-            when "response.reasoning.delta"
-              # Reasoning content delta
+            when "response.reasoning_summary_text.delta"
+              # Reasoning summary delta (streaming)
               rid = json["item_id"] || current_reasoning_id
-              delta = json.dig("delta", "text") || json["delta"]
-              if delta
+              delta = json["delta"]
+
+              if delta && !delta.to_s.empty?
                 segment = ensure_reasoning_segment.call(rid)
                 segment[:text] << delta.to_s
                 current_reasoning_id = rid if rid
@@ -2485,15 +2510,17 @@ module OpenAIHelper
                   "content" => delta.to_s
                 }
                 block&.call res
+              else
+                # Log unexpected delta structure
+                STDERR.puts "[OpenAI] Reasoning delta event with no text: #{json.inspect}" if ENV["EXTRA_LOGGING"] == "true"
               end
 
-            when "response.reasoning.done"
-              # Reasoning completed
+            when "response.reasoning_summary_text.done", "response.reasoning_summary_part.done"
+              # Reasoning summary completed - text is already accumulated from deltas
+              # This event provides the complete text in json["text"] but we've already
+              # built it up from deltas, so we just mark it as complete
               rid = json["item_id"] || current_reasoning_id
-              text = json["text"]
-              if text
-                segment = ensure_reasoning_segment.call(rid)
-                segment[:text] = text.to_s
+              if rid
                 current_reasoning_id = nil
               end
               

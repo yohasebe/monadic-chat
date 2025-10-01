@@ -981,16 +981,17 @@ module PerplexityHelper
             choice["message"]["content"] ||= ""
 
             fragment = delta["content"].to_s
-            choice["message"]["content"] << fragment
 
-            # For reasoning models, check if fragment contains <think> tags
-            # and send thinking content to frontend in real-time (like DeepSeek)
+            # For reasoning models, extract and remove <think> tags BEFORE accumulating
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) && (fragment.include?("<think>") || fragment.include?("</think>"))
               # Extract thinking content from complete tag pairs in this fragment
               fragment.scan(/<think>(.*?)<\/think>/m) do |match|
                 thinking_text = match[0].strip
                 unless thinking_text.empty?
-                  # Send thinking content to UI
+                  # Add to thinking array for final response
+                  thinking << thinking_text
+
+                  # Send thinking content to UI in real-time
                   res = {
                     "type" => "thinking",
                     "content" => thinking_text
@@ -1006,6 +1007,9 @@ module PerplexityHelper
               # (these may be split across fragments)
               fragment = fragment.gsub(/<\/?think>/, '')
             end
+
+            # Accumulate the processed fragment (with tags already removed)
+            choice["message"]["content"] << fragment
 
             if fragment.length > 0
               res = {

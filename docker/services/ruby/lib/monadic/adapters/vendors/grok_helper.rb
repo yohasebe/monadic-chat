@@ -972,6 +972,7 @@ module GrokHelper
     tools = {}
     finish_reason = nil
     started = false
+    reasoning_content = []  # Store reasoning content for Grok 3 models
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -1086,53 +1087,72 @@ module GrokHelper
                   existing_tool_call["tool_calls"][0]["function"]["arguments"] << new_tool_call["function"]["arguments"]
                 end
               end
-            elsif json.dig("choices", 0, "delta", "content")
+            elsif json.dig("choices", 0, "delta", "content") || json.dig("choices", 0, "delta", "reasoning_content")
               # Merge text fragments based on "id"
               id = json["id"]
               texts[id] ||= json
               choice = texts[id]["choices"][0]
               choice["message"] ||= choice["delta"].dup
               choice["message"]["content"] ||= ""
-              fragment = json.dig("choices", 0, "delta", "content").to_s
 
-              # Grok only treatment for the first chunk as metadata
-              if !started
-                started = true
-                
-                # For first Grok fragment, add an invisible zero-width space at the start
-                # This will display correctly but have a different "signature" for TTS
-                # Zero-width space won't be visible but will make the fragment unique
-                # to avoid being played twice
-                if fragment.length > 0
+              # Check for reasoning_content (Grok 3 feature)
+              if reasoning = json.dig("choices", 0, "delta", "reasoning_content")
+                unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
+                  # Store reasoning content
+                  reasoning_content << reasoning
+
+                  # Send reasoning content to UI (like other providers)
                   res = {
-                    "type" => "fragment",
-                    "content" => "\u200B" + fragment,
-                    "index" => 0,
-                    "timestamp" => Time.now.to_f,
-                    "is_first" => true
+                    "type" => "thinking",
+                    "content" => reasoning
                   }
                   block&.call res
                 end
-                
-                # Store original fragment (without zero-width space) in message content
-                choice["message"]["content"] = fragment
-                next
               end
-              
-              # Append to existing content
-              choice["message"]["content"] << fragment
-              
-              if fragment.length > 0
-                res = {
-                  "type" => "fragment",
-                  "content" => fragment,
-                  "index" => choice["message"]["content"].length - fragment.length,
-                  "timestamp" => Time.now.to_f,
-                  "is_first" => false
-                }
-                block&.call res
+
+              # Handle regular content
+              if fragment = json.dig("choices", 0, "delta", "content")
+                fragment = fragment.to_s
+
+                # Grok only treatment for the first chunk as metadata
+                if !started
+                  started = true
+
+                  # For first Grok fragment, add an invisible zero-width space at the start
+                  # This will display correctly but have a different "signature" for TTS
+                  # Zero-width space won't be visible but will make the fragment unique
+                  # to avoid being played twice
+                  if fragment.length > 0
+                    res = {
+                      "type" => "fragment",
+                      "content" => "\u200B" + fragment,
+                      "index" => 0,
+                      "timestamp" => Time.now.to_f,
+                      "is_first" => true
+                    }
+                    block&.call res
+                  end
+
+                  # Store original fragment (without zero-width space) in message content
+                  choice["message"]["content"] = fragment
+                  next
+                end
+
+                # Append to existing content
+                choice["message"]["content"] << fragment
+
+                if fragment.length > 0
+                  res = {
+                    "type" => "fragment",
+                    "content" => fragment,
+                    "index" => choice["message"]["content"].length - fragment.length,
+                    "timestamp" => Time.now.to_f,
+                    "is_first" => false
+                  }
+                  block&.call res
+                end
+                next if !fragment || fragment == ""
               end
-              next if !fragment || fragment == ""
 
               texts[id]["choices"][0].delete("delta")
             end
@@ -1158,6 +1178,11 @@ module GrokHelper
     result = texts.empty? ? nil : texts.first[1]
 
     if result
+      # Add reasoning content to the message if collected (Grok 3)
+      if reasoning_content && !reasoning_content.empty?
+        result["choices"][0]["message"]["thinking"] = reasoning_content.join("\n\n")
+      end
+
       if obj["monadic"]
         choice = result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"

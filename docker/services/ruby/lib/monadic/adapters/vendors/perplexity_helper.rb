@@ -980,10 +980,13 @@ module PerplexityHelper
             choice["message"] ||= delta.dup
             choice["message"]["content"] ||= ""
 
-            # Handle thinking content for reasoning models (JSON format like Cohere)
+            # Handle thinking content for reasoning models
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
-              if content = delta["content"]
-                # Check for thinking field (similar to Cohere)
+              content = delta["content"]
+
+              # Check if content is a Hash (JSON format) or String (tag format)
+              if content.is_a?(Hash)
+                # JSON format (like Cohere): {"thinking": "...", "text": "..."}
                 if thinking_text = content["thinking"]
                   unless thinking_text.strip.empty?
                     # Store thinking content for final response
@@ -1006,8 +1009,26 @@ module PerplexityHelper
                   fragment = ""
                 end
               else
-                # Fallback for string content (old format)
-                fragment = delta["content"].to_s
+                # String format (tag format): "<think>...</think>"
+                fragment = content.to_s
+
+                # Extract complete thinking blocks from this fragment
+                fragment.scan(/<think>(.*?)<\/think>/m) do |match|
+                  thinking_text = match[0].strip
+                  unless thinking_text.empty?
+                    thinking << thinking_text
+
+                    # Send thinking content to UI
+                    res = {
+                      "type" => "thinking",
+                      "content" => thinking_text
+                    }
+                    block&.call res
+                  end
+                end
+
+                # For now, accumulate the entire fragment (including tags)
+                # Tags will be removed in final processing
                 choice["message"]["content"] << fragment
               end
             else

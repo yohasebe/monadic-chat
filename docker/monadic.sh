@@ -388,21 +388,33 @@ build_python_container() {
   # Resolve install options from user's env (SSOT)
   local config_env="${HOME_DIR}/monadic/config/env"
   # Helper to read KEY=VALUE (quotes trimmed). Falls back to 'false' when unset.
+  # Checks environment variables first (passed by Electron), then falls back to config file
   read_cfg_bool() {
     local key="$1"; local defval="${2:-false}"
-    if [ -f "$config_env" ]; then
+    local val=""
+
+    # First, check if the key exists as an environment variable (passed by Electron)
+    # Using eval for indirect variable reference for better compatibility
+    val=$(eval echo "\$${key}")
+
+    # If not in environment, read from config file
+    if [ -z "$val" ] && [ -f "$config_env" ]; then
       local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
       if [ -n "$line" ]; then
-        local val=${line#*=}
+        val=${line#*=}
         val=${val%""}; val=${val#""}
-        val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
-        case "$val" in
-          true|1|yes|on) echo "true";;
-          false|0|no|off|"") echo "false";;
-          *) echo "$defval";;
-        esac
-        return
       fi
+    fi
+
+    # Normalize and return the value
+    if [ -n "$val" ]; then
+      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+      case "$val" in
+        true|1|yes|on) echo "true";;
+        false|0|no|off|"") echo "false";;
+        *) echo "$defval";;
+      esac
+      return
     fi
     echo "$defval"
   }
@@ -416,6 +428,49 @@ build_python_container() {
   local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
   local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
+
+  # Detect if install options have changed since last build
+  echo "[DEBUG] Entering option change detection logic" | tee -a "${build_log}"
+  local prev_options_file="${logs_dir}/python_build_options.txt"
+  local use_no_cache=false
+  local changed_options=""
+  echo "[DEBUG] Options file path: ${prev_options_file}" | tee -a "${build_log}"
+
+  if [ -f "$prev_options_file" ]; then
+    # Compare each option with previous build
+    local prev_INSTALL_LATEX=$(grep "^INSTALL_LATEX=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_NLTK=$(grep "^PYOPT_NLTK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_SPACY=$(grep "^PYOPT_SPACY=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_SCIKIT=$(grep "^PYOPT_SCIKIT=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_GENSIM=$(grep "^PYOPT_GENSIM=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_LIBROSA=$(grep "^PYOPT_LIBROSA=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_MEDIAPIPE=$(grep "^PYOPT_MEDIAPIPE=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_PYOPT_TRANSFORMERS=$(grep "^PYOPT_TRANSFORMERS=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+    local prev_IMGOPT_IMAGEMAGICK=$(grep "^IMGOPT_IMAGEMAGICK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
+
+    # Check for changes
+    [ "$INSTALL_LATEX" != "$prev_INSTALL_LATEX" ] && changed_options+="INSTALL_LATEX($prev_INSTALL_LATEX→$INSTALL_LATEX) "
+    [ "$PYOPT_NLTK" != "$prev_PYOPT_NLTK" ] && changed_options+="PYOPT_NLTK($prev_PYOPT_NLTK→$PYOPT_NLTK) "
+    [ "$PYOPT_SPACY" != "$prev_PYOPT_SPACY" ] && changed_options+="PYOPT_SPACY($prev_PYOPT_SPACY→$PYOPT_SPACY) "
+    [ "$PYOPT_SCIKIT" != "$prev_PYOPT_SCIKIT" ] && changed_options+="PYOPT_SCIKIT($prev_PYOPT_SCIKIT→$PYOPT_SCIKIT) "
+    [ "$PYOPT_GENSIM" != "$prev_PYOPT_GENSIM" ] && changed_options+="PYOPT_GENSIM($prev_PYOPT_GENSIM→$PYOPT_GENSIM) "
+    [ "$PYOPT_LIBROSA" != "$prev_PYOPT_LIBROSA" ] && changed_options+="PYOPT_LIBROSA($prev_PYOPT_LIBROSA→$PYOPT_LIBROSA) "
+    [ "$PYOPT_MEDIAPIPE" != "$prev_PYOPT_MEDIAPIPE" ] && changed_options+="PYOPT_MEDIAPIPE($prev_PYOPT_MEDIAPIPE→$PYOPT_MEDIAPIPE) "
+    [ "$PYOPT_TRANSFORMERS" != "$prev_PYOPT_TRANSFORMERS" ] && changed_options+="PYOPT_TRANSFORMERS($prev_PYOPT_TRANSFORMERS→$PYOPT_TRANSFORMERS) "
+    [ "$IMGOPT_IMAGEMAGICK" != "$prev_IMGOPT_IMAGEMAGICK" ] && changed_options+="IMGOPT_IMAGEMAGICK($prev_IMGOPT_IMAGEMAGICK→$IMGOPT_IMAGEMAGICK) "
+
+    if [ -n "$changed_options" ]; then
+      use_no_cache=true
+      echo "[INFO] Install options changed: ${changed_options}" | tee -a "${build_log}"
+      echo "[INFO] Using --no-cache to ensure changes are applied" | tee -a "${build_log}"
+    else
+      echo "[INFO] Install options unchanged, using build cache for faster build" | tee -a "${build_log}"
+    fi
+  else
+    # First build or options file missing - use --no-cache to be safe
+    use_no_cache=true
+    echo "[INFO] First build or options file missing, using --no-cache" | tee -a "${build_log}"
+  fi
 
   local build_args=
   build_args+=" --build-arg INSTALL_LATEX=${INSTALL_LATEX}"
@@ -432,10 +487,20 @@ build_python_container() {
   local dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   local ts=$(date +%Y%m%d_%H%M%S)
   local temp_tag="yohasebe/monadic-chat:python-build-${ts}"
+  # Determine cache strategy based on option changes
+  local cache_flag=""
+  if [ "$use_no_cache" = true ]; then
+    cache_flag="--no-cache"
+  fi
+
+  echo "[DEBUG] use_no_cache=${use_no_cache}" | tee -a "${build_log}"
+  echo "[DEBUG] cache_flag='${cache_flag}'" | tee -a "${build_log}"
   echo "[DEBUG] build args:${build_args}" | tee -a "${build_log}"
   echo "[HTML]: <p>Starting Python image build (atomic) . . .</p>" | tee -a "${build_log}"
-  # Use cache to avoid reinstalling base when toggling options
-  if ! ${DOCKER} build -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
+
+  # Build with appropriate cache strategy
+  # IMPORTANT: cache_flag must not be quoted to allow empty string to work correctly
+  if ! ${DOCKER} build ${cache_flag} -f "${dockerfile}" ${build_args} -t "${temp_tag}" "${ROOT_DIR}/services/python" 2>&1 | tee -a "${build_log}"; then
     echo "[ERROR] Docker build failed" | tee -a "${build_log}"
     echo "[BUILD_COMPLETE] failed"
     release_build_lock
@@ -510,6 +575,20 @@ META
     "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[HTML]: <p>Python image updated successfully.</p>" | tee -a "${build_log}"
+
+    # Save current install options for future comparison
+    cat > "${prev_options_file}" <<OPTIONS
+INSTALL_LATEX=${INSTALL_LATEX}
+PYOPT_NLTK=${PYOPT_NLTK}
+PYOPT_SPACY=${PYOPT_SPACY}
+PYOPT_SCIKIT=${PYOPT_SCIKIT}
+PYOPT_GENSIM=${PYOPT_GENSIM}
+PYOPT_LIBROSA=${PYOPT_LIBROSA}
+PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE}
+PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS}
+IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}
+OPTIONS
+    echo "[INFO] Saved build options to ${prev_options_file}" | tee -a "${build_log}"
   else
     echo "[ERROR] Health verification failed; keeping current image" | tee -a "${build_log}"
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true

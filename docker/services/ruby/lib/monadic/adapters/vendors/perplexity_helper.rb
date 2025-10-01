@@ -985,8 +985,8 @@ module PerplexityHelper
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
               content = delta["content"]
 
-              if CONFIG["EXTRA_LOGGING"] && content
-                DebugHelper.debug("Perplexity: content type: #{content.class}, preview: #{content.to_s[0..50]}", category: :api, level: :debug)
+              if CONFIG["EXTRA_LOGGING"]
+                DebugHelper.debug("Perplexity: content is #{content.nil? ? 'nil' : content.class}, preview: #{content.to_s[0..50] rescue 'N/A'}", category: :api, level: :debug)
               end
 
               # Check if content is a Hash (JSON format) or String (tag format)

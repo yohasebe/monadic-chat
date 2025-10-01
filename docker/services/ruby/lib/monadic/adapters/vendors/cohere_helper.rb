@@ -1416,6 +1416,7 @@ module CohereHelper
     current_tool_call = nil
     accumulated_tool_calls = []
     citations = []  # Store citation data
+    thinking_content = []  # Store thinking content from reasoning models
     # Track usage metrics if present in streaming deltas
     usage_input_tokens = nil
     usage_output_tokens = nil
@@ -1453,18 +1454,29 @@ module CohereHelper
             when "content-start"
             when "content-delta"
               if content = json.dig("delta", "message", "content")
-                # Handle thinking content for reasoning models
+                # Handle thinking content for reasoning models (Command A Reasoning)
                 if thinking = content["thinking"]
-                  # For now, we don't send thinking content to the UI
-                  # It could be logged if needed
-                  DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
+                  unless thinking.strip.empty?
+                    # Store thinking content for final response
+                    thinking_content << thinking
+
+                    # Send thinking content to UI (like Claude/OpenAI/Mistral)
+                    res = {
+                      "type" => "thinking",
+                      "content" => thinking
+                    }
+                    block&.call res
+
+                    # Debug logging
+                    DebugHelper.debug("Cohere thinking: #{thinking}", category: :api, level: :debug) if CONFIG["EXTRA_LOGGING"]
+                  end
                 end
-                
+
                 # Also check for text content (both thinking and text can be present)
                 if text = content["text"]
                   buffer += text
                   texts << text
-                  
+
                   # Debug logging for text content
                   if CONFIG["EXTRA_LOGGING"]
                     DebugHelper.debug("Cohere text fragment received: #{text.length} chars", category: :api, level: :debug)
@@ -1696,12 +1708,18 @@ module CohereHelper
           {
             "choices" => [
               {
-                "finish_reason" => finish_reason, 
+                "finish_reason" => finish_reason,
                 "message" => { "content" => final_result }
               }
             ]
           }
         ]
+
+        # Add thinking content if collected
+        if thinking_content && !thinking_content.empty?
+          response[0]["choices"][0]["message"]["thinking"] = thinking_content.join("\n\n")
+        end
+
         # Attach usage if captured
         if usage_input_tokens || usage_output_tokens || usage_total_tokens
           response[0]["usage"] = {

@@ -1085,11 +1085,20 @@ module PerplexityHelper
               end
               
               # Extract citation references from thinking blocks to preserve them
+              # Note: With the state machine implementation, thinking content is already
+              # extracted during streaming and <think> tags are already removed from content.
+              # This section should not match any tags, but is kept as a safety net.
               preserved_citations = []
+              match_count = 0
               processed_content = original_content.gsub(/<think>(.*?)<\/think>\s*/m) do
+                match_count += 1
                 think_content = $1
-                thinking << think_content
-                
+
+                # This should not happen with state machine implementation
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("Perplexity: WARNING - Found <think> tag in final processing (should have been removed by state machine)", category: :api, level: :warning)
+                end
+
                 # Extract any citation references from the thinking block
                 think_citations = think_content.scan(/\[(\d+)\]/)
                 if think_citations.any?
@@ -1098,8 +1107,12 @@ module PerplexityHelper
                     DebugHelper.debug("Perplexity: Found citations in thinking block: #{think_citations.flatten}", category: :api, level: :debug)
                   end
                 end
-                
+
                 "" # Remove the thinking block
+              end
+
+              if CONFIG["EXTRA_LOGGING"] && match_count == 0
+                DebugHelper.debug("Perplexity: No <think> tags found in final processing (expected with state machine)", category: :api, level: :debug)
               end
               
               # Check if citations were lost during thinking removal

@@ -918,6 +918,7 @@ module PerplexityHelper
     texts = {}
     thinking = []
     think_tag_buffer = String.new  # Buffer for incomplete <think> tags (tag format)
+    inside_think_tag = false  # Track if we're currently inside a <think> tag
     tools = {}
     finish_reason = nil
     started = false
@@ -981,15 +982,9 @@ module PerplexityHelper
             choice["message"] ||= delta.dup
             choice["message"]["content"] ||= ""
 
-            # Temporary: Always log for debugging
-            DebugHelper.debug("Perplexity: Processing delta for model: #{obj["model"]}, is_reasoning: #{Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])}", category: :api, level: :debug)
-
             # Handle thinking content for reasoning models
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
               content = delta["content"]
-
-              # Temporary: Always log for debugging
-              DebugHelper.debug("Perplexity: content is #{content.nil? ? 'nil' : content.class}, preview: #{content.to_s[0..50] rescue 'N/A'}", category: :api, level: :debug)
 
               # Check if content is a Hash (JSON format) or String (tag format)
               if content && content.is_a?(Hash)
@@ -1019,18 +1014,22 @@ module PerplexityHelper
                 # String format (tag format): "<think>...</think>"
                 fragment = content.to_s
 
+                # Check if we're entering a <think> tag
+                if !inside_think_tag && fragment.include?('<think>')
+                  inside_think_tag = true
+                end
+
+                # Check if we're exiting a </think> tag
+                if inside_think_tag && fragment.include?('</think>')
+                  inside_think_tag = false
+                end
+
                 # Accumulate in buffer to handle split tags
                 think_tag_buffer << fragment
-
-                # Temporary: Always log for debugging
-                DebugHelper.debug("Perplexity: think_tag_buffer length: #{think_tag_buffer.length}, preview: #{think_tag_buffer[0..100]}", category: :api, level: :debug)
 
                 # Try to extract complete thinking blocks from buffer
                 while think_tag_buffer =~ /<think>(.*?)<\/think>/m
                   thinking_text = $1.strip
-
-                  # Temporary: Always log for debugging
-                  DebugHelper.debug("Perplexity: Extracted thinking: #{thinking_text[0..100]}", category: :api, level: :info)
 
                   unless thinking_text.empty?
                     thinking << thinking_text
@@ -1050,10 +1049,10 @@ module PerplexityHelper
                 # Accumulate the entire fragment (including tags) for final processing
                 choice["message"]["content"] << fragment
 
-                # Remove think tags from fragment before sending to UI for streaming display
-                # This prevents <think> tags from appearing during streaming
-                fragment = fragment.gsub(/<think>.*?<\/think>/m, '')
-                fragment = fragment.gsub(/<\/?think>/, '')
+                # If we're inside a think tag OR the fragment contains think tags, suppress it
+                if inside_think_tag || fragment.include?('<think>') || fragment.include?('</think>')
+                  fragment = ""
+                end
               else
                 # content is nil - skip this delta
                 fragment = ""

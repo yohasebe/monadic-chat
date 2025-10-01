@@ -2442,31 +2442,35 @@ module OpenAIHelper
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
 
-                # Reasoning content can be in item["content"] or item["summary"]
-                if item["summary"].is_a?(Array)
-                  # With summary: "auto", reasoning text is in the summary array
-                  # Extract text from summary_text items
-                  summary_text = item["summary"].filter_map do |entry|
-                    next unless entry.is_a?(Hash) && entry["type"] == "summary_text"
+                # Only set text if not already accumulated from delta events
+                # This prevents duplication when both delta and done events provide the same text
+                if segment[:text].to_s.empty?
+                  # Reasoning content can be in item["content"] or item["summary"]
+                  if item["summary"].is_a?(Array)
+                    # With summary: "auto", reasoning text is in the summary array
+                    # Extract text from summary_text items
+                    summary_text = item["summary"].filter_map do |entry|
+                      next unless entry.is_a?(Hash) && entry["type"] == "summary_text"
 
-                    text = entry["text"]
-                    if text.nil? || text.to_s.empty?
-                      STDERR.puts "[OpenAI] Reasoning summary_text entry with no text: #{entry.inspect}" if ENV["EXTRA_LOGGING"] == "true"
-                      next
+                      text = entry["text"]
+                      if text.nil? || text.to_s.empty?
+                        STDERR.puts "[OpenAI] Reasoning summary_text entry with no text: #{entry.inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                        next
+                      end
+
+                      text.to_s
+                    end.join("\n\n")
+
+                    if summary_text.empty?
+                      STDERR.puts "[OpenAI] Reasoning summary array returned no text: #{item["summary"].inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                    else
+                      segment[:text] = summary_text
                     end
-
-                    text.to_s
-                  end.join("\n\n")
-
-                  if summary_text.empty?
-                    STDERR.puts "[OpenAI] Reasoning summary array returned no text: #{item["summary"].inspect}" if ENV["EXTRA_LOGGING"] == "true"
+                  elsif item["content"]
+                    segment[:text] = reasoning_extract_text.call(item["content"])
                   else
-                    segment[:text] << summary_text
+                    STDERR.puts "[OpenAI] Reasoning item has neither summary nor content: #{item.inspect}" if ENV["EXTRA_LOGGING"] == "true"
                   end
-                elsif item["content"]
-                  segment[:text] << reasoning_extract_text.call(item["content"])
-                else
-                  STDERR.puts "[OpenAI] Reasoning item has neither summary nor content: #{item.inspect}" if ENV["EXTRA_LOGGING"] == "true"
                 end
               end
               

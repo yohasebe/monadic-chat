@@ -2453,6 +2453,13 @@ module OpenAIHelper
                 segment = ensure_reasoning_segment.call(rid)
                 segment[:text] << delta.to_s
                 current_reasoning_id = rid if rid
+
+                # Send reasoning delta to frontend (like Claude's thinking)
+                res = {
+                  "type" => "reasoning",
+                  "content" => delta.to_s
+                }
+                block&.call res
               end
 
             when "response.reasoning.done"

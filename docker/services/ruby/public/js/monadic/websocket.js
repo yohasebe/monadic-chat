@@ -2065,6 +2065,56 @@ let loadedApp = "Chat";
         break;
       }
 
+      case "thinking":
+      case "reasoning": {
+        // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
+        const content = data.content || '';
+        if (!content) break;
+
+        // Create or get temporary reasoning card
+        let tempReasoningCard = $("#temp-reasoning-card");
+        if (!tempReasoningCard.length) {
+          const titleText = data.type === 'thinking' ?
+            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinkingProcess') : 'Thinking Process') :
+            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.reasoningProcess') : 'Reasoning Process');
+
+          tempReasoningCard = $(`
+            <div id="temp-reasoning-card" class="card mt-3 streaming-card border-info">
+              <div class="card-header p-2 ps-3 bg-info bg-opacity-10">
+                <div class="fs-6 card-title mb-0">
+                  <span><i class="fas fa-brain"></i></span> <span class="fw-bold">${titleText}</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="card-text small text-muted"></div>
+              </div>
+            </div>
+          `);
+          $("#discourse").append(tempReasoningCard);
+        }
+
+        // Append thinking/reasoning content
+        const tempText = $("#temp-reasoning-card .card-text");
+        if (tempText.length) {
+          // Use DocumentFragment for efficient DOM manipulation while preserving newlines
+          const docFrag = document.createDocumentFragment();
+          const lines = content.split('\n');
+
+          lines.forEach((line, index) => {
+            if (index > 0) {
+              docFrag.appendChild(document.createElement('br'));
+            }
+            if (line) {
+              docFrag.appendChild(document.createTextNode(line));
+            }
+          });
+
+          tempText[0].appendChild(docFrag);
+        }
+
+        break;
+      }
+
       case "web_speech": {
         // Handle Web Speech API text
         window.lastTTSMode = 'web_speech';
@@ -3750,8 +3800,9 @@ let loadedApp = "Chat";
           callingFunction = false;
         }
         
-        // Hide the temp-card as we're about to show the final HTML
+        // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
         $("#temp-card").hide();
+        $("#temp-reasoning-card").remove();
         
         // Use the handler if available, otherwise use inline code
         let handled = false;

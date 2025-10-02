@@ -168,7 +168,7 @@ K:C
     provider "anthropic"
     model ["claude-sonnet-4-5-20250929"]
     temperature 0.5
-    parallel_tool_calls false
+    parallel_function_calling false
   end
 
   features do

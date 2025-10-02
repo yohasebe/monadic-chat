@@ -1126,12 +1126,27 @@ module WebSocketHelper
                 @channel.push({ "type" => "error", "content" => "api_stopped_safety" }.to_json)
               end
 
+              # Extract ABC blocks before markdown processing (they're already HTML)
+              abc_blocks = []
+              text_for_markdown = text.gsub(/<div class="abc-code">.*?<\/div>/m) do |match|
+                abc_blocks << match
+                "\n\nABC_PLACEHOLDER_#{abc_blocks.size - 1}\n\n"
+              end
+
               html = if session["parameters"]["monadic"]
-                       APPS[session["parameters"]["app_name"]].monadic_html(text)
+                       APPS[session["parameters"]["app_name"]].monadic_html(text_for_markdown)
                      else
                        mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
-                       markdown_to_html(text, mathjax: mathjax_enabled)
+                       markdown_to_html(text_for_markdown, mathjax: mathjax_enabled)
                      end
+
+              # Restore ABC blocks after markdown processing
+              abc_blocks.each_with_index do |block, index|
+                # Remove <p> wrapper if present
+                html.gsub!(/<p>\s*ABC_PLACEHOLDER_#{index}\s*<\/p>/, block)
+                # Direct replacement as fallback
+                html.gsub!("ABC_PLACEHOLDER_#{index}", block)
+              end
 
               if session["parameters"]["response_suffix"]
                 html += "\n\n" + session["parameters"]["response_suffix"]

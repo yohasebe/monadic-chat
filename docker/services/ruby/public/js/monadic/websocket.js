@@ -423,15 +423,48 @@ function sanitizeMermaidSource(text) {
     .replace(/[\u300C\u300D]/g, '"')
     .replace(/\uFF0F/g, '/')
     .replace(/\[(.*?)\]/gs, (match, inner) => {
-      const normalized = inner
-        .replace(/\n\s*\n+/g, '\n')
-        .trim()
-        .replace(/\n\s*/g, '\\n');
-      return `[${normalized}]`;
-    })
+  const normalized = inner
+    .replace(/\n\s*\n+/g, '\n')
+    .trim()
+    .replace(/\n\s*/g, '\\n');
+  return `[${normalized}]`;
+})
     .split('\n')
-    .map(line => line.trimEnd())
+    .map(line => line.trim())
     .filter(line => line.length > 0)
+    .reduce((acc, line) => {
+      if (line.includes('->') || line.includes('→') || line.includes('←')) {
+        acc.push(`% ${line}`);
+        return acc;
+      }
+      if (line.startsWith('V:')) {
+        const pipeIndex = line.indexOf('|');
+        if (pipeIndex > -1) {
+          const header = line.slice(0, pipeIndex).trim();
+          const rest = line.slice(pipeIndex + 1).trim();
+          if (header.length > 0) {
+            acc.push(header);
+          }
+          if (rest.length > 0) {
+            acc.push(rest.startsWith('|') ? rest : `| ${rest}`);
+          }
+        } else {
+          acc.push(line);
+        }
+        return acc;
+      }
+      if (/^(%|%%|X:|T:|M:|L:|Q:|K:|w:)/.test(line)) {
+        acc.push(line);
+        return acc;
+      }
+      const noteLike = /^(?:z|\[[A-Ga-g]|[A-Ga-g][,']?)/;
+      if (noteLike.test(line)) {
+        acc.push(line.startsWith('|') ? line : `| ${line}`);
+      } else {
+        acc.push(`% ${line}`);
+      }
+      return acc;
+    }, [])
     .join('\n');
 }
 

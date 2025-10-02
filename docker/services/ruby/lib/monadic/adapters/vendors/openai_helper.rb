@@ -1963,10 +1963,10 @@ module OpenAIHelper
 
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
-    
+
     # Log tool calls for debugging
     if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Tools] Processing #{tools.length} tool calls:"
+      puts "[DEBUG Tools] Processing #{tools.length} tool calls (depth: #{call_depth}):"
       tools.each { |tc| puts "  - #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments').to_s[0..200]}" }
     end
     

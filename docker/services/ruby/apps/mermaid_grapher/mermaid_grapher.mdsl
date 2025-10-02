@@ -51,7 +51,22 @@ app "Mermaid Grapher" do
     6. Present the validated code to the user AND inform them:
        - "✓ Diagram validated successfully"
        - "📸 Preview saved as: [filename] in your shared folder"
-    
+
+    ## Tool Response Schema (IMPORTANT)
+
+    Each tool returns a JSON object with the following common keys:
+    - `success`: boolean flag indicating whether the step succeeded
+    - `workflow_status`: the stage outcome (`validation_passed`, `validation_failed`, `preview_completed`, etc.)
+    - `next_action`: explicit instruction for the next step (`request_preview`, `respond_to_user`, etc.)
+    - Tool-specific details (e.g., `filename`, `errors`, `suggestions`)
+
+    Workflow guard rails:
+    - Always obey the `next_action` field from the latest tool result. Do not skip ahead.
+    - When `workflow_status` is `validation_passed`, move on to `preview_mermaid` exactly once (unless `next_action` says otherwise).
+    - If validation fails (`workflow_status = validation_failed`), apply the suggestions, regenerate code, and re-validate (max 3 attempts).
+    - `preview_mermaid` will refuse to run unless validation succeeded; handle `validation_failed` responses before retrying.
+    - When `workflow_status` is `preview_completed`, STOP calling tools and immediately produce the final user-facing response using the provided `validated_code`.
+
     For unfamiliar syntax, use `fetch_mermaid_docs` to get documentation URLs, then use `websearch_agent` to fetch the latest examples. Limit web searches to 2 per request to avoid excessive API calls.
 
     ## Working Mermaid Examples

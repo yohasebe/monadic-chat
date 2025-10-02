@@ -405,6 +405,36 @@ const mermaid_config = {
   theme: 'default'
 };
 
+function sanitizeMermaidSource(text) {
+  if (!text) {
+    return text;
+  }
+
+  return text
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/[\u2028\u2029]/g, '\n')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/[\u2010-\u2015\u2212\u30FC\uFF0D]/g, '-')
+    .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
+    .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
+    .replace(/[\u300C\u300D]/g, '"')
+    .replace(/\uFF0F/g, '/')
+    .replace(/\[(.*?)\]/gs, (match, inner) => {
+      const normalized = inner
+        .replace(/\n\s*\n+/g, '\n')
+        .trim()
+        .replace(/\n\s*/g, '\\n');
+      return `[${normalized}]`;
+    })
+    .split('\n')
+    .map(line => line.trimEnd())
+    .filter(line => line.length > 0)
+    .join('\n');
+}
+
 $(document).on("click", ".copy-button", function () {
   const codeElement = $(this).prev().find("code");
   const text = codeElement.text();
@@ -431,20 +461,21 @@ async function applyMermaid(element) {
     mermaidElement.addClass("sourcecode");
     mermaidElement.find("pre").addClass("sourcecode");
     let mermaidText = mermaidElement.text().trim();
+    const sanitizedMermaidText = sanitizeMermaidSource(mermaidText);
     mermaidElement.find("pre").text(mermaidText);
     addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
 
     // Create container for diagram and error message
     const containerId = `diagram-${index}`;
     const diagramContainer = $(`<div class="diagram-wrapper">
-      <div class="diagram" id="${containerId}"><mermaid>${mermaidText}</mermaid></div>
+      <div class="diagram" id="${containerId}"><mermaid>${sanitizedMermaidText}</mermaid></div>
       <div class="error-message" id="error-${containerId}" style="display: none;"></div>
     </div>`);
     mermaidElement.after(diagramContainer);
 
     // Validate mermaid syntax
     try {
-      const type = mermaid.detectType(mermaidText);
+      const type = mermaid.detectType(sanitizedMermaidText);
       if (!type) {
         throw new Error("Invalid diagram type");
       }

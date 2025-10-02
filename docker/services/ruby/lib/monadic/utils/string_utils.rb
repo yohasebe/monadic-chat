@@ -737,7 +737,27 @@ module StringUtils
     
     # Apply markdown normalization to ensure proper parsing
     text = normalize_markdown(text)
-    
+
+    # Protect ABC notation blocks from markdown smart punctuation processing
+    # Extract ABC blocks, replace with placeholder, restore after markdown processing
+    abc_blocks = []
+    text = text.gsub(/<div class="abc-code">.*?<\/div>/m) do |match|
+      # Clean up whitespace in tags but preserve ABC content
+      cleaned = match.gsub(/<div class="abc-code">\s*<pre>\s*<code>/, '<div class="abc-code"><pre><code>')
+                     .gsub(/<\/code>\s*<\/pre>\s*<\/div>/, '</code></pre></div>')
+      abc_blocks << cleaned
+      # Use unique text marker that Commonmarker won't modify (not HTML comment which gets sanitized)
+      placeholder = "ABCBLOCKPLACEHOLDER#{abc_blocks.size - 1}ENDPLACEHOLDER"
+
+      # Debug logging if EXTRA_LOGGING is enabled
+      if ENV['EXTRA_LOGGING'] == 'true'
+        puts "[ABC] Extracted block #{abc_blocks.size - 1}, length: #{cleaned.length}"
+        puts "[ABC] Placeholder: #{placeholder}"
+      end
+
+      placeholder
+    end
+
     # Pre-process to handle Japanese brackets with bold markdown
     # Replace **「text」** with temporary placeholder to protect from smart punctuation
     bold_brackets = []
@@ -1009,7 +1029,34 @@ module StringUtils
     list_bold_items.each_with_index do |content, index|
       html.gsub!("LIST_BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
     end
-    
+
+    # Restore ABC notation blocks (protected from markdown smart punctuation)
+    abc_blocks.each_with_index do |content, index|
+      placeholder = "ABCBLOCKPLACEHOLDER#{index}ENDPLACEHOLDER"
+      if ENV['EXTRA_LOGGING'] == 'true'
+        found = html.include?(placeholder)
+        puts "[ABC] Restoring block #{index}, placeholder found: #{found}"
+        if !found
+          puts "[ABC] WARNING: Placeholder not found in HTML!"
+          puts "[ABC] HTML preview: #{html[0..500]}..."
+        else
+          # Show context around placeholder
+          if match = html.match(/.{0,50}#{Regexp.escape(placeholder)}.{0,50}/m)
+            puts "[ABC] Context: #{match[0].inspect}"
+          end
+        end
+      end
+      # Commonmarker wraps text in <p> tags, handle with optional newline
+      pattern = /<p>\s*#{Regexp.escape(placeholder)}\s*<\/p>\n?/
+      if html.match?(pattern)
+        html.gsub!(pattern, content)
+        puts "[ABC] Replaced within <p> tags" if ENV['EXTRA_LOGGING'] == 'true'
+      else
+        html.gsub!(placeholder, content)
+        puts "[ABC] Direct replacement (no <p> wrapper)" if ENV['EXTRA_LOGGING'] == 'true'
+      end
+    end
+
     # Always include the necessary CSS for syntax highlighting
     # But avoid duplicating it in each message by using a minimal inline style
     html_with_css = <<~HTML

@@ -166,7 +166,7 @@ K:C
 
   llm do
     provider "openai"
-    model ["gpt-5", "gpt-4.1"]
+    model ["gpt-5-codex", "gpt-5", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.5
   end

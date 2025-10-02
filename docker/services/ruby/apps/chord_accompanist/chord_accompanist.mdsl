@@ -92,6 +92,30 @@ K:C
     - Your task is complete once you've shown the user the accompaniment
     - The abc-code div will be automatically rendered by the frontend JavaScript
 
+    ## Time signature calculations (CRITICAL)
+
+    **Each bar's note durations MUST sum to match the time signature:**
+
+    In ABC notation with L:1/8 (eighth note as unit):
+    - Eighth note (no number) = 1 unit
+    - Quarter note (2) = 2 units
+    - Half note (4) = 4 units
+    - Whole note (8) = 8 units
+    - Rest (z, z2, z4) follows same rules
+
+    **4/4 time signature** (8 units per bar):
+    - ✓ CORRECT: `| [CEG]2 [CEG]2 [CEG]2 [CEG]2 |` (2+2+2+2 = 8 units)
+    - ✓ CORRECT: `| [CEG]4 [CEG]4 |` (4+4 = 8 units)
+    - ✓ CORRECT: `| C D E F G A B c |` (1+1+1+1+1+1+1+1 = 8 units)
+    - ✗ WRONG: `| [CEG] [CEG]2 [CEG]2 [CEG]2 |` (1+2+2+2 = 7 units - missing 1 unit!)
+    - ✗ WRONG: `| [CEG]2 [CEG]2 [CEG]2 |` (2+2+2 = 6 units - missing 2 units!)
+
+    **3/4 time signature** (6 units per bar):
+    - ✓ CORRECT: `| [CEG]2 [CEG]2 [CEG]2 |` (2+2+2 = 6 units)
+    - ✗ WRONG: `| [CEG]2 [CEG]2 |` (2+2 = 4 units - missing 2 units!)
+
+    **ALWAYS count units before finalizing each bar. The validation tool will reject bars with incorrect duration.**
+
     ## ABC notation tips
 
     - **CRITICAL: Every line with notes MUST be enclosed in bar lines: | notes | not just notes**

@@ -25,7 +25,8 @@ class ChordAccompanist < MonadicApp
         process.exit(1);
       }
 
-      const code = process.argv[2];
+      // Read ABC code from stdin to avoid shell escaping issues
+      const code = fs.readFileSync(0, 'utf-8');
       try {
         // Use parseOnly for validation without DOM rendering
         const result = ABCJS.parseOnly(code);
@@ -159,14 +160,17 @@ class ChordAccompanist < MonadicApp
                    File.expand_path('../../public/vendor/js/abcjs-basic-min.min.js', __dir__)
                  end
 
+    # Use stdin to pass ABC code to avoid shell escaping issues with multiline strings
+    require 'open3'
     validator_js = self.class.abc_validator_js(abcjs_path)
-    escaped_code = Shellwords.escape(code)
-    result = `node -e #{Shellwords.escape(validator_js)} #{escaped_code} 2>&1`
+    stdout, stderr, status = Open3.capture3('node', '-e', validator_js, stdin_data: code)
+    result = stdout.strip
 
     begin
       JSON.parse(result, symbolize_names: true)
     rescue JSON::ParserError
-      { success: false, error: 'Validation failed: Could not parse ABC notation' }
+      # Include stderr for debugging if JSON parsing fails
+      { success: false, error: "Validation failed: #{stderr.empty? ? result[0..200] : stderr[0..200]}" }
     end
   end
 

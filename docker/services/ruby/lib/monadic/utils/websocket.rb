@@ -310,7 +310,9 @@ module WebSocketHelper
   # token count is calculated using tiktoken
   def check_past_messages(obj)
     # filter out any messages of type "search"
-    messages = session[:messages].filter { |m| m["type"] != "search" }
+    # Filter messages by current app_name to prevent cross-app conversation leakage
+    current_app_name = obj["app_name"] || session["parameters"]["app_name"]
+    messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
 
     res = false
     max_input_tokens = obj["max_input_tokens"].to_i
@@ -519,8 +521,9 @@ module WebSocketHelper
   # Filter and prepare messages for display
   # @return [Array] Filtered and formatted messages
   def prepare_filtered_messages
-    # Filter messages only once
-    filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+    # Filter messages by current app_name and exclude search messages
+    current_app_name = session["parameters"]["app_name"]
+    filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
     
     # Convert markdown to HTML for assistant messages if html field is missing
     filtered_messages.each do |m|
@@ -693,9 +696,10 @@ module WebSocketHelper
   # Update message status after edit
   def update_message_status_after_edit
     past_messages_data = check_past_messages(session[:parameters])
-    
-    # Filter messages only once and store in filtered_messages
-    filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+
+    # Filter messages by current app_name and exclude search messages
+    current_app_name = session["parameters"]["app_name"]
+    filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
     
     # Update status to reflect any changes
     @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
@@ -1165,6 +1169,7 @@ module WebSocketHelper
                           "text" => text,
                           "html" => html,
                           "lang" => detect_language(text),
+                          "app_name" => session["parameters"]["app_name"],
                           "active" => true } # detect_language is called only once here
 
               if thinking && !thinking.to_s.strip.empty?
@@ -1199,7 +1204,9 @@ module WebSocketHelper
               }.to_json)
 
               session[:messages] << new_data
-              messages = session[:messages].filter { |m| m["type"] != "search" }
+              # Filter messages by current app_name to prevent cross-app conversation leakage
+    current_app_name = obj["app_name"] || session["parameters"]["app_name"]
+    messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
               past_messages_data = check_past_messages(session[:parameters])
 
               @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
@@ -1282,6 +1289,7 @@ module WebSocketHelper
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => "system",
                        "text" => text,
+                       "app_name" => session["parameters"]["app_name"],
                        "active" => true }
           # Initial prompt is added to messages but not shown as the first message
           # @channel.push({ "type" => "html", "content" => new_data }.to_json)
@@ -1295,11 +1303,12 @@ module WebSocketHelper
             message_id = SecureRandom.hex(4)
             
             # Create message data
-            new_data = { 
+            new_data = {
               "mid" => message_id,
               "role" => obj["role"],
               "text" => text,
-              "active" => true 
+              "app_name" => session["parameters"]["app_name"],
+              "active" => true
             }
             
             # Add images if present

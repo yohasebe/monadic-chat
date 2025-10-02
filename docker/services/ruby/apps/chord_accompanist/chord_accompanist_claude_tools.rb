@@ -31,11 +31,80 @@ class ChordAccompanistClaude < MonadicApp
         // Use parseOnly for validation without DOM rendering
         const result = ABCJS.parseOnly(code);
 
-        if (result && result.length > 0 && result[0].lines && result[0].lines.length > 0) {
-          console.log(JSON.stringify({ success: true }));
-        } else {
+        if (!result || result.length === 0 || !result[0].lines || result[0].lines.length === 0) {
           console.log(JSON.stringify({ success: false, error: 'invalid syntax' }));
+          process.exit(0);
         }
+
+        // Check time signature consistency
+        const tune = result[0];
+        const meter = tune.metaText?.meter;
+
+        if (meter) {
+          const meterParts = meter.value.split('/');
+          const beatsPerBar = parseInt(meterParts[0]);
+          const beatUnit = parseInt(meterParts[1]);
+          const expectedDuration = beatsPerBar / beatUnit;
+
+          let barErrors = [];
+          let barNumber = 1;
+
+          for (const line of tune.lines) {
+            if (line.staff) {
+              for (const staff of line.staff) {
+                if (staff.voices) {
+                  for (const voice of staff.voices) {
+                    let currentBarDuration = 0;
+                    let currentBarNotes = [];
+
+                    for (const element of voice) {
+                      if (element.el_type === 'bar') {
+                        // Check accumulated bar duration
+                        if (currentBarNotes.length > 0 && Math.abs(currentBarDuration - expectedDuration) > 0.001) {
+                          barErrors.push({
+                            bar: barNumber,
+                            expected: expectedDuration,
+                            actual: currentBarDuration,
+                            meter: meter.value
+                          });
+                        }
+                        barNumber++;
+                        currentBarDuration = 0;
+                        currentBarNotes = [];
+                      } else if (element.duration !== undefined) {
+                        currentBarDuration += element.duration;
+                        currentBarNotes.push(element);
+                      }
+                    }
+
+                    // Check last bar if it has notes
+                    if (currentBarNotes.length > 0 && Math.abs(currentBarDuration - expectedDuration) > 0.001) {
+                      barErrors.push({
+                        bar: barNumber,
+                        expected: expectedDuration,
+                        actual: currentBarDuration,
+                        meter: meter.value
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (barErrors.length > 0) {
+            const errorMsg = barErrors.slice(0, 3).map(e =>
+              \`Bar \${e.bar}: expected \${e.expected.toFixed(3)} (\${e.meter}), got \${e.actual.toFixed(3)}\`
+            ).join('; ');
+            console.log(JSON.stringify({
+              success: false,
+              error: \`Time signature mismatch: \${errorMsg}\${barErrors.length > 3 ? ' ...' : ''}\`
+            }));
+            process.exit(0);
+          }
+        }
+
+        console.log(JSON.stringify({ success: true }));
       } catch (err) {
         console.log(JSON.stringify({ success: false, error: err.message || 'invalid syntax' }));
       }

@@ -1,28 +1,93 @@
-# Monadic Chat Test Profiles (relocated from .test-config.yml)
+# Test Profile Configuration
+# Central configuration for test execution profiles
+# Usage: rake test:profile[profile_name]
 
 profiles:
+  # Quick unit test run (fastest, no external dependencies)
   quick:
+    description: "Ultra-fast unit tests only"
     suites: [unit]
+    api_level: none
+    format: progress
+    save: false
+    docker: off
     timeout: 30
 
-  ci:
+  # Standard development workflow (unit + integration, no API calls)
+  dev:
+    description: "Daily development testing (no API calls)"
     suites: [unit, integration]
+    api_level: none
+    format: documentation
+    save: true
+    html: true
+    text: true
+    docker: auto
+    timeout: 60
+
+  # Pre-commit verification (same as dev but with detailed output)
+  commit:
+    description: "Pre-commit verification (unit + integration)"
+    suites: [unit, integration]
+    api_level: none
+    format: documentation
+    save: true
+    html: true
+    text: true
+    docker: auto
+    timeout: 60
+
+  # CI pipeline (includes real API tests, no media)
+  ci:
+    description: "CI pipeline tests (includes API, excludes media)"
+    suites: [unit, integration, api]
+    api_level: standard
+    providers: [openai, anthropic]
     format: json
     save: true
+    html: true
+    text: true
     docker: auto
+    timeout: 120
 
+  # Full test suite (includes media - slow)
   full:
-    suites: [unit, integration, api, system]
+    description: "Complete test suite including media tests"
+    suites: [unit, integration, api, e2e]
+    api_level: full
     providers: [openai, anthropic, gemini]
-    timeout: 120
-    save: true
     format: documentation
+    save: true
+    html: true
+    text: true
     docker: auto
+    timeout: 180
 
-  daily:
+  # Smoke test (minimal real API verification)
+  smoke:
+    description: "Quick smoke test with real API calls"
     suites: [api]
-    providers: [openai]
-    focus: critical
-    timeout: 120
+    api_level: standard
+    providers: [openai, anthropic]
+    format: progress
     save: true
-    format: documentation
+    html: false
+    text: true
+    docker: auto
+    timeout: 90
+
+# API Level Definitions
+# - full:     RUN_API=true RUN_API_E2E=true RUN_MEDIA=true
+# - standard: RUN_API=true RUN_API_E2E=true RUN_MEDIA=false
+# - none:     RUN_API=false RUN_API_E2E=false RUN_MEDIA=false
+
+# Suite Definitions
+# - unit:        Fast unit tests (no external dependencies)
+# - integration: Integration tests (may require Docker)
+# - api:         Real API tests (requires API keys)
+# - e2e:         End-to-end tests (full stack)
+
+# Docker Options
+# - auto: Start if needed, stop after tests
+# - on:   Require Docker to be running
+# - off:  Skip Docker-dependent tests

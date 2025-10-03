@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../../../spec_helper'
+require_relative '../../spec_helper'
 require 'tmpdir'
 
 require_relative '../../../apps/auto_forge/auto_forge_tools'

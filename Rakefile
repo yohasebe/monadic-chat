@@ -877,9 +877,14 @@ task :build do
 end
 
 # API integration test tasks (real provider APIs)
+# [DEPRECATED] Use rake test:profile[smoke|ci|full] instead
 namespace :spec_api do
-  desc "Real API smoke (non-media). Use RUN_API=true PROVIDERS=openai,anthropic"
+  desc "[DEPRECATED] Real API smoke (use: rake test:profile[smoke])"
   task :smoke do
+    puts "⚠️  DEPRECATED: 'rake spec_api:smoke' will be removed in a future version."
+    puts "   Use: rake test:profile[smoke]"
+    puts "   See: docs_dev/test_quickref.md for new testing workflow"
+    puts ""
     ENV['RUN_API'] ||= 'true'
     ENV['API_TIMEOUT'] ||= '90'
     ENV['API_MAX_RETRIES'] ||= '0'
@@ -921,13 +926,21 @@ namespace :spec_api do
     end
   end
 
-  desc "Quick suite: CRITICAL apps × major providers (LEVEL_1)"
-  task :quick => [:smoke]
+  desc "[DEPRECATED] Quick suite (use: rake test:profile[smoke])"
+  task :quick do
+    puts "⚠️  DEPRECATED: 'rake spec_api:quick' will be removed in a future version."
+    puts "   Use: rake test:profile[smoke]"
+    puts ""
+    Rake::Task['spec_api:smoke'].invoke
+  end
 
   # Removed :daily and :weekly to simplify interface. Use :all or :full instead.
 
-  desc "All providers (excl. Ollama) × all non-media API tests"
+  desc "[DEPRECATED] All providers non-media (use: rake test:profile[ci])"
   task :all do
+    puts "⚠️  DEPRECATED: 'rake spec_api:all' will be removed in a future version."
+    puts "   Use: rake test:profile[ci]"
+    puts ""
     ENV['RUN_API'] ||= 'true'
     ENV['API_LOG'] ||= 'true'
     ENV['API_TIMEOUT'] ||= '90'
@@ -947,8 +960,15 @@ namespace :spec_api do
     end
   end
 
-  desc "Full suite: LEVEL_1+2+3 (media included)"
-  task :full => [:smoke, :matrix, :media]
+  desc "[DEPRECATED] Full suite with media (use: rake test:profile[full])"
+  task :full do
+    puts "⚠️  DEPRECATED: 'rake spec_api:full' will be removed in a future version."
+    puts "   Use: rake test:profile[full]"
+    puts ""
+    Rake::Task['spec_api:smoke'].invoke
+    Rake::Task['spec_api:matrix'].invoke
+    Rake::Task['spec_api:media'].invoke
+  end
 end
 
 # Test ruby code with rspec ./docker/services/ruby/spec
@@ -1030,8 +1050,12 @@ ensure
 end
 
 # Quick unit tests only (no containers needed)
-desc "Run unit tests only (fast)"
+desc "[DEPRECATED] Run unit tests only (use: rake test:profile[quick])"
 task :spec_unit do
+  puts "⚠️  DEPRECATED: 'rake spec_unit' will be removed in a future version."
+  puts "   Use: rake test:profile[quick]"
+  puts "   See: docs_dev/test_quickref.md for new testing workflow"
+  puts ""
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec/unit --format documentation"
   end
@@ -1048,16 +1072,24 @@ namespace :spec_unit do
 end
 
 # Integration tests only (requires containers)
-desc "Run integration tests only"
+desc "[DEPRECATED] Run integration tests only (use: rake test:profile[dev])"
 task :spec_integration do
+  puts "⚠️  DEPRECATED: 'rake spec_integration' will be removed in a future version."
+  puts "   Use: rake test:profile[dev]"
+  puts "   See: docs_dev/test_quickref.md for new testing workflow"
+  puts ""
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec/integration --format documentation"
   end
 end
 
 # System tests only
-desc "Run system tests only"
+desc "[DEPRECATED] Run system tests only (use: rake test:profile[dev])"
 task :spec_system do
+  puts "⚠️  DEPRECATED: 'rake spec_system' will be removed in a future version."
+  puts "   Use: rake test:profile[dev]"
+  puts "   See: docs_dev/test_quickref.md for new testing workflow"
+  puts ""
   Dir.chdir("docker/services/ruby") do
     sh "bundle exec rspec spec/system --format documentation"
   end
@@ -1074,8 +1106,12 @@ namespace :spec_system do
 end
 
 # Docker integration tests (requires Docker environment)
-desc "Run Docker integration tests (requires Docker containers running)"
+desc "[DEPRECATED] Run Docker integration tests (use: rake test:profile[dev])"
 task :spec_docker do
+  puts "⚠️  DEPRECATED: 'rake spec_docker' will be removed in a future version."
+  puts "   Use: rake test:profile[dev]"
+  puts "   See: docs_dev/test_quickref.md for new testing workflow"
+  puts ""
   Dir.chdir("docker/services/ruby") do
     puts "Running Docker integration tests..."
     puts "Note: These tests require Docker containers to be running"
@@ -1084,8 +1120,12 @@ task :spec_docker do
 end
 
 # End-to-end tests (automatically starts server and containers)
-desc "Run end-to-end tests (automatically handles prerequisites)"
+desc "[DEPRECATED] Run end-to-end tests (use: rake test:profile[full])"
 task :spec_e2e do
+  puts "⚠️  DEPRECATED: 'rake spec_e2e' will be removed in a future version."
+  puts "   Use: rake test:profile[full]"
+  puts "   See: docs_dev/test_quickref.md for new testing workflow"
+  puts ""
   Dir.chdir("docker/services/ruby") do
     puts "Starting E2E test suite..."
     puts "This will automatically:"
@@ -1093,7 +1133,7 @@ task :spec_e2e do
     puts "  - Start the server if needed"
     puts "  - Run all E2E tests"
     puts ""
-    
+
     # Use the run_e2e_tests.sh script
     sh "./spec/e2e/run_e2e_tests.sh"
   end

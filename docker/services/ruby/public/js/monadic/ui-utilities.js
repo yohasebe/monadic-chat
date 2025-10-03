@@ -180,10 +180,15 @@ function adjustImageUploadButton(selectedModel) {
   const modelData = modelSpec[selectedModel];
   const imageFileElement = $("#image-file");
   const currentApp = $("#apps").val();
-  
+
   // Check if current app has image capability enabled
-  const appHasImageCapability = apps && apps[currentApp] && apps[currentApp]["image"];
-  
+  const toBool = window.toBool || ((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value === 'true';
+    return !!value;
+  });
+  const appHasImageCapability = apps && apps[currentApp] && toBool(apps[currentApp]["image"]);
+
   // Check if current app is an image generation app using the common function
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
   

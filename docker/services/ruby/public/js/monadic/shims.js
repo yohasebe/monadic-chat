@@ -191,11 +191,15 @@ window.shims.uiUtils = {
     const currentApp = $("#apps").val();
     
     // Check if current app has image capability enabled
-    const appHasImageCapability = apps && apps[currentApp] && apps[currentApp]["image"];
-    
+    const toBool = window.toBool || ((value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value === 'true';
+      return !!value;
+    });
+    const appHasImageCapability = apps && apps[currentApp] && toBool(apps[currentApp]["image"]);
+
     // Check if current app is an image generation app
-    const isImageGenerationApp = apps[currentApp] && 
-      (apps[currentApp].image_generation === true || apps[currentApp].image_generation === "true");
+    const isImageGenerationApp = apps[currentApp] && toBool(apps[currentApp].image_generation);
     
     // Show button only if BOTH app has image capability AND model has vision capability
     // OR if it's an image generation app (which always needs image input)

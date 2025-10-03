@@ -1827,23 +1827,30 @@ let loadedApp = "Chat";
 
     const htmlContent = $("#discourse div.card:last");
 
-    if (params["toggle"] === "true") {
+    // Use toBool helper for defensive boolean evaluation
+    const toBool = window.toBool || ((value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value === 'true';
+      return !!value;
+    });
+
+    if (toBool(params["toggle"])) {
       applyToggle(htmlContent);
     }
 
-    if (params["mermaid"] === "true") {
+    if (toBool(params["mermaid"])) {
       applyMermaid(htmlContent);
     }
 
-    if (params["mathjax"] === "true") {
+    if (toBool(params["mathjax"])) {
       applyMathJax(htmlContent);
     }
 
-    if (params["abc"] === "true") {
+    if (toBool(params["abc"])) {
       applyAbc(htmlContent);
     }
 
-    if (params["sourcecode"] === "true") {
+    if (toBool(params["sourcecode"])) {
       formatSourceCode(htmlContent);
     }
 
@@ -3564,23 +3571,26 @@ let loadedApp = "Chat";
 
               const htmlContent = $("#discourse div.card:last");
 
-              if (apps[loadedApp]["toggle"] === "true") {
-                applyToggle(htmlContent);
-              }
+              // Use toBool helper for defensive boolean evaluation
+              const toBool = window.toBool || ((value) => {
+                if (typeof value === 'boolean') return value;
+                if (typeof value === 'string') return value === 'true';
+                return !!value;
+              });
 
-              if (apps[loadedApp]["mermaid"] === "true") {
+              if (toBool(apps[loadedApp]["mermaid"])) {
                 applyMermaid(htmlContent);
               }
 
-              if (apps[loadedApp]["mathjax"] === "true") {
+              if (toBool(apps[loadedApp]["mathjax"])) {
                 applyMathJax(gptElement);
               }
 
-              if (apps[loadedApp]["abc"] === "true") {
+              if (toBool(apps[loadedApp]["abc"])) {
                 applyAbc(gptElement);
               }
 
-              if (apps[loadedApp]["sourcecode"] === "true") {
+              if (toBool(apps[loadedApp]["sourcecode"])) {
                 formatSourceCode(gptElement);
               }
 
@@ -3829,24 +3839,31 @@ let loadedApp = "Chat";
           
           // Apply all the required processing for assistant messages
           const htmlContent = $card;
-          
-          if (params["toggle"] === "true") {
+
+          // Use toBool helper for defensive boolean evaluation
+          const toBool = window.toBool || ((value) => {
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'string') return value === 'true';
+            return !!value;
+          });
+
+          if (toBool(params["toggle"])) {
             applyToggle(htmlContent);
           }
-          
-          if (params["mermaid"] === "true") {
+
+          if (toBool(params["mermaid"])) {
             applyMermaid(htmlContent);
           }
-          
-          if (params["mathjax"] === "true") {
+
+          if (toBool(params["mathjax"])) {
             applyMathJax(htmlContent);
           }
-          
-          if (params["abc"] === "true") {
+
+          if (toBool(params["abc"])) {
             applyAbc(htmlContent);
           }
-          
-          if (params["sourcecode"] === "true") {
+
+          if (toBool(params["sourcecode"])) {
             formatSourceCode(htmlContent);
           }
           
@@ -3952,7 +3969,9 @@ let loadedApp = "Chat";
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
             
             // Handle auto_speech for TTS auto-playback
-            if (window.autoSpeechActive || (params && params["auto_speech"] === "true")) {
+            // Support both boolean and string values for backward compatibility
+            const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
+            if (window.autoSpeechActive || autoSpeechEnabled) {
               // Use setTimeout to ensure the card is fully rendered before triggering TTS
               setTimeout(() => {
                 const lastCard = $("#discourse div.card:last");
@@ -4208,24 +4227,31 @@ let loadedApp = "Chat";
         
         // Apply appropriate styling based on current settings
         const htmlContent = $("#discourse div.card:last");
-        
-        if (params["toggle"] === "true") {
+
+        // Use toBool helper for defensive boolean evaluation
+        const toBool = window.toBool || ((value) => {
+          if (typeof value === 'boolean') return value;
+          if (typeof value === 'string') return value === 'true';
+          return !!value;
+        });
+
+        if (toBool(params["toggle"])) {
           applyToggle(htmlContent);
         }
-        
-        if (params["mermaid"] === "true") {
+
+        if (toBool(params["mermaid"])) {
           applyMermaid(htmlContent);
         }
-        
-        if (params["mathjax"] === "true") {
+
+        if (toBool(params["mathjax"])) {
           applyMathJax(htmlContent);
         }
-        
-        if (params["abc"] === "true") {
+
+        if (toBool(params["abc"])) {
           applyAbc(htmlContent);
         }
-        
-        if (params["sourcecode"] === "true") {
+
+        if (toBool(params["sourcecode"])) {
           formatSourceCode(htmlContent);
         }
         

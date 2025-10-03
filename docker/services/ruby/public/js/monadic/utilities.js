@@ -688,22 +688,33 @@ window.loadParams = function(params, calledFor = "loadParams") {
     $("#model").val(params["model"]);
   }
 
-  if (params["easy_submit"]) {
+  // Helper function to normalize boolean values (handles both boolean and string types)
+  // Make it available globally for use in other functions
+  if (!window.toBool) {
+    window.toBool = (value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value === 'true';
+      return !!value;
+    };
+  }
+  const toBool = window.toBool;
+
+  if (toBool(params["easy_submit"])) {
     $("#check-easy-submit").prop('checked', true);
   } else {
     $("#check-easy-submit").prop('checked', false);;
   }
-  if (params["auto_speech"]) {
+  if (toBool(params["auto_speech"])) {
     $("#check-auto-speech").prop('checked', true);
   } else {
     $("#check-auto-speech").prop('checked', false);;
   }
-  if (params["initiate_from_assistant"]) {
+  if (toBool(params["initiate_from_assistant"])) {
     $("#initiate-from-assistant").prop('checked', true);
   } else {
     $("#initiate-from-assistant").prop('checked', false);
   }
-  if (params["mathjax"]) {
+  if (toBool(params["mathjax"])) {
     $("#mathjax").prop('checked', true);
     $("#math-badge").show();
   } else {
@@ -901,11 +912,17 @@ function resetParams() {
   setTimeout(function () {
     // Don't change app selection to default - it will be preserved from the current app
     // $("#apps select").val(params["app_name"]);
-    
-    if (params["pdf"] === "true" || params["pdf_vector_storage"] === true || params["pdf_vector_storage"] === "true") {
+
+    const toBool = window.toBool || ((value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value === 'true';
+      return !!value;
+    });
+
+    if (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])) {
       $("#file-import-row").show();
       $("#pdf-panel").show();
-    } else if (params["file"] === "true") {
+    } else if (toBool(params["file"])) {
       $("#file-import-row").show();
     } else {
       $("#file-import-row").hide();
@@ -928,15 +945,15 @@ function setParams() {
   // If checkbox doesn't exist, keep the value from apps[app_name]
 
   if ($("#mathjax").is(":checked")) {
-    params["mathjax"] = "true";
+    params["mathjax"] = true;
   } else {
-    params["mathjax"] = "false";
+    params["mathjax"] = false;
   }
 
   if ($("#websearch").is(":checked") && modelSpec[params["model"]]["tool_capability"]) {
-    params["websearch"] = "true";
+    params["websearch"] = true;
   } else {
-    params["websearch"] = "false";
+    params["websearch"] = false;
   }
 
   if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {
@@ -1103,9 +1120,12 @@ function isImageGenerationApp(appName) {
   if (!appName) {
     appName = $("#apps").val();
   }
-  return apps[appName] && 
-    (apps[appName].image_generation === true || 
-     apps[appName].image_generation === "true");
+  const toBool = window.toBool || ((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value === 'true';
+    return !!value;
+  });
+  return apps[appName] && toBool(apps[appName].image_generation);
 }
 
 // Check if the current app supports mask editing (distinct from basic image generation)
@@ -1264,7 +1284,13 @@ function doResetActions(resetToDefaultApp = false) {
   
   $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
 
-  if (apps[currentApp]["monadic"]) {
+  const toBool = window.toBool || ((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value === 'true';
+    return !!value;
+  });
+
+  if (toBool(apps[currentApp]["monadic"])) {
     $("#monadic-badge").show();
   } else {
     $("#monadic-badge").hide();
@@ -1276,7 +1302,7 @@ function doResetActions(resetToDefaultApp = false) {
     $("#tools-badge").hide();
   }
 
-  if (apps[currentApp]["mathjax"]) {
+  if (toBool(apps[currentApp]["mathjax"])) {
     $("#math-badge").show();
   } else {
     $("#math-badge").hide();

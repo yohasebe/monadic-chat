@@ -1437,7 +1437,14 @@ $(function () {
     // Update app icon in the select dropdown
     updateAppSelectIcon(appValue);
 
-    if (apps[appValue]["pdf"] || apps[appValue]["pdf_vector_storage"]) {
+    // Use toBool helper for defensive boolean evaluation
+    const toBool = window.toBool || ((value) => {
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'string') return value === 'true';
+      return !!value;
+    });
+
+    if (toBool(apps[appValue]["pdf"]) || toBool(apps[appValue]["pdf_vector_storage"])) {
       $("#file-import-row").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
@@ -1446,7 +1453,7 @@ $(function () {
       $("#pdf-panel").hide();
     }
 
-    if (apps[appValue]["image"]) {
+    if (toBool(apps[appValue]["image"])) {
       $("#image-file").show();
     } else {
       $("#image-file").hide();
@@ -1558,7 +1565,7 @@ $(function () {
     $("#base-app-title").text(displayText);
     $("#base-app-icon").html(apps[appValue]["icon"]);
 
-    if (apps[appValue]["monadic"]) {
+    if (toBool(apps[appValue]["monadic"])) {
       $("#monadic-badge").show();
     } else {
       $("#monadic-badge").hide();
@@ -1570,7 +1577,7 @@ $(function () {
       $("#tools-badge").hide();
     }
 
-    if (apps[appValue]["websearch"]) {
+    if (toBool(apps[appValue]["websearch"])) {
       $("#websearch").prop("checked", true);
       $("#websearch-badge").show();
     } else {
@@ -1578,7 +1585,7 @@ $(function () {
       $("#websearch-badge").hide();
     }
 
-    if (apps[appValue]["mathjax"]) {
+    if (toBool(apps[appValue]["mathjax"])) {
       $("#mathjax").prop("checked", true);
       $("#math-badge").show();
     } else {

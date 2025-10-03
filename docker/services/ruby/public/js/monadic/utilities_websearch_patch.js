@@ -84,9 +84,14 @@ window.doResetActions = function() {
   
   // Update base app title
   $("#base-app-title").text(apps[currentApp]["display_name"] || apps[currentApp]["app_name"]);
-  
+
   // Show/hide monadic badge
-  if (apps[currentApp]["monadic"]) {
+  const toBool = window.toBool || ((value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value === 'true';
+    return !!value;
+  });
+  if (toBool(apps[currentApp]["monadic"])) {
     $("#monadic-badge").show();
   } else {
     $("#monadic-badge").hide();

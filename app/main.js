@@ -1835,6 +1835,12 @@ function updateContextMenu(disableControls = false) {
       },
       { type: 'separator' },
       {
+        label: i18n.t('menu.openConsole'),
+        click: () => {
+          openMainWindow();
+        }
+      },
+      {
         label: i18n.t('menu.openBrowser'),
         click: () => {
           shell.openExternal('http://localhost:4567');

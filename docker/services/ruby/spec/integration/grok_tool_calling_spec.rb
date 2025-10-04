@@ -176,8 +176,11 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       app_instance.settings = class_settings if class_settings
       
       # Check MDSL configuration
-      expect(app_instance.settings[:model]).to eq("grok-code-fast-1")
-      expect(app_instance.settings[:model]).not_to eq("grok-4")  # Wrong model name
+      expect(app_instance.settings[:model]).to eq("grok-4-fast-reasoning")
+      # Agent model is configured separately in the agents block
+      if app_instance.settings[:agents]
+        expect(app_instance.settings[:agents][:code_generator][:model]).to eq("grok-code-fast-1")
+      end
     end
     
     it "has proper temperature settings for deterministic outputs" do

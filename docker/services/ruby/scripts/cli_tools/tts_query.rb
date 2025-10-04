@@ -1,8 +1,20 @@
 #!/usr/bin/env ruby
 
+# Add lib path for SSL configuration
+$LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
+$LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
+
 require "http"
 require "json"
 require "net/http"
+
+# Configure SSL to avoid CRL check errors
+begin
+  require 'monadic/utils/ssl_configuration'
+  Monadic::Utils::SSLConfiguration.configure!
+rescue LoadError
+  # SSL configuration not available, continue without it
+end
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10
@@ -10,6 +22,19 @@ READ_TIMEOUT = 60
 WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
+
+# Helper to configure SSL for Net::HTTP
+def configure_net_http_ssl(http)
+  return unless http.use_ssl?
+
+  # Disable CRL checks
+  http.verify_flags = 0
+  http.verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
+  http.verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK_ALL if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+
+  # Use system CA certificates
+  http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+end
 
 def list_openai_voices
   %w(alloy ash ballad coral echo fable onyx nova sage shimmer).map do |voice|
@@ -43,6 +68,7 @@ def list_elevenlabs_voices
     url = URI("https://api.elevenlabs.io/v1/voices")
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
+    configure_net_http_ssl(http)
     request = Net::HTTP::Get.new(url)
     request["xi-api-key"] = elevenlabs_api_key
     response = http.request(request)

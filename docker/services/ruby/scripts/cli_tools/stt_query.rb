@@ -1,8 +1,20 @@
 #!/usr/bin/env ruby
 
+# Add lib path for SSL configuration
+$LOAD_PATH.unshift('/monadic/lib') if File.directory?('/monadic/lib')
+$LOAD_PATH.unshift(File.expand_path('../../lib', __dir__)) if File.directory?(File.expand_path('../../lib', __dir__))
+
 require "securerandom"
 require "base64"
 require "http"
+
+# Configure SSL to avoid CRL check errors
+begin
+  require 'monadic/utils/ssl_configuration'
+  Monadic::Utils::SSLConfiguration.configure!
+rescue LoadError
+  # SSL configuration not available, continue without it
+end
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10

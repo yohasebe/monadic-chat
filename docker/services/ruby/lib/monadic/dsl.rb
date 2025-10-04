@@ -1,6 +1,7 @@
 # Add required utilities
 require_relative 'utils/fa_icons'
 require_relative 'utils/mdsl_validator' rescue nil
+require_relative 'utils/provider_model_cache'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
@@ -1164,8 +1165,19 @@ module MonadicDSL
     provider_config = ProviderConfig.new(state.settings[:provider])
     helper_module = provider_config.helper_module
     
-    # Get model list using helper module - simpler one-line version to avoid syntax errors
-    model_list_code = "defined?(#{helper_module}) ? #{helper_module}.list_models : []"
+    # Build fallback model list using configured models and defaults
+    fallback_models = []
+    fallback_models.concat(Array(state.settings[:models])) if state.settings[:models]
+    fallback_models << state.settings[:model] if state.settings[:model]
+    fallback_models = fallback_models.flatten.compact.map(&:to_s).map(&:strip).reject(&:empty?).uniq
+    fallback_literal = if fallback_models.empty?
+      "[]"
+    else
+      "[#{fallback_models.map { |m| m.inspect }.join(', ')}]"
+    end
+
+    # Get model list via helper module with centralized fallback handling
+    model_list_code = "Monadic::Utils::ProviderModelCache.fetch('#{provider_config.standard_key}', fallback: #{fallback_literal}) do\n        defined?(#{helper_module}) ? Array(#{helper_module}.list_models) : []\n      end"
 
     # Debug the state
     puts "Converting class: #{state.name}, app_name: #{state.settings[:app_name]}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]

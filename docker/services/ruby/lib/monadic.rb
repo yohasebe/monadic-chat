@@ -5,6 +5,7 @@ $LOAD_PATH.uniq!
 
 require_relative "monadic/utils/document_store_registry"
 require_relative "monadic/utils/pdf_storage_config"
+require_relative "monadic/utils/ssl_configuration"
 
 # Optional startup profiling
 if ENV['PROFILE_STARTUP'] == 'true'
@@ -848,6 +849,13 @@ rescue JSON::ParserError => e
 rescue StandardError => e
   puts "Error loading environment file: #{e.message}\n#{e.backtrace.join("\n")}"
   CONFIG["ERROR"] = "Error loading configuration: #{e.message}"
+end
+
+# Configure SSL defaults after environment has been processed
+begin
+  Monadic::Utils::SSLConfiguration.configure!(CONFIG)
+rescue => e
+  puts "Warning: Failed to configure SSL defaults: #{e.message}"
 end
 
 def handle_error(message)

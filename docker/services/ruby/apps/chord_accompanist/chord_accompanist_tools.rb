@@ -1,7 +1,10 @@
 require 'json'
 require 'shellwords'
+require_relative '../../lib/monadic/agents/gpt5_codex_agent'
 
 class ChordAccompanist < MonadicApp
+  include OpenAIHelper
+  include Monadic::Agents::GPT5CodexAgent
   # Validation script using downloaded abcjs from vendor assets
   # Uses parseOnly method which doesn't require DOM
   def self.abc_validator_js(abcjs_path)
@@ -38,13 +41,46 @@ class ChordAccompanist < MonadicApp
 
         // Check time signature consistency
         const tune = result[0];
-        const meter = tune.metaText?.meter;
 
-        if (meter) {
-          const meterParts = meter.value.split('/');
-          const beatsPerBar = parseInt(meterParts[0]);
-          const beatUnit = parseInt(meterParts[1]);
-          const expectedDuration = beatsPerBar / beatUnit;
+        // abcjs stores meter information on each staff. Find the first valid meter.
+        let meterInfo = null;
+        if (tune.lines) {
+          for (const line of tune.lines) {
+            if (line.staff) {
+              for (const staff of line.staff) {
+                if (staff.meter && Array.isArray(staff.meter.value) && staff.meter.value.length > 0) {
+                  const entry = staff.meter.value[0];
+                  if (entry && entry.num && entry.den) {
+                    meterInfo = { num: entry.num, den: entry.den };
+                    break;
+                  }
+                }
+              }
+            }
+            if (meterInfo) break;
+          }
+        }
+
+        if (!meterInfo) {
+          console.log(JSON.stringify({
+            success: false,
+            error: 'Time signature information not found (missing M: header?)'
+          }));
+          process.exit(0);
+        }
+
+        const beatsPerBar = parseFloat(meterInfo.num);
+        const beatUnit = parseFloat(meterInfo.den);
+
+        if (!Number.isFinite(beatsPerBar) || !Number.isFinite(beatUnit) || beatsPerBar <= 0 || beatUnit <= 0) {
+          console.log(JSON.stringify({
+            success: false,
+            error: `Invalid time signature values: ${meterInfo.num}/${meterInfo.den}`
+          }));
+          process.exit(0);
+        }
+
+        const expectedDuration = beatsPerBar / beatUnit;
 
           let barErrors = [];
           let barNumber = 1;
@@ -65,7 +101,7 @@ class ChordAccompanist < MonadicApp
                             bar: barNumber,
                             expected: expectedDuration,
                             actual: currentBarDuration,
-                            meter: meter.value
+                            meter: `${meterInfo.num}/${meterInfo.den}`
                           });
                         }
                         barNumber++;
@@ -83,7 +119,7 @@ class ChordAccompanist < MonadicApp
                         bar: barNumber,
                         expected: expectedDuration,
                         actual: currentBarDuration,
-                        meter: meter.value
+                        meter: `${meterInfo.num}/${meterInfo.den}`
                       });
                     }
                   }
@@ -139,6 +175,93 @@ class ChordAccompanist < MonadicApp
     format_tool_response(result.merge(validated_code: sanitized))
   rescue => e
     format_tool_response(success: false, error: "Validation exception: #{e.message}")
+  end
+
+  def validate_chord_progression(chords:, key:)
+    # Use GPT-5-Codex for advanced music theory analysis
+    prompt = build_chord_validation_prompt(chords, key)
+
+    # Get model from MDSL agents configuration
+    model = @context&.dig(:agents, :chord_validator) || ENV['GPT5_CODEX_MODEL'] || "gpt-5-codex"
+
+    result = call_gpt5_codex(
+      prompt: prompt,
+      app_name: 'ChordAccompanist',
+      model: model
+    )
+
+    if result[:success]
+      # Parse the analysis from GPT-5-Codex
+      analysis = parse_validation_response(result[:code])
+      format_tool_response(analysis)
+    else
+      format_tool_response(
+        success: false,
+        error: result[:error] || "Chord validation failed"
+      )
+    end
+  rescue => e
+    format_tool_response(success: false, error: "Validation exception: #{e.message}")
+  end
+
+  def build_chord_validation_prompt(chords, key)
+    <<~PROMPT
+      You are an expert music theorist. Analyze the following chord progression for theoretical correctness.
+
+      Key: #{key}
+      Chord Progression: #{chords}
+
+      Analyze each chord and determine if it is theoretically justified. Consider:
+      1. Diatonic chords (I, ii, iii, IV, V, vi, vii°)
+      2. Secondary dominants (V/II, V/III, V/IV, V/V, V/VI)
+      3. Passing diminished chords
+      4. Borrowed chords from parallel key (modal interchange)
+      5. Tritone substitutions
+      6. Tension extensions (9th, 11th, 13th) - check for avoid notes
+      7. Modulations to related keys
+      8. Voice leading and chord function context
+
+      Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
+      {
+        "valid": true/false,
+        "message": "Overall assessment",
+        "explanations": [
+          {"position": 1, "chord": "Dm", "function": "Tonic (i in D minor)"},
+          ...
+        ],
+        "invalid_chords": [
+          {"position": 3, "chord": "X", "reason": "...", "suggestion": "..."},
+          ...
+        ],
+        "suggestions": ["...", ...]
+      }
+
+      If all chords are valid, leave "invalid_chords" as an empty array.
+      Be thorough in checking chord construction (e.g., dominant 7th chords must have M3+m7, avoid notes in tensions).
+    PROMPT
+  end
+
+  def parse_validation_response(response_text)
+    # Extract JSON from response (may be wrapped in markdown code blocks)
+    json_text = response_text.strip
+    json_text = json_text.gsub(/```json\s*/, '').gsub(/```\s*$/, '').strip
+
+    parsed = JSON.parse(json_text, symbolize_names: true)
+
+    {
+      success: true,
+      valid: parsed[:valid],
+      message: parsed[:message],
+      explanations: parsed[:explanations] || [],
+      invalid_chords: parsed[:invalid_chords] || [],
+      suggestions: parsed[:suggestions] || []
+    }
+  rescue JSON::ParserError => e
+    {
+      success: false,
+      error: "Failed to parse validation response: #{e.message}",
+      raw_response: response_text[0..500]
+    }
   end
 
   def analyze_abc_error(code:, error:)

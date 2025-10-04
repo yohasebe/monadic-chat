@@ -145,24 +145,21 @@ module AutoForge
       end
 
       # JavaScript errors
-      if result['javascript_errors'] && !result['javascript_errors'].empty?
-        formatted[:javascript_errors] = result['javascript_errors']
-        formatted[:summary] << "⚠️  Found #{result['javascript_errors'].length} JavaScript error(s)"
-      else
+      formatted[:javascript_errors] = result['javascript_errors'] || []
+      if formatted[:javascript_errors].empty?
         formatted[:summary] << "✅ No JavaScript errors detected"
+      else
+        formatted[:summary] << "⚠️  Found #{formatted[:javascript_errors].length} JavaScript error(s)"
       end
 
-      # Warnings
-      if result['warnings'] && !result['warnings'].empty?
-        formatted[:warnings] = result['warnings']
-        formatted[:summary] << "⚠️  Found #{result['warnings'].length} warning(s)"
-      end
+      # Warnings - will be processed and filtered later
+      raw_warnings = result['warnings'] || []
 
       # Functionality tests
-      if result['functionality_tests']
-        passed = result['functionality_tests'].count { |t| t['passed'] }
-        total = result['functionality_tests'].length
-        formatted[:tests] = result['functionality_tests']
+      formatted[:functionality_tests] = result['functionality_tests'] || []
+      if formatted[:functionality_tests].any?
+        passed = formatted[:functionality_tests].count { |t| t['passed'] }
+        total = formatted[:functionality_tests].length
         formatted[:summary] << "🧪 #{passed}/#{total} functionality tests passed"
       end
 
@@ -181,18 +178,17 @@ module AutoForge
         formatted[:console_logs] = filtered_logs unless filtered_logs.empty?
       end
 
-      if result['warnings'] && !result['warnings'].empty?
-        filtered_warnings = result['warnings'].reject do |warning|
-          warning.to_s.include?("'WebDriver' object has no attribute 'get_log'")
-        end
+      # Filter warnings (remove WebDriver log warnings)
+      filtered_warnings = raw_warnings.reject do |warning|
+        warning.to_s.include?("'WebDriver' object has no attribute 'get_log'")
+      end
 
-        if filtered_warnings.empty?
-          formatted.delete(:warnings)
-          formatted[:summary].reject! { |line| line.include?("warning") }
-          formatted[:summary] << "✅ No significant warnings" if result['warnings']
-        else
-          formatted[:warnings] = filtered_warnings
-        end
+      formatted[:warnings] = filtered_warnings
+      if filtered_warnings.any?
+        formatted[:summary] << "⚠️  Found #{filtered_warnings.length} warning(s)"
+      elsif raw_warnings.any?
+        # Had warnings but all were filtered out
+        formatted[:summary] << "✅ No significant warnings"
       end
 
       formatted[:viewport] = result['viewport'] if result['viewport']

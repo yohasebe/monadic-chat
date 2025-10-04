@@ -39,6 +39,10 @@ app "CodeInterpreterGrok" do
     temperature 0.0
     tool_choice "auto"  # Default to auto, will be overridden when needed
     max_tokens 4096  # Ensure enough tokens for tool responses
+
+    agents do
+      code_generator model: "grok-code-fast-1"
+    end
   end
 
   system_prompt <<~TEXT

@@ -168,6 +168,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 - 💬 **Second Opinion** - Get verification from different AI providers for accuracy (All providers)
 - 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (OpenAI)
 - 📊 **Mermaid Grapher** - Create flowcharts and diagrams using Mermaid syntax (All providers)
+- 🎵 **Chord Accompanist** - Generate musical chord accompaniment patterns in ABC notation (Claude)
 - 🖼️ **Image Generator** - Generate images using DALL-E, Imagen 3, and Grok (OpenAI, Gemini, Grok)
 - 🎥 **Video Describer** - Analyze and describe video content (OpenAI)
 - 📧 **Mail Composer** - Compose professional emails with AI assistance (All providers)

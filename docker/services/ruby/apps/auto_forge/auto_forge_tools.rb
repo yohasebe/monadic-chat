@@ -86,9 +86,9 @@ module AutoForgeTools
     spec[:project_type] = project_type
 
     # Create app instance with context
+    # Note: Using local variable only to avoid race conditions with shared @context
     # Ensure context includes API key from environment if not already present
-    context = @context || {}
-    @context ||= context
+    context = {}
     if ENV['OPENAI_API_KEY'] && !context[:openai_api_key] && !context[:api_key]
       context = context.merge(openai_api_key: ENV['OPENAI_API_KEY'])
     end
@@ -199,6 +199,7 @@ module AutoForgeTools
     result = app.generate_application(spec, &progress_callback)
 
     # Store project info in context for additional file generation
+    # Note: Only using local variable context to avoid race conditions with shared @context
     if result[:success]
       auto_forge = context[:auto_forge] || {}
       auto_forge[:project_path] = result[:project_path]
@@ -207,10 +208,7 @@ module AutoForgeTools
       auto_forge[:main_file] = result[:files_created]&.first if project_type == 'cli'
       context[:auto_forge] = auto_forge
       context['auto_forge'] = auto_forge if context.respond_to?(:[])
-      if @context.is_a?(Hash)
-        @context[:auto_forge] = auto_forge
-        @context['auto_forge'] = auto_forge
-      end
+      # Removed @context assignment to prevent cross-session contamination
     end
 
     # Format response
@@ -812,15 +810,10 @@ module AutoForgeTools
   end
 
   def read_cli_script(project_path)
-    store = ensure_context_hash[:auto_forge] || {}
-    store = @context['auto_forge'] if store.empty? && @context.is_a?(Hash) && @context['auto_forge'].is_a?(Hash)
-    main_candidate = store[:main_file] || store['main_file']
+    # Note: Removed @context fallback to prevent cross-session contamination
+    # Project state is now tracked through the filesystem only
 
-    if main_candidate
-      candidate_path = File.join(project_path, main_candidate)
-      return [candidate_path, File.read(candidate_path)] if File.exist?(candidate_path)
-    end
-
+    # Try to find the main CLI script by looking for shebang
     fallback = Dir.glob(File.join(project_path, '*')).find do |f|
       File.file?(f) && !f.end_with?('.json', '.md', '.txt') && File.read(f, 100).include?('#!')
     end
@@ -938,24 +931,13 @@ module AutoForgeTools
   end
 
   def resolve_text_generator
-    context_hash = ensure_context_hash
-    callback = context_hash[:codex_callback]
-    return callback if callback.respond_to?(:call)
+    # Note: Removed @context usage to prevent cross-session contamination
+    # Default to OpenAI agent
 
-    agent = (context_hash[:agent] || :openai).to_sym
-
-    if agent == :claude
-      if respond_to?(:claude_opus_agent)
-        ->(prompt, app_name = 'ClaudeOpusAgent', &block) { claude_opus_agent(prompt, app_name, &block) }
-      else
-        nil
-      end
+    if respond_to?(:call_gpt5_codex)
+      ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_gpt5_codex(prompt: prompt, app_name: app_name, &block) }
     else
-      if respond_to?(:call_gpt5_codex)
-        ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_gpt5_codex(prompt: prompt, app_name: app_name, &block) }
-      else
-        nil
-      end
+      nil
     end
   end
 
@@ -1251,16 +1233,13 @@ module AutoForgeTools
   end
 
   def store_diagnosis(diagnosis)
+    # Note: Using instance variable only. This means diagnosis state is scoped to
+    # a single tool execution, which is acceptable since diagnoses expire quickly.
     @last_diagnosis = diagnosis
-    ensure_context_hash[:last_diagnosis] = diagnosis
   end
 
   def current_diagnosis
-    diagnosis = @last_diagnosis
-    return diagnosis if diagnosis
-
-    ctx = ensure_context_hash
-    ctx[:last_diagnosis] || ctx['last_diagnosis']
+    @last_diagnosis
   end
 
   def diagnosis_expired?(diagnosis)
@@ -1272,9 +1251,6 @@ module AutoForgeTools
 
   def clear_diagnosis_state
     @last_diagnosis = nil
-    ctx = ensure_context_hash
-    ctx.delete(:last_diagnosis)
-    ctx.delete('last_diagnosis')
   end
 
   def resolve_project_context(params)
@@ -1626,10 +1602,6 @@ module AutoForgeTools
     Array(fetch_from_hash(record, key))
   end
 
-  def ensure_context_hash
-    @context = {} unless @context.is_a?(Hash)
-    @context
-  end
 
   def append_custom_suggestion(existing)
     return existing if existing.any? { |entry| entry.is_a?(Hash) && entry[:key] == :custom }

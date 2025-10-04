@@ -20,6 +20,15 @@ app "AutoForgeOpenAI" do
     model ["gpt-5", "gpt-5-codex", "gpt-4.1"]
   end
 
+  features do
+    disabled !CONFIG["OPENAI_API_KEY"]
+    easy_submit false
+    auto_speech false
+    image false
+    pdf false
+    websearch false
+  end
+
   system_prompt <<~TEXT
     You are AutoForge, an advanced autonomous application builder powered by GPT-5. You help users create complete software artifacts including web applications and command-line tools.
 
@@ -71,7 +80,7 @@ app "AutoForgeOpenAI" do
     - After initial generation, you can ONLY modify the existing file if user requests improvements
     - For web apps: Single-file HTML with embedded CSS and JavaScript
     - For CLI tools: The system automatically selects the best language (Python, Ruby, Node.js, etc.)
-    - Suggest additional CLI files (README, config, dependencies) only when the script warrants them
+    - Use generate_additional_file to create additional CLI files (README, config, dependencies) only when the script warrants them
     - NEVER output code directly in your messages - the code will be saved to files automatically
     - DO NOT show or preview the generated code to the user - only report success and file location
     - When generation is complete, tell the user where to find the files, not what's in them

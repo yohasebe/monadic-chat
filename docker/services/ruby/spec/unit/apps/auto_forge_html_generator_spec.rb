@@ -4,8 +4,8 @@ require_relative "../../../apps/auto_forge/agents/html_generator"
 RSpec.describe AutoForge::Agents::HtmlGenerator do
   subject(:generator) { described_class.new(context) }
 
-  let(:context) { {} }
   let(:client_double) { instance_double("CodexClient") }
+  let(:context) { { app_instance: client_double, agent: :openai } }
   let(:codex_html) do
     <<~HTML
       <!DOCTYPE html>
@@ -22,7 +22,6 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
         allow(client_double).to receive(:call_gpt5_codex)
           .and_return({ success: true, code: codex_html })
-        allow(generator).to receive(:codex_client).and_return(client_double)
       end
 
       it "returns the HTML payload" do
@@ -48,7 +47,6 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
         allow(client_double).to receive(:call_gpt5_codex)
           .and_return({ success: true, code: patch_text })
-        allow(generator).to receive(:codex_client).and_return(client_double)
       end
 
       it "returns the patch payload" do
@@ -64,26 +62,24 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
         allow(client_double).to receive(:call_gpt5_codex)
           .and_return({ success: false, error: 'timeout' })
-        allow(generator).to receive(:codex_client).and_return(client_double)
       end
 
-      it "falls back to mock HTML" do
+      it "returns error mode" do
         result = generator.generate("Build an app")
 
-        expect(result[:mode]).to eq(:full)
-        expect(result[:content]).to include("Generated from:")
+        expect(result[:mode]).to eq(:error)
+        expect(result[:error]).to eq('timeout')
       end
     end
 
     context "when Codex client is unavailable" do
-      before do
-        allow(generator).to receive(:codex_client).and_return(nil)
-      end
+      let(:context) { {} }  # No app_instance or codex_callback
 
-      it "uses mock HTML" do
+      it "returns error mode" do
         result = generator.generate("Build an app")
 
-        expect(result[:content]).to include("Generated from:")
+        expect(result[:mode]).to eq(:error)
+        expect(result[:error]).to include("integration not available")
       end
     end
   end

@@ -32,8 +32,9 @@ module Monadic
       # @param prompt [String] The complete prompt to send to Grok-Code
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
+      # @param model [String] Model to use (optional, defaults to grok-code-fast-1)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_grok_code(prompt:, app_name: nil, timeout: nil)
+      def call_grok_code(prompt:, app_name: nil, timeout: nil, model: nil)
         begin
           # Set timeout value
           actual_timeout = timeout || GROK_CODE_DEFAULT_TIMEOUT
@@ -65,8 +66,19 @@ module Monadic
             }
           end
 
+          # Determine model to use with priority: argument > MDSL config > env var > default
+          actual_model = model ||
+                         @context&.dig(:agents, :code_generator) ||
+                         ENV['GROK_CODE_MODEL'] ||
+                         "grok-code-fast-1"
+
+          # Log model selection for debugging
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GrokCodeAgent] Using model: #{actual_model}"
+          end
+
           # Create a proper session object for the API call using abstraction layer
-          session = build_session(prompt: prompt, model: "grok-code-fast-1")
+          session = build_session(prompt: prompt, model: actual_model)
 
           # Call api_request with timeout handling
           results = nil

@@ -103,10 +103,12 @@ RSpec.describe 'AutoForge CLI optional files' do
               project_path: dir,
               project_type: 'cli',
               main_file: 'tool.py'
-            },
-            codex_callback: ->(_prompt, _app_name, &_block) { { success: true, code: "Line one\nLine two" } }
+            }
           }
         )
+
+        # Mock call_gpt5_codex method which is used by resolve_text_generator
+        allow(helper).to receive(:call_gpt5_codex).and_return({ success: true, code: "Line one\nLine two" })
 
         message = helper.generate_additional_file(
           'file_name' => 'USAGE.md',

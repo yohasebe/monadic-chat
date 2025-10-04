@@ -30,6 +30,10 @@ app "ResearchAssistantGrok" do
   llm do
     provider "xai"
     model "grok-4-fast-reasoning"
+
+    agents do
+      code_generator model: "grok-code-fast-1"
+    end
   end
 
   display_name "Research Assistant"

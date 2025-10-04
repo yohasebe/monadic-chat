@@ -201,25 +201,22 @@ end
 
 RSpec.describe ConceptVisualizerClaude do
   let(:app) { described_class.new }
-  
+
   describe '#generate_concept_diagram' do
-    it 'delegates to ConceptVisualizerOpenAI implementation' do
-      openai_app = instance_double(ConceptVisualizerOpenAI)
-      expect(ConceptVisualizerOpenAI).to receive(:new).and_return(openai_app)
-      expect(openai_app).to receive(:generate_concept_diagram).with(
-        diagram_type: 'flowchart',
-        tikz_code: '\\node {test};',
-        title: 'Test Chart',
-        language: 'english'
-      ).and_return('concept_flowchart_123.svg')
-      
+    it 'uses shared ConceptVisualizerTools module' do
+      # ConceptVisualizerClaude should include ConceptVisualizerTools
+      expect(described_class.ancestors).to include(ConceptVisualizerTools)
+    end
+
+    it 'validates TikZ code contains required commands' do
+      # Invalid TikZ code should return error
       result = app.generate_concept_diagram(
         diagram_type: 'flowchart',
-        tikz_code: '\\node {test};',
+        tikz_code: '\\node {test};',  # Missing \begin{tikzpicture}
         title: 'Test Chart',
         language: 'english'
       )
-      expect(result).to eq('concept_flowchart_123.svg')
+      expect(result).to match(/Error: Invalid TikZ code/)
     end
   end
 end

@@ -993,7 +993,16 @@ module MonadicDSL
       # Support for parallel function calling (default: true)
       @state.settings[:parallel_function_calling] = value
     end
-    
+
+    def agents(&block)
+      # Support for internal agent configuration (e.g., code generators)
+      if block_given?
+        agent_config = AgentsConfiguration.new
+        agent_config.instance_eval(&block)
+        @state.settings[:agents] = agent_config.to_h
+      end
+    end
+
     def method_missing(method_name, *args)
       if PARAMETER_MAP.key?(method_name)
         send(PARAMETER_MAP[method_name], *args)
@@ -1006,7 +1015,35 @@ module MonadicDSL
       PARAMETER_MAP.key?(method_name) || super
     end
   end
-  
+
+  # Agents Configuration for internal code generation agents
+  class AgentsConfiguration
+    def initialize
+      @agents = {}
+    end
+
+    def code_generator(model:)
+      @agents[:code_generator] = model
+    end
+
+    def chord_validator(model:)
+      @agents[:chord_validator] = model
+    end
+
+    # Support for any agent type via method_missing
+    def method_missing(method_name, model:)
+      @agents[method_name.to_sym] = model
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      true
+    end
+
+    def to_h
+      @agents
+    end
+  end
+
   # Simplified Feature Configuration
   class SimplifiedFeatureConfiguration
     # Map newer feature names to old ones where needed

@@ -45,8 +45,12 @@ app "CodingAssistantGrok" do
     provider "xai"
     model "grok-4-fast-reasoning"
     temperature 0.0
+
+    agents do
+      code_generator model: "grok-code-fast-1"
+    end
   end
-  
+
   display_name "Coding Assistant"
  
   features do

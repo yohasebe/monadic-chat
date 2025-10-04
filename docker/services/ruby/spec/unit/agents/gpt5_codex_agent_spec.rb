@@ -80,6 +80,8 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     context "when user has access to GPT-5-Codex" do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
       end
 
       it "makes successful API call" do
@@ -127,6 +129,9 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
 
     context "when API returns error" do
       before do
+        stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
         app.set_models(["gpt-5-codex"])
         allow(app).to receive(:api_request).and_return([{"error" => "Rate limit exceeded"}])
       end
@@ -141,6 +146,9 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
 
     context "when API returns empty response" do
       before do
+        stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
         app.set_models(["gpt-5-codex"])
         allow(app).to receive(:api_request).and_return([{"content" => ""}])
       end
@@ -270,7 +278,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     it "uses default timeout value" do
       # The constant is already loaded, just verify it's a reasonable value
       expect(Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT).to be >= 60
-      expect(Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT).to be <= 600
+      expect(Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT).to be <= 1200
     end
 
     it "respects environment variable when module is loaded" do

@@ -322,32 +322,9 @@ finally:
 
     result[:validated_code] = code
 
-    @context ||= {}
-
-    case source
-    when :validate_tool
-      if result[:success]
-        @context[:mermaid_last_validation_ok] = true
-        @context[:mermaid_last_validated_code] = code
-        @context[:mermaid_last_validation_timestamp] = Time.now
-      else
-        @context[:mermaid_last_validation_ok] = false
-      end
-    when :preview_tool
-      last_ok = @context[:mermaid_last_validation_ok]
-      last_code = @context[:mermaid_last_validated_code]
-
-      unless last_ok && last_code == code
-        result[:success] = false
-        result[:workflow_status] = 'validation_required'
-        result[:next_action] = 'request_validation'
-        result[:errors] = Array(result[:errors])
-        result[:errors] << 'Preview requested before a successful validation. Run validate_mermaid_syntax first.'
-      end
-
-      # Consume the validation flag regardless to prevent duplicate previews without re-validation
-      @context[:mermaid_last_validation_ok] = false
-    end
+    # Note: Removed @context usage to prevent race conditions between concurrent sessions.
+    # The validation workflow now relies on the LLM following the correct sequence
+    # (validate_mermaid_syntax before preview_mermaid) without server-side state tracking.
 
     unless result[:success]
       result[:workflow_status] = 'validation_failed' if result[:workflow_status] == 'validation_passed'

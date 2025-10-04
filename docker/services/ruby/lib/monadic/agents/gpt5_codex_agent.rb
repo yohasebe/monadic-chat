@@ -34,9 +34,10 @@ module Monadic
       # @param prompt [String] The complete prompt to send to GPT-5-Codex
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
+      # @param model [String] Model to use (optional, defaults to MDSL config or "gpt-5-codex")
       # @param block [Proc] Block to call with progress updates (optional)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_gpt5_codex(prompt:, app_name: nil, timeout: nil, &block)
+      def call_gpt5_codex(prompt:, app_name: nil, timeout: nil, model: nil, &block)
         begin
           # Track timing for performance analysis
           start_time = Time.now
@@ -114,8 +115,19 @@ module Monadic
             }
           end
 
+          # Determine model to use with priority: argument > MDSL config > env var > default
+          actual_model = model ||
+                         @context&.dig(:agents, :code_generator) ||
+                         ENV['GPT5_CODEX_MODEL'] ||
+                         "gpt-5-codex"
+
+          # Log model selection for debugging
+          if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+            puts "[GPT5CodexAgent] Using model: #{actual_model}"
+          end
+
           # Create a proper session object for the API call using abstraction layer
-          session = build_session(prompt: prompt, model: "gpt-5-codex")
+          session = build_session(prompt: prompt, model: actual_model)
 
           # Call api_request with timeout handling
           # Note: OpenAIHelper already sets 600s timeout for Responses API
@@ -223,7 +235,7 @@ module Monadic
             {
               code: content,
               success: true,
-              model: "gpt-5-codex"
+              model: actual_model
             }
           else
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -340,7 +352,8 @@ module Monadic
         {
           parameters: {
             "model" => model,
-            "max_completion_tokens" => 128000
+            "max_completion_tokens" => 128000,
+            "temperature" => 0.0
           },
           messages: messages
         }

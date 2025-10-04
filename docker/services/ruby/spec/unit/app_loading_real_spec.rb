@@ -585,10 +585,10 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
     
     # Extract method definitions that could be tools from public section only
     methods = public_content.scan(/def\s+(\w+)/).flatten
-    
-    # Filter out obvious non-tool methods
-    excluded_patterns = /^(initialize|private|protected|validate|format|parse|setup|teardown|before|after|test_|spec_|help_embeddings_db)/
-    potential_tools = methods.reject { |method| 
+
+    # Filter out obvious non-tool methods and internal agent methods
+    excluded_patterns = /^(initialize|private|protected|validate|format|parse|setup|teardown|before|after|test_|spec_|help_embeddings_db|cleanup_|diagnose_|apply_suggested_|self$|call_)|(_agent$|_raw$)/
+    potential_tools = methods.reject { |method|
       method.match?(excluded_patterns) || standard_tools.include?(method)
     }
     

@@ -30,6 +30,7 @@ The table below shows which apps are available for which AI model providers.
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Mermaid Grapher | ✅ | | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | | |
+| Chord Accompanist | | ✅ | | | | | | | |
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | | |
@@ -302,6 +303,34 @@ This application helps you create Draw.io diagrams. Provide your requirements an
 
 
 DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
+
+### Chord Accompanist
+
+![Chord Accompanist app icon](../assets/icons/music.png ':size=40')
+
+This application generates musical chord accompaniment patterns in ABC notation. Perfect for musicians, composers, and music students who want to quickly create accompaniment patterns for various musical styles.
+
+**Key Features:**
+- **Genre-aware generation**: Creates authentic accompaniment patterns for different musical genres (jazz, classical, pop, rock, etc.)
+- **ABC notation output**: Generates standard ABC notation that can be played and rendered by any ABC-compatible software
+- **Multiple instrument support**: Piano, guitar, bass, and other accompaniment instruments
+- **Automatic validation**: Two-layer validation ensures both syntactical correctness and musical accuracy
+- **Time signature checking**: Validates that each bar has the correct number of beats for the specified time signature
+- **Direct playback**: Generated ABC notation is rendered with audio playback in the web interface
+
+**Enhanced Validation:**
+- **Syntax validation**: Uses the ABCJS library to ensure the ABC code is syntactically correct
+- **Musical validation**: Checks that bar durations match the time signature (e.g., 8 units for 4/4 time)
+- **Real-time rendering**: Displays sheet music and provides audio playback directly in the interface
+
+**Usage Tips:**
+- Specify the tempo, time signature, key, and musical genre for best results
+- The AI can create patterns for specific styles (e.g., "Beatles Let It Be style" or "jazz waltz")
+- Reference specific songs or artists for stylistic guidance
+- All generated ABC notation can be copied and used in other ABC-compatible software
+
+**Available Models:**
+- Anthropic Claude Sonnet 4.5
 
 ### Syntax Tree
 

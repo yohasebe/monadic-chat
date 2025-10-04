@@ -2174,6 +2174,7 @@ module OpenAIHelper
     reasoning_segments = []
     reasoning_indices = {}
     current_reasoning_id = nil
+    reasoning_items_raw = {}  # Store original reasoning items for reconstruction
     web_search_results = []
     file_search_results = []
     image_generation_status = {}
@@ -2207,7 +2208,7 @@ module OpenAIHelper
 
       if index.nil?
         index = reasoning_segments.length
-        reasoning_segments << { text: String.new }
+        reasoning_segments << { text: String.new, id: rid }
         reasoning_indices[identifier] = index if identifier
       end
 
@@ -2438,6 +2439,11 @@ module OpenAIHelper
                 rid = item["id"]
                 current_reasoning_id = rid if rid
                 segment = ensure_reasoning_segment.call(rid)
+
+                # Store the original reasoning item for reconstruction
+                if rid
+                  reasoning_items_raw[rid] = item
+                end
 
                 # Only set text if not already accumulated from delta events
                 # This prevents duplication when both delta and done events provide the same text
@@ -2777,18 +2783,29 @@ module OpenAIHelper
             message["content"] = complete_text
           end
 
+          # Build reasoning entries using original structure when available
           reasoning_entries = reasoning_segments.filter_map do |segment|
             text = segment[:text].to_s.strip
             next if text.empty?
-            {
-              "type" => "reasoning",
-              "content" => [
-                {
-                  "type" => "output_text",
-                  "text" => text
-                }
-              ]
-            }
+
+            # Use original reasoning item if available (preserves summary structure)
+            segment_id = segment[:id]
+            if segment_id && reasoning_items_raw[segment_id]
+              original_item = reasoning_items_raw[segment_id]
+              # Preserve original structure (may have summary or content)
+              original_item.transform_keys(&:to_s)
+            else
+              # Fallback to content structure
+              {
+                "type" => "reasoning",
+                "content" => [
+                  {
+                    "type" => "output_text",
+                    "text" => text
+                  }
+                ]
+              }
+            end
           end
 
           unless reasoning_entries.empty?

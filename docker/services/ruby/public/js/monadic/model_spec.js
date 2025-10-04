@@ -332,7 +332,8 @@ const modelSpec = {
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "api_type": "responses",
     "supports_web_search": true,
-    "latency_tier": "slow"
+    "latency_tier": "slow",
+    "is_reasoning_model": true
   },
   "o3-2025-04-16": {
     "context_window": [1, 200000],
@@ -346,7 +347,8 @@ const modelSpec = {
     "reasoning_effort": [["low", "medium", "high"], "low"],
     "api_type": "responses",
     "supports_web_search": true,
-    "latency_tier": "slow"
+    "latency_tier": "slow",
+    "is_reasoning_model": true
   },
   "o3-pro": {
     "context_window": [1, 200000],
@@ -361,7 +363,8 @@ const modelSpec = {
     "supports_streaming": false,
     "api_type": "responses",
     "supports_web_search": true,
-    "latency_tier": "slow"
+    "latency_tier": "slow",
+    "is_reasoning_model": true
   },
   "o3-pro-2025-06-10": {
     "context_window": [1, 200000],
@@ -375,7 +378,8 @@ const modelSpec = {
     "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
     "api_type": "responses",
     "supports_web_search": true,
-    "latency_tier": "slow"
+    "latency_tier": "slow",
+    "is_reasoning_model": true
   },
   "o3-mini": {
     "context_window": [1, 200000],
@@ -387,7 +391,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": false,
     "reasoning_effort": [["low", "medium", "high"], "low"],
-    "api_type": "responses"
+    "api_type": "responses",
+    "is_reasoning_model": true
   },
   "o3-mini-2025-01-31": {
     "context_window": [1, 200000],
@@ -399,7 +404,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": false,
     "reasoning_effort": [["low", "medium", "high"], "low"],
-    "api_type": "responses"
+    "api_type": "responses",
+    "is_reasoning_model": true
   },
   "o3-deep-research": {
     "context_window": [1, 200000],
@@ -410,7 +416,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "is_reasoning_model": true
   },
   "o3-deep-research-2025-06-26": {
     "context_window": [1, 200000],
@@ -421,7 +428,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "is_reasoning_model": true
   },
   // O4 series models
   "o4-mini": {
@@ -765,6 +773,46 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
+  "command-r-08-2024": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "deprecated": false
+  },
+  "command-r-plus-08-2024": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "deprecated": false
+  },
+  "command-r7b-12-2024": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "deprecated": false
+  },
+  "command-r7b-arabic-02-2025": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "deprecated": false
+  },
   // Gemini models
   "gemini-2.5-flash-lite-06-17": {
     "context_window" : [1048576],
@@ -1099,13 +1147,6 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true
   },
-  "mistral-saba-latest": {
-    "max_output_tokens" : [1, 32000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-  },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 1.0], 0.3],
@@ -1348,6 +1389,37 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "supports_web_search": false,
+    "supports_parallel_function_calling": true
+  },
+  "grok-3": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "supports_web_search": false,
+    "supports_parallel_function_calling": true
+  },
+  "grok-3-mini": {
+    "context_window" : [1, 131072],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "supports_web_search": false,
+    "supports_parallel_function_calling": true
+  },
+  "grok-4-0709": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
     "supports_parallel_function_calling": true
   },
   // Perplexity models

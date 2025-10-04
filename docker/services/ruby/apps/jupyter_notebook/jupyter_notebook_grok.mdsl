@@ -39,6 +39,10 @@ app "JupyterNotebookGrok" do
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools
     parallel_function_calling true  # Explicitly enable parallel function calling (default)
+
+    agents do
+      code_generator model: "grok-code-fast-1"
+    end
   end
 
   system_prompt <<~TEXT

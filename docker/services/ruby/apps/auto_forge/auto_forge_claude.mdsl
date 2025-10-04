@@ -18,14 +18,24 @@ app "AutoForgeClaude" do
     model "claude-sonnet-4-5-20250929"
   end
 
+  features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
+    easy_submit false
+    auto_speech false
+    image false
+    pdf false
+    websearch false
+  end
+
   system_prompt <<~TEXT
     You are Auto Forge powered by Claude Sonnet 4.5, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
 
     ## Tooling Guidelines
     - Do not call any tool until all required fields are collected (name, type, description, features).
     - Use generate_application for the primary artifact only once per specification.
+    - Use list_projects to show previously generated Auto Forge projects to the user.
     - After generating a CLI project, offer generate_additional_file only when the file would be genuinely useful (e.g., README for usage, requirements when dependencies exist, config when the tool needs customization). Do not suggest unnecessary files.
-    - Offer Selenium-based debugging exclusively for HTML/CSS/JavaScript web applications.
+    - Use debug_application to test web applications with Selenium and detect errors. Offer Selenium-based debugging exclusively for HTML/CSS/JavaScript web applications.
   TEXT
 
   tools do

@@ -169,6 +169,96 @@ class MyAppOpenAI < MonadicApp  # Class name must match the app name in MDSL
 end
 ```
 
+### Ensure Session Safety
+
+**Important**: Monadic Chat uses a shared-instance architecture where each app class has a single instance shared across all users. This requires careful handling to prevent data contamination between sessions.
+
+#### ✅ DO: Use Pure Functions
+
+All tool methods should be pure functions that rely only on their parameters:
+
+```ruby
+class MyApp < MonadicApp
+  def my_tool(input:, options:)
+    # ✅ CORRECT: Uses only parameters
+    result = process_input(input, options)
+
+    format_tool_response(
+      success: true,
+      output: result
+    )
+  end
+
+  private
+
+  def process_input(input, options)
+    # Pure function - same input produces same output
+    # No instance variables, no side effects
+    input.upcase if options[:uppercase]
+  end
+end
+```
+
+**Why Safe**:
+- No shared state between users
+- Thread-safe by design
+- Predictable behavior
+
+#### ❌ DON'T: Use Instance Variables for Session State
+
+Never store session-specific data in instance variables:
+
+```ruby
+class MyApp < MonadicApp
+  def validate_code(code:)
+    # ❌ WRONG: User B can overwrite User A's data
+    @last_validated_code = code
+    @validation_timestamp = Time.now
+
+    validate(code)
+  end
+
+  def preview_code
+    # ❌ WRONG: May read another user's data
+    code = @last_validated_code
+    generate_preview(code)
+  end
+end
+```
+
+**Why Unsafe**:
+- User A validates code → Stores in `@last_validated_code`
+- User B validates different code → **Overwrites** `@last_validated_code`
+- User A requests preview → Gets User B's code!
+
+#### Acceptable Uses of Instance Variables
+
+**Read-only configuration** (same for all users):
+
+```ruby
+class MyApp < MonadicApp
+  def initialize
+    super
+    @config = load_app_config  # ✅ OK: Read-only configuration
+  end
+
+  def my_tool(input:)
+    # Using @config for read-only settings is fine
+    process(input, max_length: @config[:max_length])
+  end
+end
+```
+
+#### Best Practices Summary
+
+1. **Design stateless tools**: Each tool invocation should be independent
+2. **Pass data through parameters**: All inputs as function arguments
+3. **Return all outputs**: No side effects or state mutation
+4. **Use filesystem for persistence**: Write to files instead of instance variables
+5. **Read-only instance vars only**: Configuration that's the same for all users
+
+For detailed information on session safety and app isolation, see the [App Isolation and Session Safety](../../docs_dev/app_isolation_and_session_safety.md) internal documentation.
+
 ## Troubleshooting Common Issues
 
 ### Missing Method Errors

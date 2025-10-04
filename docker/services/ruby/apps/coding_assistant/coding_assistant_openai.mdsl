@@ -68,8 +68,12 @@ app "CodingAssistantOpenAI" do
     model ["gpt-5", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.0
+
+    agents do
+      code_generator model: "gpt-5-codex"
+    end
   end
-  
+
   display_name "Coding Assistant"
  
   features do

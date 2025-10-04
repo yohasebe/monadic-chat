@@ -311,7 +311,7 @@ module WebSocketHelper
   def check_past_messages(obj)
     # filter out any messages of type "search"
     # Filter messages by current app_name to prevent cross-app conversation leakage
-    current_app_name = obj["app_name"] || session["parameters"]["app_name"]
+    current_app_name = obj["app_name"] || session.dig("parameters", "app_name") || session.dig(:parameters, "app_name")
     messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
 
     res = false

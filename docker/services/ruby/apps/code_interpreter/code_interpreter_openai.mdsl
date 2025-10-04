@@ -39,6 +39,10 @@ app "CodeInterpreterOpenAI" do
     reasoning_effort "minimal"
     temperature 0.0
     presence_penalty 0.2
+
+    agents do
+      code_generator model: "gpt-5-codex"
+    end
   end
 
   system_prompt <<~TEXT

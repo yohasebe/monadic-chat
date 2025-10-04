@@ -92,6 +92,7 @@ RSpec.describe CodingAssistantTools do
       allow(File).to receive(:directory?).with("/test/data").and_return(true)
       allow(File).to receive(:directory?).with("/test/data/dir1").and_return(true)
       allow(File).to receive(:directory?).with("/test/data/file1.txt").and_return(false)
+      allow(File).to receive(:directory?).with("/test/data/dir1/subfile.txt").and_return(false)
       allow(File).to receive(:size).and_return(100)
       allow(File).to receive(:mtime).and_return(Time.now)
       allow(Dir).to receive(:entries).with("/test/data/dir1").and_return([".", "..", "subfile.txt"])

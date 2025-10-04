@@ -2,6 +2,7 @@ require 'json'
 require 'shellwords'
 
 class ChordAccompanistClaude < MonadicApp
+  include ClaudeHelper
   # Validation script using downloaded abcjs from vendor assets
   # Uses parseOnly method which doesn't require DOM
   def self.abc_validator_js(abcjs_path)
@@ -139,6 +140,118 @@ class ChordAccompanistClaude < MonadicApp
     format_tool_response(result.merge(validated_code: sanitized))
   rescue => e
     format_tool_response(success: false, error: "Validation exception: #{e.message}")
+  end
+
+  def validate_chord_progression(chords:, key:)
+    # Use Claude for advanced music theory analysis
+    prompt = build_chord_validation_prompt(chords, key)
+
+    # Get model from MDSL agents configuration
+    model = @context&.dig(:agents, :chord_validator) || @model || "claude-sonnet-4-5-20250929"
+
+    # Call Claude directly for analysis
+    result = call_claude_for_validation(prompt, model)
+
+    if result[:success]
+      # Parse the analysis from Claude
+      analysis = parse_validation_response(result[:content])
+      format_tool_response(analysis)
+    else
+      format_tool_response(
+        success: false,
+        error: result[:error] || "Chord validation failed"
+      )
+    end
+  rescue => e
+    format_tool_response(success: false, error: "Validation exception: #{e.message}")
+  end
+
+  def call_claude_for_validation(prompt, model)
+    messages = [{ role: "user", content: prompt }]
+
+    response = call_claude(
+      messages: messages,
+      model: model,
+      max_tokens: 4096,
+      temperature: 0.0
+    )
+
+    if response && response["content"] && response["content"][0]
+      {
+        success: true,
+        content: response["content"][0]["text"]
+      }
+    else
+      {
+        success: false,
+        error: "No response from Claude"
+      }
+    end
+  rescue => e
+    {
+      success: false,
+      error: "Claude API error: #{e.message}"
+    }
+  end
+
+  def build_chord_validation_prompt(chords, key)
+    <<~PROMPT
+      You are an expert music theorist. Analyze the following chord progression for theoretical correctness.
+
+      Key: #{key}
+      Chord Progression: #{chords}
+
+      Analyze each chord and determine if it is theoretically justified. Consider:
+      1. Diatonic chords (I, ii, iii, IV, V, vi, vii°)
+      2. Secondary dominants (V/II, V/III, V/IV, V/V, V/VI)
+      3. Passing diminished chords
+      4. Borrowed chords from parallel key (modal interchange)
+      5. Tritone substitutions
+      6. Tension extensions (9th, 11th, 13th) - check for avoid notes
+      7. Modulations to related keys
+      8. Voice leading and chord function context
+
+      Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
+      {
+        "valid": true/false,
+        "message": "Overall assessment",
+        "explanations": [
+          {"position": 1, "chord": "Dm", "function": "Tonic (i in D minor)"},
+          ...
+        ],
+        "invalid_chords": [
+          {"position": 3, "chord": "X", "reason": "...", "suggestion": "..."},
+          ...
+        ],
+        "suggestions": ["...", ...]
+      }
+
+      If all chords are valid, leave "invalid_chords" as an empty array.
+      Be thorough in checking chord construction (e.g., dominant 7th chords must have M3+m7, avoid notes in tensions).
+    PROMPT
+  end
+
+  def parse_validation_response(response_text)
+    # Extract JSON from response (may be wrapped in markdown code blocks)
+    json_text = response_text.strip
+    json_text = json_text.gsub(/```json\s*/, '').gsub(/```\s*$/, '').strip
+
+    parsed = JSON.parse(json_text, symbolize_names: true)
+
+    {
+      success: true,
+      valid: parsed[:valid],
+      message: parsed[:message],
+      explanations: parsed[:explanations] || [],
+      invalid_chords: parsed[:invalid_chords] || [],
+      suggestions: parsed[:suggestions] || []
+    }
+  rescue JSON::ParserError => e
+    {
+      success: false,
+      error: "Failed to parse validation response: #{e.message}",
+      raw_response: response_text[0..500]
+    }
   end
 
   def analyze_abc_error(code:, error:)

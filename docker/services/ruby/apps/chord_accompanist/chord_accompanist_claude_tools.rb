@@ -194,66 +194,6 @@ class ChordAccompanistClaude < MonadicApp
     }
   end
 
-  def build_chord_validation_prompt(chords, key)
-    <<~PROMPT
-      You are an expert music theorist. Analyze the following chord progression for theoretical correctness.
-
-      Key: #{key}
-      Chord Progression: #{chords}
-
-      Analyze each chord and determine if it is theoretically justified. Consider:
-      1. Diatonic chords (I, ii, iii, IV, V, vi, vii°)
-      2. Secondary dominants (V/II, V/III, V/IV, V/V, V/VI)
-      3. Passing diminished chords
-      4. Borrowed chords from parallel key (modal interchange)
-      5. Tritone substitutions
-      6. Tension extensions (9th, 11th, 13th) - check for avoid notes
-      7. Modulations to related keys
-      8. Voice leading and chord function context
-
-      Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
-      {
-        "valid": true/false,
-        "message": "Overall assessment",
-        "explanations": [
-          {"position": 1, "chord": "Dm", "function": "Tonic (i in D minor)"},
-          ...
-        ],
-        "invalid_chords": [
-          {"position": 3, "chord": "X", "reason": "...", "suggestion": "..."},
-          ...
-        ],
-        "suggestions": ["...", ...]
-      }
-
-      If all chords are valid, leave "invalid_chords" as an empty array.
-      Be thorough in checking chord construction (e.g., dominant 7th chords must have M3+m7, avoid notes in tensions).
-    PROMPT
-  end
-
-  def parse_validation_response(response_text)
-    # Extract JSON from response (may be wrapped in markdown code blocks)
-    json_text = response_text.strip
-    json_text = json_text.gsub(/```json\s*/, '').gsub(/```\s*$/, '').strip
-
-    parsed = JSON.parse(json_text, symbolize_names: true)
-
-    {
-      success: true,
-      valid: parsed[:valid],
-      message: parsed[:message],
-      explanations: parsed[:explanations] || [],
-      invalid_chords: parsed[:invalid_chords] || [],
-      suggestions: parsed[:suggestions] || []
-    }
-  rescue JSON::ParserError => e
-    {
-      success: false,
-      error: "Failed to parse validation response: #{e.message}",
-      raw_response: response_text[0..500]
-    }
-  end
-
   def analyze_abc_error(code:, error:)
     error_str = error.to_s.downcase
     suggestions = []
@@ -295,6 +235,66 @@ class ChordAccompanistClaude < MonadicApp
   end
 
   private
+
+  def parse_validation_response(response_text)
+    # Extract JSON from response (may be wrapped in markdown code blocks)
+    json_text = response_text.strip
+    json_text = json_text.gsub(/```json\s*/, '').gsub(/```\s*$/, '').strip
+
+    parsed = JSON.parse(json_text, symbolize_names: true)
+
+    {
+      success: true,
+      valid: parsed[:valid],
+      message: parsed[:message],
+      explanations: parsed[:explanations] || [],
+      invalid_chords: parsed[:invalid_chords] || [],
+      suggestions: parsed[:suggestions] || []
+    }
+  rescue JSON::ParserError => e
+    {
+      success: false,
+      error: "Failed to parse validation response: #{e.message}",
+      raw_response: response_text[0..500]
+    }
+  end
+
+  def build_chord_validation_prompt(chords, key)
+    <<~PROMPT
+      You are an expert music theorist. Analyze the following chord progression for theoretical correctness.
+
+      Key: #{key}
+      Chord Progression: #{chords}
+
+      Analyze each chord and determine if it is theoretically justified. Consider:
+      1. Diatonic chords (I, ii, iii, IV, V, vi, vii°)
+      2. Secondary dominants (V/II, V/III, V/IV, V/V, V/VI)
+      3. Passing diminished chords
+      4. Borrowed chords from parallel key (modal interchange)
+      5. Tritone substitutions
+      6. Tension extensions (9th, 11th, 13th) - check for avoid notes
+      7. Modulations to related keys
+      8. Voice leading and chord function context
+
+      Return ONLY a JSON object with this exact structure (no markdown, no code blocks):
+      {
+        "valid": true/false,
+        "message": "Overall assessment",
+        "explanations": [
+          {"position": 1, "chord": "Dm", "function": "Tonic (i in D minor)"},
+          ...
+        ],
+        "invalid_chords": [
+          {"position": 3, "chord": "X", "reason": "...", "suggestion": "..."},
+          ...
+        ],
+        "suggestions": ["...", ...]
+      }
+
+      If all chords are valid, leave "invalid_chords" as an empty array.
+      Be thorough in checking chord construction (e.g., dominant 7th chords must have M3+m7, avoid notes in tensions).
+    PROMPT
+  end
 
   def sanitize_abc(code)
     cleaned = code.to_s

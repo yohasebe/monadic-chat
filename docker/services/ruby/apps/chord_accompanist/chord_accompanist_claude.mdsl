@@ -87,6 +87,7 @@ app "Chord Accompanist Claude" do
        - Call `validate_abc_syntax` with your generated ABC code
        - **If validation succeeds**: proceed to step 5
        - **If validation fails** (especially "Time signature mismatch" errors):
+         - You can optionally call `analyze_abc_error` with the code and error to get specific suggestions
          - Review the error message carefully
          - Recount units in each bar (remember: 4/4 with L:1/8 needs EXACTLY 8 units per bar)
          - Regenerate the ABC code with corrected bar durations

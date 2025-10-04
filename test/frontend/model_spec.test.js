@@ -27,7 +27,7 @@ describe('Model Specification', () => {
     // Test for some key model categories
     expect(modelSpec['gpt-4.1']).toBeDefined();
     expect(modelSpec['claude-sonnet-4-20250514']).toBeDefined();
-    expect(modelSpec['gemini-2.5-flash-preview-05-20']).toBeDefined();
+    expect(modelSpec['gemini-2.5-flash-preview-09-2025']).toBeDefined();
     expect(modelSpec['command-a-03-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
     expect(modelSpec['grok-4-fast-reasoning']).toBeDefined();

@@ -2825,8 +2825,8 @@ module GeminiHelper
       end
       
       # Make API request
-      # Use the new image generation model
-      model_name = "gemini-2.5-flash-image-preview"
+      # Use the new image generation model (stable version)
+      model_name = "gemini-2.5-flash-image"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
 
       request = Net::HTTP::Post.new(uri)

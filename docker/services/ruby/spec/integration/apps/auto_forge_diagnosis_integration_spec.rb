@@ -290,6 +290,9 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
 
     context 'with Selenium unavailable' do
       it 'provides helpful error message when Selenium is not running' do
+        # Create a minimal index.html so the test reaches the Selenium check
+        File.write(File.join(project_dir, 'index.html'), '<html><body>Test</body></html>')
+
         # Mock selenium_available? to return false
         allow_any_instance_of(AutoForge::Debugger).to receive(:selenium_available?).and_return(false)
 

@@ -2,6 +2,9 @@ require "net/http"
 require "uri"
 require "json"
 require_relative "environment"
+require_relative "ssl_configuration"
+
+Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
 class FlaskAppClient
   # Default port for Python service

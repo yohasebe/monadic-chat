@@ -1,4 +1,7 @@
 require 'json'
+require_relative 'ssl_configuration'
+
+Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
 module InteractionUtils
   API_ENDPOINT = "https://api.openai.com/v1"

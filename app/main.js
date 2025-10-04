@@ -2058,6 +2058,18 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
+            label: i18n.t('menu.buildSeleniumContainer'),
+            click: () => {
+              openMainWindow();
+              dockerManager.runCommand('build_selenium_container',
+                formatMessage(null, 'messages.buildingSeleniumContainer'),
+                'Building',
+                'Stopped',
+                false);
+            },
+            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
+          },
+          {
             label: i18n.t('menu.buildOllamaContainer'),
             click: () => {
               openMainWindow();

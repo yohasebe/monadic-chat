@@ -1,3 +1,9 @@
+require 'net/http'
+require 'uri'
+require_relative '../utils/ssl_configuration'
+
+Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
+
 module WikipediaHelper
   def search_wikipedia(search_query: "", language_code: "en")
     number_of_results = 10

@@ -640,6 +640,48 @@ ensure_ruby_compat_with_python() {
   fi
 }
 
+# Function to build Selenium container
+build_selenium_container() {
+  local _lock_acquired=false
+  if acquire_build_lock; then _lock_acquired=true; fi
+  if [ "${_lock_acquired}" != true ]; then
+    return 1
+  fi
+  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
+
+  # Create directory if it doesn't exist
+  mkdir -p "$(dirname "${log_file}")"
+
+  # Build Selenium container with the selenium profile
+  echo "Building Selenium container..." | tee -a "${log_file}"
+
+  # Use docker compose with the selenium profile to build only the Selenium container
+  # Use the main compose file which includes all service definitions
+  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile selenium build selenium_service 2>&1 | tee -a "${log_file}"
+
+  # Check if the build was successful
+  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+    echo "Selenium container built successfully" | tee -a "${log_file}"
+
+    # Restart Ruby container if it's running to update SELENIUM_AVAILABLE environment variable
+    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
+      echo "Restarting Ruby container to detect Selenium..." | tee -a "${log_file}"
+      ${DOCKER} restart monadic-chat-ruby-container 2>&1 | tee -a "${log_file}"
+      echo "Ruby container restarted." | tee -a "${log_file}"
+    fi
+
+    echo "Selenium container setup completed." | tee -a "${log_file}"
+  else
+    echo "Failed to build Selenium container" | tee -a "${log_file}"
+    release_build_lock
+    return 1
+  fi
+
+  remove_older_images yohasebe/selenium
+  remove_project_dangling_images
+  release_build_lock
+}
+
 # Function to build Ollama container
 build_ollama_container() {
   local _lock_acquired=false
@@ -648,25 +690,25 @@ build_ollama_container() {
     return 1
   fi
   local log_file="${HOME_DIR}/monadic/log/docker_build.log"
-  
+
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
   # Build Ollama container with the ollama profile
   echo "Building Ollama container..." | tee -a "${log_file}"
-  
+
   # Use docker compose with the ollama profile to build only the Ollama container
   # Use the main compose file which includes all service definitions
   ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama build ollama_service 2>&1 | tee -a "${log_file}"
-  
+
   # Check if the build was successful
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "Ollama container built successfully" | tee -a "${log_file}"
-    
+
     # Start the container temporarily to download models
     echo "Starting Ollama container to download models..." | tee -a "${log_file}"
     ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama up -d ollama_service 2>&1 | tee -a "${log_file}"
-    
+
     # Wait for Ollama service to be ready
     echo "Waiting for Ollama service to be ready..." | tee -a "${log_file}"
     OLLAMA_READY=false
@@ -680,12 +722,12 @@ build_ollama_container() {
       echo "Waiting for Ollama service... ($i/30)" | tee -a "${log_file}"
       sleep 2
     done
-    
+
     if [ "$OLLAMA_READY" = false ]; then
       echo "ERROR: Ollama service failed to start" | tee -a "${log_file}"
       return 1
     fi
-    
+
     # Check if olsetup.sh exists in the container and run it
     if ${DOCKER} exec monadic-chat-ollama-container test -f /monadic/olsetup.sh 2>/dev/null; then
       echo "Running custom model setup..." | tee -a "${log_file}"
@@ -701,25 +743,25 @@ build_ollama_container() {
       ${DOCKER} exec monadic-chat-ollama-container ollama pull "${DEFAULT_MODEL}" 2>&1 | tee -a "${log_file}"
       echo "Default model downloaded." | tee -a "${log_file}"
     fi
-    
+
     # Stop the container after model download
     echo "Stopping Ollama container..." | tee -a "${log_file}"
     ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama stop ollama_service 2>&1 | tee -a "${log_file}"
-    
+
     # Restart Ruby container if it's running to update OLLAMA_AVAILABLE environment variable
     if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
       echo "Restarting Ruby container to detect Ollama..." | tee -a "${log_file}"
       ${DOCKER} restart monadic-chat-ruby-container 2>&1 | tee -a "${log_file}"
       echo "Ruby container restarted." | tee -a "${log_file}"
     fi
-    
+
     echo "Ollama container setup completed. Models are now available." | tee -a "${log_file}"
   else
     echo "Failed to build Ollama container" | tee -a "${log_file}"
     release_build_lock
     return 1
   fi
-  
+
   remove_older_images yohasebe/ollama
   remove_project_dangling_images
   release_build_lock
@@ -990,9 +1032,10 @@ start_docker_compose() {
   local needs_full_rebuild=false
   local needs_ruby_rebuild=false
   local needs_user_containers=false
-  
+
   # Define the list of required containers - these names must match container_name in compose.yml files
-  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
+  # Note: Selenium is optional and controlled by SELENIUM_ENABLED
+  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container")
   local missing_containers=()
   
   # Check if main image exists or needs update
@@ -1156,11 +1199,69 @@ start_docker_compose() {
     echo "Final Health Summary: ${state} (tries=${tries}, interval=${interval}s)" >> "${startup_log}"
   }
 
+  # Helper function to read boolean config values
+  read_config_bool() {
+    local key="$1"
+    local default_val="${2:-false}"
+    if [ -f "${env_file}" ]; then
+      local val=$(grep "^${key}=" "${env_file}" 2>/dev/null | cut -d= -f2 | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+      case "$val" in
+        true|1|yes|on) echo "true";;
+        false|0|no|off|"") echo "false";;
+        *) echo "$default_val";;
+      esac
+    else
+      echo "$default_val"
+    fi
+  }
+
+  # Check SELENIUM_ENABLED and manage Selenium container accordingly
+  local selenium_enabled=$(read_config_bool "SELENIUM_ENABLED" "false")
+  if [ "$selenium_enabled" = "true" ]; then
+    # Start Selenium container if enabled and image exists
+    if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+      echo "[HTML]: <p>Starting Selenium container...</p>"
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
+
+      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
+      # Wait a moment for Selenium to start
+      sleep 2
+      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+    else
+      echo "[HTML]: <p>Selenium is enabled but image not found. Building Selenium container...</p>"
+      build_selenium_container
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
+
+      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
+      sleep 2
+      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+    fi
+  else
+    # Stop and remove Selenium container if disabled
+    if ${DOCKER} ps -a --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+      echo "[HTML]: <p>Selenium is disabled. Stopping and removing Selenium container...</p>"
+      ${DOCKER} stop monadic-chat-selenium-container > /dev/null 2>&1
+      ${DOCKER} rm monadic-chat-selenium-container > /dev/null 2>&1
+      # Also remove the image if it exists
+      if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+        ${DOCKER} rmi yohasebe/selenium > /dev/null 2>&1
+      fi
+
+      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
+      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
+        echo "[HTML]: <p>Updating Ruby container after Selenium removal...</p>"
+        ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+      fi
+    fi
+  fi
+
   # Start Ollama container if the image exists (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
     echo "[HTML]: <p>Starting Ollama container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
-    
+
     # Restart Ruby container to update OLLAMA_AVAILABLE environment variable
     # Wait a moment for Ollama to start
     sleep 2
@@ -1407,6 +1508,21 @@ build_user_containers)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+  fi
+  ;;
+build_selenium_container)
+  ensure_data_dir "selenium" &&
+
+  while ! "${DOCKER}" info > /dev/null 2>&1; do
+    sleep ${DOCKER_CHECK_INTERVAL}
+  done
+
+  build_selenium_container
+
+  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Selenium container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
   ;;
 build_ollama_container)

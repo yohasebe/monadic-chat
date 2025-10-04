@@ -7,6 +7,11 @@ require "json"
 require "matrix"
 require "dotenv/load"
 require_relative "environment"
+require_relative "ssl_configuration"
+
+if defined?(Monadic::Utils::SSLConfiguration)
+  Monadic::Utils::SSLConfiguration.configure!
+end
 
 EMBEDDINGS_MODEL = "text-embedding-3-large"
 # OpenAI's text-embedding-3-large produces 3072-dimensional vectors

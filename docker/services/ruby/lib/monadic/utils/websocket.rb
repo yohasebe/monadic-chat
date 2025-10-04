@@ -2,8 +2,13 @@
 
 require 'timeout'
 require 'set'  # For session management with multiple connections
+require 'net/http'
+require 'uri'
 require_relative '../agents/ai_user_agent'
 require_relative 'boolean_parser'
+require_relative 'ssl_configuration'
+
+Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
 module WebSocketHelper
   include AIUserAgent

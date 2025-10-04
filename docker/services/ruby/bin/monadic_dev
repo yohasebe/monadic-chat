@@ -54,9 +54,9 @@ if File.exist?(env_file_path)
 end
 
 # Define required containers for the application
+# Note: Selenium is optional and controlled by SELENIUM_ENABLED in env file
 REQUIRED_CONTAINERS = [
   "monadic-chat-python-container",
-  "monadic-chat-selenium-container",
   "monadic-chat-syntree-container",
   "monadic-chat-ollama-container",
   "monadic-chat-pgvector-container"

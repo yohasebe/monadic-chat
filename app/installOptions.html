@@ -67,9 +67,6 @@
       // Tools
       document.getElementById('head-tools-text').textContent = get('categories.tools.title','System Tools (CLI)');
       document.getElementById('help-tools').textContent = get('categories.tools.help','');
-      // Web
-      document.getElementById('head-web-text').textContent = get('categories.web.title','Web Scraping');
-      document.getElementById('help-web').textContent = get('categories.web.help','');
       // Items
       document.querySelector('label[for=INSTALL_LATEX] span.item-label')?.replaceWith((() => { const s=document.createElement('span'); s.className='item-label'; s.textContent=get('categories.latex.items.install'); return s; })());
       const setLabel = (id, key, def) => {

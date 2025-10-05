@@ -2457,8 +2457,7 @@ ipcMain.handle('get-install-options', async () => {
     PYOPT_LIBROSA: toBool(cfg.PYOPT_LIBROSA),
     PYOPT_MEDIAPIPE: toBool(cfg.PYOPT_MEDIAPIPE),
     PYOPT_TRANSFORMERS: toBool(cfg.PYOPT_TRANSFORMERS),
-    IMGOPT_IMAGEMAGICK: toBool(cfg.IMGOPT_IMAGEMAGICK),
-    SELENIUM_ENABLED: toBool(cfg.SELENIUM_ENABLED)
+    IMGOPT_IMAGEMAGICK: toBool(cfg.IMGOPT_IMAGEMAGICK)
   };
 });
 

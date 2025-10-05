@@ -644,8 +644,22 @@ namespace :build do
           
           if pgvector_running
             puts "pgvector container is already running."
+
+            # Check if Ruby container is running and stop it temporarily
+            ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
+            if ruby_running
+              puts "Stopping Ruby container to release database connections..."
+              system("docker stop monadic-chat-ruby-container")
+            end
+
             # Run help database rebuild
             Rake::Task["help:rebuild"].invoke
+
+            # Restart Ruby container if it was running
+            if ruby_running
+              puts "Restarting Ruby container..."
+              system("docker start monadic-chat-ruby-container")
+            end
           else
             puts "Starting pgvector container for help database build..."
             # Try to start existing container first
@@ -682,8 +696,21 @@ namespace :build do
             if attempt >= max_attempts
               puts "\nWarning: PostgreSQL did not become ready in time. Skipping help database build."
             else
+              # Check if Ruby container is running and stop it temporarily
+              ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
+              if ruby_running
+                puts "Stopping Ruby container to release database connections..."
+                system("docker stop monadic-chat-ruby-container")
+              end
+
               # Run help database rebuild
               Rake::Task["help:rebuild"].invoke
+
+              # Restart Ruby container if it was running
+              if ruby_running
+                puts "Restarting Ruby container..."
+                system("docker start monadic-chat-ruby-container")
+              end
             end
           end
           

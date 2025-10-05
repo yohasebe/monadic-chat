@@ -70,6 +70,14 @@ class TextEmbeddings
 
     if recreate_db
       with_retry("Database recreation") do
+        # Terminate all existing connections to the database before dropping
+        conn.exec(<<~SQL)
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = '#{db_name}'
+            AND pid <> pg_backend_pid()
+        SQL
+
         conn.exec("DROP DATABASE IF EXISTS #{db_name}")
         conn.exec("CREATE DATABASE #{db_name}")
       end

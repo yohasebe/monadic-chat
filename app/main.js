@@ -2496,7 +2496,6 @@ ipcMain.handle('save-install-options', async (_e, options) => {
   setBool('PYOPT_MEDIAPIPE', !!options.PYOPT_MEDIAPIPE);
   setBool('PYOPT_TRANSFORMERS', !!options.PYOPT_TRANSFORMERS);
   setBool('IMGOPT_IMAGEMAGICK', !!options.IMGOPT_IMAGEMAGICK);
-  setBool('SELENIUM_ENABLED', !!options.SELENIUM_ENABLED);
   try {
     writeEnvFile(envPath, cfg);
   } catch (err) {

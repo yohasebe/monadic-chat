@@ -3,21 +3,28 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-# Read version from package.json (single source of truth)
+# Read version from version.rb (reliable source in both dev and packaged app)
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-PACKAGE_JSON="${SCRIPT_DIR}/../package.json"
+VERSION_FILE="${SCRIPT_DIR}/services/ruby/lib/monadic/version.rb"
 
-if command -v jq >/dev/null 2>&1; then
-  # Use jq if available (preferred method)
-  export MONADIC_VERSION=$(jq -r '.version' "${PACKAGE_JSON}")
+if [ -f "$VERSION_FILE" ]; then
+  # Extract version from Ruby file: VERSION = "1.0.0-beta.5"
+  export MONADIC_VERSION=$(grep 'VERSION = ' "$VERSION_FILE" | sed -E 's/.*VERSION = "([^"]+)".*/\1/')
 else
-  # Fallback: parse with grep and sed
-  export MONADIC_VERSION=$(grep '"version"' "${PACKAGE_JSON}" | sed -E 's/.*"version": "([^"]+)".*/\1/')
+  # Fallback: try package.json (development environment)
+  PACKAGE_JSON="${SCRIPT_DIR}/../package.json"
+  if [ -f "$PACKAGE_JSON" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      export MONADIC_VERSION=$(jq -r '.version' "$PACKAGE_JSON" 2>/dev/null)
+    else
+      export MONADIC_VERSION=$(grep '"version"' "$PACKAGE_JSON" | sed -E 's/.*"version": "([^"]+)".*/\1/')
+    fi
+  fi
 fi
 
-# Verify version was read successfully, fallback to error message
+# Verify version was read successfully
 if [ -z "$MONADIC_VERSION" ]; then
-  echo "ERROR: Failed to read version from package.json"
+  echo "ERROR: Failed to read version from version.rb or package.json"
   exit 1
 fi
 

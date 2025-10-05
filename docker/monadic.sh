@@ -3,7 +3,24 @@
 # Add /usr/local/bin to the PATH
 export PATH=${PATH}:/usr/local/bin
 
-export MONADIC_VERSION=1.0.0-beta.4
+# Read version from package.json (single source of truth)
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+PACKAGE_JSON="${SCRIPT_DIR}/../package.json"
+
+if command -v jq >/dev/null 2>&1; then
+  # Use jq if available (preferred method)
+  export MONADIC_VERSION=$(jq -r '.version' "${PACKAGE_JSON}")
+else
+  # Fallback: parse with grep and sed
+  export MONADIC_VERSION=$(grep '"version"' "${PACKAGE_JSON}" | sed -E 's/.*"version": "([^"]+)".*/\1/')
+fi
+
+# Verify version was read successfully, fallback to error message
+if [ -z "$MONADIC_VERSION" ]; then
+  echo "ERROR: Failed to read version from package.json"
+  exit 1
+fi
+
 export HOST_OS=$(uname -s)
 
 RETRY_INTERVAL=4

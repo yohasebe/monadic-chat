@@ -74,6 +74,7 @@ let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
 let lastUpdateCheckResult = null; // Store the last update check result
+let seleniumEnabled = false; // Selenium container start/stop state
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
@@ -613,12 +614,17 @@ class DockerManager {
             // Load environment variables from config file for Electron build
             const envPath = getEnvPath();
             const envConfig = readEnvFile(envPath);
-            
+
+            // For build commands, always force rebuild by setting FORCE_REBUILD=true
+            const isBuildCommand = ['build', 'build_ruby_container', 'build_python_container', 'build_user_containers'].includes(command);
+            const buildEnv = isBuildCommand ? { FORCE_REBUILD: 'true' } : {};
+
             let subprocess = spawn(cmd, [], {
               shell: true,
               env: {
                 ...process.env,  // Keep existing environment variables
-                ...envConfig     // Add variables from ~/monadic/config/env
+                ...envConfig,    // Add variables from ~/monadic/config/env
+                ...buildEnv      // Add FORCE_REBUILD for build commands
               }
             });
             
@@ -2064,18 +2070,6 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: i18n.t('menu.buildSeleniumContainer'),
-            click: () => {
-              openMainWindow();
-              dockerManager.runCommand('build_selenium_container',
-                formatMessage(null, 'messages.buildingSeleniumContainer'),
-                'Building',
-                'Stopped',
-                false);
-            },
-            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-          },
-          {
             label: i18n.t('menu.buildOllamaContainer'),
             click: () => {
               openMainWindow();
@@ -2126,6 +2120,29 @@ function updateApplicationMenu() {
               dockerManager.runCommand('stop-jupyter', formatMessage(null, 'messages.stoppingJupyterLab'), 'Starting', 'Running');
             },
             enabled: (currentStatus === 'Running' || currentStatus === 'Ready') && metRequirements
+          },
+          {
+            type: 'separator'
+          },
+          {
+            label: i18n.t('menu.startSeleniumContainer'),
+            click: () => {
+              openMainWindow();
+              seleniumEnabled = true;
+              dockerManager.runCommand('start-selenium', formatMessage(null, 'messages.startingSeleniumContainer'), 'Starting', 'Stopped');
+            },
+            enabled: currentStatus === 'Stopped',
+            visible: !seleniumEnabled
+          },
+          {
+            label: i18n.t('menu.stopSeleniumContainer'),
+            click: () => {
+              openMainWindow();
+              seleniumEnabled = false;
+              dockerManager.runCommand('stop-selenium', formatMessage(null, 'messages.stoppingSeleniumContainer'), 'Stopping', 'Stopped');
+            },
+            enabled: currentStatus === 'Stopped',
+            visible: seleniumEnabled
           },
           {
             type: 'separator'
@@ -2931,6 +2948,42 @@ function writeEnvFile(envPath, envConfig) {
     }
 }
 
+// Toggle Selenium enabled state and persist to env file
+function toggleSeleniumEnabled() {
+  try {
+    const envPath = getEnvPath();
+    if (!envPath) {
+      console.error('Failed to get env path');
+      return false;
+    }
+
+    // Toggle the state
+    seleniumEnabled = !seleniumEnabled;
+
+    // Save to env file
+    let envConfig = readEnvFile(envPath);
+    envConfig.SELENIUM_ENABLED = seleniumEnabled ? 'true' : 'false';
+    writeEnvFile(envPath, envConfig);
+
+    // Show dialog to inform user
+    const messageKey = seleniumEnabled
+      ? 'dialogs.seleniumWillStartOnNextLaunch'
+      : 'dialogs.seleniumWillNotStartOnNextLaunch';
+
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: i18n.t('dialogs.info'),
+      message: i18n.t(messageKey),
+      buttons: [i18n.t('dialogs.ok')]
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to toggle Selenium enabled state:', error);
+    return false;
+  }
+}
+
 // Functions to manage update state persistence using the existing env file
 // Save update state to the env file
 function saveUpdateState(state) {
@@ -3392,6 +3445,8 @@ app.whenReady().then(() => {
     if (envConfig.UI_LANGUAGE) {
       i18n.setLanguage(envConfig.UI_LANGUAGE);
     }
+    // Initialize Selenium enabled state
+    seleniumEnabled = envConfig.SELENIUM_ENABLED === 'true';
   }
   
   // Setup update-related error handlers first

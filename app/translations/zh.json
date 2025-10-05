@@ -89,11 +89,6 @@
         "title": "系统工具（CLI）",
         "help": "操作系统层面的命令行工具，系统范围可用。",
         "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
-      },
-      "web": {
-        "title": "网页抓取",
-        "help": "若禁用且已配置 Tavily API Key，则 From URL 使用 Tavily；否则隐藏 #url/#doc 按钮。",
-        "items": { "selenium": "启用 Selenium 容器" }
       }
     },
     "buttons": { "save": "保存", "close": "关闭" }
@@ -112,7 +107,8 @@
     "openConfigFolder": "打开配置文件夹",
     "openLogFolder": "打开日志文件夹",
     "documentation": "文档",
-    "buildSeleniumContainer": "构建Selenium容器",
+    "startSeleniumContainer": "启动Selenium容器",
+    "stopSeleniumContainer": "停止Selenium容器",
     "buildOllamaContainer": "构建Ollama容器",
     "startJupyterLab": "启动JupyterLab",
     "stopJupyterLab": "停止JupyterLab",
@@ -152,7 +148,9 @@
     "confirmUninstall": "确认卸载",
     "uninstallMessage": "这将删除所有Monadic Chat的镜像和容器。是否继续？",
     "deleteAll": "全部删除",
-    "quit": "退出"
+    "quit": "退出",
+    "seleniumWillStartOnNextLaunch": "Selenium容器将在下次启动Monadic Chat时启动。",
+    "seleniumWillNotStartOnNextLaunch": "Selenium容器将不会在下次启动Monadic Chat时启动。"
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop未运行。请先启动Docker Desktop后重试。",
@@ -180,6 +178,8 @@
     "buildingPythonContainer": "正在构建Python容器...",
     "buildingUserContainers": "正在构建用户容器...",
     "buildingSeleniumContainer": "正在构建Selenium容器...",
+    "startingSeleniumContainer": "正在启动Selenium容器...",
+    "stoppingSeleniumContainer": "正在停止Selenium容器...",
     "buildingOllamaContainer": "正在构建Ollama容器...<br>首次构建可能需要几分钟。",
     "startingJupyterLab": "正在启动JupyterLab...",
     "stoppingJupyterLab": "正在停止JupyterLab...",
@@ -203,7 +203,7 @@
     "updateSuccessfulDesc": "Monadic Chat已成功更新到最新版本。",
     "customRubySetup": "检测到自定义Ruby设置脚本（rbsetup.sh）并将使用。",
     "customPythonSetup": "检测到自定义Python设置脚本（pysetup.sh）并将使用。",
-    "customOllamaSetup": "检测到自定义Ollama设置脚本（olsetup.sh）并将使用。",
+    "customOllamaSetup": "检测到自定义Ollama设置脚本（olsetup.sh）。要使用它，请从菜单构建Ollama容器。",
     "checkingContainerIntegrity": "正在检查容器完整性...",
     "verifyingSystemRequirements": "正在验证系统要求...",
     "startingDocker": "正在启动Docker...",

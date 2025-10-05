@@ -76,11 +76,6 @@
         "title": "Systemwerkzeuge (CLI)",
         "help": "Befehlszeilenwerkzeuge auf Betriebssystemebene, systemweit verfügbar.",
         "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
-      },
-      "web": {
-        "title": "Web Scraping",
-        "help": "Wenn deaktiviert und ein Tavily-Schlüssel vorhanden ist, verwendet From URL Tavily; andernfalls werden #url/#doc ausgeblendet.",
-        "items": { "selenium": "Selenium-Container aktivieren" }
       }
     },
     "buttons": { "save": "Speichern", "close": "Schließen" }
@@ -112,7 +107,8 @@
     "updateRubyContainer": "Ruby-Container aktualisieren",
     "updatePythonContainer": "Python-Container aktualisieren",
     "updateUserContainers": "Benutzer-Container aktualisieren",
-    "buildSeleniumContainer": "Selenium-Container erstellen",
+    "startSeleniumContainer": "Selenium-Container starten",
+    "stopSeleniumContainer": "Selenium-Container stoppen",
     "buildOllamaContainer": "Ollama-Container erstellen",
     "startJupyterLab": "JupyterLab starten",
     "stopJupyterLab": "JupyterLab stoppen",
@@ -154,6 +150,8 @@
     "buildingPythonContainer": "Python-Container wird erstellt . . .",
     "buildingUserContainers": "Benutzer-Container werden erstellt . . .",
     "buildingSeleniumContainer": "Selenium-Container wird erstellt . . .",
+    "startingSeleniumContainer": "Selenium-Container wird gestartet . . .",
+    "stoppingSeleniumContainer": "Selenium-Container wird gestoppt . . .",
     "buildingOllamaContainer": "Ollama-Container wird erstellt . . .<br>Dies kann beim ersten Erstellen mehrere Minuten dauern.",
     "startingJupyterLab": "JupyterLab wird gestartet . . .",
     "stoppingJupyterLab": "JupyterLab wird gestoppt . . .",
@@ -177,7 +175,7 @@
     "updateSuccessfulDesc": "Monadic Chat wurde erfolgreich auf die neueste Version aktualisiert.",
     "customRubySetup": "Benutzerdefiniertes Ruby-Setup-Skript (rbsetup.sh) erkannt und wird verwendet.",
     "customPythonSetup": "Benutzerdefiniertes Python-Setup-Skript (pysetup.sh) erkannt und wird verwendet.",
-    "customOllamaSetup": "Benutzerdefiniertes Ollama-Setup-Skript (olsetup.sh) erkannt und wird verwendet.",
+    "customOllamaSetup": "Benutzerdefiniertes Ollama-Setup-Skript (olsetup.sh) erkannt. Um es zu verwenden, erstellen Sie bitte den Ollama-Container über das Menü.",
     "checkingContainerIntegrity": "Container-Integrität wird überprüft...",
     "verifyingSystemRequirements": "Systemanforderungen werden überprüft...",
     "startingDocker": "Docker wird gestartet...",
@@ -224,6 +222,8 @@
     "confirmUninstall": "Deinstallation bestätigen",
     "uninstallMessage": "Dies wird alle Monadic Chat Images und Container entfernen. Möchten Sie fortfahren?",
     "deleteAll": "Alles löschen",
-    "quit": "Beenden"
+    "quit": "Beenden",
+    "seleniumWillStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat gestartet.",
+    "seleniumWillNotStartOnNextLaunch": "Selenium-Container wird beim nächsten Start von Monadic Chat NICHT gestartet."
   }
 }

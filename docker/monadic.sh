@@ -288,7 +288,7 @@ ensure_data_dir() {
   if [[ -f "${config_dir}/olsetup.sh" && -s "${config_dir}/olsetup.sh" ]]; then
     cp -f "${config_dir}/olsetup.sh" "${ROOT_DIR}/services/ollama/olsetup.sh"
     if [[ "$container_type" == "ollama" || "$container_type" == "" ]]; then
-      echo "[HTML]: <p><i class='fa-solid fa-robot'></i>Custom Ollama setup script (olsetup.sh) detected and will be used.</p>"
+      echo "[HTML]: <p><i class='fa-solid fa-robot'></i>Custom Ollama setup script (olsetup.sh) detected. To use it, please build the Ollama container from the menu.</p>"
     fi
   fi
 }
@@ -346,10 +346,11 @@ build_ruby_container() {
   else
     gems_hash="unknown"
   fi
-  # Optional no-cache for diagnostics
+  # Optional no-cache for diagnostics or user-requested force rebuild
   local build_extra=""
-  if [ "${FORCE_RUBY_REBUILD_NO_CACHE}" = "true" ]; then
+  if [ "${FORCE_REBUILD:-false}" = "true" ] || [ "${FORCE_RUBY_REBUILD_NO_CACHE}" = "true" ]; then
     build_extra="--no-cache"
+    echo "[INFO] Force rebuild requested, using --no-cache" | tee -a "${log_file}"
   fi
   ${DOCKER} build ${build_extra} \
     --build-arg GEMS_FINGERPRINT="${gems_hash}" \
@@ -434,7 +435,11 @@ build_python_container() {
   local use_no_cache=false
   local changed_options=""
 
-  if [ -f "$prev_options_file" ]; then
+  # Check if user explicitly requested force rebuild
+  if [ "${FORCE_REBUILD:-false}" = "true" ]; then
+    use_no_cache=true
+    echo "[INFO] Force rebuild requested by user, using --no-cache" | tee -a "${build_log}"
+  elif [ -f "$prev_options_file" ]; then
     # Compare each option with previous build
     local prev_INSTALL_LATEX=$(grep "^INSTALL_LATEX=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
     local prev_PYOPT_NLTK=$(grep "^PYOPT_NLTK=" "$prev_options_file" 2>/dev/null | cut -d= -f2)
@@ -566,8 +571,6 @@ META
   if ${DOCKER} run --rm "${temp_tag}" python -c "import sys; sys.exit(0)" >/dev/null 2>&1; then
     "${DOCKER}" tag "${temp_tag}" yohasebe/python:${MONADIC_VERSION}
     "${DOCKER}" tag yohasebe/python:${MONADIC_VERSION} yohasebe/python:latest
-    "${DOCKER}" tag "${temp_tag}" yohasebe/monadic-chat:${MONADIC_VERSION}
-    "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[HTML]: <p>Python image updated successfully.</p>" | tee -a "${build_log}"
 
@@ -607,7 +610,7 @@ OPTIONS
   fi
 
   # Cleanup older images but keep logs
-  remove_older_images yohasebe/monadic-chat
+  remove_older_images yohasebe/python
   remove_project_dangling_images
 
   echo "[BUILD_LOG] ${build_log}"
@@ -652,12 +655,11 @@ build_selenium_container() {
   # Create directory if it doesn't exist
   mkdir -p "$(dirname "${log_file}")"
 
-  # Build Selenium container with the selenium profile
+  # Build Selenium container
   echo "Building Selenium container..." | tee -a "${log_file}"
 
-  # Use docker compose with the selenium profile to build only the Selenium container
-  # Use the main compose file which includes all service definitions
-  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile selenium build selenium_service 2>&1 | tee -a "${log_file}"
+  # Use docker compose to build only the Selenium container
+  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" build selenium_service 2>&1 | tee -a "${log_file}"
 
   # Check if the build was successful
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
@@ -822,16 +824,82 @@ EOF
   # Execute docker compose build and redirect output to log file
   ${DOCKER} compose ${REPORTING} -f "${compose}" build --no-cache 2>&1 | tee "${log_file}"
 
-  "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
   # remove compose_user.yml
   rm -f "${compose}"
 
-  remove_older_images yohasebe/monadic-chat
+  # User containers have their own image names, so we only clean up dangling images
   remove_project_dangling_images
 
   # Informational message only; orchestration will self-check on next Start
   echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i> User containers updated. On the next Start, the system will check orchestration health and refresh Ruby automatically if needed.</p>"
   release_build_lock
+}
+
+# Function to check Docker disk space and warn if insufficient
+check_docker_disk_space() {
+  echo "[HTML]: <p>Checking Docker disk usage...</p>"
+
+  # Get Docker system info and format as HTML table
+  local disk_data=$(${DOCKER} system df 2>/dev/null)
+
+  if [ -n "$disk_data" ]; then
+    # Build HTML table as a single string
+    local html_table="<table style='font-size: 0.9em; border-collapse: collapse; margin: 10px 0;'>"
+    html_table="${html_table}<tr style='background: #f0f0f0; font-weight: bold;'>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>TYPE</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>TOTAL</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>ACTIVE</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>SIZE</td>"
+    html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>RECLAIMABLE</td>"
+    html_table="${html_table}</tr>"
+
+    # Parse each line (skip header)
+    while IFS= read -r line; do
+      local type=$(echo "$line" | awk '{print $1}')
+      local total=$(echo "$line" | awk '{print $2}')
+      local active=$(echo "$line" | awk '{print $3}')
+      local size=$(echo "$line" | awk '{print $4}')
+      local reclaimable=$(echo "$line" | awk '{print $5, $6}')
+
+      html_table="${html_table}<tr>"
+      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd;'>${type}</td>"
+      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${total}</td>"
+      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${active}</td>"
+      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${size}</td>"
+      html_table="${html_table}<td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>${reclaimable}</td>"
+      html_table="${html_table}</tr>"
+    done <<< "$(echo "$disk_data" | tail -n +2)"
+
+    html_table="${html_table}</table>"
+
+    # Output the complete table as one HTML message
+    echo "[HTML]: ${html_table}"
+
+    # Extract total reclaimable space (sum of all types)
+    local total_reclaimable=$(${DOCKER} system df --format "{{.Size}}\t{{.Reclaimable}}" 2>/dev/null | awk '{
+      # Parse size (e.g., "10.5GB" or "500MB")
+      if ($2 ~ /GB/) {
+        gsub(/GB/, "", $2)
+        print $2
+      } else if ($2 ~ /MB/) {
+        gsub(/MB/, "", $2)
+        print $2 / 1024
+      }
+    }' | awk '{s+=$1} END {print s}')
+
+    # Check if we have enough space (need at least 15GB for safe build with LaTeX)
+    if [ -n "$total_reclaimable" ]; then
+      local reclaimable_int=$(echo "$total_reclaimable" | awk '{printf "%.0f", $1}')
+
+      if [ "$reclaimable_int" -lt 15 ]; then
+        echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #FFA500;'></i><b>Warning:</b> Docker may be running low on disk space.</p>"
+        echo "[HTML]: <p>Building containers with LaTeX requires approximately 15-20GB of free space.</p>"
+        echo "[HTML]: <p>Consider running: <code>docker system prune -a</code> to free up space, or increase Docker Desktop's disk limit in Settings → Resources → Disk image size.</p>"
+      fi
+    fi
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i>Unable to check Docker disk usage. Proceeding with build...</p>"
+  fi
 }
 
 # Function to build Docker Compose with the option whether to use cache or not
@@ -841,6 +909,11 @@ build_docker_compose() {
   if [ "${_lock_acquired}" != true ]; then
     return 1
   fi
+
+  # Set trap to release lock on interrupt
+  # Note: We don't exit here, just release lock and let the signal propagate
+  trap 'release_build_lock' INT TERM
+
   # use or not use cache
   if [[ "$1" == "no-cache" ]]; then
     use_cache="--no-cache"
@@ -863,16 +936,111 @@ build_docker_compose() {
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
-  
+
+  # Read install options for Python container build args
+  local config_env="${HOME_DIR}/monadic/config/env"
+  read_cfg_bool() {
+    local key="$1"; local defval="${2:-false}"
+    local val=""
+    val=$(eval echo "\$${key}")
+    if [ -z "$val" ] && [ -f "$config_env" ]; then
+      local line=$(grep -E "^${key}=" "$config_env" | tail -n1 || true)
+      if [ -n "$line" ]; then
+        val=${line#*=}
+        val=${val%""}; val=${val#""}
+      fi
+    fi
+    if [ -n "$val" ]; then
+      val=$(echo "$val" | tr '[:upper:]' '[:lower:]')
+      case "$val" in
+        true|1|yes|on) echo "true";;
+        false|0|no|off|"") echo "false";;
+        *) echo "$defval";;
+      esac
+      return
+    fi
+    echo "$defval"
+  }
+
+  local INSTALL_LATEX=$(read_cfg_bool "INSTALL_LATEX" false)
+  local PYOPT_NLTK=$(read_cfg_bool "PYOPT_NLTK" false)
+  local PYOPT_SPACY=$(read_cfg_bool "PYOPT_SPACY" false)
+  local PYOPT_SCIKIT=$(read_cfg_bool "PYOPT_SCIKIT" false)
+  local PYOPT_GENSIM=$(read_cfg_bool "PYOPT_GENSIM" false)
+  local PYOPT_LIBROSA=$(read_cfg_bool "PYOPT_LIBROSA" false)
+  local PYOPT_MEDIAPIPE=$(read_cfg_bool "PYOPT_MEDIAPIPE" false)
+  local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
+  local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
+
+  # Export install options as environment variables for compose.yml to reference
+  export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_SCIKIT PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
+
   # Debug: log the actual command being executed
+  local build_start_time=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "======================================" >> "${log_file}"
+  echo "[BUILD START] ${build_start_time}" >> "${log_file}"
+  echo "======================================" >> "${log_file}"
   echo "[DEBUG] DOCKER='${DOCKER}'" >> "${log_file}"
   echo "[DEBUG] COMPOSE_FILES='${COMPOSE_FILES}'" >> "${log_file}"
   echo "[DEBUG] REPORTING='${REPORTING}'" >> "${log_file}"
   echo "[DEBUG] use_cache='${use_cache}'" >> "${log_file}"
+  echo "[DEBUG] Install options: INSTALL_LATEX=${INSTALL_LATEX} PYOPT_NLTK=${PYOPT_NLTK} PYOPT_SPACY=${PYOPT_SPACY} PYOPT_SCIKIT=${PYOPT_SCIKIT} PYOPT_GENSIM=${PYOPT_GENSIM} PYOPT_LIBROSA=${PYOPT_LIBROSA} PYOPT_MEDIAPIPE=${PYOPT_MEDIAPIPE} PYOPT_TRANSFORMERS=${PYOPT_TRANSFORMERS} IMGOPT_IMAGEMAGICK=${IMGOPT_IMAGEMAGICK}" >> "${log_file}"
+  echo "" >> "${log_file}"
+  echo "[DISK USAGE BEFORE BUILD]" >> "${log_file}"
+  ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"
+  echo "" >> "${log_file}"
   echo "[DEBUG] Executing: HELP_EXPORT_ID='${help_export_id}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
-  
+  echo "======================================" >> "${log_file}"
+  echo "" >> "${log_file}"
+
   # Execute docker compose build and redirect output to log file with or without cache
+  local build_start_epoch=$(date +%s)
   eval "HELP_EXPORT_ID=\"${help_export_id}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  local build_status=${PIPESTATUS[0]}
+  local build_end_epoch=$(date +%s)
+  local build_duration=$((build_end_epoch - build_start_epoch))
+
+  # Log build completion status
+  local build_end_time=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "" >> "${log_file}"
+  echo "======================================" >> "${log_file}"
+  echo "[BUILD END] ${build_end_time}" >> "${log_file}"
+  echo "[BUILD DURATION] ${build_duration} seconds" >> "${log_file}"
+  echo "[BUILD STATUS] Exit code: ${build_status}" >> "${log_file}"
+  echo "======================================" >> "${log_file}"
+
+  # Check if build succeeded
+  if [ $build_status -ne 0 ]; then
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Docker compose build failed with exit code ${build_status}.</p>"
+    echo "[BUILD FAILED] Exit code: ${build_status}" >> "${log_file}"
+    release_build_lock
+    trap - INT TERM
+    return 1
+  fi
+
+  # Verify all required images were created
+  echo "" >> "${log_file}"
+  echo "[IMAGE VERIFICATION]" >> "${log_file}"
+  local all_images_exist=true
+  for image in "yohasebe/monadic-chat" "yohasebe/python" "yohasebe/pgvector"; do
+    if ! ${DOCKER} images | grep -q "${image}"; then
+      all_images_exist=false
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Required image '${image}' was not created during build.</p>"
+      echo "  ✗ ${image} - NOT FOUND" >> "${log_file}"
+    else
+      local image_info=$(${DOCKER} images "${image}" --format "{{.Repository}}:{{.Tag}} ({{.Size}})" | head -1)
+      echo "  ✓ ${image_info}" >> "${log_file}"
+    fi
+  done
+
+  if [ "$all_images_exist" = false ]; then
+    echo "[RESULT] Image verification FAILED - some required images are missing" >> "${log_file}"
+    release_build_lock
+    trap - INT TERM
+    return 1
+  else
+    echo "[RESULT] Image verification PASSED - all required images present" >> "${log_file}"
+  fi
 
   "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
 
@@ -882,6 +1050,10 @@ build_docker_compose() {
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
   release_build_lock
+
+  # Clear trap before returning
+  trap - INT TERM
+  return 0
 }
 
 # Function to calculate hash for Dockerfile
@@ -1120,19 +1292,36 @@ start_docker_compose() {
 
   # Ensure Ruby gem dependencies are up to date (fingerprint-based)
   if command -v sha256sum >/dev/null 2>&1; then
-    if [ "$needs_full_rebuild" != true ]; then
-      # Only check when we didn't just rebuild everything
-      local gems_hash current_hash image_ref
-      if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
-        gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
-        image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
-        if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
-          image_ref="yohasebe/monadic-chat:latest"
+    if [ "$needs_full_rebuild" != true ] && [ "$needs_ruby_rebuild" != true ]; then
+      # Skip check if we just did a full build (within last 5 minutes)
+      local last_build_file="${HOME_DIR}/monadic/log/last_full_build.txt"
+      local skip_gems_check=false
+      if [ -f "$last_build_file" ]; then
+        local last_build_time=$(cat "$last_build_file" 2>/dev/null || echo "0")
+        local current_time=$(date +%s)
+        local time_diff=$((current_time - last_build_time))
+        if [ "$time_diff" -lt 300 ]; then
+          skip_gems_check=true
         fi
-        current_hash=$(${DOCKER} inspect --format '{{ index .Config.Labels "com.monadic.gems_hash" }}' "${image_ref}" 2>/dev/null || true)
-        if [ -z "$current_hash" ] || [ "$current_hash" != "$gems_hash" ]; then
-          echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (dependencies changed) . . .</p>"
-          build_ruby_container
+      fi
+
+      if [ "$skip_gems_check" != true ]; then
+        # Only check when we didn't just rebuild everything
+        local gems_hash current_hash image_ref
+        if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
+          gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+          image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
+          if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
+            image_ref="yohasebe/monadic-chat:latest"
+          fi
+          current_hash=$(${DOCKER} inspect --format '{{ index .Config.Labels "com.monadic.gems_hash" }}' "${image_ref}" 2>/dev/null || true)
+          if [ -z "$current_hash" ]; then
+            echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (hash not found in image) . . .</p>"
+            build_ruby_container
+          elif [ "$current_hash" != "$gems_hash" ]; then
+            echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (Gemfile dependencies changed) . . .</p>"
+            build_ruby_container
+          fi
         fi
       fi
     fi
@@ -1216,12 +1405,12 @@ start_docker_compose() {
   }
 
   # Check SELENIUM_ENABLED and manage Selenium container accordingly
-  local selenium_enabled=$(read_config_bool "SELENIUM_ENABLED" "false")
+  local selenium_enabled=$(read_config_bool "SELENIUM_ENABLED" "true")
   if [ "$selenium_enabled" = "true" ]; then
     # Start Selenium container if enabled and image exists
     if ${DOCKER} images | grep -q "yohasebe/selenium"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
 
       # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
       # Wait a moment for Selenium to start
@@ -1229,33 +1418,12 @@ start_docker_compose() {
       echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
       ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
     else
-      echo "[HTML]: <p>Selenium is enabled but image not found. Building Selenium container...</p>"
-      build_selenium_container
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
-
-      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-    fi
-  else
-    # Stop and remove Selenium container if disabled
-    if ${DOCKER} ps -a --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
-      echo "[HTML]: <p>Selenium is disabled. Stopping and removing Selenium container...</p>"
-      ${DOCKER} stop monadic-chat-selenium-container > /dev/null 2>&1
-      ${DOCKER} rm monadic-chat-selenium-container > /dev/null 2>&1
-      # Also remove the image if it exists
-      if ${DOCKER} images | grep -q "yohasebe/selenium"; then
-        ${DOCKER} rmi yohasebe/selenium > /dev/null 2>&1
-      fi
-
-      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
-      if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
-        echo "[HTML]: <p>Updating Ruby container after Selenium removal...</p>"
-        ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-      fi
+      echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium is enabled but container image not found.</strong></p>"
+      echo "[HTML]: <p>Please build the Selenium container from the menu: <strong>Actions → Build Selenium Container</strong></p>"
+      echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
     fi
   fi
+  # Note: If SELENIUM_ENABLED=false, we simply don't start it. No need to stop/remove existing containers.
 
   # Start Ollama container if the image exists (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
@@ -1464,6 +1632,9 @@ build_ruby_container)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  # Check disk space before building
+  check_docker_disk_space
+
   build_ruby_container
 
   # rm -f "${ROOT_DIR}/services/ruby/rbsetup.sh"
@@ -1482,6 +1653,9 @@ build_python_container)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  # Check disk space before building
+  check_docker_disk_space
+
   build_python_container
 
   if ${DOCKER} images | grep -q "monadic-chat"; then
@@ -1496,6 +1670,9 @@ build_user_containers)
   while ! "${DOCKER}" info > /dev/null 2>&1; do
     sleep ${DOCKER_CHECK_INTERVAL}
   done
+
+  # Check disk space before building
+  check_docker_disk_space
 
   # Call build_user_containers and store the return value
   build_user_containers
@@ -1547,19 +1724,38 @@ build)
     sleep ${DOCKER_CHECK_INTERVAL}
   done
 
+  # Check disk space before building
+  check_docker_disk_space
+
   set_docker_compose
   remove_containers
   echo "[HTML]: <p>Building Monadic Chat image...</p>"
   eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down"
-  build_docker_compose "no-cache"
-  
-  # Start the containers after building to match the behavior of 'start' command
-  eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"
 
-  if ${DOCKER} images | grep -q "monadic-chat"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: 22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
+  # Run build_docker_compose and check if it succeeded
+  if build_docker_compose "no-cache"; then
+    # Record timestamp of successful full build
+    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
+
+    # Start the containers after building
+    if eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} -p \"monadic-chat\" up -d"; then
+      # Wait a moment for containers to start
+      sleep 3
+
+      # Verify all required containers exist (get list once and check all)
+      container_list=$(${DOCKER} container ls --all --format "{{.Names}}")
+      if echo "$container_list" | grep -q "^monadic-chat-ruby-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-python-container$" && \
+         echo "$container_list" | grep -q "^monadic-chat-pgvector-container$"; then
+        echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
+      else
+        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Build completed but some containers were not created.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+      fi
+    else
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Failed to start containers. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+    fi
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container build failed. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li></ul>"
   fi
   ;;
 check)
@@ -1596,6 +1792,92 @@ start-jupyter)
   ;;
 stop-jupyter)
   run_jupyter stop
+  ;;
+start-selenium)
+  # Start Selenium container and set SELENIUM_ENABLED=true
+  # If image doesn't exist, build it first
+  if ! ${DOCKER} images | grep -q "yohasebe/selenium"; then
+    echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container image not found. Building automatically...</p>"
+
+    ensure_data_dir "selenium"
+
+    while ! "${DOCKER}" info > /dev/null 2>&1; do
+      sleep ${DOCKER_CHECK_INTERVAL}
+    done
+
+    # Build Selenium container
+    build_selenium_container
+  fi
+
+  # Verify image was built successfully before proceeding
+  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+    echo "[HTML]: <p>Starting Selenium container...</p>"
+    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
+
+    # Update config
+    config_env="${HOME_DIR}/monadic/config/env"
+    if [ -f "$config_env" ]; then
+      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
+        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=true/' "$config_env"
+      else
+        echo "SELENIUM_ENABLED=true" >> "$config_env"
+      fi
+    else
+      mkdir -p "$(dirname "$config_env")"
+      echo "SELENIUM_ENABLED=true" > "$config_env"
+    fi
+
+    # Restart Ruby container to update SELENIUM_AVAILABLE
+    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
+      sleep 2
+      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+    fi
+
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Selenium container started successfully.</p><hr />"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Failed to build Selenium container. Please check the logs.</p><hr />"
+  fi
+  ;;
+stop-selenium)
+  # Stop Selenium container and set SELENIUM_ENABLED=false
+  if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+    echo "[HTML]: <p>Stopping Selenium container...</p>"
+    ${DOCKER} stop monadic-chat-selenium-container > /dev/null 2>&1
+
+    # Update config
+    config_env="${HOME_DIR}/monadic/config/env"
+    if [ -f "$config_env" ]; then
+      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
+        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=false/' "$config_env"
+      else
+        echo "SELENIUM_ENABLED=false" >> "$config_env"
+      fi
+    else
+      mkdir -p "$(dirname "$config_env")"
+      echo "SELENIUM_ENABLED=false" > "$config_env"
+    fi
+
+    # Restart Ruby container to update SELENIUM_AVAILABLE
+    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
+      echo "[HTML]: <p>Updating Ruby container after Selenium stop...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+    fi
+
+    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Selenium container stopped successfully.</p><hr />"
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container is not running.</p><hr />"
+
+    # Still update config
+    config_env="${HOME_DIR}/monadic/config/env"
+    if [ -f "$config_env" ]; then
+      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
+        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=false/' "$config_env"
+      else
+        echo "SELENIUM_ENABLED=false" >> "$config_env"
+      fi
+    fi
+  fi
   ;;
 export)
   export_database

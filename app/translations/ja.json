@@ -80,13 +80,6 @@
         "items": {
           "imagemagick": "ImageMagick（convert/mogrify）"
         }
-      },
-      "web": {
-        "title": "Webスクレイピング",
-        "help": "無効かつ Tavily キー有りなら From URL は Tavily を利用。どちらも無い場合は #url/#doc を非表示。",
-        "items": {
-          "selenium": "Selenium コンテナを有効化"
-        }
       }
     },
     "buttons": {
@@ -121,7 +114,8 @@
     "updateRubyContainer": "Rubyコンテナを更新",
     "updatePythonContainer": "Pythonコンテナを更新",
     "updateUserContainers": "ユーザーコンテナを更新",
-    "buildSeleniumContainer": "Seleniumコンテナをビルド",
+    "startSeleniumContainer": "Seleniumコンテナを開始",
+    "stopSeleniumContainer": "Seleniumコンテナを停止",
     "buildOllamaContainer": "Ollamaコンテナをビルド",
     "startJupyterLab": "JupyterLabを開始",
     "stopJupyterLab": "JupyterLabを停止",
@@ -164,6 +158,8 @@
     "buildingPythonContainer": "Pythonコンテナをビルドしています...",
     "buildingUserContainers": "ユーザーコンテナをビルドしています...",
     "buildingSeleniumContainer": "Seleniumコンテナをビルドしています...",
+    "startingSeleniumContainer": "Seleniumコンテナを起動しています...",
+    "stoppingSeleniumContainer": "Seleniumコンテナを停止しています...",
     "buildingOllamaContainer": "Ollamaコンテナをビルドしています...<br>初回ビルドでは数分かかる場合があります。",
     "startingJupyterLab": "JupyterLabを起動しています...",
     "stoppingJupyterLab": "JupyterLabを停止しています...",
@@ -189,7 +185,7 @@
     "updateSuccessfulDesc": "Monadic Chatは最新バージョンに正常にアップデートされました。",
     "customRubySetup": "カスタムRubyセットアップスクリプト（rbsetup.sh）が検出され、使用されます。",
     "customPythonSetup": "カスタムPythonセットアップスクリプト（pysetup.sh）が検出され、使用されます。",
-    "customOllamaSetup": "カスタムOllamaセットアップスクリプト（olsetup.sh）が検出され、使用されます。",
+    "customOllamaSetup": "カスタムOllamaセットアップスクリプト（olsetup.sh）が検出されました。使用する場合は、メニューから「Ollamaコンテナをビルド」を実行してください。",
     "checkingContainerIntegrity": "コンテナの整合性を確認しています...",
     "verifyingSystemRequirements": "システム要件を確認しています...",
     "startingDocker": "Dockerを起動しています...",
@@ -238,6 +234,8 @@
     "quit": "終了",
     "unsavedChangesTitle": "未保存の変更",
     "unsavedChangesMessage": "保存していない変更があります。閉じる前に保存しますか？",
-    "saveAndClose": "保存して閉じる"
+    "saveAndClose": "保存して閉じる",
+    "seleniumWillStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナが起動します。",
+    "seleniumWillNotStartOnNextLaunch": "次回のMonadic Chat起動時にSeleniumコンテナは起動しません。"
   }
 }

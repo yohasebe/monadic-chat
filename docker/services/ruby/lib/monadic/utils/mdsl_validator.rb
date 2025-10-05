@@ -10,7 +10,7 @@ module Monadic
           warnings = []
           
           # Get model spec from ModelSpec
-          model_spec = ModelSpec.get_spec(model)
+          model_spec = ModelSpec.get_model_spec(model)
           return { errors: ["Model '#{model}' not found in specifications"], warnings: [] } unless model_spec
           
           # Check reasoning/thinking parameters based on provider

@@ -89,11 +89,6 @@
         "title": "Herramientas del sistema (CLI)",
         "help": "Herramientas de línea de comandos a nivel del sistema, disponibles globalmente.",
         "items": { "imagemagick": "ImageMagick (convert/mogrify)" }
-      },
-      "web": {
-        "title": "Rastreo web",
-        "help": "Si está deshabilitado y hay una clave de Tavily, From URL usará Tavily; de lo contrario se ocultan los botones #url/#doc.",
-        "items": { "selenium": "Habilitar contenedor de Selenium" }
       }
     },
     "buttons": { "save": "Guardar", "close": "Cerrar" }
@@ -112,7 +107,8 @@
     "openConfigFolder": "Abrir Carpeta de Configuración",
     "openLogFolder": "Abrir Carpeta de Registros",
     "documentation": "Documentación",
-    "buildSeleniumContainer": "Construir Contenedor Selenium",
+    "startSeleniumContainer": "Iniciar Contenedor Selenium",
+    "stopSeleniumContainer": "Detener Contenedor Selenium",
     "buildOllamaContainer": "Construir Contenedor Ollama",
     "startJupyterLab": "Iniciar JupyterLab",
     "stopJupyterLab": "Detener JupyterLab",
@@ -152,7 +148,9 @@
     "confirmUninstall": "Confirmar Desinstalación",
     "uninstallMessage": "Esto eliminará todas las imágenes y contenedores de Monadic Chat. ¿Desea continuar?",
     "deleteAll": "Eliminar todo",
-    "quit": "Salir"
+    "quit": "Salir",
+    "seleniumWillStartOnNextLaunch": "El contenedor Selenium se iniciará en el próximo arranque de Monadic Chat.",
+    "seleniumWillNotStartOnNextLaunch": "El contenedor Selenium NO se iniciará en el próximo arranque de Monadic Chat."
   },
   "messages": {
     "dockerNotRunning": "Docker Desktop no está en ejecución. Por favor, inicie Docker Desktop primero e intente de nuevo.",
@@ -180,6 +178,8 @@
     "buildingPythonContainer": "Construyendo contenedor Python...",
     "buildingUserContainers": "Construyendo contenedores de usuario...",
     "buildingSeleniumContainer": "Construyendo contenedor Selenium...",
+    "startingSeleniumContainer": "Iniciando contenedor Selenium...",
+    "stoppingSeleniumContainer": "Deteniendo contenedor Selenium...",
     "buildingOllamaContainer": "Construyendo contenedor Ollama...<br>La primera construcción puede tardar varios minutos.",
     "startingJupyterLab": "Iniciando JupyterLab...",
     "stoppingJupyterLab": "Deteniendo JupyterLab...",
@@ -203,7 +203,7 @@
     "updateSuccessfulDesc": "Monadic Chat se ha actualizado exitosamente a la última versión.",
     "customRubySetup": "Script de configuración Ruby personalizado (rbsetup.sh) detectado y será utilizado.",
     "customPythonSetup": "Script de configuración Python personalizado (pysetup.sh) detectado y será utilizado.",
-    "customOllamaSetup": "Script de configuración Ollama personalizado (olsetup.sh) detectado y será utilizado.",
+    "customOllamaSetup": "Script de configuración Ollama personalizado (olsetup.sh) detectado. Para usarlo, construya el contenedor Ollama desde el menú.",
     "checkingContainerIntegrity": "Verificando integridad del contenedor...",
     "verifyingSystemRequirements": "Verificando requisitos del sistema...",
     "startingDocker": "Iniciando Docker...",

@@ -80,13 +80,6 @@
         "items": {
           "imagemagick": "ImageMagick (convert/mogrify)"
         }
-      },
-      "web": {
-        "title": "Web Scraping",
-        "help": "If disabled and Tavily API key is present, From URL will use Tavily. Otherwise #url/#doc buttons are hidden.",
-        "items": {
-          "selenium": "Enable Selenium container"
-        }
       }
     },
     "buttons": {
@@ -121,7 +114,8 @@
     "updateRubyContainer": "Update Ruby Container",
     "updatePythonContainer": "Update Python Container",
     "updateUserContainers": "Update User Containers",
-    "buildSeleniumContainer": "Build Selenium Container",
+    "startSeleniumContainer": "Start Selenium Container",
+    "stopSeleniumContainer": "Stop Selenium Container",
     "buildOllamaContainer": "Build Ollama Container",
     "startJupyterLab": "Start JupyterLab",
     "stopJupyterLab": "Stop JupyterLab",
@@ -164,6 +158,8 @@
     "buildingPythonContainer": "Building Python container . . .",
     "buildingUserContainers": "Building user containers . . .",
     "buildingSeleniumContainer": "Building Selenium container . . .",
+    "startingSeleniumContainer": "Starting Selenium container . . .",
+    "stoppingSeleniumContainer": "Stopping Selenium container . . .",
     "buildingOllamaContainer": "Building Ollama container . . .<br>This may take several minutes on first build.",
     "startingJupyterLab": "Starting JupyterLab . . .",
     "stoppingJupyterLab": "Stopping JupyterLab . . .",
@@ -189,7 +185,7 @@
     "updateSuccessfulDesc": "Monadic Chat has been successfully updated to the latest version.",
     "customRubySetup": "Custom Ruby setup script (rbsetup.sh) detected and will be used.",
     "customPythonSetup": "Custom Python setup script (pysetup.sh) detected and will be used.",
-    "customOllamaSetup": "Custom Ollama setup script (olsetup.sh) detected and will be used.",
+    "customOllamaSetup": "Custom Ollama setup script (olsetup.sh) detected. To use it, please build the Ollama container from the menu.",
     "checkingContainerIntegrity": "Checking container integrity...",
     "verifyingSystemRequirements": "Verifying system requirements...",
     "startingDocker": "Starting Docker...",
@@ -236,6 +232,8 @@
     "quit": "Quit",
     "unsavedChangesTitle": "Unsaved Changes",
     "unsavedChangesMessage": "You have unsaved changes. Save before closing?",
-    "saveAndClose": "Save and Close"
+    "saveAndClose": "Save and Close",
+    "seleniumWillStartOnNextLaunch": "Selenium container will start on next launch of Monadic Chat.",
+    "seleniumWillNotStartOnNextLaunch": "Selenium container will NOT start on next launch of Monadic Chat."
   }
 }

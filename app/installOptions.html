@@ -32,7 +32,7 @@
     let ioDirty = false;
     let ioTranslations = { panel: null, dialogs: null, language: 'en' };
     let ioInitialSnapshot = '';
-    const ioIds = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK','SELENIUM_ENABLED'];
+    const ioIds = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
     const takeIoSnapshot = () => {
       const obj = {};
       ioIds.forEach(id => { obj[id] = !!document.getElementById(id)?.checked; });
@@ -84,7 +84,6 @@
       setLabel('PYOPT_MEDIAPIPE','categories.python.items.mediapipe','mediapipe (CPU)');
       setLabel('PYOPT_TRANSFORMERS','categories.python.items.transformers','transformers (CPU only)');
       setLabel('IMGOPT_IMAGEMAGICK','categories.tools.items.imagemagick','ImageMagick (convert/mogrify)');
-      setLabel('SELENIUM_ENABLED','categories.web.items.selenium','Enable Selenium container');
       // Buttons
       document.getElementById('btn-close-text').textContent = get('buttons.close','Close');
       document.getElementById('btn-save-text').textContent = get('buttons.save','Save');
@@ -112,8 +111,7 @@
         PYOPT_LIBROSA: grab('PYOPT_LIBROSA'),
         PYOPT_MEDIAPIPE: grab('PYOPT_MEDIAPIPE'),
         PYOPT_TRANSFORMERS: grab('PYOPT_TRANSFORMERS'),
-        IMGOPT_IMAGEMAGICK: grab('IMGOPT_IMAGEMAGICK'),
-        SELENIUM_ENABLED: grab('SELENIUM_ENABLED')
+        IMGOPT_IMAGEMAGICK: grab('IMGOPT_IMAGEMAGICK')
       };
       try {
         await window.installOptionsAPI.save(payload);
@@ -239,11 +237,6 @@
         <h2><i class="fa-solid fa-wrench" style="color:#9C27B0;"></i> <span id="head-tools-text">System Tools (CLI)</span></h2>
         <label class="row" for="IMGOPT_IMAGEMAGICK"><input type="checkbox" id="IMGOPT_IMAGEMAGICK" /> <span class="item-label">ImageMagick (convert/mogrify)</span></label>
         <div class="help" id="help-tools">OS-level command-line tools available system-wide.</div>
-      </div>
-      <div class="category" style="border-left-color:#FF9800;">
-        <h2><i class="fa-solid fa-spider" style="color:#FF9800;"></i> <span id="head-web-text">Web Scraping</span></h2>
-        <label class="row" for="SELENIUM_ENABLED"><input type="checkbox" id="SELENIUM_ENABLED" /> <span class="item-label">Enable Selenium container</span></label>
-        <div class="help" id="help-web">If disabled and Tavily API key is present, From URL will use Tavily. Otherwise #url/#doc buttons are hidden.</div>
       </div>
     </div>
     <div class="button-group">

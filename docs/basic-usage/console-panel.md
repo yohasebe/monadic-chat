@@ -50,6 +50,9 @@ Build the Docker image and container (`monadic-chat-python-container`) used by t
 **Build Ollama Container** <br />
 Build the Docker image and container (`monadic-chat-ollama-container`) for running local language models via Ollama. This container is not built automatically with "Build All" to save resources. You must explicitly choose this option to use Ollama features.
 
+**Build Selenium Container** <br />
+Build the Docker image and container (`monadic-chat-selenium-container`) for web scraping features. This container is included in "Build All" and is always available. You can control whether it starts automatically using the Start/Stop Selenium Container menu items below.
+
 **Build User Containers** <br />
 Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
@@ -62,6 +65,12 @@ Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhos
 
 **Stop JupyterLab** <br />
 Stop JupyterLab.
+
+**Start Selenium Container** <br />
+Enable the Selenium container to start automatically on next launch of Monadic Chat. The Selenium container provides web scraping capabilities for features like "From URL" and web search. Note: This setting only takes effect after restarting Monadic Chat.
+
+**Stop Selenium Container** <br />
+Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat.
 
 **Export Document DB** <br />
 Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.
@@ -165,7 +174,7 @@ Enter your DeepSeek API key. This key is required to use the DeepSeek models. It
 Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice models. It can be obtained from [https://elevenlabs.io/developers](https://elevenlabs.io/developers).
 
 **TAVILY_API_KEY** <br />
-Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature (if not provided, Selenium will be used as a fallback), and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/](https://tavily.com/).
+Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature as an alternative to Selenium, and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/](https://tavily.com/).
 
 ![Settings Panel](../assets/images/settings-model.png ':size=600')
 

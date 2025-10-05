@@ -39,7 +39,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ### Install Options & Rebuild
 
-- Configure optional components from `Actions → Install Options…` (LaTeX, Python libs, mediapipe, ImageMagick, Selenium).
+- Configure optional components from `Actions → Install Options…` (LaTeX, Python libs, mediapipe, ImageMagick).
 - Saving options does not auto-rebuild. Run Rebuild from the main console when ready; the process is atomic and logs/health are written under `~/monadic/log/build/python/<timestamp>/`.
 
 ### Start Behavior & Auto-Recovery

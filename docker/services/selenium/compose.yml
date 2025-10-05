@@ -7,8 +7,6 @@ services:
       args:
         PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-selenium-container
-    profiles:
-      - selenium
     shm_size: 2gb
     volumes:
       - data:/monadic/data

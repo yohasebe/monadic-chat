@@ -135,19 +135,9 @@ document.addEventListener("DOMContentLoaded", function () {
     $.getJSON('/api/capabilities')
       .done(function (cap) {
         if (!cap || cap.success === false) return;
-        var seleniumEnabled = cap.selenium && cap.selenium.enabled === true;
-        var tavily = cap.providers && cap.providers.tavily === true;
-
-        if (!seleniumEnabled && !tavily) {
-          $('#doc').hide();
-          $('#url').hide();
-        } else if (!seleniumEnabled && tavily) {
-          $('#url').show();
-          $('#doc').show();
-        } else {
-          $('#doc').show();
-          $('#url').show();
-        }
+        // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
+        $('#url').show();
+        $('#doc').show();
       });
   } catch (e) { /* ignore */ }
   

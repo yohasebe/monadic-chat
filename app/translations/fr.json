@@ -188,6 +188,7 @@
     "containerFailedBuild": "Échec de la construction du conteneur.",
     "noUserContainers": "Aucun conteneur utilisateur à construire.",
     "ollamaContainerFailed": "Échec de la construction du conteneur Ollama.",
+    "buildLogsAvailable": "Les journaux de construction sont disponibles dans le dossier partagé.",
     "checkLogFiles": "Veuillez consulter les fichiers journaux suivants dans le dossier partagé :",
     "allContainersAvailable": "Tous les conteneurs sont disponibles. Poursuite...",
     "startingOllamaContainer": "Démarrage du conteneur Ollama...",

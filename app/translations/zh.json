@@ -216,6 +216,7 @@
     "containerFailedBuild": "容器构建失败。",
     "noUserContainers": "没有要构建的用户容器。",
     "ollamaContainerFailed": "Ollama容器构建失败。",
+    "buildLogsAvailable": "构建日志已保存到共享文件夹。",
     "checkLogFiles": "请检查共享文件夹中的以下日志文件：",
     "allContainersAvailable": "所有容器都可用。继续进行...",
     "startingOllamaContainer": "正在启动Ollama容器...",

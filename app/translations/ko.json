@@ -216,6 +216,7 @@
     "containerFailedBuild": "컨테이너 빌드에 실패했습니다.",
     "noUserContainers": "빌드할 사용자 컨테이너가 없습니다.",
     "ollamaContainerFailed": "Ollama 컨테이너 빌드에 실패했습니다.",
+    "buildLogsAvailable": "빌드 로그는 공유 폴더에 저장되었습니다.",
     "checkLogFiles": "공유 폴더의 다음 로그 파일을 확인하세요:",
     "allContainersAvailable": "모든 컨테이너를 사용할 수 있습니다. 계속 진행합니다...",
     "startingOllamaContainer": "Ollama 컨테이너를 시작하는 중...",

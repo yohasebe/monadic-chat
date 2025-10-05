@@ -617,7 +617,7 @@ OPTIONS
   echo "[POST_SETUP_LOG] ${post_log}"
   echo "[HEALTH_JSON] ${health_json}"
   echo "[META_JSON] ${meta_json}"
-  echo "Please check the following log files under: ${run_dir}"
+  echo "Build logs are available under: ${run_dir}"
   echo "[BUILD_COMPLETE] success"
   release_build_lock
 }

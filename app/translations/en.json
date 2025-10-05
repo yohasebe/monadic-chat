@@ -198,6 +198,7 @@
     "containerFailedBuild": "Container failed to build.",
     "noUserContainers": "No user containers to build.",
     "ollamaContainerFailed": "Ollama container failed to build.",
+    "buildLogsAvailable": "Build logs are available in the share folder.",
     "checkLogFiles": "Please check the following log files in the share folder:",
     "allContainersAvailable": "All containers are available. Moving on...",
     "startingOllamaContainer": "Starting Ollama container...",

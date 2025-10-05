@@ -216,6 +216,7 @@
     "containerFailedBuild": "Fallo en la construcción del contenedor.",
     "noUserContainers": "No hay contenedores de usuario para construir.",
     "ollamaContainerFailed": "Fallo en la construcción del contenedor Ollama.",
+    "buildLogsAvailable": "Los registros de compilación están disponibles en la carpeta compartida.",
     "checkLogFiles": "Por favor revise los siguientes archivos de registro en la carpeta compartida:",
     "allContainersAvailable": "Todos los contenedores están disponibles. Continuando...",
     "startingOllamaContainer": "Iniciando contenedor Ollama...",

@@ -188,6 +188,7 @@
     "containerFailedBuild": "Container konnte nicht erstellt werden.",
     "noUserContainers": "Keine Benutzer-Container zum Erstellen.",
     "ollamaContainerFailed": "Ollama-Container konnte nicht erstellt werden.",
+    "buildLogsAvailable": "Build-Protokolle sind im gemeinsamen Ordner verfügbar.",
     "checkLogFiles": "Bitte überprüfen Sie die folgenden Protokolldateien im gemeinsamen Ordner:",
     "allContainersAvailable": "Alle Container sind verfügbar. Weiter...",
     "startingOllamaContainer": "Ollama-Container wird gestartet...",

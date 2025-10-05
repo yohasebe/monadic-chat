@@ -663,6 +663,8 @@ class DockerManager {
                 translatedOutput = formatMessage('info', 'messages.noUserContainers');
               } else if (output.includes('Ollama container failed to build')) {
                 translatedOutput = formatMessage('error', 'messages.ollamaContainerFailed');
+              } else if (output.includes('Build logs are available')) {
+                translatedOutput = formatMessage('info', 'messages.buildLogsAvailable');
               } else if (output.includes('Please check the following log files')) {
                 translatedOutput = formatMessage('warning', 'messages.checkLogFiles');
               } else if (output.includes('All containers are available')) {

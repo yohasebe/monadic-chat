@@ -198,6 +198,7 @@
     "containerFailedBuild": "コンテナのビルドに失敗しました。",
     "noUserContainers": "ビルドするユーザーコンテナがありません。",
     "ollamaContainerFailed": "Ollamaコンテナのビルドに失敗しました。",
+    "buildLogsAvailable": "ビルドログは共有フォルダに保存されています。",
     "checkLogFiles": "共有フォルダ内の以下のログファイルを確認してください：",
     "allContainersAvailable": "すべてのコンテナが利用可能です。続行します...",
     "startingOllamaContainer": "Ollamaコンテナを起動しています...",

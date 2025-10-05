@@ -6,6 +6,7 @@ app "Chord Accompanist Claude" do
 
   icon "music"
   display_name "Chord Accompanist"
+  initiate_from_assistant true
 
   system_prompt <<~TEXT
     You are a chord-accompaniment arranger. The user will specify musical context (genre, mood, reference artist/song, chord progression, tempo, instrumentation).

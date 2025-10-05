@@ -39,6 +39,8 @@ Launch Monadic Chat. The initial startup may take some time due to environment s
 **Build All** <br />
 Build all Docker images and containers for Monadic Chat.
 
+?> **Note:** Build commands triggered from the menu always run with Docker's `--no-cache` flag so that newly released Dockerfile changes and dependencies are applied immediately.
+
 <!-- > 📸 **Screenshot needed**: Console output showing Docker build progress -->
 
 **Build Ruby Container** <br />
@@ -71,6 +73,7 @@ Enable the Selenium container to start automatically on next launch of Monadic C
 
 **Stop Selenium Container** <br />
 Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat.
+Users attempting Selenium-backed tools while the container is disabled will see guidance indicating that the Selenium container is stopped and the feature cannot run until it is re-enabled.
 
 **Export Document DB** <br />
 Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.

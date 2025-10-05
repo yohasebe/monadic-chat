@@ -40,6 +40,8 @@ Monadic Chatを起動します。初回起動時はDocker上での環境構築�
 **Build All** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
+?> **補足:** メニューから実行するビルドコマンドは常に Docker の `--no-cache` フラグ付きで動作し、Dockerfile の変更や依存関係の更新を確実に反映します。
+
 <!-- > 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力 -->
 
 **Build Ruby Container** <br />
@@ -63,6 +65,12 @@ JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://local
 
 **Stop JupyterLab** <br />
 JupyterLabを停止します。
+
+**Start Selenium Container** <br />
+次回以降の Monadic Chat 起動時に Selenium コンテナを自動で立ち上げます。Selenium コンテナは「From URL」やウェブ検索など、ブラウザ自動化が必要な機能で利用されます。この設定は Monadic Chat の再起動後に反映されます。
+
+**Stop Selenium Container** <br />
+次回の Monadic Chat 起動時に Selenium コンテナが自動で起動しないようにします。Selenium を無効化すると、Tavily API キーが設定されている場合は「From URL」機能が Tavily を利用し、キーが無い場合は関連ボタンが非表示になります。この設定は Monadic Chat の再起動後に有効になります。Selenium を利用するアプリ機能を実行すると、コンテナが停止中で利用できない旨がアシスタントから案内されます。
 
 **Export Document DB** <br />
 Monadic Chatのベクトルデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.gz`という名前で共有フォルダに保存されます。

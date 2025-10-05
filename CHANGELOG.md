@@ -1,3 +1,33 @@
+- [October 5, 2025] 1.0.0-beta.5
+  - **MDSL Validator Fix**: Fixed method name error in Visual Web Explorer
+    - Changed `ModelSpec.get_spec()` to `ModelSpec.get_model_spec()`
+    - Resolved "undefined method 'get_spec'" errors preventing app initialization
+  - **Container Build Improvements**: Fixed incorrect image tagging
+    - Removed monadic-chat tagging from Python container builds
+    - Removed monadic-chat operations from User container builds
+    - Prevents unnecessary Ruby rebuilds after Python/User container updates
+    - Added FORCE_REBUILD support for explicit no-cache rebuilds from menu
+  - **Selenium Container Management**: Enhanced usability and configuration
+    - Changed default to enabled (SELENIUM_ENABLED=true)
+    - Added start-selenium and stop-selenium commands for immediate control
+    - Removed automatic container deletion when disabled
+    - Removed profiles requirement - Selenium always available
+    - Auto-build Selenium image if missing when starting
+    - Updated menu translations across all 7 languages
+  - **OpenAI Responses API Fix**: Fixed reasoning content persistence
+    - Changed store parameter from false to true
+    - Resolves "Item not found" errors in multi-turn conversations with reasoning models
+  - **Install Options UI**: Simplified Selenium management
+    - Removed Selenium from Install Options panel
+    - Selenium now controlled exclusively via menu commands
+    - Added install option build args to Python compose.yml
+  - **UI Button Logic**: Simplified URL/document handling
+    - Always show #url and #doc buttons in monadic.js
+    - Backend handles Selenium/Tavily routing automatically
+  - **Chord Accompanist Enhancement**: Improved user experience
+    - Enabled initiate_from_assistant for greeting message
+    - Assistant now proactively guides users through requirements
+
 - [August 27, 2025] Latest Updates
   - **Thinking/Reasoning Process Display**: Comprehensive implementation across all providers
     - Fixed Cohere thinking fragment concatenation (word-level fragments)

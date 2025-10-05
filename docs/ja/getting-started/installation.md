@@ -65,7 +65,6 @@ $ sudo apt install ./monadic-chat-*.deb
 - LaTeX（最小構成）: Concept Visualizer / Syntax Tree の有効化（OpenAI/Anthropic のキーが必要）
 - Python ライブラリ（CPU）: `nltk` / `spacy(3.7.5)` / `scikit-learn` / `gensim` / `librosa` / `transformers`
 - Tools: ImageMagick（`convert`/`mogrify`）
-- Selenium: 有効時は従来通り Selenium を使用。無効かつ Tavily キーありなら From URL は Tavily 使用。それ以外は #url/#doc 非表示。
 
 パネルの仕様:
 - インストールオプションウィンドウはモーダルで、Settingsパネルと同サイズです。

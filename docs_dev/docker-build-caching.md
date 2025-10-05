@@ -2,11 +2,73 @@
 
 ## Overview
 
-Monadic Chat uses intelligent build caching for the Python container to balance build speed with reliability when install options change.
+Monadic Chat uses intelligent build caching for containers to balance build speed with reliability. The strategy differs between automatic rebuilds (on version updates or startup) and manual rebuilds (via menu commands).
+
+## Build Strategies by Container Type
+
+### Ruby Container Build Strategy
+
+Ruby container builds use different caching strategies depending on how the build is triggered:
+
+**1. Automatic Rebuild on Version Update (START button):**
+- **Trigger**: App detects version mismatch (e.g., `v1.0.0-beta.4` → `v1.0.0-beta.5`)
+- **Cache Strategy**: Uses Docker build cache (fast, ~1-2 minutes)
+- **Rationale**: Version updates typically only change application code, not dependencies
+- **Implementation**: `FORCE_REBUILD` environment variable is NOT set
+- **Location**: `docker/monadic.sh:366-371` checks `FORCE_REBUILD:-false`
+
+**2. Manual Rebuild from Menu (Actions → Build Ruby Container):**
+- **Trigger**: User explicitly selects build from menu
+- **Cache Strategy**: Uses `--no-cache` (complete rebuild, ~5-10 minutes)
+- **Rationale**: User may want to ensure clean build or rebuild after system changes
+- **Implementation**: Electron sets `FORCE_REBUILD=true` environment variable
+- **Location**: `app/main.js:618-620` sets `buildEnv = { FORCE_REBUILD: 'true' }`
+
+**3. Automatic Rebuild on Dockerfile Changes:**
+- **Trigger**: Detected changes in Ruby Dockerfile during version update
+- **Cache Strategy**: Uses `--no-cache` (complete rebuild)
+- **Rationale**: Dockerfile changes may include dependency updates requiring clean build
+- **Implementation**: `check_dockerfiles_changed()` function checks file hashes
+
+**Version Update Detection Flow:**
+```
+START button pressed
+        ↓
+Check: MONADIC_CHAT_IMAGE_TAG == MONADIC_VERSION?
+        ↓
+    ┌───No────┐
+    │         │
+    ↓         ↓
+Version    Version
+mismatch   match
+    │         │
+    ↓         └─→ Continue startup
+Check: Dockerfile changed?
+    │
+┌───┴───┐
+│       │
+Yes     No
+│       │
+↓       ↓
+Full    Ruby only
+rebuild rebuild
+│       │
+↓       ↓
+--no-cache  Use cache (fast)
+(slow)      (1-2 min)
+```
+
+**Key Code Locations:**
+- Version comparison: `docker/monadic.sh:1235`
+- Dockerfile change detection: `docker/monadic.sh:1237`
+- FORCE_REBUILD check: `docker/monadic.sh:368`
+- Electron FORCE_REBUILD setting: `app/main.js:619-620`
+
+### Python Container Build Strategy
 
 ## How It Works
 
-### Complete Build Flow
+### Complete Build Flow (Python Container)
 
 ```
 User changes install option in Electron UI

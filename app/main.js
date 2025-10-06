@@ -1731,7 +1731,7 @@ function updateContextMenu(disableControls = false) {
         label: i18n.t('menu.restart'),
         click: () => {
           openMainWindow();
-          dockerManager.runCommand('restart', '[HTML]: <p>Monadic Chat is restarting . . . </p>', 'Restarting', 'Running');
+          dockerManager.runCommand('restart', formatMessage(null, 'messages.monadicChatRestarting'), 'Restarting', 'Running');
         },
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
@@ -1752,7 +1752,7 @@ function updateContextMenu(disableControls = false) {
       {
         label: i18n.t('menu.openSharedFolder'),
         click: () => {
-          shell.openPath(getSharedFolderPath());
+          openSharedFolder();
         }
       },
       { type: 'separator' },
@@ -1889,7 +1889,14 @@ function updateApplicationMenu() {
           label: i18n.t('menu.start'),
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
+            dockerManager.checkRequirements()
+              .then(() => {
+                dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
+              })
+              .catch((error) => {
+                console.log(`Docker requirements check failed: ${error}`);
+                dialog.showErrorBox('Docker Error', error);
+              });
           },
           enabled: currentStatus === 'Stopped'
         },
@@ -1897,9 +1904,9 @@ function updateApplicationMenu() {
           label: i18n.t('menu.stop'),
           click: () => {
             openMainWindow();
-            dockerManager.runCommand('stop', '[HTML]: <p>Monadic Chat is stopping . . .</p>', 'Stopping', 'Stopped');
+            dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped');
           },
-          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
+          enabled: ['Running', 'Ready', 'Starting', 'Building'].includes(currentStatus)
         },
         {
           label: i18n.t('menu.restart'),

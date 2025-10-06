@@ -1271,116 +1271,10 @@ let serverModeItem = {
   enabled: false
 };
 
-const menuItems = [
-  statusMenuItem,
-  serverModeItem,
-  { type: 'separator' },
-  {
-    label: i18n.t('menu.start'),
-    click: () => {
-      openMainWindow();
-      // Check requirements first
-      dockerManager.checkRequirements()
-        .then(() => {
-          dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
-        })
-        .catch((error) => {
-          console.log(`Docker requirements check failed: ${error}`);
-          // Show error dialog about Docker requirements
-          dialog.showErrorBox('Docker Error', error);
-        });
-    },
-    enabled: true
-  },
-  {
-    label: i18n.t('menu.stop'),
-    click: () => {
-      openMainWindow();
-      dockerManager.runCommand('stop', formatMessage(null, 'messages.monadicChatStopping'), 'Stopping', 'Stopped');
-    },
-    enabled: true
-  },
-  {
-    label: i18n.t('menu.restart'),
-    click: () => {
-      openMainWindow();
-      dockerManager.runCommand('restart', formatMessage(null, 'messages.monadicChatRestarting'), 'Restarting', 'Running');
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
-    label: i18n.t('menu.openConsole'),
-    click: () => {
-      openMainWindow();
-    },
-    enabled: true
-  },
-  {
-    label: i18n.t('menu.openBrowser'),
-    click: () => {
-      openMainWindow();
-      const url = 'http://localhost:4567';
-      if (browserMode === 'internal') {
-        openWebViewWindow(url);
-      } else {
-        openBrowser(url);
-      }
-    },
-    enabled: false
-  },
-  { type: 'separator' },
-  {
-    label: i18n.t('menu.openSharedFolder'),
-    click: () => {
-      openMainWindow();
-      openSharedFolder();
-    },
-    enabled: true
-  },
-  {
-    label: i18n.t('menu.openConfigFolder'),
-    click: () => {
-      openMainWindow();
-      openConfigFolder();
-    },
-    enabled: true
-  },
-  {
-    label: i18n.t('menu.openLogFolder'),
-    click: () => {
-      openMainWindow();
-      openLogFolder();
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
-    label: i18n.t('menu.documentation'),
-    click: () => {
-      openBrowser('https://yohasebe.github.io/monadic-chat/', true);
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
-    label: i18n.t('menu.checkForUpdates'),
-    click: () => {
-      openMainWindow();
-      checkForUpdates();
-    },
-    enabled: true
-  },
-  { type: 'separator' },
-  {
-    label: i18n.t('tray.quit'),
-    click: () => {
-      openMainWindow();
-      quitApp(mainWindow);
-    },
-    enabled: true
-  }
-];
+// Note: Old unused menuItems array removed.
+// Actual menus are defined in:
+// - Tray menu: freshMenuItems (line ~1809)
+// - Application menu bar: Menu.buildFromTemplate (line ~1896)
 
 let updateMessage = '';
 
@@ -2178,15 +2072,9 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.openBrowser'),
           click: () => {
-            openMainWindow();
-            const url = 'http://localhost:4567';
-            if (browserMode === 'internal') {
-              openWebViewWindow(url);
-            } else {
-              openBrowser(url);
-            }
+            shell.openExternal('http://localhost:4567');
           },
-          enabled: currentStatus === 'Running'
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
         { type: 'separator' },
         {

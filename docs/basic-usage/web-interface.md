@@ -197,6 +197,9 @@ Clicking the `Import` button discards the current conversation and loads convers
 **Export**<br />
 Clicking the `Export` button saves the current settings and conversation data to an external file (JSON).
 
+**Export as PDF**<br />
+Clicking the `Export as PDF` button opens the browser's print dialog, allowing you to save the current conversation as a PDF file. The PDF export includes all messages, code blocks with syntax highlighting, mathematical equations (rendered via MathJax), and images. The output is formatted for A4 paper size with proper pagination to ensure readability when printed or saved as PDF.
+
 ## Speech Settings Panel :id=speech-settings-panel
 
 ![](../assets/images/monadic-chat-tts.png ':size=400')

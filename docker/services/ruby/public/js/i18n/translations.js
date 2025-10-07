@@ -32,6 +32,7 @@ const webUITranslations = {
       reset: "Reset",
       import: "Import",
       export: "Export",
+      exportPDF: "Export as PDF",
       homepage: "Homepage",
       cancelQuery: "Cancel Query",
       toggleMenu: "Toggle Menu",
@@ -275,7 +276,11 @@ const webUITranslations = {
         somethingWentWrong: "Something went wrong",
         errorProcessingSample: "Error processing sample message",
         contentNotFound: "Content not found in response",
-        emptyResponse: "Empty response from API"
+        emptyResponse: "Empty response from API",
+        noMessagesToExport: "No messages to export",
+        popupBlocked: "Popup blocked. Please allow popups for PDF export.",
+        exportingPDF: "Opening print dialog...",
+        exportError: "Error exporting to PDF"
       },
       session: {
         startSession: "Start Session",
@@ -315,6 +320,7 @@ const webUITranslations = {
       reset: "リセット",
       import: "インポート",
       export: "エクスポート",
+      exportPDF: "PDFとして出力",
       homepage: "ホームページ",
       cancelQuery: "クエリをキャンセル",
       toggleMenu: "メニュー切替",
@@ -553,7 +559,11 @@ const webUITranslations = {
         somethingWentWrong: "問題が発生しました",
         errorProcessingSample: "サンプルメッセージの処理エラー",
         contentNotFound: "レスポンスにコンテンツが見つかりません",
-        emptyResponse: "APIから空のレスポンス"
+        emptyResponse: "APIから空のレスポンス",
+        noMessagesToExport: "出力するメッセージがありません",
+        popupBlocked: "ポップアップがブロックされました。PDFエクスポートのためにポップアップを許可してください。",
+        exportingPDF: "印刷ダイアログを開いています...",
+        exportError: "PDFエクスポートエラー"
       },
       session: {
         startSession: "セッションを開始",

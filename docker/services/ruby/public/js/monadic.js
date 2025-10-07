@@ -2373,6 +2373,16 @@ $(function () {
     saveObjToJson(obj, "monadic.json");
   });
 
+  $("#export-pdf").on("click", function () {
+    if (typeof window.exportConversationToPDF === 'function') {
+      window.exportConversationToPDF();
+    } else {
+      console.error('PDF export function not available');
+      const errorText = webUIi18n ? webUIi18n.t('ui.messages.exportError') : 'PDF export not available';
+      alert(errorText);
+    }
+  });
+
   $("#load").on("click", function (event) {
     event.preventDefault();
     // Reset the file input and disable the import button

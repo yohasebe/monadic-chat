@@ -1301,6 +1301,8 @@ start_docker_compose() {
   # Build containers based on what we need
   if [ "$needs_full_rebuild" = true ]; then
     build_docker_compose "no-cache"
+    # Record timestamp of successful full build to skip gem hash check
+    date +%s > "${HOME_DIR}/monadic/log/last_full_build.txt"
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi

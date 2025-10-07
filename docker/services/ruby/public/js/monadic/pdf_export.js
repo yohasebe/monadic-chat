@@ -79,9 +79,9 @@
         </div>
         <div class="card-body role-${message.role}">
           <div class="card-text">
+            ${thinkingHTML}
             ${messageText}
             ${imageHTML}
-            ${thinkingHTML}
           </div>
         </div>
       </div>

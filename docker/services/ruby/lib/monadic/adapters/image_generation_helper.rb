@@ -71,35 +71,104 @@ module MonadicHelper
 
   def generate_image_with_grok(prompt: "")
     require 'json'
-    
+
     command = "image_generator_grok.rb -p \"#{prompt}\""
-    
-    # Get the command output with its standard prefix
-    result = send_command(command: command, container: "ruby")
-    
-    # Extract JSON from the command output
-    # The send_command adds a prefix "Command has been executed with the following output: \n"
-    # We need to extract the actual JSON part
+
+    # Use block form to get detailed stdout/stderr/status for better error reporting
+    stdout = ""
+    stderr = ""
+    status = nil
+
+    send_command(command: command, container: "ruby") do |out, err, stat|
+      stdout = out
+      stderr = err
+      status = stat
+    end
+
+    # Extract JSON from stdout
     begin
-      # Remove the standard command prefix to get the clean JSON
-      json_start = result.index('{')
+      json_start = stdout.index('{')
       if json_start
-        json_str = result[json_start..-1]
+        json_str = stdout[json_start..-1]
         parsed = JSON.parse(json_str)
-        # Return the clean JSON string for the LLM to process
         return JSON.generate(parsed)
       else
-        # No JSON found in output
         return JSON.generate({
           success: false,
-          message: "No valid JSON response from image generator"
+          message: "No valid JSON response from image generator",
+          raw_stdout: stdout,
+          raw_stderr: stderr
         })
       end
     rescue JSON::ParserError => e
-      # Return error in expected format
       return JSON.generate({
         success: false,
-        message: "Failed to parse image generator response: #{e.message}"
+        message: "Failed to parse image generator response: #{e.message}",
+        raw_stdout: stdout,
+        raw_stderr: stderr
+      })
+    end
+  end
+
+  # Adapter for OpenAI Sora video generation
+  # Accepts keyword args from function call: prompt, model, size, seconds, image_path, remix_video_id
+  def generate_video_with_sora(prompt:, model: "sora-2", size: "1280x720", seconds: "8",
+                                image_path: nil, remix_video_id: nil, max_wait: 420)
+    require 'json'
+
+    # Build CLI command
+    parts = []
+    parts << "video_generator_openai.rb"
+    parts << "-p \"#{prompt}\""
+    parts << "-m #{model}"
+    parts << "-s \"#{size}\""
+    parts << "-d #{seconds}"
+    parts << "--max-wait #{max_wait}"
+
+    # Handle image-to-video
+    if image_path && !image_path.to_s.strip.empty?
+      parts << "-i \"#{image_path}\""
+    end
+
+    # Handle remix
+    if remix_video_id && !remix_video_id.to_s.strip.empty?
+      parts << "-r \"#{remix_video_id}\""
+    end
+
+    cmd = parts.join(' ')
+
+    # Use block form to get detailed stdout/stderr/status for better error reporting
+    stdout = ""
+    stderr = ""
+    status = nil
+
+    send_command(command: cmd, container: "ruby") do |out, err, stat|
+      stdout = out
+      stderr = err
+      status = stat
+    end
+
+    # Extract JSON from stdout
+    begin
+      json_start = stdout.index('{')
+      if json_start
+        json_str = stdout[json_start..-1]
+        parsed = JSON.parse(json_str)
+        return JSON.generate(parsed)
+      else
+        return JSON.generate({
+          success: false,
+          error: "No valid JSON response from video generator",
+          raw_stdout: stdout,
+          raw_stderr: stderr
+        })
+      end
+    rescue JSON::ParserError => e
+      return JSON.generate({
+        success: false,
+        error: "Failed to parse video generator response: #{e.message}",
+        raw_stdout: stdout,
+        raw_stderr: stderr
       })
     end
   end

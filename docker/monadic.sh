@@ -1461,9 +1461,13 @@ start_docker_compose() {
     ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
   fi
 
+  # Wait for all containers to be fully running before listing
+  # This prevents race conditions where containers are in 'restarting' state
+  sleep 3
+
   local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")
 
-  if [[ "$1" != "silent" ]]; then
+  if [[ "$1" != "silent" ]] && [[ -n "${containers}" ]]; then
     echo "[HTML]: <hr /><p><b>Running Containers</b></p>"
     echo "[HTML]: <p>You can directly access the containers using the following commands:</p>"
     list_containers="<ul>"

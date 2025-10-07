@@ -2602,8 +2602,12 @@ let loadedApp = "Chat";
         // Additional UI operations specific to our application context
         if (handled) {
           $("#select-role").prop("disabled", false);
-          $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
-          
+
+          // Only update status-message if we're not currently calling functions
+          if (!callingFunction) {
+            $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
+          }
+
           // Reset UI panels and indicators
           $("#temp-card").hide();
           $("#indicator").hide();
@@ -3435,11 +3439,17 @@ let loadedApp = "Chat";
           const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
           setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
         } else {
-          const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          // Only show "Ready" if we're not currently calling functions
+          if (!callingFunction) {
+            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          }
         }
 
-        $("#monadic-spinner").hide();
+        // Only hide spinner if we're not calling functions
+        if (!callingFunction) {
+          $("#monadic-spinner").hide();
+        }
         break;
       }
       case "pdf_titles": {

@@ -26,7 +26,7 @@ The table below shows which apps are available for which AI model providers.
 | Voice Interpreter | ✅ | | ✅ | | | | | | |
 | Novel Writer | ✅ | | | | | | | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
-| Video Generator | | | | | ✅ | | | | |
+| Video Generator | ✅ | | | | ✅ | | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Mermaid Grapher | ✅ | | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | | |
@@ -230,35 +230,69 @@ Image Generator is available with the providers indicated in the availability ta
 
 ![Video Generator app icon](../assets/icons/video-generator.png ':size=40')
 
-This application generates videos using Google's Veo model through the Gemini API. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
+This application generates videos using state-of-the-art AI models. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
-Model versions (Veo 3):
+**Available Providers:**
+
+#### OpenAI (Sora 2)
+Model versions:
+- `sora-2` — fast model for quick iterations and prototyping (DEFAULT)
+- `sora-2-pro` — high-quality model for production-ready output (slower, more expensive)
+
+**Model Selection Policy:**
+- By default, the assistant always uses `sora-2` (cost-effective, fast)
+- `sora-2-pro` is used ONLY when you explicitly request high quality using keywords like:
+  - "high quality", "production", "professional", "pro", "final version", "publish"
+  - "高品質", "本番用", "プロ", "最終版", "公開用" (Japanese)
+- If your request suggests professional use without explicit keywords, the assistant will ask before choosing `sora-2-pro`
+
+**Specifications:**
+- Supported sizes: 1280x720, 1920x1080, 1080x1920 (portrait), 720x1280 (portrait)
+- Duration: 4, 8, or 16 seconds
+- Default: 1280x720, 8 seconds, sora-2 model
+
+**Content Restrictions:**
+- Only content suitable for audiences under 18
+- No copyrighted characters or music
+- No real people (including public figures)
+- No images with human faces
+
+#### Google Gemini (Veo 3)
+Model versions:
 - `veo-3.0-fast-generate-001` — default (faster turnaround, good quality)
 - `veo-3.0-generate-001` — higher quality (slower)
 
-By default, the assistant uses the fast model. If you prefer higher quality, indicate so in your request (e.g., “use the quality model”); the tool switches accordingly.
+By default, the assistant uses the fast model. If you prefer higher quality, indicate so in your request (e.g., "use the quality model").
+
+**Specifications:**
+- Aspect ratio: 16:9 only (Veo 3 limitation)
+- Resolution: 720p
+- Frame rate: 24 fps
+- Duration: ~8 seconds
+- Person generation control: Option to allow or restrict generation of videos containing people
 
 **Key Features:**
 - **Text-to-video generation**: Create videos from text descriptions
 - **Image-to-video generation**: Animate existing images by using them as the first frame
-- **Aspect ratio options**: Choose between landscape (16:9) and portrait (9:16) formats
-- **Person generation control**: Option to allow or restrict generation of videos containing people
-
+- **Remix (OpenAI only)**: Modify existing videos with targeted adjustments
+- **Multiple aspect ratios**: Choose between landscape and portrait formats
 
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
-2. For image-to-video: Upload an image and describe how it should be animated
-3. Specify the desired aspect ratio and person generation preferences
-4. The AI will process your request using Google's Veo model
+   - Include shot type, subject, action, setting, lighting, and camera movement
+2. For image-to-video: Upload an image to the shared folder and describe how it should be animated
+3. For remix (OpenAI only): After generating a video, request modifications
+4. Specify quality preferences if needed (OpenAI: use keywords; Gemini: ask for quality model)
 
-?> **Note:** Video generation typically takes 2–6 minutes. Using the fast model helps reduce turnaround time. Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
+?> **Note:** Video generation typically takes 2–6 minutes (OpenAI) or 11 seconds to 6 minutes (Gemini). Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 
 **Example requests:**
-- "Create a video of a sunset over mountains" (text-to-video)
-- "Turn this image into a video of waves gently moving" (image-to-video with uploaded image)
-- "Generate a vertical video of a dancing robot" (9:16 aspect ratio)
+- "Create a video of a sunset over mountains" → text-to-video with sora-2
+- "高品質なマーケティング動画を作成" → text-to-video with sora-2-pro
+- "Turn this image into a video of waves gently moving" → image-to-video with uploaded image
+- "Make the video more colorful" (after generating) → remix with OpenAI
 
-Video Generator is available exclusively with Google Gemini models.
+Video Generator is available with **OpenAI** (Sora 2) and **Google Gemini** (Veo 3) models.
 
 ### Mail Composer
 

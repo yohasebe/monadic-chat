@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
       args:
         PROJECT_TAG: "monadic-chat"
+        GEMS_FINGERPRINT: ${GEMS_FINGERPRINT:-unknown}
     container_name: monadic-chat-ruby-container
     environment:
       HOST_OS: ${HOST_OS}

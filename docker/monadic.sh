@@ -961,6 +961,15 @@ build_docker_compose() {
     help_export_id=$(cat "$help_export_file")
   fi
 
+  # Calculate gems fingerprint for Ruby container labeling
+  local gems_fingerprint
+  if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
+    gems_fingerprint=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+  else
+    gems_fingerprint="unknown"
+  fi
+  export GEMS_FINGERPRINT="$gems_fingerprint"
+
   # Read install options for Python container build args
   local config_env="${HOME_DIR}/monadic/config/env"
   read_cfg_bool() {
@@ -996,7 +1005,7 @@ build_docker_compose() {
   local PYOPT_TRANSFORMERS=$(read_cfg_bool "PYOPT_TRANSFORMERS" false)
   local IMGOPT_IMAGEMAGICK=$(read_cfg_bool "IMGOPT_IMAGEMAGICK" false)
 
-  # Export install options as environment variables for compose.yml to reference
+  # Export install options and gems fingerprint as environment variables for compose.yml to reference
   export INSTALL_LATEX PYOPT_NLTK PYOPT_SPACY PYOPT_SCIKIT PYOPT_GENSIM PYOPT_LIBROSA PYOPT_MEDIAPIPE PYOPT_TRANSFORMERS IMGOPT_IMAGEMAGICK
 
   # Debug: log the actual command being executed

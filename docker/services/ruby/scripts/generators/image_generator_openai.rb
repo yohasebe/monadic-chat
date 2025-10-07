@@ -29,10 +29,10 @@ parser = OptionParser.new do |opts|
     end
   end
 
-  opts.on("-m", "--model MODEL", "Model: dall-e-2, dall-e-3, gpt-image-1") do |model|
+  opts.on("-m", "--model MODEL", "Model: dall-e-2, dall-e-3, gpt-image-1, gpt-image-1-mini") do |model|
     options[:model] = model
-    unless %w[dall-e-2 dall-e-3 gpt-image-1].include?(model)
-      puts "ERROR: Invalid model. Allowed models are dall-e-2, dall-e-3, gpt-image-1."
+    unless %w[dall-e-2 dall-e-3 gpt-image-1 gpt-image-1-mini].include?(model)
+      puts "ERROR: Invalid model. Allowed models are dall-e-2, dall-e-3, gpt-image-1, gpt-image-1-mini."
       exit
     end
   end
@@ -88,10 +88,10 @@ parser = OptionParser.new do |opts|
 end.parse!
 
 
-if options[:model] == "gpt-image-1"
+if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
 
   unless %w[low medium high auto].include?(options[:quality])
-    puts "WARNING: Invalid quality '#{options[:quality]}' for gpt-image-1. Using 'auto' instead."
+    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
     options[:quality] = "auto"
   end
 else
@@ -209,18 +209,19 @@ def generate_image(options, num_retrials = 3)
       
       # Add response_format only for DALL-E models
 
-      if options[:model] != "gpt-image-1"
-        body[:response_format] = "b64_json"
-        body[:size] = options[:size] if options[:size]
-        body[:quality] = options[:quality] if options[:quality]
-      else
-        # GPT Image 1 specific parameters
+      if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
+        # GPT Image models specific parameters
 
         body[:size] = options[:size] if options[:size]
         body[:quality] = options[:quality] if options[:quality]
         body[:output_format] = options[:output_format] if options[:output_format]
         body[:background] = options[:background] if options[:background]
         body[:output_compression] = options[:output_compression] if options[:output_compression]
+      else
+        # DALL-E models use b64_json format
+        body[:response_format] = "b64_json"
+        body[:size] = options[:size] if options[:size]
+        body[:quality] = options[:quality] if options[:quality]
       end
       
       puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
@@ -229,19 +230,19 @@ def generate_image(options, num_retrials = 3)
       
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
-      
-      if options[:model] == "gpt-image-1"
-        # For gpt-image-1, prepare multipart form with image[] array
+
+      if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
+        # For GPT Image models, prepare multipart form with image[] array
 
         form = {}
-        
+
         # Add basic parameters
 
         form[:model] = options[:model]
         form[:prompt] = options[:prompt]
         form[:n] = options[:n].to_s
-        
-        # Add specific parameters for gpt-image-1
+
+        # Add specific parameters for GPT Image models
 
         form[:size] = options[:size] if options[:size]
         form[:quality] = options[:quality] if options[:quality]

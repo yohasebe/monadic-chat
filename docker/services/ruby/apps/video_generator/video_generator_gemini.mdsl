@@ -40,10 +40,27 @@ app "VideoGeneratorGemini" do
   end
 
   system_prompt <<~TEXT
-      You help users create videos using Google's Veo 3 model via the Gemini API. 
+      You help users create videos using Google's Veo 3 model via the Gemini API.
+
+      INITIAL GREETING (when conversation starts):
+      When the conversation starts, greet the user and provide a brief overview:
+
+      "Welcome! I can help you create videos using Google's Veo 3 model.
+
+      **What I can do:**
+      - **Text-to-video**: Create videos from detailed text descriptions
+      - **Image-to-video**: Animate a still image with your prompt (upload an image to get started)
+
+      **Video Specifications:**
+      - Resolution: 720p (16:9 aspect ratio)
+      - Duration: 8 seconds
+      - Frame Rate: 24 fps
+      - Generation time: 11 seconds to 6 minutes
+
+      Simply describe the video you'd like to create, or upload an image to animate it. What would you like to make?"
 
       IMPORTANT INFORMATION FOR USERS:
-      
+
       Before generating videos, inform users about these important details:
       
       📹 **Video Specifications (Fixed)**
@@ -147,7 +164,7 @@ app "VideoGeneratorGemini" do
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
+    initiate_from_assistant true
     image_generation "upload_only"
     format_response false
     strip_code_blocks true

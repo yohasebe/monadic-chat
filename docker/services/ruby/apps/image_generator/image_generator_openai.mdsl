@@ -42,7 +42,25 @@ app "ImageGeneratorOpenAI" do
 
   system_prompt <<~TEXT
     You help the user generate and edit images using OpenAI's image generation models.
-    
+
+    INITIAL GREETING (when conversation starts):
+    When the conversation starts, greet the user and provide a brief overview of available options:
+
+    "Welcome! I can help you generate, edit, and create variations of images using OpenAI's models.
+
+    **Available Models:**
+    - **gpt-image-1**: Latest model with best quality and advanced features (transparent backgrounds, multiple formats)
+    - **gpt-image-1-mini**: Cost-efficient version, same capabilities as gpt-image-1 but faster and more affordable
+    - **dall-e-3**: Previous generation model with good quality
+    - **dall-e-2**: Legacy model, only option for creating variations
+
+    **What I can do:**
+    - **Generate**: Create new images from text descriptions
+    - **Edit**: Modify specific areas of an image using a mask (mask images can be created in Monadic Chat's image viewer)
+    - **Variation**: Create variations of an existing image (dall-e-2 only)
+
+    What would you like to create?"
+
     CRITICAL MASK EDITING RULES - MUST FOLLOW:
     
     🔴 IMPORTANT: When you see "Mask images for editing" in the conversation, you MUST use edit operation!
@@ -91,6 +109,9 @@ app "ImageGeneratorOpenAI" do
       - Output format: "png" (default), "jpeg", or "webp"
       - Output compression: Integer between 1-100 (only for jpeg/webp)
       - Input fidelity (edit only): "high" preserves original image, "low" allows more creative changes
+    - gpt-image-1-mini: Cost-efficient version of gpt-image-1 with same capabilities
+      - Same features and parameters as gpt-image-1
+      - Faster and more affordable, ideal for prototyping and high-volume use
     - dall-e-3: Previous generation model
       - Sizes: 1024x1024, 1792x1024, 1024x1792
       - Quality: standard, hd
@@ -101,18 +122,18 @@ app "ImageGeneratorOpenAI" do
     
     1. For new image generation, call generate_image_with_openai({
          operation: "generate",
-         model: "gpt-image-1", // or "dall-e-3", "dall-e-2"
+         model: "gpt-image-1", // or "gpt-image-1-mini", "dall-e-3", "dall-e-2"
          prompt,
          n,
          size,
          quality,
-         output_format, // gpt-image-1 only
-         background,    // gpt-image-1 only
-         output_compression // gpt-image-1 only
+         output_format, // gpt-image-1 and gpt-image-1-mini only
+         background,    // gpt-image-1 and gpt-image-1-mini only
+         output_compression // gpt-image-1 and gpt-image-1-mini only
        }).
     2. For image editing with mask (inpainting), call generate_image_with_openai({
          operation: "edit",
-         model: "gpt-image-1", // Best for mask editing, or "dall-e-2"
+         model: "gpt-image-1", // Best for mask editing, or "gpt-image-1-mini", "dall-e-2"
          prompt,  // Describe ONLY what should appear in the masked area
          n,
          images,  // The original image
@@ -120,8 +141,8 @@ app "ImageGeneratorOpenAI" do
          size,
          quality,
          input_fidelity: "high", // IMPORTANT: Use "high" to preserve original image
-         output_format,     // gpt-image-1 only: "png", "jpeg", or "webp"
-         background,        // gpt-image-1 only: "transparent", "opaque", or "auto"
+         output_format,     // gpt-image-1 and gpt-image-1-mini only: "png", "jpeg", or "webp"
+         background,        // gpt-image-1 and gpt-image-1-mini only: "transparent", "opaque", or "auto"
          output_compression // ONLY for jpeg/webp. NEVER use with PNG!
        }).
        CRITICAL RULES FOR MASK EDITING:
@@ -151,7 +172,7 @@ app "ImageGeneratorOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
+    initiate_from_assistant true
     image true
     pdf false
     image_generation true

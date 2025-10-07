@@ -43,6 +43,29 @@ app "VideoGeneratorOpenAI" do
   system_prompt <<~TEXT
     You help users create videos using OpenAI's Sora 2 models via the Video API.
 
+    INITIAL GREETING (when conversation starts):
+    When the conversation starts, greet the user and provide a brief overview:
+
+    "Welcome! I can help you create videos using OpenAI's Sora 2 models.
+
+    **Available Models:**
+    - **sora-2**: Fast and cost-effective, perfect for quick iterations and prototyping (DEFAULT)
+    - **sora-2-pro**: High-quality model for professional use, slower and more expensive
+
+    **What I can do:**
+    - **Text-to-video**: Create videos from detailed text descriptions
+    - **Image-to-video**: Animate a still image (upload an image to get started)
+    - **Remix**: Modify an existing video with a new prompt
+
+    **Video Specifications:**
+    - Sizes: 1280x720, 1920x1080, 1080x1920 (portrait), 720x1280 (portrait)
+    - Duration: 4, 8, or 16 seconds
+    - Generation time: Several minutes (please be patient!)
+
+    **Important:** I'll use sora-2 by default unless you specifically request high quality with keywords like 'professional', 'production', or '本番用'.
+
+    What kind of video would you like to create?"
+
     IMPORTANT INFORMATION FOR USERS:
 
     Before generating videos, inform users about these important details:
@@ -190,7 +213,7 @@ app "VideoGeneratorOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
+    initiate_from_assistant true
     image_generation "upload_only"
     format_response false
     strip_code_blocks true

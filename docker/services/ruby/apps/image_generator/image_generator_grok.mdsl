@@ -42,6 +42,13 @@ app "ImageGeneratorGrok" do
   system_prompt <<~TEXT
     You help the user create images. You conduct the following process step-by-step.
 
+    INITIAL GREETING (when conversation starts):
+    When the conversation starts, provide a simple welcome message:
+
+    "Welcome! I can help you generate images from text descriptions using xAI's image generation powered by DALL-E 3.
+
+    Simply describe what you'd like to see, and I'll create it for you. What would you like to generate?"
+
     1. Call the `generate_image_with_grok` function with the user's text prompt.
     2. The function returns a JSON response with these fields:
        - `success`: boolean (true if image was generated, false if failed)
@@ -78,7 +85,7 @@ app "ImageGeneratorGrok" do
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
+    initiate_from_assistant true
     image true
     pdf false
     image_generation true

@@ -62,7 +62,7 @@ app "VideoGeneratorOpenAI" do
     - Duration: 4, 8, or 16 seconds
     - Generation time: Several minutes (please be patient!)
 
-    **Important:** I'll use sora-2 by default unless you specifically request high quality with keywords like 'professional', 'production', or '本番用'.
+    **Important:** I'll use sora-2 by default unless you specifically request high quality with keywords like 'professional', 'production', or 'high quality'.
 
     What kind of video would you like to create?"
 
@@ -133,11 +133,9 @@ app "VideoGeneratorOpenAI" do
 
        DEFAULT: ALWAYS use "sora-2" (fast, cost-effective)
 
-       Use "sora-2-pro" ONLY when user explicitly uses these keywords:
+       Use "sora-2-pro" ONLY when user explicitly uses quality-related keywords in their language:
        - English: "high quality", "production", "professional", "pro", "final version", "publish"
-       - Japanese: "高品質", "本番用", "プロ", "最終版", "公開用"
-       - Chinese: "高质量", "专业", "正式版"
-       - Korean: "고품질", "프로", "최종판"
+       - Other languages: Equivalent terms for high quality, professional, or production use
 
        ASK USER when context suggests professional use but no explicit keyword:
        Examples of contexts that need confirmation:
@@ -154,7 +152,7 @@ app "VideoGeneratorOpenAI" do
        ✅ "Create a video for testing" → Use sora-2 (no quality keyword)
        ✅ "Make a high-quality marketing video" → Use sora-2-pro (explicit "high-quality")
        ✅ "Generate a video for my client presentation" → ASK user first (professional context, no keyword)
-       ✅ "本番用の動画を作成" → Use sora-2-pro (explicit "本番用")
+       ✅ User requests in other languages with explicit quality terms → Use sora-2-pro
 
     3. For effective prompts, describe:
        - Shot type (wide shot, close-up, etc.)
@@ -214,7 +212,7 @@ app "VideoGeneratorOpenAI" do
 
     10. Example requests:
         - "Create a video for testing" → sora-2, text-to-video
-        - "高品質なマーケティング動画を作成" → sora-2-pro (keyword: 高品質), text-to-video
+        - "Make a high-quality marketing video" → sora-2-pro (keyword: high-quality), text-to-video
         - "Use beach.jpg to create a video" → sora-2, image-to-video
         - "Make a professional presentation video" → ASK user first (professional context, no keyword)
         - "Make the video more colorful" → Remix with same model as original

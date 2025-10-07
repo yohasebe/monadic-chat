@@ -1442,16 +1442,19 @@ start_docker_compose() {
   # Check SELENIUM_ENABLED and manage Selenium container accordingly
   local selenium_enabled=$(read_config_bool "SELENIUM_ENABLED" "true")
   if [ "$selenium_enabled" = "true" ]; then
-    # Start Selenium container if enabled and image exists
+    # Start Selenium container if enabled, image exists, and container is not already running
     if ${DOCKER} images | grep -q "yohasebe/selenium"; then
-      echo "[HTML]: <p>Starting Selenium container...</p>"
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
+      # Check if Selenium container is already running
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+        echo "[HTML]: <p>Starting Selenium container...</p>"
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
 
-      # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
-      # Wait a moment for Selenium to start
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+        # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
+        # Wait a moment for Selenium to start
+        sleep 2
+        echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
+        ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+      fi
     else
       echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium is enabled but container image not found.</strong></p>"
       echo "[HTML]: <p>Please build the Selenium container from the menu: <strong>Actions → Build Selenium Container</strong></p>"
@@ -1460,16 +1463,19 @@ start_docker_compose() {
   fi
   # Note: If SELENIUM_ENABLED=false, we simply don't start it. No need to stop/remove existing containers.
 
-  # Start Ollama container if the image exists (it uses a profile so needs explicit start)
+  # Start Ollama container if the image exists and container is not already running (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
-    echo "[HTML]: <p>Starting Ollama container...</p>"
-    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
+    # Check if Ollama container is already running
+    if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ollama-container$"; then
+      echo "[HTML]: <p>Starting Ollama container...</p>"
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
 
-    # Restart Ruby container to update OLLAMA_AVAILABLE environment variable
-    # Wait a moment for Ollama to start
-    sleep 2
-    echo "[HTML]: <p>Updating Ruby container to detect Ollama...</p>"
-    ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+      # Restart Ruby container to update OLLAMA_AVAILABLE environment variable
+      # Wait a moment for Ollama to start
+      sleep 2
+      echo "[HTML]: <p>Updating Ruby container to detect Ollama...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+    fi
   fi
 
   # Wait for all containers to be fully running before listing

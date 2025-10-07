@@ -183,19 +183,118 @@
           ${stylesHTML}
           <style>
             /* Additional print-specific styles */
+            * {
+              box-sizing: border-box;
+            }
+
             body {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               line-height: 1.6;
               color: #333;
               max-width: 100%;
               margin: 0;
-              padding: 0;
+              padding: 20px;
+              background: white;
+            }
+
+            .print-content {
+              width: 100%;
+              max-width: 100%;
+              overflow: visible;
+            }
+
+            .messages-container {
+              width: 100%;
+              max-width: 100%;
+            }
+
+            @page {
+              size: A4;
+              margin: 1cm;
             }
 
             @media print {
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+
               body {
                 margin: 0;
                 padding: 0;
+                background: white;
+                overflow: visible;
+              }
+
+              .print-content {
+                width: 100%;
+                overflow: visible;
+              }
+
+              .messages-container {
+                width: 100%;
+                overflow: visible;
+              }
+
+              /* Prevent page breaks inside message cards when possible */
+              .card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                margin-bottom: 1rem;
+                overflow: visible;
+              }
+
+              /* If card is too long, allow breaking but keep header/body together */
+              .card-header {
+                page-break-after: avoid;
+                break-after: avoid;
+              }
+
+              .card-body {
+                page-break-before: avoid;
+                break-before: avoid;
+              }
+
+              /* Keep header on first page */
+              .print-content > div:first-child {
+                page-break-after: avoid;
+                break-after: avoid;
+              }
+
+              /* Handle images properly across pages */
+              img {
+                max-width: 100%;
+                height: auto;
+                page-break-inside: avoid;
+                break-inside: avoid;
+              }
+
+              /* Ensure code blocks don't break badly */
+              pre {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow: visible;
+              }
+
+              code {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+              }
+
+              /* Ensure tables render properly */
+              table {
+                page-break-inside: avoid;
+                break-inside: avoid;
+                width: 100%;
+              }
+
+              /* Remove any fixed positioning or transforms */
+              * {
+                position: static !important;
+                transform: none !important;
               }
             }
           </style>

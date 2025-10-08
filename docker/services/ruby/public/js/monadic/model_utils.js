@@ -148,6 +148,23 @@ function extractDateSuffix(modelName) {
     }
   }
 
+  // YYMM format (Mistral) - 2509 means 2025-09
+  const yymm = modelName.match(/-(\d{4})$/);
+  if (yymm) {
+    const dateStr = yymm[1];
+    const yy = parseInt(dateStr.substring(0, 2));
+    const mm = parseInt(dateStr.substring(2, 4));
+    // Validate: year 20-30 (2020-2030), month 01-12
+    if (yy >= 20 && yy <= 30 && mm >= 1 && mm <= 12) {
+      const year = 2000 + yy;
+      return {
+        dateString: dateStr,
+        parsedDate: new Date(year, mm - 1, 1),
+        format: 'YYMM'
+      };
+    }
+  }
+
   // -NNN format (Gemini version numbers like -001, -002)
   const nnn = modelName.match(/-(\d{3})$/);
   if (nnn) {
@@ -200,6 +217,8 @@ function getBaseModelName(modelName) {
       return modelName.replace(/-\d{2}-\d{4}$/, '');
     case 'MM-DD':
       return modelName.replace(/-\d{2}-\d{2}$/, '');
+    case 'YYMM':
+      return modelName.replace(/-\d{4}$/, '');
     case 'NNN':
       return modelName.replace(/-\d{3}$/, '');
     case 'exp-MMDD':

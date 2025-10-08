@@ -159,6 +159,17 @@ module Monadic
             end
           end
 
+          # YYMM format (Mistral) - 2509 means 2025-09
+          if model_name =~ /-(\d{4})$/
+            date_str = $1
+            yy = date_str[0..1].to_i
+            mm = date_str[2..3].to_i
+            # Validate: year 20-30 (2020-2030), month 01-12
+            if yy >= 20 && yy <= 30 && mm >= 1 && mm <= 12
+              return model_name.sub(/-\d{4}$/, '')
+            end
+          end
+
           # -NNN format (Gemini version numbers like -001, -002)
           if model_name =~ /-\d{3}$/
             return model_name.sub(/-\d{3}$/, '')

@@ -80,6 +80,106 @@ function getProviderKey(group) {
 }
 
 /**
+ * Extract date suffix from model name and parse it
+ * @param {String} modelName - The model name
+ * @returns {Object|null} Object with {dateString, parsedDate, format} or null if no date
+ */
+function extractDateSuffix(modelName) {
+  if (!modelName || typeof modelName !== 'string') return null;
+
+  // YYYY-MM-DD format (OpenAI, xAI)
+  const yyyymmddDash = modelName.match(/-(\d{4})-(\d{2})-(\d{2})$/);
+  if (yyyymmddDash) {
+    const [_, year, month, day] = yyyymmddDash;
+    return {
+      dateString: `${year}-${month}-${day}`,
+      parsedDate: new Date(parseInt(year), parseInt(month) - 1, parseInt(day)),
+      format: 'YYYY-MM-DD'
+    };
+  }
+
+  // YYYYMMDD format (Claude)
+  const yyyymmdd = modelName.match(/-(\d{8})$/);
+  if (yyyymmdd) {
+    const dateStr = yyyymmdd[1];
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6));
+    const day = parseInt(dateStr.substring(6, 8));
+    // Validate it's a real date
+    if (year >= 2020 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return {
+        dateString: dateStr,
+        parsedDate: new Date(year, month - 1, day),
+        format: 'YYYYMMDD'
+      };
+    }
+  }
+
+  // MM-YYYY format (Cohere)
+  const mmyyyy = modelName.match(/-(\d{2})-(\d{4})$/);
+  if (mmyyyy) {
+    const [_, month, year] = mmyyyy;
+    const m = parseInt(month);
+    const y = parseInt(year);
+    if (y >= 2020 && y <= 2030 && m >= 1 && m <= 12) {
+      return {
+        dateString: `${month}-${year}`,
+        parsedDate: new Date(y, m - 1, 1),
+        format: 'MM-YYYY'
+      };
+    }
+  }
+
+  // MM-DD format (Gemini) - requires context to distinguish from YYYY suffix
+  const mmdd = modelName.match(/-(\d{2})-(\d{2})$/);
+  if (mmdd) {
+    const [_, first, second] = mmdd;
+    const f = parseInt(first);
+    const s = parseInt(second);
+    // Heuristic: if first number is 01-12 and second is 01-31, likely MM-DD
+    if (f >= 1 && f <= 12 && s >= 1 && s <= 31) {
+      // Assume current year
+      const currentYear = new Date().getFullYear();
+      return {
+        dateString: `${first}-${second}`,
+        parsedDate: new Date(currentYear, f - 1, s),
+        format: 'MM-DD'
+      };
+    }
+  }
+
+  // -NNN format (Gemini version numbers like -001, -002)
+  const nnn = modelName.match(/-(\d{3})$/);
+  if (nnn) {
+    const num = parseInt(nnn[1]);
+    // This is a version number, not a date, but we treat it as sortable
+    return {
+      dateString: nnn[1],
+      parsedDate: new Date(2020, 0, num), // Pseudo-date for sorting
+      format: 'NNN'
+    };
+  }
+
+  // -exp-MMDD format (Gemini experimental)
+  const expMmdd = modelName.match(/-exp-(\d{2})(\d{2})$/);
+  if (expMmdd) {
+    const [_, month, day] = expMmdd;
+    const m = parseInt(month);
+    const d = parseInt(day);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const currentYear = new Date().getFullYear();
+      return {
+        dateString: `exp-${month}${day}`,
+        parsedDate: new Date(currentYear, m - 1, d),
+        format: 'exp-MMDD'
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Get base model name by removing date suffixes
  * @param {String} modelName - The model name to normalize
  * @returns {String} Base model name without date suffix
@@ -87,52 +187,57 @@ function getProviderKey(group) {
 function getBaseModelName(modelName) {
   if (!modelName || typeof modelName !== 'string') return modelName;
 
-  // Gemini exp pattern: -exp-MMDD (most specific, check first)
-  if (/-exp-\d{4}$/.test(modelName)) {
-    return modelName.replace(/-exp-\d{4}$/, '');
-  }
+  const dateInfo = extractDateSuffix(modelName);
+  if (!dateInfo) return modelName;
 
-  // Gemini version pattern: -NNN
-  if (/-\d{3}$/.test(modelName)) {
-    return modelName.replace(/-\d{3}$/, '');
+  // Remove the date suffix based on format
+  switch (dateInfo.format) {
+    case 'YYYY-MM-DD':
+      return modelName.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+    case 'YYYYMMDD':
+      return modelName.replace(/-\d{8}$/, '');
+    case 'MM-YYYY':
+      return modelName.replace(/-\d{2}-\d{4}$/, '');
+    case 'MM-DD':
+      return modelName.replace(/-\d{2}-\d{2}$/, '');
+    case 'NNN':
+      return modelName.replace(/-\d{3}$/, '');
+    case 'exp-MMDD':
+      return modelName.replace(/-exp-\d{4}$/, '');
+    default:
+      return modelName;
   }
-
-  // Claude pattern: YYYYMMDD
-  if (/-\d{8}$/.test(modelName)) {
-    return modelName.replace(/-\d{8}$/, '');
-  }
-
-  // OpenAI pattern: YYYY-MM-DD
-  if (/-\d{4}-\d{2}-\d{2}$/.test(modelName)) {
-    return modelName.replace(/-\d{4}-\d{2}-\d{2}$/, '');
-  }
-
-  return modelName;
 }
 
 /**
- * Compare two model specs for equivalence (ignoring deprecated flag)
- * @param {Object} spec1 - First model spec
- * @param {Object} spec2 - Second model spec
- * @returns {Boolean} True if specs are equivalent
+ * Get the latest dated model from an array of dated models
+ * @param {Array} datedModels - Array of model names with date suffixes
+ * @returns {String} The model with the latest date
  */
-function areSpecsEquivalent(spec1, spec2) {
-  if (!spec1 || !spec2) return false;
+function getLatestDatedModel(datedModels) {
+  if (!datedModels || datedModels.length === 0) return null;
+  if (datedModels.length === 1) return datedModels[0];
 
-  // Create copies without deprecated flag
-  const s1 = {...spec1};
-  const s2 = {...spec2};
-  delete s1.deprecated;
-  delete s2.deprecated;
+  // Extract dates and sort
+  const modelsWithDates = datedModels.map(model => {
+    const dateInfo = extractDateSuffix(model);
+    return {
+      model,
+      dateInfo,
+      // If no date found, use epoch (will be sorted last)
+      sortDate: dateInfo ? dateInfo.parsedDate : new Date(0)
+    };
+  });
 
-  // Deep comparison
-  return JSON.stringify(s1) === JSON.stringify(s2);
+  // Sort by date (newest first)
+  modelsWithDates.sort((a, b) => b.sortDate - a.sortDate);
+
+  return modelsWithDates[0].model;
 }
 
 /**
  * Filter models to show only latest versions
- * Keeps: latest dated version OR dateless version for each base model
- * Exception: keeps both if specs differ
+ * Keeps: dateless version AND latest dated version for each base model
  * @param {Array} models - Array of model names
  * @returns {Array} Filtered array of model names
  */
@@ -168,25 +273,16 @@ function filterToLatestVersions(models) {
 
     if (dateless.length === 0) {
       // No dateless version, keep latest dated
-      const latest = dated.sort().reverse()[0];
+      const latest = getLatestDatedModel(dated);
       result.push(latest);
     } else if (dated.length === 0) {
       // No dated versions, keep dateless
       result.push(dateless[0]);
     } else {
-      // Both exist - check if specs differ
-      const datelessSpec = modelSpec[dateless[0]];
-      const latest = dated.sort().reverse()[0];
-      const latestSpec = modelSpec[latest];
-
-      if (areSpecsEquivalent(datelessSpec, latestSpec)) {
-        // Specs are same, keep only dateless
-        result.push(dateless[0]);
-      } else {
-        // Specs differ, keep both
-        result.push(dateless[0]);
-        result.push(latest);
-      }
+      // Both exist - keep both dateless and latest dated version
+      const latest = getLatestDatedModel(dated);
+      result.push(dateless[0]);
+      result.push(latest);
     }
   });
 

@@ -112,27 +112,56 @@ module Monadic
         #   claude-3-5-sonnet-20241022 -> claude-3-5-sonnet
         #   gemini-2.0-flash-001 -> gemini-2.0-flash
         #   gemini-2.0-flash-thinking-exp-1219 -> gemini-2.0-flash-thinking
+        #   command-a-vision-07-2025 -> command-a-vision
         def normalize_model_name(model_name)
           return model_name unless model_name.is_a?(String)
 
-          # Gemini exp pattern: -exp-MMDD (most specific, check first)
-          if model_name =~ /-exp-\d{4}$/
-            return model_name.sub(/-exp-\d{4}$/, '')
-          end
-
-          # Gemini version pattern: -NNN
-          if model_name =~ /-\d{3}$/
-            return model_name.sub(/-\d{3}$/, '')
-          end
-
-          # Claude pattern: YYYYMMDD
-          if model_name =~ /-\d{8}$/
-            return model_name.sub(/-\d{8}$/, '')
-          end
-
-          # OpenAI pattern: YYYY-MM-DD
+          # YYYY-MM-DD format (OpenAI, xAI)
           if model_name =~ /-\d{4}-\d{2}-\d{2}$/
             return model_name.sub(/-\d{4}-\d{2}-\d{2}$/, '')
+          end
+
+          # YYYYMMDD format (Claude) - validate it's a real date
+          if model_name =~ /-(\d{8})$/
+            date_str = $1
+            year = date_str[0..3].to_i
+            month = date_str[4..5].to_i
+            day = date_str[6..7].to_i
+            if year >= 2020 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31
+              return model_name.sub(/-\d{8}$/, '')
+            end
+          end
+
+          # MM-YYYY format (Cohere)
+          if model_name =~ /-(\d{2})-(\d{4})$/
+            month = $1.to_i
+            year = $2.to_i
+            if year >= 2020 && year <= 2030 && month >= 1 && month <= 12
+              return model_name.sub(/-\d{2}-\d{4}$/, '')
+            end
+          end
+
+          # MM-DD format (Gemini) - heuristic check
+          if model_name =~ /-(\d{2})-(\d{2})$/
+            first = $1.to_i
+            second = $2.to_i
+            if first >= 1 && first <= 12 && second >= 1 && second <= 31
+              return model_name.sub(/-\d{2}-\d{2}$/, '')
+            end
+          end
+
+          # -exp-MMDD format (Gemini experimental)
+          if model_name =~ /-exp-(\d{2})(\d{2})$/
+            month = $1.to_i
+            day = $2.to_i
+            if month >= 1 && month <= 12 && day >= 1 && day <= 31
+              return model_name.sub(/-exp-\d{4}$/, '')
+            end
+          end
+
+          # -NNN format (Gemini version numbers like -001, -002)
+          if model_name =~ /-\d{3}$/
+            return model_name.sub(/-\d{3}$/, '')
           end
 
           model_name

@@ -77,7 +77,8 @@ const modelSpec = {
     "supports_verbosity": true,
     "supports_structured_output": true,
     "api_type": "responses",
-    "supports_web_search": false,
+    "supports_web_search": true,
+    "supports_image_generation": true,
     "supports_pdf_upload": true,
     "skip_in_progress_events": true,
     "streaming_not_supported": true
@@ -91,7 +92,8 @@ const modelSpec = {
     "supports_verbosity": true,
     "supports_structured_output": true,
     "api_type": "responses",
-    "supports_web_search": false,
+    "supports_web_search": true,
+    "supports_image_generation": true,
     "supports_pdf_upload": true,
     "skip_in_progress_events": true,
     "streaming_not_supported": true

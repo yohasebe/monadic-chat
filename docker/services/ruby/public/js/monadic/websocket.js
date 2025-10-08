@@ -244,20 +244,23 @@ window.handleFragmentMessage = function(fragment) {
     if (window.debugFragments) {
       console.log('[Fragment Debug]', {
         content: text,
+        sequence: fragment.sequence,
         index: fragment.index,
         timestamp: fragment.timestamp || Date.now(),
         is_first: fragment.is_first,
+        lastSequence: window._lastProcessedSequence,
         lastIndex: window._lastProcessedIndex
       });
     }
-    
+
     // Skip empty fragments
     if (!text) return;
-    
+
     // Create or get temporary card
     let tempCard = $("#temp-card");
     if (!tempCard.length) {
       // Initialize tracking
+      window._lastProcessedSequence = -1;
       window._lastProcessedIndex = -1;
       
       // Only clear #chat if it exists and has content from old streaming approach
@@ -282,11 +285,23 @@ window.handleFragmentMessage = function(fragment) {
     } else if (fragment.start === true || fragment.is_first === true) {
       // If this is marked as the first fragment of a streaming response, clear the existing content
       $("#temp-card .card-text").empty();
+      window._lastProcessedSequence = -1;
       window._lastProcessedIndex = -1;
     }
-    
-    // Check for duplicate fragments by index
-    if (fragment.index !== undefined) {
+
+    // Prefer sequence number over index for duplicate detection
+    // Sequence is more reliable as it's incremented for each fragment sent
+    if (fragment.sequence !== undefined) {
+      if (window._lastProcessedSequence !== undefined && window._lastProcessedSequence >= fragment.sequence) {
+        // Skip duplicate or out-of-order fragments
+        if (window.debugFragments) {
+          console.log('[Fragment Debug] Skipping duplicate - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
+        }
+        return;
+      }
+      window._lastProcessedSequence = fragment.sequence;
+    } else if (fragment.index !== undefined) {
+      // Fallback to index-based detection for backwards compatibility
       if (window._lastProcessedIndex !== undefined && window._lastProcessedIndex >= fragment.index) {
         // Skip duplicate or out-of-order fragments
         if (window.debugFragments) {

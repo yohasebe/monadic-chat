@@ -2184,6 +2184,7 @@ module OpenAIHelper
     usage_total_tokens = nil
 
     chunk_count = 0
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
 
     reasoning_extract_text = lambda do |content_array|
       next "" unless content_array.is_a?(Array)
@@ -2339,28 +2340,30 @@ module OpenAIHelper
             when "response.output_text.delta"
               # Text fragment
               fragment = json["delta"]
-              
+
               # Debug logging for GPT-5 streaming issues
               if CONFIG["EXTRA_LOGGING"]
                 current_model = streaming_model || json["model"] || query["model"] || obj["model"] || body["model"]
                 if current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.include?("gpt-4.1"))
-                  STDERR.puts "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}"
+                  STDERR.puts "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{fragment_sequence}"
                 end
               end
-              
+
               if fragment && !fragment.empty?
                 id = json["response_id"] || json["item_id"] || "default"
                 texts[id] ||= ""
-                
-                # Add index for duplicate detection on client side
-                res = { 
-                  "type" => "fragment", 
+
+                # Use sequence number instead of text length for reliable ordering
+                # Increment sequence for each fragment sent
+                res = {
+                  "type" => "fragment",
                   "content" => fragment,
-                  "index" => texts[id].length,
+                  "sequence" => fragment_sequence,
                   "timestamp" => Time.now.to_f,
-                  "is_first" => texts[id].empty?
+                  "is_first" => fragment_sequence == 0
                 }
-                
+
+                fragment_sequence += 1
                 texts[id] += fragment
                 block&.call res
               end

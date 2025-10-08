@@ -5,6 +5,11 @@ require "http"
 require "json"
 require "optparse"
 require "fileutils"
+require_relative "../../lib/monadic/utils/ssl_configuration"
+
+if defined?(Monadic::Utils::SSLConfiguration)
+  Monadic::Utils::SSLConfiguration.configure!
+end
 
 # Parse command line arguments
 

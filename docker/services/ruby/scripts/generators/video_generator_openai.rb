@@ -5,15 +5,11 @@ require "json"
 require "optparse"
 require "fileutils"
 require "openssl"
+require_relative "../../lib/monadic/utils/ssl_configuration"
 
-# Configure SSL context - simplified for compatibility
-ssl_context = OpenSSL::SSL::SSLContext.new
-ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
-
-# Configure HTTP gem to use this SSL context
-HTTP.default_options = {
-  ssl_context: ssl_context
-}
+if defined?(Monadic::Utils::SSLConfiguration)
+  Monadic::Utils::SSLConfiguration.configure!
+end
 
 # Data paths to try (container path first, then local path)
 DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]

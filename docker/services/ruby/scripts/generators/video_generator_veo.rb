@@ -7,6 +7,11 @@ require "optparse"
 require "fileutils"
 require "open3"
 require "openssl"
+require_relative "../../lib/monadic/utils/ssl_configuration"
+
+if defined?(Monadic::Utils::SSLConfiguration)
+  Monadic::Utils::SSLConfiguration.configure!
+end
 
 # Define constants for API and configuration
 

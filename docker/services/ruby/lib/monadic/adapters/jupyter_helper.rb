@@ -1,3 +1,5 @@
+require 'shellwords'
+
 module MonadicHelper
 
   JUPYTER_RUN_TIMEOUT = 600
@@ -568,7 +570,7 @@ module MonadicHelper
       if notebook_filename
         # Return in the format expected by Grok's process_functions
         # This format allows extraction of the actual filename with timestamp
-        result = "Notebook '#{notebook_filename}' created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{notebook_filename}"
+        result = "Notebook #{notebook_filename} created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{notebook_filename}"
       else
         # For backward compatibility, handle old format responses
         jupyter_host = get_jupyter_host
@@ -662,8 +664,8 @@ module MonadicHelper
   # Delete a cell from notebook
   def delete_jupyter_cell(filename: "", index: 0)
     return "Error: Filename is required." if filename.empty?
-    
-    command = "jupyter_controller.py delete '#{filename}' #{index}"
+
+    command = "jupyter_controller.py delete #{Shellwords.shellescape(filename)} #{index}"
     send_command(command: command, container: "python")
   end
   
@@ -671,11 +673,8 @@ module MonadicHelper
   def update_jupyter_cell(filename: "", index: 0, content: "", cell_type: "code")
     return "Error: Filename is required." if filename.empty?
     return "Error: Content is required." if content.empty?
-    
-    # Escape content for shell command
-    escaped_content = content.gsub("'", "'\\''")
-    
-    command = "jupyter_controller.py update '#{filename}' #{index} '#{escaped_content}' #{cell_type}"
+
+    command = "jupyter_controller.py update #{Shellwords.shellescape(filename)} #{index} #{Shellwords.shellescape(content)} #{cell_type}"
     send_command(command: command, container: "python")
   end
   

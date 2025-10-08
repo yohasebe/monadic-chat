@@ -6,11 +6,11 @@ require "fileutils"
 
 RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
   let(:app_name) { "JupyterNotebookGrok" }
-  let(:app) { 
+  let(:app) {
     # Create a new instance of the app
     JupyterNotebookGrok.new rescue APPS[app_name]
   }
-  let(:data_dir) { File.expand_path("../../data", __dir__) }
+  let(:data_dir) { Monadic::Utils::Environment.data_path }
   
   before(:all) do
     # Ensure XAI_API_KEY is available
@@ -84,8 +84,8 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
         result2 = app.create_jupyter_notebook(filename: "notebook2")
         
         # Extract filenames from results
-        filename1 = result1.match(/([^\/]+\.ipynb)/)[1]
-        filename2 = result2.match(/([^\/]+\.ipynb)/)[1]
+        filename1 = result1.match(/Notebook\s+(\S+\.ipynb)/)[1]
+        filename2 = result2.match(/Notebook\s+(\S+\.ipynb)/)[1]
         
         expect(filename1).not_to eq(filename2)
         
@@ -102,7 +102,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
         app.run_jupyter(command: "start")
         sleep 2
         @notebook_path = app.create_jupyter_notebook(filename: "test")
-        @actual_filename = @notebook_path.match(/([^\/]+\.ipynb)/)[1]
+        @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
       end
       
       it "adds code cells to notebook" do
@@ -180,7 +180,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
         app.run_jupyter(command: "start")
         sleep 2
         @notebook_path = app.create_jupyter_notebook(filename: "test")
-        @actual_filename = @notebook_path.match(/([^\/]+\.ipynb)/)[1]
+        @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
         
         # Add some cells first
         cells = [
@@ -213,7 +213,7 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
         app.run_jupyter(command: "start")
         sleep 2
         @notebook_path = app.create_jupyter_notebook(filename: "test")
-        @actual_filename = @notebook_path.match(/([^\/]+\.ipynb)/)[1]
+        @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
         
         # Add a cell to update
         cells = [{ "cell_type" => "code", "source" => "print('Original')" }]
@@ -289,10 +289,10 @@ RSpec.describe "Jupyter Notebook Grok Integration", :e2e, :no_api do
       app.run_jupyter(command: "start")
       sleep 2
       @notebook_path = app.create_jupyter_notebook(filename: "test")
-      @actual_filename = @notebook_path.match(/([^\/]+\.ipynb)/)[1]
-      
+      @actual_filename = @notebook_path.match(/Notebook\s+(\S+\.ipynb)/)[1]
+
       result = app.delete_jupyter_cell(filename: @actual_filename, index: 999)
-      
+
       expect(result).to match(/out of range|invalid|error/i)
     end
   end

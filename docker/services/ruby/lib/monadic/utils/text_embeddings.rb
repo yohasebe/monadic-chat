@@ -321,8 +321,6 @@ class TextEmbeddings
     retries.times do |i|
       begin
         response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-          # Apply SSL configuration to avoid certificate verification issues
-          Monadic::Utils::SSLConfiguration.apply_to_net_http(http) if defined?(Monadic::Utils::SSLConfiguration)
           http.read_timeout = 900 # 15min
           http.open_timeout = 120 # 2min
           http.request(request)
@@ -406,8 +404,6 @@ class TextEmbeddings
       retries.times do |i|
         begin
           response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
-            # Apply SSL configuration to avoid certificate verification issues
-            Monadic::Utils::SSLConfiguration.apply_to_net_http(http) if defined?(Monadic::Utils::SSLConfiguration)
             http.read_timeout = 900 # 15min
             http.open_timeout = 120 # 2min
             http.request(request)

@@ -10,6 +10,7 @@ module Monadic
           config ||= {}
           adjust_default_params(config)
           apply_http_defaults(config)
+          patch_net_http_ssl(config)
         rescue StandardError => e
           log("SSL configuration failed: #{e.class}: #{e.message}", config)
         end
@@ -19,17 +20,30 @@ module Monadic
         def adjust_default_params(config)
           defaults = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
 
+          # Try to get and modify verify_flags if available
           verify_flags = defaults[:verify_flags]
-          verify_flags ||= begin
-            OpenSSL::SSL::SSLContext.new.verify_flags
-          rescue StandardError
-            nil
+          if verify_flags.nil?
+            # Try to get from a new SSLContext instance
+            begin
+              ctx = OpenSSL::SSL::SSLContext.new
+              verify_flags = ctx.respond_to?(:verify_flags) ? ctx.verify_flags : nil
+            rescue StandardError
+              verify_flags = nil
+            end
           end
 
           if verify_flags
+            # Disable CRL checks
             verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
             verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK_ALL if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
             defaults[:verify_flags] = verify_flags
+            log("CRL checks disabled via verify_flags", config)
+          else
+            # verify_flags not available, set options instead
+            # Option 0x4 disables CRL checks
+            defaults[:options] ||= 0
+            defaults[:options] |= OpenSSL::SSL::OP_NO_SSL_MASK if defined?(OpenSSL::SSL::OP_NO_SSL_MASK)
+            log("verify_flags not available, using options fallback", config)
           end
 
           defaults[:verify_mode] ||= OpenSSL::SSL::VERIFY_PEER
@@ -49,7 +63,9 @@ module Monadic
           params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
 
           ctx.verify_mode = params[:verify_mode] if params[:verify_mode]
-          ctx.verify_flags = params[:verify_flags] if params[:verify_flags]
+          if ctx.respond_to?(:verify_flags=) && params[:verify_flags]
+            ctx.verify_flags = params[:verify_flags]
+          end
           ctx.ca_file = params[:ca_file] if params[:ca_file]
           ctx.ca_path = params[:ca_path] if params[:ca_path]
 
@@ -59,6 +75,39 @@ module Monadic
           # HTTP gem not available yet; nothing to configure
         rescue StandardError => e
           log("Failed to update HTTP default SSL context: #{e.class}: #{e.message}", config)
+        end
+
+        def patch_net_http_ssl(config)
+          require 'net/http'
+
+          # Patch Net::HTTP to disable CRL checks by default
+          Net::HTTP.class_eval do
+            alias_method :original_start, :start unless method_defined?(:original_start)
+
+            def start
+              if use_ssl? && @ssl_context.nil?
+                @ssl_context = OpenSSL::SSL::SSLContext.new
+                params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
+
+                @ssl_context.verify_mode = params[:verify_mode] if params[:verify_mode]
+                @ssl_context.ca_file = params[:ca_file] if params[:ca_file]
+                @ssl_context.ca_path = params[:ca_path] if params[:ca_path]
+
+                # Disable CRL checks
+                if @ssl_context.respond_to?(:verify_flags=)
+                  verify_flags = 0
+                  verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
+                  verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK_ALL if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+                  @ssl_context.verify_flags = verify_flags
+                end
+              end
+              original_start
+            end
+          end
+
+          log('Net::HTTP SSL patched to disable CRL checks', config)
+        rescue StandardError => e
+          log("Failed to patch Net::HTTP SSL: #{e.class}: #{e.message}", config)
         end
 
         def resolve_ca_file(config, defaults)
@@ -97,36 +146,6 @@ module Monadic
           end
 
           puts "[SSLConfiguration] #{message}" if enabled
-        end
-
-        public
-
-        # Create an SSL context for Net::HTTP with configured settings
-        def create_ssl_context
-          ctx = OpenSSL::SSL::SSLContext.new
-          params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
-
-          ctx.verify_mode = params[:verify_mode] if params[:verify_mode]
-          ctx.verify_flags = params[:verify_flags] if params[:verify_flags]
-          ctx.ca_file = params[:ca_file] if params[:ca_file]
-          ctx.ca_path = params[:ca_path] if params[:ca_path]
-
-          ctx
-        end
-
-        # Apply SSL context to a Net::HTTP instance
-        def apply_to_net_http(http)
-          http.use_ssl = true
-          http.ssl_version = :TLSv1_2
-
-          ctx = create_ssl_context
-          http.cert_store = ctx.cert_store if ctx.cert_store
-          http.verify_mode = ctx.verify_mode
-          http.ca_file = ctx.ca_file if ctx.ca_file
-          http.ca_path = ctx.ca_path if ctx.ca_path
-
-          # Disable CRL checks
-          http.verify_flags = ctx.verify_flags if ctx.verify_flags
         end
       end
     end

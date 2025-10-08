@@ -39,8 +39,6 @@ module WikipediaHelper
     retries = 2
     begin
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 5) do |http|
-        # Apply SSL configuration to avoid certificate verification issues
-        Monadic::Utils::SSLConfiguration.apply_to_net_http(http) if uri.scheme == "https" && defined?(Monadic::Utils::SSLConfiguration)
         request = Net::HTTP::Get.new(uri)
         http.request(request)
       end

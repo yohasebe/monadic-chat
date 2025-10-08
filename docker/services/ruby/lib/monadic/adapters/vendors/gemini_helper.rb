@@ -2834,8 +2834,6 @@ module GeminiHelper
       request.body = request_body.to_json
 
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        # Apply SSL configuration to avoid certificate verification issues
-        Monadic::Utils::SSLConfiguration.apply_to_net_http(http) if defined?(Monadic::Utils::SSLConfiguration)
         http.request(request)
       end
       
@@ -2978,8 +2976,6 @@ module GeminiHelper
       request.body = request_body.to_json
 
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-        # Apply SSL configuration to avoid certificate verification issues
-        Monadic::Utils::SSLConfiguration.apply_to_net_http(http) if defined?(Monadic::Utils::SSLConfiguration)
         http.request(request)
       end
       

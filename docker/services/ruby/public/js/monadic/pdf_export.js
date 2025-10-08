@@ -35,7 +35,8 @@
    */
   function createMessageHTML(message) {
     const roleStyle = getRoleStyle(message.role);
-    const messageText = message.text || message.content || '';
+    // Use the HTML property if available (already rendered), otherwise fall back to text or content
+    const messageText = message.html || message.text || message.content || '';
 
     // Handle images if present
     let imageHTML = '';

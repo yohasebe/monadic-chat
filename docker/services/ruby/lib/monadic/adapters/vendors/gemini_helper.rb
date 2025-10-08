@@ -13,6 +13,11 @@ require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
+require_relative "../../utils/ssl_configuration"
+
+if defined?(Monadic::Utils::SSLConfiguration)
+  Monadic::Utils::SSLConfiguration.configure!
+end
 
 # GeminiHelper Module - Interface for Google's Gemini AI Models
 #

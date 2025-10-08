@@ -1055,6 +1055,27 @@ def init_apps
     models = app.settings["models"]
     if vendor && models
       MonadicApp.register_models(vendor, models)
+
+      # Validate models against model_spec.js
+      invalid_models = []
+      Array(models).each do |model_name|
+        next if model_name.nil? || model_name.to_s.strip.empty?
+
+        # Normalize and resolve model name
+        normalized = Monadic::Utils::ModelSpec.normalize_model_name(model_name.to_s)
+        resolved = Monadic::Utils::ModelSpec.resolve_model_alias(model_name.to_s)
+
+        # Check if the resolved model exists in model_spec.js
+        unless Monadic::Utils::ModelSpec.model_exists?(resolved)
+          invalid_models << model_name.to_s
+        end
+      end
+
+      unless invalid_models.empty?
+        warn_msg = "[WARNING] App '#{app.settings['app_name']}' specifies models not defined in model_spec.js: #{invalid_models.join(', ')}"
+        puts warn_msg
+        STDERR.puts warn_msg
+      end
     end
 
     app.settings["description"] = app.settings["description"] ? app.settings["description"].dup : ""

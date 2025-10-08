@@ -195,7 +195,25 @@ module Monadic
           # Return original if no match found
           model_name
         end
-        
+
+        # Check if a model exists in model_spec.js
+        # Handles both direct model names and dated versions that resolve to base models
+        def model_exists?(model_name)
+          return false unless model_name.is_a?(String)
+          return false if model_name.strip.empty?
+
+          spec = load_spec
+
+          # Check if model exists directly
+          return true if spec.key?(model_name)
+
+          # Check if normalized (dateless) version exists
+          base_name = normalize_model_name(model_name)
+          return true if base_name != model_name && spec.key?(base_name)
+
+          false
+        end
+
         def model_has_property?(model_name, property)
           spec = get_model_spec(model_name)
           spec.key?(property.to_s)

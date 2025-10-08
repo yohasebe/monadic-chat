@@ -137,8 +137,8 @@ app "VideoGeneratorGemini" do
          Where {error_message} is the message from the JSON response.
       
       7. For successful generations, ALWAYS use EXACTLY this template to display the result (replace only the variable parts inside curly braces):
-         
-         <div class="prompt">
+
+         <div class="prompt" style="margin-bottom: 15px;">
            <b>Prompt</b>: {original_prompt}
          </div>
          <div class="generated_video">
@@ -146,19 +146,17 @@ app "VideoGeneratorGemini" do
              <source src="/data/{filename}" type="video/mp4" />
            </video>
          </div>
-         
+
         CRITICAL: Video will not display unless you follow these exact instructions:
-        
+
         - EXTRACT THE FILENAME from this path (e.g. "1747815549_0_16x9.mp4")
         - Replace {original_prompt} with the text of the original prompt you sent to the function
         - Replace {filename} with each extracted filename
-        
+
         For successful generations, you MUST ONLY RESPOND with the exact HTML shown below (NEVER enclosed in backticks):
-        
-        <div>
-          <p class="prompt">
-            <b>Prompt</b>: A dog on the beach running and playing
-          </p>
+
+        <div class="prompt" style="margin-bottom: 15px;">
+          <b>Prompt</b>: A dog on the beach running and playing
         </div>
         <div class="generated_video">
           <video controls width="600">

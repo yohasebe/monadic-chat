@@ -81,7 +81,7 @@ app "ImageGeneratorGrok" do
     
     4. For SUCCESSFUL generation (success=true with filename):
        Extract the EXACT `revised_prompt` and `filename` values and embed them in this HTML:
-       <div class="revised_prompt">
+       <div class="prompt" style="margin-bottom: 15px;">
          <b>Revised Prompt</b>: REVISED_PROMPT
        </div>
        <div class="generated_image">

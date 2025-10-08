@@ -75,9 +75,9 @@ app "ImageGeneratorGemini" do
     
     4. IMAGE DISPLAY:
        IMPORTANT: Never use markdown code blocks. Always output pure HTML.
-       
+
        For successful operations, use this exact HTML template:
-       <div class="prompt">
+       <div class="prompt" style="margin-bottom: 15px;">
          <b>[operation]</b> (using [model]): [user_prompt]
        </div>
        <div class="generated_image">

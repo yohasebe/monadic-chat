@@ -84,7 +84,7 @@ module Monadic
           Net::HTTP.class_eval do
             alias_method :original_start, :start unless method_defined?(:original_start)
 
-            def start
+            def start(&block)
               if use_ssl? && @ssl_context.nil?
                 @ssl_context = OpenSSL::SSL::SSLContext.new
                 params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
@@ -98,7 +98,7 @@ module Monadic
                   @ssl_context.verify_flags = params[:verify_flags]
                 end
               end
-              original_start
+              original_start(&block)
             end
           end
 

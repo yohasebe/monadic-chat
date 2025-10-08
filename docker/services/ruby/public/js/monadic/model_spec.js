@@ -68,6 +68,34 @@ const modelSpec = {
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
+  "gpt-5-pro": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 272000],
+    "reasoning_effort": [["high"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": false,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true,
+    "streaming_not_supported": true
+  },
+  "gpt-5-pro-2025-10-06": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 272000],
+    "reasoning_effort": [["high"], "high"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": false,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true,
+    "streaming_not_supported": true
+  },
   // gpt-4.1 models
   "gpt-4.1": {
     "context_window" : [1, 1047576],

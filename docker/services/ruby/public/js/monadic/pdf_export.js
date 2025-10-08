@@ -61,9 +61,9 @@
     let thinkingHTML = '';
     if (message.thinking && message.thinking.trim()) {
       thinkingHTML = `
-        <div class="thinking-block mt-3">
-          <div class="fw-bold mb-2">
-            <i class="fas fa-brain"></i> Thinking Process
+        <div class="thinking-block">
+          <div class="thinking-block-header">
+            <strong>Thinking Process</strong>
           </div>
           <div>${message.thinking}</div>
         </div>
@@ -71,19 +71,14 @@
     }
 
     return `
-      <div class="card mt-3">
-        <div class="card-header p-2 ps-3 d-flex justify-content-between">
-          <div class="fs-5 card-title mb-0">
-            <i class="fas ${roleStyle.icon}" style="color: ${roleStyle.color};"></i>
-            <span class="fw-bold" style="color: ${roleStyle.color};">${roleStyle.label}</span>
-          </div>
+      <div class="pdf-message" data-role="${message.role}">
+        <div class="pdf-message-header">
+          <strong>${roleStyle.label}</strong>
         </div>
-        <div class="card-body role-${message.role}">
-          <div class="card-text">
-            ${thinkingHTML}
-            ${messageText}
-            ${imageHTML}
-          </div>
+        <div class="pdf-message-content">
+          ${thinkingHTML}
+          ${messageText}
+          ${imageHTML}
         </div>
       </div>
     `;
@@ -94,8 +89,19 @@
    */
   function getAppInfo() {
     const appName = $('#base-app-title').text() || 'Monadic Chat';
-    const model = $('#model-selected').text() || 'Unknown Model';
-    return { appName, model };
+    const modelText = $('#model-selected').text() || 'Unknown Model';
+
+    // Parse provider and model from text like "OpenAI (gpt-4o)" or "OpenAI (gpt-4o - high)"
+    let provider = 'Unknown Provider';
+    let model = modelText;
+
+    const match = modelText.match(/^([^(]+)\s*\(([^)]+)\)$/);
+    if (match) {
+      provider = match[1].trim();
+      model = match[2].trim();
+    }
+
+    return { appName, provider, model };
   }
 
   /**
@@ -105,13 +111,21 @@
     const now = new Date();
     const dateStr = now.toLocaleString();
 
+    // Get translated labels (with English fallback)
+    const title = webUIi18n ? webUIi18n.t('ui.messages.pdfExportTitle') : 'Monadic Chat - Conversation Export';
+    const appLabel = webUIi18n ? webUIi18n.t('ui.messages.pdfApp') : 'App';
+    const providerLabel = webUIi18n ? webUIi18n.t('ui.messages.pdfProvider') : 'Provider';
+    const modelLabel = webUIi18n ? webUIi18n.t('ui.messages.pdfModel') : 'Model';
+    const exportedLabel = webUIi18n ? webUIi18n.t('ui.messages.pdfExported') : 'Exported';
+
     return `
       <div style="border-bottom: 2px solid #333; padding-bottom: 1rem; margin-bottom: 2rem;">
-        <h1 style="margin: 0; font-size: 1.5rem;">Monadic Chat - Conversation Export</h1>
+        <h1 style="margin: 0; font-size: 1.5rem;">${title}</h1>
         <div style="margin-top: 0.5rem; color: #666;">
-          <div><strong>App:</strong> ${appInfo.appName}</div>
-          <div><strong>Model:</strong> ${appInfo.model}</div>
-          <div><strong>Exported:</strong> ${dateStr}</div>
+          <div><strong>${appLabel}:</strong> ${appInfo.appName}</div>
+          <div><strong>${providerLabel}:</strong> ${appInfo.provider}</div>
+          <div><strong>${modelLabel}:</strong> ${appInfo.model}</div>
+          <div><strong>${exportedLabel}:</strong> ${dateStr}</div>
         </div>
       </div>
     `;

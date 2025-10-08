@@ -30,25 +30,41 @@
     color: black !important;
   }
 
-  /* Message cards */
-  .card {
-    border: 1px solid #ddd !important;
-    background: white !important;
+  /* PDF message structure - simple and document-like */
+  .pdf-message {
+    border-bottom: 1px solid #ddd;
     margin-bottom: 1rem;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    padding-bottom: 0.75rem;
+    /* Allow page breaks within messages for text content */
+  }
+
+  .pdf-message-header {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 0.95em;
+    color: #333;
+  }
+
+  .pdf-message-content {
+    line-height: 1.6;
+    /* Allow page breaks within content */
+  }
+
+  /* Legacy card support (if any old cards remain) - remove styling */
+  .card {
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
+    page-break-inside: auto;
   }
 
   .card-header {
-    background-color: #f8f9fa !important;
-    border-bottom: 1px solid #ddd !important;
-    padding: 0.5rem 1rem !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    border: none !important;
+    background: none !important;
   }
 
   .card-body {
-    padding: 1rem !important;
+    padding: 0 !important;
   }
 
   /* Role-specific colors (preserved in print) */
@@ -92,7 +108,8 @@
     border: 1px solid #ddd !important;
     padding: 0.5rem !important;
     border-radius: 4px;
-    page-break-inside: auto; /* Allow breaking for very long code blocks */
+    page-break-inside: avoid;
+    break-inside: avoid;
     overflow-wrap: break-word;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -222,16 +239,23 @@
     widows: 3;
   }
 
-  /* Thinking blocks (if expanded) */
+  /* Thinking blocks */
   .thinking-block {
-    background-color: #fff9e6 !important;
-    border: 1px solid #ffe6a0 !important;
+    background-color: #f8f9fa !important;
+    border-left: 3px solid #6c757d !important;
     padding: 0.5rem;
     margin: 0.5rem 0;
-    border-radius: 4px;
-    page-break-inside: auto;
+    page-break-inside: avoid;
+    break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .thinking-block-header {
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+    font-size: 0.9em;
+    color: #333;
   }
 
   /* Ensure proper font rendering */

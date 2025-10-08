@@ -280,7 +280,12 @@ const webUITranslations = {
         noMessagesToExport: "No messages to export",
         popupBlocked: "Popup blocked. Please allow popups for PDF export.",
         exportingPDF: "Opening print dialog...",
-        exportError: "Error exporting to PDF"
+        exportError: "Error exporting to PDF",
+        pdfExportTitle: "Monadic Chat - Conversation Export",
+        pdfApp: "App",
+        pdfProvider: "Provider",
+        pdfModel: "Model",
+        pdfExported: "Exported"
       },
       session: {
         startSession: "Start Session",
@@ -563,7 +568,12 @@ const webUITranslations = {
         noMessagesToExport: "出力するメッセージがありません",
         popupBlocked: "ポップアップがブロックされました。PDFエクスポートのためにポップアップを許可してください。",
         exportingPDF: "印刷ダイアログを開いています...",
-        exportError: "PDFエクスポートエラー"
+        exportError: "PDFエクスポートエラー",
+        pdfExportTitle: "Monadic Chat - 会話のエクスポート",
+        pdfApp: "アプリ",
+        pdfProvider: "プロバイダ",
+        pdfModel: "モデル",
+        pdfExported: "出力日時"
       },
       session: {
         startSession: "セッションを開始",
@@ -859,7 +869,16 @@ const webUITranslations = {
         somethingWentWrong: "出现问题",
         errorProcessingSample: "处理示例消息时出错",
         contentNotFound: "响应中找不到内容",
-        emptyResponse: "API返回空响应"
+        emptyResponse: "API返回空响应",
+        noMessagesToExport: "没有要导出的消息",
+        popupBlocked: "弹出窗口被阻止。请允许弹出窗口以导出PDF。",
+        exportingPDF: "正在打开打印对话框...",
+        exportError: "导出PDF时出错",
+        pdfExportTitle: "Monadic Chat - 对话导出",
+        pdfApp: "应用",
+        pdfProvider: "提供商",
+        pdfModel: "模型",
+        pdfExported: "导出时间"
       },
       session: {
         startSession: "开始会话",
@@ -1127,7 +1146,16 @@ const webUITranslations = {
         somethingWentWrong: "문제가 발생했습니다",
         errorProcessingSample: "샘플 메시지 처리 오류",
         contentNotFound: "응답에서 콘텐츠를 찾을 수 없습니다",
-        emptyResponse: "API에서 빈 응답"
+        emptyResponse: "API에서 빈 응답",
+        noMessagesToExport: "내보낼 메시지가 없습니다",
+        popupBlocked: "팝업이 차단되었습니다. PDF 내보내기를 위해 팝업을 허용하세요.",
+        exportingPDF: "인쇄 대화 상자를 여는 중...",
+        exportError: "PDF 내보내기 오류",
+        pdfExportTitle: "Monadic Chat - 대화 내보내기",
+        pdfApp: "앱",
+        pdfProvider: "제공자",
+        pdfModel: "모델",
+        pdfExported: "내보내기 날짜"
       },
       session: {
         startSession: "세션 시작",
@@ -1395,7 +1423,16 @@ const webUITranslations = {
         somethingWentWrong: "Algo salió mal",
         errorProcessingSample: "Error al procesar el mensaje de muestra",
         contentNotFound: "Contenido no encontrado en la respuesta",
-        emptyResponse: "Respuesta vacía de la API"
+        emptyResponse: "Respuesta vacía de la API",
+        noMessagesToExport: "No hay mensajes para exportar",
+        popupBlocked: "Ventana emergente bloqueada. Permita ventanas emergentes para exportar a PDF.",
+        exportingPDF: "Abriendo diálogo de impresión...",
+        exportError: "Error al exportar a PDF",
+        pdfExportTitle: "Monadic Chat - Exportación de Conversación",
+        pdfApp: "App",
+        pdfProvider: "Proveedor",
+        pdfModel: "Modelo",
+        pdfExported: "Exportado"
       },
       session: {
         startSession: "Iniciar Sesión",
@@ -1663,7 +1700,16 @@ const webUITranslations = {
         somethingWentWrong: "Quelque chose a mal tourné",
         errorProcessingSample: "Erreur lors du traitement du message d'échantillon",
         contentNotFound: "Contenu introuvable dans la réponse",
-        emptyResponse: "Réponse vide de l'API"
+        emptyResponse: "Réponse vide de l'API",
+        noMessagesToExport: "Aucun message à exporter",
+        popupBlocked: "Fenêtre contextuelle bloquée. Veuillez autoriser les fenêtres contextuelles pour l'exportation PDF.",
+        exportingPDF: "Ouverture de la boîte de dialogue d'impression...",
+        exportError: "Erreur lors de l'exportation en PDF",
+        pdfExportTitle: "Monadic Chat - Export de Conversation",
+        pdfApp: "App",
+        pdfProvider: "Fournisseur",
+        pdfModel: "Modèle",
+        pdfExported: "Exporté"
       },
       session: {
         startSession: "Démarrer Session",
@@ -1931,7 +1977,16 @@ const webUITranslations = {
         somethingWentWrong: "Etwas ist schiefgelaufen",
         errorProcessingSample: "Fehler bei der Verarbeitung der Beispielnachricht",
         contentNotFound: "Inhalt in der Antwort nicht gefunden",
-        emptyResponse: "Leere Antwort von der API"
+        emptyResponse: "Leere Antwort von der API",
+        noMessagesToExport: "Keine Nachrichten zum Exportieren",
+        popupBlocked: "Popup blockiert. Bitte erlauben Sie Popups für den PDF-Export.",
+        exportingPDF: "Druckdialog wird geöffnet...",
+        exportError: "Fehler beim Exportieren als PDF",
+        pdfExportTitle: "Monadic Chat - Gesprächsexport",
+        pdfApp: "App",
+        pdfProvider: "Anbieter",
+        pdfModel: "Modell",
+        pdfExported: "Exportiert"
       },
       session: {
         startSession: "Sitzung Starten",

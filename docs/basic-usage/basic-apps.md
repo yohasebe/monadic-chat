@@ -224,20 +224,17 @@ The editing process preserves the original image's composition and details while
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
 
-#### Provider-Specific Features
+#### Available Models
 
-**Google Gemini** offers multiple Imagen models with different quality/speed tradeoffs:
-- **Imagen 4 Fast** (default): Fastest generation with good quality
-- **Imagen 4**: Standard model with balanced quality and speed
-- **Imagen 4 Ultra**: Highest quality with slower generation
-- **Imagen 3**: Legacy model (still supported)
-- **Gemini 2.5 Flash**: Versatile multimodal model for editing
+**Google Gemini** supports:
+- Imagen 4 Fast (default), Imagen 4, Imagen 4 Ultra, Imagen 3
+- Gemini 2.5 Flash (for image editing)
 
-**OpenAI** supports DALL-E and GPT-Image models with features including transparent backgrounds, multiple output formats, and high-resolution generation.
+**OpenAI** supports DALL-E and GPT-Image models.
 
-**Grok/xAI** uses their image generation model with automatic prompt refinement.
+**Grok/xAI** uses their image generation model.
 
-Image Generator is available with the providers indicated in the availability table. Editing and variation features depend on each provider's current image-generation offering—refer to their official documentation for supported operations and model names.
+Image Generator is available with the providers indicated in the availability table. For model capabilities and differences, refer to each provider's official documentation.
 
 ### Video Generator
 

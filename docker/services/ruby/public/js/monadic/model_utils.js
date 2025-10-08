@@ -80,33 +80,150 @@ function getProviderKey(group) {
 }
 
 /**
+ * Get base model name by removing date suffixes
+ * @param {String} modelName - The model name to normalize
+ * @returns {String} Base model name without date suffix
+ */
+function getBaseModelName(modelName) {
+  if (!modelName || typeof modelName !== 'string') return modelName;
+
+  // Gemini exp pattern: -exp-MMDD (most specific, check first)
+  if (/-exp-\d{4}$/.test(modelName)) {
+    return modelName.replace(/-exp-\d{4}$/, '');
+  }
+
+  // Gemini version pattern: -NNN
+  if (/-\d{3}$/.test(modelName)) {
+    return modelName.replace(/-\d{3}$/, '');
+  }
+
+  // Claude pattern: YYYYMMDD
+  if (/-\d{8}$/.test(modelName)) {
+    return modelName.replace(/-\d{8}$/, '');
+  }
+
+  // OpenAI pattern: YYYY-MM-DD
+  if (/-\d{4}-\d{2}-\d{2}$/.test(modelName)) {
+    return modelName.replace(/-\d{4}-\d{2}-\d{2}$/, '');
+  }
+
+  return modelName;
+}
+
+/**
+ * Compare two model specs for equivalence (ignoring deprecated flag)
+ * @param {Object} spec1 - First model spec
+ * @param {Object} spec2 - Second model spec
+ * @returns {Boolean} True if specs are equivalent
+ */
+function areSpecsEquivalent(spec1, spec2) {
+  if (!spec1 || !spec2) return false;
+
+  // Create copies without deprecated flag
+  const s1 = {...spec1};
+  const s2 = {...spec2};
+  delete s1.deprecated;
+  delete s2.deprecated;
+
+  // Deep comparison
+  return JSON.stringify(s1) === JSON.stringify(s2);
+}
+
+/**
+ * Filter models to show only latest versions
+ * Keeps: latest dated version OR dateless version for each base model
+ * Exception: keeps both if specs differ
+ * @param {Array} models - Array of model names
+ * @returns {Array} Filtered array of model names
+ */
+function filterToLatestVersions(models) {
+  if (!models || !Array.isArray(models)) return [];
+
+  const modelSpec = window.modelSpec || {};
+  const groupedModels = {};
+
+  // Group models by base name
+  models.forEach(model => {
+    const baseName = getBaseModelName(model);
+    if (!groupedModels[baseName]) {
+      groupedModels[baseName] = [];
+    }
+    groupedModels[baseName].push(model);
+  });
+
+  // For each group, decide which versions to keep
+  const result = [];
+  Object.keys(groupedModels).forEach(baseName => {
+    const versions = groupedModels[baseName];
+
+    if (versions.length === 1) {
+      // Only one version, keep it
+      result.push(versions[0]);
+      return;
+    }
+
+    // Separate dated and dateless versions
+    const dateless = versions.filter(v => v === baseName);
+    const dated = versions.filter(v => v !== baseName);
+
+    if (dateless.length === 0) {
+      // No dateless version, keep latest dated
+      const latest = dated.sort().reverse()[0];
+      result.push(latest);
+    } else if (dated.length === 0) {
+      // No dated versions, keep dateless
+      result.push(dateless[0]);
+    } else {
+      // Both exist - check if specs differ
+      const datelessSpec = modelSpec[dateless[0]];
+      const latest = dated.sort().reverse()[0];
+      const latestSpec = modelSpec[latest];
+
+      if (areSpecsEquivalent(datelessSpec, latestSpec)) {
+        // Specs are same, keep only dateless
+        result.push(dateless[0]);
+      } else {
+        // Specs differ, keep both
+        result.push(dateless[0]);
+        result.push(latest);
+      }
+    }
+  });
+
+  return result;
+}
+
+/**
  * Get all available models for a given app, considering provider-specific behavior
  * @param {Object} appConfig - The app configuration object
  * @returns {Array} Array of model names
  */
 function getModelsForApp(appConfig) {
   if (!appConfig) return [];
-  
+
   const providerKey = getProviderKey(appConfig["group"]);
   const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || { showAllModels: false };
-  
+
   if (providerConfig.showAllModels) {
     // Get all models from modelSpec that match the provider's pattern
     const allProviderModels = Object.keys(window.modelSpec || {}).filter(model => {
       return providerConfig.modelPattern && providerConfig.modelPattern.test(model);
     });
-    
-    // If MDSL specifies models, merge them with all provider models
+
+    // Filter to latest versions only
+    const filteredModels = filterToLatestVersions(allProviderModels);
+
+    // If MDSL specifies models, merge them with filtered provider models
     if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
-      // Merge MDSL models with all provider models, removing duplicates
-      return [...new Set([...mdslModels, ...allProviderModels])];
+      // Merge MDSL models with filtered provider models, removing duplicates
+      return [...new Set([...mdslModels, ...filteredModels])];
     } else if (appConfig["model"]) {
-      // If only a single model is specified, still show all provider models
-      return allProviderModels;
+      // If only a single model is specified, still show all filtered provider models
+      return filteredModels;
     } else {
-      // No model specified, show all provider models
-      return allProviderModels;
+      // No model specified, show filtered provider models
+      return filteredModels;
     }
   } else {
     // For providers that don't show all models, use MDSL-specified models only

@@ -12,17 +12,6 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
-  "gpt-5-2025-08-07": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_verbosity": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "skip_in_progress_events": true
-  },
   "gpt-5-mini": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
@@ -33,17 +22,6 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
-    "skip_in_progress_events": true
-  },
-  "gpt-5-mini-2025-08-07": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_verbosity": true,
-    "api_type": "responses",
-    "supports_web_search": true,
     "skip_in_progress_events": true
   },
   "gpt-5-nano": {
@@ -57,33 +35,7 @@ const modelSpec = {
     "supports_web_search": true,
     "skip_in_progress_events": true
   },
-  "gpt-5-nano-2025-08-07": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_verbosity": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "skip_in_progress_events": true
-  },
   "gpt-5-pro": {
-    "context_window" : [1, 400000],
-    "max_output_tokens" : [1, 272000],
-    "reasoning_effort": [["high"], "high"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_verbosity": true,
-    "supports_structured_output": true,
-    "api_type": "responses",
-    "supports_web_search": true,
-    "supports_image_generation": true,
-    "supports_pdf_upload": true,
-    "skip_in_progress_events": true,
-    "streaming_not_supported": true
-  },
-  "gpt-5-pro-2025-10-06": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 272000],
     "reasoning_effort": [["high"], "high"],
@@ -113,19 +65,6 @@ const modelSpec = {
     "api_type": "responses",
     "skip_in_progress_events": true
   },
-  "gpt-4.1-2025-04-14": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
   "gpt-4.1-mini": {
     "context_window" : [1, 1047576],
     "max_output_tokens" : [1, 32768],
@@ -140,32 +79,7 @@ const modelSpec = {
     "api_type": "responses",
     "skip_in_progress_events": true
   },
-  "gpt-4.1-mini-2025-04-14": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
   "gpt-4.1-nano": {
-    "context_window" : [1, 1047576],
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "skip_in_progress_events": true
-  },
-  "gpt-4.1-nano-2025-04-14": {
     "context_window" : [1, 1047576],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
@@ -202,28 +116,6 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf_upload": true
   },
-  "gpt-4o-2024-08-06": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
-  "gpt-4o-2024-11-20": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
   "gpt-4o-2024-05-13": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4096],
@@ -248,17 +140,6 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-4o-mini": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
-  "gpt-4o-mini-2024-07-18": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
     "temperature": [[0.0, 2.0], 1.0],
@@ -888,51 +769,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true
   },
-  "gemini-2.5-flash-lite-preview-09-2025": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 65536],
-    "thinking_budget": {
-      "min": 512,
-      "max": 24576,
-      "can_disable": true,
-      "default_disabled": true,
-      "presets": {
-        "none": 0,
-        "minimal": 0,
-        "low": 512,
-        "medium": 8000,
-        "high": 20000
-      }
-    },
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
   "gemini-2.5-flash": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 65536],
-    "thinking_budget": {
-      "min": 128,
-      "max": 20000,
-      "can_disable": true,
-      "default_disabled": true,
-      "presets": {
-        "none": 0,
-        "minimal": 0,
-        "low": 512,
-        "medium": 8000,
-        "high": 20000
-      }
-    },
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-2.5-flash-preview-09-2025": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "thinking_budget": {
@@ -1023,37 +860,7 @@ const modelSpec = {
     "supports_thinking": true,
     "supports_web_search": true
   },
-  "gemini-2.0-flash-thinking-exp-1219": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "supports_web_search": true
-  },
-  "gemini-2.0-flash-thinking-exp-01-21": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "supports_web_search": true
-  },
   // Flash models
-  "gemini-2.0-flash-exp": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
   "gemini-2.0-flash-001": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
@@ -1074,15 +881,6 @@ const modelSpec = {
     "supports_pdf": true
   },
   "gemini-2.0-flash-lite-preview": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf": true
-  },
-  "gemini-2.0-flash-lite-preview-02-05": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
     "temperature": [[0.0, 2.0], 1.0],

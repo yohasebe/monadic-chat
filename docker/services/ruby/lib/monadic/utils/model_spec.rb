@@ -102,7 +102,58 @@ module Monadic
         end
 
         def get_model_spec(model_name)
-          load_spec[model_name] || {}
+          resolved_name = resolve_model_alias(model_name)
+          load_spec[resolved_name] || {}
+        end
+
+        # Normalize model name by removing date suffixes
+        # Examples:
+        #   gpt-5-2025-08-07 -> gpt-5
+        #   claude-3-5-sonnet-20241022 -> claude-3-5-sonnet
+        #   gemini-2.0-flash-001 -> gemini-2.0-flash
+        #   gemini-2.0-flash-thinking-exp-1219 -> gemini-2.0-flash-thinking
+        def normalize_model_name(model_name)
+          return model_name unless model_name.is_a?(String)
+
+          # Gemini exp pattern: -exp-MMDD (most specific, check first)
+          if model_name =~ /-exp-\d{4}$/
+            return model_name.sub(/-exp-\d{4}$/, '')
+          end
+
+          # Gemini version pattern: -NNN
+          if model_name =~ /-\d{3}$/
+            return model_name.sub(/-\d{3}$/, '')
+          end
+
+          # Claude pattern: YYYYMMDD
+          if model_name =~ /-\d{8}$/
+            return model_name.sub(/-\d{8}$/, '')
+          end
+
+          # OpenAI pattern: YYYY-MM-DD
+          if model_name =~ /-\d{4}-\d{2}-\d{2}$/
+            return model_name.sub(/-\d{4}-\d{2}-\d{2}$/, '')
+          end
+
+          model_name
+        end
+
+        # Resolve model name to handle aliases
+        # If dated model doesn't exist in spec, try base model
+        def resolve_model_alias(model_name)
+          return model_name unless model_name.is_a?(String)
+
+          spec = load_spec
+
+          # If model exists directly, use it
+          return model_name if spec.key?(model_name)
+
+          # Try normalized (dateless) version
+          base_name = normalize_model_name(model_name)
+          return base_name if base_name != model_name && spec.key?(base_name)
+
+          # Return original if no match found
+          model_name
         end
         
         def model_has_property?(model_name, property)

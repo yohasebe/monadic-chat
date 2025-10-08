@@ -43,7 +43,7 @@ profiles:
     suites: [unit, integration, api]
     api_level: standard
     providers: [openai, anthropic]
-    format: json
+    format: documentation
     save: true
     html: true
     text: true

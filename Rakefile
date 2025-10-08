@@ -906,22 +906,6 @@ end
 # API integration test tasks (real provider APIs)
 # [DEPRECATED] Use rake test:profile[smoke|ci|full] instead
 namespace :spec_api do
-  desc "[DEPRECATED] Real API smoke (use: rake test:profile[smoke])"
-  task :smoke do
-    puts "⚠️  DEPRECATED: 'rake spec_api:smoke' will be removed in a future version."
-    puts "   Use: rake test:profile[smoke]"
-    puts "   See: docs_dev/test_quickref.md for new testing workflow"
-    puts ""
-    ENV['RUN_API'] ||= 'true'
-    ENV['API_TIMEOUT'] ||= '90'
-    ENV['API_MAX_RETRIES'] ||= '0'
-    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
-    Dir.chdir("docker/services/ruby") do
-      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
-      sh "bundle exec rspec spec/integration/api_smoke #{fmt}"
-    end
-  end
-
   desc "Real API media (image/video/voice). Use RUN_API=true RUN_MEDIA=true"
   task :media do
     ENV['RUN_API'] ||= 'true'
@@ -953,49 +937,8 @@ namespace :spec_api do
     end
   end
 
-  desc "[DEPRECATED] Quick suite (use: rake test:profile[smoke])"
-  task :quick do
-    puts "⚠️  DEPRECATED: 'rake spec_api:quick' will be removed in a future version."
-    puts "   Use: rake test:profile[smoke]"
-    puts ""
-    Rake::Task['spec_api:smoke'].invoke
-  end
-
   # Removed :daily and :weekly to simplify interface. Use :all or :full instead.
 
-  desc "[DEPRECATED] All providers non-media (use: rake test:profile[ci])"
-  task :all do
-    puts "⚠️  DEPRECATED: 'rake spec_api:all' will be removed in a future version."
-    puts "   Use: rake test:profile[ci]"
-    puts ""
-    ENV['RUN_API'] ||= 'true'
-    ENV['API_LOG'] ||= 'true'
-    ENV['API_TIMEOUT'] ||= '90'
-    ENV['API_MAX_RETRIES'] ||= '0'
-    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
-    Dir.chdir("docker/services/ruby") do
-      # Run all specs tagged :api and not :media under integration
-      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
-      sh "bundle exec rspec spec/integration --tag api --tag ~media #{fmt}"
-      # Optionally run matrix if present (non-media only by tag)
-      dir = 'spec/integration/provider_matrix'
-      if Dir.exist?(dir) && !Dir.glob(File.join(dir, '**', '*_spec.rb')).empty?
-        sh "bundle exec rspec #{dir} --tag api --tag ~media #{fmt}"
-      else
-        puts "Matrix specs skipped (not defined)"
-      end
-    end
-  end
-
-  desc "[DEPRECATED] Full suite with media (use: rake test:profile[full])"
-  task :full do
-    puts "⚠️  DEPRECATED: 'rake spec_api:full' will be removed in a future version."
-    puts "   Use: rake test:profile[full]"
-    puts ""
-    Rake::Task['spec_api:smoke'].invoke
-    Rake::Task['spec_api:matrix'].invoke
-    Rake::Task['spec_api:media'].invoke
-  end
 end
 
 # Test ruby code with rspec ./docker/services/ruby/spec
@@ -1076,18 +1019,6 @@ ensure
   end
 end
 
-# Quick unit tests only (no containers needed)
-desc "[DEPRECATED] Run unit tests only (use: rake test:profile[quick])"
-task :spec_unit do
-  puts "⚠️  DEPRECATED: 'rake spec_unit' will be removed in a future version."
-  puts "   Use: rake test:profile[quick]"
-  puts "   See: docs_dev/test_quickref.md for new testing workflow"
-  puts ""
-  Dir.chdir("docker/services/ruby") do
-    sh "bundle exec rspec spec/unit --format documentation"
-  end
-end
-
 # Unit test categories
 namespace :spec_unit do
   desc "Run web search unit tests"
@@ -1098,30 +1029,6 @@ namespace :spec_unit do
   end
 end
 
-# Integration tests only (requires containers)
-desc "[DEPRECATED] Run integration tests only (use: rake test:profile[dev])"
-task :spec_integration do
-  puts "⚠️  DEPRECATED: 'rake spec_integration' will be removed in a future version."
-  puts "   Use: rake test:profile[dev]"
-  puts "   See: docs_dev/test_quickref.md for new testing workflow"
-  puts ""
-  Dir.chdir("docker/services/ruby") do
-    sh "bundle exec rspec spec/integration --format documentation"
-  end
-end
-
-# System tests only
-desc "[DEPRECATED] Run system tests only (use: rake test:profile[dev])"
-task :spec_system do
-  puts "⚠️  DEPRECATED: 'rake spec_system' will be removed in a future version."
-  puts "   Use: rake test:profile[dev]"
-  puts "   See: docs_dev/test_quickref.md for new testing workflow"
-  puts ""
-  Dir.chdir("docker/services/ruby") do
-    sh "bundle exec rspec spec/system --format documentation"
-  end
-end
-
 # System test categories
 namespace :spec_system do
   desc "Run web search system tests"
@@ -1129,40 +1036,6 @@ namespace :spec_system do
     Dir.chdir("docker/services/ruby") do
       sh "bundle exec rspec spec/system/chat_websearch_system_spec.rb spec/system/chat_websearch_update_spec.rb --format documentation"
     end
-  end
-end
-
-# Docker integration tests (requires Docker environment)
-desc "[DEPRECATED] Run Docker integration tests (use: rake test:profile[dev])"
-task :spec_docker do
-  puts "⚠️  DEPRECATED: 'rake spec_docker' will be removed in a future version."
-  puts "   Use: rake test:profile[dev]"
-  puts "   See: docs_dev/test_quickref.md for new testing workflow"
-  puts ""
-  Dir.chdir("docker/services/ruby") do
-    puts "Running Docker integration tests..."
-    puts "Note: These tests require Docker containers to be running"
-    sh "bundle exec rspec spec/integration/docker_infrastructure_spec.rb spec/integration/app_helpers_integration_spec.rb spec/integration/pgvector_integration_real_spec.rb spec/integration/selenium_integration_spec.rb --format documentation --no-fail-fast"
-  end
-end
-
-# End-to-end tests (automatically starts server and containers)
-desc "[DEPRECATED] Run end-to-end tests (use: rake test:profile[full])"
-task :spec_e2e do
-  puts "⚠️  DEPRECATED: 'rake spec_e2e' will be removed in a future version."
-  puts "   Use: rake test:profile[full]"
-  puts "   See: docs_dev/test_quickref.md for new testing workflow"
-  puts ""
-  Dir.chdir("docker/services/ruby") do
-    puts "Starting E2E test suite..."
-    puts "This will automatically:"
-    puts "  - Start required Docker containers"
-    puts "  - Start the server if needed"
-    puts "  - Run all E2E tests"
-    puts ""
-
-    # Use the run_e2e_tests.sh script
-    sh "./spec/e2e/run_e2e_tests.sh"
   end
 end
 

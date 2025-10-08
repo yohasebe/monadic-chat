@@ -1730,6 +1730,7 @@ module OpenAIHelper
 
     buffer = String.new
     texts = {}
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     tools = {}
     finish_reason = nil
 
@@ -1794,10 +1795,11 @@ module OpenAIHelper
                 res = {
                   "type" => "fragment",
                   "content" => fragment,
-                  "index" => choice["message"]["content"].length - fragment.length,
+                  "sequence" => fragment_sequence,
                   "timestamp" => Time.now.to_f,
-                  "is_first" => choice["message"]["content"].length == fragment.length
+                  "is_first" => fragment_sequence == 0
                 }
+                fragment_sequence += 1
                 block&.call res
               end
 

@@ -364,7 +364,7 @@ module OllamaHelper
     buffer = String.new
     texts = []
     finish_reason = nil
-    fragment_index = 0
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     is_first_fragment = true
 
     body.each do |chunk|
@@ -378,18 +378,18 @@ module OllamaHelper
           res = {
             "type" => "fragment",
             "content" => fragment,
-            "index" => fragment_index
+            "sequence" => fragment_sequence
             # Don't send is_first flag to prevent spinner from disappearing
             # "is_first" => is_first_fragment
           }
-          
+
           if CONFIG["EXTRA_LOGGING"]
-            extra_log.puts("Fragment: index=#{fragment_index}, is_first=#{is_first_fragment}, length=#{fragment.length}, content=#{fragment.inspect}")
+            extra_log.puts("Fragment: sequence=#{fragment_sequence}, is_first=#{is_first_fragment}, length=#{fragment.length}, content=#{fragment.inspect}")
           end
-          
+
+          fragment_sequence += 1
           block&.call res
           texts << fragment
-          fragment_index += fragment.length
           is_first_fragment = false
         end
       rescue JSON::ParserError

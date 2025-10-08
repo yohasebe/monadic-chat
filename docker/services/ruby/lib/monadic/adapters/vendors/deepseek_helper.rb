@@ -722,6 +722,7 @@ module DeepSeekHelper
 
     buffer = String.new.force_encoding("UTF-8")
     texts = {}
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     tools = {}
     finish_reason = nil
     # Track usage tokens from final chunk
@@ -843,11 +844,12 @@ module DeepSeekHelper
                     res = {
                       "type" => "fragment",
                       "content" => fragment,
-                      "index" => choice["message"]["content"].length - fragment.length,
+                      "sequence" => fragment_sequence,
                       "timestamp" => Time.now.to_f
                       # Don't send is_first flag to prevent spinner from disappearing
-                      # "is_first" => choice["message"]["content"].length == fragment.length
+                      # "is_first" => fragment_sequence == 0
                     }
+                    fragment_sequence += 1
                     block&.call res
                   end
 

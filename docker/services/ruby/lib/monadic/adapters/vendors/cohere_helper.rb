@@ -1408,8 +1408,9 @@ module CohereHelper
     # Store the request parameters for constructing the final response
     obj = session[:parameters]
     app_name = obj["app_name"]
-    
+
     texts = []
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     tool_calls = []
     finish_reason = nil
     buffer = String.new
@@ -1487,10 +1488,11 @@ module CohereHelper
                       res = {
                         "type" => "fragment",
                         "content" => text,
-                        "index" => texts.length - 1,
+                        "sequence" => fragment_sequence,
                         "timestamp" => Time.now.to_f,
-                        "is_first" => texts.length == 1
+                        "is_first" => fragment_sequence == 0
                       }
+                      fragment_sequence += 1
                       block&.call res
                     end
                   end
@@ -1506,10 +1508,11 @@ module CohereHelper
                     res = {
                       "type" => "fragment",
                       "content" => text,
-                      "index" => texts.length - 1,
+                      "sequence" => fragment_sequence,
                       "timestamp" => Time.now.to_f,
-                      "is_first" => texts.length == 1
+                      "is_first" => fragment_sequence == 0
                     }
+                    fragment_sequence += 1
                     block&.call res
                   end
                 end

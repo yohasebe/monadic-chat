@@ -714,6 +714,7 @@ module MistralHelper
     # Process the response line by line
     buffer = ""
     content_buffer = ""
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking_buffer = ""
     thinking = []
     tool_calls = []
@@ -825,10 +826,11 @@ module MistralHelper
                   res = {
                     "type" => "fragment",
                     "content" => content,
-                    "index" => content_buffer.length - content.length,
+                    "sequence" => fragment_sequence,
                     "timestamp" => Time.now.to_f,
-                    "is_first" => content_buffer.length == content.length
+                    "is_first" => fragment_sequence == 0
                   }
+                  fragment_sequence += 1
                   block&.call res
                 end
               end

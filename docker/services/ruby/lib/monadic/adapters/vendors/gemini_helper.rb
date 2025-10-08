@@ -1341,6 +1341,7 @@ module GeminiHelper
 
     buffer = String.new
     texts = []
+    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
     thinking_parts = []  # Store thinking content
     tool_calls = []
     finish_reason = nil
@@ -1796,10 +1797,11 @@ module GeminiHelper
                   res = {
                     "type" => "fragment",
                     "content" => fragment,
-                    "index" => texts.length - 1,
+                    "sequence" => fragment_sequence,
                     "timestamp" => Time.now.to_f,
-                    "is_first" => texts.length == 1
+                    "is_first" => fragment_sequence == 0
                   }
+                  fragment_sequence += 1
                   block&.call res
                 end
 

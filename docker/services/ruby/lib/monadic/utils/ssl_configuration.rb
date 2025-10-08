@@ -93,12 +93,9 @@ module Monadic
                 @ssl_context.ca_file = params[:ca_file] if params[:ca_file]
                 @ssl_context.ca_path = params[:ca_path] if params[:ca_path]
 
-                # Disable CRL checks
-                if @ssl_context.respond_to?(:verify_flags=)
-                  verify_flags = 0
-                  verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
-                  verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK_ALL if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
-                  @ssl_context.verify_flags = verify_flags
+                # Apply verify_flags if available in params (already has CRL disabled)
+                if @ssl_context.respond_to?(:verify_flags=) && params[:verify_flags]
+                  @ssl_context.verify_flags = params[:verify_flags]
                 end
               end
               original_start

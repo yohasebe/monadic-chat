@@ -45,7 +45,12 @@ app "ImageGeneratorGemini" do
     1. IMAGE GENERATION:
        When user wants to create a new image from text:
        - Use operation: "generate"
-       - Choose model: "imagen3" for high quality or "gemini" for versatile generation
+       - Choose model based on user needs:
+         • "imagen4-fast" (default): Fastest generation, good quality
+         • "imagen4": Standard Imagen 4, balanced quality/speed
+         • "imagen4-ultra": Highest quality, slower generation
+         • "imagen3": Legacy model (still supported)
+         • "gemini": Versatile multimodal generation
        - Be extremely detailed and specific in your prompts for best results
     
     2. IMAGE EDITING (Semantic Masking):
@@ -91,7 +96,10 @@ app "ImageGeneratorGemini" do
     - edit: Modify existing images using semantic masking (natural language)
     
     Available models:
-    - imagen3: Specialized high-quality image generation
+    - imagen4-fast: Fast generation with good quality (default, recommended)
+    - imagen4: Standard Imagen 4 with balanced quality and speed
+    - imagen4-ultra: Highest quality Imagen 4, slower generation
+    - imagen3: Legacy high-quality image generation (still supported)
     - gemini: Versatile generation and semantic editing with context understanding
   TEXT
 
@@ -111,7 +119,7 @@ app "ImageGeneratorGemini" do
     define_tool "generate_image_with_gemini", "Generate or edit images using Google's AI models." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions", required: true
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: false
-      parameter :model, "string", "Model to use: 'imagen3' for high quality generation, 'gemini' for versatile generation/editing", required: false
+      parameter :model, "string", "Model to use: 'imagen4-fast' (default), 'imagen4', 'imagen4-ultra', 'imagen3' (legacy), 'gemini' for editing", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
 

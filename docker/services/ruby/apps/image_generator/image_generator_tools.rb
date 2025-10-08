@@ -79,7 +79,7 @@ class ImageGeneratorGemini < MonadicApp
   # Generate or edit images using Google's AI models
   # @param prompt [String] Text description of the desired image or editing instructions
   # @param operation [String] Type of operation: 'generate' or 'edit'
-  # @param model [String] Model to use: 'imagen3' for high quality, 'gemini' for versatile editing
+  # @param model [String] Model to use: 'imagen4-fast' (default, fastest), 'imagen4' (standard), 'imagen4-ultra' (highest quality), 'imagen3' (legacy), 'gemini' (for editing)
   # @param session [Object] Session object (automatically provided)
   # @return [String] JSON response with success status and filename
   def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", session: nil)

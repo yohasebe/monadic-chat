@@ -98,6 +98,36 @@ module Monadic
 
           puts "[SSLConfiguration] #{message}" if enabled
         end
+
+        public
+
+        # Create an SSL context for Net::HTTP with configured settings
+        def create_ssl_context
+          ctx = OpenSSL::SSL::SSLContext.new
+          params = OpenSSL::SSL::SSLContext::DEFAULT_PARAMS
+
+          ctx.verify_mode = params[:verify_mode] if params[:verify_mode]
+          ctx.verify_flags = params[:verify_flags] if params[:verify_flags]
+          ctx.ca_file = params[:ca_file] if params[:ca_file]
+          ctx.ca_path = params[:ca_path] if params[:ca_path]
+
+          ctx
+        end
+
+        # Apply SSL context to a Net::HTTP instance
+        def apply_to_net_http(http)
+          http.use_ssl = true
+          http.ssl_version = :TLSv1_2
+
+          ctx = create_ssl_context
+          http.cert_store = ctx.cert_store if ctx.cert_store
+          http.verify_mode = ctx.verify_mode
+          http.ca_file = ctx.ca_file if ctx.ca_file
+          http.ca_path = ctx.ca_path if ctx.ca_path
+
+          # Disable CRL checks
+          http.verify_flags = ctx.verify_flags if ctx.verify_flags
+        end
       end
     end
   end

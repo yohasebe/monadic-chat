@@ -92,7 +92,7 @@ const modelSpec = {
     "skip_in_progress_events": true
   },
   "gpt-5-chat-latest": {
-    "context_window" : [1, 400000],
+    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
@@ -101,6 +101,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_image_generation": true,
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },

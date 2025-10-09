@@ -148,8 +148,7 @@ function setCookieValues() {
 
 function listModels(models, openai = false) {
   // Array of patterns to identify different model types
-  // Note: gpt-5-chat-latest is excluded from GPT-5 category as it doesn't support reasoning_effort
-  const gpt5ModelPatterns = [/^gpt-5(?:-(?:mini|nano))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
+  const gpt5ModelPatterns = [/^gpt-5(-(?:mini|nano|pro|chat-latest))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
   const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.\d)\b/];
   const betaModelPatterns = [/^\bo\d\b/];
 
@@ -160,10 +159,7 @@ function listModels(models, openai = false) {
   const otherModels = [];
 
   for (let model of models) {
-    // Special case: gpt-5-chat-latest goes to other models
-    if (model === 'gpt-5-chat-latest') {
-      otherModels.push(model);
-    } else if (gpt5ModelPatterns.some(pattern => pattern.test(model))) {
+    if (gpt5ModelPatterns.some(pattern => pattern.test(model))) {
       gpt5Models.push(model);
     } else if (regularModelPatterns.some(pattern => pattern.test(model))) {
       regularModels.push(model);

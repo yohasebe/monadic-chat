@@ -85,12 +85,12 @@ module OpenAIHelper
 
   # Native OpenAI web search tool configuration for responses API
   NATIVE_WEBSEARCH_TOOL = {
-    type: "web_search_preview"
+    type: "web_search"
   }
-  
+
   # Built-in tools available in Responses API
   RESPONSES_API_BUILTIN_TOOLS = {
-    "web_search" => { type: "web_search_preview" },
+    "web_search" => { type: "web_search" },
     "file_search" => ->(vector_store_ids: [], max_num_results: 20) {
       {
         type: "file_search",
@@ -1377,7 +1377,7 @@ module OpenAIHelper
       if obj["use_responses_api_for_websearch"]
         # Add native web search tool for responses API
         responses_body["tools"] = [NATIVE_WEBSEARCH_TOOL]
-        DebugHelper.debug("OpenAI: Adding web_search_preview tool via Responses API", category: :api, level: :debug)
+        DebugHelper.debug("OpenAI: Adding web_search tool via Responses API", category: :api, level: :debug)
         DebugHelper.debug("Responses API body tools: #{responses_body['tools'].inspect}", category: :api, level: :debug)
         
       end

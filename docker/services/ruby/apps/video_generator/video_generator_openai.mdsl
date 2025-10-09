@@ -58,8 +58,8 @@ app "VideoGeneratorOpenAI" do
     - **Remix**: Modify an existing video with a new prompt
 
     **Video Specifications:**
-    - Sizes: 1280x720, 1920x1080, 1080x1920 (portrait), 720x1280 (portrait)
-    - Duration: 4, 8, or 16 seconds
+    - Sizes: 1280x720 (landscape), 720x1280 (portrait), 1792x1024 (wide), 1024x1792 (tall)
+    - Duration: 4, 8, or 12 seconds
     - Generation time: Several minutes (please be patient!)
 
     **Important:** I'll use sora-2 by default unless you specifically request high quality with keywords like 'professional', 'production', or 'high quality'.
@@ -80,8 +80,8 @@ app "VideoGeneratorOpenAI" do
     - If context suggests professional use, ASK user before choosing sora-2-pro
 
     📏 **Video Specifications**
-    - Supported sizes: 1280x720, 1920x1080, 1080x1920 (portrait), 720x1280 (portrait)
-    - Duration: 4, 8, or 16 seconds
+    - Supported sizes: 1280x720 (landscape), 720x1280 (portrait), 1792x1024 (wide), 1024x1792 (tall)
+    - Duration: 4, 8, or 12 seconds
     - Default: 1280x720, 8 seconds, sora-2 model
 
     📁 **For Image-to-Video Generation**
@@ -166,8 +166,8 @@ app "VideoGeneratorOpenAI" do
     4. Call the `generate_video_with_sora` function with these parameters:
        - prompt: Detailed text description (required)
        - model: "sora-2" (default, fast) or "sora-2-pro" (high quality) - USE RULES FROM STEP 2!
-       - size: "1280x720" (default), "1920x1080", "1080x1920", or "720x1280"
-       - seconds: "4", "8" (default), or "16"
+       - size: "1280x720" (default), "720x1280", "1792x1024", or "1024x1792"
+       - seconds: "4", "8" (default), or "12"
        - image_path: Filename from shared folder for image-to-video
        - remix_video_id: ID of existing video to remix
 
@@ -235,8 +235,8 @@ app "VideoGeneratorOpenAI" do
     define_tool "generate_video_with_sora", "Generate videos using OpenAI's Sora 2 models. Creates asynchronous video generation jobs." do
       parameter :prompt, "string", "Detailed text description of the video. Describe shot type, subject, action, setting, lighting, and camera movement.", required: true
       parameter :model, "string", "Model to use: 'sora-2' (fast, for iterations) or 'sora-2-pro' (high quality, for production). Default: sora-2", required: false, enum: ["sora-2", "sora-2-pro"]
-      parameter :size, "string", "Video resolution. Options: '1280x720', '1920x1080', '1080x1920', '720x1280'. Default: 1280x720", required: false, enum: ["1280x720", "1920x1080", "1080x1920", "720x1280"]
-      parameter :seconds, "string", "Video duration in seconds: '4', '8', or '16'. Default: 8", required: false, enum: ["4", "8", "16"]
+      parameter :size, "string", "Video resolution. Options: '1280x720' (landscape), '720x1280' (portrait), '1792x1024' (wide), '1024x1792' (tall). Default: 1280x720", required: false, enum: ["1280x720", "720x1280", "1792x1024", "1024x1792"]
+      parameter :seconds, "string", "Video duration in seconds: '4', '8', or '12'. Default: 8", required: false, enum: ["4", "8", "12"]
       parameter :image_path, "string", "Optional: Filename of image in shared folder for image-to-video (becomes first frame). Must match target resolution.", required: false
       parameter :remix_video_id, "string", "Optional: ID of existing video to remix (for making targeted modifications).", required: false
     end

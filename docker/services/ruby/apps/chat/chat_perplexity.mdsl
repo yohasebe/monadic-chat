@@ -55,7 +55,7 @@ app "ChatPerplexity" do
     auto_speech false
     image true
     initiate_from_assistant false
-    websearch false
+    websearch true
     group "Perplexity"
   end
   

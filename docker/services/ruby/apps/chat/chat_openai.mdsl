@@ -59,7 +59,7 @@ app "ChatOpenAI" do
     auto_speech false
     image true
     pdf false
-    websearch false
+    websearch true
   end
   
   tools do

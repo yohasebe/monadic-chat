@@ -1,3 +1,27 @@
+- [October 10, 2025] Recent Updates
+  - **PDF Export Improvements**: Enhanced document-oriented output
+    - Replaced Bootstrap card layout with simple message structure for better pagination
+    - Added i18n support for header labels (7 languages: en, ja, zh, ko, de, fr, es)
+    - Added provider information to PDF header (App, Provider, Model, Exported)
+    - Removed page-break restrictions on message containers for better space utilization
+    - Text paragraphs can now break naturally across pages
+    - Images, code blocks, tables, and formulas still protected from page breaks
+  - **Video Generator Parameter Fix**: Corrected Sora 2 API specifications
+    - Fixed size parameter: removed unsupported 1920x1080, 1080x1920
+    - Added correct sizes: 1280x720, 720x1280, 1792x1024, 1024x1792
+    - Fixed duration parameter: replaced 16 with 12 seconds
+    - Resolves "Invalid value" errors from OpenAI Video API
+  - **OpenAI Chat Default Model**: Changed to gpt-5-chat-latest
+    - Updated from gpt-5-mini for better out-of-box experience
+    - gpt-5-chat-latest specs: 128K context, structured outputs, web search, image generation
+  - **GPT-5 Model Categorization**: Improved model dropdown organization
+    - Moved gpt-5-chat-latest and gpt-5-pro to "GPT-5 (Latest)" category
+    - Removed special case exclusion for gpt-5-chat-latest
+  - **OpenAI Web Search Fix**: Updated tool name for new API
+    - Changed web_search_preview to web_search
+    - Fixes "Web search preview tool is not supported" error
+    - Applies to all GPT-5, GPT-4.1, O3, and O4 models with web search support
+
 - [October 5, 2025] 1.0.0-beta.5
   - **MDSL Validator Fix**: Fixed method name error in Visual Web Explorer
     - Changed `ModelSpec.get_spec()` to `ModelSpec.get_model_spec()`

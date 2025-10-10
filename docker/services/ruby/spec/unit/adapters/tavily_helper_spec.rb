@@ -47,14 +47,37 @@ RSpec.describe TavilyHelper do
       end
     end
     
+    context 'when API returns non-JSON error response' do
+      before do
+        stub_const("CONFIG", { "TAVILY_API_KEY" => "test-key" })
+
+        # Mock HTTP response with plain text error (not JSON)
+        error_response = double('response',
+          status: double('status', success?: false),
+          body: 'Bearer token not found'  # Plain text, not JSON
+        )
+
+        allow(HTTP).to receive(:headers).and_return(
+          double('http', timeout: double('timeout', post: error_response))
+        )
+      end
+
+      it 'handles plain text error response correctly' do
+        result = helper.tavily_search(query: "test")
+        expect(result).to be_a(Hash)
+        expect(result[:error]).to include("Tavily API error:")
+        expect(result[:error]).to include("Bearer token not found")
+      end
+    end
+
     context 'when network error occurs' do
       before do
         stub_const("CONFIG", { "TAVILY_API_KEY" => "test-key" })
-        
+
         # Mock HTTP timeout
         allow(HTTP).to receive(:headers).and_raise(HTTP::TimeoutError.new("Request timed out"))
       end
-      
+
       it 'returns an error hash' do
         result = helper.tavily_search(query: "test")
         expect(result).to be_a(Hash)

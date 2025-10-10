@@ -1648,47 +1648,9 @@ module CohereHelper
       end
 
       # Execute tool calls and get results
-      new_results = process_functions(app, session, accumulated_tool_calls, context, call_depth, &block)
-
-      # Handle different result scenarios
-      if result.is_a?(Hash) && result["error"]
-        # Handle error case
-        res = { "type" => "error", "content" => result["error"] }
-      elsif result && new_results
-        # Combine text result with function results
-        combined_result = "#{result}\n\n#{new_results.dig(0, "choices", 0, "message", "content")}"
-        res = { "choices" => [{ "message" => { "content" => combined_result } }] }
-      elsif new_results
-        # Use only function results
-        res = new_results
-      elsif result
-        # Use only text result
-        res = { "choices" => [{ "message" => { "content" => result } }] }
-      end
-      
-      # Attach usage if captured to result
-      if res.is_a?(Hash) && res["choices"].is_a?(Array) && (usage_input_tokens || usage_output_tokens || usage_total_tokens)
-        res["usage"] = {
-          "input_tokens" => usage_input_tokens,
-          "output_tokens" => usage_output_tokens,
-          "total_tokens" => usage_total_tokens
-        }.compact
-      end
-
-      # Send the result
-      block&.call res
-      
-      # Send the DONE message to trigger HTML rendering
-      done_msg = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
-      block&.call done_msg
-      
-      # Explicitly send a "wait" message to reset the UI status immediately 
-      # This ensures the UI doesn't stay in the "RESPONDING" state
-      ready_msg = { "type" => "wait", "content" => "<i class='fa-solid fa-circle-check' style='color: #22ad50;'></i> <span style='color: #22ad50;'>Ready to Start</span>" }
-      block&.call ready_msg
-      
-      # The "DONE" message tells the client to request HTML, which resets the status
-      [res]
+      # process_functions makes recursive api_request which handles DONE message
+      # Return directly to avoid duplicate DONE messages
+      return process_functions(app, session, accumulated_tool_calls, context, call_depth, &block)
     else
       # Handle regular text response or empty response (e.g., only thinking content)
       

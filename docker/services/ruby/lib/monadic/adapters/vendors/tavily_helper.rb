@@ -59,14 +59,22 @@ module TavilyHelper
         res = JSON.parse(res.body)
         res["websearch_agent"] = "tavily"
       else
-        error_report = JSON.parse(res.body)
-        error_message = error_report["error"] || error_report["message"] || "Unknown error"
+        # Try to parse error response as JSON, fall back to raw body if parsing fails
+        begin
+          error_report = JSON.parse(res.body)
+          error_message = error_report["error"] || error_report["message"] || "Unknown error"
+        rescue JSON::ParserError
+          # If response is not JSON (e.g., "Bearer token not found"), use raw body
+          error_message = res.body.to_s
+        end
         res = { :error => "Tavily API error: #{error_message}" }
       end
 
       res
     rescue HTTP::Error, HTTP::TimeoutError => e
       { :error => "Network error occurred: #{e.message}" }
+    rescue JSON::ParserError => e
+      { :error => "Failed to parse Tavily API response: #{e.message}" }
     end
   end
 end

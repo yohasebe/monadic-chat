@@ -1517,81 +1517,128 @@ module WebSocketHelper
             segments = combined_text.empty? ? [] : [combined_text]
           end
           
-          # Start a new thread for TTS processing
+          # Start a new thread for TTS processing with prefetching
           @tts_thread = Thread.new do
             Thread.current[:type] = :tts_playback
-            
-            segments.each_with_index do |segment, i|
-              # Skip empty segments
+
+            # Filter and prepare segments
+            valid_segments = []
+            segments.each do |segment|
               next if segment.strip.empty?
-              
+
               # Light filtering for Gemini TTS
               if provider == "gemini-flash" || provider == "gemini-pro"
                 cleaned_segment = segment.strip
-                
-                # Skip if too short after stripping
-                if cleaned_segment.length < 3
-                  next
-                end
-                
-                segment = cleaned_segment
-              end
-              
-              # Process this segment
-              previous_text = if provider == "elevenlabs-v3"
-                                 nil
-                               else
-                                 prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
-                               end
-              
-              # Special handling for Web Speech API
-              if provider == "webspeech" || provider == "web-speech"
-                # Create a special response for Web Speech API
-                res_hash = { "type" => "web_speech", "content" => segment }
+                next if cleaned_segment.length < 3
+                valid_segments << cleaned_segment
               else
-                # Generate TTS content for other providers
-                res_hash = tts_api_request(segment,
-                                          previous_text: previous_text, 
-                                          provider: provider,
-                                          voice: voice,
-                                          speed: speed,
-                                          response_format: response_format,
-                                          language: language)
-                # Add segment information for proper sequencing
-                if res_hash && res_hash["type"] == "audio"
-                  res_hash["segment_index"] = i
-                  res_hash["total_segments"] = segments.length
-                  res_hash["is_segment"] = true
-                end
-              end
-              
-              # Store for context in next segment
-              prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
-              
-              # Create a special message for client to show TTS progress
-              progress_message = {
-                "type" => "tts_progress",
-                "segment_index" => i,
-                "total_segments" => segments.length,
-                "progress" => ((i + 1) / segments.length.to_f * 100).round
-              }
-              
-              # Send the audio/speech message only if it's valid
-              if res_hash && res_hash["type"] != "error"
-                @channel.push(res_hash.to_json)
-                
-                # Send progress update
-                @channel.push(progress_message.to_json)
-              else
-                # Log the error
-                puts "TTS segment failed: #{res_hash&.dig("content") || "Unknown error"}"
+                valid_segments << segment
               end
             end
-            
+
+            # Prefetch pipeline: Start first 2 TTS requests in parallel
+            tts_futures = []
+
+            # Special handling for Web Speech API - no prefetching needed (no API calls)
+            if provider == "webspeech" || provider == "web-speech"
+              # Process synchronously for Web Speech API
+              valid_segments.each_with_index do |segment, i|
+                res_hash = { "type" => "web_speech", "content" => segment }
+
+                prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
+
+                # Send audio and progress
+                @channel.push(res_hash.to_json)
+
+                progress_message = {
+                  "type" => "tts_progress",
+                  "segment_index" => i,
+                  "total_segments" => valid_segments.length,
+                  "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
+                }
+                @channel.push(progress_message.to_json)
+              end
+            else
+              # Prefetch mode for API-based TTS providers
+              # Start first 2 requests
+              [0, 1].each do |idx|
+                break if idx >= valid_segments.length
+
+                segment = valid_segments[idx]
+                previous_text = if provider == "elevenlabs-v3"
+                                  nil
+                                else
+                                  prev_texts_for_tts[idx - 1]
+                                end
+
+                tts_futures << Thread.new do
+                  tts_api_request(segment,
+                                previous_text: previous_text,
+                                provider: provider,
+                                voice: voice,
+                                speed: speed,
+                                response_format: response_format,
+                                language: language)
+                end
+              end
+
+              # Process segments in order
+              valid_segments.each_with_index do |segment, i|
+                # Wait for current segment's TTS to complete
+                res_hash = tts_futures[i]&.value
+
+                # Add segment information
+                if res_hash && res_hash["type"] == "audio"
+                  res_hash["segment_index"] = i
+                  res_hash["total_segments"] = valid_segments.length
+                  res_hash["is_segment"] = true
+                end
+
+                # Store for context
+                prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
+
+                # Start next segment's TTS request (prefetch i+2)
+                next_idx = i + 2
+                if next_idx < valid_segments.length
+                  next_segment = valid_segments[next_idx]
+                  next_previous_text = if provider == "elevenlabs-v3"
+                                        nil
+                                      else
+                                        prev_texts_for_tts[next_idx - 1]
+                                      end
+
+                  tts_futures << Thread.new do
+                    tts_api_request(next_segment,
+                                  previous_text: next_previous_text,
+                                  provider: provider,
+                                  voice: voice,
+                                  speed: speed,
+                                  response_format: response_format,
+                                  language: language)
+                  end
+                end
+
+                # Send audio and progress
+                if res_hash && res_hash["type"] != "error"
+                  @channel.push(res_hash.to_json)
+
+                  progress_message = {
+                    "type" => "tts_progress",
+                    "segment_index" => i,
+                    "total_segments" => valid_segments.length,
+                    "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
+                  }
+                  @channel.push(progress_message.to_json)
+                else
+                  puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
+                end
+              end
+            end
+
             # Signal completion
             @channel.push({
               "type" => "tts_complete",
-              "total_segments" => segments.length
+              "total_segments" => valid_segments.length
             }.to_json)
           end
         else # fragment

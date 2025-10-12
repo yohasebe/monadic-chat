@@ -1422,13 +1422,29 @@ module WebSocketHelper
             }.to_json)
           end
         when "STOP_TTS"
-          # Stop any running TTS thread
+          # Stop any running TTS thread and all prefetch threads
           if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
+            # Kill all prefetch subthreads first
+            begin
+              tts_futures = @tts_thread[:tts_futures]
+              if tts_futures && tts_futures.is_a?(Array)
+                tts_futures.each do |future_thread|
+                  future_thread.kill if future_thread && future_thread.alive?
+                rescue => e
+                  # Already dead or error during kill - safe to ignore
+                end
+              end
+            rescue => e
+              # Error accessing thread locals - continue with main thread cleanup
+              puts "Error cleaning up TTS subthreads: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            end
+
+            # Kill main TTS thread
             @tts_thread.kill
             @tts_thread = nil
-            puts "TTS thread stopped by STOP_TTS message"
+            puts "TTS thread and subthreads stopped by STOP_TTS message"
           end
-          
+
           # Send confirmation
           @channel.push({
             "type" => "tts_stopped"
@@ -1538,6 +1554,8 @@ module WebSocketHelper
 
             # Prefetch pipeline: Start first 2 TTS requests in parallel
             tts_futures = []
+            # Store futures array in thread local for STOP_TTS cleanup
+            Thread.current[:tts_futures] = tts_futures
 
             # Special handling for Web Speech API - no prefetching needed (no API calls)
             if provider == "webspeech" || provider == "web-speech"
@@ -1584,8 +1602,17 @@ module WebSocketHelper
 
               # Process segments in order
               valid_segments.each_with_index do |segment, i|
-                # Wait for current segment's TTS to complete
-                res_hash = tts_futures[i]&.value
+                # Wait for current segment's TTS to complete with error handling
+                begin
+                  res_hash = tts_futures[i]&.value
+                rescue => e
+                  # Thread was killed or errored - create error response
+                  puts "TTS segment #{i} failed with exception: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+                  res_hash = {
+                    "type" => "error",
+                    "content" => "TTS generation failed for segment #{i + 1}"
+                  }
+                end
 
                 # Add segment information
                 if res_hash && res_hash["type"] == "audio"

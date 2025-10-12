@@ -2549,10 +2549,7 @@ let loadedApp = "Chat";
         }
         responseStarted = false;
         callingFunction = false;
-        
-        // Re-enable toggle menu
-        $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
-        
+
         // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
         
@@ -4175,10 +4172,7 @@ let loadedApp = "Chat";
           window.UIState.set('isStreaming', true);
         }
         responseStarted = false; // Will be set to true when streaming starts
-        
-        // Disable toggle menu during streaming
-        $("#toggle-menu").addClass("streaming-active").css("cursor", "not-allowed");
-        
+
         // Clear any existing interval first
         if (window.spinnerCheckInterval) {
           clearInterval(window.spinnerCheckInterval);
@@ -4328,10 +4322,7 @@ let loadedApp = "Chat";
           window.UIState.set('streamingResponse', false);
           window.UIState.set('isStreaming', false);
         }
-        
-        // Re-enable toggle menu
-        $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
-        
+
         // Clear any pending spinner check interval
         if (window.spinnerCheckInterval) {
           clearInterval(window.spinnerCheckInterval);

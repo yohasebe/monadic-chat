@@ -15,7 +15,6 @@
     
     // Menu and layout states
     isMenuVisible: true,
-    toggleMenuLocked: false,
     
     // Scroll states
     autoScroll: true,
@@ -174,23 +173,8 @@
       switch (key) {
         case 'isStreaming':
         case 'streamingResponse':
-          // Update toggle menu state when streaming changes
-          if (newValue) {
-            this.set('toggleMenuLocked', true);
-            // Update UI elements
-            const toggleBtn = document.getElementById('toggle-menu');
-            if (toggleBtn) {
-              toggleBtn.classList.add('streaming-active');
-              toggleBtn.style.cursor = 'not-allowed';
-            }
-          } else {
-            this.set('toggleMenuLocked', false);
-            const toggleBtn = document.getElementById('toggle-menu');
-            if (toggleBtn) {
-              toggleBtn.classList.remove('streaming-active');
-              toggleBtn.style.cursor = '';
-            }
-          }
+          // No longer lock toggle menu during streaming to improve UX
+          // Menu toggle is a pure UI operation that doesn't interfere with streaming
           break;
           
         case 'windowWidth':

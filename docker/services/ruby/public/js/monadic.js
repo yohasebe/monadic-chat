@@ -1829,21 +1829,7 @@ $(function () {
         console.error('Required elements missing for menu toggle');
         return false;
       }
-      
-      // Check if AI is currently responding
-      const isStreaming = window.streamingResponse || 
-                         (window.UIConfig && window.UIConfig.STATE && window.UIConfig.STATE.isStreaming);
-      
-      if ($spinner.is(":visible") || isStreaming) {
-        // Don't allow toggle during AI response
-        // Add visual feedback that the button is disabled
-        $toggleBtn.css("opacity", "0.5").attr("aria-disabled", "true");
-        setTimeout(() => {
-          $toggleBtn.css("opacity", "1").attr("aria-disabled", "false");
-        }, 200);
-        return false;
-      }
-      
+
       // Check if we're on mobile with fallback
       const isMobile = window.UIConfig ? 
         window.UIConfig.isMobileView() : 
@@ -2135,9 +2121,6 @@ $(function () {
     responseStarted = false;
     callingFunction = false;
     streamingResponse = false;  // Reset streaming flag
-    
-    // Re-enable toggle menu
-    $("#toggle-menu").removeClass("streaming-active").css("cursor", "");
 
     // Clear spinner check interval if it exists
     if (window.spinnerCheckInterval) {

@@ -104,3 +104,4 @@ __pycache__/
 *.pyd
 docs_dev/test_runs/
 docs_dev/memos/
+docs_dev/external_apis/

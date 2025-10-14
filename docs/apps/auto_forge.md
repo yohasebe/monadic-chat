@@ -4,13 +4,13 @@ AutoForge (marketed as "Artifact Builder") is an autonomous application builder 
 
 ## Overview
 
-AutoForge uses GPT-5 or Claude Opus 4.1 for planning and orchestration, combined with provider-specific code generation (GPT-5-Codex or Claude Opus). It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
+AutoForge uses GPT-5, Claude Opus 4.1, or Grok-4-Fast-Reasoning for planning and orchestration, combined with provider-specific code generation (GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1). It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
 
 ## Key Features
 
 ### 1. Intelligent Application Generation
-- **Autonomous Planning**: GPT-5 or Claude Opus analyzes requirements and creates detailed implementation plans.
-- **Provider-Specific Codegen**: GPT-5-Codex or Claude Opus delivers production-ready artifacts.
+- **Autonomous Planning**: GPT-5, Claude Opus, or Grok-4-Fast-Reasoning analyzes requirements and creates detailed implementation plans.
+- **Provider-Specific Codegen**: GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1 delivers production-ready artifacts.
 - **Single-File Output**: Web apps ship as a single HTML file; CLI tools ship as a standalone script.
 
 ### 2. CLI Tool Support
@@ -116,8 +116,8 @@ Example (custom asset):
 ## Technical Details
 
 ### Architecture
-- **Orchestration Layer**: GPT-5 (OpenAI) or Claude Opus 4.1 (Claude) handles planning, user interaction, and tool coordination via MDSL apps.
-- **Code Generation Layer**: GPT-5-Codex or Claude Opus produces the web/CLI artifact.
+- **Orchestration Layer**: GPT-5 (OpenAI), Claude Opus 4.1 (Claude), or Grok-4-Fast-Reasoning (xAI) handles planning, user interaction, and tool coordination via MDSL apps.
+- **Code Generation Layer**: GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1 produces the web/CLI artifact.
 - **File Management**: The Ruby backend manages project storage, context persistence, and optional file generation.
 - **Debug Layer**: Python/Selenium integration provides automated testing for web apps.
 
@@ -169,7 +169,10 @@ When `debug_application` is used for web apps, you receive:
 
 ### Basic Requirements
 - Monadic Chat with Ruby backend
-- OpenAI API key with access to GPT-5 and GPT-5-Codex
+- One of the following:
+  - OpenAI API key with access to GPT-5 and GPT-5-Codex
+  - Anthropic API key with access to Claude Opus 4.1
+  - xAI API key with access to Grok-4-Fast-Reasoning and Grok-Code-Fast-1
 
 ### Optional Requirements
 - Docker with Selenium container for debugging features (web apps only)
@@ -209,5 +212,20 @@ When `debug_application` is used for web apps, you receive:
 AutoForge supports multiple providers:
 - **OpenAI Auto Forge**: GPT-5 orchestrates the workflow while GPT-5-Codex handles code generation.
 - **Claude Auto Forge**: Claude Opus 4.1 orchestrates and generates code via the Claude Responses API.
+- **Grok Auto Forge**: Grok-4-Fast-Reasoning orchestrates the workflow while Grok-Code-Fast-1 handles code generation.
 
-Both variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.
+All variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.
+
+### Grok-Specific Characteristics
+
+Grok-Code-Fast-1 excels at:
+- **Fast Iteration**: Quick generation with 92 tokens/sec throughput
+- **Front-End Development**: HTML/CSS/JavaScript, SVG graphics, animations
+- **Modern CSS**: Grid, Flexbox, CSS variables
+- **Cost Efficiency**: 6-7x cheaper than GPT-5-Codex
+
+Grok-Code-Fast-1 is optimized for:
+- Smaller, focused tasks with iterative development
+- Visual components and simple animations
+- Vanilla JavaScript implementations
+- Self-contained single-file applications

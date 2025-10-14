@@ -2,54 +2,62 @@
 
 ## Overview
 
-AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5 or Claude Opus orchestration with provider-specific code generation (GPT-5-Codex or Claude Opus).
+AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5, Claude Opus, or Grok-4-Fast-Reasoning orchestration with provider-specific code generation (GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1).
 
 ## Architecture
 
 ### Layer Architecture
 
 ```
-┌─────────────────────────────────────┐
-│         MDSL Framework              │
-│ (auto_forge_openai/claude.mdsl)     │
-└────────────┬────────────────────────┘
-             │
-┌────────────▼────────────────────────┐
-│      Orchestration Layer            │
-│   (GPT-5 / Claude Opus via API)     │
-│   - User interaction                │
-│   - Planning & coordination         │
-│   - Tool invocation                 │
-└────────────┬────────────────────────┘
-             │
-┌────────────▼────────────────────────┐
-│      Tool Methods Layer             │
-│    (auto_forge_tools.rb)            │
-│   - generate_application            │
-│   - debug_application               │
-│   - list_projects                   │
-│   - validate_specification          │
-└────────────┬────────────────────────┘
-             │
-┌────────────▼────────────────────────┐
-│    Code Generation Layer            │
-│ (GPT-5-Codex / Claude Opus API)     │
-│   - HTML/CSS/JS/CLI generation      │
-│   - via provider agents             │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│              MDSL Framework                  │
+│  (auto_forge_openai/claude/grok.mdsl)        │
+└──────────────────┬───────────────────────────┘
+                   │
+┌──────────────────▼───────────────────────────┐
+│         Orchestration Layer                  │
+│  (GPT-5 / Claude Opus / Grok-4-Fast-         │
+│   Reasoning via provider APIs)               │
+│   - User interaction                         │
+│   - Planning & coordination                  │
+│   - Tool invocation                          │
+└──────────────────┬───────────────────────────┘
+                   │
+┌──────────────────▼───────────────────────────┐
+│         Tool Methods Layer                   │
+│         (auto_forge_tools.rb)                │
+│   - generate_application                     │
+│   - debug_application                        │
+│   - list_projects                            │
+│   - validate_specification                   │
+└──────────────────┬───────────────────────────┘
+                   │
+┌──────────────────▼───────────────────────────┐
+│        Code Generation Layer                 │
+│  (GPT-5-Codex / Claude Opus /                │
+│   Grok-Code-Fast-1 via provider agents)      │
+│   - HTML/CSS/JS/CLI generation               │
+│   - via provider-specific agents             │
+└──────────────────────────────────────────────┘
 ```
 
 ### Key Components
 
-#### 1. MDSL Configuration (`auto_forge_openai.mdsl`, `auto_forge_claude.mdsl`)
+#### 1. MDSL Configuration (`auto_forge_openai.mdsl`, `auto_forge_claude.mdsl`, `auto_forge_grok.mdsl`)
 - Defines the app interface and system prompt for each provider
-- Configures available models (GPT-5/GPT-5-Codex for OpenAI, Claude Opus 4.1 for Claude)
+- Configures available models:
+  - OpenAI: GPT-5 for orchestration, GPT-5-Codex for code generation
+  - Claude: Claude Opus 4.1 for both orchestration and code generation
+  - Grok: Grok-4-Fast-Reasoning for orchestration, Grok-Code-Fast-1 for code generation
 - Registers tool methods, including `generate_additional_file`
 - Uses the provider's chat/responses API for orchestration
 
 #### 2. Tool Methods (`auto_forge_tools.rb`)
 - Implements the core logic for each tool
-- Includes `GPT5CodexAgent` and `ClaudeOpusAgent` for provider-specific code generation
+- Includes provider-specific agents:
+  - `GPT5CodexAgent` for OpenAI code generation
+  - `ClaudeOpusAgent` for Claude code generation
+  - `GrokCodeAgent` for Grok code generation
 - Handles project management, optional CLI asset generation, and file I/O
 - Coordinates between orchestration and code generation
 
@@ -59,9 +67,11 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 - Handles file operations
 - Context persistence for modifications
 
-#### 4. HTML Generator (`agents/html_generator.rb`)
-- Interfaces with GPT-5-Codex
-- Builds prompts for code generation
+#### 4. HTML Generators
+- **OpenAI**: `agents/html_generator.rb` - Interfaces with GPT-5-Codex
+- **Claude**: `agents/claude_html_generator.rb` - Interfaces with Claude Opus
+- **Grok**: `agents/grok_html_generator.rb` - Interfaces with Grok-Code-Fast-1
+- Builds prompts optimized for each provider's code generation model
 - Handles both new generation and modifications
 - Extracts and validates HTML output
 
@@ -82,12 +92,16 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 ### Model Selection Logic
 
 ```ruby
-# Orchestration uses models from MDSL (GPT-5/GPT-5-Codex for OpenAI, Claude Opus for Claude)
-# Provider helpers route to the correct Responses API automatically.
+# Orchestration uses models from MDSL:
+# - GPT-5 for OpenAI
+# - Claude Opus 4.1 for Claude
+# - Grok-4-Fast-Reasoning for Grok
+# Provider helpers route to the correct API automatically.
 
 # Code generation is delegated to the provider-specific agent
 call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')          # OpenAI
 claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
+call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ```
 
 ### Responses API vs Chat API
@@ -100,8 +114,10 @@ claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
 2. **Code Generation (Provider Agents)**:
    - GPT-5-Codex via `GPT5CodexAgent` for OpenAI
    - Claude Opus via `ClaudeOpusAgent` for Claude
-   - Both use the provider's Responses API with deterministic parameters
-   - Shared prompt builders and output sanitizers ensure consistent artifacts
+   - Grok-Code-Fast-1 via `GrokCodeAgent` for Grok
+   - All use the provider's Responses API with deterministic parameters
+   - Provider-specific prompt builders optimize for each model's strengths
+   - Output sanitizers ensure consistent artifacts across providers
 
 ## File Management
 
@@ -136,10 +152,29 @@ claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
 
 ## Provider Variants & Progress Broadcasting
 
-- Two MDSL apps wrap the shared tool layer: `auto_forge_openai` (GPT-5 orchestration + GPT-5-Codex generation) and `auto_forge_claude` (Claude Opus 4.1 orchestration + generation).
-- `Monadic::Agents::ClaudeOpusAgent` mirrors the GPT-5-Codex contract by emitting `wait` fragments with `source: "ClaudeOpusAgent"` so the WebSocket layer can stream updates into the temp card.
+- Three MDSL apps wrap the shared tool layer:
+  - `auto_forge_openai`: GPT-5 orchestration + GPT-5-Codex generation
+  - `auto_forge_claude`: Claude Opus 4.1 orchestration + generation
+  - `auto_forge_grok`: Grok-4-Fast-Reasoning orchestration + Grok-Code-Fast-1 generation
+- Provider agents emit `wait` fragments with `source` identifiers so the WebSocket layer can stream updates into the temp card:
+  - `GPT5CodexAgent` for OpenAI
+  - `ClaudeOpusAgent` for Claude
+  - `GrokCodeAgent` for Grok
 - Progress fragments optionally include `minutes`/`remaining` values; when missing, the UI still displays provider-specific status text.
-- Web UI translation keys (`claudeOpusGenerating`, etc.) were added for every locale to keep progress messages localized.
+- Web UI translation keys (`claudeOpusGenerating`, `grokCodeGenerating`, etc.) were added for every locale to keep progress messages localized.
+
+### Grok-Specific Implementation Details
+
+- **Orchestration Model**: Grok-4-Fast-Reasoning with `reasoning_effort: "medium"` for balanced quality and speed
+- **Code Generation Model**: Grok-Code-Fast-1 (default in `GrokCodeAgent`)
+- **Prompt Optimization**: Prompts emphasize "smaller, focused tasks" and "iterative development" to match Grok-Code-Fast-1's strengths
+- **Performance**: 92 tokens/sec throughput, significantly faster than GPT-5-Codex
+- **Cost**: 6-7x cheaper than GPT-5-Codex
+- **Strengths**: HTML/CSS/JavaScript, SVG graphics, animations, visual components
+- **Agent Files**:
+  - `agents/grok_html_generator.rb`: HTML/CSS/JS generation
+  - `agents/grok_cli_generator.rb`: CLI tool generation
+  - Uses `GrokCodeAgent` mixin from `lib/monadic/agents/grok_code_agent.rb`
 
 ### CLI Optional File Suggestions
 

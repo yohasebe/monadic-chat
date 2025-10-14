@@ -1528,9 +1528,19 @@ module WebSocketHelper
           # Process each segment
           prev_texts_for_tts = []
           segments = Array(segments)
+
+          # ElevenLabs V3: Check if segments should be combined (legacy behavior)
+          # Default is false (use segment splitting for prefetch benefits)
+          # Set ELEVENLABS_V3_COMBINE_SEGMENTS=true to combine all segments into one
           if provider == "elevenlabs-v3"
-            combined_text = segments.join(" ").strip
-            segments = combined_text.empty? ? [] : [combined_text]
+            combine_segments = defined?(CONFIG) && CONFIG["ELEVENLABS_V3_COMBINE_SEGMENTS"].to_s == "true"
+            if combine_segments
+              combined_text = segments.join(" ").strip
+              segments = combined_text.empty? ? [] : [combined_text]
+              puts "ElevenLabs V3: Combined all segments into one (legacy mode)" if CONFIG["EXTRA_LOGGING"]
+            else
+              puts "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" if CONFIG["EXTRA_LOGGING"]
+            end
           end
           
           # Start a new thread for TTS processing with prefetching

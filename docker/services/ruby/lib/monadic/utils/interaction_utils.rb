@@ -450,12 +450,9 @@ module InteractionUtils
                    else
                      "gemini-2.5-flash-preview-tts" # default
                    end
-      # Use streaming endpoint when block is given
-      if block_given?
-        target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:streamGenerateContent?key=#{api_key}"
-      else
-        target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
-      end
+      # Always use non-streaming endpoint for better performance
+      # Gemini TTS returns complete audio in one response anyway
+      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
     else
       # Default error case
       return { "type" => "error", "content" => "ERROR: Unknown TTS provider: #{provider}" }
@@ -505,88 +502,10 @@ module InteractionUtils
         block.call(finish)
         return nil
       end
-      
-      # Use streaming for Gemini TTS when block is given
-      if block_given? && (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro")
-        require 'net/http'
-        require 'uri'
-        
-        uri = URI(target_uri)
-        net_http = Net::HTTP.new(uri.host, uri.port)
-        net_http.use_ssl = true
-        net_http.read_timeout = READ_TIMEOUT
-        
-        request = Net::HTTP::Post.new(uri.path + "?" + uri.query)
-        headers.each { |key, value| request[key] = value }
-        request.body = body.to_json
-        
-        t_index = 0
-        start_time = Time.now
-        first_chunk_time = nil
-        
-        puts "Gemini TTS: Starting streaming request..." if ENV["DEBUG_TTS"]
-        
-        # Stream the response
-        net_http.request(request) do |response|
-          unless response.code.to_i == 200
-            error_res = { "type" => "error", "content" => "ERROR: Gemini TTS API error: #{response.code}" }
-            block.call(error_res)
-            return
-          end
-          
-          # Gemini streams JSON objects separated by newlines
-          buffer = ""
-          response.read_body do |chunk|
-            buffer += chunk
-            
-            # Process complete JSON objects
-            while buffer.include?("\n")
-              line, buffer = buffer.split("\n", 2)
-              next if line.strip.empty?
-              
-              begin
-                json_response = JSON.parse(line.strip)
-                
-                # Extract audio data from streamed response
-                if json_response["candidates"] && 
-                   json_response["candidates"][0] && 
-                   json_response["candidates"][0]["content"] && 
-                   json_response["candidates"][0]["content"]["parts"] &&
-                   json_response["candidates"][0]["content"]["parts"][0] &&
-                   json_response["candidates"][0]["content"]["parts"][0]["inlineData"]
-                  
-                  audio_data = json_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-                  mime_type = json_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
-                  
-                  if audio_data && !audio_data.empty?
-                    t_index += 1
-                    
-                    if first_chunk_time.nil?
-                      first_chunk_time = Time.now
-                      latency = first_chunk_time - start_time
-                      puts "Gemini TTS: First chunk latency: #{(latency * 1000).round}ms" if ENV["DEBUG_TTS"]
-                    end
-                    
-                    hash_res = { "type" => "audio", "content" => audio_data, "mime_type" => mime_type, "t_index" => t_index, "finished" => false }
-                    block.call(hash_res)
-                    puts "Gemini TTS: Streamed chunk #{t_index} (#{audio_data.length} bytes)" if ENV["DEBUG_TTS"]
-                  end
-                end
-              rescue JSON::ParserError => e
-                puts "Gemini TTS: JSON parse error in stream: #{e.message}" if ENV["DEBUG_TTS"]
-                next
-              end
-            end
-          end
-        end
-        
-        # Send completion signal
-        t_index += 1
-        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-        block.call(finish)
-        return nil
-      end
-      
+
+      # Gemini TTS now uses non-streaming endpoint (generateContent) for all requests
+      # The streaming-specific code has been removed as it added unnecessary overhead
+
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
       unless res.status.success?

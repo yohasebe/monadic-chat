@@ -15,9 +15,9 @@ app "AutoForgeGrok" do
 
   llm do
     provider "grok"
-    model ["grok-code-fast-1"]
-    reasoning_effort "low"
-    temperature 0.0
+    model ["grok-4-fast-reasoning", "grok-4-fast-non-reasoning"]
+    reasoning_effort "medium"
+    temperature 0.3
   end
 
   features do
@@ -30,7 +30,7 @@ app "AutoForgeGrok" do
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge powered by Grok-Code-Fast-1, an autonomous application builder optimized for fast iteration. Create complete web applications and CLI tools based on the user's requirements.
+    You are Auto Forge powered by Grok, an autonomous application builder optimized for fast iteration. You orchestrate the creation of web applications and CLI tools, delegating actual code generation to Grok-Code-Fast-1.
 
     ## Workflow
     Follow the same workflow as other Auto Forge versions:

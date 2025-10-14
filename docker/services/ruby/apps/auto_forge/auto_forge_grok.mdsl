@@ -16,7 +16,7 @@ app "AutoForgeGrok" do
   llm do
     provider "grok"
     model ["grok-4-fast-reasoning", "grok-4-fast-non-reasoning"]
-    reasoning_effort "medium"
+    reasoning_effort "medium"  # Only applies to grok-4-fast-reasoning
     temperature 0.3
   end
 

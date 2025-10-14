@@ -43,7 +43,7 @@ app "VoiceChatOpenAI" do
   
   llm do
     provider "openai"
-    model ["gpt-5-mini", "gpt-4.1-mini"]
+    model ["gpt-5-chat-latest", "gpt-4.1-mini"]
     reasoning_effort "minimal"
   end
   

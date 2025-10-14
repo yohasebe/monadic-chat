@@ -835,11 +835,10 @@ module DeepSeekHelper
                     end
                   end
 
-                  # Check if DeepSeek is outputting function calls as text
-                  if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
-                    # DeepSeek is outputting function calls as text, don't send fragments
-                    # We'll handle this after the full message is received
-                  elsif fragment.length > 0 && !fragment.match?(/<｜[^｜]+｜>/)
+                  # Send fragments unless they contain special markers
+                  # Note: We check for function call patterns after streaming completes,
+                  # not during streaming, to avoid blocking normal text fragments
+                  if fragment.length > 0 && !fragment.match?(/<｜[^｜]+｜>/)
                     # Don't send special markers as fragments
                     res = {
                       "type" => "fragment",

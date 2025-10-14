@@ -1293,7 +1293,7 @@ module GeminiHelper
     process_json_data(app: app,
                       session: session,
                       query: body,
-                      res: res.body.to_s,
+                      res: res.body,
                       call_depth: call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError, OpenSSL::SSL::SSLError => e
     if num_retrial < MAX_RETRIES
@@ -1352,8 +1352,8 @@ module GeminiHelper
     usage_candidates_tokens = nil
     usage_total_tokens = nil
 
-    # Convert the HTTP::Response::Body to a string and then process line by line
-    res.each_line do |chunk|
+    # Process streaming response chunks
+    res.each do |chunk|
       # Check if we should stop processing due to STOP finish reason
       break if finish_reason == "stop"
       

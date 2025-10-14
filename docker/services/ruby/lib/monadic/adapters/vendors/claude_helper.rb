@@ -1195,10 +1195,12 @@ module ClaudeHelper
               end
             end
 
-            if json.dig("type") == "content_block_stop"
-              res = { "type" => "fragment", "content" => "\n\n" }
-              block&.call res
-            end
+            # Skip content_block_stop - it causes excessive line breaks with web search
+            # Web search returns multiple content blocks, each triggering this event
+            # if json.dig("type") == "content_block_stop"
+            #   res = { "type" => "fragment", "content" => "\n\n" }
+            #   block&.call res
+            # end
 
             # Handle content type changes
             new_content_type = json.dig("content_block", "type")

@@ -41,7 +41,7 @@ app "ChatGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-fast-reasoning"
+    model "grok-4-fast-non-reasoning"
   end
   
   display_name "Chat"

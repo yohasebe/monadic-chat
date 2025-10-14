@@ -930,6 +930,8 @@ module PerplexityHelper
     usage_prompt_tokens = nil
     usage_completion_tokens = nil
     usage_total_tokens = nil
+    # Track citations from first chunk (Perplexity sends all citations in first response)
+    stored_citations = nil
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -970,6 +972,14 @@ module PerplexityHelper
               else
                 extra_log.puts("NO CITATIONS/SOURCES in this chunk")
               end
+            end
+          end
+
+          # Capture citations from first chunk (Perplexity sends all citations upfront)
+          if !stored_citations && json["citations"]
+            stored_citations = json["citations"]
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log.puts("[#{Time.now}] Perplexity: Captured #{stored_citations.size} citations from chunk")
             end
           end
 
@@ -1073,6 +1083,11 @@ module PerplexityHelper
                 # Don't send is_first flag to prevent spinner from disappearing
                 # "is_first" => fragment_sequence == 0
               }
+
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log.puts("[#{Time.now}] Perplexity fragment #{fragment_sequence}: #{fragment.inspect[0..50]}")
+              end
+
               fragment_sequence += 1
               block&.call res
             end
@@ -1157,8 +1172,8 @@ module PerplexityHelper
 
             # Skip citations processing for monadic mode
             if !obj["monadic"]
-              citations = json["citations"] if json["citations"]
-              
+              citations = stored_citations
+
               # Debug: Check citations for all models
               if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
@@ -1172,9 +1187,9 @@ module PerplexityHelper
                   DebugHelper.debug("Perplexity: Found citation references in content: #{citation_refs}", category: :api, level: :info)
                 end
               end
-              
+
               new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
-              
+
               # Debug: Log citation processing results
               if CONFIG["EXTRA_LOGGING"]
                 DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
@@ -1182,18 +1197,18 @@ module PerplexityHelper
                   DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
                 end
               end
-              
+
               # add citations to the last message
               if citations && citations.any?
                 citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
                   "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
                 end.join("\n") + "</ol></div>"
-                
+
                 if CONFIG["EXTRA_LOGGING"]
                   DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
                   DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
                 end
-                
+
                 texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
               else
                 if CONFIG["EXTRA_LOGGING"]
@@ -1223,17 +1238,17 @@ module PerplexityHelper
 
     if json && !stopped
       stopped = true
-      
-      # Get citations from the response
-      citations = json["citations"] if json["citations"]
-      
+
+      # Get citations from stored_citations (captured from first chunk)
+      citations = stored_citations
+
       # Skip citations processing for monadic mode
       if !obj["monadic"]
         # Debug: Log second citation processing
         if CONFIG["EXTRA_LOGGING"]
           DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
         end
-        
+
         new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
         # add citations to the last message
         if citations && citations.any?
@@ -1241,7 +1256,7 @@ module PerplexityHelper
             "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
           end.join("\n") + "</ol></div>"
           texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
-          
+
           if CONFIG["EXTRA_LOGGING"]
             DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
           end
@@ -1250,7 +1265,7 @@ module PerplexityHelper
         if CONFIG["EXTRA_LOGGING"]
           DebugHelper.debug("Perplexity: Processing citations for monadic mode", category: :api, level: :info)
         end
-        
+
         # For monadic mode, we need to store citations separately
         # They will be processed after JSON parsing
         if citations && citations.any? && texts.first && texts.first[1]
@@ -1262,10 +1277,10 @@ module PerplexityHelper
 
     thinking_result = thinking.empty? ? nil : thinking.join("\n\n")
     text_result = texts.empty? ? nil : texts.first[1]
-    
+
     # Store citations in text_result if available
-    if text_result && json && json["citations"] && json["citations"].any? && obj["monadic"]
-      text_result["__citations__"] = json["citations"]
+    if text_result && stored_citations && stored_citations.any? && obj["monadic"]
+      text_result["__citations__"] = stored_citations
     end
 
     if text_result && obj["monadic"]

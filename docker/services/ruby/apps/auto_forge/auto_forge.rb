@@ -11,6 +11,8 @@ require_relative 'utils/prompt_builder'
 require_relative 'utils/file_operations'
 require_relative 'agents/html_generator'
 require_relative 'agents/cli_generator'
+require_relative 'agents/grok_html_generator'
+require_relative 'agents/grok_cli_generator'
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
 
 module AutoForge
@@ -246,9 +248,16 @@ module AutoForge
         prompt_length: prompt.length
       })
 
-      # Call HTML generator agent
-      puts "[AutoForge] Creating HTML generator with context" if CONFIG && CONFIG["EXTRA_LOGGING"]
-      generator = Agents::HtmlGenerator.new(@context)
+      # Call HTML generator agent based on agent type
+      agent = @context[:agent] || :openai
+      puts "[AutoForge] Creating HTML generator for agent: #{agent}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+
+      generator = case agent
+                  when :grok
+                    Agents::GrokHtmlGenerator.new(@context)
+                  else
+                    Agents::HtmlGenerator.new(@context)
+                  end
 
       puts "[AutoForge] Calling generator.generate" if CONFIG && CONFIG["EXTRA_LOGGING"]
       generation_result = generator.generate(prompt, existing_content: existing_content, file_name: file_name, &block)
@@ -322,8 +331,15 @@ module AutoForge
         prompt_length: prompt.length
       })
 
-      # Generate using CLIGenerator
-      generator = Agents::CLIGenerator.new(@context)
+      # Generate using CLIGenerator based on agent type
+      agent = @context[:agent] || :openai
+
+      generator = case agent
+                  when :grok
+                    Agents::GrokCLIGenerator.new(@context)
+                  else
+                    Agents::CLIGenerator.new(@context)
+                  end
 
       # Generate with same callback pattern as HTML
       result = generator.generate(

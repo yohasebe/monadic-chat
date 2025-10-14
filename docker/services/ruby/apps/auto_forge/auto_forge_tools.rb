@@ -12,6 +12,7 @@ require_relative 'agents/error_explainer'
 require_relative 'utils/codex_response_analyzer'
 require_relative '../../lib/monadic/agents/gpt5_codex_agent'
 require_relative '../../lib/monadic/agents/claude_opus_agent'
+require_relative '../../lib/monadic/agents/grok_code_agent'
 
 # Tool methods for AutoForge MDSL application
 # Uses GPT-5 for orchestration and GPT-5-Codex for code generation
@@ -180,6 +181,13 @@ module AutoForgeTools
         actual_block = block || progress_callback
         self.claude_opus_agent(prompt, app_name || 'ClaudeOpusAgent', &actual_block)
       end
+    when :grok
+      # Extend GrokCodeAgent to get call_grok_code method
+      self.extend(Monadic::Agents::GrokCodeAgent) unless self.respond_to?(:call_grok_code)
+      ->(prompt, app_name, &block) do
+        actual_block = block || progress_callback
+        self.call_grok_code(prompt: prompt, app_name: app_name || 'AutoForgeGrok', &actual_block)
+      end
     else
       # Extend GPT5CodexAgent to get call_gpt5_codex method
       self.extend(Monadic::Agents::GPT5CodexAgent) unless self.respond_to?(:call_gpt5_codex)
@@ -192,7 +200,11 @@ module AutoForgeTools
     app = AutoForge::App.new(context)
 
     # Generate application with progress callback
-    agent_name = agent == :claude ? 'Claude Opus' : 'GPT-5-Codex'
+    agent_name = case agent
+                 when :claude then 'Claude Opus'
+                 when :grok then 'Grok-Code-Fast-1'
+                 else 'GPT-5-Codex'
+                 end
     puts "\n⏳ Generating application with #{agent_name}... This may take 2-5 minutes for complex apps.\n"
 
     # Pass the progress callback to generate_application

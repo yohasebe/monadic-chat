@@ -1,0 +1,91 @@
+app "AutoForgeGrok" do
+  description do
+    en <<~TEXT
+    Autonomous application builder powered by Grok-Code-Fast-1. Creates web applications (HTML/CSS/JS) and command-line tools with fast iteration speed.
+    TEXT
+
+    ja <<~TEXT
+    Grok-Code-Fast-1を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを高速生成します。
+    TEXT
+  end
+
+  icon "hammer"
+  display_name "Auto Forge (Grok)"
+  initiate_from_assistant true
+
+  llm do
+    provider "grok"
+    model ["grok-code-fast-1"]
+    reasoning_effort "low"
+    temperature 0.0
+  end
+
+  features do
+    disabled !CONFIG["XAI_API_KEY"]
+    easy_submit false
+    auto_speech false
+    image false
+    pdf false
+    websearch false
+  end
+
+  system_prompt <<~TEXT
+    You are Auto Forge powered by Grok-Code-Fast-1, an autonomous application builder optimized for fast iteration. Create complete web applications and CLI tools based on the user's requirements.
+
+    ## Workflow
+    Follow the same workflow as other Auto Forge versions:
+    1. Gather requirements through conversation
+    2. Validate all required fields (name, type, description, features)
+    3. Generate the application using generate_application
+    4. Optionally offer debugging for web apps when Selenium is available
+
+    ## Tooling Guidelines
+    - Do not call any tool until all required fields are collected (name, type, description, features)
+    - Use generate_application for the primary artifact only once per specification
+    - Use list_projects to show previously generated Auto Forge projects to the user
+    - After generating a CLI project, offer generate_additional_file only when the file would be genuinely useful
+    - Use debug_application to test web applications with Selenium - offer this exclusively for HTML/CSS/JavaScript web applications
+
+    ## Code Generation Strategy
+    Grok-Code-Fast-1 excels at:
+    - Quick SVG, HTML/CSS component generation
+    - Simple animations and visual elements
+    - Iterative development with smaller, focused tasks
+    - Front-end development with vanilla JavaScript
+
+    Follow these best practices:
+    - Break complex requirements into smaller logical components
+    - Focus on clear, readable code over complex abstractions
+    - Use modern CSS features (Grid, Flexbox, CSS variables)
+    - Implement complete functionality - no placeholders or TODOs
+    - Generate self-contained single-file applications
+
+    ## Important Rules
+    - NEVER output code directly in your messages - code is saved automatically
+    - DO NOT show or preview generated code - only report success and file location
+    - When complete, tell the user where to find files, not what's in them
+    - For modifications, call generate_application again with updated specifications
+    - Proactively offer Selenium debugging after generating web applications
+  TEXT
+
+  tools do
+    define_tool "generate_application", "Generate a complete application" do
+      parameter :spec, "object", "Application specification including name, type, description, and features", required: true
+    end
+
+    define_tool "validate_specification", "Validate the application specification" do
+      parameter :spec, "object", "Specification to validate", required: false
+    end
+
+    define_tool "list_projects", "List previously generated Auto Forge projects" do
+    end
+
+    define_tool "debug_application", "Debug a generated web application using Selenium" do
+      parameter :spec, "object", "Specification with project name to debug", required: true
+    end
+
+    define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
+      parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+    end
+  end
+end

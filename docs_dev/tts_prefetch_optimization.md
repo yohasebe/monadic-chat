@@ -59,7 +59,7 @@ ElevenLabs V3 was originally designed to process all text at once for optimal qu
 - **Minimum Length**: 8 characters (cleaned text)
 - **Prefetch**: Enabled for combined segments
 
-## Code Simplification (2025-10-14)
+## Code Simplification and Quality Improvements (2025-10-14)
 
 ### Gemini TTS Endpoint Optimization
 
@@ -77,6 +77,52 @@ ElevenLabs V3 was originally designed to process all text at once for optimal qu
 - Consistent with actual API behavior
 
 **Location:** `docker/services/ruby/lib/monadic/utils/interaction_utils.rb` (lines ~453-507)
+
+### OpenAI TTS Audio Quality Improvement
+
+**Problem:** `speed` parameter was always sent to OpenAI API, even when user didn't change speed (default `speed=1.0`). This forced speed conversion processing, degrading audio quality especially for `gpt-4o-mini-tts`.
+
+**Root Cause:**
+```ruby
+# Before (problematic)
+val_speed = speed ? speed.to_f : 1.0  # Always set to 1.0
+body = {
+  "speed" => val_speed,  # Always sent, even for default speed
+  ...
+}
+```
+
+**Solution:**
+- Only include `speed` parameter when explicitly set by user AND different from 1.0
+- Omit `speed` parameter when user hasn't changed speed
+- Allows OpenAI to use optimal processing without speed conversion overhead
+
+```ruby
+# After (improved)
+body = {
+  "input" => text_converted,
+  "model" => model,
+  "voice" => voice,
+  "response_format" => response_format
+}
+
+# Only include speed parameter if explicitly set by user
+if speed && speed.to_f != 1.0
+  body["speed"] = speed.to_f
+end
+```
+
+**Results:**
+- **Noticeable audio quality improvement** (subjective evaluation confirmed)
+- gpt-4o-mini-tts now produces higher quality output at default speed
+- Consistent with ElevenLabs implementation pattern (only send when needed)
+- No functional changes to speed control when user actively adjusts speed
+
+**Impact:**
+- Default TTS (no speed change): Better quality, no `speed` parameter sent
+- Speed adjusted (e.g., 0.5x, 1.5x): Works as before, `speed` parameter sent
+
+**Location:** `docker/services/ruby/lib/monadic/utils/interaction_utils.rb` (lines ~323-327)
 
 ## Safety Improvements (Added 2025-10-12)
 
@@ -187,6 +233,7 @@ Comprehensive latency measurements for 116-character test text across all provid
 - Example: `"instructions": "Speak in a cheerful and positive tone."`
 - 11 voices: alloy, ash, ballad, coral, echo, fable, nova, onyx, sage, shimmer (5 new voices added)
 - **Format recommendation**: Use `wav` or `pcm` for fastest response times (per OpenAI docs)
+- **Quality improvement**: `speed` parameter now only sent when user changes speed (better default quality)
 - Faster than TTS HD (1644ms vs 1795ms)
 - Best choice when you need both quality and instruction control
 

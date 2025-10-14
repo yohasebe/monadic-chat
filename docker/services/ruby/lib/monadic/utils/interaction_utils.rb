@@ -317,9 +317,14 @@ module InteractionUtils
         "input" => text_converted,
         "model" => model,
         "voice" => voice,
-        "speed" => val_speed,
         "response_format" => response_format
       }
+
+      # Only include speed parameter if explicitly set by user
+      # Omitting speed allows OpenAI to use optimal processing without speed conversion
+      if speed && speed.to_f != 1.0
+        body["speed"] = speed.to_f
+      end
 
       unless language == "auto"
         body["language"] = language

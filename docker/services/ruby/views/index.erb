@@ -572,9 +572,15 @@
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 50px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
-            <div class="mb-2" style="display: flex; align-items: center;">
+            <div class="mb-2" style="display: flex; align-items: center; flex-wrap: wrap;">
               <div id="monadic-homepage">
-                <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.homepage">Homepage</a></span>
+                <% if @debug_mode %>
+                  <span class="text text-secondary"><i class="fa-solid fa-book"></i> <a href="/docs/" target="_blank" rel="noopener noreferrer" title="Public documentation (local)">Docs</a> <small style="color: #28a745;">(local)</small></span>
+                  &nbsp;&nbsp;
+                  <span class="text text-secondary"><i class="fa-solid fa-code"></i> <a href="/docs_dev/" target="_blank" rel="noopener noreferrer" title="Internal documentation (local)">Docs Dev</a> <small style="color: #dc3545;">(internal)</small></span>
+                <% else %>
+                  <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.homepage">Homepage</a></span>
+                <% end %>
                 &nbsp;&nbsp;
                 <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
               </div>

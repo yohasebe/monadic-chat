@@ -785,6 +785,7 @@ end
 CONFIG = {
   "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
   "EXTRA_LOGGING" => ENV["EXTRA_LOGGING"] == "true" || false,  # Check ENV first, then default to false
+  "DEBUG_MODE" => ENV["DEBUG_MODE"] == "true" || false,  # Check if running in debug mode
   "JUPYTER_PORT" => "8889",     # Default Jupyter port
   "OLLAMA_AVAILABLE" => check_ollama_available,  # Check if Ollama container is available
   "WEBSOCKET_PROGRESS_ENABLED" => ENV["WEBSOCKET_PROGRESS_ENABLED"] != "false"  # Default to true, can be disabled via ENV
@@ -833,9 +834,12 @@ begin
   end
   
   # Override with environment variables if they exist
-  # This allows rake server:debug to force EXTRA_LOGGING=true
+  # This allows rake server:debug to force EXTRA_LOGGING=true and DEBUG_MODE=true
   if ENV["EXTRA_LOGGING"]
     CONFIG["EXTRA_LOGGING"] = ENV["EXTRA_LOGGING"] == "true"
+  end
+  if ENV["DEBUG_MODE"]
+    CONFIG["DEBUG_MODE"] = ENV["DEBUG_MODE"] == "true"
   end
 rescue Errno::ENOENT
   puts "Environment file not found at #{Paths::ENV_PATH}"
@@ -1377,14 +1381,161 @@ get "/" do
   session[:messages] ||= []
   session[:version] = Monadic::VERSION
   session[:docker] = Monadic::Utils::Environment.in_container?
-  
+
   # Get UI language from environment variable (set by Electron app)
   @ui_language = ENV['UI_LANGUAGE'] || 'en'
+
+  # Pass DEBUG_MODE to template for conditional local documentation link
+  @debug_mode = CONFIG["DEBUG_MODE"] || false
 
   if Faye::WebSocket.websocket?(env)
     websocket_handler(env)
   else
     erb :index
+  end
+end
+
+# Serve local documentation in debug mode (public docs)
+get "/docs/?*" do
+  # Only serve docs in debug mode
+  unless CONFIG["DEBUG_MODE"]
+    status 404
+    return "Documentation not available in production mode"
+  end
+
+  # Get the requested path (remove leading /docs/)
+  requested_path = params[:splat].first || ""
+
+  # Security: prevent path traversal attacks
+  requested_path = requested_path.gsub(/\.\./, "")
+
+  # Determine the docs root directory (relative to lib/monadic.rb)
+  # From docker/services/ruby/lib/monadic.rb to docs/
+  docs_root = File.expand_path("../../../../docs", __FILE__)
+
+  # Log the request for debugging
+  puts "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" if CONFIG["EXTRA_LOGGING"]
+
+  # Build the full file path
+  if requested_path.empty?
+    file_path = File.join(docs_root, "index.html")
+  else
+    file_path = File.join(docs_root, requested_path)
+  end
+
+  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+
+  # Check if file exists and is within docs directory
+  if File.exist?(file_path) && !File.directory?(file_path)
+    real_file_path = File.realpath(file_path)
+    real_docs_root = File.realpath(docs_root)
+
+    if real_file_path.start_with?(real_docs_root)
+      # Set appropriate content type based on file extension
+      content_type_map = {
+        ".html" => "text/html",
+        ".md" => "text/markdown",
+        ".js" => "application/javascript",
+        ".css" => "text/css",
+        ".json" => "application/json",
+        ".png" => "image/png",
+        ".jpg" => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".svg" => "image/svg+xml",
+        ".ico" => "image/x-icon",
+        ".woff" => "font/woff",
+        ".woff2" => "font/woff2",
+        ".ttf" => "font/ttf",
+        ".eot" => "application/vnd.ms-fontobject"
+      }
+
+      ext = File.extname(file_path)
+      content_type content_type_map[ext] || "text/plain"
+
+      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
+      send_file file_path
+    else
+      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" if CONFIG["EXTRA_LOGGING"]
+      status 403
+      "Access forbidden"
+    end
+  else
+    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+    status 404
+    "File not found: #{requested_path}"
+  end
+end
+
+# Serve local development documentation in debug mode (internal docs_dev)
+get "/docs_dev/?*" do
+  # Only serve docs_dev in debug mode
+  unless CONFIG["DEBUG_MODE"]
+    status 404
+    return "Documentation not available in production mode"
+  end
+
+  # Get the requested path (remove leading /docs_dev/)
+  requested_path = params[:splat].first || ""
+
+  # Security: prevent path traversal attacks
+  requested_path = requested_path.gsub(/\.\./, "")
+
+  # Determine the docs_dev root directory (relative to lib/monadic.rb)
+  # From docker/services/ruby/lib/monadic.rb to docs_dev/
+  docs_dev_root = File.expand_path("../../../../docs_dev", __FILE__)
+
+  # Log the request for debugging
+  puts "[DEBUG_MODE] Docs_dev request: requested_path='#{requested_path}', docs_dev_root='#{docs_dev_root}'" if CONFIG["EXTRA_LOGGING"]
+
+  # Build the full file path
+  if requested_path.empty?
+    file_path = File.join(docs_dev_root, "index.html")
+  else
+    file_path = File.join(docs_dev_root, requested_path)
+  end
+
+  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+
+  # Check if file exists and is within docs_dev directory
+  if File.exist?(file_path) && !File.directory?(file_path)
+    real_file_path = File.realpath(file_path)
+    real_docs_dev_root = File.realpath(docs_dev_root)
+
+    if real_file_path.start_with?(real_docs_dev_root)
+      # Set appropriate content type based on file extension
+      content_type_map = {
+        ".html" => "text/html",
+        ".md" => "text/markdown",
+        ".js" => "application/javascript",
+        ".css" => "text/css",
+        ".json" => "application/json",
+        ".png" => "image/png",
+        ".jpg" => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".svg" => "image/svg+xml",
+        ".ico" => "image/x-icon",
+        ".woff" => "font/woff",
+        ".woff2" => "font/woff2",
+        ".ttf" => "font/ttf",
+        ".eot" => "application/vnd.ms-fontobject"
+      }
+
+      ext = File.extname(file_path)
+      content_type content_type_map[ext] || "text/plain"
+
+      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
+      send_file file_path
+    else
+      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_dev_root}" if CONFIG["EXTRA_LOGGING"]
+      status 403
+      "Access forbidden"
+    end
+  else
+    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+    status 404
+    "File not found: #{requested_path}"
   end
 end
 

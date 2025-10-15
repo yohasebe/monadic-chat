@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="utf-8">
+   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+   <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+   <meta name="description" content="Monadic Chat Internal Documentation">
+   <title>Monadic Chat - Internal Documentation</title>
+
+   <!-- Themes (light + dark) -->
+   <link rel="stylesheet" media="(prefers-color-scheme: dark)" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
+   <link rel="stylesheet" media="(prefers-color-scheme: light)" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css">
+   <link href="https://use.fontawesome.com/releases/v6.2.0/css/all.css" rel="stylesheet">
+
+   <!-- Custom Styles -->
+   <style>
+     pre code {
+        white-space: pre-wrap !important;
+     }
+  :root {
+    --base-font-size: 15px;
+    --sidebar-width : 26rem;
+    --code-inline-background: #F8F8F8;
+  }
+  /* H5 styling */
+  .markdown-section h5 {
+    font-size: 1em;
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+  }
+  /* Warning banner for internal docs */
+  .internal-banner {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10px 15px;
+    margin-bottom: 20px;
+  }
+   </style>
+</head>
+<body>
+   <div id="app"></div>
+
+   <script>
+     // Docsify Configuration for Internal Documentation
+      window.$docsify = {
+        name: 'Monadic Chat Internal Docs',
+        repo: 'https://github.com/yohasebe/monadic-chat',
+        auto2top: true,
+        loadSidebar: true,
+        maxLevel: 3,
+        subMaxLevel: 3,
+        relativePath: false,
+        themeable: {
+          readyTransition: true,
+          responsiveTables: true
+        },
+         tabs: {
+            persist: true,
+            sync: true,
+            theme: 'classic',
+            tabComments: true,
+            tabHeadings: true
+         },
+         pagination: {
+            crossChapter: true,
+            crossChapterText: true,
+         },
+         copyCode: {
+            buttonText: '<i class="fas fa-copy"></i>',
+            errorText: 'Error',
+            successText: 'Copied',
+         },
+         timeUpdater: {
+            text: "> <p><i class='fa-solid fa-triangle-exclamation'></i> <strong>Internal Documentation</strong> - For Monadic Chat maintainers only<br><i class='fa-regular fa-clock'></i> Last update: {docsify-updated}</p>",
+            formatUpdated: "{YYYY}/{MM}/{DD} {HH}:{mm}",
+            whereToPlace: "top",
+         }
+       };
+   </script>
+
+   <!-- Required -->
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/js/docsify-themeable.min.js"></script>
+
+   <!-- Recommended -->
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.js"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/zoom-image.min.js"></script>
+   <script src="https://unpkg.com/docsify-copy-code@2"></script>
+   <script src="https://cdn.jsdelivr.net/npm/docsify-tabs@1"></script>
+   <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-docker.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-ruby.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-git.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+   <script src="//cdn.jsdelivr.net/npm/docsify-updated/src/time-updater.min.js"></script>
+</body>
+</html>

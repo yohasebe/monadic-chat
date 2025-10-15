@@ -68,10 +68,14 @@ namespace :server do
   desc "Start the Monadic server in debug mode (non-daemonized)"
   task :debug do
     puts "Starting Monadic server in debug mode..."
-    
+
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
     puts "Extra logging: enabled (forced in debug mode)"
+
+    # Enable DEBUG_MODE for local documentation
+    ENV['DEBUG_MODE'] = 'true'
+    puts "Debug mode: enabled (local documentation available)"
 
     # Check for API keys in environment or config file
     require 'dotenv'

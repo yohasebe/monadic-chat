@@ -26,13 +26,30 @@ Text-to-Speech (TTS) performance has been optimized using a prefetch pipeline th
 
 ## Provider-Specific Behavior
 
-### Standard Providers (OpenAI, Google, ElevenLabs)
+### ElevenLabs (Flash, Multilingual, V3)
 
 - **Segmentation**: Split by sentences
 - **Prefetch**: Enabled (2 concurrent requests)
-- **Context**: Uses `previous_text` parameter for better voice continuity
+- **Context Continuity**: Supported via API parameters
+  - `previous_text`: ✅ Implemented in Monadic Chat (`interaction_utils.rb:371-373`)
+  - `next_text`: ⚠️ Supported by API but not yet implemented
+  - Provides better voice continuity across segments
 
-### ElevenLabs V3
+### OpenAI TTS (Standard, HD, 4o Mini)
+
+- **Segmentation**: Split by sentences
+- **Prefetch**: Enabled (2 concurrent requests)
+- **Context Continuity**: ❌ Not available (API does not support context parameters)
+
+### Gemini TTS (Flash, Pro)
+
+- **Segmentation**: Split by sentences (with minimum length validation)
+- **Prefetch**: Enabled (2 concurrent requests)
+- **Context Continuity**: ❌ Not available via parameters
+  - Uses session-level context (32k token window) instead
+  - Style prompts provide tone/delivery control
+
+### ElevenLabs V3 Specific Behavior
 
 **Default Behavior (Prefetch Enabled):**
 - Segments are split for prefetch benefits

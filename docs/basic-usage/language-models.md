@@ -71,7 +71,7 @@ WEBSEARCH_MODEL=gpt-4.1-mini
 ```
 
 ### App Defaults
-- **Chat apps**: Web search disabled by default for user control (cost and privacy considerations) - can be enabled manually when needed
+- **Chat apps**: Web search disabled by default - can be enabled manually when needed
 - **Research Assistant**: Web search enabled by default with specialized search prompts
 
 ## Reasoning and Thinking Features

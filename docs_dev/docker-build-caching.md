@@ -461,5 +461,5 @@ This feature was developed in response to a user-reported issue where the Syntax
 ## See Also
 
 - [Docker Architecture](docker-architecture.md)
-- [Development Workflow](../docs/developer/development_workflow.md)
-- [Syntax Tree App Documentation](../docs/apps/syntax_tree.md)
+- Development Workflow: See `docs_dev/developer/development_workflow.md`
+- Syntax Tree App: See `docs/apps/syntax_tree.md`

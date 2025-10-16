@@ -75,7 +75,7 @@ Updated `CLAUDE.md` with:
 - Configuration priority documentation
 
 ### New Documentation
-- `docs/developer/agent_architecture.md` - Complete agent pattern documentation
+- `docs_dev/developer/agent_architecture.md` - Complete agent pattern documentation
 - `docs/release_notes/2025_09_improvements.md` - This file
 
 ## Testing

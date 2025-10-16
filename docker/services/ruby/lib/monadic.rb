@@ -1395,79 +1395,8 @@ get "/" do
   end
 end
 
-# Serve local documentation in debug mode (public docs)
-get "/docs/?*" do
-  # Only serve docs in debug mode
-  unless CONFIG["DEBUG_MODE"]
-    status 404
-    return "Documentation not available in production mode"
-  end
-
-  # Get the requested path (remove leading /docs/)
-  requested_path = params[:splat].first || ""
-
-  # Security: prevent path traversal attacks
-  requested_path = requested_path.gsub(/\.\./, "")
-
-  # Determine the docs root directory (relative to lib/monadic.rb)
-  # From docker/services/ruby/lib/monadic.rb to docs/
-  docs_root = File.expand_path("../../../../docs", __FILE__)
-
-  # Log the request for debugging
-  puts "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" if CONFIG["EXTRA_LOGGING"]
-
-  # Build the full file path
-  if requested_path.empty?
-    file_path = File.join(docs_root, "index.html")
-  else
-    file_path = File.join(docs_root, requested_path)
-  end
-
-  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-
-  # Check if file exists and is within docs directory
-  if File.exist?(file_path) && !File.directory?(file_path)
-    real_file_path = File.realpath(file_path)
-    real_docs_root = File.realpath(docs_root)
-
-    if real_file_path.start_with?(real_docs_root)
-      # Set appropriate content type based on file extension
-      content_type_map = {
-        ".html" => "text/html",
-        ".md" => "text/markdown",
-        ".js" => "application/javascript",
-        ".css" => "text/css",
-        ".json" => "application/json",
-        ".png" => "image/png",
-        ".jpg" => "image/jpeg",
-        ".jpeg" => "image/jpeg",
-        ".gif" => "image/gif",
-        ".svg" => "image/svg+xml",
-        ".ico" => "image/x-icon",
-        ".woff" => "font/woff",
-        ".woff2" => "font/woff2",
-        ".ttf" => "font/ttf",
-        ".eot" => "application/vnd.ms-fontobject"
-      }
-
-      ext = File.extname(file_path)
-      content_type content_type_map[ext] || "text/plain"
-
-      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
-      send_file file_path
-    else
-      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" if CONFIG["EXTRA_LOGGING"]
-      status 403
-      "Access forbidden"
-    end
-  else
-    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
-    status 404
-    "File not found: #{requested_path}"
-  end
-end
-
 # Serve local development documentation in debug mode (internal docs_dev)
+# NOTE: This MUST come before the /docs/?* route to avoid matching /docs_dev/ as /docs/_dev/
 get "/docs_dev/?*" do
   # Only serve docs_dev in debug mode
   unless CONFIG["DEBUG_MODE"]
@@ -1483,7 +1412,7 @@ get "/docs_dev/?*" do
 
   # Determine the docs_dev root directory (relative to lib/monadic.rb)
   # From docker/services/ruby/lib/monadic.rb to docs_dev/
-  docs_dev_root = File.expand_path("../../../../docs_dev", __FILE__)
+  docs_dev_root = File.expand_path("../../../../../docs_dev", __FILE__)
 
   # Log the request for debugging
   puts "[DEBUG_MODE] Docs_dev request: requested_path='#{requested_path}', docs_dev_root='#{docs_dev_root}'" if CONFIG["EXTRA_LOGGING"]
@@ -1529,6 +1458,78 @@ get "/docs_dev/?*" do
       send_file file_path
     else
       puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_dev_root}" if CONFIG["EXTRA_LOGGING"]
+      status 403
+      "Access forbidden"
+    end
+  else
+    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+    status 404
+    "File not found: #{requested_path}"
+  end
+end
+
+# Serve local documentation in debug mode (public docs)
+get "/docs/?*" do
+  # Only serve docs in debug mode
+  unless CONFIG["DEBUG_MODE"]
+    status 404
+    return "Documentation not available in production mode"
+  end
+
+  # Get the requested path (remove leading /docs/)
+  requested_path = params[:splat].first || ""
+
+  # Security: prevent path traversal attacks
+  requested_path = requested_path.gsub(/\.\./, "")
+
+  # Determine the docs root directory (relative to lib/monadic.rb)
+  # From docker/services/ruby/lib/monadic.rb to docs/
+  docs_root = File.expand_path("../../../../../docs", __FILE__)
+
+  # Log the request for debugging
+  puts "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" if CONFIG["EXTRA_LOGGING"]
+
+  # Build the full file path
+  if requested_path.empty?
+    file_path = File.join(docs_root, "index.html")
+  else
+    file_path = File.join(docs_root, requested_path)
+  end
+
+  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+
+  # Check if file exists and is within docs directory
+  if File.exist?(file_path) && !File.directory?(file_path)
+    real_file_path = File.realpath(file_path)
+    real_docs_root = File.realpath(docs_root)
+
+    if real_file_path.start_with?(real_docs_root)
+      # Set appropriate content type based on file extension
+      content_type_map = {
+        ".html" => "text/html",
+        ".md" => "text/markdown",
+        ".js" => "application/javascript",
+        ".css" => "text/css",
+        ".json" => "application/json",
+        ".png" => "image/png",
+        ".jpg" => "image/jpeg",
+        ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".svg" => "image/svg+xml",
+        ".ico" => "image/x-icon",
+        ".woff" => "font/woff",
+        ".woff2" => "font/woff2",
+        ".ttf" => "font/ttf",
+        ".eot" => "application/vnd.ms-fontobject"
+      }
+
+      ext = File.extname(file_path)
+      content_type content_type_map[ext] || "text/plain"
+
+      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
+      send_file file_path
+    else
+      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" if CONFIG["EXTRA_LOGGING"]
       status 403
       "Access forbidden"
     end

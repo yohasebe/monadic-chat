@@ -402,7 +402,7 @@ SQL,sequel
 - Save and export conversations
 - Switch between different apps
 - Use server mode for multi-user access
-- Open multiple browser tabs (experimental)
+- Open multiple browser tabs
 
 ---
 

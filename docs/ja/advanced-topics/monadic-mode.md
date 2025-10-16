@@ -145,4 +145,4 @@ Webインターフェースでは、Monadicコンテキストは以下のよう�
 ## 関連項目
 
 - [Monadic DSL](./monadic_dsl.md) - 完全なMDSL構文リファレンス
-- [基本アプリ](../basic-apps/) - Monadicモードを使用するアプリの例
+- [基本アプリ](../basic-usage/basic-apps.md) - Monadicモードを使用するアプリの例

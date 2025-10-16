@@ -2656,9 +2656,9 @@ module GeminiHelper
     # Select model speed (default fast). veo_model: 'fast'|'quality' or full model id
     if veo_model && !veo_model.to_s.empty?
       vm = veo_model.to_s.strip.downcase
-      if vm == 'quality' || vm.include?('veo-3.0-generate-001')
+      if vm == 'quality' || vm.include?('veo-3.1-generate-preview') || vm.include?('veo-3.0-generate-001')
         parts << "--quality"
-      elsif vm == 'fast' || vm.include?('veo-3.0-fast-generate-001')
+      elsif vm == 'fast' || vm.include?('veo-3.1-fast-generate-preview') || vm.include?('veo-3.0-fast-generate-001')
         parts << "--fast"
       end
     end

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a complete type reference for Monadic DSL (MDSL) parameters. It complements the [Type Conversion Policy](../type_conversion_policy.md) by specifying expected types for each MDSL setting.
+This document provides a complete type reference for Monadic DSL (MDSL) parameters. It complements the [Type Conversion Policy](/type_conversion_policy.md) by specifying expected types for each MDSL setting.
 
 ## Parameter Type Reference
 
@@ -431,9 +431,9 @@ if ($("#temperature").val() > 0.5) {  // Auto-coercion
 
 ## Related Documentation
 
-- [Type Conversion Policy](../type_conversion_policy.md) - Overall policy document
+- [Type Conversion Policy](/type_conversion_policy.md) - Overall policy document
 - [Monadic DSL Documentation](../../docs/advanced-topics/monadic_dsl.md) - User-facing DSL guide
-- [Common Issues](../common-issues.md) - Troubleshooting guide
+- [Common Issues](/common-issues.md) - Troubleshooting guide
 
 ## Revision History
 

@@ -44,16 +44,14 @@ app.name = 'Monadic Chat';
 // Allow autoplay of audio without user gesture in internal browser (Electron webview)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
-// macOS specific settings to prevent audio conflicts with other applications
+// Audio configuration for all platforms
+// Note: AudioServiceOutOfProcess should remain ENABLED (default) on macOS
+// to prevent interference with system-wide audio (e.g., HDMI audio output)
 if (process.platform === 'darwin') {
-  // Use a more conservative approach for macOS
+  // macOS: Use default audio service (out-of-process) to avoid conflicts
   app.commandLine.appendSwitch('enable-features', 'WebRtcHWH264Encoding');
-  
-  // This makes audio context creation more conservative
-  // Helps prevent conflicts with system-wide audio on macOS
-  app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 } else {
-  // Enable hardware audio for other platforms
+  // Other platforms: Enable hardware audio acceleration
   app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');
 }
 

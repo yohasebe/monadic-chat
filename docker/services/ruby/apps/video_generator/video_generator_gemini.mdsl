@@ -40,12 +40,12 @@ app "VideoGeneratorGemini" do
   end
 
   system_prompt <<~TEXT
-      You help users create videos using Google's Veo 3 model via the Gemini API.
+      You help users create videos using Google's Veo 3.1 model via the Gemini API.
 
       INITIAL GREETING (when conversation starts):
       When the conversation starts, greet the user and provide a brief overview:
 
-      "Welcome! I can help you create videos using Google's Veo 3 model.
+      "Welcome! I can help you create videos using Google's Veo 3.1 model.
 
       **What I can do:**
       - **Text-to-video**: Create videos from detailed text descriptions
@@ -81,12 +81,12 @@ app "VideoGeneratorGemini" do
       IMPORTANT INFORMATION FOR USERS:
 
       Before generating videos, inform users about these important details:
-      
+
       📹 **Video Specifications (Fixed)**
-      - Resolution: 720p
+      - Resolution: 720p or 1080p
       - Frame Rate: 24 fps
-      - Duration: 8 seconds
-      - Aspect Ratio: 16:9 only (Veo 3 limitation)
+      - Duration: 4, 6, or 8 seconds
+      - Aspect Ratio: 16:9 only (Veo 3.1 limitation)
       - Videos per request: 1
       
       📁 **For Image-to-Video Generation**
@@ -107,7 +107,7 @@ app "VideoGeneratorGemini" do
 
       IMPORTANT INSTRUCTIONS
 
-      Please generate videos using Google's Veo 3 model. Follow these steps:
+      Please generate videos using Google's Veo 3.1 model. Follow these steps:
 
       1. If the user's prompt is not in English, translate it to English while preserving all creative details.
 
@@ -118,7 +118,7 @@ app "VideoGeneratorGemini" do
       3. Call the `generate_video_with_veo` function with these parameters:
          - prompt: English version of the user's request (required)
          - image_path: Filename only (e.g., "cat.jpg") for images in the shared folder
-         - aspect_ratio: Always "16:9" (Veo 3 only supports this)
+         - aspect_ratio: Always "16:9" (Veo 3.1 only supports this)
          - person_generation: Do not specify (auto-selected based on mode)
 
       4. The function will return a JSON response that indicates whether the video was successfully generated.
@@ -172,7 +172,7 @@ app "VideoGeneratorGemini" do
         - "Create a video of a sunset over mountains" → Text-to-video generation
         - "Use cat.jpg to create a video of a cat playing" → Image-to-video (image must be in the shared folder)
         - "Generate a video of robots, avoiding humans" → Uses negative prompt feature
-        - Note: All videos are 16:9 aspect ratio (Veo 3 limitation)
+        - Note: All videos are 16:9 aspect ratio (Veo 3.1 limitation)
 
       IMPORTANT: Once again, after function execution, output raw HTML with NO MARKDOWN CODE BLOCKS OR BACKTICKS
     TEXT
@@ -189,13 +189,13 @@ app "VideoGeneratorGemini" do
   end
 
   tools do
-    define_tool "generate_video_with_veo", "Generate ~8-second 720p videos using Google's Veo 3 model (24fps, 16:9). Default model: veo-3.0-fast-generate-001; you may switch to quality model when needed." do
-      parameter :prompt, "string", "The prompt to generate a video from (should be in English for best results).", required: true
-      parameter :image_path, "string", "Optional: Filename of image in the shared folder for image-to-video generation (e.g., 'cat.jpg').", required: false
-      parameter :aspect_ratio, "string", "Always use '16:9' (Veo 3 only supports this aspect ratio).", required: false
+    define_tool "generate_video_with_veo", "Generate 4-8 second 720p or 1080p videos using Google's Veo 3.1 model (24fps, 16:9, with natively generated audio). Default model: veo-3.1-fast-generate-preview; you may switch to quality model when needed." do
+      parameter :prompt, "string", "The prompt to generate a video from (should be in English for best results, max 1024 tokens).", required: true
+      parameter :image_path, "string", "Optional: Filename of image in the shared folder for image-to-video generation (e.g., 'cat.jpg'). Can specify up to 3 reference images.", required: false
+      parameter :aspect_ratio, "string", "Always use '16:9' (Veo 3.1 only supports this aspect ratio).", required: false
       parameter :person_generation, "string", "Do not specify - automatically set based on generation mode.", required: false
       parameter :negative_prompt, "string", "Optional: What to avoid in the video (e.g., 'people, cars, buildings').", required: false
-      parameter :veo_model, "string", "Optional: 'fast' (default) or 'quality'. 'fast' uses veo-3.0-fast-generate-001; 'quality' uses veo-3.0-generate-001.", required: false
+      parameter :veo_model, "string", "Optional: 'fast' (default) or 'quality'. 'fast' uses veo-3.1-fast-generate-preview; 'quality' uses veo-3.1-generate-preview.", required: false
     end
   end
 end

@@ -4,7 +4,7 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
-<a href="/ja/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1358_passing-success?style=for-the-badge" alt="Tests"></a>
+<a href="https://github.com/yohasebe/monadic-chat"><img src="https://img.shields.io/badge/tests-1358_passing-success?style=for-the-badge" alt="Tests"></a>
   
   ---
   
@@ -177,7 +177,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 - 💎 プログラミング言語**Ruby**を使用した機能拡張
 - 🐍 プログラミング言語**Python**を使用した機能拡張
   - インストールオプション で LaTeX や追加ライブラリ/ツールの有効化が可能
-- 🔍 OpenAI、Claude、Gemini、xAI Grok、Perplexityのネイティブ検索機能、およびその他のプロバイダ向けの[Tavily](https://tavily.com/) APIを使用した**Web検索**
+- 🔍 OpenAI、Claude、Gemini、xAI Grok、Perplexityのネイティブ検索機能、およびその他のプロバイダー向けの[Tavily](https://tavily.com/) APIを使用した**Web検索**
 - 🌎 Seleniumを使用した**Webスクレイピング**
 - 📦 独自の**Dockerコンテナ**の追加
 - 📝 エラーパターン検出機能付きアプリ開発のための**宣言的DSL**

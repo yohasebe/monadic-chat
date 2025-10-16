@@ -148,4 +148,4 @@ If context is not updating properly, ensure your initial prompt specifies the ex
 ## See Also
 
 - [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference
-- [Basic Apps](../basic-apps/) - Examples of apps using Monadic Mode
+- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Monadic Mode

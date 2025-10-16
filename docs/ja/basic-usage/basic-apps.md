@@ -8,7 +8,7 @@
 
 ## モデル対応状況 :id=app-availability
 
-以下の表は、各アプリケーションがどのAIモデルプロバイダで利用可能かを示しています。
+以下の表は、各アプリケーションがどのAIモデルプロバイダーで利用可能かを示しています。
 
 
 | アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
@@ -17,7 +17,7 @@
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | | | | | | | | |
+| Math Tutor | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -264,18 +264,19 @@ Image Generatorの対応プロバイダーは冒頭の表を参照してくだ�
 - 実在の人物（著名人を含む）は生成不可
 - 人の顔が含まれる画像は使用不可
 
-#### Google Gemini (Veo 3)
+#### Google Gemini (Veo 3.1)
 対応モデル:
-- `veo-3.0-fast-generate-001` — デフォルト（高速・短時間、十分な画質）
-- `veo-3.0-generate-001` — より高品質（所要時間は長め）
+- `veo-3.1-fast-generate-preview` — デフォルト（高速・短時間、十分な画質）
+- `veo-3.1-generate-preview` — より高品質（所要時間は長め）
 
 デフォルトでは高速モデルを使用します。より高品質を希望する場合は、プロンプトで「高品質モデルを使用して」などと指示すると切り替わります。
 
 **仕様:**
-- アスペクト比: 16:9のみ（Veo 3の制限）
-- 解像度: 720p
+- アスペクト比: 16:9
+- 解像度: 720pまたは1080p
 - フレームレート: 24 fps
-- 長さ: 約8秒
+- 長さ: 4秒、6秒、または8秒
+- 音声: ネイティブに生成された同期音声
 - 人物生成の制御: 人物を含む動画の生成を許可または制限するオプション
 
 **主な機能：**
@@ -299,7 +300,7 @@ Image Generatorの対応プロバイダーは冒頭の表を参照してくだ�
 - 「この画像を波が穏やかに動く動画に変換して」 → アップロードした画像から動画生成
 - 「動画をもっとカラフルにして」（生成後） → OpenAIでRemix
 
-Video Generatorは **OpenAI**（Sora 2）および **Google Gemini**（Veo 3）モデルで利用可能です。
+Video Generatorは **OpenAI**（Sora 2）および **Google Gemini**（Veo 3.1）モデルで利用可能です。
 
 ### Mail Composer
 
@@ -526,7 +527,7 @@ AIがJupyter Notebookを作成して、ユーザーからのリクエストに�
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
-!> **セキュリティに関する注意:** サーバーモードでは、セキュリティ上の理由からJupyter Notebook機能はデフォルトで無効になっています。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を明示的に設定する必要があります。マルチユーザー環境でJupyterを実行することのセキュリティ上の影響を理解している場合のみ有効にしてください。
+**サーバーモードでの設定:** サーバーモードではJupyter Notebook機能はデフォルトで無効です。有効にするには、設定ファイル（`~/monadic/config/env`）で`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定してください。
 
 Jupyter Notebookの対応プロバイダーは冒頭の表を参照してください。ツールコール回数やNotebookサイズの制限などは、各プロバイダーのドキュメントで確認してください。
 

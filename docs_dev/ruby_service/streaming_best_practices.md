@@ -162,5 +162,5 @@ Common symptoms:
 ## Related Documentation
 
 - `docs_dev/ruby_service/thinking_reasoning_display.md` - Reasoning/thinking content handling
-- `docs/developer/code_structure.md` - Vendor helper architecture
+- `docs_dev/developer/code_structure.md` - Vendor helper architecture
 - `CLAUDE.md` - Provider independence requirements

@@ -35,7 +35,7 @@ Monadic Chatを起動すると、各コンテナの利用可能性がメイン�
   docker exec -it monadic-chat-ollama-container bash
   ```
 
-?> **開発のヒント**: ローカルで開発する際、Rubyコンテナを停止してホストマシンでアプリケーションを実行しながら、他のコンテナは稼働させ続けることができます。詳細は[開発ワークフロー](../developer/development_workflow.md)を参照してください。
+?> **開発のヒント**: ローカルで開発する際、Rubyコンテナを停止してホストマシンでアプリケーションを実行しながら、他のコンテナは稼働させ続けることができます。
 
 ## JupyterLab
 
@@ -63,4 +63,3 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 ## 関連ドキュメント
 - [基本アーキテクチャ](basic-architecture.md) - すべてのコンテナの概要
 - [Pythonコンテナ](python-container.md) - Pythonコンテナの詳細ドキュメント
-- [開発ワークフロー](../developer/development_workflow.md) - 開発セットアップとヒント

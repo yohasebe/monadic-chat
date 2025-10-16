@@ -1,10 +1,10 @@
 # 言語モデル
 
-Monadic Chatは複数のAIモデルプロバイダをサポートしています。各プロバイダは異なる機能とモデルタイプを提供しています。どのアプリがどのモデルで利用可能かの完全な概要については、基本アプリのドキュメントの[モデル対応状況](./basic-apps.md#app-availability)セクションを参照してください。
+Monadic Chatは複数のAIモデルプロバイダーをサポートしています。各プロバイダーは異なる機能とモデルタイプを提供しています。どのアプリがどのモデルで利用可能かの完全な概要については、基本アプリのドキュメントの[モデル対応状況](./basic-apps.md#app-availability)セクションを参照してください。
 
-## プロバイダ機能概要
+## プロバイダー機能概要
 
-| プロバイダ | ビジョンサポート | ツール/関数呼び出し | Web検索 |
+| プロバイダー | ビジョンサポート | ツール/関数呼び出し | Web検索 |
 |----------|----------------|----------------------|---------|
 | OpenAI | ✅ 全モデル¹ | ✅ | ✅ ネイティブ² |
 | Claude | ✅ Opus/Sonnet³ | ✅ | ✅⁴ |
@@ -17,7 +17,7 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 | Ollama | ❓ モデル依存⁸ | ❓ モデル依存⁸ | ✅⁴ |
 
 ¹ ビジョン対応状況は OpenAI ドキュメント (<https://platform.openai.com/docs/models>) を参照してください。  
-² ネイティブWeb検索があるプロバイダ以外は、設定済みであればTavilyを利用できます。  
+² ネイティブWeb検索があるプロバイダー以外は、設定済みであればTavilyを利用できます。  
 ³ Anthropic のビジョン対応は <https://docs.anthropic.com/claude/docs/models-overview> を参照してください。  
 ⁴ Tavily API経由でのWeb検索（`TAVILY_API_KEY`が必要）。  
 ⁵ Mistral のビジョン対応モデルは <https://docs.mistral.ai/> を参照してください。  
@@ -27,10 +27,10 @@ Monadic Chatは複数のAIモデルプロバイダをサポートしています
 
 ## デフォルトモデルの設定
 
-各プロバイダのデフォルトモデルは、`~/monadic/config/env`ファイルに設定変数を設定することで構成できます。これらのデフォルトモデルは、アプリレシピファイル（MDSLファイル）で特定のモデルが定義されていない場合に使用されます。
+各プロバイダーのデフォルトモデルは、`~/monadic/config/env`ファイルに設定変数を設定することで構成できます。これらのデフォルトモデルは、アプリレシピファイル（MDSLファイル）で特定のモデルが定義されていない場合に使用されます。
 
 ```
-# 各プロバイダのデフォルトモデル
+# 各プロバイダーのデフォルトモデル
 OPENAI_DEFAULT_MODEL=gpt-4.1
 ANTHROPIC_DEFAULT_MODEL=claude-sonnet-4-20250514
 COHERE_DEFAULT_MODEL=command-a-03-2025
@@ -58,8 +58,8 @@ Web検索は2つの方法で利用可能です：
 - **xAI Grok**: ネイティブLive Search APIサポート
 
 ### 2. Tavily Web検索
-- ネイティブWeb検索を持たないプロバイダで利用可能
-- 必須プロバイダ：Google Gemini、Mistral AI、Cohere、DeepSeek
+- ネイティブWeb検索を持たないプロバイダーで利用可能
+- 必須プロバイダー：Google Gemini、Mistral AI、Cohere、DeepSeek
 
 ### 設定オプション
 ```
@@ -71,18 +71,18 @@ WEBSEARCH_MODEL=gpt-4.1-mini
 ```
 
 ### アプリのデフォルト設定
-- **Chatアプリ**: Web検索はデフォルトで無効（コストとプライバシーを考慮）- 必要に応じて手動で有効化可能
+- **Chatアプリ**: Web検索はデフォルトで無効 - 必要に応じて手動で有効化可能
 - **Research Assistant**: Web検索はデフォルトで有効（専門的な検索プロンプト使用）
 
 ## 推論・思考機能
 
-Monadic Chatは複数のAIプロバイダにわたって高度な推論・思考機能を提供します。Web UIは選択されたプロバイダとモデルに基づいて適切なコントロールを自動的に表示します。
+Monadic Chatは複数のAIプロバイダーにわたって高度な推論・思考機能を提供します。Web UIは選択されたプロバイダーとモデルに基づいて適切なコントロールを自動的に表示します。
 
 ### 統一インターフェース
 
-Web UIの推論/思考セレクターは、各プロバイダの用語とオプションに合わせてインテリジェントに適応します：
+Web UIの推論/思考セレクターは、各プロバイダーの用語とオプションに合わせてインテリジェントに適応します：
 
-| プロバイダ | パラメータ名 | 利用可能なオプション | 説明 |
+| プロバイダー | パラメータ名 | 利用可能なオプション | 説明 |
 |----------|---------------|-------------------|-------------|
 | OpenAI | Reasoning Effort | minimal, low, medium, high | O1/O3/O4モデルの計算深度を制御 |
 | Anthropic | Thinking Level | minimal, low, medium, high | Claude 4モデルのthinking budget（1024-25000トークン）にマップ |
@@ -91,7 +91,7 @@ Web UIの推論/思考セレクターは、各プロバイダの用語とオプ�
 | DeepSeek | Reasoning Mode | Off (minimal), On (medium) | ステップバイステップ推論の有効/無効 |
 | Perplexity | Research Depth | minimal, low, medium, high | SonarモデルのWeb検索と分析深度を制御 |
 
-### プロバイダ別推論モデル
+### プロバイダー別推論モデル
 
 #### OpenAI推論モデル
 最新の推論対応モデルは <https://platform.openai.com/docs/guides/reasoning> を参照してください。対応モデルでは Monadic が `reasoning_effort` を自動的に表示します。
@@ -119,14 +119,14 @@ Mistral の推論モデルについては公式ドキュメントを参照し、
 Web UIは自動的に：
 - 選択されたモデルが推論/思考機能をサポートしているかを検出
 - それに応じて推論セレクターの表示/非表示を切り替え
-- プロバイダの用語に合わせてラベルとオプションを適応
+- プロバイダーの用語に合わせてラベルとオプションを適応
 - これらの機能をサポートしないモデルではセレクターを無効化
 
 ### 重要な注意事項
 
 !> **注意**: 推論/思考パラメータは主にシンプルなテキスト生成タスク用です。ツール呼び出し、コード生成、ドキュメント作成などの複雑な操作（Concept Visualizer、Code Interpreter、Jupyter Notebookなど）では、適切な動作を確保するためにこれらのパラメータは自動的に無効化されます。
 
-?> **ヒント**: プロバイダを切り替えると、推論セレクターはそのプロバイダのモデルに適したオプションを表示するように自動的に更新されます。
+?> **ヒント**: プロバイダーを切り替えると、推論セレクターはそのプロバイダーのモデルに適したオプションを表示するように自動的に更新されます。
 
 ## OpenAI Models
 
@@ -241,7 +241,7 @@ PERPLEXITY_API_KEY=api_key
 
 ![DeepSeek apps icon](../assets/icons/d.png ':size=40')
 
-DeepSeek APIキーを設定すると、DeepSeekを用いたアプリを使用することができます。最新のモデルラインアップはプロバイダのドキュメントを参照し、`DEEPSEEK_DEFAULT_MODEL`（デフォルト: `deepseek-chat`）を必要に応じて変更してください。
+DeepSeek APIキーを設定すると、DeepSeekを用いたアプリを使用することができます。最新のモデルラインアップはプロバイダーのドキュメントを参照し、`DEEPSEEK_DEFAULT_MODEL`（デフォルト: `deepseek-chat`）を必要に応じて変更してください。
 
 ```
 DEEPSEEK_API_KEY=api_key

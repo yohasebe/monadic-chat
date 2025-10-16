@@ -567,6 +567,27 @@ const modelSpec = {
     ],
     "deprecated": true
   },
+  "claude-haiku-4-5-20251001": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 64000], 64000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
+  },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",

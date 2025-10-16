@@ -10,7 +10,7 @@ Monadic DSL is a Ruby-based configuration system that makes it easier to define 
 
 Monadic Chat uses the **`.mdsl` format** (Monadic Domain Specific Language) for all app definitions. This declarative format provides a clean, maintainable way to define AI-powered applications.
 
-**Important**: The traditional Ruby class format (`.rb` files) is no longer supported. All apps must use the MDSL format.
+**Important**: All apps must use the MDSL format.
 
 ## Basic Structure
 
@@ -203,8 +203,6 @@ end
 ```
 
 ## Advanced Features
-
-> For developers interested in understanding the internal implementation of MDSL and how it works behind the scenes, see [MDSL Internals](mdsl-internals.md).
 
 ### Tool/Function Calling
 
@@ -404,7 +402,6 @@ To create custom apps:
 1. Create a new `.mdsl` file for each provider
 2. Implement tools in a `*_tools.rb` file using the facade pattern
 3. Use `include_modules` for any helper modules
-4. Delete the old `.rb` app files
 
 ## Common Issues and Solutions
 

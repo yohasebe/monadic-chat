@@ -26,7 +26,6 @@
 
     - [アプリの開発](/ja/advanced-topics/develop_apps.md)
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
-    - [Monadic DSLの内部実装](/ja/advanced-topics/mdsl-internals.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)
     - [レシピ・ファイルの例](/ja/advanced-topics/recipe-examples.md)
     - [Monadicモード](/ja/advanced-topics/monadic-mode.md)
@@ -46,14 +45,5 @@
     - [メディアファイルの送信](/ja/faq/faq-media-files.md)
     - [音声インタラクション](/ja/faq/faq-voice-interaction.md)
     - [機能の追加](/ja/faq/faq-extra-features.md)
-
-- **開発者ガイド**
-
-    <!-- - [重要な変更 (1.0.0)](/ja/developer/breaking-changes.md) -->
-    - [開発ワークフロー](/ja/developer/development_workflow.md)
-    - [Rakeタスク](/ja/developer/rake_tasks.md)
-    - [アセット管理](/ja/developer/assets.md)
-    - [コード構成](/ja/developer/code_structure.md)
-    - [ハードコーディング監査](/developer/hardcoding_audit.md)
 
 - [更新履歴](/ja/changelog.md)

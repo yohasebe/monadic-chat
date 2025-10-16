@@ -110,7 +110,7 @@ end
 ### OpenAI
 - Supports `monadic` mode for structured outputs
 - **Standard models** support `temperature`, `presence_penalty`, `frequency_penalty`
-- **Reasoning models** (pattern: /^o[13](-|$)/i) automatically use `reasoning_effort` instead
+- **Reasoning models** (pattern: `/^o[13](-|$)/i`) automatically use `reasoning_effort` instead
   - Models: o1, o1-mini, o1-preview, o1-pro, o3, o3-pro, o4 series
   - No temperature, penalties, or function calling (most models)
   - Some don't support streaming (o1-pro, o3-pro)
@@ -129,7 +129,7 @@ end
 
 ### Mistral
 - Uses `toggle` mode
-- **Magistral models** (pattern: /^magistral(-|$)/i) use `reasoning_effort` directly
+- **Magistral models** (pattern: `/^magistral(-|$)/i`) use `reasoning_effort` directly
   - Models: magistral-medium, magistral-small, magistral variants
   - Thinking blocks removed from output, LaTeX formatting converted
 - Requires `initiate_from_assistant: false`

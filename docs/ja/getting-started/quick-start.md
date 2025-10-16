@@ -20,7 +20,7 @@
 2. APIキー（`sk-`で始まる）を貼り付ける
 3. **Save** をクリック
 
-<!-- ![設定パネル](../assets/images/settings-basic.png ':size=600') -->
+<!-- ![設定パネル](../assets/images/settings-panel.png ':size=600') -->
 
 ?> **APIキーをお持ちでない場合** [OpenAI Platform](https://platform.openai.com/api-keys)から取得できます
 

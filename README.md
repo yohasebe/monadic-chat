@@ -239,4 +239,4 @@ Monadic Chat can persist your PDFs either locally (PGVector) or in the OpenAI Ve
 
 Read more:
 - User guide: `docs/basic-usage/pdf_storage.md`
-- Dev guide: `docs/developer/pdf_storage_integration.md`
+- Dev guide: `docs_dev/developer/pdf_storage_integration.md`

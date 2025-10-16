@@ -1,6 +1,6 @@
 **SSOT（Single Source of Truth）概要**
 - モデル機能の一次情報は `public/js/monadic/model_spec.js` に集約されています。
-- UI とサーバーヘルパーはこの Spec を参照して、各プロバイダで機能を一貫して有効/無効にします。
+- UI とサーバーヘルパーはこの Spec を参照して、各プロバイダーで機能を一貫して有効/無効にします。
 - `~/monadic/config/models.json` を用意すると、モデル定義を追加/上書きできます（実行時にマージ）。
 
 **主なプロパティ（正規語彙）**
@@ -24,9 +24,9 @@
   - それ以外 → 「画像」（.pdf は受け付けない）
 - URL限定のPDF（例: Perplexity）の場合：ファイルではなく、メッセージ本文に公開URLを貼ってください。
 
-**プロバイダ別の例**
+**プロバイダー別の例**
 - Perplexity: `supports_pdf: true` かつ `supports_pdf_upload: false`（PDFはURLのみ）。画像はURLで可。
-- Cohere: PDFアップロード非対応（他プロバイダの利用や本文貼り付けを検討）。
+- Cohere: PDFアップロード非対応（他プロバイダーの利用や本文貼り付けを検討）。
 - Claude/Gemini/OpenAI: PDF/画像の対応は Spec に従い、UI/サーバが機能を制御します。
 
 **モデルの追加/上書き**

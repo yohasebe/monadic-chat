@@ -35,7 +35,7 @@ When you start Monadic Chat, the availability of each container is displayed in 
   docker exec -it monadic-chat-ollama-container bash
   ```
 
-?> **Development Tip**: When developing locally, you can stop the Ruby container and run the application on your host machine while keeping other containers running. See [Development Workflow](../developer/development_workflow.md) for details.
+?> **Development Tip**: When developing locally, you can stop the Ruby container and run the application on your host machine while keeping other containers running.
 
 ## JupyterLab
 
@@ -63,4 +63,3 @@ By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you ca
 ## Related Documentation
 - [Basic Architecture](basic-architecture.md) - Overview of all containers
 - [Python Container](python-container.md) - Detailed Python container documentation
-- [Development Workflow](../developer/development_workflow.md) - Development setup and tips

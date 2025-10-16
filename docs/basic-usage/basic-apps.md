@@ -17,7 +17,7 @@ The table below shows which apps are available for which AI model providers.
 | Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | | | | | | | | |
+| Math Tutor | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -267,18 +267,19 @@ Model versions:
 - No real people (including public figures)
 - No images with human faces
 
-#### Google Gemini (Veo 3)
+#### Google Gemini (Veo 3.1)
 Model versions:
-- `veo-3.0-fast-generate-001` — default (faster turnaround, good quality)
-- `veo-3.0-generate-001` — higher quality (slower)
+- `veo-3.1-fast-generate-preview` — default (faster turnaround, good quality)
+- `veo-3.1-generate-preview` — higher quality (slower)
 
 By default, the assistant uses the fast model. If you prefer higher quality, indicate so in your request (e.g., "use the quality model").
 
 **Specifications:**
-- Aspect ratio: 16:9 only (Veo 3 limitation)
-- Resolution: 720p
+- Aspect ratio: 16:9
+- Resolution: 720p or 1080p
 - Frame rate: 24 fps
-- Duration: ~8 seconds
+- Duration: 4, 6, or 8 seconds
+- Audio: Natively generated synchronized audio
 - Person generation control: Option to allow or restrict generation of videos containing people
 
 **Key Features:**
@@ -302,7 +303,7 @@ By default, the assistant uses the fast model. If you prefer higher quality, ind
 - "Turn this image into a video of waves gently moving" → image-to-video with uploaded image
 - "Make the video more colorful" (after generating) → remix with OpenAI
 
-Video Generator is available with **OpenAI** (Sora 2) and **Google Gemini** (Veo 3) models.
+Video Generator is available with **OpenAI** (Sora 2) and **Google Gemini** (Veo 3.1) models.
 
 ### Mail Composer
 
@@ -575,7 +576,7 @@ This application allows the AI to create Jupyter Notebooks, add cells, and execu
 
 <!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
 
-!> **Security Note:** In Server Mode, Jupyter Notebook functionality is disabled by default for security reasons. To enable it, you must explicitly set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`). Only enable this if you understand the security implications of running Jupyter in a multi-user environment.
+**Server Mode Configuration:** Jupyter Notebook functionality is disabled by default in Server Mode. To enable it, set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`).
 
 Jupyter Notebook is available for the providers shown in the availability table. Some providers may impose stricter tool-call limits or notebook size constraints—check their official documentation for details.
 

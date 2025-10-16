@@ -151,7 +151,7 @@ RSpec.describe "VideoGeneratorVeo" do
   end
   
   describe "#request_video_generation" do
-    let(:api_endpoint) { "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning" }
+    let(:api_endpoint) { "https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning" }
     let(:mock_response) do
       double("HTTP::Response",
         status: double("status", code: 200, success?: true),

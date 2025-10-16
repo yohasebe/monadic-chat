@@ -66,7 +66,6 @@ When reviewing a model update, confirm the following before merging:
 ## Operational Notes
 
 - Because we do not run CI, each developer is responsible for executing the commands above and capturing the output in the PR description.
-- Maintain a short backlog of pending documentation or sample updates in `docs_dev/backlog.md` when the change will follow in a subsequent task.
 - If a rollout proves risky, gate new defaults behind an environment variable (e.g., `OPENAI_ENABLE_X_MODEL`). Remove the gate once the provider is stable in production.
 
 ## Appendices

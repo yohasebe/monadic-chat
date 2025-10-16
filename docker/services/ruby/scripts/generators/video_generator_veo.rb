@@ -19,9 +19,9 @@ end
 
 # Model selection
 # Default to the new fast model for quicker tests/execution
-USE_VEO3_FAST = true  # Default: faster Veo 3 model (lower quality but quicker)
-VEO3_MODEL = "veo-3.0-generate-001"
-VEO3_FAST_MODEL = "veo-3.0-fast-generate-001"
+USE_VEO3_FAST = true  # Default: faster Veo 3.1 model (lower quality but quicker)
+VEO3_MODEL = "veo-3.1-generate-preview"
+VEO3_FAST_MODEL = "veo-3.1-fast-generate-preview"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function
@@ -32,9 +32,9 @@ DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 
 # Define valid parameter values
 
-# Veo 3 only supports 16:9 aspect ratio
+# Veo 3.1 only supports 16:9 aspect ratio
 VALID_ASPECT_RATIOS_VEO3 = ["16:9"]
-# Person generation values for Veo 3
+# Person generation values for Veo 3.1
 # Text-to-video: "allow_all"
 # Image-to-video: "allow_adult"
 VALID_PERSON_GENERATION_VEO3 = ["allow_all", "allow_adult", "dont_allow"]
@@ -47,7 +47,7 @@ DEFAULT_OPTIONS = {
   aspect_ratio: "16:9",         # Default aspect ratio
   person_generation: nil,        # Will be set based on model and image presence
   negative_prompt: nil,         # Optional negative prompt for Veo 3
-  duration_seconds: 5,          # Default duration in seconds (Veo 3 generates 8 seconds)
+  duration_seconds: 5,          # Default duration in seconds (Veo 3.1 generates 8 seconds)
   fast_mode: nil,               # nil = follow USE_VEO3_FAST, true = force fast, false = force quality
   debug: false                  # Debug mode flag
 }
@@ -259,17 +259,17 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
       }
     ],
     parameters: {
-      # Use the exact parameter names from Veo 3 documentation
+      # Use the exact parameter names from Veo 3.1 documentation
       aspectRatio: aspect_ratio,
       personGeneration: person_generation
-      # Note: Veo 3 always generates 1 video per request (no sampleCount parameter)
+      # Note: Veo 3.1 always generates 1 video per request (no sampleCount parameter)
     }
   }
   
-  # Add negative prompt for Veo 3 if provided
+  # Add negative prompt for Veo 3.1 if provided
   if negative_prompt && !negative_prompt.empty? && $current_model.start_with?("veo-3")
     body[:instances][0][:negativePrompt] = negative_prompt
-    STDERR.puts "Added negative prompt for Veo 3: #{negative_prompt}" if $debug
+    STDERR.puts "Added negative prompt for Veo 3.1: #{negative_prompt}" if $debug
   end
   
   # Add image if provided - use Vertex AI structure
@@ -304,7 +304,7 @@ def request_video_generation(prompt, image_path, number_of_videos, aspect_ratio,
           STDERR.puts "DEBUG: Determined mime type from extension: #{mime_type}" if $debug
         end
         
-        # Veo 3 uses the same format for image-to-video
+        # Veo 3.1 uses the same format for image-to-video
         body[:instances][0][:image] = {
           bytesBase64Encoded: base64_data,
           mimeType: mime_type
@@ -589,11 +589,11 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
   prompt = prompt.to_s
   negative_prompt = negative_prompt.to_s if negative_prompt
   
-  # Veo 3 only supports 16:9 aspect ratio
+  # Veo 3.1 only supports 16:9 aspect ratio
   aspect_ratio = "16:9"
-  STDERR.puts "Note: Veo 3 only supports 16:9 aspect ratio. Using 16:9." if aspect_ratio != "16:9"
-  
-  # Select between standard and fast Veo 3 models
+  STDERR.puts "Note: Veo 3.1 only supports 16:9 aspect ratio. Using 16:9." if aspect_ratio != "16:9"
+
+  # Select between standard and fast Veo 3.1 models
   # Determine current model selection
   # fast_mode: true -> fast; false -> quality; nil -> follow USE_VEO3_FAST
   if fast_mode == true
@@ -603,10 +603,10 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
   else
     $current_model = (USE_VEO3_FAST ? VEO3_FAST_MODEL : VEO3_MODEL)
   end
-  STDERR.puts "Using Veo 3 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
-  
+  STDERR.puts "Using Veo 3.1 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
+
   # Adjust person_generation based on whether image is provided
-  # Veo 3 requirements:
+  # Veo 3.1 requirements:
   # - Text-to-video: "allow_all"
   # - Image-to-video: "allow_adult"
   if person_generation.nil?
@@ -636,7 +636,7 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
   params["fast_mode"] = fast_mode if fast_mode
   
   # Set a master timeout for the entire operation
-  # Veo 3 can take up to 6 minutes, so set timeout to 7 minutes for safety
+  # Veo 3.1 can take up to 6 minutes, so set timeout to 7 minutes for safety
   master_timeout = 420 # 7 minutes total timeout
   start_time = Time.now
   
@@ -645,7 +645,7 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
     # Output to stdout - LLM will extract information from this
     puts "Generating video with prompt: \"#{prompt}\"..."
     puts "Using parameters: #{params.inspect}"
-    puts "Note: Veo 3 generation takes 11 seconds to 6 minutes."
+    puts "Note: Veo 3.1 generation takes 11 seconds to 6 minutes."
     puts "Operation will timeout after #{master_timeout / 60} minutes if no result is received."
     
     # Step 1: Initiate video generation
@@ -755,9 +755,9 @@ def parse_options
       options[:number_of_videos] = num
     end
     
-    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (Veo 3 only supports 16:9)") do |ratio|
+    opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (Veo 3.1 only supports 16:9)") do |ratio|
       unless VALID_ASPECT_RATIOS_VEO3.include?(ratio)
-        puts "ERROR: Invalid aspect ratio. Veo 3 only supports: #{VALID_ASPECT_RATIOS_VEO3.join(', ')}"
+        puts "ERROR: Invalid aspect ratio. Veo 3.1 only supports: #{VALID_ASPECT_RATIOS_VEO3.join(', ')}"
         exit
       end
       options[:aspect_ratio] = ratio
@@ -779,11 +779,11 @@ def parse_options
       options[:duration_seconds] = seconds
     end
     
-    opts.on("--negative-prompt PROMPT", "Negative prompt (what to avoid in the video, Veo 3 only)") do |neg_prompt|
+    opts.on("--negative-prompt PROMPT", "Negative prompt (what to avoid in the video, Veo 3.1 only)") do |neg_prompt|
       options[:negative_prompt] = neg_prompt
     end
     
-    opts.on("--fast", "Use fast generation mode (Veo 3 only, lower quality but quicker)") do
+    opts.on("--fast", "Use fast generation mode (Veo 3.1 only, lower quality but quicker)") do
       options[:fast_mode] = true
     end
     
@@ -817,9 +817,9 @@ end
 
 def show_sample_usage
   puts "Sample usage:"
-  puts "\n# Basic text-to-video with Veo 3"
+  puts "\n# Basic text-to-video with Veo 3.1"
   puts "#{$PROGRAM_NAME} -p \"Panning wide shot of a calico kitten sleeping in the sunshine\""
-  puts "\n# Image-to-video with Veo 3"
+  puts "\n# Image-to-video with Veo 3.1"
   puts "#{$PROGRAM_NAME} -p \"Make the cat play with a ball\" -i cat.jpg"
   puts "\n# With negative prompt"
   puts "#{$PROGRAM_NAME} -p \"A peaceful garden scene\" --negative-prompt \"people, cars, buildings\""
@@ -833,7 +833,7 @@ def show_sample_usage
   puts "  --fast"
   puts "\n# For debugging"
   puts "#{$PROGRAM_NAME} -p \"Panning wide shot of a calico kitten\" --debug"
-  puts "\nNote: Veo 3 only supports 16:9 aspect ratio"
+  puts "\nNote: Veo 3.1 only supports 16:9 aspect ratio"
   puts "      Text-to-video uses person_generation=\"allow_all\" by default"
   puts "      Image-to-video uses person_generation=\"allow_adult\" by default"
   puts "\nUse -h or --help for full options list"

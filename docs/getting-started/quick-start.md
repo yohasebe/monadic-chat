@@ -20,7 +20,7 @@ This tutorial will help you get started with Monadic Chat in just 10 minutes. Yo
 2. Paste your API key (starts with `sk-`)
 3. Click **Save**
 
-<!-- ![Settings Panel](../assets/images/settings-basic.png ':size=600') -->
+<!-- ![Settings Panel](../assets/images/settings-panel.png ':size=600') -->
 
 ?> **No API key yet?** Get one from [OpenAI Platform](https://platform.openai.com/api-keys)
 

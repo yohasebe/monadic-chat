@@ -107,7 +107,7 @@ end
 ### OpenAI
 - 構造化出力のための`monadic`モードをサポート
 - 標準モデルは`temperature`、`presence_penalty`、`frequency_penalty`をサポート
-- 推論モデル（パターン：/^o[13](-|$)/i）は自動的に`reasoning_effort`を使用
+- 推論モデル（パターン：`/^o[13](-|$)/i`）は自動的に`reasoning_effort`を使用
   - モデル：o1、o1-mini、o1-preview、o1-pro、o3、o3-pro、o4シリーズ
   - temperature、ペナルティ、ファンクションコーリングなし（ほとんどのモデル）
   - 一部はストリーミングをサポートしない（o1-pro、o3-pro）
@@ -126,7 +126,7 @@ end
 
 ### Mistral
 - `toggle`モードを使用
-- Magistralモデル（パターン：/^magistral(-|$)/i）は`reasoning_effort`を直接使用
+- Magistralモデル（パターン：`/^magistral(-|$)/i`）は`reasoning_effort`を直接使用
   - モデル：magistral-medium、magistral-small、magistralバリアント
   - 思考ブロックを出力から除去、LaTeX形式を変換
 - `initiate_from_assistant: false`が必要

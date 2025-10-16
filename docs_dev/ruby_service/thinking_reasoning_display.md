@@ -328,6 +328,6 @@ rake server:debug
 
 ## Related Documentation
 
-- `docs/developer/reasoning_context_guidance.md` - GPT-5 reasoning context configuration
+- `docs_dev/developer/reasoning_context_guidance.md` - GPT-5 reasoning context configuration
 - `docs/updates/reasoning_effort_changes.md` - Reasoning effort parameter updates
 - `docs_dev/websocket_progress_broadcasting.md` - WebSocket message broadcasting

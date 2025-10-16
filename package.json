@@ -17,7 +17,8 @@
     "test:coverage": "jest --coverage --config config/jest/jest.config.js",
     "test:no-mock": "cross-env JEST_MODE=no-mock jest --config config/jest/jest.config.js",
     "test:no-mock:watch": "cross-env JEST_MODE=no-mock jest --config config/jest/jest.config.js --watch",
-    "lint:deprecated-models": "ruby scripts/lint/check_deprecated_models.rb"
+    "lint:deprecated-models": "ruby scripts/lint/check_deprecated_models.rb",
+    "lint:docs-links": "ruby scripts/lint/check_docs_links.rb"
   },
   "keywords": [],
   "author": "Yoichiro Hasebe <yohasebe@gmail.com>",

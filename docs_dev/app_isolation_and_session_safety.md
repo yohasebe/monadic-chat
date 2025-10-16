@@ -376,6 +376,6 @@ end
 ## Related Documentation
 
 - `docs_dev/common-issues.md` - Troubleshooting guide
-- `docs/developer/best_practices.md` - Public developer guidelines
+- `docs_dev/developer/development_workflow.md` - Public developer guidelines
 - `lib/monadic/app.rb` - MonadicApp base class
 - `lib/monadic/utils/websocket.rb` - Session management

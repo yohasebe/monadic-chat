@@ -178,12 +178,12 @@ When `debug_application` is used for web apps, you receive:
 - Docker with Selenium container for debugging features (web apps only)
 - Python container for Selenium integration (for Selenium tests)
 
-## Limitations
+## Application Scope
 
-1. **Single-File Applications**: Web projects must fit in one HTML file; CLI projects remain single-script utilities.
-2. **No External Dependencies**: Web apps avoid external CDNs. CLI tools auto-generate dependency manifests only when non-standard libraries are detected.
-3. **Client-Side Only**: Web projects are purely client-side with no server component.
-4. **One App Per Session**: Focus on one application per conversation
+1. **Single-File Applications**: Web projects are delivered as one HTML file; CLI projects as standalone scripts.
+2. **Self-Contained Design**: Web apps use embedded resources instead of external CDNs. CLI tools generate dependency manifests when non-standard libraries are used.
+3. **Client-Side Architecture**: Web projects run entirely in the browser without server components.
+4. **Session Focus**: Each conversation focuses on one application at a time
 
 ## Best Practices
 

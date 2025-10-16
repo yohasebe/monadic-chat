@@ -26,7 +26,6 @@
 
     - [Development of Extra Apps](/advanced-topics/develop_apps.md)
     - [Monadic DSL Reference](/advanced-topics/monadic_dsl.md)
-    - [MDSL Internals (Dev)](/advanced-topics/mdsl-internals.md)
     - [Application Setting Items](/advanced-topics/setting-items.md)
     - [Recipe Examples](/advanced-topics/recipe-examples.md)
     - [Monadic Mode](/advanced-topics/monadic-mode.md)
@@ -47,16 +46,5 @@
     - [Sending Media Files](/faq/faq-media-files.md)
     - [Voice Interaction](/faq/faq-voice-interaction.md)
     - [Adding New Features](/faq/faq-extra-features.md)
-
-- **Developer Guide**
-
-    <!-- - [Breaking Changes (1.0.0)](/developer/breaking-changes.md) -->
-    - [Development Workflow](/developer/development_workflow.md)
-    - [Testing Guide](/developer/testing_guide.md)
-    - [PDF Storage Integration](/developer/pdf_storage_integration.md)
-    - [Rake Tasks](/developer/rake_tasks.md)
-    - [Assets Management](/developer/assets.md)
-    - [Code Organization](/developer/code_structure.md)
-    - [Hardcoding Audit](/developer/hardcoding_audit.md)
 
 - [Changelog](/changelog.md)

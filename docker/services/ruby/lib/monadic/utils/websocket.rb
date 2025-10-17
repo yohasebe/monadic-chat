@@ -1770,6 +1770,9 @@ module WebSocketHelper
             # Initialize sequence counter for realtime TTS (once per message)
             @realtime_tts_sequence_counter = 0
 
+            # Initialize short sentence buffer for realtime TTS
+            @realtime_tts_short_buffer = []
+
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
             
@@ -1804,6 +1807,7 @@ module WebSocketHelper
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
+
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
 
@@ -1830,8 +1834,8 @@ module WebSocketHelper
                       end
                     end
 
-                    # Process each complete sentence with small delays between requests
-                    # Small delays (100ms) help ElevenLabs V3 queue process requests reliably
+                    # Process each complete sentence with buffering for short sentences
+                    # This prevents pauses between short and long sentence TTS generation
                     complete_sentences.each_with_index do |sentence, idx|
                       split = sentence.split("---")
                       if split.empty?
@@ -1855,48 +1859,68 @@ module WebSocketHelper
                           end
                         end
 
-                        # Skip only if text is empty (no aggressive length filtering)
+                        # Skip only if text is empty
                         if text.strip != ""
-                          # Increment counters and create sequence ID
-                          @realtime_tts_sequence_counter += 1
-                          sequence_num = @realtime_tts_sequence_counter
-                          sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+                          # Check if this is a short sentence (≤10 chars cleaned length)
+                          if cleaned_text.length <= 10
+                            # Buffer short sentence instead of sending immediately
+                            @realtime_tts_short_buffer << text
 
-                          if CONFIG["EXTRA_LOGGING"]
-                            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                              log.puts("[#{Time.now}] [DEBUG] Sentence #{sequence_num} (fragment_idx=#{idx}): Scheduling async TTS with 100ms delay: text='#{text[0..50]}...' (length=#{text.length}), cleaned_length=#{cleaned_text.length}, sequence_id=#{sequence_id}")
+                            if CONFIG["EXTRA_LOGGING"]
+                              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                log.puts("[#{Time.now}] [DEBUG] Buffering short sentence (#{cleaned_text.length} chars): '#{text[0..50]}...'")
+                                log.puts("[#{Time.now}] [DEBUG] Buffer now contains #{@realtime_tts_short_buffer.size} sentence(s)")
+                              end
                             end
-                          end
+                          else
+                            # This is a longer sentence - flush buffer and send combined text
+                            combined_text = if @realtime_tts_short_buffer.empty?
+                                             text
+                                           else
+                                             # Combine buffered short sentences with current sentence
+                                             buffered = @realtime_tts_short_buffer.join(" ")
+                                             @realtime_tts_short_buffer.clear
+                                             "#{buffered} #{text}"
+                                           end
 
-                          # Add small delay (100ms per sentence) to help ElevenLabs V3 queue process requests
-                          # This prevents audio corruption and ensures proper sequencing
-                          delay = idx * 0.1  # 100ms spacing between requests
+                            # Increment counters and create sequence ID
+                            @realtime_tts_sequence_counter += 1
+                            sequence_num = @realtime_tts_sequence_counter
+                            sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
-                          EventMachine.add_timer(delay) do
-                            tts_api_request_em(
-                              text,
-                              provider: provider,
-                              voice: voice,
-                              speed: speed,
-                              response_format: response_format,
-                              language: language,
-                              sequence_id: sequence_id
-                            ) do |res_hash|
-                              # This callback runs when TTS completes
-                              if res_hash && res_hash["type"] != "error"
-                                if CONFIG["EXTRA_LOGGING"]
-                                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                    log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                            if CONFIG["EXTRA_LOGGING"]
+                              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                log.puts("[#{Time.now}] [DEBUG] Sentence #{sequence_num} (fragment_idx=#{idx}): Scheduling async TTS: text='#{combined_text[0..50]}...' (length=#{combined_text.length}), sequence_id=#{sequence_id}")
+                              end
+                            end
+
+                            # Submit TTS request immediately
+                            EventMachine.next_tick do
+                              tts_api_request_em(
+                                combined_text,
+                                provider: provider,
+                                voice: voice,
+                                speed: speed,
+                                response_format: response_format,
+                                language: language,
+                                sequence_id: sequence_id
+                              ) do |res_hash|
+                                # This callback runs when TTS completes
+                                if res_hash && res_hash["type"] != "error"
+                                  if CONFIG["EXTRA_LOGGING"]
+                                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                      log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                                    end
                                   end
-                                end
 
-                                # Send audio to client
-                                @channel.push(res_hash.to_json)
-                              else
-                                # TTS failed, just log it (fragment already sent)
-                                if CONFIG["EXTRA_LOGGING"]
-                                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                    log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
+                                  # Send audio to client
+                                  @channel.push(res_hash.to_json)
+                                else
+                                  # TTS failed, just log it (fragment already sent)
+                                  if CONFIG["EXTRA_LOGGING"]
+                                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                      log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
+                                    end
                                   end
                                 end
                               end
@@ -1933,6 +1957,24 @@ module WebSocketHelper
             if obj["auto_speech"] && !cutoff && !obj["monadic"] && auto_tts_realtime_mode
               # Get final text from buffer
               final_text = buffer.join.strip
+
+              # Also check if there are any buffered short sentences that haven't been sent yet
+              if !@realtime_tts_short_buffer.empty?
+                # Combine buffered short sentences with final text
+                buffered = @realtime_tts_short_buffer.join(" ")
+                final_text = if final_text.empty?
+                              buffered
+                            else
+                              "#{buffered} #{final_text}"
+                            end
+                @realtime_tts_short_buffer.clear
+
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] REALTIME MODE: Flushing buffered short sentences into final segment")
+                  end
+                end
+              end
 
               if final_text != ""
                 if CONFIG["EXTRA_LOGGING"]

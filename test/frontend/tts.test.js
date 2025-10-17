@@ -372,6 +372,143 @@ describe('TTS Module', () => {
     });
   });
   
+  describe('Stop button highlighting', () => {
+    beforeEach(() => {
+      // Add test HTML structure
+      document.body.innerHTML = '\
+        <div class="card" id="test-card-1">\
+          <div class="card-body role-assistant">\
+            <button class="func-stop"><i class="fas fa-stop"></i></button>\
+          </div>\
+        </div>\
+        <div class="card" id="temp-card">\
+          <div class="card-body role-assistant">\
+            <button class="func-stop"><i class="fas fa-stop"></i></button>\
+          </div>\
+        </div>\
+        <div class="card" id="test-card-2">\
+          <div class="card-body role-assistant">\
+            <button class="func-stop"><i class="fas fa-stop"></i></button>\
+          </div>\
+        </div>\
+      ';
+
+      // Setup global state
+      global.currentTTSCardId = null;
+      global.globalAudioQueue = [];
+      global.getIsProcessingAudioQueue = () => false;
+
+      // Define helper functions from websocket.js using DOM API directly
+      global.highlightStopButton = function(cardId) {
+        if (cardId) {
+          const card = document.getElementById(cardId);
+          if (card) {
+            const stopButton = card.querySelector('.func-stop');
+            if (stopButton) {
+              stopButton.classList.add('tts-active');
+              global.currentTTSCardId = cardId;
+            }
+          }
+        }
+      };
+
+      global.removeStopButtonHighlight = function(cardId = null) {
+        const targetCardId = cardId || global.currentTTSCardId;
+        if (targetCardId) {
+          const card = document.getElementById(targetCardId);
+          if (card) {
+            const stopButton = card.querySelector('.func-stop');
+            if (stopButton) {
+              stopButton.classList.remove('tts-active');
+            }
+          }
+        }
+        global.currentTTSCardId = null;
+      };
+    });
+
+    it('should add tts-active class to Stop button', () => {
+      highlightStopButton('test-card-1');
+
+      const button = document.querySelector('#test-card-1 .func-stop');
+      expect(button.classList.contains('tts-active')).toBe(true);
+      expect(global.currentTTSCardId).toBe('test-card-1');
+    });
+
+    it('should remove tts-active class from Stop button', () => {
+      // First highlight it
+      highlightStopButton('test-card-1');
+      const button = document.querySelector('#test-card-1 .func-stop');
+      expect(button.classList.contains('tts-active')).toBe(true);
+
+      // Then remove highlight
+      removeStopButtonHighlight('test-card-1');
+      expect(button.classList.contains('tts-active')).toBe(false);
+      expect(global.currentTTSCardId).toBeNull();
+    });
+
+    it('should remove highlight from tracked card when no cardId provided', () => {
+      highlightStopButton('test-card-2');
+      expect(global.currentTTSCardId).toBe('test-card-2');
+
+      // Remove without specifying cardId (uses tracked card)
+      removeStopButtonHighlight();
+      const button = document.querySelector('#test-card-2 .func-stop');
+      expect(button.classList.contains('tts-active')).toBe(false);
+      expect(global.currentTTSCardId).toBeNull();
+    });
+
+    it('should exclude temp-card when finding latest assistant card', () => {
+      // Simulate finding latest card (excluding temp-card) using DOM API
+      const cards = Array.from(document.querySelectorAll('.role-assistant'))
+        .map(el => el.closest('.card'))
+        .filter(card => card.id !== 'temp-card');
+      const latestCard = cards[cards.length - 1];
+      const cardId = latestCard ? latestCard.id : null;
+
+      expect(cardId).toBe('test-card-2'); // Should be test-card-2, not temp-card
+      expect(cardId).not.toBe('temp-card');
+    });
+
+    it('should handle non-existent card gracefully', () => {
+      // Should not throw error
+      expect(() => {
+        highlightStopButton('non-existent-card');
+      }).not.toThrow();
+
+      expect(global.currentTTSCardId).toBeNull();
+    });
+
+    it('should track only one card at a time', () => {
+      highlightStopButton('test-card-1');
+      expect(global.currentTTSCardId).toBe('test-card-1');
+
+      // Highlight a different card
+      highlightStopButton('test-card-2');
+      expect(global.currentTTSCardId).toBe('test-card-2');
+
+      // Both buttons should have the class (we don't remove previous highlight automatically)
+      const button1 = document.querySelector('#test-card-1 .func-stop');
+      const button2 = document.querySelector('#test-card-2 .func-stop');
+      expect(button1.classList.contains('tts-active')).toBe(true);
+      expect(button2.classList.contains('tts-active')).toBe(true);
+    });
+
+    it('should integrate with TTS playback lifecycle', () => {
+      // Simulate Play button TTS: highlight immediately
+      const cardId = 'test-card-1';
+      highlightStopButton(cardId);
+
+      const button = document.querySelector(`#${cardId} .func-stop`);
+      expect(button.classList.contains('tts-active')).toBe(true);
+
+      // Simulate playback completion or Stop click
+      removeStopButtonHighlight();
+      expect(button.classList.contains('tts-active')).toBe(false);
+      expect(global.currentTTSCardId).toBeNull();
+    });
+  });
+
   describe('ttsStop function', () => {
     beforeEach(() => {
       global.ttsStop = function() {

@@ -1145,19 +1145,22 @@ function processSequentialAudio() {
 
     console.debug(`[AudioQueue] Playing segment ${nextExpectedSequence} in order`);
 
-    // Clear any pending timeout since we found the expected segment
-    if (sequenceCheckTimer) {
-      clearTimeout(sequenceCheckTimer);
-      sequenceCheckTimer = null;
-    }
-
     // If this is the first segment (Auto TTS starting), highlight Stop button
+    // Check BEFORE incrementing nextExpectedSequence
     const isFirstSegment = nextExpectedSequence === 1;
+    console.log('[Auto TTS Highlight] Segment check:', {
+      sequence: nextExpectedSequence,
+      isFirst: isFirstSegment,
+      queueLength: globalAudioQueue.length,
+      isProcessing: isProcessingAudioQueue
+    });
+
     if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
       console.log('[Auto TTS Highlight] First segment detected, highlighting latest card');
-      // Find and highlight the latest assistant card
+      // Find and highlight the latest assistant card (excluding temp-card)
       setTimeout(() => {
-        const $assistantCards = $('.role-assistant').closest('.card');
+        const $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
+        console.log('[Auto TTS Highlight] Assistant cards found:', $assistantCards.length);
         if ($assistantCards.length > 0) {
           const $latestCard = $assistantCards.last();
           const cardId = $latestCard.attr('id');
@@ -1167,6 +1170,12 @@ function processSequentialAudio() {
           }
         }
       }, 50);
+    }
+
+    // Clear any pending timeout since we found the expected segment
+    if (sequenceCheckTimer) {
+      clearTimeout(sequenceCheckTimer);
+      sequenceCheckTimer = null;
     }
 
     // Add to regular queue for playback

@@ -1892,6 +1892,50 @@ module WebSocketHelper
 
             Thread.exit if !responses || responses.empty?
 
+            # Process final segment for realtime mode
+            # The last incomplete sentence in buffer needs to be processed after streaming completes
+            if obj["auto_speech"] && !cutoff && !obj["monadic"] && auto_tts_realtime_mode
+              # Get final text from buffer
+              final_text = buffer.join.strip
+
+              if final_text != ""
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] REALTIME MODE: Processing final segment: '#{final_text[0..50]}...' (length=#{final_text.length})")
+                  end
+                end
+
+                # Generate unique sequence ID for final segment
+                sequence_id = "#{Time.now.to_f}_final"
+
+                # Call async TTS for final segment
+                tts_api_request_em(
+                  final_text,
+                  provider: provider,
+                  voice: voice,
+                  speed: speed,
+                  response_format: response_format,
+                  language: language,
+                  sequence_id: sequence_id
+                ) do |res_hash|
+                  if res_hash && res_hash["type"] != "error"
+                    if CONFIG["EXTRA_LOGGING"]
+                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                        log.puts("[#{Time.now}] [DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                      end
+                    end
+                    @channel.push(res_hash.to_json)
+                  else
+                    if CONFIG["EXTRA_LOGGING"]
+                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                        log.puts("[#{Time.now}] [DEBUG] TTS failed for final segment: #{res_hash&.[]("content")}")
+                      end
+                    end
+                  end
+                end
+              end
+            end
+
             # Post-completion TTS processing when realtime mode is FALSE
             # Convert string "true" to boolean true for compatibility
             obj["auto_speech"] = true if obj["auto_speech"] == "true"

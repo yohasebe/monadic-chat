@@ -1,4 +1,13 @@
 - [October 10, 2025] Recent Updates
+  - **TTS UI Enhancement**: Visual feedback for audio playback control
+    - Stop button now highlights with pulsing animation during TTS playback
+    - Works with both manual Play button and Auto TTS modes
+    - Automatically clears when playback completes or Stop button clicked
+    - Improves user awareness of active audio and available controls
+  - **Realtime TTS Improvements**: Enhanced buffer management for smoother playback
+    - Unified buffer threshold to 60 characters for consistent behavior
+    - Reduces API calls while maintaining responsive audio generation
+    - Improved handling of sentence boundaries in streaming responses
   - **PDF Export Improvements**: Enhanced document-oriented output
     - Replaced Bootstrap card layout with simple message structure for better pagination
     - Added i18n support for header labels (7 languages: en, ja, zh, ko, de, fr, es)

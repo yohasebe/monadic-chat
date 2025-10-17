@@ -558,6 +558,100 @@ AUTO_TTS_REALTIME_MODE=true  # TTS during streaming (not after completion)
 EXTRA_LOGGING=true           # Debug async callback order
 ```
 
+### UI Enhancement: Stop Button Highlighting
+
+**Feature**: Visual feedback for TTS playback status by highlighting the Stop button with a pulsing animation.
+
+**Challenge**: Auto TTS timing mismatch - audio segments arrive **after** assistant card creation.
+
+```
+Timeline:
+1. Streaming starts → temp-card shows text
+2. HTML message arrives → final card created (audio queue empty)
+3. Audio segments arrive → seq1 detected → highlight Stop button
+4. Audio plays → Stop button pulses
+5. Playback ends or Stop clicked → highlight clears
+```
+
+**Implementation Pattern:**
+
+```javascript
+// WRONG: Highlight when card created (queue is empty at this point)
+function handleHtmlMessage(data) {
+  createCard(data.content);
+  if (globalAudioQueue.length > 0) {  // ❌ Always false for Auto TTS
+    highlightStopButton(data.content.mid);
+  }
+}
+
+// CORRECT: Highlight when first audio segment arrives
+function processSequentialAudio() {
+  if (pendingAudioSegments[nextExpectedSequence]) {
+    const isFirstSegment = nextExpectedSequence === 1;
+
+    if (isFirstSegment && globalAudioQueue.length === 0) {
+      // Find latest assistant card (excluding temp-card)
+      const $cards = $('.role-assistant').closest('.card').not('#temp-card');
+      const cardId = $cards.last().attr('id');
+      highlightStopButton(cardId);  // ✓ Card exists, audio about to play
+    }
+
+    globalAudioQueue.push(segment);
+    nextExpectedSequence++;
+  }
+}
+
+// Stop button removal on completion
+function processGlobalAudioQueue() {
+  if (globalAudioQueue.length === 0) {
+    removeStopButtonHighlight();  // ✓ Auto-clear when queue empty
+    return;
+  }
+  // Process next segment...
+}
+```
+
+**Key Points:**
+1. **Timing**: Highlight on **first audio segment arrival**, not card creation
+2. **Filtering**: Exclude `#temp-card` (hidden but still in DOM after `.hide()`)
+3. **Array Reference**: Use `.length = 0` instead of `= []` to preserve window reference
+4. **Getter Function**: Export boolean state via getter (`getIsProcessingAudioQueue()`) not direct value
+5. **Automatic Cleanup**: Remove highlight when queue empties or Stop clicked
+
+**CSS Animation:**
+
+```css
+.func-stop.tts-active i {
+  color: #DC4C64 !important;
+  animation: tts-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tts-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+```
+
+**Buffer Configuration:**
+
+Unified buffer threshold for consistent TTS behavior:
+
+```ruby
+# websocket.rb
+REALTIME_TTS_MIN_LENGTH = 60  # Characters
+
+# Behavior:
+# - Sentences ≤ 60 chars: buffered
+# - Buffer flushed when total > 60 chars
+# - Reduces API calls while maintaining responsiveness
+```
+
+**Benefits:**
+- User awareness of active TTS playback
+- Clear indication Stop button is clickable
+- Consistent behavior across Play button and Auto TTS modes
+- Automatic cleanup without manual intervention
+
 ## Related Documentation
 
 - `docs_dev/ruby_service/thinking_reasoning_display.md` - Reasoning/thinking content handling

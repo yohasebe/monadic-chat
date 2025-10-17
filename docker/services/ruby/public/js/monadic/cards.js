@@ -340,7 +340,12 @@ function attachEventListeners($card) {
     
     // Get the message ID if available
     const mid = $currentCard.attr('id') || '';
-    
+
+    // Highlight Stop button to indicate TTS is active
+    if (mid && typeof highlightStopButton === 'function') {
+      highlightStopButton(mid);
+    }
+
     // Send a PLAY_TTS message to have the server handle sentence splitting and TTS
     const ttsProvider = $("#tts-provider").val();
     let ttsVoice;
@@ -394,7 +399,12 @@ function attachEventListeners($card) {
     
     // Stop frontend TTS
     ttsStop();
-    
+
+    // Remove Stop button highlight
+    if (typeof removeStopButtonHighlight === 'function') {
+      removeStopButtonHighlight();
+    }
+
     // Send stop signal to backend as well
     if (typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ message: "STOP_TTS" }));

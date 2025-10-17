@@ -43,6 +43,7 @@ let isProcessingAudioQueue = false;
 let currentAudioSequenceId = null;
 let currentSegmentAudio = null; // Track current playing segment
 let currentPCMSource = null; // Track current PCM audio source
+let currentTTSCardId = null; // Track which card is currently playing TTS
 
 // Sequence-based ordering for realtime TTS
 let nextExpectedSequence = 1; // Track next expected sequence number
@@ -54,6 +55,36 @@ const SEQUENCE_TIMEOUT_MS = 5000; // Skip missing segments after 5 seconds (redu
 // Audio queue processing delays (configurable)
 const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
 const AUDIO_ERROR_DELAY = window.AUDIO_ERROR_DELAY || 50; // Error retry delay
+
+// Helper functions for TTS button highlighting
+function highlightStopButton(cardId) {
+  if (cardId) {
+    const $card = $(`#${cardId}`);
+    if ($card.length) {
+      const $stopButton = $card.find('.func-stop');
+      $stopButton.addClass('tts-active');
+      currentTTSCardId = cardId;
+    }
+  }
+}
+
+function removeStopButtonHighlight(cardId = null) {
+  // If cardId is provided, only remove from that card
+  // Otherwise, remove from the current TTS card (if any)
+  const targetCardId = cardId || currentTTSCardId;
+  if (targetCardId) {
+    const $card = $(`#${targetCardId}`);
+    if ($card.length) {
+      const $stopButton = $card.find('.func-stop');
+      $stopButton.removeClass('tts-active');
+    }
+  }
+  currentTTSCardId = null;
+}
+
+// Export helper functions to window for global access
+window.highlightStopButton = highlightStopButton;
+window.removeStopButtonHighlight = removeStopButtonHighlight;
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];

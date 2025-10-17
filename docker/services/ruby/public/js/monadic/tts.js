@@ -450,13 +450,18 @@ function speakWithWebSpeech(text, speed, callback) {
   
   // Set event handlers
   utterance.onend = function() {
+    // Remove Stop button highlight
+    if (typeof removeStopButtonHighlight === 'function') {
+      removeStopButtonHighlight();
+    }
+
     // Hide spinner when speech ends
     $("#monadic-spinner").hide();
     // Reset spinner to default state for other operations
     $("#monadic-spinner")
       .find("span")
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-    
+
     if (typeof callback === 'function') callback(true);
   };
   
@@ -618,17 +623,22 @@ function ttsSpeak(text, stream, callback) {
 }
 
 function ttsStop() {
+  // Remove Stop button highlight (if function exists)
+  if (typeof removeStopButtonHighlight === 'function') {
+    removeStopButtonHighlight();
+  }
+
   // Clear the global audio queue first
   if (typeof clearAudioQueue === 'function') {
     clearAudioQueue();
   }
-  
+
   // Clear global audio queue
   if (typeof window.globalAudioQueue !== 'undefined') {
     window.globalAudioQueue = [];
     window.isProcessingAudioQueue = false;
   }
-  
+
   // Stop Web Speech API if active
   if (typeof window.speechSynthesis !== 'undefined') {
     try {

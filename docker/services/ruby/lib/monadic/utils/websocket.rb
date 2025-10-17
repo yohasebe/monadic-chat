@@ -1767,6 +1767,9 @@ module WebSocketHelper
             buffer = []
             cutoff = false
 
+            # Initialize sequence counter for realtime TTS (once per message)
+            @realtime_tts_sequence_counter = 0
+
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
             
@@ -1788,6 +1791,13 @@ module WebSocketHelper
 
             prev_texts_for_tts = []
             responses = app_obj.api_request("user", session) do |fragment|
+              # DEBUG: Log all fragment arrivals
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
+                end
+              end
+
               if fragment["type"] == "error"
                 @channel.push({ "type" => "error", "content" => fragment }.to_json)
                 break
@@ -1796,10 +1806,20 @@ module WebSocketHelper
                 buffer << text unless text.empty? || text == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
+
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] Fragment received: buffer_text='#{buffer.join[0..100]}...', segments=#{segments.size}")
+                    segments.each_with_index do |seg, i|
+                      log.puts("[#{Time.now}] [DEBUG]   segment[#{i}]: '#{seg[0..50]}...'")
+                    end
+                  end
+                end
+
+                # Wait for complete sentences: PragmaticSegmenter returns 2+ segments when a sentence is complete
+                # Process all complete sentences (all except the last incomplete one)
                 if !cutoff && segments.size >= 2
-                  # Process all complete sentences except the last incomplete one
                   complete_sentences = segments[0...-1]
-                  incomplete_sentence = segments[-1]
 
                   if auto_tts_realtime_mode
                     # REALTIME MODE: Use EventMachine async HTTP for non-blocking TTS processing
@@ -1810,7 +1830,8 @@ module WebSocketHelper
                       end
                     end
 
-                    # Process each complete sentence
+                    # Process each complete sentence with small delays between requests
+                    # Small delays (100ms) help ElevenLabs V3 queue process requests reliably
                     complete_sentences.each_with_index do |sentence, idx|
                       split = sentence.split("---")
                       if split.empty?
@@ -1821,60 +1842,75 @@ module WebSocketHelper
                       # Process sentence fragments for TTS if auto_speech is enabled
                       if obj["auto_speech"] && !cutoff && !obj["monadic"]
                         text = split[0] || ""
+
+                        # Filter out very short or emoji-only segments
+                        cleaned_text = text.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+                        cleaned_text = cleaned_text.gsub(/^\s*[-*]\s+/, '').gsub(/^\s*\d+\.\s+/, '')
+                        cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ')
+                        cleaned_text = cleaned_text.strip
+
+                        if CONFIG["EXTRA_LOGGING"]
+                          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                            log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: original='#{text[0..50]}...', cleaned='#{cleaned_text[0..50]}...', cleaned_length=#{cleaned_text.length}")
+                          end
+                        end
+
+                        # Skip only if text is empty (no aggressive length filtering)
                         if text.strip != ""
-                          # Generate unique sequence ID for this audio chunk
-                          sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+                          # Increment counters and create sequence ID
+                          @realtime_tts_sequence_counter += 1
+                          sequence_num = @realtime_tts_sequence_counter
+                          sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
                           if CONFIG["EXTRA_LOGGING"]
                             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                              log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: Calling async TTS: text='#{text[0..50]}...' (length=#{text.length})")
+                              log.puts("[#{Time.now}] [DEBUG] Sentence #{sequence_num} (fragment_idx=#{idx}): Scheduling async TTS with 100ms delay: text='#{text[0..50]}...' (length=#{text.length}), cleaned_length=#{cleaned_text.length}, sequence_id=#{sequence_id}")
                             end
                           end
 
-                          # Send fragment first (so text appears immediately)
-                          @channel.push(fragment.to_json)
+                          # Add small delay (100ms per sentence) to help ElevenLabs V3 queue process requests
+                          # This prevents audio corruption and ensures proper sequencing
+                          delay = idx * 0.1  # 100ms spacing between requests
 
-                          # Call async TTS with EventMachine
-                          tts_api_request_em(
-                            text,
-                            provider: provider,
-                            voice: voice,
-                            speed: speed,
-                            response_format: response_format,
-                            language: language,
-                            sequence_id: sequence_id
-                          ) do |res_hash|
-                            # This callback runs when TTS completes
-                            if res_hash && res_hash["type"] != "error"
-                              if CONFIG["EXTRA_LOGGING"]
-                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                  log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                          EventMachine.add_timer(delay) do
+                            tts_api_request_em(
+                              text,
+                              provider: provider,
+                              voice: voice,
+                              speed: speed,
+                              response_format: response_format,
+                              language: language,
+                              sequence_id: sequence_id
+                            ) do |res_hash|
+                              # This callback runs when TTS completes
+                              if res_hash && res_hash["type"] != "error"
+                                if CONFIG["EXTRA_LOGGING"]
+                                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                    log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                                  end
                                 end
-                              end
 
-                              # Send audio to client
-                              @channel.push(res_hash.to_json)
-                            else
-                              # TTS failed, just log it (fragment already sent)
-                              if CONFIG["EXTRA_LOGGING"]
-                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                  log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
+                                # Send audio to client
+                                @channel.push(res_hash.to_json)
+                              else
+                                # TTS failed, just log it (fragment already sent)
+                                if CONFIG["EXTRA_LOGGING"]
+                                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                    log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
+                                  end
                                 end
                               end
                             end
                           end
-                        else
-                          # Empty text, just send the fragment
-                          @channel.push(fragment.to_json)
                         end
-                      else
-                        # No TTS processing needed, just send the fragment
-                        @channel.push(fragment.to_json)
                       end
                     end
 
-                    # REALTIME MODE: Keep only the incomplete sentence in the buffer
-                    buffer = [incomplete_sentence]
+                    # REALTIME MODE: Keep the last incomplete sentence in buffer
+                    buffer = [segments.last]
+
+                    # Send the fragment to display text (after TTS processing)
+                    @channel.push(fragment.to_json)
                   else
                     # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
                     @channel.push(fragment.to_json)
@@ -1905,8 +1941,11 @@ module WebSocketHelper
                   end
                 end
 
-                # Generate unique sequence ID for final segment
-                sequence_id = "#{Time.now.to_f}_final"
+                # Generate unique sequence ID for final segment (use same format as streaming segments)
+                # Counter should already be initialized by streaming loop above
+                @realtime_tts_sequence_counter += 1
+                sequence_num = @realtime_tts_sequence_counter
+                sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
                 # Call async TTS for final segment
                 tts_api_request_em(

@@ -159,6 +159,405 @@ Common symptoms:
 - **Excessive line breaks during streaming**: Extra content in fragments (Claude content blocks)
 - **NoMethodError on response body**: Wrong iteration method (Gemini each_line)
 
+## Realtime TTS with EventMachine
+
+**Critical**: When implementing realtime TTS during streaming, use EventMachine-compatible async HTTP instead of blocking HTTP calls.
+
+### Sentence Segmentation Strategy
+
+**Optimal threshold**: `segments.size >= 1` (send as soon as first complete sentence is ready)
+
+```ruby
+# BEFORE: Wait for 2 sentences (slow)
+if !cutoff && segments.size >= 2
+  complete_sentences = segments[0...-1]
+end
+
+# AFTER: Send as soon as 1 sentence complete (fast)
+if !cutoff && segments.size >= 1
+  complete_sentences = segments[0...-1]
+end
+```
+
+**Why this works:**
+- First sentence typically completes within 500ms (faster perceived response)
+- PragmaticSegmenter handles 60+ languages automatically (no manual punctuation rules needed)
+- Maintains natural intonation by preserving complete sentences
+- `segments[0...-1]` ensures last incomplete sentence stays in buffer
+
+**Language independence:**
+- Japanese: "こんにちは。" (。で判定)
+- English: "Hello." (.で判定)
+- Chinese: "你好。" (。で判定)
+- No manual punctuation configuration required
+
+### Architecture: Async HTTP with Sequence Ordering
+
+```ruby
+# INCORRECT: Blocking HTTP in EventMachine environment
+def streaming_loop
+  http.get.each do |chunk|
+    tts_result = HTTP.post(tts_url, body: text)  # ❌ Blocks EventMachine reactor
+    send_audio(tts_result)
+  end
+end
+
+# INCORRECT: Worker Thread + Queue pattern
+def streaming_loop
+  @tts_queue = Queue.new
+  @worker_thread = Thread.new do
+    loop { tts_result = HTTP.post(tts_url, body: @tts_queue.pop) }  # ❌ Still blocks
+  end
+end
+
+# CORRECT: EventMachine async HTTP with sequence ordering
+require 'em-http-request'
+
+def streaming_loop
+  @realtime_tts_sequence_counter ||= 0
+
+  http.get.each do |chunk|
+    complete_sentences.each do |sentence|
+      @realtime_tts_sequence_counter += 1
+      sequence_num = @realtime_tts_sequence_counter
+      sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+
+      # Non-blocking async request
+      tts_api_request_em(
+        sentence,
+        provider: provider,
+        sequence_id: sequence_id
+      ) do |res_hash|
+        @channel.push(res_hash.to_json)  # Callback fires when complete
+      end
+    end
+  end
+
+  # CRITICAL: Process final incomplete sentence after streaming ends
+  final_text = buffer.join
+  if final_text.strip != ""
+    @realtime_tts_sequence_counter += 1
+    sequence_num = @realtime_tts_sequence_counter
+    sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"  # Same format!
+
+    tts_api_request_em(final_text, sequence_id: sequence_id) do |res_hash|
+      @channel.push(res_hash.to_json)
+    end
+  end
+end
+```
+
+**Why this pattern works:**
+1. **EventMachine::HttpRequest**: Non-blocking, uses callbacks instead of blocking
+2. **Sequence numbering**: Handles out-of-order HTTP responses (network latency varies)
+3. **Consistent format**: Final segment uses same `"seq#{num}_..."` format as streaming segments
+4. **Client-side reordering**: Segments arrive out-of-order but play in sequence order
+
+### Client-Side Reordering Buffer
+
+Since async HTTP requests complete in random order based on network latency, implement a client-side pending buffer:
+
+```javascript
+// Track expected sequence and pending out-of-order segments
+let nextExpectedSequence = 1;
+let pendingAudioSegments = {};
+
+function parseSequenceNumber(sequenceId) {
+  const match = sequenceId.match(/^seq(\d+)_/);  // Extract number from "seq5_timestamp_hex"
+  return match ? parseInt(match[1], 10) : null;
+}
+
+function addToAudioQueue(audioData, sequenceId, mimeType) {
+  const sequenceNum = parseSequenceNumber(sequenceId);
+
+  if (sequenceNum !== null) {
+    // Store in pending buffer
+    pendingAudioSegments[sequenceNum] = {
+      data: audioData,
+      sequenceNum: sequenceNum,
+      timestamp: Date.now()
+    };
+    processSequentialAudio();
+  } else {
+    // No sequence number → regular queue (immediate playback)
+    globalAudioQueue.push({ data: audioData });
+    processGlobalAudioQueue();
+  }
+}
+
+function processSequentialAudio() {
+  // Check if we have the next expected segment
+  if (pendingAudioSegments[nextExpectedSequence]) {
+    const segment = pendingAudioSegments[nextExpectedSequence];
+    delete pendingAudioSegments[nextExpectedSequence];
+
+    // CRITICAL: Clear timeout when expected segment arrives
+    if (sequenceCheckTimer) {
+      clearTimeout(sequenceCheckTimer);
+      sequenceCheckTimer = null;
+    }
+
+    globalAudioQueue.push(segment);
+    nextExpectedSequence++;
+
+    if (!isProcessingAudioQueue) {
+      processGlobalAudioQueue();
+    }
+
+    // Recursively process next segment
+    setTimeout(() => processSequentialAudio(), 0);
+  } else {
+    // Missing segment - set up timeout to skip it (only if not already set)
+    if (!sequenceCheckTimer && Object.keys(pendingAudioSegments).length > 0) {
+      sequenceCheckTimer = setTimeout(() => {
+        // Skip to next available segment if current segment never arrives
+        const available = Object.keys(pendingAudioSegments).map(k => parseInt(k)).sort();
+        if (available.length > 0) {
+          nextExpectedSequence = available[0];
+          sequenceCheckTimer = null;
+          processSequentialAudio();
+        }
+      }, 5000);
+    }
+  }
+}
+
+// CRITICAL: Reset sequence tracking on new message
+function clearAudioQueue() {
+  nextExpectedSequence = 1;
+  pendingAudioSegments = {};
+  if (sequenceCheckTimer) clearTimeout(sequenceCheckTimer);
+}
+```
+
+### Common Pitfalls
+
+**1. Ruby Closure Variable Capture Bug**
+```ruby
+# WRONG: Loop variable captured by reference, causes all procs to use last value
+complete_sentences.each do |sentence|
+  text = sentence  # text is reassigned in each iteration
+
+  EventMachine.defer(
+    proc {
+      tts_api_request(text, ...)  # ❌ Captures 'text' by reference!
+    },
+    proc { |res_hash| ... }
+  )
+end
+
+# Scenario:
+# 1. Loop iteration 1: text = "こんにちは！", EventMachine.defer created
+# 2. Loop iteration 2: text = "お疲れ様です。", EventMachine.defer created
+# 3. Both procs execute: Both see text = "お疲れ様です。" (last value!)
+# Result: First sentence skipped, second sentence played twice
+
+# CORRECT: Explicitly capture value before closure creation
+complete_sentences.each do |sentence|
+  text = sentence
+
+  # Create local variables to capture current values
+  sentence_text = text  # ✓ Value captured, not reference
+  sequence_id = "seq#{n}_..."
+
+  EventMachine.defer(
+    proc {
+      tts_api_request(sentence_text, ...)  # ✓ Uses captured value
+    },
+    proc { |res_hash|
+      res_hash["sequence_id"] = sequence_id  # ✓ Uses captured value
+      @channel.push(res_hash.to_json)
+    }
+  )
+end
+```
+
+**Why this happens:**
+- Ruby closures capture variables **by reference**, not by value
+- Loop variables are reassigned each iteration, but proc still holds the reference
+- By the time EventMachine.defer executes the proc, the variable has been reassigned
+- Solution: Create a local variable to explicitly capture the current value
+
+**2. Timer Leak in Sequence Processing**
+```javascript
+// WRONG: Timer not cleared when expected segment arrives
+function processSequentialAudio() {
+  if (pendingAudioSegments[nextExpectedSequence]) {
+    // Process segment but don't clear timer ❌
+    globalAudioQueue.push(segment);
+    nextExpectedSequence++;
+  } else {
+    sequenceCheckTimer = setTimeout(() => { ... }, 5000);
+  }
+}
+
+// Scenario:
+// 1. seq17 arrives first → timer starts (5 seconds)
+// 2. seq16 arrives 3 seconds later → processed successfully
+// 3. Timer still running! → May fire and corrupt nextExpectedSequence
+// 4. seq16 skipped or played out of order
+
+// CORRECT: Clear timer when expected segment arrives
+function processSequentialAudio() {
+  if (pendingAudioSegments[nextExpectedSequence]) {
+    // Clear timer immediately ✓
+    if (sequenceCheckTimer) {
+      clearTimeout(sequenceCheckTimer);
+      sequenceCheckTimer = null;
+    }
+    globalAudioQueue.push(segment);
+    nextExpectedSequence++;
+  } else {
+    if (!sequenceCheckTimer) {
+      sequenceCheckTimer = setTimeout(() => { ... }, 5000);
+    }
+  }
+}
+```
+
+**3. Counter Initialized Inside Streaming Loop**
+```ruby
+# WRONG: Counter initialized inside streaming loop (resets on every fragment)
+def streaming_loop
+  buffer = []
+
+  responses = app_obj.api_request("user", session) do |fragment|
+    # This block executes multiple times during streaming
+    text = fragment["content"]
+    buffer << text
+    segments = PragmaticSegmenter::Segmenter.new(text: buffer.join).segment
+
+    if segments.size >= 2
+      if auto_tts_realtime_mode
+        # ❌ Counter initialized INSIDE the streaming loop!
+        @realtime_tts_sequence_counter = 0
+
+        segments[0...-1].each do |sentence|
+          @realtime_tts_sequence_counter += 1
+          sequence_id = "seq#{@realtime_tts_sequence_counter}_..."  # Always seq1!
+          tts_api_request_em(sentence, sequence_id: sequence_id)
+        end
+      end
+    end
+  end
+end
+
+# Scenario:
+# 1. First fragment: "こんにちは！" → counter = 0, increments to 1 → seq1 ✓
+# 2. Second fragment: "お疲れ様です。" → counter = 0 (reset!), increments to 1 → seq1 ❌
+# 3. Third fragment: "今日は..." → counter = 0 (reset!), increments to 1 → seq1 ❌
+# Result: All sentences get seq1, client waits 5 seconds for seq2 that never comes
+
+# CORRECT: Counter initialized OUTSIDE streaming loop (once per message)
+def streaming_loop
+  buffer = []
+
+  # ✓ Initialize counter ONCE at Thread start, before streaming begins
+  @realtime_tts_sequence_counter = 0
+
+  responses = app_obj.api_request("user", session) do |fragment|
+    # This block executes multiple times, but counter persists
+    text = fragment["content"]
+    buffer << text
+    segments = PragmaticSegmenter::Segmenter.new(text: buffer.join).segment
+
+    if segments.size >= 2
+      if auto_tts_realtime_mode
+        segments[0...-1].each do |sentence|
+          @realtime_tts_sequence_counter += 1  # Increments correctly: 1, 2, 3...
+          sequence_id = "seq#{@realtime_tts_sequence_counter}_..."
+          tts_api_request_em(sentence, sequence_id: sequence_id)
+        end
+      end
+    end
+  end
+
+  # Final segment also increments counter correctly
+  @realtime_tts_sequence_counter += 1
+  sequence_id = "seq#{@realtime_tts_sequence_counter}_..."
+end
+```
+
+**Why this happens:**
+- The `app_obj.api_request do |fragment|` block executes **multiple times** during streaming
+- Variables initialized inside this block get reset on every fragment
+- Instance variables (`@var`) persist within Thread scope but are re-assigned if inside the loop
+- Solution: Initialize counter **before** the streaming loop, at Thread start
+
+**Symptoms:**
+- First TTS response smooth, but 2nd+ responses delayed ~5 seconds before speech starts
+- Strange audio glitches (e.g., "せえぜろぜろ" before "それぞれ")
+- Logs show multiple sentences with same sequence number (all seq1)
+- Client-side pending buffer grows indefinitely waiting for seq2, seq3...
+
+**4. Inconsistent Sequence ID Format**
+```ruby
+# WRONG: Final segment uses different format
+streaming_segment_id = "seq1_#{Time.now.to_f}_#{SecureRandom.hex(2)}"  # ✓ "seq1_..."
+final_segment_id = "#{Time.now.to_f}_final"  # ❌ "timestamp_final"
+
+# Client-side parseSequenceNumber() returns null for final segment
+# → Goes to regular queue instead of sequential buffer
+# → Plays immediately, before earlier segments
+
+# CORRECT: All segments use same format
+final_segment_id = "seq5_#{Time.now.to_f}_#{SecureRandom.hex(2)}"  # ✓ "seq5_..."
+```
+
+**5. Missing Final Sentence**
+```ruby
+# WRONG: Only process complete sentences during streaming
+complete_sentences.each { |s| send_tts(s) }
+# Final incomplete sentence remains in buffer → never sent
+
+# CORRECT: Process remaining buffer after streaming ends
+after_streaming do
+  final_text = buffer.join
+  send_tts(final_text) if final_text.strip != ""
+end
+```
+
+**6. Forgetting to Reset Sequence on New Message**
+```javascript
+// WRONG: Sequence counter continues from previous message
+// User sends message 1 (seq1, seq2, seq3)
+// User sends message 2 (seq4, seq5, seq6)  ❌ Should restart at seq1
+
+// CORRECT: Reset counter when sending new message
+sendButton.addEventListener('click', () => {
+  clearAudioQueue();  // Resets nextExpectedSequence = 1
+  sendMessage();
+});
+```
+
+### Testing Realtime TTS Issues
+
+When debugging realtime TTS problems:
+
+1. **Check sequence ID format**: All segments should match `^seq\d+_` pattern
+2. **Enable EXTRA_LOGGING**: Verify async callbacks are firing
+3. **Check log timestamps**: Callbacks may complete out-of-order (seq1, seq3, seq2)
+4. **Verify client-side buffering**: `pendingAudioSegments` should reorder correctly
+5. **Test timeout behavior**: Skip to next segment after 5 seconds if current segment stuck
+
+Common symptoms:
+- **Last sentence missing**: Final segment not processed after streaming ends
+- **Scrambled audio order**: Async responses not reordered client-side
+- **Final segment plays first**: Format mismatch sends final segment to regular queue
+- **Random segments skipped**: Timer leak causes timeout to fire after segment arrives
+- **Audio stuck/frozen**: Sequence counter not reset between messages
+- **First sentence skipped, second played twice**: Ruby closure variable capture bug (loop variable reassigned before proc executes)
+- **2nd+ messages delayed ~5 seconds, strange audio glitches**: Counter initialized inside streaming loop (resets on every fragment)
+
+### Configuration
+
+Enable realtime TTS mode in `~/monadic/config/env`:
+
+```bash
+AUTO_TTS_REALTIME_MODE=true  # TTS during streaming (not after completion)
+EXTRA_LOGGING=true           # Debug async callback order
+```
+
 ## Related Documentation
 
 - `docs_dev/ruby_service/thinking_reasoning_display.md` - Reasoning/thinking content handling

@@ -105,6 +105,42 @@ module StringUtils
     CLD.detect_language(text)[:code]
   end
 
+  # Strip Markdown markers and HTML tags for TTS
+  # This removes formatting markers that shouldn't be spoken
+  def self.strip_markdown_for_tts(text)
+    return "" if text.nil?
+    return text.to_s unless text.is_a?(String)
+    return text if text.empty?
+
+    result = text.dup
+
+    # Remove Markdown bold markers: **text** or __text__
+    result = result.gsub(/\*\*(.+?)\*\*/, '\1')
+    result = result.gsub(/__(.+?)__/, '\1')
+
+    # Remove Markdown italic markers: *text* or _text_
+    # Be careful not to match asterisks in other contexts (e.g., list markers)
+    result = result.gsub(/(?<!\*)\*(?!\*)([^\*]+?)\*(?!\*)/, '\1')
+    result = result.gsub(/(?<!_)_(?!_)([^_]+?)_(?!_)/, '\1')
+
+    # Remove HTML tags
+    result = result.gsub(/<[^>]+>/, '')
+
+    # TTS-specific cleaning
+    # Replace full-width spaces (U+3000) with half-width spaces
+    result = result.gsub(/　/, ' ')
+
+    # Remove list markers (numbers followed by period or dash at line start)
+    result = result.gsub(/^\s*\d+\.\s+/, '')  # Numbered lists: "1. "
+    result = result.gsub(/^\s*[-*+]\s+/, '')  # Bullet lists: "- ", "* ", "+ "
+
+    # Remove excessive whitespace
+    result = result.gsub(/\s+/, ' ')  # Multiple spaces to single space
+    result = result.strip  # Remove leading/trailing whitespace
+
+    result
+  end
+
   # Fix numbered lists with code blocks in between
   # 
   # This function addresses an issue with markdown lists where numbers reset when there are
@@ -738,35 +774,14 @@ module StringUtils
     # Apply markdown normalization to ensure proper parsing
     text = normalize_markdown(text)
 
-    # Pre-process to handle Japanese brackets with bold markdown
-    # Replace **「text」** with temporary placeholder to protect from smart punctuation
-    bold_brackets = []
-    text = text.gsub(/\*\*([「『【〈《〔｛（].*?[」』】〉》〕｝）])\*\*/m) do |match|
+    # Pre-process to protect ALL bold markdown from smart punctuation
+    # This is critical when mixing Japanese and English text with multiple bold items in one paragraph
+    all_bold_items = []
+    text = text.gsub(/\*\*(.+?)\*\*/m) do |match|
       content = $1
-      bold_brackets << content
-      "BOLD_BRACKET_PLACEHOLDER_#{bold_brackets.size - 1}"
+      all_bold_items << content
+      "BOLD_PLACEHOLDER_#{all_bold_items.size - 1}"
     end
-    
-    # Also handle numbered lists with bold text
-    # Protect bold text in numbered lists from smart punctuation interference
-    list_bold_items = []
-    # Process line by line to handle multiple bold items in lists
-    lines = text.split("\n")
-    text = lines.map do |line|
-      if line =~ /^(\d+\.\s+)/
-        prefix = $1
-        rest_of_line = line[prefix.length..-1]
-        # Replace all bold items in this line
-        rest_of_line = rest_of_line.gsub(/\*\*(.+?)\*\*/) do |match|
-          content = $1
-          list_bold_items << content
-          "LIST_BOLD_PLACEHOLDER_#{list_bold_items.size - 1}"
-        end
-        "#{prefix}#{rest_of_line}"
-      else
-        line
-      end
-    end.join("\n")
 
     # insert a newline after a line that does not end with a newline
     pattern = Regexp.new('^(\s*#{1,6}\s+.*)(\n)(?!\n)')
@@ -1000,14 +1015,9 @@ module StringUtils
       css = theme_obj.render(scope: ".highlight")
     end
 
-    # Restore bold brackets placeholders
-    bold_brackets.each_with_index do |content, index|
-      html.gsub!("BOLD_BRACKET_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
-    end
-    
-    # Restore list bold placeholders
-    list_bold_items.each_with_index do |content, index|
-      html.gsub!("LIST_BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
+    # Restore bold placeholders
+    all_bold_items.each_with_index do |content, index|
+      html.gsub!("BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
     end
 
     # Always include the necessary CSS for syntax highlighting

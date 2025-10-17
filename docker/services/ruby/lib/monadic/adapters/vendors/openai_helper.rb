@@ -1748,22 +1748,33 @@ module OpenAIHelper
         next
       end
 
-      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      buffer.encode!("UTF-8", "UTF-16")
+      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
+      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
+      # that will become complete when the next chunk arrives
+      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      # buffer.encode!("UTF-8", "UTF-16")
 
       scanner = StringScanner.new(buffer)
-      pattern = /data: (\{.*?\})(?=\n|\z)/
+      # Use multiline mode (m flag) to allow . to match newlines within JSON
+      pattern = /data: (\{.*?\})(?=\n|\z)/m
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
           json_data = matched.match(pattern)[1]
           begin
+            # Log raw JSON data before parsing (for debugging delta issues)
+            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
+              if json_data.include?("delta") && (json_data.include?("き") || json_data.include?("れ"))
+                extra_log.puts("[RAW JSON BEFORE PARSE - Chat API] #{json_data}")
+              end
+            end
+
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
               extra_log.puts(JSON.pretty_generate(json))
             end
-            
+
             # Check if response model differs from requested model
             response_model = json["model"]
             requested_model = query["original_user_model"] || query["model"]
@@ -2238,24 +2249,35 @@ module OpenAIHelper
         next
       end
 
-      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      buffer.encode!("UTF-8", "UTF-16")
+      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
+      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
+      # that will become complete when the next chunk arrives
+      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      # buffer.encode!("UTF-8", "UTF-16")
 
       scanner = StringScanner.new(buffer)
       # Responses API uses different event format
-      pattern = /data: (\{.*?\})(?=\n|\z)/
+      # Use multiline mode (m flag) to allow . to match newlines within JSON
+      pattern = /data: (\{.*?\})(?=\n|\z)/m
       
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched
           json_data = matched.match(pattern)[1]
           begin
+            # Log raw JSON data before parsing (for debugging delta issues)
+            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
+              if json_data.include?("output_text.delta") && (json_data.include?("き") || json_data.include?("れ"))
+                extra_log.puts("[RAW JSON BEFORE PARSE] #{json_data}")
+              end
+            end
+
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
               extra_log.puts(JSON.pretty_generate(json))
             end
-            
+
             # Check if response model differs from requested model
             response_model = json["model"]
             requested_model = query["original_user_model"] || query["model"]

@@ -2159,6 +2159,12 @@ $(function () {
       return;
     }
     audioInit();
+
+    // Reset sequence tracking for realtime TTS (new message starts new sequence)
+    if (typeof clearAudioQueue === 'function') {
+      clearAudioQueue();
+    }
+
     setAlert(`<i class='fas fa-robot'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinking') : 'THINKING'}`, "warning");
     params = setParams();
     const userMessageText = $("#message").val();

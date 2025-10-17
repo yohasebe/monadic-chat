@@ -1162,11 +1162,15 @@ module ClaudeHelper
         next
       end
 
-      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      buffer.encode!("UTF-8", "UTF-16")
+      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
+      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
+      # that will become complete when the next chunk arrives
+      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      # buffer.encode!("UTF-8", "UTF-16")
 
       scanner = StringScanner.new(buffer)
-      pattern = /data: (\{.*?\})(?=\n|\z)/
+      # Use multiline mode (m flag) to allow . to match newlines within JSON
+      pattern = /data: (\{.*?\})(?=\n|\z)/m
       until scanner.eos?
         matched = scanner.scan_until(pattern)
         if matched

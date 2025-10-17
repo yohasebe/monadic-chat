@@ -941,8 +941,11 @@ module PerplexityHelper
         next
       end
 
-      buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
-      buffer.encode!("UTF-8", "UTF-16")
+      # Skip encoding cleanup - buffer.valid_encoding? check above is sufficient
+      # Encoding cleanup with replace: "" can delete valid bytes from incomplete multibyte characters
+      # that will become complete when the next chunk arrives
+      # buffer.encode!("UTF-16", "UTF-8", invalid: :replace, replace: "")
+      # buffer.encode!("UTF-8", "UTF-16")
 
       first_iteration = true
 

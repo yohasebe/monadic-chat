@@ -44,6 +44,13 @@ let currentAudioSequenceId = null;
 let currentSegmentAudio = null; // Track current playing segment
 let currentPCMSource = null; // Track current PCM audio source
 
+// Sequence-based ordering for realtime TTS
+let nextExpectedSequence = 1; // Track next expected sequence number
+let pendingAudioSegments = {}; // Buffer for out-of-order segments
+let sequenceCheckTimer = null; // Timer for checking missing segments
+let failedSequences = new Set(); // Track sequences that failed to play
+const SEQUENCE_TIMEOUT_MS = 5000; // Skip missing segments after 5 seconds (reduced from 30s)
+
 // Audio queue processing delays (configurable)
 const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
 const AUDIO_ERROR_DELAY = window.AUDIO_ERROR_DELAY || 50; // Error retry delay
@@ -1043,18 +1050,106 @@ function playWithAudioElement(audioData) {
   }
 }
 
+// Helper function to parse sequence number from sequence_id
+// Format: "seq#{sequence_num}_#{timestamp}_#{hex}" or other formats
+function parseSequenceNumber(sequenceId) {
+  if (!sequenceId || typeof sequenceId !== 'string') {
+    return null;
+  }
+
+  // Try to match "seqN_..." format
+  const match = sequenceId.match(/^seq(\d+)_/);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+
+  return null; // Non-sequential audio (regular TTS mode)
+}
+
 // Global audio queue management
 function addToAudioQueue(audioData, sequenceId, mimeType) {
-  globalAudioQueue.push({
-    data: audioData,
-    sequenceId: sequenceId,
-    timestamp: Date.now(),
-    mimeType: mimeType // Store MIME type if provided
-  });
-  
-  // Start processing if not already running
-  if (!isProcessingAudioQueue) {
-    processGlobalAudioQueue();
+  const sequenceNum = parseSequenceNumber(sequenceId);
+
+  // If this has a sequence number, use sequence-based ordering
+  if (sequenceNum !== null) {
+    pendingAudioSegments[sequenceNum] = {
+      data: audioData,
+      sequenceId: sequenceId,
+      sequenceNum: sequenceNum,
+      timestamp: Date.now(),
+      mimeType: mimeType
+    };
+
+    const pendingNums = Object.keys(pendingAudioSegments).map(k => parseInt(k, 10)).sort((a, b) => a - b);
+    console.log(`[AudioQueue] Received seq${sequenceNum}, next expected: seq${nextExpectedSequence}, pending: [${pendingNums.join(', ')}]`);
+
+    // Try to process any segments that are now ready
+    processSequentialAudio();
+  } else {
+    // Non-sequential audio (regular TTS mode) - use normal queue
+    globalAudioQueue.push({
+      data: audioData,
+      sequenceId: sequenceId,
+      timestamp: Date.now(),
+      mimeType: mimeType
+    });
+
+    // Start processing if not already running
+    if (!isProcessingAudioQueue) {
+      processGlobalAudioQueue();
+    }
+  }
+}
+
+// Process sequential audio segments in order
+function processSequentialAudio() {
+  // Check if we have the next expected segment
+  if (pendingAudioSegments[nextExpectedSequence]) {
+    const segment = pendingAudioSegments[nextExpectedSequence];
+    delete pendingAudioSegments[nextExpectedSequence];
+
+    console.debug(`[AudioQueue] Playing segment ${nextExpectedSequence} in order`);
+
+    // Clear any pending timeout since we found the expected segment
+    if (sequenceCheckTimer) {
+      clearTimeout(sequenceCheckTimer);
+      sequenceCheckTimer = null;
+    }
+
+    // Add to regular queue for playback
+    globalAudioQueue.push(segment);
+    nextExpectedSequence++;
+
+    // Start processing if not already running
+    if (!isProcessingAudioQueue) {
+      processGlobalAudioQueue();
+    }
+
+    // After playing one, check if more are ready
+    // Use setTimeout to avoid deep recursion
+    setTimeout(() => processSequentialAudio(), 0);
+  } else {
+    // Missing segment - set up timeout to skip it
+    if (!sequenceCheckTimer) {
+      sequenceCheckTimer = setTimeout(() => {
+        const pendingCount = Object.keys(pendingAudioSegments).length;
+        if (pendingCount > 0) {
+          const availableSequences = Object.keys(pendingAudioSegments)
+            .map(k => parseInt(k, 10))
+            .sort((a, b) => a - b);
+
+          console.warn(`[AudioQueue] TIMEOUT (${SEQUENCE_TIMEOUT_MS/1000}s) waiting for seq${nextExpectedSequence}. Available segments: [${availableSequences.join(', ')}]. Skipping to next available.`);
+
+          if (availableSequences.length > 0) {
+            // Skip to the first available segment
+            nextExpectedSequence = availableSequences[0];
+            sequenceCheckTimer = null;
+            processSequentialAudio();
+          }
+        }
+        sequenceCheckTimer = null;
+      }, SEQUENCE_TIMEOUT_MS);
+    }
   }
 }
 
@@ -1083,7 +1178,15 @@ function clearAudioQueue() {
   globalAudioQueue = [];
   isProcessingAudioQueue = false;
   currentAudioSequenceId = null;
-  
+
+  // Reset sequence tracking for realtime TTS
+  nextExpectedSequence = 1;
+  pendingAudioSegments = {};
+  if (sequenceCheckTimer) {
+    clearTimeout(sequenceCheckTimer);
+    sequenceCheckTimer = null;
+  }
+
   // Stop current segment if playing
   if (currentSegmentAudio) {
     try {
@@ -1094,7 +1197,7 @@ function clearAudioQueue() {
       console.warn("Error stopping current segment:", e);
     }
   }
-  
+
   // Stop current PCM source if playing
   if (currentPCMSource) {
     try {
@@ -1104,11 +1207,11 @@ function clearAudioQueue() {
       console.warn("Error stopping PCM source:", e);
     }
   }
-  
+
   // Also clear iOS-specific buffers
   iosAudioBuffer = [];
   isIOSAudioPlaying = false;
-  
+
   // Clear other audio queues
   if (typeof audioDataQueue !== 'undefined') {
     audioDataQueue = [];
@@ -1172,16 +1275,35 @@ function playAudioFromQueue(audioItem) {
     // Extract data and mimeType from audioItem
     const audioData = audioItem.data || audioItem;
     const mimeType = audioItem.mimeType;
-    
+    const sequenceNum = audioItem.sequenceNum;
+
+    // Helper function to handle error and skip to next
+    const handleAudioError = (errorMsg) => {
+      console.error(errorMsg);
+
+      // Mark this sequence as failed if it's a sequential segment
+      if (sequenceNum !== null && sequenceNum !== undefined) {
+        failedSequences.add(sequenceNum);
+        console.warn(`[AudioQueue] Marked seq${sequenceNum} as failed. Checking for next available segment.`);
+
+        // Immediately try to process next sequential segment
+        processSequentialAudio();
+      }
+
+      // Process next segment in regular queue
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
+    };
+
     // Check if this is PCM audio from Gemini
     if (mimeType && mimeType.includes("audio/L16")) {
       // Extract sample rate from MIME type
       const mimeMatch = mimeType.match(/rate=(\d+)/);
       const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
-      
+
       // Use the PCM playback function
       playPCMAudio(audioData, sampleRate);
-      
+
       // Handle queue processing after PCM playback
       // Note: playPCMAudio handles its own completion callback
       // so we need to modify it to continue queue processing
@@ -1192,15 +1314,15 @@ function playAudioFromQueue(audioItem) {
       };
       return;
     }
-    
+
     // For non-PCM audio, use standard blob playback
     const blob = new Blob([audioData], { type: mimeType || 'audio/mpeg' });
     const audioUrl = URL.createObjectURL(blob);
-    
+
     // Create a new audio element for this segment
     const segmentAudio = new Audio();
     currentSegmentAudio = segmentAudio; // Track current segment
-    
+
     segmentAudio.onended = function() {
       // Clean up
       URL.revokeObjectURL(audioUrl);
@@ -1209,29 +1331,23 @@ function playAudioFromQueue(audioItem) {
       isProcessingAudioQueue = false;
       processGlobalAudioQueue();
     };
-    
+
     segmentAudio.onerror = function(e) {
-      console.error("Segment audio error:", e);
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
-      // Try next segment immediately
-      isProcessingAudioQueue = false;
-      processGlobalAudioQueue();
+      handleAudioError(`Segment audio error for seq${sequenceNum}: ${e}`);
     };
-    
+
     // Set source and play
     segmentAudio.src = audioUrl;
     segmentAudio.play().then(() => {
       // Playing TTS segment
     }).catch(err => {
-      console.error("Failed to play segment:", err);
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
-      // Try next segment immediately
-      isProcessingAudioQueue = false;
-      processGlobalAudioQueue();
+      handleAudioError(`Failed to play segment seq${sequenceNum}: ${err.message}`);
     });
-    
+
   } catch (e) {
     console.error("Error in playAudioFromQueue:", e);
     // Try next segment immediately
@@ -4379,11 +4495,20 @@ let loadedApp = "Chat";
           $("#message").prop("disabled", false);
           $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
           $("#select-role").prop("disabled", false);
-          
+
           // Focus on the message input
           setInputFocus();
+
+          // Reset sequence tracking for next message (realtime TTS)
+          // This ensures each new message starts from seq1
+          nextExpectedSequence = 1;
+          pendingAudioSegments = {};
+          if (sequenceCheckTimer) {
+            clearTimeout(sequenceCheckTimer);
+            sequenceCheckTimer = null;
+          }
         }, 250); // Initial 250ms delay
-        
+
         break;
       }
       

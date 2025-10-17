@@ -327,6 +327,9 @@ module InteractionUtils
         body["speed"] = speed.to_f
       end
 
+      # Include language parameter unless set to "auto"
+      # When language is "auto", omit the parameter to let OpenAI auto-detect
+      # When language is explicitly set (e.g., "ja", "en"), include it in the request
       unless language == "auto"
         body["language"] = language
       end
@@ -741,6 +744,9 @@ module InteractionUtils
         body["speed"] = speed.to_f
       end
 
+      # Include language parameter unless set to "auto"
+      # When language is "auto", omit the parameter to let OpenAI auto-detect
+      # When language is explicitly set (e.g., "ja", "en"), include it in the request
       unless language == "auto"
         body["language"] = language
       end
@@ -750,12 +756,16 @@ module InteractionUtils
       # Use EventMachine::HttpRequest for async HTTP
       require 'em-http-request'
 
-      http = EventMachine::HttpRequest.new(target_uri).post(
+      http = EventMachine::HttpRequest.new(target_uri,
+        connect_timeout: 5,    # Quick connection for realtime
+        inactivity_timeout: 15  # 15 seconds max for TTS generation
+      ).post(
         head: {
           "Content-Type" => "application/json",
           "Authorization" => "Bearer #{api_key}"
         },
-        body: body.to_json
+        body: body.to_json,
+        keepalive: true          # Reuse connections for better performance
       )
 
       http.callback do
@@ -804,6 +814,296 @@ module InteractionUtils
         if CONFIG["EXTRA_LOGGING"]
           File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
             log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Connection error - #{http.error}, sequence_id=#{sequence_id}")
+          end
+        end
+
+        block.call(error_result)
+      end
+
+    when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
+      api_key = CONFIG["ELEVENLABS_API_KEY"]
+      if api_key.nil?
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: ELEVENLABS_API_KEY is not set."
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+        EventMachine.next_tick { block.call(error_result) }
+        return
+      end
+
+      model = case provider
+              when "elevenlabs-v3"
+                "eleven_v3"
+              when "elevenlabs-multilingual"
+                "eleven_multilingual_v2"
+              when "elevenlabs-flash", "elevenlabs"
+                "eleven_flash_v2_5"
+              else
+                "eleven_flash_v2_5"
+              end
+
+      body = {
+        "text" => text_converted,
+        "model_id" => model
+      }
+
+      val_speed = speed ? speed.to_f : 1.0
+      if speed
+        body["voice_settings"] = {
+          "stability" => 0.5,
+          "similarity_boost" => 0.75,
+          "speed" => val_speed
+        }
+      end
+
+      if previous_text.to_s != ""
+        body["previous_text"] = previous_text
+      end
+
+      unless language == "auto"
+        body["language_code"] = language
+      end
+
+      output_format = "mp3_44100_128"
+      target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
+
+      # Use EventMachine::HttpRequest for async HTTP
+      require 'em-http-request'
+
+      http = EventMachine::HttpRequest.new(target_uri,
+        connect_timeout: 5,    # Quick connection for realtime
+        inactivity_timeout: 15  # 15 seconds max for TTS generation
+      ).post(
+        head: {
+          "Content-Type" => "application/json",
+          "xi-api-key" => api_key
+        },
+        body: body.to_json,
+        keepalive: true          # Reuse connections for better performance
+      )
+
+      http.callback do
+        if http.response_header.status == 200
+          # Success - encode audio and call block
+          audio_content = Base64.strict_encode64(http.response)
+          result = {
+            "type" => "audio",
+            "content" => audio_content
+          }
+          result["sequence_id"] = sequence_id if sequence_id
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (ElevenLabs) - audio_size=#{http.response.length}, sequence_id=#{sequence_id}")
+            end
+          end
+
+          block.call(result)
+        else
+          # HTTP error
+          error_result = {
+            "type" => "error",
+            "content" => "ERROR: ElevenLabs TTS API error: #{http.response_header.status}"
+          }
+          error_result["sequence_id"] = sequence_id if sequence_id
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+            end
+          end
+
+          block.call(error_result)
+        end
+      end
+
+      http.errback do
+        # Connection error
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: ElevenLabs TTS connection failed: #{http.error}"
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs connection error - #{http.error}, sequence_id=#{sequence_id}")
+          end
+        end
+
+        block.call(error_result)
+      end
+
+    when "gemini", "gemini-flash", "gemini-pro"
+      api_key = CONFIG["GEMINI_API_KEY"]
+      if api_key.nil?
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: GEMINI_API_KEY is not set."
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+        EventMachine.next_tick { block.call(error_result) }
+        return
+      end
+
+      # Construct the text with voice instructions (lowercase voice names)
+      voice_instruction = case voice.downcase
+      when "zephyr"
+        "Say cheerfully with bright tone: "
+      when "puck"
+        "Say with upbeat energy: "
+      when "charon"
+        "Say in an informative tone: "
+      when "kore"
+        "Say warmly: "
+      when "fenrir"
+        "Say expressively: "
+      when "aoede"
+        "Say creatively: "
+      when "orus"
+        "Say clearly: "
+      when "schedar"
+        "Say professionally: "
+      else
+        ""
+      end
+
+      prompt_text = voice_instruction + text_converted
+
+      body = {
+        "contents" => [{
+          "parts" => [{
+            "text" => prompt_text
+          }]
+        }],
+        "generationConfig" => {
+          "response_modalities" => ["AUDIO"],
+          "speech_config" => {
+            "voice_config" => {
+              "prebuilt_voice_config" => {
+                "voice_name" => voice.to_s.downcase
+              }
+            }
+          }
+        }
+      }
+
+      # Use the appropriate Gemini model with TTS capability
+      model_name = case provider
+                   when "gemini-flash"
+                     "gemini-2.5-flash-preview-tts"
+                   when "gemini-pro"
+                     "gemini-2.5-pro-preview-tts"
+                   else
+                     "gemini-2.5-flash-preview-tts"
+                   end
+
+      target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
+
+      # Use EventMachine::HttpRequest for async HTTP
+      require 'em-http-request'
+
+      http = EventMachine::HttpRequest.new(target_uri,
+        connect_timeout: 5,    # Quick connection for realtime
+        inactivity_timeout: 15  # 15 seconds max for TTS generation
+      ).post(
+        head: {
+          "Content-Type" => "application/json"
+        },
+        body: body.to_json,
+        keepalive: true          # Reuse connections for better performance
+      )
+
+      http.callback do
+        if http.response_header.status == 200
+          begin
+            gemini_response = JSON.parse(http.response)
+
+            # Extract audio data from Gemini response
+            if gemini_response["candidates"] &&
+               gemini_response["candidates"][0] &&
+               gemini_response["candidates"][0]["content"] &&
+               gemini_response["candidates"][0]["content"]["parts"] &&
+               gemini_response["candidates"][0]["content"]["parts"][0] &&
+               gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
+
+              audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+              mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+
+              result = {
+                "type" => "audio",
+                "content" => audio_data,
+                "mime_type" => mime_type
+              }
+              result["sequence_id"] = sequence_id if sequence_id
+
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (Gemini) - audio_size=#{audio_data.length}, sequence_id=#{sequence_id}")
+                end
+              end
+
+              block.call(result)
+            else
+              error_result = {
+                "type" => "error",
+                "content" => "ERROR: Invalid response format from Gemini API"
+              }
+              error_result["sequence_id"] = sequence_id if sequence_id
+
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Invalid Gemini response format, sequence_id=#{sequence_id}")
+                end
+              end
+
+              block.call(error_result)
+            end
+          rescue JSON::ParserError => e
+            error_result = {
+              "type" => "error",
+              "content" => "ERROR: Failed to parse Gemini response: #{e.message}"
+            }
+            error_result["sequence_id"] = sequence_id if sequence_id
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini JSON parse error - #{e.message}, sequence_id=#{sequence_id}")
+              end
+            end
+
+            block.call(error_result)
+          end
+        else
+          # HTTP error
+          error_result = {
+            "type" => "error",
+            "content" => "ERROR: Gemini TTS API error: #{http.response_header.status}"
+          }
+          error_result["sequence_id"] = sequence_id if sequence_id
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+            end
+          end
+
+          block.call(error_result)
+        end
+      end
+
+      http.errback do
+        # Connection error
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: Gemini TTS connection failed: #{http.error}"
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini connection error - #{http.error}, sequence_id=#{sequence_id}")
           end
         end
 

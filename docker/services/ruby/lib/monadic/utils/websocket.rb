@@ -7,6 +7,7 @@ require 'uri'
 require_relative '../agents/ai_user_agent'
 require_relative 'boolean_parser'
 require_relative 'ssl_configuration'
+require_relative 'string_utils'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -628,6 +629,9 @@ module WebSocketHelper
   # @param response_format [String] Audio format (e.g., "mp3")
   # @param language [String] Language code
   def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:)
+    # Strip Markdown markers and HTML tags before processing
+    text = StringUtils.strip_markdown_for_tts(text)
+
     # Process text with PragmaticSegmenter to split into sentences
     ps = PragmaticSegmenter::Segmenter.new(text: text)
     segments = ps.segment
@@ -1847,6 +1851,9 @@ module WebSocketHelper
                       if obj["auto_speech"] && !cutoff && !obj["monadic"]
                         text = split[0] || ""
 
+                        # Strip Markdown markers and HTML tags before TTS processing
+                        text = StringUtils.strip_markdown_for_tts(text)
+
                         # Filter out very short or emoji-only segments
                         cleaned_text = text.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
                         cleaned_text = cleaned_text.gsub(/^\s*[-*]\s+/, '').gsub(/^\s*\d+\.\s+/, '')
@@ -1855,29 +1862,104 @@ module WebSocketHelper
 
                         if CONFIG["EXTRA_LOGGING"]
                           File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                            log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: original='#{text[0..50]}...', cleaned='#{cleaned_text[0..50]}...', cleaned_length=#{cleaned_text.length}")
+                            log.puts("[#{Time.now}] [BUFFER] ============================================")
+                            log.puts("[#{Time.now}] [BUFFER] Sentence #{idx} received")
+                            log.puts("[#{Time.now}] [BUFFER] Original text: '#{text}'")
+                            log.puts("[#{Time.now}] [BUFFER] Cleaned text: '#{cleaned_text}'")
+                            log.puts("[#{Time.now}] [BUFFER] Cleaned length: #{cleaned_text.length}")
                           end
                         end
 
                         # Skip only if text is empty
                         if text.strip != ""
-                          # Check if this is a short sentence (≤10 chars cleaned length)
-                          if cleaned_text.length <= 10
+                          # Check if this is a short sentence (≤30 chars cleaned length)
+                          if cleaned_text.length <= 30
                             # Buffer short sentence instead of sending immediately
                             @realtime_tts_short_buffer << text
 
+                            # Calculate total buffer length
+                            total_buffer_length = @realtime_tts_short_buffer.map do |buffered_text|
+                              cleaned = buffered_text.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+                              cleaned = cleaned.gsub(/^\s*[-*]\s+/, '').gsub(/^\s*\d+\.\s+/, '')
+                              cleaned = cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ')
+                              cleaned.strip.length
+                            end.sum
+
                             if CONFIG["EXTRA_LOGGING"]
                               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [DEBUG] Buffering short sentence (#{cleaned_text.length} chars): '#{text[0..50]}...'")
-                                log.puts("[#{Time.now}] [DEBUG] Buffer now contains #{@realtime_tts_short_buffer.size} sentence(s)")
+                                log.puts("[#{Time.now}] [BUFFER] Decision: BUFFERING (≤30 chars)")
+                                log.puts("[#{Time.now}] [BUFFER] Buffer size: #{@realtime_tts_short_buffer.size} sentence(s)")
+                                log.puts("[#{Time.now}] [BUFFER] Total buffer length: #{total_buffer_length} chars")
+                                log.puts("[#{Time.now}] [BUFFER] Buffer contents:")
+                                @realtime_tts_short_buffer.each_with_index do |buf_text, buf_idx|
+                                  log.puts("[#{Time.now}] [BUFFER]   [#{buf_idx}]: '#{buf_text}'")
+                                end
+                              end
+                            end
+
+                            # Check if total buffer length exceeds threshold (30 chars)
+                            # This prevents long pauses while maintaining gap prevention
+                            if total_buffer_length > 30
+                              # Flush buffer when accumulated length is sufficient
+                              # Add space between sentences to prevent words from merging
+                              combined_text = @realtime_tts_short_buffer.join(" ")
+                              @realtime_tts_short_buffer.clear
+
+                              if CONFIG["EXTRA_LOGGING"]
+                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                  log.puts("[#{Time.now}] [BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > 30) ***")
+                                  log.puts("[#{Time.now}] [BUFFER] Combined text to send to TTS: '#{combined_text}'")
+                                  log.puts("[#{Time.now}] [BUFFER] Combined text length: #{combined_text.length}")
+                                end
+                              end
+
+                              # Increment counters and create sequence ID
+                              @realtime_tts_sequence_counter += 1
+                              sequence_num = @realtime_tts_sequence_counter
+                              sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+
+                              # Submit TTS request immediately
+                              EventMachine.next_tick do
+                                tts_api_request_em(
+                                  combined_text,
+                                  provider: provider,
+                                  voice: voice,
+                                  speed: speed,
+                                  response_format: response_format,
+                                  language: language,
+                                  sequence_id: sequence_id
+                                ) do |res_hash|
+                                  if res_hash && res_hash["type"] != "error"
+                                    if CONFIG["EXTRA_LOGGING"]
+                                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                        log.puts("[#{Time.now}] [DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                                      end
+                                    end
+                                    @channel.push(res_hash.to_json)
+                                  else
+                                    if CONFIG["EXTRA_LOGGING"]
+                                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                        log.puts("[#{Time.now}] [DEBUG] TTS failed for flushed buffer: #{res_hash&.[]("content")}")
+                                      end
+                                    end
+                                  end
+                                end
                               end
                             end
                           else
                             # This is a longer sentence - flush buffer and send combined text
+                            if CONFIG["EXTRA_LOGGING"]
+                              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                log.puts("[#{Time.now}] [BUFFER] Decision: IMMEDIATE SEND (>30 chars)")
+                                log.puts("[#{Time.now}] [BUFFER] Current buffer has #{@realtime_tts_short_buffer.size} sentence(s)")
+                              end
+                            end
+
                             combined_text = if @realtime_tts_short_buffer.empty?
                                              text
                                            else
                                              # Combine buffered short sentences with current sentence
+                                             # Add space between sentences to prevent words from merging
                                              buffered = @realtime_tts_short_buffer.join(" ")
                                              @realtime_tts_short_buffer.clear
                                              "#{buffered} #{text}"
@@ -1890,7 +1972,10 @@ module WebSocketHelper
 
                             if CONFIG["EXTRA_LOGGING"]
                               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [DEBUG] Sentence #{sequence_num} (fragment_idx=#{idx}): Scheduling async TTS: text='#{combined_text[0..50]}...' (length=#{combined_text.length}), sequence_id=#{sequence_id}")
+                                log.puts("[#{Time.now}] [BUFFER] *** SENDING TO TTS (long sentence) ***")
+                                log.puts("[#{Time.now}] [BUFFER] Sequence: #{sequence_num}, ID: #{sequence_id}")
+                                log.puts("[#{Time.now}] [BUFFER] Combined text to send: '#{combined_text}'")
+                                log.puts("[#{Time.now}] [BUFFER] Combined text length: #{combined_text.length}")
                               end
                             end
 
@@ -1961,6 +2046,7 @@ module WebSocketHelper
               # Also check if there are any buffered short sentences that haven't been sent yet
               if !@realtime_tts_short_buffer.empty?
                 # Combine buffered short sentences with final text
+                # Add space between sentences to prevent words from merging
                 buffered = @realtime_tts_short_buffer.join(" ")
                 final_text = if final_text.empty?
                               buffered

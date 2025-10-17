@@ -45,6 +45,10 @@ let currentSegmentAudio = null; // Track current playing segment
 let currentPCMSource = null; // Track current PCM audio source
 let currentTTSCardId = null; // Track which card is currently playing TTS
 
+// Export audio queue state for TTS button highlighting
+window.globalAudioQueue = globalAudioQueue;
+window.getIsProcessingAudioQueue = () => isProcessingAudioQueue;
+
 // Sequence-based ordering for realtime TTS
 let nextExpectedSequence = 1; // Track next expected sequence number
 let pendingAudioSegments = {}; // Buffer for out-of-order segments
@@ -1211,7 +1215,7 @@ function processGlobalAudioQueue() {
 
 // Clear the audio queue (used by stop button)
 function clearAudioQueue() {
-  globalAudioQueue = [];
+  globalAudioQueue.length = 0; // Clear array while keeping reference
   isProcessingAudioQueue = false;
   currentAudioSequenceId = null;
 

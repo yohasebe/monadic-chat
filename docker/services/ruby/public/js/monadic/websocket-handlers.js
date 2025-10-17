@@ -408,11 +408,19 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       // Highlight Stop button if Auto TTS is currently playing
       // (This handles the case where audio starts before the final card is created)
       if (data.content.mid) {
-        const isAudioPlaying = (typeof window.globalAudioQueue !== 'undefined' && window.globalAudioQueue.length > 0) ||
-                               (typeof window.isProcessingAudioQueue !== 'undefined' && window.isProcessingAudioQueue);
+        const hasQueuedAudio = window.globalAudioQueue && window.globalAudioQueue.length > 0;
+        const isProcessing = typeof window.getIsProcessingAudioQueue === 'function' && window.getIsProcessingAudioQueue();
+        const isAudioPlaying = hasQueuedAudio || isProcessing;
+
+        console.log('[Auto TTS Highlight] Card created:', data.content.mid);
+        console.log('[Auto TTS Highlight] Queue length:', window.globalAudioQueue ? window.globalAudioQueue.length : 'undefined');
+        console.log('[Auto TTS Highlight] Is processing:', isProcessing);
+        console.log('[Auto TTS Highlight] Will highlight:', isAudioPlaying);
+
         if (isAudioPlaying && typeof window.highlightStopButton === 'function') {
           // Use setTimeout to ensure DOM is fully ready
           setTimeout(() => {
+            console.log('[Auto TTS Highlight] Highlighting card:', data.content.mid);
             window.highlightStopButton(data.content.mid);
           }, 100);
         }

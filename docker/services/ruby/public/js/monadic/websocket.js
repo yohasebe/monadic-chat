@@ -68,6 +68,18 @@ function highlightStopButton(cardId) {
   }
 }
 
+function highlightLatestAssistantStop() {
+  // Find the latest assistant card (for Auto TTS)
+  const $assistantCards = $('.role-assistant').closest('.card');
+  if ($assistantCards.length > 0) {
+    const $latestCard = $assistantCards.last();
+    const cardId = $latestCard.attr('id');
+    if (cardId) {
+      highlightStopButton(cardId);
+    }
+  }
+}
+
 function removeStopButtonHighlight(cardId = null) {
   // If cardId is provided, only remove from that card
   // Otherwise, remove from the current TTS card (if any)
@@ -84,6 +96,7 @@ function removeStopButtonHighlight(cardId = null) {
 
 // Export helper functions to window for global access
 window.highlightStopButton = highlightStopButton;
+window.highlightLatestAssistantStop = highlightLatestAssistantStop;
 window.removeStopButtonHighlight = removeStopButtonHighlight;
 
 // message is submitted upon pressing enter
@@ -833,8 +846,16 @@ window.audio = audio;
 
 // Function to add to global audio queue (used for segmented playback)
 window.addToGlobalAudioQueue = function(audioItem) {
+  // If this is the first item being added (Auto TTS start), highlight Stop button
+  const wasEmpty = globalAudioQueue.length === 0 && !isProcessingAudioQueue;
+
   globalAudioQueue.push(audioItem);
-  
+
+  // Highlight latest assistant card's Stop button when Auto TTS starts
+  if (wasEmpty && typeof highlightLatestAssistantStop === 'function') {
+    highlightLatestAssistantStop();
+  }
+
   // Process the queue if not already processing
   if (!isProcessingAudioQueue) {
     processGlobalAudioQueue();
@@ -1103,6 +1124,15 @@ function addToAudioQueue(audioData, sequenceId, mimeType) {
 
   // If this has a sequence number, use sequence-based ordering
   if (sequenceNum !== null) {
+    // Highlight Stop button on first sequential segment (Auto TTS with realtime mode)
+    const isFirstSegment = Object.keys(pendingAudioSegments).length === 0 &&
+                           globalAudioQueue.length === 0 &&
+                           !isProcessingAudioQueue;
+
+    if (isFirstSegment && typeof highlightLatestAssistantStop === 'function') {
+      highlightLatestAssistantStop();
+    }
+
     pendingAudioSegments[sequenceNum] = {
       data: audioData,
       sequenceId: sequenceId,
@@ -1189,13 +1219,18 @@ function processGlobalAudioQueue() {
   if (globalAudioQueue.length === 0) {
     isProcessingAudioQueue = false;
     currentAudioSequenceId = null;
+
+    // Remove Stop button highlight when queue is empty (playback finished)
+    if (typeof removeStopButtonHighlight === 'function') {
+      removeStopButtonHighlight();
+    }
     return;
   }
-  
+
   isProcessingAudioQueue = true;
   const audioItem = globalAudioQueue.shift();
   currentAudioSequenceId = audioItem.sequenceId;
-  
+
   // Choose appropriate playback method based on device
   if (window.isIOS || window.basicAudioMode) {
     playAudioForIOSFromQueue(audioItem.data);

@@ -389,14 +389,14 @@ function attachEventListeners($card) {
       $(this).tooltip('hide');
       $('.tooltip').remove();
     }
-    
+
     // Hide the spinner and reset it back to default state
     $("#monadic-spinner").hide();
     // Reset spinner to default state for other operations
     $("#monadic-spinner")
       .find("span")
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-    
+
     // Stop frontend TTS
     ttsStop();
 

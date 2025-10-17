@@ -397,14 +397,27 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     if (data.content.role === 'assistant') {
       // Create card if function is provided
       if (typeof createCardFunc === 'function') {
-        createCardFunc('assistant', 
-                     '<span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>', 
-                     finalHtml, 
-                     data.content.lang, 
-                     data.content.mid, 
+        createCardFunc('assistant',
+                     '<span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>',
+                     finalHtml,
+                     data.content.lang,
+                     data.content.mid,
                      true);
       }
-      
+
+      // Highlight Stop button if Auto TTS is currently playing
+      // (This handles the case where audio starts before the final card is created)
+      if (data.content.mid) {
+        const isAudioPlaying = (typeof window.globalAudioQueue !== 'undefined' && window.globalAudioQueue.length > 0) ||
+                               (typeof window.isProcessingAudioQueue !== 'undefined' && window.isProcessingAudioQueue);
+        if (isAudioPlaying && typeof window.highlightStopButton === 'function') {
+          // Use setTimeout to ensure DOM is fully ready
+          setTimeout(() => {
+            window.highlightStopButton(data.content.mid);
+          }, 100);
+        }
+      }
+
       // UI Updates
       $('#message').show();
       $('#message').val('');

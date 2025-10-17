@@ -1151,6 +1151,24 @@ function processSequentialAudio() {
       sequenceCheckTimer = null;
     }
 
+    // If this is the first segment (Auto TTS starting), highlight Stop button
+    const isFirstSegment = nextExpectedSequence === 1;
+    if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
+      console.log('[Auto TTS Highlight] First segment detected, highlighting latest card');
+      // Find and highlight the latest assistant card
+      setTimeout(() => {
+        const $assistantCards = $('.role-assistant').closest('.card');
+        if ($assistantCards.length > 0) {
+          const $latestCard = $assistantCards.last();
+          const cardId = $latestCard.attr('id');
+          console.log('[Auto TTS Highlight] Found latest card:', cardId);
+          if (cardId && typeof window.highlightStopButton === 'function') {
+            window.highlightStopButton(cardId);
+          }
+        }
+      }, 50);
+    }
+
     // Add to regular queue for playback
     globalAudioQueue.push(segment);
     nextExpectedSequence++;

@@ -1278,6 +1278,12 @@
     <!-- Debug configuration - must be loaded before all other scripts -->
     <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
 
+    <!-- Pass server configuration to frontend -->
+    <script>
+      // Set AUTO_TTS_REALTIME_MODE from server CONFIG
+      window.AUTO_TTS_REALTIME_MODE = <%= CONFIG["AUTO_TTS_REALTIME_MODE"] || false %>;
+    </script>
+
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/reasoning-mapper.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/reasoning-labels.js?timestamp=<%= @timestamp %>"></script>

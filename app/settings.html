@@ -335,6 +335,10 @@
             <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px; margin-top: 0; margin-bottom: 0;">
             <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 11px;" data-i18n="settings.labels.selectFile">Select File</button>
           </div>
+
+          <label class="form-check-label" for="auto-tts-realtime-mode" data-i18n="settings.labels.autoTtsRealtimeMode">Auto TTS Realtime Mode</label>
+          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="auto-tts-realtime-mode">
+          <small class="text-muted" style="display: block; margin-top: -8px; margin-bottom: 10px;" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
         </div>
 
         <!-- Category: System Settings -->
@@ -423,7 +427,8 @@
           MCP_SERVER_ENABLED: document.getElementById('mcp-server-enabled').checked,
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
           UI_LANGUAGE: document.getElementById('ui-language').value,
-          PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value
+          PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value,
+          AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -550,6 +555,7 @@
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
+        document.getElementById('auto-tts-realtime-mode').checked = data.AUTO_TTS_REALTIME_MODE == "true" || false;
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';

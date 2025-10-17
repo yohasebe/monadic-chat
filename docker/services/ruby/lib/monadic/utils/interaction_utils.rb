@@ -278,6 +278,7 @@ module InteractionUtils
                       previous_text: nil,
                       instructions: nil,
                       language: "auto",
+                      use_net_http: false,
                       &block)
 
     # Handle nil text
@@ -464,10 +465,19 @@ module InteractionUtils
     end
 
     begin
-      http = HTTP.headers(headers)
-      
-      # Use streaming for OpenAI TTS when block is given
-      if block_given? && (provider.include?("openai-tts") || provider == "openai")
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DEBUG] tts_api_request: START - provider=#{provider}, text_length=#{text_converted.length}, block_given=#{block_given?}, use_net_http=#{use_net_http}")
+        end
+      end
+
+      # Use Net::HTTP for OpenAI TTS when use_net_http is true or when streaming with block
+      if (use_net_http || block_given?) && (provider.include?("openai-tts") || provider == "openai")
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [DEBUG] tts_api_request: Using Net::HTTP (use_net_http=#{use_net_http}, streaming=#{block_given?})")
+          end
+        end
         require 'net/http'
         require 'uri'
         
@@ -480,38 +490,83 @@ module InteractionUtils
         headers.each { |key, value| request[key] = value }
         request.body = body.to_json
         
-        t_index = 0
-        
-        # Stream the response
-        net_http.request(request) do |response|
-          unless response.code.to_i == 200
-            error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
-            block.call(error_res)
-            return
-          end
-          
-          response.read_body do |chunk|
-            if chunk.length > 0
-              t_index += 1
-              content = Base64.strict_encode64(chunk)
-              hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
-              block.call(hash_res)
-              puts "OpenAI TTS: Streamed chunk #{t_index} (#{chunk.length} bytes)" if ENV["DEBUG_TTS"]
+        if block_given?
+          # Streaming mode with Net::HTTP
+          t_index = 0
+
+          net_http.request(request) do |response|
+            unless response.code.to_i == 200
+              error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
+              block.call(error_res)
+              return
+            end
+
+            response.read_body do |chunk|
+              if chunk.length > 0
+                t_index += 1
+                content = Base64.strict_encode64(chunk)
+                hash_res = { "type" => "audio", "content" => content, "t_index" => t_index, "finished" => false }
+                block.call(hash_res)
+                puts "OpenAI TTS: Streamed chunk #{t_index} (#{chunk.length} bytes)" if ENV["DEBUG_TTS"]
+              end
             end
           end
+
+          # Send completion signal
+          t_index += 1
+          finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
+          block.call(finish)
+          return nil
+        else
+          # Non-streaming mode with Net::HTTP
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Net::HTTP non-streaming request")
+            end
+          end
+
+          response = net_http.request(request)
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Net::HTTP response received - code=#{response.code}, body_size=#{response.body.length}")
+            end
+          end
+
+          unless response.code.to_i == 200
+            error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
+            return error_res
+          end
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Returning audio (Net::HTTP non-streaming) - body_size=#{response.body.length}")
+            end
+          end
+
+          return { "type" => "audio", "content" => Base64.strict_encode64(response.body) }
         end
-        
-        # Send completion signal
-        t_index += 1
-        finish = { "type" => "audio", "content" => "", "t_index" => t_index, "finished" => true }
-        block.call(finish)
-        return nil
       end
+
+      # For non-Net::HTTP paths, use HTTP gem
+      http = HTTP.headers(headers)
 
       # Gemini TTS now uses non-streaming endpoint (generateContent) for all requests
       # The streaming-specific code has been removed as it added unnecessary overhead
 
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DEBUG] tts_api_request: Sending HTTP POST to #{target_uri}")
+        end
+      end
+
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DEBUG] tts_api_request: HTTP response received - status=#{res.status}, body_size=#{res.body.to_s.length}")
+        end
+      end
 
       unless res.status.success?
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
@@ -613,8 +668,21 @@ module InteractionUtils
           return nil
         end
       else
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [DEBUG] tts_api_request: Returning audio (non-streaming) - body_size=#{res.body.to_s.length}")
+          end
+        end
         { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
       end
+    rescue => e
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}")
+          log.puts(e.backtrace.join("\n"))
+        end
+      end
+      { "type" => "error", "content" => "ERROR: TTS request failed: #{e.message}" }
     end
   end
 

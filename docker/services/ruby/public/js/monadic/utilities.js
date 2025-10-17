@@ -1040,6 +1040,15 @@ function setParams() {
   params["easy_submit"] = $("#check-easy-submit").prop('checked');
   params["auto_speech"] = $("#check-auto-speech").prop('checked');
 
+  // Auto TTS mode: realtime (true) or post-completion (false, default)
+  // This will be set from Electron settings
+  if (typeof window.AUTO_TTS_REALTIME_MODE !== 'undefined') {
+    params["auto_tts_realtime_mode"] = window.AUTO_TTS_REALTIME_MODE;
+  } else {
+    // Default to false (post-completion mode)
+    params["auto_tts_realtime_mode"] = false;
+  }
+
   const spec = modelSpec[params["model"]];
   if (spec && spec["context_window"]) {
     params["max_input_tokens"] = spec["context_window"][1];

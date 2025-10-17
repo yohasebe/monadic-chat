@@ -613,10 +613,389 @@ module WebSocketHelper
   # @param filtered_messages [Array] Filtered messages
   def update_message_status(ws, filtered_messages)
     past_messages_data = check_past_messages(session[:parameters])
-    
+
     # Reuse filtered_messages for change_status
     @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
     @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+  end
+
+  # Initialize realtime TTS worker thread
+  # This thread processes segments from the queue as they arrive during streaming
+  # @param provider [String] TTS provider
+  # @param voice [String] Voice ID
+  # @param speed [Float] Speech speed
+  # @param response_format [String] Audio format
+  # @param language [String] Language code
+  # @param use_batch_processing [Boolean] Whether to use batch processing
+  def start_realtime_tts_worker(provider:, voice:, speed:, response_format:, language:, use_batch_processing:)
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [DEBUG] start_realtime_tts_worker called")
+      end
+    end
+    # Stop existing worker if running
+    if defined?(@realtime_tts_thread) && @realtime_tts_thread && @realtime_tts_thread.alive?
+      @realtime_tts_thread.kill
+      @realtime_tts_thread = nil
+    end
+
+    # Initialize queue
+    @realtime_tts_queue ||= Queue.new
+    @realtime_tts_queue.clear
+
+    # Context tracking for previous_text
+    prev_texts = []
+
+    # Start worker thread
+    @realtime_tts_thread = Thread.new do
+      Thread.current[:type] = :realtime_tts
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker thread started")
+        end
+      end
+
+      loop do
+        begin
+          # Get next segment from queue (blocking call)
+          segment_data = @realtime_tts_queue.pop
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] Worker received segment from queue")
+            end
+          end
+
+          # Exit signal
+          break if segment_data == :stop
+
+          text = segment_data[:text]
+          sequence_id = segment_data[:sequence_id]
+          frag = segment_data[:fragment]
+          batch_mode = segment_data[:use_batch_processing]
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] Processing TTS for text: '#{text[0..50]}...' (length=#{text.length})")
+              log.puts("[#{Time.now}] [DEBUG] TTS parameters: provider=#{provider}, voice=#{voice}, speed=#{speed}, format=#{response_format}, lang=#{language}")
+            end
+          end
+
+          # Get previous_text for context
+          previous_text = if provider == "elevenlabs-v3"
+                            nil
+                          else
+                            prev_texts.empty? ? nil : prev_texts[-1]
+                          end
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] Calling tts_api_request...")
+            end
+          end
+
+          # Special handling for Web Speech API
+          if provider == "webspeech" || provider == "web-speech"
+            res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
+          else
+            # Generate TTS content
+            # Use Net::HTTP in worker thread to avoid HTTP gem blocking issues
+            res_hash = tts_api_request(text,
+                                     previous_text: previous_text,
+                                     provider: provider,
+                                     voice: voice,
+                                     speed: speed,
+                                     response_format: response_format,
+                                     language: language,
+                                     use_net_http: true)
+            res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
+          end
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request returned: type=#{res_hash&.[]("type")}, has_content=#{!res_hash&.[]("content").to_s.empty?}")
+            end
+          end
+
+          # Update context
+          if res_hash && res_hash["type"] != "error"
+            prev_texts << text unless provider == "elevenlabs-v3"
+
+            # Send to client
+            if batch_mode
+              begin
+                batch = {
+                  "type" => "fragment_with_audio",
+                  "fragment" => frag,
+                  "audio" => res_hash,
+                  "auto_speech" => true,
+                  "sequence_id" => sequence_id
+                }
+                @channel.push(batch.to_json)
+              rescue => e
+                puts "Batch processing error: #{e.message}. Falling back to individual messages."
+                @channel.push(frag.to_json)
+                @channel.push(res_hash.to_json) if res_hash
+              end
+            else
+              @channel.push(res_hash.to_json) if res_hash
+              @channel.push(frag.to_json)
+            end
+          else
+            # TTS failed, just send fragment
+            @channel.push(frag.to_json)
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] TTS failed for segment, sending fragment only")
+              end
+            end
+          end
+        rescue => e
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [ERROR] Realtime TTS Worker Error: #{e.message}")
+              log.puts(e.backtrace.join("\n"))
+            end
+          end
+          break
+        end
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker thread exiting")
+        end
+      end
+    end
+  end
+
+  # Stop realtime TTS worker thread
+  def stop_realtime_tts_worker
+    if defined?(@realtime_tts_queue) && @realtime_tts_queue
+      @realtime_tts_queue.push(:stop)
+    end
+
+    if defined?(@realtime_tts_thread) && @realtime_tts_thread && @realtime_tts_thread.alive?
+      @realtime_tts_thread.join(0.5) # Wait up to 0.5 seconds
+      @realtime_tts_thread.kill if @realtime_tts_thread.alive?
+      @realtime_tts_thread = nil
+    end
+  end
+
+  # Common TTS playback processing for PLAY_TTS and Auto Speech
+  # This method handles text segmentation, prefetching, and threaded TTS generation
+  # @param text [String] Text to convert to speech
+  # @param provider [String] TTS provider (e.g., "elevenlabs-v3", "gemini-flash")
+  # @param voice [String] Voice ID
+  # @param speed [Float] Speech speed
+  # @param response_format [String] Audio format (e.g., "mp3")
+  # @param language [String] Language code
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:)
+    # Process text with PragmaticSegmenter to split into sentences
+    ps = PragmaticSegmenter::Segmenter.new(text: text)
+    segments = ps.segment
+
+    # For Gemini TTS, combine short segments to avoid API failures
+    if provider == "gemini-flash" || provider == "gemini-pro"
+      combined_segments = []
+      current_segment = ""
+
+      segments.each do |segment|
+        # Clean and check text
+        cleaned_text = segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '') # Remove emojis
+        cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ') # Remove special chars
+        cleaned_text = cleaned_text.strip
+
+        if current_segment.empty?
+          # Start a new segment
+          current_segment = segment
+        elsif cleaned_text.length < 8  # Increased threshold for safety
+          # Current segment is short, combine with existing
+          current_segment += " " + segment
+        else
+          # Check if current accumulated segment should be finalized
+          current_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+          current_cleaned = current_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
+
+          if current_cleaned.length < 8  # Combine if still short
+            current_segment += " " + segment
+          else
+            # Finalize current segment and start new one
+            combined_segments << current_segment if current_cleaned.length >= 3
+            current_segment = segment
+          end
+        end
+      end
+
+      # Don't forget the last segment - but validate it first
+      unless current_segment.empty?
+        final_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
+        final_cleaned = final_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
+        combined_segments << current_segment if final_cleaned.length >= 3
+      end
+
+      segments = combined_segments
+      puts "Gemini TTS: #{ps.segment.length} -> #{segments.length} segments" if ENV["DEBUG_TTS"]
+    end
+
+    # Process each segment
+    prev_texts_for_tts = []
+    segments = Array(segments)
+
+    # ElevenLabs V3: Check if segments should be combined (legacy behavior)
+    # Default is false (use segment splitting for prefetch benefits)
+    # Set ELEVENLABS_V3_COMBINE_SEGMENTS=true to combine all segments into one
+    if provider == "elevenlabs-v3"
+      combine_segments = defined?(CONFIG) && CONFIG["ELEVENLABS_V3_COMBINE_SEGMENTS"].to_s == "true"
+      if combine_segments
+        combined_text = segments.join(" ").strip
+        segments = combined_text.empty? ? [] : [combined_text]
+        puts "ElevenLabs V3: Combined all segments into one (legacy mode)" if CONFIG["EXTRA_LOGGING"]
+      else
+        puts "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" if CONFIG["EXTRA_LOGGING"]
+      end
+    end
+
+    # Start a new thread for TTS processing with prefetching
+    @tts_thread = Thread.new do
+      Thread.current[:type] = :tts_playback
+
+      # Filter and prepare segments
+      valid_segments = []
+      segments.each do |segment|
+        next if segment.strip.empty?
+
+        # Light filtering for Gemini TTS
+        if provider == "gemini-flash" || provider == "gemini-pro"
+          cleaned_segment = segment.strip
+          next if cleaned_segment.length < 3
+          valid_segments << cleaned_segment
+        else
+          valid_segments << segment
+        end
+      end
+
+      # Prefetch pipeline: Start first 3 TTS requests in parallel (improved from 2)
+      tts_futures = []
+      # Store futures array in thread local for STOP_TTS cleanup
+      Thread.current[:tts_futures] = tts_futures
+
+      # Special handling for Web Speech API - no prefetching needed (no API calls)
+      if provider == "webspeech" || provider == "web-speech"
+        # Process synchronously for Web Speech API
+        valid_segments.each_with_index do |segment, i|
+          res_hash = { "type" => "web_speech", "content" => segment }
+
+          prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
+
+          # Send audio and progress
+          @channel.push(res_hash.to_json)
+
+          progress_message = {
+            "type" => "tts_progress",
+            "segment_index" => i,
+            "total_segments" => valid_segments.length,
+            "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
+          }
+          @channel.push(progress_message.to_json)
+        end
+      else
+        # Prefetch mode for API-based TTS providers
+        # Start first 3 requests to prevent gaps between short sentences
+        [0, 1, 2].each do |idx|
+          break if idx >= valid_segments.length
+
+          segment = valid_segments[idx]
+          # Get previous_text directly from valid_segments for initial prefetch
+          previous_text = if provider == "elevenlabs-v3"
+                            nil
+                          elsif idx > 0
+                            valid_segments[idx - 1]
+                          else
+                            nil
+                          end
+
+          tts_futures << Thread.new do
+            tts_api_request(segment,
+                          previous_text: previous_text,
+                          provider: provider,
+                          voice: voice,
+                          speed: speed,
+                          response_format: response_format,
+                          language: language)
+          end
+        end
+
+        # Process segments in order
+        valid_segments.each_with_index do |segment, i|
+          # Wait for current segment's TTS to complete with error handling
+          begin
+            res_hash = tts_futures[i]&.value
+          rescue => e
+            # Thread was killed or errored - create error response
+            puts "TTS segment #{i} failed with exception: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            res_hash = {
+              "type" => "error",
+              "content" => "TTS generation failed for segment #{i + 1}"
+            }
+          end
+
+          # Add segment information
+          if res_hash && res_hash["type"] == "audio"
+            res_hash["segment_index"] = i
+            res_hash["total_segments"] = valid_segments.length
+            res_hash["is_segment"] = true
+          end
+
+          # Store for context
+          prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
+
+          # Start next segment's TTS request (prefetch i+3 to maintain 3-segment buffer)
+          next_idx = i + 3
+          if next_idx < valid_segments.length
+            next_segment = valid_segments[next_idx]
+            # Get previous_text directly from valid_segments for prefetch
+            next_previous_text = if provider == "elevenlabs-v3"
+                                  nil
+                                elsif next_idx > 0
+                                  valid_segments[next_idx - 1]
+                                else
+                                  nil
+                                end
+
+            tts_futures << Thread.new do
+              tts_api_request(next_segment,
+                            previous_text: next_previous_text,
+                            provider: provider,
+                            voice: voice,
+                            speed: speed,
+                            response_format: response_format,
+                            language: language)
+            end
+          end
+
+          # Send audio and progress
+          if res_hash && res_hash["type"] != "error"
+            @channel.push(res_hash.to_json)
+
+            progress_message = {
+              "type" => "tts_progress",
+              "segment_index" => i,
+              "total_segments" => valid_segments.length,
+              "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
+            }
+            @channel.push(progress_message.to_json)
+          else
+            puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
+          end
+        end
+      end
+
+      # Signal completion
+      @channel.push({
+        "type" => "tts_complete",
+        "total_segments" => valid_segments.length
+      }.to_json)
+    end
   end
   
   # Handle DELETE message
@@ -1445,6 +1824,9 @@ module WebSocketHelper
             puts "TTS thread and subthreads stopped by STOP_TTS message"
           end
 
+          # Stop realtime TTS worker thread
+          stop_realtime_tts_worker
+
           # Send confirmation
           @channel.push({
             "type" => "tts_stopped"
@@ -1452,19 +1834,19 @@ module WebSocketHelper
         when "PLAY_TTS"
           # Handle play TTS message
           # This is similar to auto_speech processing but for card playback
-          
+
           # Stop any existing TTS thread first
           if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
             @tts_thread.kill
             @tts_thread = nil
           end
-          
+
           thread&.join
-          
+
           # Extract TTS parameters
           provider = obj["tts_provider"]
           if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-            voice = obj["elevenlabs_tts_voice"] 
+            voice = obj["elevenlabs_tts_voice"]
           elsif provider == "gemini-flash" || provider == "gemini-pro"
             voice = obj["gemini_tts_voice"]
           else
@@ -1474,210 +1856,16 @@ module WebSocketHelper
           speed = obj["tts_speed"]
           response_format = "mp3"
           language = obj["conversation_language"] || "auto"
-          
-          # Process text with PragmaticSegmenter to split into sentences
-          ps = PragmaticSegmenter::Segmenter.new(text: text)
-          segments = ps.segment
-          
-          # For Gemini TTS, combine short segments to avoid API failures
-          if provider == "gemini-flash" || provider == "gemini-pro"
-            combined_segments = []
-            current_segment = ""
-            
-            segments.each do |segment|
-              # Clean and check text
-              cleaned_text = segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '') # Remove emojis
-              cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ') # Remove special chars
-              cleaned_text = cleaned_text.strip
-              
-              if current_segment.empty?
-                # Start a new segment
-                current_segment = segment
-              elsif cleaned_text.length < 8  # Increased threshold for safety
-                # Current segment is short, combine with existing
-                current_segment += " " + segment
-              else
-                # Check if current accumulated segment should be finalized
-                current_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-                current_cleaned = current_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
-                
-                if current_cleaned.length < 8  # Combine if still short
-                  current_segment += " " + segment
-                else
-                  # Finalize current segment and start new one
-                  combined_segments << current_segment if current_cleaned.length >= 3
-                  current_segment = segment
-                end
-              end
-            end
-            
-            # Don't forget the last segment - but validate it first
-            unless current_segment.empty?
-              final_cleaned = current_segment.gsub(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/, '')
-              final_cleaned = final_cleaned.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ').strip
-              combined_segments << current_segment if final_cleaned.length >= 3
-            end
-            
-            segments = combined_segments
-            puts "Gemini TTS: #{ps.segment.length} -> #{segments.length} segments" if ENV["DEBUG_TTS"]
-          end
-          
-          # Check if batch processing should be used
-          use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
-          
-          # Process each segment
-          prev_texts_for_tts = []
-          segments = Array(segments)
 
-          # ElevenLabs V3: Check if segments should be combined (legacy behavior)
-          # Default is false (use segment splitting for prefetch benefits)
-          # Set ELEVENLABS_V3_COMBINE_SEGMENTS=true to combine all segments into one
-          if provider == "elevenlabs-v3"
-            combine_segments = defined?(CONFIG) && CONFIG["ELEVENLABS_V3_COMBINE_SEGMENTS"].to_s == "true"
-            if combine_segments
-              combined_text = segments.join(" ").strip
-              segments = combined_text.empty? ? [] : [combined_text]
-              puts "ElevenLabs V3: Combined all segments into one (legacy mode)" if CONFIG["EXTRA_LOGGING"]
-            else
-              puts "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" if CONFIG["EXTRA_LOGGING"]
-            end
-          end
-          
-          # Start a new thread for TTS processing with prefetching
-          @tts_thread = Thread.new do
-            Thread.current[:type] = :tts_playback
-
-            # Filter and prepare segments
-            valid_segments = []
-            segments.each do |segment|
-              next if segment.strip.empty?
-
-              # Light filtering for Gemini TTS
-              if provider == "gemini-flash" || provider == "gemini-pro"
-                cleaned_segment = segment.strip
-                next if cleaned_segment.length < 3
-                valid_segments << cleaned_segment
-              else
-                valid_segments << segment
-              end
-            end
-
-            # Prefetch pipeline: Start first 2 TTS requests in parallel
-            tts_futures = []
-            # Store futures array in thread local for STOP_TTS cleanup
-            Thread.current[:tts_futures] = tts_futures
-
-            # Special handling for Web Speech API - no prefetching needed (no API calls)
-            if provider == "webspeech" || provider == "web-speech"
-              # Process synchronously for Web Speech API
-              valid_segments.each_with_index do |segment, i|
-                res_hash = { "type" => "web_speech", "content" => segment }
-
-                prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
-
-                # Send audio and progress
-                @channel.push(res_hash.to_json)
-
-                progress_message = {
-                  "type" => "tts_progress",
-                  "segment_index" => i,
-                  "total_segments" => valid_segments.length,
-                  "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
-                }
-                @channel.push(progress_message.to_json)
-              end
-            else
-              # Prefetch mode for API-based TTS providers
-              # Start first 2 requests
-              [0, 1].each do |idx|
-                break if idx >= valid_segments.length
-
-                segment = valid_segments[idx]
-                previous_text = if provider == "elevenlabs-v3"
-                                  nil
-                                else
-                                  prev_texts_for_tts[idx - 1]
-                                end
-
-                tts_futures << Thread.new do
-                  tts_api_request(segment,
-                                previous_text: previous_text,
-                                provider: provider,
-                                voice: voice,
-                                speed: speed,
-                                response_format: response_format,
-                                language: language)
-                end
-              end
-
-              # Process segments in order
-              valid_segments.each_with_index do |segment, i|
-                # Wait for current segment's TTS to complete with error handling
-                begin
-                  res_hash = tts_futures[i]&.value
-                rescue => e
-                  # Thread was killed or errored - create error response
-                  puts "TTS segment #{i} failed with exception: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-                  res_hash = {
-                    "type" => "error",
-                    "content" => "TTS generation failed for segment #{i + 1}"
-                  }
-                end
-
-                # Add segment information
-                if res_hash && res_hash["type"] == "audio"
-                  res_hash["segment_index"] = i
-                  res_hash["total_segments"] = valid_segments.length
-                  res_hash["is_segment"] = true
-                end
-
-                # Store for context
-                prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
-
-                # Start next segment's TTS request (prefetch i+2)
-                next_idx = i + 2
-                if next_idx < valid_segments.length
-                  next_segment = valid_segments[next_idx]
-                  next_previous_text = if provider == "elevenlabs-v3"
-                                        nil
-                                      else
-                                        prev_texts_for_tts[next_idx - 1]
-                                      end
-
-                  tts_futures << Thread.new do
-                    tts_api_request(next_segment,
-                                  previous_text: next_previous_text,
-                                  provider: provider,
-                                  voice: voice,
-                                  speed: speed,
-                                  response_format: response_format,
-                                  language: language)
-                  end
-                end
-
-                # Send audio and progress
-                if res_hash && res_hash["type"] != "error"
-                  @channel.push(res_hash.to_json)
-
-                  progress_message = {
-                    "type" => "tts_progress",
-                    "segment_index" => i,
-                    "total_segments" => valid_segments.length,
-                    "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
-                  }
-                  @channel.push(progress_message.to_json)
-                else
-                  puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
-                end
-              end
-            end
-
-            # Signal completion
-            @channel.push({
-              "type" => "tts_complete",
-              "total_segments" => valid_segments.length
-            }.to_json)
-          end
+          # Use common TTS playback method
+          start_tts_playback(
+            text: text,
+            provider: provider,
+            voice: voice,
+            speed: speed,
+            response_format: response_format,
+            language: language
+          )
         else # fragment
           session[:parameters].merge! obj
           
@@ -1692,11 +1880,17 @@ module WebSocketHelper
           # Extract TTS parameters if auto_speech is enabled
           # Convert string "true" to boolean true for compatibility
           obj["auto_speech"] = true if obj["auto_speech"] == "true"
-          
+
+          # Get auto_tts_realtime_mode setting
+          auto_tts_realtime_mode = obj["auto_tts_realtime_mode"]
+          if auto_tts_realtime_mode.nil?
+            auto_tts_realtime_mode = defined?(CONFIG) && CONFIG["AUTO_TTS_REALTIME_MODE"].to_s == "true"
+          end
+
           if obj["auto_speech"]
             provider = obj["tts_provider"]
             if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
-              voice = obj["elevenlabs_tts_voice"] 
+              voice = obj["elevenlabs_tts_voice"]
             elsif provider == "gemini-flash" || provider == "gemini-pro"
               voice = obj["gemini_tts_voice"]
             else
@@ -1767,97 +1961,94 @@ module WebSocketHelper
                 buffer << text unless text.empty? || text == "DONE"
                 ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
                 segments = ps.segment
-                if !cutoff && segments.size > 2
+                if !cutoff && segments.size >= 2
                   # Process all complete sentences except the last incomplete one
                   complete_sentences = segments[0...-1]
                   incomplete_sentence = segments[-1]
-                  
-                  # Process each complete sentence for TTS
-                  complete_sentences.each do |sentence|
-                    split = sentence.split("---")
-                    if split.empty?
-                      cutoff = true
-                      break
+
+                  if auto_tts_realtime_mode
+                    # REALTIME MODE: Use worker thread for non-blocking TTS processing
+                    if CONFIG["EXTRA_LOGGING"]
+                      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                        log.puts("[#{Time.now}] [DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}")
+                        log.puts("[#{Time.now}] [DEBUG] complete_sentences count: #{segments[0...-1].size}")
+                      end
                     end
 
                     # Check if batch processing should be used
-                    # Default to true unless explicitly set to false in config
                     use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
-                    
-                    # Process sentence fragments for TTS if auto_speech is enabled
-                    if obj["auto_speech"] && !cutoff && !obj["monadic"]
-                      text = split[0] || ""
-                      if text.strip != ""
-                        previous_text = if provider == "elevenlabs-v3"
-                                          nil
-                                        else
-                                          prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
-                                        end
-                        
-                        # Generate unique sequence ID for this audio chunk
-                        sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}"
-                        
-                        # Special handling for Web Speech API
-                        if provider == "webspeech" || provider == "web-speech"
-                          # Create a special response for Web Speech API
-                          res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
-                        else
-                          # Generate TTS content for other providers
-                          res_hash = tts_api_request(text,
-                                                   previous_text: previous_text, 
-                                                   provider: provider,
-                                                   voice: voice,
-                                                   speed: speed,
-                                                   response_format: response_format,
-                                                   language: language)
-                          # Add sequence_id to the result if it's a hash
-                          res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
+
+                    # Initialize worker on first segment
+                    if obj["auto_speech"] && !cutoff && !obj["monadic"] && !@realtime_tts_worker_initialized
+                      if CONFIG["EXTRA_LOGGING"]
+                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                          log.puts("[#{Time.now}] [DEBUG] Initializing realtime TTS worker: provider=#{provider}, voice=#{voice}")
                         end
-                        
-                        # Only add to prev_texts if TTS was successful
-                        if res_hash && res_hash["type"] != "error"
-                          prev_texts_for_tts << text unless provider == "elevenlabs-v3"
-                          
-                          # Use batch processing if enabled
-                          if use_batch_processing
-                            begin
-                              # Send fragment and audio as a combined message
-                              # Add auto_speech flag to ensure client knows this should auto-play
-                              batch = {
-                                "type" => "fragment_with_audio",
-                                "fragment" => fragment,
-                                "audio" => res_hash,
-                                "auto_speech" => true,
-                                "sequence_id" => sequence_id
-                              }
-                              @channel.push(batch.to_json)
-                            rescue => e
-                              # Fallback to individual messages on error
-                              puts "Batch processing error: #{e.message}. Falling back to individual messages."
-                              @channel.push(fragment.to_json)
-                              @channel.push(res_hash.to_json) if res_hash
+                      end
+                      start_realtime_tts_worker(
+                        provider: provider,
+                        voice: voice,
+                        speed: speed,
+                        response_format: response_format,
+                        language: language,
+                        use_batch_processing: use_batch_processing
+                      )
+                      @realtime_tts_worker_initialized = true
+                      if CONFIG["EXTRA_LOGGING"]
+                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker initialized")
+                        end
+                      end
+                    end
+
+                    # Process each complete sentence
+                    complete_sentences.each_with_index do |sentence, idx|
+                      split = sentence.split("---")
+                      if split.empty?
+                        cutoff = true
+                        break
+                      end
+
+                      # Process sentence fragments for TTS if auto_speech is enabled
+                      if obj["auto_speech"] && !cutoff && !obj["monadic"]
+                        text = split[0] || ""
+                        if text.strip != ""
+                          # Generate unique sequence ID for this audio chunk
+                          sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}"
+
+                          if CONFIG["EXTRA_LOGGING"]
+                            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                              log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: Adding segment to queue: text='#{text[0..50]}...' (length=#{text.length})")
                             end
-                          else
-                            # Use traditional separate messages
-                            @channel.push(res_hash.to_json) if res_hash
-                            @channel.push(fragment.to_json)
+                          end
+                          # Add segment to queue (non-blocking)
+                          @realtime_tts_queue.push({
+                            text: text,
+                            sequence_id: sequence_id,
+                            fragment: fragment,
+                            use_batch_processing: use_batch_processing
+                          })
+                          if CONFIG["EXTRA_LOGGING"]
+                            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                              log.puts("[#{Time.now}] [DEBUG] Queue size: #{@realtime_tts_queue.size}")
+                            end
                           end
                         else
-                          # TTS failed, just send the fragment
+                          # Empty text, just send the fragment
                           @channel.push(fragment.to_json)
                         end
                       else
-                        # Empty text, just send the fragment
+                        # No TTS processing needed, just send the fragment
                         @channel.push(fragment.to_json)
                       end
-                    else
-                      # No TTS processing needed, just send the fragment
-                      @channel.push(fragment.to_json)
                     end
-                  end
 
-                  # Keep only the incomplete sentence in the buffer
-                  buffer = [incomplete_sentence]
+                    # REALTIME MODE: Keep only the incomplete sentence in the buffer
+                    buffer = [incomplete_sentence]
+                  else
+                    # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
+                    @channel.push(fragment.to_json)
+                  end
                 else
                   # Just send the fragment without TTS processing
                   @channel.push(fragment.to_json)
@@ -1869,71 +2060,39 @@ module WebSocketHelper
               sleep 0.01
             end
 
+            # Stop realtime TTS worker if it was initialized
+            if @realtime_tts_worker_initialized
+              stop_realtime_tts_worker
+              @realtime_tts_worker_initialized = false
+            end
+
             Thread.exit if !responses || responses.empty?
 
-            # We play back TTS at the end of processing, regardless of whether 
-            # this is a regular message or initiated from assistant
+            # Post-completion TTS processing when realtime mode is FALSE
             # Convert string "true" to boolean true for compatibility
             obj["auto_speech"] = true if obj["auto_speech"] == "true"
-            
-            if obj["auto_speech"] && !cutoff && !obj["monadic"]
+
+            if obj["auto_speech"] && !cutoff && !obj["monadic"] && !auto_tts_realtime_mode
+              # Stop any existing TTS thread first
+              if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
+                @tts_thread.kill
+                @tts_thread = nil
+              end
+
+              # Get complete text from buffer
               text = buffer.join
-              
+
               # Only process if there's actual text
               if text.strip != ""
-                previous_text = prev_texts_for_tts.empty? ? nil : prev_texts_for_tts[-1]
-                
-                # Generate unique sequence ID for final audio chunk
-                sequence_id = "#{Time.now.to_f}_#{SecureRandom.hex(2)}_final"
-                
-                # Special handling for Web Speech API - no server-side processing needed
-                if provider == "webspeech" || provider == "web-speech"
-                  # Create a special response for Web Speech API that will be handled client-side
-                  res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
-                else
-                  # Generate TTS for remaining text with other providers
-                  res_hash = tts_api_request(text, 
-                                            previous_text: previous_text,
-                                            provider: provider, 
-                                            voice: voice,
-                                            speed: speed,
-                                            response_format: response_format,
-                                            language: language)
-                  # Add sequence_id to the result if it's a hash
-                  res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
-                end
-                
-                # Check if batch processing should be used
-                use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
-                
-                if use_batch_processing
-                  begin
-                    # Create a final fragment with the remaining text
-                    final_fragment = {
-                      "type" => "fragment",
-                      "content" => text,
-                      "final" => true
-                    }
-                    
-                    # Send fragment and audio as a combined message
-                    batch = {
-                      "type" => "fragment_with_audio",
-                      "fragment" => final_fragment,
-                      "audio" => res_hash,
-                      "auto_speech" => true,
-                      "final" => true,
-                      "sequence_id" => SecureRandom.hex(4) # Add unique ID to track playback
-                    }
-                    @channel.push(batch.to_json)
-                  rescue => e
-                    # Fallback to individual message on error
-                    puts "Batch processing error: #{e.message}. Falling back to individual messages."
-                    @channel.push(res_hash.to_json)
-                  end
-                else
-                  # Use traditional separate message
-                  @channel.push(res_hash.to_json)
-                end
+                # Use common TTS playback method
+                start_tts_playback(
+                  text: text,
+                  provider: provider,
+                  voice: voice,
+                  speed: speed,
+                  response_format: response_format,
+                  language: language
+                )
               end
             end
 

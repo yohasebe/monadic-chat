@@ -1148,23 +1148,13 @@ function processSequentialAudio() {
     // If this is the first segment (Auto TTS starting), highlight Stop button
     // Check BEFORE incrementing nextExpectedSequence
     const isFirstSegment = nextExpectedSequence === 1;
-    console.log('[Auto TTS Highlight] Segment check:', {
-      sequence: nextExpectedSequence,
-      isFirst: isFirstSegment,
-      queueLength: globalAudioQueue.length,
-      isProcessing: isProcessingAudioQueue
-    });
-
     if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
-      console.log('[Auto TTS Highlight] First segment detected, highlighting latest card');
       // Find and highlight the latest assistant card (excluding temp-card)
       setTimeout(() => {
         const $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
-        console.log('[Auto TTS Highlight] Assistant cards found:', $assistantCards.length);
         if ($assistantCards.length > 0) {
           const $latestCard = $assistantCards.last();
           const cardId = $latestCard.attr('id');
-          console.log('[Auto TTS Highlight] Found latest card:', cardId);
           if (cardId && typeof window.highlightStopButton === 'function') {
             window.highlightStopButton(cardId);
           }

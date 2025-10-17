@@ -44,6 +44,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "cld"
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "dotenv", "~> 3.1"
+  spec.add_dependency "em-http-request", "~> 1.1"
   spec.add_dependency "faye-websocket", "~> 0.11"
   spec.add_dependency "http", "~> 5.2"
   spec.add_dependency "httparty", "~> 0.23"

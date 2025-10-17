@@ -686,6 +686,159 @@ module InteractionUtils
     end
   end
 
+  # EventMachine-compatible async TTS API request
+  # Uses em-http-request for non-blocking HTTP requests in EventMachine reactor
+  # @param text [String] Text to convert to speech
+  # @param provider [String] TTS provider (currently supports OpenAI only)
+  # @param voice [String] Voice ID
+  # @param speed [Float] Speech speed
+  # @param response_format [String] Audio format
+  # @param language [String] Language code
+  # @param previous_text [String] Previous text for context (optional)
+  # @param sequence_id [Integer] Sequence ID for ordering (optional)
+  # @param block [Proc] Callback to receive result hash
+  def tts_api_request_em(text, provider:, voice:, speed:, response_format:, language:, previous_text: nil, sequence_id: nil, &block)
+    return unless block_given?
+    return if text.nil? || text.empty?
+
+    # Apply TTS dictionary if configured
+    text_converted = if CONFIG["TTS_DICT"]
+                      text.gsub(/(#{CONFIG["TTS_DICT"].keys.join("|")})/) { CONFIG["TTS_DICT"][$1] }
+                    else
+                      text
+                    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}")
+      end
+    end
+
+    # Currently supports OpenAI TTS only
+    case provider
+    when "openai-tts-4o", "openai-tts", "openai-tts-hd", "openai"
+      api_key = settings.api_key
+      model = case provider
+              when "openai-tts-4o"
+                "gpt-4o-mini-tts"
+              when "openai-tts-hd"
+                "tts-1-hd"
+              when "openai-tts"
+                "tts-1"
+              else
+                "gpt-4o-mini-tts"
+              end
+
+      body = {
+        "input" => text_converted,
+        "model" => model,
+        "voice" => voice,
+        "response_format" => response_format
+      }
+
+      # Only include speed parameter if explicitly set
+      if speed && speed.to_f != 1.0
+        body["speed"] = speed.to_f
+      end
+
+      unless language == "auto"
+        body["language"] = language
+      end
+
+      target_uri = "#{API_ENDPOINT}/audio/speech"
+
+      # Use EventMachine::HttpRequest for async HTTP
+      require 'em-http-request'
+
+      http = EventMachine::HttpRequest.new(target_uri).post(
+        head: {
+          "Content-Type" => "application/json",
+          "Authorization" => "Bearer #{api_key}"
+        },
+        body: body.to_json
+      )
+
+      http.callback do
+        if http.response_header.status == 200
+          # Success - encode audio and call block
+          audio_content = Base64.strict_encode64(http.response)
+          result = {
+            "type" => "audio",
+            "content" => audio_content
+          }
+          result["sequence_id"] = sequence_id if sequence_id
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS - audio_size=#{http.response.length}, sequence_id=#{sequence_id}")
+            end
+          end
+
+          block.call(result)
+        else
+          # HTTP error
+          error_result = {
+            "type" => "error",
+            "content" => "ERROR: OpenAI TTS API error: #{http.response_header.status}"
+          }
+          error_result["sequence_id"] = sequence_id if sequence_id
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+            end
+          end
+
+          block.call(error_result)
+        end
+      end
+
+      http.errback do
+        # Connection error
+        error_result = {
+          "type" => "error",
+          "content" => "ERROR: TTS connection failed: #{http.error}"
+        }
+        error_result["sequence_id"] = sequence_id if sequence_id
+
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Connection error - #{http.error}, sequence_id=#{sequence_id}")
+          end
+        end
+
+        block.call(error_result)
+      end
+
+    when "web-speech", "webspeech"
+      # Web Speech API doesn't need HTTP request
+      result = {
+        "type" => "web_speech",
+        "content" => text_converted
+      }
+      result["sequence_id"] = sequence_id if sequence_id
+
+      # Call block asynchronously using EventMachine.next_tick
+      EventMachine.next_tick { block.call(result) }
+
+    else
+      # Unsupported provider
+      error_result = {
+        "type" => "error",
+        "content" => "ERROR: Provider '#{provider}' not supported in realtime mode. Use post-completion mode instead."
+      }
+      error_result["sequence_id"] = sequence_id if sequence_id
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Unsupported provider - #{provider}")
+        end
+      end
+
+      EventMachine.next_tick { block.call(error_result) }
+    end
+  end
+
   def list_elevenlabs_voices(elevenlabs_api_key)
     return [] unless elevenlabs_api_key
 

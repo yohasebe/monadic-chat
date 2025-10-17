@@ -619,168 +619,6 @@ module WebSocketHelper
     @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
   end
 
-  # Initialize realtime TTS worker thread
-  # This thread processes segments from the queue as they arrive during streaming
-  # @param provider [String] TTS provider
-  # @param voice [String] Voice ID
-  # @param speed [Float] Speech speed
-  # @param response_format [String] Audio format
-  # @param language [String] Language code
-  # @param use_batch_processing [Boolean] Whether to use batch processing
-  def start_realtime_tts_worker(provider:, voice:, speed:, response_format:, language:, use_batch_processing:)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [DEBUG] start_realtime_tts_worker called")
-      end
-    end
-    # Stop existing worker if running
-    if defined?(@realtime_tts_thread) && @realtime_tts_thread && @realtime_tts_thread.alive?
-      @realtime_tts_thread.kill
-      @realtime_tts_thread = nil
-    end
-
-    # Initialize queue
-    @realtime_tts_queue ||= Queue.new
-    @realtime_tts_queue.clear
-
-    # Context tracking for previous_text
-    prev_texts = []
-
-    # Start worker thread
-    @realtime_tts_thread = Thread.new do
-      Thread.current[:type] = :realtime_tts
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker thread started")
-        end
-      end
-
-      loop do
-        begin
-          # Get next segment from queue (blocking call)
-          segment_data = @realtime_tts_queue.pop
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] Worker received segment from queue")
-            end
-          end
-
-          # Exit signal
-          break if segment_data == :stop
-
-          text = segment_data[:text]
-          sequence_id = segment_data[:sequence_id]
-          frag = segment_data[:fragment]
-          batch_mode = segment_data[:use_batch_processing]
-
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] Processing TTS for text: '#{text[0..50]}...' (length=#{text.length})")
-              log.puts("[#{Time.now}] [DEBUG] TTS parameters: provider=#{provider}, voice=#{voice}, speed=#{speed}, format=#{response_format}, lang=#{language}")
-            end
-          end
-
-          # Get previous_text for context
-          previous_text = if provider == "elevenlabs-v3"
-                            nil
-                          else
-                            prev_texts.empty? ? nil : prev_texts[-1]
-                          end
-
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] Calling tts_api_request...")
-            end
-          end
-
-          # Special handling for Web Speech API
-          if provider == "webspeech" || provider == "web-speech"
-            res_hash = { "type" => "web_speech", "content" => text, "sequence_id" => sequence_id }
-          else
-            # Generate TTS content
-            # Use Net::HTTP in worker thread to avoid HTTP gem blocking issues
-            res_hash = tts_api_request(text,
-                                     previous_text: previous_text,
-                                     provider: provider,
-                                     voice: voice,
-                                     speed: speed,
-                                     response_format: response_format,
-                                     language: language,
-                                     use_net_http: true)
-            res_hash["sequence_id"] = sequence_id if res_hash.is_a?(Hash)
-          end
-
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request returned: type=#{res_hash&.[]("type")}, has_content=#{!res_hash&.[]("content").to_s.empty?}")
-            end
-          end
-
-          # Update context
-          if res_hash && res_hash["type"] != "error"
-            prev_texts << text unless provider == "elevenlabs-v3"
-
-            # Send to client
-            if batch_mode
-              begin
-                batch = {
-                  "type" => "fragment_with_audio",
-                  "fragment" => frag,
-                  "audio" => res_hash,
-                  "auto_speech" => true,
-                  "sequence_id" => sequence_id
-                }
-                @channel.push(batch.to_json)
-              rescue => e
-                puts "Batch processing error: #{e.message}. Falling back to individual messages."
-                @channel.push(frag.to_json)
-                @channel.push(res_hash.to_json) if res_hash
-              end
-            else
-              @channel.push(res_hash.to_json) if res_hash
-              @channel.push(frag.to_json)
-            end
-          else
-            # TTS failed, just send fragment
-            @channel.push(frag.to_json)
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [DEBUG] TTS failed for segment, sending fragment only")
-              end
-            end
-          end
-        rescue => e
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] Realtime TTS Worker Error: #{e.message}")
-              log.puts(e.backtrace.join("\n"))
-            end
-          end
-          break
-        end
-      end
-
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker thread exiting")
-        end
-      end
-    end
-  end
-
-  # Stop realtime TTS worker thread
-  def stop_realtime_tts_worker
-    if defined?(@realtime_tts_queue) && @realtime_tts_queue
-      @realtime_tts_queue.push(:stop)
-    end
-
-    if defined?(@realtime_tts_thread) && @realtime_tts_thread && @realtime_tts_thread.alive?
-      @realtime_tts_thread.join(0.5) # Wait up to 0.5 seconds
-      @realtime_tts_thread.kill if @realtime_tts_thread.alive?
-      @realtime_tts_thread = nil
-    end
-  end
-
   # Common TTS playback processing for PLAY_TTS and Auto Speech
   # This method handles text segmentation, prefetching, and threaded TTS generation
   # @param text [String] Text to convert to speech
@@ -1824,9 +1662,6 @@ module WebSocketHelper
             puts "TTS thread and subthreads stopped by STOP_TTS message"
           end
 
-          # Stop realtime TTS worker thread
-          stop_realtime_tts_worker
-
           # Send confirmation
           @channel.push({
             "type" => "tts_stopped"
@@ -1967,37 +1802,11 @@ module WebSocketHelper
                   incomplete_sentence = segments[-1]
 
                   if auto_tts_realtime_mode
-                    # REALTIME MODE: Use worker thread for non-blocking TTS processing
+                    # REALTIME MODE: Use EventMachine async HTTP for non-blocking TTS processing
                     if CONFIG["EXTRA_LOGGING"]
                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                         log.puts("[#{Time.now}] [DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}")
                         log.puts("[#{Time.now}] [DEBUG] complete_sentences count: #{segments[0...-1].size}")
-                      end
-                    end
-
-                    # Check if batch processing should be used
-                    use_batch_processing = defined?(CONFIG) && CONFIG["USE_BATCH_PROCESSING"] != "false"
-
-                    # Initialize worker on first segment
-                    if obj["auto_speech"] && !cutoff && !obj["monadic"] && !@realtime_tts_worker_initialized
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("[#{Time.now}] [DEBUG] Initializing realtime TTS worker: provider=#{provider}, voice=#{voice}")
-                        end
-                      end
-                      start_realtime_tts_worker(
-                        provider: provider,
-                        voice: voice,
-                        speed: speed,
-                        response_format: response_format,
-                        language: language,
-                        use_batch_processing: use_batch_processing
-                      )
-                      @realtime_tts_worker_initialized = true
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("[#{Time.now}] [DEBUG] Realtime TTS worker initialized")
-                        end
                       end
                     end
 
@@ -2018,19 +1827,40 @@ module WebSocketHelper
 
                           if CONFIG["EXTRA_LOGGING"]
                             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                              log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: Adding segment to queue: text='#{text[0..50]}...' (length=#{text.length})")
+                              log.puts("[#{Time.now}] [DEBUG] Sentence #{idx}: Calling async TTS: text='#{text[0..50]}...' (length=#{text.length})")
                             end
                           end
-                          # Add segment to queue (non-blocking)
-                          @realtime_tts_queue.push({
-                            text: text,
-                            sequence_id: sequence_id,
-                            fragment: fragment,
-                            use_batch_processing: use_batch_processing
-                          })
-                          if CONFIG["EXTRA_LOGGING"]
-                            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                              log.puts("[#{Time.now}] [DEBUG] Queue size: #{@realtime_tts_queue.size}")
+
+                          # Send fragment first (so text appears immediately)
+                          @channel.push(fragment.to_json)
+
+                          # Call async TTS with EventMachine
+                          tts_api_request_em(
+                            text,
+                            provider: provider,
+                            voice: voice,
+                            speed: speed,
+                            response_format: response_format,
+                            language: language,
+                            sequence_id: sequence_id
+                          ) do |res_hash|
+                            # This callback runs when TTS completes
+                            if res_hash && res_hash["type"] != "error"
+                              if CONFIG["EXTRA_LOGGING"]
+                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                  log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
+                                end
+                              end
+
+                              # Send audio to client
+                              @channel.push(res_hash.to_json)
+                            else
+                              # TTS failed, just log it (fragment already sent)
+                              if CONFIG["EXTRA_LOGGING"]
+                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                                  log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
+                                end
+                              end
                             end
                           end
                         else
@@ -2058,12 +1888,6 @@ module WebSocketHelper
                 @channel.push(fragment.to_json)
               end
               sleep 0.01
-            end
-
-            # Stop realtime TTS worker if it was initialized
-            if @realtime_tts_worker_initialized
-              stop_realtime_tts_worker
-              @realtime_tts_worker_initialized = false
             end
 
             Thread.exit if !responses || responses.empty?

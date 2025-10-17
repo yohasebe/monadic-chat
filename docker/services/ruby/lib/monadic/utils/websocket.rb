@@ -15,6 +15,14 @@ module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
 
+  # Realtime TTS buffer configuration
+  # Minimum character length for TTS processing:
+  # - Sentences ≤ this length are buffered
+  # - Buffer is flushed when total exceeds this length
+  # Larger values (e.g., 60) reduce API calls and errors, improve fluency
+  # but may slightly increase initial response delay
+  REALTIME_TTS_MIN_LENGTH = 60
+
   # Class variable to store WebSocket connections with thread safety
   @@ws_connections = []
   @@ws_mutex = Mutex.new
@@ -1872,8 +1880,8 @@ module WebSocketHelper
 
                         # Skip only if text is empty
                         if text.strip != ""
-                          # Check if this is a short sentence (≤30 chars cleaned length)
-                          if cleaned_text.length <= 30
+                          # Check if this is a short sentence (≤REALTIME_TTS_MIN_LENGTH chars cleaned length)
+                          if cleaned_text.length <= REALTIME_TTS_MIN_LENGTH
                             # Buffer short sentence instead of sending immediately
                             @realtime_tts_short_buffer << text
 
@@ -1887,7 +1895,7 @@ module WebSocketHelper
 
                             if CONFIG["EXTRA_LOGGING"]
                               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [BUFFER] Decision: BUFFERING (≤30 chars)")
+                                log.puts("[#{Time.now}] [BUFFER] Decision: BUFFERING (≤#{REALTIME_TTS_MIN_LENGTH} chars)")
                                 log.puts("[#{Time.now}] [BUFFER] Buffer size: #{@realtime_tts_short_buffer.size} sentence(s)")
                                 log.puts("[#{Time.now}] [BUFFER] Total buffer length: #{total_buffer_length} chars")
                                 log.puts("[#{Time.now}] [BUFFER] Buffer contents:")
@@ -1897,9 +1905,9 @@ module WebSocketHelper
                               end
                             end
 
-                            # Check if total buffer length exceeds threshold (30 chars)
+                            # Check if total buffer length exceeds threshold
                             # This prevents long pauses while maintaining gap prevention
-                            if total_buffer_length > 30
+                            if total_buffer_length > REALTIME_TTS_MIN_LENGTH
                               # Flush buffer when accumulated length is sufficient
                               # Add space between sentences to prevent words from merging
                               combined_text = @realtime_tts_short_buffer.join(" ")
@@ -1907,7 +1915,7 @@ module WebSocketHelper
 
                               if CONFIG["EXTRA_LOGGING"]
                                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                  log.puts("[#{Time.now}] [BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > 30) ***")
+                                  log.puts("[#{Time.now}] [BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > #{REALTIME_TTS_MIN_LENGTH}) ***")
                                   log.puts("[#{Time.now}] [BUFFER] Combined text to send to TTS: '#{combined_text}'")
                                   log.puts("[#{Time.now}] [BUFFER] Combined text length: #{combined_text.length}")
                                 end
@@ -1950,7 +1958,7 @@ module WebSocketHelper
                             # This is a longer sentence - flush buffer and send combined text
                             if CONFIG["EXTRA_LOGGING"]
                               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [BUFFER] Decision: IMMEDIATE SEND (>30 chars)")
+                                log.puts("[#{Time.now}] [BUFFER] Decision: IMMEDIATE SEND (>#{REALTIME_TTS_MIN_LENGTH} chars)")
                                 log.puts("[#{Time.now}] [BUFFER] Current buffer has #{@realtime_tts_short_buffer.size} sentence(s)")
                               end
                             end

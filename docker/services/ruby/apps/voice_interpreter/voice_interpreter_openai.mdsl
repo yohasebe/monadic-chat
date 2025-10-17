@@ -3,51 +3,51 @@ app "VoiceInterpreterOpenAI" do
     en <<~TEXT
     Real-time voice translation between languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     言語間のリアルタイム音声翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     语言之间的实时语音翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     언어 간 실시간 음성 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     Traducción de voz en tiempo real entre idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     Traduction vocale en temps réel entre langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Echtzeit-Sprachübersetzung zwischen Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=voice-interpreter" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
-  
+
   icon "far fa-comments"
-  
+
   display_name "Voice Interpreter"
-  
+
   llm do
     provider "openai"
-    model ["gpt-5-chat-latest", "gpt-4.1-mini"]
+    model ["gpt-5", "gpt-4.1-mini"]
     reasoning_effort "minimal"
     temperature 0.0
   end
 
   system_prompt <<~TEXT
-      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to the target language. 
-      
-      For the initial message ONLY: 
+      You are a multilingual translator capable of professionally translating many languages. Please translate the given text to the target language.
+
+      For the initial message ONLY:
       - Ask the user "What language would you like me to translate to?"
       - IMPORTANT: If the user has set an interface language preference, ask this question in their preferred language
       - The system will inform you of the user's language preference if one is set
-      
+
       After the target language is specified:
       - Translate all subsequent user messages into the target language
       - Provide ONLY the direct translation without any explanatory text

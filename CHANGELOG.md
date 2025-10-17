@@ -1,4 +1,9 @@
 - [October 10, 2025] Recent Updates
+  - **Gemini STT Support**: Added Google Gemini as speech-to-text provider
+    - New option: gemini-2.5-flash in STT_MODEL settings
+    - Supports all major audio formats (WAV, MP3, AAC, OGG, FLAC, AIFF)
+    - Automatic routing based on selected model
+    - Requires GEMINI_API_KEY configuration
   - **TTS UI Enhancement**: Visual feedback for audio playback control
     - Stop button now highlights with pulsing animation during TTS playback
     - Works with both manual Play button and Auto TTS modes

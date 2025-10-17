@@ -1029,13 +1029,16 @@ module WebSocketHelper
   # @param model [String] The model used
   # @return [Float, nil] The calculated log probability or nil on error
   def calculate_logprob(res, model)
+    # Gemini models do not support logprobs for STT
+    return nil if model.start_with?("gemini-")
+
     case model
     when "whisper-1"
       avg_logprobs = res["segments"].map { |s| s["avg_logprob"].to_f }
     else
       avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
     end
-    
+
     # Calculate average and convert to probability
     Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
   rescue StandardError

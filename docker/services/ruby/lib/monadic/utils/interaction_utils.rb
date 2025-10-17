@@ -1,4 +1,5 @@
 require 'json'
+require 'base64'
 require_relative 'ssl_configuration'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
@@ -1165,7 +1166,85 @@ module InteractionUtils
     end
   end
 
+  def gemini_stt_api_request(blob, format, lang_code, model)
+    # Base64 encode the audio data
+    base64_audio = Base64.strict_encode64(blob)
+
+    # Map format to MIME type
+    mime_type = case format.to_s.downcase
+    when "mp3", "mpeg" then "audio/mp3"
+    when "wav", "wave", "x-wav" then "audio/wav"
+    when "m4a", "mp4", "mp4a-latm" then "audio/aac"
+    when "ogg" then "audio/ogg"
+    when "flac" then "audio/flac"
+    when "aac" then "audio/aac"
+    when "aiff" then "audio/aiff"
+    else "audio/#{format}"
+    end
+
+    # Gemini API endpoint
+    # Use GeminiHelper::API_ENDPOINT if available, otherwise fallback
+    api_endpoint = defined?(GeminiHelper::API_ENDPOINT) ? GeminiHelper::API_ENDPOINT : "https://generativelanguage.googleapis.com/v1alpha"
+    url = "#{api_endpoint}/models/#{model}:generateContent"
+
+    # Prepare request body
+    body = {
+      contents: [{
+        parts: [
+          {text: "Please transcribe this audio accurately."},
+          {inline_data: {mime_type: mime_type, data: base64_audio}}
+        ]
+      }]
+    }
+
+    num_retrial = 0
+
+    begin
+      response = HTTP.headers("Content-Type" => "application/json")
+        .timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
+        .post("#{url}?key=#{CONFIG['GEMINI_API_KEY']}", json: body)
+
+      if response.status.success?
+        result = JSON.parse(response.body)
+        text = result.dig("candidates", 0, "content", "parts", 0, "text")&.strip || ""
+
+        return {
+          "text" => text,
+          "logprobs" => [] # Gemini does not support logprobs for STT
+        }
+      else
+        error_body = JSON.parse(response.body) rescue {}
+        error_message = error_body.dig("error", "message") || "Unknown error"
+        return {
+          "type" => "error",
+          "content" => "Gemini API error (#{response.status}): #{error_message}"
+        }
+      end
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        return {
+          "type" => "error",
+          "content" => "ERROR: #{e.message}"
+        }
+      end
+    rescue StandardError => e
+      return {
+        "type" => "error",
+        "content" => "ERROR: #{e.message}"
+      }
+    end
+  end
+
   def stt_api_request(blob, format, lang_code, model = "gpt-4o-transcribe")
+    # Route to Gemini API if model starts with "gemini-"
+    if model.start_with?("gemini-")
+      return gemini_stt_api_request(blob, format, lang_code, model)
+    end
+
     lang_code = nil if lang_code == "auto"
 
     # Normalize format to one that OpenAI API supports

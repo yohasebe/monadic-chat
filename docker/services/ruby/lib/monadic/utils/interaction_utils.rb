@@ -1187,11 +1187,46 @@ module InteractionUtils
     api_endpoint = defined?(GeminiHelper::API_ENDPOINT) ? GeminiHelper::API_ENDPOINT : "https://generativelanguage.googleapis.com/v1alpha"
     url = "#{api_endpoint}/models/#{model}:generateContent"
 
+    # Build language-specific transcription prompt
+    # Ignore "auto" language code as it means automatic detection
+    transcription_prompt = if lang_code && lang_code != "auto"
+      # Create language-specific instruction
+      language_names = {
+        "en" => "English",
+        "ja" => "Japanese",
+        "zh" => "Chinese",
+        "es" => "Spanish",
+        "fr" => "French",
+        "de" => "German",
+        "it" => "Italian",
+        "pt" => "Portuguese",
+        "ru" => "Russian",
+        "ko" => "Korean",
+        "ar" => "Arabic",
+        "hi" => "Hindi"
+      }
+      language = language_names[lang_code] || lang_code.upcase
+
+      # Flexible language handling: specify primary language but allow others
+      # This matches OpenAI STT behavior where language is a hint, not a constraint
+      base_prompt = "Please transcribe the spoken words. The primary language is expected to be #{language}, but transcribe any language if spoken. Do not describe sound effects or audio characteristics."
+
+      # Add spacing instruction for Japanese
+      if lang_code == "ja"
+        base_prompt + " For Japanese text, do not insert spaces between words."
+      else
+        base_prompt
+      end
+    else
+      # Default prompt for auto-detection
+      "Please transcribe the spoken words. Do not describe sound effects or audio characteristics."
+    end
+
     # Prepare request body
     body = {
       contents: [{
         parts: [
-          {text: "Please transcribe this audio accurately."},
+          {text: transcription_prompt},
           {inline_data: {mime_type: mime_type, data: base64_audio}}
         ]
       }]
@@ -1207,6 +1242,18 @@ module InteractionUtils
       if response.status.success?
         result = JSON.parse(response.body)
         text = result.dig("candidates", 0, "content", "parts", 0, "text")&.strip || ""
+
+        # Remove morpheme-level spacing for Japanese only
+        # Japanese text from Gemini STT often has spaces between morphemes (tokens)
+        # which is not standard Japanese writing convention
+        if lang_code == "ja"
+          # Remove spaces between Japanese characters (Hiragana, Katakana, Kanji)
+          loop do
+            new_text = text.gsub(/([\p{Hiragana}\p{Katakana}\p{Han}])\s+([\p{Hiragana}\p{Katakana}\p{Han}])/, '\1\2')
+            break if new_text == text
+            text = new_text
+          end
+        end
 
         return {
           "text" => text,

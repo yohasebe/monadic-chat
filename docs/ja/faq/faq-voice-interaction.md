@@ -20,7 +20,12 @@
 
 ##### Q: どの音声認識モデルが利用可能で、どのように選択しますか？ :id=stt-model-selection
 
-**A**: Monadic Chatは複数のOpenAI音声認識モデル（「whisper-1」、「gpt-4o-mini-transcribe」、「gpt-4o-transcribe」）をサポートしています。設定パネルのSTT_MODELオプションで希望のモデルを選択できます。新しいモデル（gpt-4o-mini-transcribe、gpt-4o-transcribe）は、一般的に精度と文字起こし品質が向上しています。Monadic Chatは選択したモデルに基づいて音声フォーマットを自動的に最適化します。
+**A**: Monadic Chatは複数の音声認識プロバイダーをサポートしています：
+
+- **OpenAIモデル**: 「whisper-1」、「gpt-4o-mini-transcribe」、「gpt-4o-transcribe」。新しいモデル（gpt-4o-mini-transcribe、gpt-4o-transcribe）は、一般的に精度と文字起こし品質が向上しています。
+- **Google Gemini**: 「gemini-2.5-flash」は、柔軟な言語認識による高度な音声理解を提供します。日本語のスペース正規化（自然な日本語テキストのために形態素レベルのスペースを自動除去）をサポートし、主要言語が指定されている場合でも多言語入力を処理します。
+
+設定パネルのSTT_MODELオプションで希望のモデルを選択できます。Monadic Chatは選択したモデルに基づいて音声フォーマットと処理を自動的に最適化します。言語設定は期待される言語のヒントとして機能しますが、話された言語を柔軟に認識します。
 
 ---
 

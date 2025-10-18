@@ -3,16 +3,21 @@
     - New option: gemini-2.5-flash in STT_MODEL settings
     - Supports all major audio formats (WAV, MP3, AAC, OGG, FLAC, AIFF)
     - Automatic routing based on selected model
+    - Flexible language recognition: Language setting acts as hint, not constraint
+    - Handles multilingual input and code-switching naturally
+    - Matches OpenAI STT behavior for consistent user experience
+    - Focused transcription: Excludes audio descriptions (sound effects, audio characteristics)
+    - Japanese spacing normalization: Removes morpheme-level spaces for natural Japanese text
     - Requires GEMINI_API_KEY configuration
+  - **Realtime TTS Improvements**: Enhanced buffer management for smoother playback
+    - Reduced buffer threshold from 60 to 50 characters for faster response
+    - Reduces initial audio delay while maintaining API efficiency
+    - Improved handling of sentence boundaries in streaming responses
   - **TTS UI Enhancement**: Visual feedback for audio playback control
     - Stop button now highlights with pulsing animation during TTS playback
     - Works with both manual Play button and Auto TTS modes
     - Automatically clears when playback completes or Stop button clicked
     - Improves user awareness of active audio and available controls
-  - **Realtime TTS Improvements**: Enhanced buffer management for smoother playback
-    - Unified buffer threshold to 60 characters for consistent behavior
-    - Reduces API calls while maintaining responsive audio generation
-    - Improved handling of sentence boundaries in streaming responses
   - **PDF Export Improvements**: Enhanced document-oriented output
     - Replaced Bootstrap card layout with simple message structure for better pagination
     - Added i18n support for header labels (7 languages: en, ja, zh, ko, de, fr, es)

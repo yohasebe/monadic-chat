@@ -19,9 +19,9 @@ module WebSocketHelper
   # Minimum character length for TTS processing:
   # - Sentences ≤ this length are buffered
   # - Buffer is flushed when total exceeds this length
-  # Larger values (e.g., 60) reduce API calls and errors, improve fluency
+  # Larger values (e.g., 50) reduce API calls and errors, improve fluency
   # but may slightly increase initial response delay
-  REALTIME_TTS_MIN_LENGTH = 60
+  REALTIME_TTS_MIN_LENGTH = 50
 
   # Class variable to store WebSocket connections with thread safety
   @@ws_connections = []

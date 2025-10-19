@@ -79,11 +79,12 @@ For the OpenAI default model:
 
 ## Voice Settings
 
-| Variable | Description | Default | Options |
-|----------|-------------|---------|---------|
+| Variable | Description | Default | Range/Options |
+|----------|-------------|---------|---------------|
 | `STT_MODEL` | Speech-to-text model | `gpt-4o-transcribe` | `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1` |
 | `TTS_DICT_PATH` | Path to TTS pronunciation dictionary | (optional) | File path |
 | `TTS_DICT_DATA` | Inline TTS pronunciation data | (optional) | CSV format |
+| `AUTO_TTS_MIN_LENGTH` | Minimum text length before TTS generation in realtime mode | `50` | 20-200 characters |
 
 ## Help System Settings
 

@@ -198,37 +198,6 @@ end
 3. **Handle Errors Gracefully**: Always provide fallbacks for JSON parsing
 4. **Document Context Structure**: Clearly define expected context fields
 
-## Future Enhancements
-
-### Planned Features
-
-1. **Monad Transformers**: Stack multiple monadic effects
-2. **Error Monads**: Better error handling with Either/Result types
-3. **Async Monads**: Handle asynchronous operations monadically
-4. **Context Schemas**: Define and enforce context structures
-
-### Extension Architecture
-
-```ruby
-# Future: Monad transformers
-class StateT < MonadTransformer
-  def lift(monad)
-    # Lift computation into transformer
-  end
-end
-
-# Future: Error handling
-class Result
-  def self.success(value)
-    # Success case
-  end
-  
-  def self.failure(error)
-    # Error case
-  end
-end
-```
-
 ## Testing
 
 ### Unit Tests

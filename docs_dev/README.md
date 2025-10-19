@@ -67,10 +67,48 @@ Component-specific documentation:
 
 ### Keeping Documentation Current
 
-During the Beta period (pre-1.0), we follow these principles:
-- **No outdated information** - Always replace old docs with current information
-- **Active maintenance** - Update docs as you change code
-- **Single source of truth** - Each topic should have one authoritative document
+All documentation should reflect the **current implementation only**:
+
+- **No historical content** - Don't document past changes, old behaviors, or migration notes
+  - Exception: `CHANGELOG.md` is the only place for version history
+  - Remove phrases like "Previously...", "Changed from...", "Used to be..."
+
+- **No future content** - Don't document planned features, TODOs, or unresolved issues
+  - Move all future enhancements to `tmp/memo/future_enhancements.md`
+  - Remove "Future Enhancements", "TODO", "Coming soon", "Planned features" sections
+  - Remove "not yet implemented", "under development" notes
+
+- **Current state only** - Describe what exists now, not what was or will be
+  - Known limitations are OK (they describe current constraints)
+  - Experimental features should not be in stable documentation
+
+- **Active maintenance** - Update docs as you change code, removing obsolete content
+
+- **Single source of truth** - Each topic has one authoritative document
+
+### Content Placement
+
+**Internal docs (`docs_dev/`):**
+- ✅ Implementation details and architecture decisions
+- ✅ Technical constraints and current limitations
+- ✅ Development workflows and debugging guides
+- ❌ TODO items, unresolved issues, pending decisions
+- ❌ Future enhancements, work-in-progress proposals
+
+**Temporary notes (`tmp/memo/`):**
+- ✅ Future enhancement ideas
+- ✅ TODO lists and unresolved issues
+- ✅ Implementation ideas being explored
+- ✅ Work-in-progress notes
+- **Lifecycle**: Delete or migrate to proper docs once resolved
+
+**Public docs (`docs/`):**
+- ✅ User-facing features and stable APIs
+- ✅ Usage guides and tutorials
+- ✅ Known limitations that affect users
+- ❌ Implementation details
+- ❌ Development workflows
+- ❌ Experimental or unstable features
 
 ## 🔍 Local Documentation Access
 

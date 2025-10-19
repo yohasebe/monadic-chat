@@ -13,20 +13,24 @@ module MonadicHelpTools
     end
   end
 
-  def find_help_topics(text:, top_n: 10, chunks_per_result: nil)
+  def find_help_topics(text:, top_n: 10, chunks_per_result: nil, include_internal: nil)
     unless help_embeddings_db
       puts "[MonadicHelpTools] Error: Help database not available in find_help_topics"
       return { error: "Help database not available. Please ensure the help database has been built with 'rake help:build'." }
     end
-    
+
+    # Auto-detect DEBUG_MODE if include_internal not explicitly specified
+    include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
+
     # Get chunks per result from environment or use default
     chunks_per_result ||= (ENV['HELP_CHUNKS_PER_RESULT'] || '3').to_i
-    
+
     # Use multi-chunk search for better context
-    results = help_embeddings_db.find_closest_text_multi(text, 
+    results = help_embeddings_db.find_closest_text_multi(text,
                                                         chunks_per_result: chunks_per_result,
-                                                        top_n: top_n)
-    
+                                                        top_n: top_n,
+                                                        include_internal: include_internal)
+
     # Group results by document for better presentation
     grouped_results = {}
     results.each do |result|
@@ -39,7 +43,7 @@ module MonadicHelpTools
         language: result[:language],
         chunks: []
       }
-      
+
       grouped_results[doc_key][:chunks] << {
         text: result[:text],
         heading: result[:heading],
@@ -47,7 +51,7 @@ module MonadicHelpTools
         similarity: result[:similarity]
       }
     end
-    
+
     # Format for output
     formatted_results = grouped_results.values.map do |doc|
       {
@@ -60,7 +64,7 @@ module MonadicHelpTools
         avg_similarity: doc[:chunks].map { |c| c[:similarity] }.sum.to_f / doc[:chunks].size
       }
     end.sort_by { |doc| -doc[:avg_similarity] }
-    
+
     { results: formatted_results }
   rescue => e
     { error: "Error searching help database: #{e.message}" }
@@ -113,20 +117,23 @@ module MonadicHelpTools
     { error: "Error listing sections: #{e.message}" }
   end
 
-  def search_help_by_section(text:, section:, top_n: 3, chunks_per_result: nil)
+  def search_help_by_section(text:, section:, top_n: 3, chunks_per_result: nil, include_internal: nil)
     return { error: "Help database not available" } unless help_embeddings_db
-    
+
+    # Auto-detect DEBUG_MODE if include_internal not explicitly specified
+    include_internal = (ENV['DEBUG_MODE'] == 'true') if include_internal.nil?
+
     # Get chunks per result from environment or use default
     chunks_per_result ||= (ENV['HELP_CHUNKS_PER_RESULT'] || '3').to_i
-    
+
     # First get more results to ensure we have enough from the target section
-    all_results = help_embeddings_db.find_closest_text(text, top_n: top_n * 10)
-    
+    all_results = help_embeddings_db.find_closest_text(text, top_n: top_n * 10, include_internal: include_internal)
+
     # Filter by section and group by document
     section_docs = {}
     all_results.each do |result|
       next unless result[:section].downcase == section.downcase
-      
+
       doc_key = "#{result[:doc_id]}_#{result[:title]}"
       section_docs[doc_key] ||= {
         doc_id: result[:doc_id],
@@ -134,7 +141,7 @@ module MonadicHelpTools
         file_path: result[:file_path],
         chunks: []
       }
-      
+
       if section_docs[doc_key][:chunks].length < chunks_per_result
         section_docs[doc_key][:chunks] << {
           text: result[:text],
@@ -144,7 +151,7 @@ module MonadicHelpTools
         }
       end
     end
-    
+
     # Take top N documents and format results
     formatted_results = section_docs.values.take(top_n).map do |doc|
       {
@@ -155,10 +162,10 @@ module MonadicHelpTools
         avg_similarity: doc[:chunks].map { |c| c[:similarity] }.sum.to_f / doc[:chunks].size
       }
     end.sort_by { |doc| -doc[:avg_similarity] }
-    
-    { 
+
+    {
       section: section,
-      results: formatted_results 
+      results: formatted_results
     }
   rescue => e
     { error: "Error searching by section: #{e.message}" }

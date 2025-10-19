@@ -118,7 +118,7 @@ Monadic Chatは現実世界に接地するAIフレームワークです。ここ
 ### 音声インタラクション
 
 - 🔈 AIアシスタントによるレスポンス**テキスト読み上げ** (OpenAI、Elevenlabs、Google Gemini、またはWeb Speech API)
-- 🎙️ Speech-to-Text APIを使用した**音声認識**（whisper-1、gpt-4o-transcribe、gpt-4o-mini-transcribe）
+- 🎙️ Speech-to-Text APIを使用した**音声認識**（OpenAI: whisper-1、gpt-4o-transcribe、gpt-4o-mini-transcribe; Gemini: gemini-2.5-flash）
 - 🗺️ テキスト読み上げのための**自動言語検出**
 - 🗣️ テキスト読み上げのための**言語とボイス**の選択
 - 😊 音声認識とテキスト読み上げを使用した、AIエージェントとの**インタラクティブな会話**

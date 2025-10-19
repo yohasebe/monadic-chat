@@ -157,6 +157,25 @@ For deeper customization, basic MDSL knowledge helps but isn't required for simp
 3. Use **Voice Chat** app for optimized experience
 4. Configure STT model in settings
 
+### Q: What is Auto TTS Realtime Mode and how can I adjust it? :id=auto-tts-realtime
+
+**A**: Auto TTS Realtime Mode generates speech during text streaming instead of waiting for completion. You can customize this behavior:
+
+**Buffer Size Configuration**:
+- Adjustable via **Settings → Auto TTS Buffer Size** (20-200 characters)
+- Default: 50 characters
+- Environment variable: `AUTO_TTS_MIN_LENGTH`
+
+**Tuning Guidelines**:
+- **Smaller values (20-40)**: Faster response, may cause choppy audio
+- **Larger values (60-100)**: Better fluency, increased initial delay
+- **Language consideration**: Information-dense languages like Japanese may work better with smaller buffers
+
+**When to adjust**:
+- Increase if audio sounds choppy or fragmented
+- Decrease if you want faster audio response
+- Optimize based on your preferred language's characteristics
+
 ### Q: Why doesn't TTS read in my language? :id=tts-language
 
 **A**: Language detection issues can occur when:

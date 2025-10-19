@@ -291,15 +291,6 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
    - File:// protocol limitations
    - Headless Chrome restrictions
 
-## Future Enhancements
-
-1. **Multi-file Support**: Generate complete web applications with separate files
-2. **Framework Support**: Allow React, Vue, or other frameworks
-3. **Server-side Code**: Generate Node.js/Python backends
-4. **Version Control**: Built-in git integration for projects
-5. **Deployment**: Direct deployment to cloud platforms
-6. **Collaborative Editing**: Multi-user project modification
-
 ## Maintenance Notes
 
 ### When Updating Models

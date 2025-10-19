@@ -1858,7 +1858,89 @@ namespace :help do
       end
     end
   end
-  
+
+  desc "Build help database with internal documentation (for development)"
+  task :build_dev do
+    puts "Building help database with internal documentation (DEBUG_MODE)..."
+
+    # Load API key from config
+    require 'dotenv'
+    config_path = File.expand_path("~/monadic/config/env")
+    if File.exist?(config_path)
+      Dotenv.load(config_path)
+    end
+
+    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
+      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
+      puts "The help database requires OpenAI API for generating embeddings."
+      exit 1
+    end
+
+    # Check if pgvector container is running
+    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
+    unless pgvector_running
+      puts "pgvector container is not running. Starting it..."
+      if system("docker start monadic-chat-pgvector-container")
+        puts "pgvector container started successfully."
+        # Wait for PostgreSQL to be ready
+        puts "Waiting for PostgreSQL to be ready..."
+        max_attempts = 30
+        attempt = 0
+        while attempt < max_attempts
+          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
+            puts "PostgreSQL is ready!"
+            break
+          end
+          attempt += 1
+          print "."
+          sleep 1
+        end
+
+        if attempt >= max_attempts
+          puts "\nError: PostgreSQL did not become ready in time."
+          exit 1
+        end
+      else
+        puts "Error: Failed to start pgvector container."
+        exit 1
+      end
+    end
+
+    # Ensure the script has proper Ruby path
+    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
+
+    # Set environment variables for batch processing
+    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
+    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
+
+    # Check if Ruby container is running
+    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
+
+    # Change to the project root directory before running the script
+    Dir.chdir(__dir__) do
+      if ruby_running
+        # Run inside Ruby container with --include-internal flag
+        puts "Running inside Ruby container (with internal docs)..."
+        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --include-internal'"
+        system(docker_cmd)
+      else
+        # Run locally with --include-internal flag
+        puts "Running locally (Ruby container not running, with internal docs)..."
+        system("ruby #{script_path} --include-internal")
+      end
+
+      if $?.success?
+        puts "Help database built successfully with internal documentation!"
+        puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
+        puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
+        puts "\nNote: Internal documentation is NOT exported (only available in local database)"
+      else
+        puts "Error building help database"
+        exit 1
+      end
+    end
+  end
+
   desc "Rebuild help database (drop existing data first)"
   task :rebuild do
     puts "Rebuilding help database from scratch..."
@@ -1920,17 +2002,17 @@ namespace :help do
       # Always run documentation processing locally
       puts "Ruby container is running, but documentation processing must run locally..."
       puts "Running locally with proper database connection..."
-      
+
       # Set database connection for local execution when containers are running
       ENV['POSTGRES_HOST'] ||= 'localhost'
       ENV['POSTGRES_PORT'] ||= '5433'
-      system("ruby #{script_path} --recreate")
+      system("ruby #{script_path} --recreate --include-internal")
     else
       # Run locally with proper database connection
       puts "Running locally (Ruby container not running)..."
       ENV['POSTGRES_HOST'] ||= 'localhost'
       ENV['POSTGRES_PORT'] ||= '5433'
-      system("ruby #{script_path} --recreate")
+      system("ruby #{script_path} --recreate --include-internal")
     end
     
     if $?.success?

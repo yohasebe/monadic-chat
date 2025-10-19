@@ -18,6 +18,7 @@ app "AutoForgeOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5", "gpt-5-codex", "gpt-4.1"]
+    reasoning_effort "minimal"
   end
 
   features do

@@ -30,6 +30,7 @@ Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-u
 
 ## Recent Updates (v0.10.x)
 
+- **Gemini STT support**: Added Google Gemini (`gemini-2.5-flash`) as speech-to-text provider with flexible language recognition, Japanese spacing normalization, and multilingual input handling.
 - **PDF storage hot reload**: `PDF_STORAGE_MODE` / `PDF_DEFAULT_STORAGE` env changes apply instantly without restarting the Ruby service.
 - **Install Options localization**: The Install Options modal now follows the current UI language (English + Japanese, Simplified Chinese, Korean, Spanish, French, German).
 - **ElevenLabs v3 Alpha support**: TTS requests can use `eleven_v3`, with automatic handling of the non-streaming response format.
@@ -128,7 +129,7 @@ Human users can use various tools to achieve their goals. However, in many cases
 ### Voice Interaction
 
 - 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
-- 🎙️ **Speech recognition** using the Speech-to-Text API (whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe)
+- 🎙️ **Speech recognition** using the Speech-to-Text API (OpenAI: whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe; Gemini: gemini-2.5-flash)
 - 🗺️ **Automatic language detection** for text-to-speech
 - 🗣️ Choose the **language and voice** for text-to-speech
 - 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech

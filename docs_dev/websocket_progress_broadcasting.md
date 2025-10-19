@@ -117,14 +117,6 @@ EXTRA_LOGGING=true
 ### Messages Appear in Console but Not UI
 This means messages are being sent directly instead of through channel. Ensure `send_to_session` is using `@@channel.push()`.
 
-## Future Enhancements
-
-1. **Session-specific filtering**: JavaScript could filter messages by session_id
-2. **Progress percentage**: Include completion percentage in messages
-3. **Cancel support**: Allow canceling long-running operations
-4. **Multiple progress types**: Different UI treatments for different operations
-5. **Rate limiting**: Prevent progress message flooding
-
 ## Code Locations
 
 - Main implementation: `/lib/monadic/utils/websocket.rb:91-233`

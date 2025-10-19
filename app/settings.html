@@ -136,7 +136,17 @@
       border-color: #4CAF50;
       box-shadow: 0 0 3px rgba(76, 175, 80, 0.3);
     }
-    
+
+    /* Description text styling */
+    .text-muted {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #666;
+      display: block;
+      margin-top: 5px;
+      margin-bottom: 12px;
+    }
+
     .category-display input:focus, .category-display select:focus {
       border-color: #9C27B0;
       box-shadow: 0 0 3px rgba(156, 39, 176, 0.3);
@@ -175,16 +185,6 @@
     }
 
     .button-group button:hover {
-      background-color: #e0ac07;
-    }
-
-    button#toggle-visibility {
-      margin-right: auto;
-      margin-left: 0;
-      background-color: #ffc107;
-    }
-
-    button#toggle-visibility:hover {
       background-color: #e0ac07;
     }
 
@@ -277,46 +277,76 @@
           <h2 data-i18n="settings.categories.apiKeys"><i class="fas fa-key"></i> API Keys</h2>
           
           <label for="openai-api-key">OPENAI_API_KEY</label>
-          <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="openai-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
-          <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="anthropic-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="cohere-api-key">COHERE_API_KEY</label>
-          <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="cohere-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="gemini-api-key">GEMINI_API_KEY</label>
-          <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="gemini-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="mistral-api-key">MISTRAL_API_KEY</label>
-          <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="mistral-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="xai-api-key">XAI_API_KEY</label>
-          <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="xai-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
-          <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="perplexity-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
-          <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="deepseek-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
-          <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="elevenlabs-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
 
           <label for="tavily-api-key">TAVILY_API_KEY</label>
-          <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false">
+          <div style="position: relative; display: flex; align-items: center;">
+            <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
+            <button type="button" class="toggle-api-key-visibility" data-target="tavily-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          </div>
         </div>
 
         <!-- Category: Model Settings -->
         <div class="settings-category category-model">
           <h2 data-i18n="settings.categories.modelSettings"><i class="fas fa-robot"></i> Model Settings</h2>
-          
-          <label for="pdf-storage-mode-setting">PDF Storage Mode</label>
+
+          <label for="pdf-storage-mode-setting" data-i18n="settings.labels.pdfStorageMode">PDF Storage Mode</label>
           <select id="pdf-storage-mode-setting" name="pdf-storage-mode-setting">
             <option value="local">Local (PGVector)</option>
             <option value="cloud">Cloud (OpenAI Vector Store)</option>
           </select>
-          <small class="text-muted">Changes may require app restart.</small>
+          <small class="text-muted" data-i18n="settings.labels.pdfStorageModeDesc">Local uses PGVector database on your machine. Cloud uses OpenAI Vector Store API (requires additional API costs).</small>
         </div>
 
         <!-- Category: Voice & Audio -->
@@ -336,10 +366,15 @@
             <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px; margin-top: 0; margin-bottom: 0;">
             <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 11px;" data-i18n="settings.labels.selectFile">Select File</button>
           </div>
+          <small class="text-muted" data-i18n="settings.labels.ttsDictPathDesc">JSON file to customize pronunciation. Maps words/phrases to phonetic spellings for better TTS output.</small>
 
           <label class="form-check-label" for="auto-tts-realtime-mode" data-i18n="settings.labels.autoTtsRealtimeMode">Auto TTS Realtime Mode</label>
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="auto-tts-realtime-mode">
-          <small class="text-muted" style="display: block; margin-top: -8px; margin-bottom: 10px;" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
+          <small class="text-muted" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
+
+          <label for="auto-tts-min-length" data-i18n="settings.labels.autoTtsMinLength">Auto TTS Buffer Size (characters)</label>
+          <input type="number" id="auto-tts-min-length" name="auto-tts-min-length" min="20" max="200" value="50">
+          <small class="text-muted" data-i18n="settings.labels.autoTtsMinLengthDesc">Minimum text length before generating TTS in realtime mode. Smaller values (20-40) provide faster response but may cause choppy audio. Larger values (60-100) improve fluency but increase initial delay. Range: 20-200 characters.</small>
         </div>
 
         <!-- Category: System Settings -->
@@ -351,28 +386,32 @@
             <option value="off" data-i18n="settings.labels.standaloneMode">Standalone (Default)</option>
             <option value="server" data-i18n="settings.labels.serverMode">Server Mode</option>
           </select>
+          <small class="text-muted" data-i18n="settings.labels.applicationModeDesc">Standalone runs locally. Server mode allows remote browser access via network.</small>
 
           <label for="browser-mode" data-i18n="settings.labels.browserMode">Browser Mode</label>
           <select id="browser-mode" name="browser-mode">
             <option value="internal" data-i18n="settings.labels.internalBrowser">Internal Browser</option>
             <option value="external" data-i18n="settings.labels.externalBrowser">External Browser</option>
           </select>
+          <small class="text-muted" data-i18n="settings.labels.browserModeDesc">Internal uses built-in WebView. External opens in your default system browser.</small>
 
           <label class="form-check-label" for="extra-logging" data-i18n="settings.labels.extraLogging">Extra Logging</label>
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
+          <small class="text-muted" data-i18n="settings.labels.extraLoggingDesc">Enables detailed debug logging for troubleshooting. Logs saved to ~/monadic/log/extra.log.</small>
 
           <label class="form-check-label" for="mcp-server-enabled" data-i18n="settings.labels.enableMcpServer">Enable MCP Server</label>
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="mcp-server-enabled">
-          
+          <small class="text-muted" data-i18n="settings.labels.enableMcpServerDesc">Enables Model Context Protocol server for external tool integration (e.g., Claude Desktop, VS Code).</small>
+
           <label for="mcp-server-port" data-i18n="settings.labels.mcpServerPort">MCP Server Port</label>
           <input type="number" id="mcp-server-port" name="mcp-server-port" min="1024" max="65535" value="3100">
+          <small class="text-muted" data-i18n="settings.labels.mcpServerPortDesc">Network port for MCP server. Change only if port 3100 conflicts with another service.</small>
         </div>
 
       </form>
     </div>
 
     <div class="button-group">
-      <button type="button" id="toggle-visibility" data-i18n="settings.buttons.showApiKeys"><i class="fas fa-eye fa-icon"></i>Show API Keys</button>
       <button type="submit" form="settings-form" data-i18n="settings.buttons.save"><i class="fas fa-save fa-icon"></i>Save</button>
       <button type="button" id="cancel" data-i18n="settings.buttons.close"><i class="fas fa-times fa-icon"></i>Close</button>
       <span id="save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
@@ -429,7 +468,8 @@
           MCP_SERVER_PORT: document.getElementById('mcp-server-port').value,
           UI_LANGUAGE: document.getElementById('ui-language').value,
           PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value,
-          AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked
+          AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked,
+          AUTO_TTS_MIN_LENGTH: document.getElementById('auto-tts-min-length').value
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -557,6 +597,7 @@
         document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('auto-tts-realtime-mode').checked = data.AUTO_TTS_REALTIME_MODE == "true" || false;
+        document.getElementById('auto-tts-min-length').value = data.AUTO_TTS_MIN_LENGTH || '50';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
@@ -675,23 +716,23 @@
         });
       });
 
-      let isVisible = false;
-      const toggleButton = document.getElementById('toggle-visibility');
-      const apiInputs = document.querySelectorAll('input[type="password"]');
+      // Individual API key visibility toggle buttons
+      document.querySelectorAll('.toggle-api-key-visibility').forEach(button => {
+        button.addEventListener('click', () => {
+          const targetId = button.getAttribute('data-target');
+          const input = document.getElementById(targetId);
+          const icon = button.querySelector('i');
 
-      toggleButton.addEventListener('click', () => {
-        isVisible = !isVisible;
-        apiInputs.forEach(input => {
-          input.type = isVisible ? 'text' : 'password';
+          if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+            button.style.color = '#333';
+          } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+            button.style.color = '#666';
+          }
         });
-        toggleButton.innerHTML = isVisible ? 
-          '<i class="fas fa-eye-slash fa-icon"></i>' + settingsI18n.t('settings.buttons.hideApiKeys') :
-          '<i class="fas fa-eye fa-icon"></i>' + settingsI18n.t('settings.buttons.showApiKeys');
-      });
-
-      // Set initial state to hidden
-      apiInputs.forEach(input => {
-        input.type = 'password';
       });
 
       // Populate PDF storage mode from settings

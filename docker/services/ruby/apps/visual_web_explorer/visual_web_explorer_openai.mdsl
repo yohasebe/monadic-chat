@@ -65,7 +65,8 @@ app "VisualWebExplorerOpenAI" do
 
   llm do
     provider "openai"
-    model ["gpt-5-mini", "gpt-4.1-mini"]
+    model ["gpt-5", "gpt-4.1-mini"]
+    reasoning_effort "minimal"
     temperature 0.0
   end
 

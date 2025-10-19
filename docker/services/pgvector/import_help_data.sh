@@ -56,20 +56,21 @@ for doc in docs:
         embedding_str = '[' + ','.join(map(str, embedding)) + ']'
     else:
         embedding_str = None
-    
+
     cur.execute("""
-        INSERT INTO help_docs (id, title, file_path, section, language, items, metadata, embedding, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s)
+        INSERT INTO help_docs (id, title, file_path, section, language, items, is_internal, metadata, embedding, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::vector, %s)
         ON CONFLICT (file_path, language) DO UPDATE SET
             title = EXCLUDED.title,
             section = EXCLUDED.section,
             items = EXCLUDED.items,
+            is_internal = EXCLUDED.is_internal,
             metadata = EXCLUDED.metadata,
             embedding = EXCLUDED.embedding,
             updated_at = CURRENT_TIMESTAMP
     """, (
         doc['id'], doc['title'], doc['file_path'], doc['section'],
-        doc['language'], doc['items'], Json(doc['metadata']),
+        doc['language'], doc['items'], doc.get('is_internal', False), Json(doc['metadata']),
         embedding_str, doc['created_at']
     ))
 
@@ -84,14 +85,14 @@ for item in items:
         embedding_str = '[' + ','.join(map(str, embedding)) + ']'
     else:
         embedding_str = None
-    
+
     cur.execute("""
-        INSERT INTO help_items (id, doc_id, text, position, heading, metadata, embedding, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s::vector, %s)
+        INSERT INTO help_items (id, doc_id, text, position, heading, is_internal, metadata, embedding, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s)
         ON CONFLICT DO NOTHING
     """, (
         item['id'], item['doc_id'], item['text'], item['position'],
-        item['heading'], Json(item['metadata']), embedding_str, item['created_at']
+        item['heading'], item.get('is_internal', False), Json(item['metadata']), embedding_str, item['created_at']
     ))
 
 # Update sequences
@@ -113,20 +114,21 @@ python3 /tmp/import_help.py || {
   -- Import help_docs
   CREATE TEMP TABLE temp_docs (data text);
   \copy temp_docs FROM '/help_data/help_docs.json'
-  
-  INSERT INTO help_docs (id, title, file_path, section, language, items, metadata, embedding, created_at)
-  SELECT 
+
+  INSERT INTO help_docs (id, title, file_path, section, language, items, is_internal, metadata, embedding, created_at)
+  SELECT
     (elem->>'id')::integer,
     elem->>'title',
-    elem->>'file_path', 
+    elem->>'file_path',
     elem->>'section',
     elem->>'language',
     (elem->>'items')::integer,
+    COALESCE((elem->>'is_internal')::boolean, FALSE),
     (elem->'metadata')::jsonb,
     NULL, -- Skip embeddings in fallback
     (elem->>'created_at')::timestamp
   FROM (
-    SELECT jsonb_array_elements(data::jsonb) AS elem 
+    SELECT jsonb_array_elements(data::jsonb) AS elem
     FROM temp_docs
   ) t
   ON CONFLICT (file_path, language) DO NOTHING;
@@ -134,19 +136,20 @@ python3 /tmp/import_help.py || {
   -- Import help_items
   CREATE TEMP TABLE temp_items (data text);
   \copy temp_items FROM '/help_data/help_items.json'
-  
-  INSERT INTO help_items (id, doc_id, text, position, heading, metadata, embedding, created_at)
-  SELECT 
+
+  INSERT INTO help_items (id, doc_id, text, position, heading, is_internal, metadata, embedding, created_at)
+  SELECT
     (elem->>'id')::integer,
     (elem->>'doc_id')::integer,
     elem->>'text',
     (elem->>'position')::integer,
     elem->>'heading',
+    COALESCE((elem->>'is_internal')::boolean, FALSE),
     (elem->'metadata')::jsonb,
     NULL, -- Skip embeddings in fallback
     (elem->>'created_at')::timestamp
   FROM (
-    SELECT jsonb_array_elements(data::jsonb) AS elem 
+    SELECT jsonb_array_elements(data::jsonb) AS elem
     FROM temp_items
   ) t
   ON CONFLICT DO NOTHING;

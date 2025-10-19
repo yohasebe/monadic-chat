@@ -72,7 +72,7 @@ let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
 let lastUpdateCheckResult = null; // Store the last update check result
-let seleniumEnabled = false; // Selenium container start/stop state
+let seleniumEnabled = true; // Selenium container start/stop state (default: enabled)
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
@@ -3338,8 +3338,8 @@ app.whenReady().then(() => {
     if (envConfig.UI_LANGUAGE) {
       i18n.setLanguage(envConfig.UI_LANGUAGE);
     }
-    // Initialize Selenium enabled state
-    seleniumEnabled = envConfig.SELENIUM_ENABLED === 'true';
+    // Initialize Selenium enabled state (default: true if not explicitly set to 'false')
+    seleniumEnabled = envConfig.SELENIUM_ENABLED !== 'false';
   }
   
   // Setup update-related error handlers first

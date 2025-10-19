@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS help_docs (
   section TEXT NOT NULL,
   language VARCHAR(10) NOT NULL,
   items INTEGER NOT NULL,
+  is_internal BOOLEAN DEFAULT FALSE,
   metadata JSONB NOT NULL,
   embedding vector(3072),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS help_items (
   text TEXT NOT NULL,
   position INTEGER NOT NULL,
   heading TEXT,
+  is_internal BOOLEAN DEFAULT FALSE,
   metadata JSONB NOT NULL,
   embedding vector(3072),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -39,3 +41,5 @@ CREATE TABLE IF NOT EXISTS help_items (
 CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id);
 CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language);
 CREATE INDEX IF NOT EXISTS idx_help_docs_file_path ON help_docs(file_path);
+CREATE INDEX IF NOT EXISTS idx_help_docs_is_internal ON help_docs(is_internal);
+CREATE INDEX IF NOT EXISTS idx_help_items_is_internal ON help_items(is_internal);

@@ -18,8 +18,8 @@ class HelpEmbeddings < TextEmbeddings
   def insert_doc(doc)
     self.class.with_retry("Inserting help document") do
       result = @conn.exec_params(
-        "INSERT INTO help_docs (title, file_path, section, language, items, metadata, embedding) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7) ON CONFLICT (file_path, language) DO UPDATE SET title = $1, section = $3, items = $5, metadata = $6::jsonb, embedding = $7, updated_at = CURRENT_TIMESTAMP RETURNING id",
-        [doc[:title], doc[:file_path], doc[:section], doc[:language] || 'en', doc[:items], doc[:metadata].to_json, doc[:embedding]]
+        "INSERT INTO help_docs (title, file_path, section, language, items, is_internal, metadata, embedding) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8) ON CONFLICT (file_path, language) DO UPDATE SET title = $1, section = $3, items = $5, is_internal = $6, metadata = $7::jsonb, embedding = $8, updated_at = CURRENT_TIMESTAMP RETURNING id",
+        [doc[:title], doc[:file_path], doc[:section], doc[:language] || 'en', doc[:items], doc[:is_internal] || false, doc[:metadata].to_json, doc[:embedding]]
       )
       result[0]["id"]
     end
@@ -28,21 +28,24 @@ class HelpEmbeddings < TextEmbeddings
   def insert_item(item)
     self.class.with_retry("Inserting help item") do
       @conn.exec_params(
-        "INSERT INTO help_items (doc_id, text, position, heading, metadata, embedding) VALUES ($1, $2, $3, $4, $5::jsonb, $6)",
-        [item[:doc_id], item[:text], item[:position], item[:heading], item[:metadata].to_json, item[:embedding]]
+        "INSERT INTO help_items (doc_id, text, position, heading, is_internal, metadata, embedding) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)",
+        [item[:doc_id], item[:text], item[:position], item[:heading], item[:is_internal] || false, item[:metadata].to_json, item[:embedding]]
       )
     end
   end
 
-  def find_closest_text(text, top_n: 10)
+  def find_closest_text(text, top_n: 10, include_internal: false)
     # get_embeddings returns an array, so we need the first element
     embeddings = get_embeddings([text])
     embedding = embeddings.first
     result = []
-    
+
+    # Build WHERE clause based on include_internal
+    where_clause = include_internal ? "" : "WHERE hi.is_internal = FALSE"
+
     self.class.with_retry("Finding closest help text") do
       res = @conn.exec_params(<<~SQL, [embedding, top_n])
-        SELECT 
+        SELECT
           hi.text,
           hi.doc_id,
           hi.position,
@@ -55,10 +58,11 @@ class HelpEmbeddings < TextEmbeddings
           1 - (hi.embedding <=> $1::vector) AS similarity
         FROM help_items hi
         JOIN help_docs hd ON hi.doc_id = hd.id
+        #{where_clause}
         ORDER BY hi.embedding <=> $1::vector
         LIMIT $2
       SQL
-      
+
       res.each do |row|
         result << {
           text: row["text"],
@@ -74,7 +78,7 @@ class HelpEmbeddings < TextEmbeddings
         }
       end
     end
-    
+
     result
   end
 
@@ -243,10 +247,10 @@ class HelpEmbeddings < TextEmbeddings
   end
   
   # Get multiple chunks for better context
-  def find_closest_text_multi(text, chunks_per_result: 3, top_n: 5)
+  def find_closest_text_multi(text, chunks_per_result: 3, top_n: 5, include_internal: false)
     # Get more results initially to ensure we have enough unique documents
-    initial_results = find_closest_text(text, top_n: top_n * chunks_per_result)
-    
+    initial_results = find_closest_text(text, top_n: top_n * chunks_per_result, include_internal: include_internal)
+
     # Group by document and take top chunks from each
     grouped_results = {}
     initial_results.each do |result|
@@ -254,13 +258,13 @@ class HelpEmbeddings < TextEmbeddings
       grouped_results[doc_id] ||= []
       grouped_results[doc_id] << result if grouped_results[doc_id].length < chunks_per_result
     end
-    
+
     # Flatten and limit to requested number of document groups
     final_results = []
     grouped_results.values.take(top_n).each do |doc_chunks|
       final_results.concat(doc_chunks)
     end
-    
+
     final_results
   end
 
@@ -354,6 +358,7 @@ class HelpEmbeddings < TextEmbeddings
           section text,
           language text DEFAULT 'en',
           items integer DEFAULT 0,
+          is_internal boolean DEFAULT FALSE,
           metadata jsonb DEFAULT '{}',
           embedding vector(#{EMBEDDINGS_DIMENSION}),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP,
@@ -370,6 +375,7 @@ class HelpEmbeddings < TextEmbeddings
           text text NOT NULL,
           position smallint NOT NULL,
           heading text,
+          is_internal boolean DEFAULT FALSE,
           metadata jsonb DEFAULT '{}',
           embedding vector(#{EMBEDDINGS_DIMENSION}),
           created_at timestamp DEFAULT CURRENT_TIMESTAMP
@@ -379,9 +385,11 @@ class HelpEmbeddings < TextEmbeddings
       # Create indexes for better performance
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language)")
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_file_path ON help_docs(file_path)")
+      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_docs_is_internal ON help_docs(is_internal)")
       # Note: ivfflat indexes removed due to 2000 dimension limit with text-embedding-3-large (3072 dims)
       # Consider using HNSW or no index for now
       @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id)")
+      @conn.exec("CREATE INDEX IF NOT EXISTS idx_help_items_is_internal ON help_items(is_internal)")
     end
   end
 end

@@ -99,13 +99,14 @@ class HelpDatabaseExporter
         section TEXT NOT NULL,
         language VARCHAR(10) NOT NULL,
         items INTEGER NOT NULL,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3072),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(file_path, language)
       );
-      
+
       -- Create help_items table
       CREATE TABLE IF NOT EXISTS help_items (
         id SERIAL PRIMARY KEY,
@@ -113,17 +114,20 @@ class HelpDatabaseExporter
         text TEXT NOT NULL,
         position INTEGER NOT NULL,
         heading TEXT,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3072),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
+
       -- Create indexes for better performance
       -- Note: ivfflat indexes removed due to 2000 dimension limit with text-embedding-3-large (3072 dims)
       -- Consider using HNSW index or no vector index for now
       CREATE INDEX IF NOT EXISTS idx_help_items_doc_id ON help_items(doc_id);
       CREATE INDEX IF NOT EXISTS idx_help_docs_language ON help_docs(language);
       CREATE INDEX IF NOT EXISTS idx_help_docs_file_path ON help_docs(file_path);
+      CREATE INDEX IF NOT EXISTS idx_help_docs_is_internal ON help_docs(is_internal);
+      CREATE INDEX IF NOT EXISTS idx_help_items_is_internal ON help_items(is_internal);
     SQL
     
     File.write(schema_file, schema_sql)
@@ -138,8 +142,8 @@ class HelpDatabaseExporter
       # Connect directly to PostgreSQL
       conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       
-      # Export help_docs
-      result = conn.exec("SELECT * FROM help_docs ORDER BY id")
+      # Export help_docs (external documentation only)
+      result = conn.exec("SELECT * FROM help_docs WHERE is_internal = FALSE ORDER BY id")
       docs = []
       result.each do |row|
         doc = {
@@ -178,7 +182,8 @@ class HelpDatabaseExporter
       # Reuse or create new connection
       conn = PG.connect(Monadic::Utils::Environment.postgres_params(database: "monadic_help"))
       
-      result = conn.exec("SELECT * FROM help_items ORDER BY id")
+      # Export help_items (external documentation only - join with help_docs to filter)
+      result = conn.exec("SELECT hi.* FROM help_items hi JOIN help_docs hd ON hi.doc_id = hd.id WHERE hd.is_internal = FALSE ORDER BY hi.id")
       items = []
       result.each do |row|
         item = {

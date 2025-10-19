@@ -32,7 +32,7 @@ Text-to-Speech (TTS) performance has been optimized using a prefetch pipeline th
 - **Prefetch**: Enabled (2 concurrent requests)
 - **Context Continuity**: Supported via API parameters
   - `previous_text`: ✅ Implemented in Monadic Chat (`interaction_utils.rb:371-373`)
-  - `next_text`: ⚠️ Supported by API but not yet implemented
+  - `next_text`: ❌ Not implemented (API supports this feature)
   - Provides better voice continuity across segments
 
 ### OpenAI TTS (Standard, HD, 4o Mini)

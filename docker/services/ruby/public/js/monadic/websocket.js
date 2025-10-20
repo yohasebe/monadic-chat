@@ -1145,22 +1145,9 @@ function processSequentialAudio() {
 
     console.debug(`[AudioQueue] Playing segment ${nextExpectedSequence} in order`);
 
-    // If this is the first segment (Auto TTS starting), highlight Stop button
-    // Check BEFORE incrementing nextExpectedSequence
-    const isFirstSegment = nextExpectedSequence === 1;
-    if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
-      // Find and highlight the latest assistant card (excluding temp-card)
-      setTimeout(() => {
-        const $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
-        if ($assistantCards.length > 0) {
-          const $latestCard = $assistantCards.last();
-          const cardId = $latestCard.attr('id');
-          if (cardId && typeof window.highlightStopButton === 'function') {
-            window.highlightStopButton(cardId);
-          }
-        }
-      }, 50);
-    }
+    // Note: Stop button highlighting is now done when TTS request is sent
+    // (both for Play button and Auto TTS), not when first segment is received.
+    // This provides immediate visual feedback during API request processing.
 
     // Clear any pending timeout since we found the expected segment
     if (sequenceCheckTimer) {
@@ -4176,6 +4163,13 @@ let loadedApp = "Chat";
                 const lastCard = $("#discourse div.card:last");
                 const playButton = lastCard.find(".func-play");
                 if (playButton.length > 0) {
+                  // Highlight Stop button immediately before triggering TTS request
+                  // This provides visual feedback during API request processing
+                  const cardId = lastCard.attr('id');
+                  if (cardId && typeof window.highlightStopButton === 'function') {
+                    window.highlightStopButton(cardId);
+                  }
+
                   // Simulate a click on the play button to trigger TTS
                   playButton.click();
                 }

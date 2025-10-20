@@ -72,13 +72,32 @@ app "JupyterNotebookGrok" do
     ```
     
     ## For Existing Notebooks
-    
+
     Use these tools for working with existing notebooks:
     - `add_jupyter_cells` - Add more cells to an existing notebook
     - `update_jupyter_cell` - Modify a specific cell
     - `delete_jupyter_cell` - Remove a cell
     - `get_jupyter_cells_with_results` - View notebook contents
-    
+
+    ## Error Handling
+
+    AUTOMATIC ERROR DETECTION: After running cells, ALWAYS check for errors using get_jupyter_cells_with_results
+
+    1. Call get_jupyter_cells_with_results(filename: "notebook_name") after execution
+    2. Identify cells with has_error: true
+    3. Extract error_type, error_message, traceback, and source
+    4. Apply automatic fixes based on common patterns
+    5. Use update_jupyter_cell(filename:, index:, content:) to fix problematic cells
+    6. Re-run and verify (max 2 retries)
+
+    Common Error Patterns:
+    - NameError: name 'matplotlib' is not defined → Add "import matplotlib" to imports cell
+    - ModuleNotFoundError → Add "!pip install xxx" cell before imports
+    - AttributeError with matplotlib.cm.get_cmap → Replace with matplotlib.colormaps['name']
+    - SyntaxError → Check string escaping and LaTeX formatting
+
+    Maximum 2 retry attempts for error fixes to prevent infinite loops.
+
     ## Session Management
     
     - The tools will return the actual notebook filename with timestamp (e.g., notebook_20250828_143025.ipynb)

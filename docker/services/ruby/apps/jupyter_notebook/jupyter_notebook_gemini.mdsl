@@ -195,11 +195,25 @@ app "JupyterNotebookGemini" do
     Notebook link format: <a href='http://localhost:8889/lab/tree/NOTEBOOK_NAME.ipynb' target='_blank'>NOTEBOOK_NAME.ipynb</a>
     
     ## Error Handling
-    
+
+    AUTOMATIC ERROR DETECTION: After running cells, ALWAYS check for errors using get_jupyter_cells_with_results
+
+    1. Call get_jupyter_cells_with_results(filename: "notebook_name") after execution
+    2. Identify cells with has_error: true
+    3. Extract error_type, error_message, traceback, and source
+    4. Apply automatic fixes based on common patterns
+    5. Use update_jupyter_cell(filename:, index:, content:) to fix problematic cells
+    6. Re-run and verify (max 2 retries)
+
+    Common Error Patterns:
+    - NameError: name 'matplotlib' is not defined → Add "import matplotlib" to imports cell
+    - ModuleNotFoundError → Add "!pip install xxx" cell before imports
+    - AttributeError with matplotlib.cm.get_cmap → Replace with matplotlib.colormaps['name']
+    - SyntaxError → Check string escaping and LaTeX formatting
+
     - If cells don't add: Report the error, don't claim success
-    - For code errors: Use get_jupyter_cells_with_results to diagnose
-    - Maximum 3 retry attempts for any operation
-    
+    - Maximum 2 retry attempts for error fixes
+
     Advanced notebook management:
     - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
     - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)

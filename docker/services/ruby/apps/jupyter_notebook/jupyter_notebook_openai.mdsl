@@ -153,29 +153,128 @@ app "JupyterNotebookOpenAI" do
     - Correct: ax.annotate(r"$\theta = 40^\circ$", ...)
     - Wrong: ax.annotate(r"$\\theta = 40^\\circ$", ...)
     
-    When errors occur in cells:
-    1. First, use `get_jupyter_cells_with_results` to check current cell states
-    2. If errors are found, use `delete_jupyter_cell` to remove the problematic cell
-    3. Use `add_jupyter_cells` to add a corrected version
-    4. Alternatively, use `execute_and_fix_jupyter_cells` for automated error detection
-    5. Maximum 3 retry attempts to prevent infinite loops
+    AUTOMATIC ERROR DETECTION AND FIXING WORKFLOW:
+    After adding and running cells with add_jupyter_cells(run: true), ALWAYS automatically check for errors:
+
+    1. Call get_jupyter_cells_with_results(filename: "notebook_name") immediately after execution
+    2. Analyze the response to identify cells with has_error: true
+    3. For each error cell, extract:
+       - index: Cell position in notebook
+       - error_type: Type of error (NameError, ModuleNotFoundError, etc.)
+       - error_message: Error description
+       - traceback: Full error traceback for analysis
+       - source: The code that caused the error
+    4. Apply automatic fixes based on error patterns (see below)
+    5. Use update_jupyter_cell(filename:, index:, content:) to replace only the problematic cell
+    6. Re-run with run_jupyter_cells to verify the fix
+    7. Maximum 2 retry attempts per error to prevent infinite loops
+    8. If still failing after 2 attempts, report the issue to the user with the error details
     
     Advanced notebook management:
     - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
     - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
     - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
     
+    ERROR DETECTION WORKFLOW EXAMPLE:
+    ```
+    # Step 1: Add and run cells
+    add_jupyter_cells(
+      filename: "analysis.ipynb",
+      cells: [...],
+      run: true
+    )
+
+    # Step 2: Automatically check for errors
+    results = get_jupyter_cells_with_results(filename: "analysis.ipynb")
+
+    # Step 3: Analyze results
+    error_cells = results.select { |cell| cell[:has_error] }
+
+    # Step 4: For each error, apply fix
+    if error_cells.any?
+      error_cell = error_cells.first
+
+      # Pattern: "NameError: name 'matplotlib' is not defined"
+      if error_cell[:error_type] == "NameError" &&
+         error_cell[:error_message].include?("matplotlib") &&
+         error_cell[:traceback].include?("matplotlib.colormaps")
+
+        # Find import cell (usually index 1)
+        import_cell = results.find { |c| c[:source].include?("import matplotlib.pyplot") }
+
+        # Update import cell to include "import matplotlib"
+        updated_imports = import_cell[:source].sub(
+          "import matplotlib.pyplot",
+          "import matplotlib\nimport matplotlib.pyplot"
+        )
+
+        update_jupyter_cell(
+          filename: "analysis.ipynb",
+          index: import_cell[:index],
+          content: updated_imports,
+          cell_type: "code"
+        )
+
+        # Step 5: Re-run and verify
+        run_jupyter_cells(filename: "analysis.ipynb")
+
+        # Step 6: Check again (max 2 total retries)
+        verify_results = get_jupyter_cells_with_results(filename: "analysis.ipynb")
+      end
+    end
+    ```
+
     IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
     - Each cell should be executed ONCE unless fixing an error
     - If a cell runs successfully, do NOT re-run it
     - When fixing errors, limit retries to 2 attempts maximum
     - If still failing after 2 attempts, explain the issue to the user
+    - ALWAYS check for errors after running cells using get_jupyter_cells_with_results
     
-    Common fixes:
-    - ModuleNotFoundError: Add import statements or use !pip install
-    - NameError: Check variable definitions and scope
-    - SyntaxError: Fix code syntax
-    - Font/plotting errors: Use appropriate font settings
+    COMMON ERROR PATTERNS AND AUTOMATIC FIXES:
+
+    1. NameError: name 'matplotlib' is not defined
+       Symptoms: Traceback shows "matplotlib.colormaps" or "matplotlib.xxx" but only "import matplotlib.pyplot as plt" exists
+       Fix Strategy:
+       - Find the import cell (usually cell index 1 or first code cell)
+       - Add "import matplotlib" to the imports
+       - Use update_jupyter_cell to replace the import cell with updated content
+       Example:
+         original: "import matplotlib.pyplot as plt"
+         fixed: "import matplotlib\nimport matplotlib.pyplot as plt"
+
+    2. NameError: name 'xxx' is not defined
+       Symptoms: Variable or function used before definition
+       Fix Strategy:
+       - Check if it's a missing module import (add import statement)
+       - Check if variable is defined in wrong order (reorder cells)
+       - If traceback shows module.xxx pattern, add "import module"
+
+    3. ModuleNotFoundError: No module named 'xxx'
+       Symptoms: Package not installed in environment
+       Fix Strategy:
+       - Add a new code cell BEFORE the import: "!pip install xxx"
+       - Use insert_jupyter_cells(filename:, index: 0, cells: [...]) to add at beginning
+       - Re-run notebook
+
+    4. AttributeError: module 'matplotlib.cm' has no attribute 'get_cmap'
+       Symptoms: Using deprecated matplotlib API
+       Fix Strategy:
+       - Replace "matplotlib.cm.get_cmap('viridis')" with "matplotlib.colormaps['viridis']"
+       - Or replace "plt.cm.get_cmap('viridis')" with "'viridis'" (string also works)
+
+    5. SyntaxError: invalid syntax
+       Symptoms: Code syntax error, often in string formatting or LaTeX
+       Fix Strategy:
+       - Check for proper string escaping (use raw strings r"..." for LaTeX)
+       - Verify parentheses, brackets, and quotes are balanced
+       - Check for proper indentation
+
+    6. ImportError or AttributeError in plotting
+       Symptoms: Font or display errors in matplotlib
+       Fix Strategy:
+       - Japanese font setup is auto-injected, should not need manual fixes
+       - If font errors persist, verify font configuration cell exists
 
     Important guidelines:
     - Import modules before using them in code cells

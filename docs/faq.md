@@ -255,18 +255,26 @@ Useful for testing, examples, or conversation templates.
 
 **A**: Yes, two methods:
 
-**Method 1** - Custom setup script:
+**Method 1** - Custom setup script (recommended for permanent installation):
 ```bash
 # ~/monadic/config/pysetup.sh
+# Using uv (recommended)
+uv pip install --no-cache pandas numpy scikit-learn
+
+# Or using pip
 pip install pandas numpy scikit-learn
 ```
 
-**Method 2** - In-app installation:
+**Method 2** - In-app installation (temporary, lost on container restart):
 ```python
+# Using uv (recommended)
+!uv pip install --no-cache library_name
+
+# Or using pip
 !pip install library_name
 ```
 
-Changes persist across container restarts with Method 1.
+Changes persist across container restarts with Method 1 only.
 
 ### Q: How do I enable LaTeX apps (Concept Visualizer / Syntax Tree)? :id=enable-latex
 

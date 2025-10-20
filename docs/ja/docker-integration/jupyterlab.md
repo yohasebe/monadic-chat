@@ -71,7 +71,9 @@ ALLOW_JUPYTER_IN_SERVER_MODE=true
 
 - **作業ディレクトリ**: JupyterLabは`/monadic/data`を作業ディレクトリとして起動します
 - **永続的ストレージ**: `/monadic/data`に保存されたすべてのファイルはコンテナの再起動後も保持されます
-- **Pythonパッケージ**: ノートブックのセルで`pip install`を使用して追加パッケージをインストールできます
+- **Pythonパッケージ**: ノートブックのセルで追加パッケージをインストールできます:
+  - `!uv pip install --no-cache package_name` (推奨)
+  - `!pip install package_name`
 - **ターミナルアクセス**: JupyterLabのTerminalを使用してPythonコンテナに直接アクセスできます
 
 

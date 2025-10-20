@@ -151,9 +151,16 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv for faster package installation
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Configure uv
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
 # Install Python packages
-RUN pip install -U pip && \
-    pip install --no-cache-dir --default-timeout=1000 \
+RUN uv pip install --no-cache \
     setuptools \
     wheel \
     jupyterlab ipywidgets plotly \

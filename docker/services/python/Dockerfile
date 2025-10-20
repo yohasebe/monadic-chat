@@ -49,7 +49,6 @@ RUN if [ "$INSTALL_LATEX" = "true" ]; then \
     fi
 
 # Install base Python packages (stable, cached)
-# Using uv for significantly faster installation (10-100x speedup over pip)
 RUN uv pip install --no-cache \
       setuptools wheel \
       jupyterlab ipywidgets plotly \
@@ -66,7 +65,6 @@ RUN uv pip install --no-cache \
       opencv-python moviepy==2.0.0.dev2
 
 # Optional Python libs (each in its own layer for cache efficiency)
-# Using uv for faster installation of large packages (transformers, scikit-learn, etc.)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
 RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy==3.7.5 || true; else echo "skip spacy"; fi
 RUN if [ "$PYOPT_SCIKIT" = "true" ]; then uv pip install --no-cache scikit-learn || true; else echo "skip scikit"; fi

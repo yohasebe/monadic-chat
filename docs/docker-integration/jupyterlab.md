@@ -71,7 +71,9 @@ These restrictions exist because Jupyter allows arbitrary code execution, which 
 
 - **Working Directory**: JupyterLab starts with `/monadic/data` as the working directory
 - **Persistent Storage**: All files saved in `/monadic/data` persist across container restarts
-- **Python Packages**: Additional packages can be installed using `pip install` in notebook cells
+- **Python Packages**: Additional packages can be installed in notebook cells:
+  - `!uv pip install --no-cache package_name` (recommended)
+  - `!pip install package_name`
 - **Terminal Access**: Use the Terminal in JupyterLab to access the Python container directly
 
 

@@ -46,7 +46,9 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 ## 一般的な使用例
 
 ### Pythonコンテナ
-- 追加のPythonパッケージをインストール: `pip install package_name`
+- 追加のPythonパッケージをインストール:
+  - `uv pip install --no-cache package_name` (推奨)
+  - `pip install package_name`
 - 共有データにアクセス: `cd /monadic/data`
 - Pythonスクリプトを実行: `python /monadic/data/scripts/my_script.py`
 

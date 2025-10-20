@@ -46,7 +46,9 @@ By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you ca
 ## Common Use Cases
 
 ### Python Container
-- Install additional Python packages: `pip install package_name`
+- Install additional Python packages:
+  - `uv pip install --no-cache package_name` (recommended)
+  - `pip install package_name`
 - Access shared data: `cd /monadic/data`
 - Run Python scripts: `python /monadic/data/scripts/my_script.py`
 

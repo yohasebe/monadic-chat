@@ -255,18 +255,26 @@ Shiftキーを押しながらコピーをクリックすると、Markdownでは�
 
 **A**: はい、2つの方法：
 
-**方法1** - カスタムセットアップスクリプト:
+**方法1** - カスタムセットアップスクリプト（永続的なインストールに推奨）:
 ```bash
 # ~/monadic/config/pysetup.sh
+# uvを使用（推奨）
+uv pip install --no-cache pandas numpy scikit-learn
+
+# または pip を使用
 pip install pandas numpy scikit-learn
 ```
 
-**方法2** - アプリ内インストール:
+**方法2** - アプリ内インストール（一時的、コンテナ再起動で消失）:
 ```python
+# uvを使用（推奨）
+!uv pip install --no-cache library_name
+
+# または pip を使用
 !pip install library_name
 ```
 
-方法1では変更がコンテナ再起動後も保持されます。
+方法1の変更のみコンテナ再起動後も保持されます。
 
 ### Q: LaTeX アプリ（Concept Visualizer / Syntax Tree）を有効にするには？ :id=enable-latex
 

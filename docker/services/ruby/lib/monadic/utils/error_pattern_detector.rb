@@ -118,9 +118,9 @@ module ErrorPatternDetector
         I'm encountering repeated module import errors. The required packages may not be installed.
 
         Suggestions:
-        1. Install the missing package using uv (faster) or pip:
-           - `!uv pip install package_name` (recommended, 10-100x faster)
-           - `!pip install package_name` (traditional)
+        1. Install the missing package using uv or pip:
+           - `!uv pip install package_name` (recommended)
+           - `!pip install package_name`
         2. Use alternative packages that are already installed
         3. Check the environment with the `check_environment` function
 

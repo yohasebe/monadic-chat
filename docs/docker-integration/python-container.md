@@ -37,7 +37,7 @@ Create `~/monadic/config/pysetup.sh` to run a post-setup step after rebuild (not
 
 You can use either `pip` or `uv` (recommended for faster installation):
 
-**Using uv (recommended, 10-100x faster):**
+**Using uv (recommended):**
 
 ```sh
 # Example: NLP libraries and models

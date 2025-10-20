@@ -23,6 +23,20 @@ This note summarizes the runtime safeguards that keep long-running agent session
 - Avoid bypassing `with_network_retry` in new adapters: it keeps latency spikes from cascading into repeated tool failures.
 - For new error classes, extend `SYSTEM_ERROR_PATTERNS` and update the suggestion strings; keep the tone action-oriented and concise.
 
+## Function Call Depth Limiting (MAX_FUNC_CALLS)
+- Constant: `MAX_FUNC_CALLS = 20` in OpenAI helper
+- Purpose: Prevents infinite loops when AI recursively calls tools within a single response
+- Scope: **Per-user-turn** (resets when `role == "user"`)
+- Tracking: Uses `session[:call_depth_per_turn]` instead of parameter accumulation
+- Behavior:
+  - Each user message resets the counter to 0
+  - Tool calls within a response increment the counter
+  - If counter exceeds 20 in one turn, shows "Maximum function call depth exceeded" notice
+  - Allows unlimited user iterations (important for iterative apps like Image Generator)
+
+### Historical Note (October 2024)
+Prior to October 2024, `call_depth` accumulated across the entire conversation session, causing iterative refinement apps (e.g., Image Generator) to fail after 20 total interactions. The fix changed scope to per-user-turn, allowing each new user message to reset the counter while maintaining protection against runaway tool calls within a single response.
+
 ## Related tests
 - `spec/unit/utils/error_pattern_detector_spec.rb`
 - `spec/unit/utils/function_call_error_handler_spec.rb`

@@ -458,6 +458,15 @@ module OpenAIHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -1678,14 +1687,14 @@ module OpenAIHelper
                                   session: session,
                                   query: body,
                                   res: res.body,
-                                  call_depth: call_depth, &block)
+                                  call_depth: current_call_depth, &block)
       else
         # Process standard chat API streaming response
         process_json_data(app: app,
                           session: session,
                           query: body,
                           res: res.body,
-                          call_depth: call_depth, &block)
+                          call_depth: current_call_depth, &block)
       end
     end
   rescue HTTP::Error, HTTP::TimeoutError
@@ -1895,11 +1904,11 @@ module OpenAIHelper
       end
     end
 
-    
-    if tools.any?
-      call_depth += 1
 
-      if call_depth > MAX_FUNC_CALLS
+    if tools.any?
+      session[:call_depth_per_turn] += 1
+
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         # Send notice fragment
         res = {
           "type" => "fragment",
@@ -1937,9 +1946,9 @@ module OpenAIHelper
         end
 
         tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
-        
-        
-        new_results = process_functions(app, session, tools, context, call_depth, &block)
+
+
+        new_results = process_functions(app, session, tools, context, session[:call_depth_per_turn], &block)
         
         # Check if we should stop retrying due to repeated errors
         if should_stop_for_errors?(session)
@@ -2093,7 +2102,7 @@ module OpenAIHelper
         }
         
         obj["function_returns"] = context
-        return api_request("tool", session, call_depth: call_depth, &block)
+        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
       end
 
      context << {
@@ -2113,7 +2122,7 @@ module OpenAIHelper
     obj["function_returns"] = context
 
     # return Array
-    api_request("tool", session, call_depth: call_depth, &block)
+    api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end
 
   def normalize_function_call_arguments(raw_arguments)
@@ -2743,9 +2752,9 @@ module OpenAIHelper
 
     # Handle tool calls if any were collected
     if tools.any? && tools.any? { |_, tool| tool["completed"] || tool["mcp_completed"] }
-      call_depth += 1
-      
-      if call_depth > MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
+
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         res = {
           "type" => "fragment",
           "content" => "NOTICE: Maximum function call depth exceeded"
@@ -2845,8 +2854,8 @@ module OpenAIHelper
           end
 
           context << message
-          
-          new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
+
+          new_results = process_functions(app, session, tool_calls, context, session[:call_depth_per_turn], &block)
           
           if should_stop_for_errors?(session)
             res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }

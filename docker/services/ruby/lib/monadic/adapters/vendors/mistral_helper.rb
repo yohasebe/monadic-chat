@@ -10,6 +10,7 @@ require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../base_vendor_helper"
+require_relative "../../utils/function_call_error_handler"
 
 module MistralHelper
   include BaseVendorHelper
@@ -17,6 +18,7 @@ module MistralHelper
   include MonadicProviderInterface
   include MonadicSchemaValidator
   include MonadicPerformance
+  include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   OPEN_TIMEOUT   = 5
@@ -949,6 +951,23 @@ module MistralHelper
             tool_name: function_name,
             message: e.message
           )
+        end
+
+        # Use the error handler module to check for repeated errors
+        if handle_function_error(session, function_return, function_name, &block)
+          # Stop retrying - add current result and make recursive call
+          content = function_return.to_s
+          content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?
+
+          function_returns << {
+            tool_call_id: tool_call["id"],
+            role: "tool",
+            name: function_name,
+            content: content
+          }
+
+          session[:parameters]["function_returns"] = function_returns
+          return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
         end
 
         # Add to function returns with proper encoding

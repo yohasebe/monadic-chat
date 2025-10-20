@@ -5,6 +5,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/function_call_error_handler"
 require 'strscan'
 require 'securerandom'
 require_relative '../base_vendor_helper'
@@ -12,6 +13,7 @@ require_relative '../base_vendor_helper'
 module DeepSeekHelper
   include BaseVendorHelper
   include InteractionUtils
+  include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
@@ -1107,7 +1109,25 @@ module DeepSeekHelper
         function_return = APPS[app].send(function_name.to_sym, **converted)
       end
       rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
+        function_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "DeepSeek",
+          tool_name: function_name,
+          message: e.message
+        )
+      end
+
+      # Use the error handler module to check for repeated errors
+      if handle_function_error(session, function_return, function_name, &block)
+        # Stop retrying - add tool result and return
+        context << {
+          role: "tool",
+          tool_call_id: tool_call["id"],
+          name: function_name,
+          content: function_return.to_s
+        }
+
+        obj["function_returns"] = context
+        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
       end
 
       context << {

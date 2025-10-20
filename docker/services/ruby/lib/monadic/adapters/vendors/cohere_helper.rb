@@ -8,6 +8,7 @@ require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/function_call_error_handler"
 
 module CohereHelper
   include BaseVendorHelper
@@ -15,6 +16,7 @@ module CohereHelper
   include MonadicProviderInterface
   include MonadicSchemaValidator
   include MonadicPerformance
+  include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
@@ -1831,7 +1833,30 @@ module CohereHelper
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
       rescue StandardError => e
         pp "Function execution error: #{e.message}"  # Debug log
-        function_return = "Error executing function: #{e.message}"
+        function_return = Monadic::Utils::ErrorFormatter.tool_error(
+          provider: "Cohere",
+          tool_name: function_name,
+          message: e.message
+        )
+      end
+
+      # Use the error handler module to check for repeated errors
+      if handle_function_error(session, function_return, function_name, &block)
+        # Stop retrying - add a special response and return
+        tool_results << {
+          role: "tool",
+          tool_call_id: tool_call_id,
+          content: [{ type: "text", text: function_return.to_s }]
+        }
+
+        # Add to context and make recursive call to get final response
+        context << {
+          "role" => "tool",
+          "tool_calls" => tool_results
+        }
+
+        obj["function_returns"] = context
+        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
       end
 
       # Process function return to detect generated images and enhance the response

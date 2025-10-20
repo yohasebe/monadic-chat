@@ -462,6 +462,11 @@ module OpenAIHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+
+      # Reset help topics call tracking for new user turn
+      # This allows the AI to perform fresh searches for each user question
+      session[:parameters]["help_topics_call_count"] = 0 if session[:parameters]
+      session[:parameters]["help_topics_prev_queries"] = [] if session[:parameters]
     end
 
     # Use per-turn counter instead of parameter for tracking

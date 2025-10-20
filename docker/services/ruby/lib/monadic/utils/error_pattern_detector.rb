@@ -116,12 +116,14 @@ module ErrorPatternDetector
     when :module_error
       <<~MSG
         I'm encountering repeated module import errors. The required packages may not be installed.
-        
+
         Suggestions:
-        1. Install the missing package using pip: `!pip install package_name`
+        1. Install the missing package using uv (faster) or pip:
+           - `!uv pip install package_name` (recommended, 10-100x faster)
+           - `!pip install package_name` (traditional)
         2. Use alternative packages that are already installed
         3. Check the environment with the `check_environment` function
-        
+
         What would you like me to do?
       MSG
     when :permission_error

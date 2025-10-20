@@ -32,7 +32,18 @@ NLTK と spaCy について:
 
 `~/monadic/config/pysetup.sh` を作成すると、Rebuild 後の「ポストセットアップ」で自動実行されます（Dockerfile 内に組み込みません）。
 
-例：
+`pip` または `uv`（高速インストール推奨）を使用できます：
+
+**uvを使用（推奨、10〜100倍高速）：**
+
+```sh
+uv pip install --no-cache \
+  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
+python -m nltk.downloader all
+python -m spacy download en_core_web_lg
+```
+
+**pipを使用（従来の方法）：**
 
 ```sh
 pip install --no-cache-dir --default-timeout=1000 \

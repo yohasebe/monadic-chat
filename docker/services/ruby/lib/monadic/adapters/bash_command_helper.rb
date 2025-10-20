@@ -3,10 +3,12 @@ module MonadicHelper
     install_command = case packager
                       when "pip"
                         "pip install #{command}"
+                      when "uv"
+                        "uv pip install --no-cache #{command}"
                       when "apt"
                         "apt-get install -y #{command}"
                       else
-                        "echo 'Invalid packager'"
+                        "echo 'Invalid packager: #{packager}. Supported: pip, uv, apt'"
                       end
 
     send_command(command: install_command,

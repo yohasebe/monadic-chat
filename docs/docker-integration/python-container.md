@@ -35,7 +35,19 @@ Notes on NLTK and spaCy:
 
 Create `~/monadic/config/pysetup.sh` to run a post-setup step after rebuild (not embedded into the Dockerfile).
 
-Example:
+You can use either `pip` or `uv` (recommended for faster installation):
+
+**Using uv (recommended, 10-100x faster):**
+
+```sh
+# Example: NLP libraries and models
+uv pip install --no-cache \
+  scikit-learn gensim librosa wordcloud nltk textblob spacy==3.7.5
+python -m nltk.downloader all
+python -m spacy download en_core_web_lg
+```
+
+**Using pip (traditional):**
 
 ```sh
 # Example: NLP libraries and models

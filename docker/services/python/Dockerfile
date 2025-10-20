@@ -2,6 +2,14 @@ FROM python:3.10-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
+# Install uv - fast Python package installer
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Configure uv to use system Python and optimize for Docker
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+
 # Optional feature toggles (defaults are lean)
 ARG INSTALL_LATEX=false
 ARG PYOPT_NLTK=false
@@ -41,8 +49,8 @@ RUN if [ "$INSTALL_LATEX" = "true" ]; then \
     fi
 
 # Install base Python packages (stable, cached)
-RUN pip install -U pip && \
-    pip install --no-cache-dir --default-timeout=1000 \
+# Using uv for significantly faster installation (10-100x speedup over pip)
+RUN uv pip install --no-cache \
       setuptools wheel \
       jupyterlab ipywidgets plotly \
       numpy pandas statsmodels \
@@ -58,13 +66,14 @@ RUN pip install -U pip && \
       opencv-python moviepy==2.0.0.dev2
 
 # Optional Python libs (each in its own layer for cache efficiency)
-RUN if [ "$PYOPT_NLTK" = "true" ]; then pip install --no-cache-dir nltk || true; else echo "skip nltk"; fi
-RUN if [ "$PYOPT_SPACY" = "true" ]; then pip install --no-cache-dir spacy==3.7.5 || true; else echo "skip spacy"; fi
-RUN if [ "$PYOPT_SCIKIT" = "true" ]; then pip install --no-cache-dir scikit-learn || true; else echo "skip scikit"; fi
-RUN if [ "$PYOPT_GENSIM" = "true" ]; then pip install --no-cache-dir gensim || true; else echo "skip gensim"; fi
-RUN if [ "$PYOPT_LIBROSA" = "true" ]; then pip install --no-cache-dir librosa || true; else echo "skip librosa"; fi
-RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then pip install --no-cache-dir mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
-RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then pip install --no-cache-dir transformers accelerate onnxruntime || true; else echo "skip transformers"; fi
+# Using uv for faster installation of large packages (transformers, scikit-learn, etc.)
+RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
+RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy==3.7.5 || true; else echo "skip spacy"; fi
+RUN if [ "$PYOPT_SCIKIT" = "true" ]; then uv pip install --no-cache scikit-learn || true; else echo "skip scikit"; fi
+RUN if [ "$PYOPT_GENSIM" = "true" ]; then uv pip install --no-cache gensim || true; else echo "skip gensim"; fi
+RUN if [ "$PYOPT_LIBROSA" = "true" ]; then uv pip install --no-cache librosa || true; else echo "skip librosa"; fi
+RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then uv pip install --no-cache mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
+RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then uv pip install --no-cache transformers accelerate onnxruntime || true; else echo "skip transformers"; fi
 
 # Set up JupyterLab user settings
 RUN mkdir -p /root/.jupyter/lab/user-settings

@@ -745,6 +745,15 @@ module CohereHelper
 
   # Main API request handler
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     empty_tool_results = role == "empty_tool_results"
     num_retrial = 0
 
@@ -1642,8 +1651,8 @@ module CohereHelper
         }
       ]
 
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "Cohere",
           message: "Maximum function call depth exceeded"
@@ -1653,7 +1662,7 @@ module CohereHelper
       # Execute tool calls and get results
       # process_functions makes recursive api_request which handles DONE message
       # Return directly to avoid duplicate DONE messages
-      return process_functions(app, session, accumulated_tool_calls, context, call_depth, &block)
+      return process_functions(app, session, accumulated_tool_calls, context, session[:call_depth_per_turn], &block)
     else
       # Handle regular text response or empty response (e.g., only thinking content)
       

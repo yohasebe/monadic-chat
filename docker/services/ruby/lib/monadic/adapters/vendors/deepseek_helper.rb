@@ -374,6 +374,14 @@ module DeepSeekHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
 
     num_retrial = 0
 
@@ -1031,13 +1039,13 @@ module DeepSeekHelper
       context << res
 
       # Check for maximum function call depth
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
       # Process function calls and get new results - don't send DONE here
-      new_results = process_functions(app, session, tools_data, context, call_depth, &block)
+      new_results = process_functions(app, session, tools_data, context, session[:call_depth_per_turn], &block)
 
       if new_results
         new_results

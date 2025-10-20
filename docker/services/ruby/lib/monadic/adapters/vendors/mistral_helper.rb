@@ -314,6 +314,15 @@ module MistralHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     num_retrial = 0
     # API key validation is performed after user message is sent (for UX consistency)
 
@@ -881,9 +890,9 @@ module MistralHelper
     # Once done with the main content, process any tool calls
     if tool_calls && !tool_calls.empty?
       # Process each tool call
-      call_depth += 1
+      session[:call_depth_per_turn] += 1
 
-      if call_depth > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         # Send notice fragment
         res = { "type" => "fragment", "content" => "\n\nNOTICE: Maximum function call depth exceeded" }
         block&.call res

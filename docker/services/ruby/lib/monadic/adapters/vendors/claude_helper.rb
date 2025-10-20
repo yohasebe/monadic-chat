@@ -376,8 +376,17 @@ module ClaudeHelper
 
   public
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     num_retrial = 0
-    
+
     # Debug log at the very beginning
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1467,8 +1476,8 @@ module ClaudeHelper
              end
 
     # Process tool calls if any exist
-    if tool_calls.any? && call_depth <= MAX_FUNC_CALLS
-      call_depth += 1
+    if tool_calls.any? && session[:call_depth_per_turn] <= MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
       
       # Build context for all tool calls
       context = []
@@ -1565,7 +1574,7 @@ module ClaudeHelper
       end
 
       # Process all tool calls in batch
-      result = process_functions(app, session, tool_calls, context, call_depth, &block)
+      result = process_functions(app, session, tool_calls, context, session[:call_depth_per_turn], &block)
 
       # If process_functions returns empty array (all server_tool_use),
       # continue to normal completion. Otherwise return the result.
@@ -1576,7 +1585,7 @@ module ClaudeHelper
 
     if text_result || tool_calls.any?
 
-      if call_depth > MAX_FUNC_CALLS
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         # Send notice fragment
         res = {
           "type" => "fragment",

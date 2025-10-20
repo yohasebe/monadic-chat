@@ -248,6 +248,15 @@ module GrokHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -1249,9 +1258,9 @@ module GrokHelper
             obj = session[:parameters]
           end
           obj["assistant_tool_calls"] = tool_calls
-          
-          call_depth += 1
-          if call_depth > MAX_FUNC_CALLS
+
+          session[:call_depth_per_turn] += 1
+          if session[:call_depth_per_turn] > MAX_FUNC_CALLS
             return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
               provider: "xAI",
               message: "Maximum function call depth exceeded"
@@ -1259,7 +1268,7 @@ module GrokHelper
           end
           
           # Process the tools and get results
-          new_results = process_functions(app, session, tool_calls, call_depth, &block)
+          new_results = process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block)
           # Return the results from Grok's response after tool execution
           return new_results || []
         end
@@ -1276,12 +1285,12 @@ module GrokHelper
         end
         obj["assistant_tool_calls"] = tool_calls
 
-        call_depth += 1
-        if call_depth > MAX_FUNC_CALLS
+        session[:call_depth_per_turn] += 1
+        if session[:call_depth_per_turn] > MAX_FUNC_CALLS
           return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
         end
 
-        new_results = process_functions(app, session, tool_calls, call_depth, &block)
+        new_results = process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block)
 
         # Return results
         if result && new_results

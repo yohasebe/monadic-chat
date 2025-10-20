@@ -614,6 +614,15 @@ module GeminiHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     num_retrial = 0
 
     # Get the parameters from the session
@@ -1855,8 +1864,8 @@ module GeminiHelper
         context << { "role" => "model", "text" => result.join("") }
       end
 
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "Gemini",
           message: "Maximum function call depth exceeded"
@@ -1876,7 +1885,7 @@ module GeminiHelper
                               session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
                              tool_calls.any? { |tc| tc["name"] == "run_code" }
         
-        new_results = process_functions(app, session, tool_calls, context, call_depth, &block)
+        new_results = process_functions(app, session, tool_calls, context, session[:call_depth_per_turn], &block)
         
         # For Math Tutor, inject HTML for generated images
         if is_math_tutor_code && new_results

@@ -290,7 +290,15 @@ module PerplexityHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, &block)
-    
+    # Reset call_depth counter for each new user turn
+    # This allows unlimited user iterations while preventing infinite loops within a single response
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
+
+    # Use per-turn counter instead of parameter for tracking
+    current_call_depth = session[:call_depth_per_turn] || 0
+
     # Set the number of times the request has been retried to 0
     num_retrial = 0
 
@@ -1421,15 +1429,15 @@ module PerplexityHelper
 
       tools = tools.first[1].dig("choices", 0, "message", "tool_calls")
 
-      call_depth += 1
-      if call_depth > MAX_FUNC_CALLS
+      session[:call_depth_per_turn] += 1
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "Perplexity",
           message: "Maximum function call depth exceeded"
         ) }]
       end
 
-      new_results = process_functions(app, session, tools, context, call_depth, &block)
+      new_results = process_functions(app, session, tools, context, session[:call_depth_per_turn], &block)
 
       if text_result && new_results
         [text_result].concat new_results

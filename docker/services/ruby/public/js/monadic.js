@@ -33,6 +33,57 @@ function getProviderFromGroup(group) {
 window.getProviderFromGroup = getProviderFromGroup;
 
 document.addEventListener("DOMContentLoaded", function () {
+  // Restore menu visibility state from localStorage on page load
+  // This ensures the menu state persists across zoom operations and page reloads
+  try {
+    const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
+    if (savedMenuHidden !== null) {
+      // Use setTimeout to ensure DOM elements are ready
+      setTimeout(() => {
+        const toggleBtn = $("#toggle-menu");
+        const menuPanel = $("#menu");
+        const mainPanel = $("#main");
+
+        if (toggleBtn.length && menuPanel.length && mainPanel.length) {
+          const windowWidth = $(window).width();
+          const isMobile = windowWidth < 600;
+
+          if (savedMenuHidden === 'true') {
+            // Restore hidden state
+            toggleBtn.addClass("menu-hidden")
+                    .attr("aria-expanded", "false")
+                    .html('<i class="fas fa-bars"></i>');
+
+            if (isMobile) {
+              menuPanel.hide();
+              mainPanel.show();
+              $("body").removeClass("menu-visible");
+            } else {
+              mainPanel.removeClass("col-md-8").addClass("col-md-12");
+              menuPanel.hide();
+            }
+          } else {
+            // Restore visible state
+            toggleBtn.removeClass("menu-hidden")
+                    .attr("aria-expanded", "true")
+                    .html('<i class="fas fa-times"></i>');
+
+            if (isMobile) {
+              menuPanel.show();
+              mainPanel.hide();
+              $("body").addClass("menu-visible");
+            } else {
+              mainPanel.removeClass("col-md-12").addClass("col-md-8");
+              menuPanel.show();
+            }
+          }
+        }
+      }, 50);
+    }
+  } catch (e) {
+    console.warn('Failed to restore menu state from localStorage on page load:', e);
+  }
+
   // Initialize Web UI translations if available
   if (typeof webUIi18n !== 'undefined') {
     // Try to get saved language from cookie
@@ -703,13 +754,27 @@ $(function () {
       const toggleBtn = $("#toggle-menu");
       const mainPanel = $("#main");
       const menuPanel = $("#menu");
-      
+
       // Check if essential elements exist
       if (!toggleBtn.length || !mainPanel.length || !menuPanel.length) {
         console.warn("fixLayoutAfterResize: Required elements not found");
         return;
       }
-    
+
+      // Restore menu state from localStorage to persist across zoom operations
+      // This ensures the menu visibility state is independent of zoom operations
+      try {
+        const savedMenuHidden = localStorage.getItem('monadic-menu-hidden');
+        if (savedMenuHidden === 'true') {
+          toggleBtn.addClass("menu-hidden");
+        } else if (savedMenuHidden === 'false') {
+          toggleBtn.removeClass("menu-hidden");
+        }
+        // If null (not set), keep current class state
+      } catch (e) {
+        console.warn('Failed to restore menu state from localStorage:', e);
+      }
+
     if (isMobile) {
       // Mobile layout
       const isMenuHidden = toggleBtn.hasClass("menu-hidden");
@@ -1843,7 +1908,14 @@ $(function () {
         $toggleBtn.addClass("menu-hidden")
                   .attr("aria-expanded", "false")
                   .html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
-        
+
+        // Save menu state to localStorage to persist across zoom operations
+        try {
+          localStorage.setItem('monadic-menu-hidden', 'true');
+        } catch (e) {
+          console.warn('Failed to save menu state to localStorage:', e);
+        }
+
         if (isMobile) {
           // On mobile: hide menu and show main
           $menu.hide();
@@ -1859,12 +1931,19 @@ $(function () {
         $toggleBtn.removeClass("menu-hidden")
                   .attr("aria-expanded", "true")
                   .html('<i class="fas fa-times"></i>'); // Change to X when menu open
-        
+
+        // Save menu state to localStorage to persist across zoom operations
+        try {
+          localStorage.setItem('monadic-menu-hidden', 'false');
+        } catch (e) {
+          console.warn('Failed to save menu state to localStorage:', e);
+        }
+
         if (isMobile) {
           // On mobile: show menu and hide main completely
           $menu.show();
           $main.hide();
-          $("body").addClass("menu-visible"); 
+          $("body").addClass("menu-visible");
         } else {
           // On desktop: normal column behavior
           $main.removeClass("col-md-12").addClass("col-md-8");

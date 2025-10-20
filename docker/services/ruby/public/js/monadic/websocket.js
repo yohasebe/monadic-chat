@@ -1147,6 +1147,8 @@ function processSequentialAudio() {
 
     // If this is the first segment (Auto TTS starting), highlight Stop button
     // Check BEFORE incrementing nextExpectedSequence
+    // Note: This is a fallback/insurance highlight - Auto TTS also highlights earlier
+    // at request time, but this ensures highlighting even if earlier attempts fail
     const isFirstSegment = nextExpectedSequence === 1;
     if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
       // Find and highlight the latest assistant card (excluding temp-card)
@@ -4176,6 +4178,14 @@ let loadedApp = "Chat";
                 const lastCard = $("#discourse div.card:last");
                 const playButton = lastCard.find(".func-play");
                 if (playButton.length > 0) {
+                  // Early highlight for Auto TTS: provides immediate visual feedback
+                  // Note: This will be re-highlighted by Play button handler and again
+                  // on first segment reception, but multiple highlights are safe (idempotent)
+                  const cardId = lastCard.attr('id');
+                  if (cardId && typeof window.highlightStopButton === 'function') {
+                    window.highlightStopButton(cardId);
+                  }
+
                   // Simulate a click on the play button to trigger TTS
                   playButton.click();
                 }

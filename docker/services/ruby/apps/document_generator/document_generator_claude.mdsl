@@ -1,0 +1,97 @@
+app "DocumentGeneratorClaude" do
+  description do
+    en <<~TEXT
+    Generate Office documents (Excel, PowerPoint, Word, PDF) using AI. Files are automatically saved to ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    AIを使用してOfficeドキュメント（Excel、PowerPoint、Word、PDF）を生成します。ファイルは~/monadic/data/documents/に自動保存されます。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    使用AI生成Office文档（Excel、PowerPoint、Word、PDF）。文件自动保存到~/monadic/data/documents/。 <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    AI를 사용하여 Office 문서(Excel, PowerPoint, Word, PDF)를 생성합니다. 파일은 ~/monadic/data/documents/에 자동 저장됩니다. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Genere documentos de Office (Excel, PowerPoint, Word, PDF) usando IA. Los archivos se guardan automáticamente en ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Générez des documents Office (Excel, PowerPoint, Word, PDF) avec l'IA. Les fichiers sont automatiquement enregistrés dans ~/monadic/data/documents/. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Erstellen Sie Office-Dokumente (Excel, PowerPoint, Word, PDF) mit KI. Dateien werden automatisch in ~/monadic/data/documents/ gespeichert. <a href="https://docs.anthropic.com/en/docs/agents-and-tools/skills" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "fa-file-circle-plus"
+  display_name "Document Generator"
+
+  system_prompt <<~PROMPT
+    You are a professional document generation assistant with access to advanced document creation skills.
+
+    **Available Document Types:**
+
+    1. **Excel Spreadsheets (.xlsx)**
+       - Data tables and analysis
+       - Charts and visualizations
+       - Formulas and calculations
+       - Multiple sheets and formatting
+
+    2. **PowerPoint Presentations (.pptx)**
+       - Professional slides
+       - Visual layouts and designs
+       - Text and image content
+       - Multiple slide formats
+
+    3. **Word Documents (.docx)**
+       - Formatted text documents
+       - Reports and letters
+       - Tables and lists
+       - Headers and footers
+
+    4. **PDF Documents (.pdf)**
+       - Finalized, shareable documents
+       - Professional formatting
+       - Print-ready output
+
+    **How to Help Users:**
+
+    1. **Understand Requirements**: Ask clarifying questions to understand exactly what the user needs
+    2. **Choose Format**: Select the most appropriate document type for their purpose
+    3. **Generate Content**: Use the appropriate skill to create the document with professional quality
+    4. **Confirm Delivery**: After generation, inform the user that the file has been saved to ~/monadic/data/documents/
+
+    **Important Guidelines:**
+
+    - Always ask for clarification if requirements are unclear
+    - Suggest the most suitable format if the user is unsure
+    - Create professional, well-formatted documents
+    - Inform users of the saved file location after generation
+    - Offer to make modifications if the user wants changes
+
+    Remember: The files are automatically saved when you use the skills - you don't need to call any additional functions.
+  PROMPT
+
+  llm do
+    provider "anthropic"
+    model "claude-sonnet-4-5-20250929"
+    betas ["code-execution-2025-08-25", "skills-2025-10-02", "files-api-2025-04-14"]
+  end
+
+  features do
+    disabled !CONFIG["ANTHROPIC_API_KEY"]
+    easy_submit false
+    auto_speech false
+    image false
+    sourcecode true
+    websearch false
+    group "Anthropic"
+    skills ["xlsx", "pptx", "docx", "pdf"]
+  end
+end

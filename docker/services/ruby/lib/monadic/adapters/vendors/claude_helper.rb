@@ -613,15 +613,23 @@ module ClaudeHelper
 
     # Set the headers for the API request (SSOT: beta flags spec-first)
     spec_beta = Monadic::Utils::ModelSpec.get_model_property(model, "beta_flags")
+    app_beta = APPS[app]&.settings&.[]("betas")  # Get app-specific betas
+
     headers = {
       "content-type" => "application/json",
       "anthropic-version" => "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true",
       "x-api-key" => api_key,
     }
-    # Only set beta header if explicitly specified in model_spec
-    if spec_beta.is_a?(Array) && !spec_beta.empty?
-      headers["anthropic-beta"] = spec_beta.join(",")
+
+    # Merge model-specific and app-specific beta flags
+    beta_flags = []
+    beta_flags.concat(Array(spec_beta)) if spec_beta
+    beta_flags.concat(Array(app_beta)) if app_beta
+    beta_flags.uniq!
+
+    if beta_flags.any?
+      headers["anthropic-beta"] = beta_flags.join(",")
     end
 
     # Cache tool capability from spec (dedup lookups)
@@ -718,6 +726,19 @@ module ClaudeHelper
       # tool_choice will be set later after tools are configured
     end
 
+    # Add container parameter if app specifies skills (Anthropic Skills)
+    app_skills = APPS[app]&.settings&.[]("skills")
+    if app_skills && app_skills.is_a?(Array) && !app_skills.empty?
+      body["container"] = {
+        "skills" => app_skills.map do |skill_name|
+          {
+            "type" => "anthropic",
+            "skill_id" => skill_name
+          }
+        end
+      }
+    end
+
     # Configure tools based on app settings and web search type
     # Skip tool setup if we're processing tool results
     if role != "tool"
@@ -759,6 +780,22 @@ module ClaudeHelper
         body["tools"] = []
       end
       
+      # Add code execution tool if Skills are specified (required for Skills beta)
+      if app_skills && app_skills.is_a?(Array) && !app_skills.empty?
+        code_execution_tool = {
+          "type" => "code_execution_20250825",
+          "name" => "code_execution"
+        }
+        body["tools"] ||= []
+        body["tools"] << code_execution_tool
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Claude: code_execution_20250825 tool added for Skills")
+          extra_log.close
+        end
+      end
+
       # Add web search tool if enabled and supported by spec
       if websearch_enabled && use_native_websearch
         DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
@@ -772,7 +809,7 @@ module ClaudeHelper
       }
       body["tools"] ||= []
       body["tools"] << web_search_tool
-      
+
       # Log the tool for debugging
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1179,7 +1216,33 @@ module ClaudeHelper
             json = JSON.parse(json_data)
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log.puts(JSON.pretty_generate(json))
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |extra_log|
+                extra_log.puts(JSON.pretty_generate(json))
+              end
+            end
+
+            # Handle API errors (including content filtering)
+            if json.dig("type") == "error"
+              error_type = json.dig("error", "type")
+              error_message = json.dig("error", "message")
+
+              formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+                provider: "Claude",
+                message: "#{error_type}: #{error_message}"
+              )
+
+              res = { "type" => "error", "content" => formatted_error }
+              block&.call res
+
+              # Return error result immediately
+              return [{
+                "choices" => [{
+                  "finish_reason" => "error",
+                  "message" => {
+                    "content" => formatted_error
+                  }
+                }]
+              }]
             end
 
             # Capture usage from message lifecycle events
@@ -1208,9 +1271,74 @@ module ClaudeHelper
 
             # Handle content type changes
             new_content_type = json.dig("content_block", "type")
-            if new_content_type == "tool_use"
+            if new_content_type == "tool_use" || new_content_type == "server_tool_use"
               json["content_block"]["input"] = ""
               tool_calls << json["content_block"]
+
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("[#{Time.now}] Claude: #{new_content_type} registered")
+                extra_log.puts("  id: #{json["content_block"]["id"]}")
+                extra_log.puts("  name: #{json["content_block"]["name"]}")
+                extra_log.close
+              end
+
+              # Check for file_id in Skills output
+              if json["content_block"]["output"] && json["content_block"]["output"]["file_id"]
+                tool_calls.last["file_id"] = json["content_block"]["output"]["file_id"]
+              end
+            elsif new_content_type == "bash_code_execution_tool_result" || new_content_type == "text_editor_code_execution_tool_result"
+              # Handle Skills tool results (file_id can be in different locations depending on the tool type)
+              tool_use_id = json.dig("content_block", "tool_use_id")
+
+              # Try different paths for file_id based on the tool result type
+              file_id = nil
+              if new_content_type == "bash_code_execution_tool_result"
+                content_array = json.dig("content_block", "content", "content")
+                if content_array.is_a?(Array)
+                  content_array.each do |item|
+                    if item["type"] == "bash_code_execution_output" && item["file_id"]
+                      file_id = item["file_id"]
+                      break
+                    end
+                  end
+                end
+              elsif new_content_type == "text_editor_code_execution_tool_result"
+                # text_editor result may have file_id in content.file_ids array
+                file_ids = json.dig("content_block", "content", "file_ids")
+                file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
+              end
+
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("[#{Time.now}] Claude: #{new_content_type} received")
+                extra_log.puts("  tool_use_id: #{tool_use_id}")
+                extra_log.puts("  file_id found: #{file_id.inspect}")
+                extra_log.close
+              end
+
+              if file_id
+                # Find the matching tool call by tool_use_id
+                matching_tool = tool_calls.find { |tc| tc["id"] == tool_use_id }
+                if matching_tool
+                  matching_tool["file_id"] = file_id
+
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts("[#{Time.now}] Claude: file_id extracted and attached")
+                    extra_log.puts("  file_id: #{file_id}")
+                    extra_log.puts("  tool_use_id: #{tool_use_id}")
+                    extra_log.puts("  tool_name: #{matching_tool["name"]}")
+                    extra_log.close
+                  end
+                else
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts("[#{Time.now}] Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}")
+                    extra_log.close
+                  end
+                end
+              end
             end
             content_type = new_content_type if new_content_type
 
@@ -1437,10 +1565,16 @@ module ClaudeHelper
       end
 
       # Process all tool calls in batch
-      return process_functions(app, session, tool_calls, context, call_depth, &block)
+      result = process_functions(app, session, tool_calls, context, call_depth, &block)
 
-      # Process regular text response
-    elsif text_result
+      # If process_functions returns empty array (all server_tool_use),
+      # continue to normal completion. Otherwise return the result.
+      return result unless result.empty?
+
+      # Process regular text response (or continue after server_tool_use)
+    end
+
+    if text_result || tool_calls.any?
 
       if call_depth > MAX_FUNC_CALLS
         # Send notice fragment
@@ -1530,6 +1664,54 @@ module ClaudeHelper
     
     tools.each do |tool_call|
       tool_name = tool_call["name"]
+      tool_type = tool_call["type"]
+
+      # Skip server_tool_use (executed by Anthropic, not by us)
+      # But still check for file_id and download if present
+      if tool_type == "server_tool_use"
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("\n[#{Time.now}] === Skipping Server Tool (executed by Anthropic) ===")
+          extra_log.puts("Tool name: #{tool_name}")
+          extra_log.puts("Tool ID: #{tool_call["id"]}")
+          extra_log.puts("Has file_id: #{!tool_call["file_id"].nil?}")
+          extra_log.close
+        end
+
+        # Check if this server tool resulted in a file generation
+        if tool_call["file_id"]
+          file_id = tool_call["file_id"]
+          file_result = download_file_from_api(file_id)
+
+          if file_result
+            save_result = save_to_documents(file_result[:data], file_result[:filename])
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("[#{Time.now}] File downloaded and saved successfully")
+              extra_log.puts("  Path: #{save_result[:relative]}")
+              extra_log.puts("  Size: #{save_result[:size]} bytes")
+              extra_log.close
+            end
+
+            # Notify user about the file
+            block&.call({
+              "type" => "fragment",
+              "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)\n\n"
+            })
+          else
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("[#{Time.now}] ERROR: Failed to download file from API")
+              extra_log.puts("  file_id: #{file_id}")
+              extra_log.close
+            end
+          end
+        end
+
+        # Skip adding tool_result for server_tool_use
+        next
+      end
 
       begin
         argument_hash = tool_call["input"]
@@ -1567,7 +1749,7 @@ module ClaudeHelper
         else
           tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
         end
-        
+
         # Log the result for debugging (unified format)
         if CONFIG["EXTRA_LOGGING"]
           puts "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}"
@@ -1588,6 +1770,19 @@ module ClaudeHelper
         tool_return = "Empty result"
       end
 
+      # Check if this tool call resulted in a file generation (from Skills)
+      if tool_call["file_id"]
+        file_id = tool_call["file_id"]
+        file_result = download_file_from_api(file_id)
+
+        if file_result
+          save_result = save_to_documents(file_result[:data], file_result[:filename])
+          tool_return = tool_return.to_s + "\n\n✅ File saved to #{save_result[:relative]} (#{save_result[:size]} bytes)"
+        else
+          tool_return = tool_return.to_s + "\n\n⚠️ Error downloading file from Skills API"
+        end
+      end
+
       if CONFIG["EXTRA_LOGGING"]
         extra_log.puts("Tool return: #{tool_return.to_s[0..200]}...")
         extra_log.close
@@ -1600,17 +1795,32 @@ module ClaudeHelper
       }
     end
 
-    context << {
-      role: "user",
-      content: content
-    }
+    # Only add tool results message if there are actual results to send
+    # (server_tool_use doesn't require tool_result responses)
+    if content.any?
+      context << {
+        role: "user",
+        content: content
+      }
 
-    obj["function_returns"] = context
-    
-    # Making recursive api_request with role 'tool'
+      obj["function_returns"] = context
 
-    # Return Array
-    api_request("tool", session, call_depth: call_depth, &block)
+      # Making recursive api_request with role 'tool'
+
+      # Return Array
+      api_request("tool", session, call_depth: call_depth, &block)
+    else
+      # All tools were server_tool_use, no need to send tool results
+      # Just continue the conversation
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] All tools were server_tool_use, no tool_result needed")
+        extra_log.close
+      end
+
+      # Return empty result to continue the conversation
+      []
+    end
   end
 
 
@@ -1631,7 +1841,136 @@ module ClaudeHelper
 
     data
   end
-  
+
+  # Download file from Anthropic Files API (for Skills)
+  def download_file_from_api(file_id)
+    api_key = CONFIG["ANTHROPIC_API_KEY"]
+    return nil unless api_key
+
+    headers = {
+      "x-api-key" => api_key,
+      "anthropic-version" => "2023-06-01",
+      "anthropic-beta" => "files-api-2025-04-14"
+    }
+
+    target_uri = "#{API_ENDPOINT}/files/#{file_id}/content"
+    http = HTTP.headers(headers)
+
+    begin
+      res = http.get(target_uri)
+      if res.status.success?
+        # Log headers for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Files API response headers:")
+          extra_log.puts("  Content-Disposition: #{res.headers["Content-Disposition"].inspect}")
+          extra_log.puts("  Content-Type: #{res.headers["Content-Type"].inspect}")
+          extra_log.close
+        end
+
+        # Extract filename from Content-Disposition header
+        filename = extract_filename_from_header(res.headers["Content-Disposition"], res.headers["Content-Type"])
+        # Read body as string (HTTP::Response::Body needs to be converted)
+        file_data = res.body.to_s
+        { data: file_data, filename: filename }
+      else
+        nil
+      end
+    rescue => e
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] ERROR downloading file: #{e.message}")
+        extra_log.close
+      end
+      nil
+    end
+  end
+
+  # Extract filename from Content-Disposition header
+  def extract_filename_from_header(content_disposition, content_type = nil)
+    # Try to extract from Content-Disposition header
+    if content_disposition
+      # First try RFC 5987 format: filename*=UTF-8''encoded-filename
+      if content_disposition =~ /filename\*=([^']+)'([^']*)'(.+)/
+        charset = $1
+        # language = $2  # Not used but part of the format
+        encoded_filename = $3
+
+        # URL decode the filename
+        require 'uri'
+        filename = URI.decode_www_form_component(encoded_filename)
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Decoded filename from RFC 5987:")
+          extra_log.puts("  Charset: #{charset}")
+          extra_log.puts("  Encoded: #{encoded_filename}")
+          extra_log.puts("  Decoded: #{filename}")
+          extra_log.close
+        end
+
+        return filename
+      end
+
+      # Fallback to standard filename parameter
+      match = content_disposition.match(/filename=(?:"([^"]+)"|([^;\s]+))/)
+      return match[1] || match[2] if match
+    end
+
+    # Generate default filename with extension based on Content-Type
+    timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+    extension = get_extension_from_content_type(content_type)
+    "document_#{timestamp}#{extension}"
+  end
+
+  # Get file extension from Content-Type header
+  def get_extension_from_content_type(content_type)
+    return "" unless content_type
+
+    case content_type
+    when /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/
+      ".docx"
+    when /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/
+      ".xlsx"
+    when /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/
+      ".pptx"
+    when /application\/pdf/
+      ".pdf"
+    when /text\/plain/
+      ".txt"
+    when /application\/json/
+      ".json"
+    else
+      ""
+    end
+  end
+
+  # Save file to documents directory
+  def save_to_documents(file_data, filename)
+    docs_dir = File.join(Dir.home, "monadic", "data", "documents")
+    FileUtils.mkdir_p(docs_dir) unless File.directory?(docs_dir)
+
+    file_path = File.join(docs_dir, filename)
+    File.binwrite(file_path, file_data)
+
+    # Create platform-independent relative path display
+    home_display = if RUBY_PLATFORM =~ /mingw|mswin|cygwin/
+                     # Windows: use %USERPROFILE% or actual username
+                     ENV['USERPROFILE'] ? File.basename(ENV['USERPROFILE']) : Dir.home
+                   else
+                     # Unix-like: use ~
+                     "~"
+                   end
+
+    relative_path = File.join(home_display, "monadic", "data", "documents", filename)
+
+    {
+      path: file_path,
+      relative: relative_path,
+      size: file_data.bytesize
+    }
+  end
+
   # Ensure send_query is publicly callable by external agents (e.g., AIUserAgent)
   public :send_query
 end

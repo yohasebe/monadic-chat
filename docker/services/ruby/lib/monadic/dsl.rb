@@ -994,6 +994,11 @@ module MonadicDSL
       @state.settings[:parallel_function_calling] = value
     end
 
+    def betas(value)
+      # Beta headers for provider-specific features (e.g., Anthropic Skills)
+      @state.settings[:betas] = value
+    end
+
     def agents(&block)
       # Support for internal agent configuration (e.g., code generators)
       if block_given?
@@ -1375,7 +1380,12 @@ module MonadicDSL
     if state.settings[:parallel_function_calling]
       class_def << "        @settings[:parallel_function_calling] = #{state.settings[:parallel_function_calling].inspect}\n"
     end
-    
+
+    # Add betas if specified
+    if state.settings[:betas]
+      class_def << "        @settings[:betas] = #{state.settings[:betas].inspect}\n"
+    end
+
     class_def << "      end\n"
     
     eval(class_def, TOPLEVEL_BINDING, state.name)

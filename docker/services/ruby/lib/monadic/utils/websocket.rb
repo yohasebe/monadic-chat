@@ -732,7 +732,9 @@ module WebSocketHelper
         end
       end
 
-      # Prefetch pipeline: Start first 3 TTS requests in parallel (improved from 2)
+      # Prefetch pipeline: Start first 2 TTS requests in parallel
+      # Limited to 2 to respect provider rate limits and concurrent request constraints
+      # Most providers have strict limits: OpenAI (RPM), Gemini (QPM), ElevenLabs (concurrent)
       tts_futures = []
       # Store futures array in thread local for STOP_TTS cleanup
       Thread.current[:tts_futures] = tts_futures
@@ -758,8 +760,8 @@ module WebSocketHelper
         end
       else
         # Prefetch mode for API-based TTS providers
-        # Start first 3 requests to prevent gaps between short sentences
-        [0, 1, 2].each do |idx|
+        # Start first 2 requests to prevent gaps between short sentences
+        [0, 1].each do |idx|
           break if idx >= valid_segments.length
 
           segment = valid_segments[idx]
@@ -807,8 +809,9 @@ module WebSocketHelper
           # Store for context
           prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
 
-          # Start next segment's TTS request (prefetch i+3 to maintain 3-segment buffer)
-          next_idx = i + 3
+          # Start next segment's TTS request (prefetch i+2 to maintain 2-segment buffer)
+          # This ensures we're always 1-2 segments ahead without overwhelming provider APIs
+          next_idx = i + 2
           if next_idx < valid_segments.length
             next_segment = valid_segments[next_idx]
             # Get previous_text directly from valid_segments for prefetch

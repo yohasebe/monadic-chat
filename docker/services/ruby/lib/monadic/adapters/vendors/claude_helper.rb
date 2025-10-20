@@ -1281,15 +1281,26 @@ module ClaudeHelper
             # Handle content type changes
             new_content_type = json.dig("content_block", "type")
             if new_content_type == "tool_use" || new_content_type == "server_tool_use"
-              json["content_block"]["input"] = ""
-              tool_calls << json["content_block"]
+              # Prevent duplicate tool_use registration from repeated content_block_start events
+              tool_use_id = json["content_block"]["id"]
+              unless tool_calls.any? { |tc| tc["id"] == tool_use_id }
+                json["content_block"]["input"] = ""
+                tool_calls << json["content_block"]
 
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("[#{Time.now}] Claude: #{new_content_type} registered")
-                extra_log.puts("  id: #{json["content_block"]["id"]}")
-                extra_log.puts("  name: #{json["content_block"]["name"]}")
-                extra_log.close
+                if CONFIG["EXTRA_LOGGING"]
+                  log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  log.puts("[#{Time.now}] Claude: #{new_content_type} registered")
+                  log.puts("  id: #{json["content_block"]["id"]}")
+                  log.puts("  name: #{json["content_block"]["name"]}")
+                  log.close
+                end
+              else
+                if CONFIG["EXTRA_LOGGING"]
+                  log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  log.puts("[#{Time.now}] Claude: Skipping duplicate #{new_content_type}")
+                  log.puts("  id: #{tool_use_id}")
+                  log.close
+                end
               end
 
               # Check for file_id in Skills output

@@ -417,7 +417,33 @@ module MonadicHelper
       if verification_result[:success]
         if run.to_s == "true"
           results2 = run_jupyter_cells(filename: filename)
-          "#{results1}\n\n#{results2}\n\nAccess the notebook at: #{notebook_url}"
+
+          # Automatically verify cell execution results
+          cells_results = get_jupyter_cells_with_results(filename: filename)
+
+          # Check for errors in executed cells
+          if cells_results.is_a?(Array)
+            error_cells = cells_results.select { |cell| cell[:has_error] }
+
+            if error_cells.any?
+              # Format error summary for AI
+              error_summary = "\n\n⚠️  ERRORS DETECTED IN NOTEBOOK:\n"
+              error_cells.each do |error_cell|
+                error_summary += "\n• Cell #{error_cell[:index]} (#{error_cell[:error_type]}): #{error_cell[:error_message]}\n"
+                error_summary += "  Code: #{error_cell[:source][0..100]}...\n"
+              end
+              error_summary += "\nTotal cells: #{cells_results.length}, Cells with errors: #{error_cells.length}\n"
+              error_summary += "Use get_jupyter_cells_with_results(filename: \"#{filename}\") for full error details."
+
+              "#{results1}\n\n#{results2}#{error_summary}\n\nAccess the notebook at: #{notebook_url}"
+            else
+              # All cells executed successfully
+              "#{results1}\n\n#{results2}\n✓ All #{cells_results.length} cells executed successfully without errors.\n\nAccess the notebook at: #{notebook_url}"
+            end
+          else
+            # Verification failed (unexpected response format)
+            "#{results1}\n\n#{results2}\n⚠️  Could not verify cell execution: #{cells_results}\n\nAccess the notebook at: #{notebook_url}"
+          end
         else
           "#{results1}\n\nAccess the notebook at: #{notebook_url}"
         end

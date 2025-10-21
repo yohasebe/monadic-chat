@@ -152,22 +152,27 @@ app "JupyterNotebookClaude" do
     
     CRITICAL: When the user reports errors, use the existing notebook filename, do NOT create a new notebook.
 
-    AUTOMATIC ERROR DETECTION AND FIXING WORKFLOW:
-    After adding and running cells with add_jupyter_cells(run: true), ALWAYS automatically check for errors:
+    AUTOMATIC ERROR DETECTION (BUILT-IN):
+    When you call add_jupyter_cells(run: true), the tool AUTOMATICALLY verifies cell execution and reports errors.
 
-    1. Call get_jupyter_cells_with_results(filename: "notebook_name") immediately after execution
-    2. Analyze the response to identify cells with has_error: true
-    3. For each error cell, extract:
-       - index: Cell position in notebook
-       - error_type: Type of error (NameError, ModuleNotFoundError, etc.)
-       - error_message: Error description
-       - traceback: Full error traceback for analysis
-       - source: The code that caused the error
-    4. Apply automatic fixes based on error patterns (see below)
-    5. Use update_jupyter_cell(filename:, index:, content:) to replace only the problematic cell
+    Response format:
+    - SUCCESS: "✓ All N cells executed successfully without errors."
+    - ERRORS DETECTED: "⚠️  ERRORS DETECTED IN NOTEBOOK:" followed by error summary
+      • Cell index, error type, error message for each error
+      • Suggestion to use get_jupyter_cells_with_results for full details
+
+    When you see "⚠️  ERRORS DETECTED":
+    1. The tool has already identified which cells have errors
+    2. Read the error summary to understand what went wrong
+    3. Use get_jupyter_cells_with_results(filename) for full traceback if needed
+    4. Apply fixes based on error patterns (see below)
+    5. Use update_jupyter_cell(filename:, index:, content:) to fix the problematic cell
     6. Re-run with run_jupyter_cells to verify the fix
     7. Maximum 2 retry attempts per error to prevent infinite loops
-    8. If still failing after 2 attempts, report the issue to the user with the error details
+    8. If still failing after 2 attempts, report the issue to the user with error details
+
+    IMPORTANT: You no longer need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
+    The tool does this automatically and includes error information in the response.
 
     COMMON ERROR PATTERNS AND AUTOMATIC FIXES:
 

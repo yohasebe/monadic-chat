@@ -196,14 +196,19 @@ app "JupyterNotebookGemini" do
     
     ## Error Handling
 
-    AUTOMATIC ERROR DETECTION: After running cells, ALWAYS check for errors using get_jupyter_cells_with_results
+    AUTOMATIC ERROR DETECTION (BUILT-IN):
+    add_jupyter_cells(run: true) AUTOMATICALLY verifies execution and reports errors.
 
-    1. Call get_jupyter_cells_with_results(filename: "notebook_name") after execution
-    2. Identify cells with has_error: true
-    3. Extract error_type, error_message, traceback, and source
-    4. Apply automatic fixes based on common patterns
-    5. Use update_jupyter_cell(filename:, index:, content:) to fix problematic cells
-    6. Re-run and verify (max 2 retries)
+    Response format:
+    - SUCCESS: "✓ All N cells executed successfully without errors."
+    - ERRORS: "⚠️  ERRORS DETECTED IN NOTEBOOK:" with cell index, error type, error message
+
+    When you see "⚠️  ERRORS DETECTED":
+    1. Read the error summary
+    2. Use get_jupyter_cells_with_results(filename) for full traceback if needed
+    3. Apply fixes based on error patterns (see below)
+    4. Use update_jupyter_cell(filename:, index:, content:) to fix
+    5. Re-run and verify (max 2 retries)
 
     Common Error Patterns:
     - NameError: name 'matplotlib' is not defined → Add "import matplotlib" to imports cell
@@ -211,6 +216,7 @@ app "JupyterNotebookGemini" do
     - AttributeError with matplotlib.cm.get_cmap → Replace with matplotlib.colormaps['name']
     - SyntaxError → Check string escaping and LaTeX formatting
 
+    IMPORTANT: No need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
     - If cells don't add: Report the error, don't claim success
     - Maximum 2 retry attempts for error fixes
 

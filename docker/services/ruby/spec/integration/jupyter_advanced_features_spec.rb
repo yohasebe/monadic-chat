@@ -195,7 +195,7 @@ RSpec.describe "Jupyter Advanced Features", :integration do
                           result.match(/([^\/]+\.ipynb)/)[1]
                         end
       skip "Could not extract filename" unless actual_filename
-      
+
       # Use new insert function
       app_instance.insert_jupyter_cells(
         filename: actual_filename.sub('.ipynb', ''),
@@ -203,34 +203,191 @@ RSpec.describe "Jupyter Advanced Features", :integration do
         cells: [{ "cell_type" => "code", "source" => "# Cell 0" }],
         run: false
       )
-      
+
       # Use existing add function
       app_instance.add_jupyter_cells(
         filename: actual_filename.sub('.ipynb', ''),
         cells: [{ "cell_type" => "code", "source" => "# Cell 1" }],
         run: false
       )
-      
+
       # Use new move function
       app_instance.move_jupyter_cell(
         filename: actual_filename.sub('.ipynb', ''),
         from_index: 1,
         to_index: 0
       )
-      
+
       # Use existing delete function
       app_instance.delete_jupyter_cell(
         filename: actual_filename.sub('.ipynb', ''),
         index: 1
       )
-      
+
       # Verify final state
       cells_result = app_instance.get_jupyter_cells_with_results(
         filename: actual_filename.sub('.ipynb', '')
       )
-      
+
       expect(cells_result).to be_an(Array)
       expect(cells_result.length).to eq(1)
+    end
+  end
+
+  describe "Error Verification and Fixing" do
+    it "automatically detects ImportError in code cells" do
+      result = app_instance.create_jupyter_notebook(filename: test_notebook)
+      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
+                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
+                        elsif result.match(/([^\/\s]+\.ipynb)/)
+                          result.match(/([^\/\s]+\.ipynb)/)[1]
+                        end
+      skip "Could not extract filename" unless actual_filename
+
+      # Add cell with ImportError
+      cells = [
+        { "cell_type" => "code", "source" => "import nonexistent_module_xyz123" }
+      ]
+
+      add_result = app_instance.add_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', ''),
+        cells: cells,
+        run: true
+      )
+
+      # Should detect error automatically
+      expect(add_result).to include("⚠️")
+      expect(add_result).to include("ERRORS DETECTED")
+      expect(add_result).to include("Cell 0")
+      expect(add_result.downcase).to include("error")
+    end
+
+    it "automatically detects NameError in code cells" do
+      result = app_instance.create_jupyter_notebook(filename: test_notebook)
+      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
+                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
+                        elsif result.match(/([^\/\s]+\.ipynb)/)
+                          result.match(/([^\/\s]+\.ipynb)/)[1]
+                        end
+      skip "Could not extract filename" unless actual_filename
+
+      # Add cell with NameError
+      cells = [
+        { "cell_type" => "code", "source" => "print(undefined_variable_xyz123)" }
+      ]
+
+      add_result = app_instance.add_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', ''),
+        cells: cells,
+        run: true
+      )
+
+      # Should detect error automatically
+      expect(add_result).to include("⚠️")
+      expect(add_result).to include("ERRORS DETECTED")
+      expect(add_result).to include("Cell 0")
+    end
+
+    it "reports success when all cells execute without errors" do
+      result = app_instance.create_jupyter_notebook(filename: test_notebook)
+      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
+                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
+                        elsif result.match(/([^\/\s]+\.ipynb)/)
+                          result.match(/([^\/\s]+\.ipynb)/)[1]
+                        end
+      skip "Could not extract filename" unless actual_filename
+
+      # Add valid cells
+      cells = [
+        { "cell_type" => "code", "source" => "import math\nprint(math.pi)" },
+        { "cell_type" => "code", "source" => "x = 42\nprint(f'x = {x}')" }
+      ]
+
+      add_result = app_instance.add_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', ''),
+        cells: cells,
+        run: true
+      )
+
+      # Should report success
+      expect(add_result).to include("✓")
+      expect(add_result).to match(/All \d+ cells executed successfully/)
+    end
+
+    it "can fix errors using update_jupyter_cell" do
+      result = app_instance.create_jupyter_notebook(filename: test_notebook)
+      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
+                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
+                        elsif result.match(/([^\/\s]+\.ipynb)/)
+                          result.match(/([^\/\s]+\.ipynb)/)[1]
+                        end
+      skip "Could not extract filename" unless actual_filename
+
+      # Add cell with error
+      cells = [
+        { "cell_type" => "code", "source" => "print(undefined_variable)" }
+      ]
+
+      add_result = app_instance.add_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', ''),
+        cells: cells,
+        run: true
+      )
+
+      # Confirm error detected
+      expect(add_result).to include("ERRORS DETECTED")
+
+      # Fix the error using update_jupyter_cell
+      update_result = app_instance.update_jupyter_cell(
+        filename: actual_filename.sub('.ipynb', ''),
+        index: 0,
+        content: "defined_variable = 42\nprint(defined_variable)"
+      )
+
+      expect(update_result).to include("updated")
+
+      # Re-run cells to verify fix
+      run_result = app_instance.run_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', '')
+      )
+
+      # Check that fix worked
+      cells_result = app_instance.get_jupyter_cells_with_results(
+        filename: actual_filename.sub('.ipynb', '')
+      )
+
+      expect(cells_result).to be_an(Array)
+      error_cells = cells_result.select { |cell| cell[:has_error] }
+      expect(error_cells).to be_empty
+    end
+
+    it "detects multiple errors across different cells" do
+      result = app_instance.create_jupyter_notebook(filename: test_notebook)
+      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
+                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
+                        elsif result.match(/([^\/\s]+\.ipynb)/)
+                          result.match(/([^\/\s]+\.ipynb)/)[1]
+                        end
+      skip "Could not extract filename" unless actual_filename
+
+      # Add multiple cells with different errors
+      cells = [
+        { "cell_type" => "code", "source" => "import math\nprint(math.pi)" },  # OK
+        { "cell_type" => "code", "source" => "import nonexistent_module" },    # ImportError
+        { "cell_type" => "code", "source" => "print(undefined_var)" }           # NameError
+      ]
+
+      add_result = app_instance.add_jupyter_cells(
+        filename: actual_filename.sub('.ipynb', ''),
+        cells: cells,
+        run: true
+      )
+
+      # Should detect multiple errors
+      expect(add_result).to include("ERRORS DETECTED")
+      expect(add_result).to include("Cell 1")
+      expect(add_result).to include("Cell 2")
+      expect(add_result).to match(/Cells with errors: 2/)
     end
   end
 end

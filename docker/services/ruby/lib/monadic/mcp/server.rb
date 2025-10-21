@@ -84,8 +84,8 @@ module Monadic
             handle_single_request(request_data)
           end
         rescue => e
-          debug_log "MCP Server error: #{e.message}"
-          debug_log e.backtrace.join("\n")
+          puts "[MCP] Server error: #{e.message}"
+          puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
           json_rpc_error(nil, "Internal error", INTERNAL_ERROR, e.message)
         end
       end
@@ -166,10 +166,10 @@ module Monadic
           
           # Cache the tools
           cache_tools(tools)
-          
-          debug_log "MCP: Built and cached #{tools.length} tools"
+
+          puts "[MCP] Built and cached #{tools.length} tools" if CONFIG["EXTRA_LOGGING"] == "true"
         else
-          debug_log "MCP: Using cached tools (#{tools.length} tools)"
+          puts "[MCP] Using cached tools (#{tools.length} tools)" if CONFIG["EXTRA_LOGGING"] == "true"
         end
         
         json_rpc_response(id, { tools: tools })
@@ -203,7 +203,7 @@ module Monadic
           result = execute_app_tool(app_instance, actual_tool_name, arguments)
           json_rpc_response(id, result)
         rescue => e
-          debug_log "Error executing tool #{tool_name}: #{e.message}"
+          puts "[MCP] Error executing tool #{tool_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"] == "true"
           json_rpc_error(id, "Tool execution failed", INTERNAL_ERROR, e.message)
         end
       end
@@ -262,8 +262,8 @@ module Monadic
             display_name: settings['display_name'] || app_name,
             tools: tool_list
           }
-          
-          debug_log "MCP: Found #{tool_list.length} tools in app #{app_name}"
+
+          puts "[MCP] Found #{tool_list.length} tools in app #{app_name}" if CONFIG["EXTRA_LOGGING"] == "true"
         end
         
         apps

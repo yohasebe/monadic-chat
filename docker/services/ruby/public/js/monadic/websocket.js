@@ -888,14 +888,49 @@ function initializeMediaSourceForAudio() {
             const playPromise = audio.play();
             if (playPromise !== undefined) {
               playPromise.then(() => {
-                
+                // Audio playback started successfully - hide spinner for Auto TTS
+                if (window.autoSpeechActive || window.autoPlayAudio) {
+                  $("#monadic-spinner").hide();
+
+                  // Reset spinner to default state
+                  $("#monadic-spinner")
+                    .find("span i")
+                    .removeClass("fa-headphones")
+                    .addClass("fa-comment");
+                  $("#monadic-spinner")
+                    .find("span")
+                    .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+
+                  // Clear timeout if set
+                  if (window.autoTTSSpinnerTimeout) {
+                    clearTimeout(window.autoTTSSpinnerTimeout);
+                    window.autoTTSSpinnerTimeout = null;
+                  }
+                }
               }).catch(err => {
-                // Debug log removed
+                // Audio playback failed - hide spinner
+                $("#monadic-spinner").hide();
+
+                // Reset spinner to default state
+                $("#monadic-spinner")
+                  .find("span i")
+                  .removeClass("fa-headphones")
+                  .addClass("fa-comment");
+                $("#monadic-spinner")
+                  .find("span")
+                  .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+
+                // Clear timeout if set
+                if (window.autoTTSSpinnerTimeout) {
+                  clearTimeout(window.autoTTSSpinnerTimeout);
+                  window.autoTTSSpinnerTimeout = null;
+                }
+
                 if (err.name === 'NotAllowedError') {
                   // Create a one-time click handler to enable audio
                   const enableAudio = function() {
                     audio.play().then(() => {
-                      
+
                       document.removeEventListener('click', enableAudio);
                     }).catch(e => {
                       console.error("[Audio] Failed to start playback:", e);
@@ -2587,18 +2622,23 @@ let loadedApp = "Chat";
       }
       
       case "tts_complete": {
-        // TTS processing is complete, hide the spinner
-        $("#monadic-spinner").hide();
-        
-        // Reset spinner to default state for other operations
-        $("#monadic-spinner")
-          .find("span i")
-          .removeClass("fa-headphones")
-          .addClass("fa-comment");
-        $("#monadic-spinner")
-          .find("span")
-          .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-        
+        // For Auto TTS, keep spinner visible until audio actually starts playing
+        // For manual TTS (Play button), hide immediately as before
+        if (!window.autoSpeechActive && !window.autoPlayAudio) {
+          // Manual TTS: hide spinner immediately
+          $("#monadic-spinner").hide();
+
+          // Reset spinner to default state for other operations
+          $("#monadic-spinner")
+            .find("span i")
+            .removeClass("fa-headphones")
+            .addClass("fa-comment");
+          $("#monadic-spinner")
+            .find("span")
+            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        }
+        // For Auto TTS: spinner will be hidden when audio playback actually starts
+
         break;
       }
       
@@ -4188,6 +4228,30 @@ let loadedApp = "Chat";
 
                   // Simulate a click on the play button to trigger TTS
                   playButton.click();
+
+                  // Set timeout to force hide spinner if audio doesn't start playing
+                  // This prevents spinner from being stuck indefinitely
+                  if (window.autoTTSSpinnerTimeout) {
+                    clearTimeout(window.autoTTSSpinnerTimeout);
+                  }
+
+                  window.autoTTSSpinnerTimeout = setTimeout(() => {
+                    // Force hide spinner after 10 seconds if still visible
+                    if ($("#monadic-spinner").is(":visible")) {
+                      console.warn("[Auto TTS] Spinner timeout - forcing hide after 10 seconds");
+                      $("#monadic-spinner").hide();
+
+                      // Reset spinner to default state
+                      $("#monadic-spinner")
+                        .find("span i")
+                        .removeClass("fa-headphones")
+                        .addClass("fa-comment");
+                      $("#monadic-spinner")
+                        .find("span")
+                        .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+                    }
+                    window.autoTTSSpinnerTimeout = null;
+                  }, 10000);
                 }
                 // Reset the auto speech flag
                 window.autoSpeechActive = false;

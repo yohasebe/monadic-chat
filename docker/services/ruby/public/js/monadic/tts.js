@@ -266,8 +266,16 @@ function resetAudioVariables() {
     audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
   }
   
-  // Hide any spinners
-  $("#monadic-spinner").hide();
+  // Hide any spinners - respect Auto Speech mode
+  if (typeof window.checkAndHideSpinner === 'function') {
+    // Set both flags to true to ensure spinner hides (called on reset/stop/error)
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+    }
+    window.checkAndHideSpinner();
+  } else {
+    $("#monadic-spinner").hide();
+  }
 }
 
 // Populate the Web Speech voices in the dropdown
@@ -393,8 +401,18 @@ function speakWithWebSpeech(text, speed, callback) {
   if (typeof window.speechSynthesis === 'undefined') {
     console.error('Web Speech API is not supported in this browser');
     if (typeof callback === 'function') callback(false);
-    // Hide spinner on error
-    $("#monadic-spinner").hide();
+    // Hide spinner on error - respect Auto Speech mode
+    if (typeof window.checkAndHideSpinner === 'function') {
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
     return false;
   }
   
@@ -407,8 +425,18 @@ function speakWithWebSpeech(text, speed, callback) {
     const ttsProviderSelect = $("#tts-provider");
     ttsProviderSelect.val("openai").trigger("change");
     if (typeof callback === 'function') callback(false);
-    // Hide spinner on error
-    $("#monadic-spinner").hide();
+    // Hide spinner on error - respect Auto Speech mode
+    if (typeof window.checkAndHideSpinner === 'function') {
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
     return false;
   }
   
@@ -447,16 +475,27 @@ function speakWithWebSpeech(text, speed, callback) {
   
   // Set speech rate (speed)
   utterance.rate = speed;
-  
+
   // Set event handlers
+  utterance.onstart = function() {
+    // Mark TTS playback as started (audio is now playing)
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+      if (typeof window.checkAndHideSpinner === 'function') {
+        window.checkAndHideSpinner();
+      }
+    }
+  };
+
   utterance.onend = function() {
     // Remove Stop button highlight
     if (typeof removeStopButtonHighlight === 'function') {
       removeStopButtonHighlight();
     }
 
-    // Hide spinner when speech ends
-    $("#monadic-spinner").hide();
+    // Note: Spinner is now hidden when playback STARTS, not when it completes
+    // So we don't need to hide it here on onend event
+
     // Reset spinner to default state for other operations
     $("#monadic-spinner")
       .find("span")
@@ -467,8 +506,18 @@ function speakWithWebSpeech(text, speed, callback) {
   
   utterance.onerror = function(event) {
     console.error('SpeechSynthesis error:', event);
-    // Hide spinner on error
-    $("#monadic-spinner").hide();
+    // Hide spinner on error - respect Auto Speech mode
+    if (typeof window.checkAndHideSpinner === 'function') {
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
     // Reset spinner to default state
     $("#monadic-spinner")
       .find("span")

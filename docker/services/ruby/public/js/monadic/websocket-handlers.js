@@ -251,7 +251,19 @@ function handleErrorMessage(data) {
     $('#send, #clear, #image-file, #voice, #doc, #url').prop('disabled', false);
     $('#message').show();
     $('#message').prop('disabled', false);
-    $('#monadic-spinner').hide();
+
+    // On error, set both flags to true to ensure spinner hides
+    if (typeof window.setTextResponseCompleted === 'function') {
+      window.setTextResponseCompleted(true);
+    }
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+    }
+    if (typeof window.checkAndHideSpinner === 'function') {
+      window.checkAndHideSpinner();
+    } else {
+      $('#monadic-spinner').hide();
+    }
     
     // Special handling for AI User errors (critical for Perplexity)
     const isAIUserError = data.content && data.content.toString().includes("AI User error");
@@ -307,23 +319,21 @@ function handleErrorMessage(data) {
  */
 function handleAudioMessage(data, processAudio) {
   if (data && data.type === 'audio') {
-    $('#monadic-spinner').hide();
-    
     try {
       // Check if content is a valid string
       if (typeof data.content !== 'string') {
         throw new Error('Invalid audio content format');
       }
-      
+
       // Process audio data
       const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-      
+
       // Check if this is a finishing marker
       if (data.finished === true) {
         // This is just a marker, no audio to process
         return true;
       }
-      
+
       // Add to audio queue if available
       const sequenceId = data.sequence_id || data.t_index || Date.now().toString();
       
@@ -417,7 +427,16 @@ function handleHtmlMessage(data, messages, createCardFunc) {
       
       // Check if we should hide spinner - hide if not calling function OR if streaming is complete
       if (!window.callingFunction || window.streamingResponse) {
-        $('#monadic-spinner').hide();
+        // Mark text response as completed and check if we can hide spinner
+        if (typeof window.setTextResponseCompleted === 'function') {
+          window.setTextResponseCompleted(true);
+        }
+        if (typeof window.checkAndHideSpinner === 'function') {
+          window.checkAndHideSpinner();
+        } else {
+          // Fallback if function not available
+          $('#monadic-spinner').hide();
+        }
         $('#cancel_query').hide();
         
         // Reset streaming flag
@@ -456,7 +475,11 @@ function handleSampleSuccess(data) {
     }
     
     // Hide UI elements
-    $("#monadic-spinner").hide();
+    if (typeof window.checkAndHideSpinner === 'function') {
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
     $('#cancel_query').hide();
     
     // Show success alert
@@ -491,7 +514,12 @@ function handleSTTMessage(data) {
     $('#send, #clear, #voice').prop('disabled', false);
     
     // Hide the spinner now that speech recognition is complete
-    $('#monadic-spinner').hide();
+    // Use checkAndHideSpinner to respect Auto Speech mode
+    if (typeof window.checkAndHideSpinner === 'function') {
+      window.checkAndHideSpinner();
+    } else {
+      $('#monadic-spinner').hide();
+    }
     
     // Auto submit if enabled
     if ($('#check-easy-submit').is(':checked')) {
@@ -539,7 +567,12 @@ function handleCancelMessage(data) {
     
     // Show message input and hide spinner
     $('#message').show();
-    $('#monadic-spinner').hide();
+    // Use checkAndHideSpinner to respect Auto Speech mode
+    if (typeof window.checkAndHideSpinner === 'function') {
+      window.checkAndHideSpinner();
+    } else {
+      $('#monadic-spinner').hide();
+    }
     
     // Reset any flags that might be in an inconsistent state
     if (window.responseStarted !== undefined) {

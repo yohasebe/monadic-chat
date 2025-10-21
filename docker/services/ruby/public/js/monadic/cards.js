@@ -391,6 +391,13 @@ function attachEventListeners($card) {
     }
 
     // Hide the spinner and reset it back to default state
+    // On Stop, force hide spinner and reset flags
+    if (typeof window.setTextResponseCompleted === 'function') {
+      window.setTextResponseCompleted(true);
+    }
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+    }
     $("#monadic-spinner").hide();
     // Reset spinner to default state for other operations
     $("#monadic-spinner")

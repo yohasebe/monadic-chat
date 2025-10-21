@@ -53,8 +53,22 @@ window.getIsProcessingAudioQueue = () => isProcessingAudioQueue;
 let nextExpectedSequence = 1; // Track next expected sequence number
 let pendingAudioSegments = {}; // Buffer for out-of-order segments
 let sequenceCheckTimer = null; // Timer for checking missing segments
+let sequenceRetryCount = 0; // Track how many times we've retried waiting for a segment
 let failedSequences = new Set(); // Track sequences that failed to play
-const SEQUENCE_TIMEOUT_MS = 5000; // Skip missing segments after 5 seconds (reduced from 30s)
+const SEQUENCE_TIMEOUT_MS = 5000; // Wait 5 seconds for missing segments before retrying
+const MAX_SEQUENCE_RETRIES = 2; // Maximum number of retries before giving up on a segment
+
+// Auto Speech completion tracking
+let textResponseCompleted = false; // Track if text response finished
+let ttsPlaybackStarted = false; // Track if TTS playback started (audio is actually playing)
+
+// Export completion flags to window for access from handlers
+window.setTextResponseCompleted = function(value) {
+  textResponseCompleted = value;
+};
+window.setTtsPlaybackStarted = function(value) {
+  ttsPlaybackStarted = value;
+};
 
 // Audio queue processing delays (configurable)
 const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
@@ -86,9 +100,36 @@ function removeStopButtonHighlight(cardId = null) {
   currentTTSCardId = null;
 }
 
+// Check if text response is completed AND TTS playback has started, then hide spinner
+function checkAndHideSpinner() {
+  // Only apply this logic when Auto Speech is enabled
+  const autoSpeechEnabled = $("#check-auto-speech").is(":checked");
+
+  if (!autoSpeechEnabled) {
+    // For non-Auto Speech mode, hide spinner immediately
+    $("#monadic-spinner").hide();
+    return;
+  }
+
+  // For Auto Speech mode, hide spinner when text is completed AND TTS has started
+  if (textResponseCompleted && ttsPlaybackStarted) {
+    $("#monadic-spinner").hide();
+
+    // Reset spinner to default state
+    $("#monadic-spinner")
+      .find("span i")
+      .removeClass("fa-headphones")
+      .addClass("fa-comment");
+    $("#monadic-spinner")
+      .find("span")
+      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+  }
+}
+
 // Export helper functions to window for global access
 window.highlightStopButton = highlightStopButton;
 window.removeStopButtonHighlight = removeStopButtonHighlight;
+window.checkAndHideSpinner = checkAndHideSpinner;
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -906,6 +947,10 @@ function initializeMediaSourceForAudio() {
                     clearTimeout(window.autoTTSSpinnerTimeout);
                     window.autoTTSSpinnerTimeout = null;
                   }
+
+                  // Reset Auto TTS flags now that playback has started
+                  window.autoSpeechActive = false;
+                  window.autoPlayAudio = false;
                 }
               }).catch(err => {
                 // Audio playback failed - hide spinner
@@ -925,6 +970,10 @@ function initializeMediaSourceForAudio() {
                   clearTimeout(window.autoTTSSpinnerTimeout);
                   window.autoTTSSpinnerTimeout = null;
                 }
+
+                // Reset Auto TTS flags on error
+                window.autoSpeechActive = false;
+                window.autoPlayAudio = false;
 
                 if (err.name === 'NotAllowedError') {
                   // Create a one-time click handler to enable audio
@@ -1142,16 +1191,17 @@ function addToAudioQueue(audioData, sequenceId, mimeType) {
 
   // If this has a sequence number, use sequence-based ordering
   if (sequenceNum !== null) {
+    const now = Date.now();
     pendingAudioSegments[sequenceNum] = {
       data: audioData,
       sequenceId: sequenceId,
       sequenceNum: sequenceNum,
-      timestamp: Date.now(),
+      timestamp: now,
       mimeType: mimeType
     };
 
     const pendingNums = Object.keys(pendingAudioSegments).map(k => parseInt(k, 10)).sort((a, b) => a - b);
-    console.log(`[AudioQueue] Received seq${sequenceNum}, next expected: seq${nextExpectedSequence}, pending: [${pendingNums.join(', ')}]`);
+    console.log(`[AudioQueue] Received seq${sequenceNum} at ${new Date().toISOString()}, next expected: seq${nextExpectedSequence}, pending: [${pendingNums.join(', ')}]`);
 
     // Try to process any segments that are now ready
     processSequentialAudio();
@@ -1160,6 +1210,7 @@ function addToAudioQueue(audioData, sequenceId, mimeType) {
     globalAudioQueue.push({
       data: audioData,
       sequenceId: sequenceId,
+      sequenceNum: null, // Explicitly null for non-sequential audio
       timestamp: Date.now(),
       mimeType: mimeType
     });
@@ -1179,6 +1230,9 @@ function processSequentialAudio() {
     delete pendingAudioSegments[nextExpectedSequence];
 
     console.debug(`[AudioQueue] Playing segment ${nextExpectedSequence} in order`);
+
+    // Reset retry count since we found the segment
+    sequenceRetryCount = 0;
 
     // If this is the first segment (Auto TTS starting), highlight Stop button
     // Check BEFORE incrementing nextExpectedSequence
@@ -1218,25 +1272,37 @@ function processSequentialAudio() {
     // Use setTimeout to avoid deep recursion
     setTimeout(() => processSequentialAudio(), 0);
   } else {
-    // Missing segment - set up timeout to skip it
+    // Missing segment - wait with retry limit
     if (!sequenceCheckTimer) {
       sequenceCheckTimer = setTimeout(() => {
         const pendingCount = Object.keys(pendingAudioSegments).length;
+        sequenceRetryCount++;
+
         if (pendingCount > 0) {
           const availableSequences = Object.keys(pendingAudioSegments)
             .map(k => parseInt(k, 10))
             .sort((a, b) => a - b);
 
-          console.warn(`[AudioQueue] TIMEOUT (${SEQUENCE_TIMEOUT_MS/1000}s) waiting for seq${nextExpectedSequence}. Available segments: [${availableSequences.join(', ')}]. Skipping to next available.`);
+          console.warn(`[AudioQueue] Waiting for seq${nextExpectedSequence} (attempt ${sequenceRetryCount}/${MAX_SEQUENCE_RETRIES}). Available: [${availableSequences.join(', ')}]`);
 
-          if (availableSequences.length > 0) {
-            // Skip to the first available segment
+          if (sequenceRetryCount >= MAX_SEQUENCE_RETRIES) {
+            // Give up on this segment and skip to the next available one
+            console.error(`[AudioQueue] seq${nextExpectedSequence} did not arrive after ${sequenceRetryCount} attempts. Skipping to seq${availableSequences[0]}`);
+            failedSequences.add(nextExpectedSequence);
             nextExpectedSequence = availableSequences[0];
+            sequenceRetryCount = 0;
+            sequenceCheckTimer = null;
+            processSequentialAudio();
+          } else {
+            // Retry waiting
             sequenceCheckTimer = null;
             processSequentialAudio();
           }
+        } else {
+          // No pending segments at all - just wait
+          sequenceCheckTimer = null;
+          sequenceRetryCount = 0;
         }
-        sequenceCheckTimer = null;
       }, SEQUENCE_TIMEOUT_MS);
     }
   }
@@ -1244,7 +1310,21 @@ function processSequentialAudio() {
 
 // Process the global audio queue to ensure sequential playback
 function processGlobalAudioQueue() {
+  console.log("[AudioQueue] processGlobalAudioQueue - queue length:", globalAudioQueue.length, "isProcessing:", isProcessingAudioQueue);
+
   if (globalAudioQueue.length === 0) {
+    // Check if there are pending sequential segments waiting
+    const pendingCount = Object.keys(pendingAudioSegments).length;
+    if (pendingCount > 0) {
+      const pendingNums = Object.keys(pendingAudioSegments).map(k => parseInt(k, 10)).sort((a, b) => a - b);
+      console.log("[AudioQueue] Queue empty but pending segments exist:", pendingNums, "- checking for seq" + nextExpectedSequence);
+      isProcessingAudioQueue = false;
+      // Try to process the next expected segment
+      processSequentialAudio();
+      return;
+    }
+
+    console.log("[AudioQueue] Queue empty and no pending segments - playback finished");
     isProcessingAudioQueue = false;
     currentAudioSequenceId = null;
 
@@ -1252,17 +1332,24 @@ function processGlobalAudioQueue() {
     if (typeof removeStopButtonHighlight === 'function') {
       removeStopButtonHighlight();
     }
+
+    // Note: No need to mark TTS playback as "completed" since spinner is hidden when playback STARTS
+    // The spinner hiding logic now depends on ttsPlaybackStarted, not ttsPlaybackCompleted
+
     return;
   }
 
   isProcessingAudioQueue = true;
   const audioItem = globalAudioQueue.shift();
   currentAudioSequenceId = audioItem.sequenceId;
+  console.log("[AudioQueue] Processing audio item:", audioItem.sequenceId);
 
   // Choose appropriate playback method based on device
   if (window.isIOS || window.basicAudioMode) {
+    console.log("[AudioQueue] Using iOS/basic audio mode");
     playAudioForIOSFromQueue(audioItem.data);
   } else {
+    console.log("[AudioQueue] Using standard playback");
     playAudioFromQueue(audioItem); // Pass full item including mimeType
   }
 }
@@ -1276,10 +1363,16 @@ function clearAudioQueue() {
   // Reset sequence tracking for realtime TTS
   nextExpectedSequence = 1;
   pendingAudioSegments = {};
+  sequenceRetryCount = 0;
+  failedSequences.clear();
   if (sequenceCheckTimer) {
     clearTimeout(sequenceCheckTimer);
     sequenceCheckTimer = null;
   }
+
+  // Reset completion tracking flags
+  window.setTextResponseCompleted(false);
+  window.setTtsPlaybackStarted(false);
 
   // Stop current segment if playing
   if (currentSegmentAudio) {
@@ -1365,6 +1458,11 @@ function processAudio(audioData) {
 
 // Play audio from queue for standard browsers
 function playAudioFromQueue(audioItem) {
+  console.log("[AudioQueue] playAudioFromQueue called with:", {
+    hasData: !!(audioItem.data || audioItem),
+    mimeType: audioItem.mimeType,
+    sequenceNum: audioItem.sequenceNum
+  });
   try {
     // Extract data and mimeType from audioItem
     const audioData = audioItem.data || audioItem;
@@ -1395,17 +1493,18 @@ function playAudioFromQueue(audioItem) {
       const mimeMatch = mimeType.match(/rate=(\d+)/);
       const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
 
-      // Use the PCM playback function
-      playPCMAudio(audioData, sampleRate);
-
-      // Handle queue processing after PCM playback
-      // Note: playPCMAudio handles its own completion callback
-      // so we need to modify it to continue queue processing
+      // CRITICAL: Set callback BEFORE calling playPCMAudio
+      // This ensures the callback is available when onended fires
       window.ttsPlaybackCallback = function() {
+        console.log("[AudioQueue] ttsPlaybackCallback fired - processing next segment");
         // Process next segment immediately
         isProcessingAudioQueue = false;
         processGlobalAudioQueue();
       };
+
+      // Use the PCM playback function
+      playPCMAudio(audioData, sampleRate);
+
       return;
     }
 
@@ -1434,9 +1533,25 @@ function playAudioFromQueue(audioItem) {
 
     // Set source and play
     segmentAudio.src = audioUrl;
+    console.log("[AudioQueue] Starting playback for seq" + sequenceNum);
     segmentAudio.play().then(() => {
-      // Playing TTS segment
+      console.log("[AudioQueue] Playback started successfully for seq" + sequenceNum);
+
+      // Mark TTS playback as started (audio is now playing)
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+        if (typeof window.checkAndHideSpinner === 'function') {
+          window.checkAndHideSpinner();
+        }
+      }
+
+      // Clear timeout if set
+      if (window.autoTTSSpinnerTimeout) {
+        clearTimeout(window.autoTTSSpinnerTimeout);
+        window.autoTTSSpinnerTimeout = null;
+      }
     }).catch(err => {
+      console.error("[AudioQueue] Playback failed for seq" + sequenceNum + ":", err);
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
       handleAudioError(`Failed to play segment seq${sequenceNum}: ${err.message}`);
@@ -1515,7 +1630,17 @@ function processIOSAudioBufferWithQueue() {
     };
     
     iosAudioElement.src = blobUrl;
-    iosAudioElement.play().catch(err => {
+    iosAudioElement.play().then(() => {
+      console.log("[AudioQueue] iOS playback started successfully");
+
+      // Mark TTS playback as started (audio is now playing)
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+        if (typeof window.checkAndHideSpinner === 'function') {
+          window.checkAndHideSpinner();
+        }
+      }
+    }).catch(err => {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue
@@ -1672,22 +1797,36 @@ function processIOSAudioBuffer() {
 
 // Function to play PCM audio data from Gemini
 function playPCMAudio(pcmData, sampleRate) {
+  console.log("[AudioQueue] playPCMAudio called - dataLength:", pcmData.length, "sampleRate:", sampleRate);
   try {
     // Initialize audio context if needed
     if (typeof audioInit === 'function') {
       audioInit();
     }
-    
+
     // Create AudioContext if not exists
     if (!window.audioCtx) {
+      console.log("[AudioQueue] Creating new AudioContext");
       window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    
+
+    // Check AudioContext state and resume if suspended
+    console.log("[AudioQueue] AudioContext state:", window.audioCtx.state);
+    if (window.audioCtx.state === 'suspended') {
+      console.log("[AudioQueue] AudioContext is suspended, resuming...");
+      window.audioCtx.resume().then(() => {
+        console.log("[AudioQueue] AudioContext resumed successfully");
+      }).catch(err => {
+        console.error("[AudioQueue] Failed to resume AudioContext:", err);
+      });
+    }
+
     // PCM is 16-bit linear, so we need to convert from bytes to float32
     const numSamples = pcmData.length / 2; // 2 bytes per sample
+    console.log("[AudioQueue] Converting PCM data - numSamples:", numSamples);
     const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
     const channelData = audioBuffer.getChannelData(0);
-    
+
     // Convert 16-bit PCM to float32
     for (let i = 0; i < numSamples; i++) {
       // Read 16-bit signed integer (little-endian)
@@ -1697,49 +1836,121 @@ function playPCMAudio(pcmData, sampleRate) {
       // Normalize to [-1, 1] range
       channelData[i] = signedSample / 32768.0;
     }
-    
+
+    console.log("[AudioQueue] AudioBuffer created - duration:", audioBuffer.duration, "seconds");
+
     // Create a buffer source and play it
     const source = window.audioCtx.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(window.audioCtx.destination);
     currentPCMSource = source; // Track the current source
-    
+
+    console.log("[AudioQueue] BufferSource created and connected to destination");
+    console.log("[AudioQueue] Callback check - window.ttsPlaybackCallback exists:", !!window.ttsPlaybackCallback);
+
     // Handle playback end
     source.onended = function() {
-      $("#monadic-spinner").hide();
+      console.log("[AudioQueue] *** PCM audio playback ended (onended fired) ***");
       currentPCMSource = null; // Clear reference
-      
+
       // Trigger any callbacks if needed
       if (window.ttsPlaybackCallback) {
+        console.log("[AudioQueue] Calling ttsPlaybackCallback");
         window.ttsPlaybackCallback(true);
+      } else {
+        console.warn("[AudioQueue] No ttsPlaybackCallback set!");
       }
     };
-    
+
     // Start playback
+    console.log("[AudioQueue] Starting PCM audio playback with source.start(0)");
     source.start(0);
+    console.log("[AudioQueue] source.start(0) called successfully");
+
+    // Mark TTS playback as started (audio is now playing)
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+      if (typeof window.checkAndHideSpinner === 'function') {
+        window.checkAndHideSpinner();
+      }
+    }
+
+    // Clear timeout if set
+    if (window.autoTTSSpinnerTimeout) {
+      clearTimeout(window.autoTTSSpinnerTimeout);
+      window.autoTTSSpinnerTimeout = null;
+    }
     
   } catch (error) {
-    console.error("Error playing PCM audio:", error);
-    $("#monadic-spinner").hide();
-    
+    console.error("[AudioQueue] Error playing PCM audio:", error);
+    // On error, set both flags to true to ensure spinner hides
+    if (typeof window.setTextResponseCompleted === 'function') {
+      window.setTextResponseCompleted(true);
+    }
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+    }
+    if (typeof window.checkAndHideSpinner === 'function') {
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
+
     // Try fallback method - convert to WAV format
+    console.log("[AudioQueue] Trying WAV fallback for PCM audio");
     try {
       const wavBlob = createWAVFromPCM(pcmData, sampleRate);
       const blobUrl = URL.createObjectURL(wavBlob);
-      
+
       // Use standard audio element as fallback
       const audio = new Audio(blobUrl);
       audio.onended = function() {
+        console.log("[AudioQueue] WAV fallback playback ended");
         URL.revokeObjectURL(blobUrl);
-        $("#monadic-spinner").hide();
+        // Trigger callback
+        if (window.ttsPlaybackCallback) {
+          console.log("[AudioQueue] Calling ttsPlaybackCallback from WAV fallback");
+          window.ttsPlaybackCallback(true);
+        }
       };
-      audio.play().catch(err => {
-        console.error("Fallback audio playback failed:", err);
-        $("#monadic-spinner").hide();
+      console.log("[AudioQueue] Starting WAV fallback playback");
+      audio.play().then(() => {
+        console.log("[AudioQueue] WAV fallback playback started");
+        // Audio playback started (fallback mode)
+        // Note: Spinner will be hidden when all TTS playback is completed
+      }).catch(err => {
+        console.error("[AudioQueue] Fallback audio playback failed:", err);
+        // On error, set both flags to true to ensure spinner hides
+        if (typeof window.setTextResponseCompleted === 'function') {
+          window.setTextResponseCompleted(true);
+        }
+        if (typeof window.setTtsPlaybackStarted === 'function') {
+          window.setTtsPlaybackStarted(true);
+        }
+        if (typeof window.checkAndHideSpinner === 'function') {
+          window.checkAndHideSpinner();
+        } else {
+          $("#monadic-spinner").hide();
+        }
+
+        // Reset Auto TTS flags on error
+        window.autoSpeechActive = false;
+        window.autoPlayAudio = false;
       });
     } catch (fallbackError) {
       console.error("WAV fallback also failed:", fallbackError);
-      $("#monadic-spinner").hide();
+      // On error, set both flags to true to ensure spinner hides
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      if (typeof window.checkAndHideSpinner === 'function') {
+        window.checkAndHideSpinner();
+      } else {
+        $("#monadic-spinner").hide();
+      }
     }
   }
 }
@@ -2514,9 +2725,13 @@ let loadedApp = "Chat";
         
         if (!handled) {
           // Fallback to inline handling
-          $("#monadic-spinner").hide();
+          // For Auto TTS, keep spinner visible until audio actually starts playing
+          // For manual TTS (Play button), hide immediately as before
+          if (!window.autoSpeechActive && !window.autoPlayAudio) {
+            $("#monadic-spinner").hide();
+          }
 
-          try {
+          try{
             // Check if response contains an error
             if (data.content) {
               // Handle error that might be an object
@@ -2608,16 +2823,12 @@ let loadedApp = "Chat";
       }
 
       case "tts_progress": {
-        // Update the TTS progress in the spinner
-        const progress = data.progress || 0;
-        const segmentIndex = data.segment_index || 0;
-        const totalSegments = data.total_segments || 1;
-        
-        // Update spinner text to show progress
+        // Keep spinner visible during TTS processing
+        // Simple "Processing audio" text without progress counter
         $("#monadic-spinner")
           .find("span")
-          .html(`<i class="fas fa-headphones fa-pulse"></i> Processing audio (${segmentIndex + 1}/${totalSegments})`);
-        
+          .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
+
         break;
       }
       
@@ -3675,7 +3886,14 @@ let loadedApp = "Chat";
 
         // Only hide spinner if we're not calling functions
         if (!callingFunction) {
-          $("#monadic-spinner").hide();
+          // Mark text response as completed
+          window.setTextResponseCompleted(true);
+          // Check if we can hide spinner (depends on Auto Speech mode)
+          if (typeof window.checkAndHideSpinner === 'function') {
+            window.checkAndHideSpinner();
+          } else {
+            $("#monadic-spinner").hide();
+          }
         }
         break;
       }
@@ -4115,7 +4333,14 @@ let loadedApp = "Chat";
 
       case "html": {
         responseStarted = false;
-        
+
+        // Reset completion tracking flags at start of new response
+        window.setTextResponseCompleted(false);
+        window.setTtsPlaybackStarted(false);
+
+        // Reset sequence retry count for new response
+        sequenceRetryCount = 0;
+
         // If we receive an HTML message while callingFunction is true,
         // this is likely the result of a tool call, so reset the flag
         if (callingFunction && data.content && data.content.role === 'assistant') {
@@ -4192,7 +4417,10 @@ let loadedApp = "Chat";
             
             // Only hide spinner if we're not waiting for function calls
             if (!callingFunction) {
-              $("#monadic-spinner").hide();
+              // Mark text response as completed
+              window.setTextResponseCompleted(true);
+              // Check if we can hide spinner (depends on Auto Speech mode)
+              checkAndHideSpinner();
             }
             
             // If this is the first assistant message (from initiate_from_assistant), show user panel
@@ -4212,6 +4440,8 @@ let loadedApp = "Chat";
             // Handle auto_speech for TTS auto-playback
             // Support both boolean and string values for backward compatibility
             const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
+            const realtimeMode = params && params["auto_tts_realtime_mode"] === true;
+
             if (window.autoSpeechActive || autoSpeechEnabled) {
               // Use setTimeout to ensure the card is fully rendered before triggering TTS
               setTimeout(() => {
@@ -4226,11 +4456,16 @@ let loadedApp = "Chat";
                     window.highlightStopButton(cardId);
                   }
 
-                  // Simulate a click on the play button to trigger TTS
-                  playButton.click();
+                  // In realtime mode, audio is already generated and queued
+                  // Only click Play button for post-completion mode to trigger TTS
+                  if (!realtimeMode) {
+                    // Simulate a click on the play button to trigger TTS
+                    playButton.click();
+                  }
 
                   // Set timeout to force hide spinner if audio doesn't start playing
                   // This prevents spinner from being stuck indefinitely
+                  // (applies to both realtime and post-completion modes)
                   if (window.autoTTSSpinnerTimeout) {
                     clearTimeout(window.autoTTSSpinnerTimeout);
                   }
@@ -4249,12 +4484,16 @@ let loadedApp = "Chat";
                       $("#monadic-spinner")
                         .find("span")
                         .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+
+                      // Reset Auto TTS flags on timeout
+                      window.autoSpeechActive = false;
+                      window.autoPlayAudio = false;
                     }
                     window.autoTTSSpinnerTimeout = null;
                   }, 10000);
                 }
-                // Reset the auto speech flag
-                window.autoSpeechActive = false;
+                // Note: window.autoSpeechActive will be reset when audio starts playing
+                // See audio.play() promise handler where spinner is hidden
               }, 100);
             }
           } else {
@@ -4291,12 +4530,15 @@ let loadedApp = "Chat";
           
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
-            $("#monadic-spinner").hide();
+            // Mark text response as completed
+            window.setTextResponseCompleted(true);
+            // Check if we can hide spinner (depends on Auto Speech mode)
+            checkAndHideSpinner();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           // Only show "Ready for input" if we're not waiting for function calls
           if (!callingFunction) {
-            const readyText = typeof webUIi18n !== 'undefined' ? 
+            const readyText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           }
@@ -4320,12 +4562,15 @@ let loadedApp = "Chat";
           
           // Only hide spinner if we're not waiting for function calls
           if (!callingFunction) {
-            $("#monadic-spinner").hide();
+            // Mark text response as completed
+            window.setTextResponseCompleted(true);
+            // Check if we can hide spinner (depends on Auto Speech mode)
+            checkAndHideSpinner();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           // Only show "Ready for input" if we're not waiting for function calls
           if (!callingFunction) {
-            const readyText = typeof webUIi18n !== 'undefined' ? 
+            const readyText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           }
@@ -4578,9 +4823,16 @@ let loadedApp = "Chat";
         
         // Hide the spinner unless we're still processing function calls
         if (!callingFunction) {
-          $("#monadic-spinner").hide();
+          // Mark text response as completed
+          window.setTextResponseCompleted(true);
+          // Check if we can hide spinner (depends on Auto Speech mode)
+          if (typeof window.checkAndHideSpinner === 'function') {
+            window.checkAndHideSpinner();
+          } else {
+            $("#monadic-spinner").hide();
+          }
         }
-        
+
         // Check if there are any pending operations before showing "Ready for input"
         // This includes checking for active spinners or recent DOM updates
         let pendingOperations = false;
@@ -4751,15 +5003,15 @@ let loadedApp = "Chat";
               window.UIState.set('isStreaming', true);
             }
             // Show and update spinner message for streaming
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
+            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
             $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
             $("#monadic-spinner").show(); // Ensure spinner is visible
-            // remove the leading new line characters from content
-            content = content.replace(/^\n+/, "");
           }
           $("#indicator").show();
           if (content !== undefined) {
+            // remove the leading new line characters from content
+            content = content.replace(/^\n+/, "");
             $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
           }
           if (autoScroll && !isElementInViewport(chatBottom)) {

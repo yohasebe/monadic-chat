@@ -117,10 +117,36 @@ Standard cell format across all providers:
 
 ### Error Handling
 
-Maximum 3 retry attempts to prevent infinite loops:
-1. Check current cell states with `get_jupyter_cells_with_results`
-2. Remove problematic cells with `delete_jupyter_cell`
-3. Add corrected version with `add_jupyter_cells`
+#### Automatic Error Verification (Implemented 2025-10-21)
+
+**Problem**: AI agents were not consistently checking for errors after adding cells, leading to silent failures where cells appeared to be added successfully but actually contained errors.
+
+**Solution**: Built-in automatic verification in `add_jupyter_cells` tool.
+
+When `add_jupyter_cells(run: true)` is called:
+1. **Automatic verification**: Tool internally calls `get_jupyter_cells_with_results` after execution
+2. **Error detection**: Checks all cells for `has_error: true`
+3. **Formatted response**:
+   - Success: `✓ All N cells executed successfully without errors.`
+   - Errors: `⚠️  ERRORS DETECTED IN NOTEBOOK:` with cell index, error type, message
+4. **AI awareness**: Error information is automatically included in tool response
+
+**Benefits**:
+- Eliminates reliance on AI remembering to verify
+- Ensures errors are always detected and reported
+- Clear, consistent error reporting format
+- No need for manual `get_jupyter_cells_with_results` calls
+
+**Implementation**: `lib/monadic/adapters/jupyter_helper.rb` lines 421-446
+
+#### Error Fixing Workflow
+
+Maximum 2 retry attempts to prevent infinite loops:
+1. **Detection**: Tool automatically reports errors with cell index and error type
+2. **Analysis**: AI reads error summary from tool response
+3. **Full details** (if needed): Call `get_jupyter_cells_with_results` for complete traceback
+4. **Fix**: Use `update_jupyter_cell(filename:, index:, content:)` to replace problematic cell
+5. **Verification**: Re-run with `run_jupyter_cells` to confirm fix
 
 ## Testing Considerations
 

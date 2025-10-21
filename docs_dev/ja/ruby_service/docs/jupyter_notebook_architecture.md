@@ -117,10 +117,36 @@ create_jupyter_notebook("math_notebook")
 
 ### エラー処理
 
-無限ループを防ぐために最大3回の再試行：
-1. `get_jupyter_cells_with_results`で現在のセル状態をチェック
-2. `delete_jupyter_cell`で問題のあるセルを削除
-3. `add_jupyter_cells`で修正版を追加
+#### 自動エラー検証（2025-10-21実装）
+
+**問題**：AIエージェントがセル追加後にエラーを一貫してチェックしていないため、セルが正常に追加されたように見えても実際にはエラーが含まれているという静かな失敗が発生していました。
+
+**解決策**：`add_jupyter_cells`ツールに組み込まれた自動検証。
+
+`add_jupyter_cells(run: true)`が呼び出されたとき：
+1. **自動検証**：ツールは実行後に内部的に`get_jupyter_cells_with_results`を呼び出す
+2. **エラー検出**：すべてのセルで`has_error: true`をチェック
+3. **フォーマットされたレスポンス**：
+   - 成功：`✓ All N cells executed successfully without errors.`
+   - エラー：`⚠️  ERRORS DETECTED IN NOTEBOOK:` とセルインデックス、エラータイプ、メッセージ
+4. **AI認識**：エラー情報が自動的にツールレスポンスに含まれる
+
+**利点**：
+- AIが検証を覚えておく必要性を排除
+- エラーが常に検出され報告されることを保証
+- 明確で一貫したエラー報告形式
+- 手動での`get_jupyter_cells_with_results`呼び出しが不要
+
+**実装**：`lib/monadic/adapters/jupyter_helper.rb` 421-446行
+
+#### エラー修正ワークフロー
+
+無限ループを防ぐために最大2回の再試行：
+1. **検出**：ツールが自動的にセルインデックスとエラータイプを含むエラーを報告
+2. **分析**：AIがツールレスポンスからエラーサマリーを読む
+3. **詳細情報**（必要に応じて）：完全なトレースバックのために`get_jupyter_cells_with_results`を呼び出す
+4. **修正**：`update_jupyter_cell(filename:, index:, content:)`を使用して問題のあるセルを置き換える
+5. **検証**：`run_jupyter_cells`で再実行して修正を確認
 
 ## テストの考慮事項
 

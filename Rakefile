@@ -1757,9 +1757,9 @@ end
 
 # Help database namespace
 namespace :help do
-  desc "Build help database from documentation (incremental update)"
+  desc "Build help database from documentation (includes internal docs for development)"
   task :build do
-    puts "Building help database from documentation..."
+    puts "Building help database from documentation (including internal docs)..."
     
     # Load API key from config
     require 'dotenv'
@@ -1817,23 +1817,23 @@ namespace :help do
     # Change to the project root directory before running the script
     Dir.chdir(__dir__) do
       if ruby_running
-        # Run inside Ruby container
+        # Run inside Ruby container with --include-internal flag
         puts "Running inside Ruby container..."
-        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb'"
+        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --include-internal'"
         system(docker_cmd)
       else
-        # Run locally
+        # Run locally with --include-internal flag
         puts "Running locally (Ruby container not running)..."
-        system("ruby #{script_path}")
+        system("ruby #{script_path} --include-internal")
       end
       
       if $?.success?
-        puts "Help database built successfully!"
+        puts "Help database built successfully (including internal documentation)!"
         puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
         puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
-        
-        # Export the database for container builds
-        puts "\nExporting help database..."
+
+        # Export the database for container builds (internal docs are filtered out during export)
+        puts "\nExporting help database (public documentation only)..."
         export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
         
         if ruby_running
@@ -1859,91 +1859,19 @@ namespace :help do
     end
   end
 
-  desc "Build help database with internal documentation (for development)"
+  desc "[DEPRECATED] Use 'rake help:build' instead (now includes internal docs by default)"
   task :build_dev do
-    puts "Building help database with internal documentation (DEBUG_MODE)..."
+    puts "WARNING: 'rake help:build_dev' is deprecated."
+    puts "The standard 'rake help:build' now includes internal documentation by default."
+    puts "Redirecting to 'rake help:build'...\n\n"
 
-    # Load API key from config
-    require 'dotenv'
-    config_path = File.expand_path("~/monadic/config/env")
-    if File.exist?(config_path)
-      Dotenv.load(config_path)
-    end
-
-    if ENV['OPENAI_API_KEY'].nil? || ENV['OPENAI_API_KEY'].empty?
-      puts "Error: OPENAI_API_KEY not found in ~/monadic/config/env"
-      puts "The help database requires OpenAI API for generating embeddings."
-      exit 1
-    end
-
-    # Check if pgvector container is running
-    pgvector_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-pgvector-container'")
-    unless pgvector_running
-      puts "pgvector container is not running. Starting it..."
-      if system("docker start monadic-chat-pgvector-container")
-        puts "pgvector container started successfully."
-        # Wait for PostgreSQL to be ready
-        puts "Waiting for PostgreSQL to be ready..."
-        max_attempts = 30
-        attempt = 0
-        while attempt < max_attempts
-          if system("docker exec monadic-chat-pgvector-container pg_isready -h localhost -p 5432 > /dev/null 2>&1")
-            puts "PostgreSQL is ready!"
-            break
-          end
-          attempt += 1
-          print "."
-          sleep 1
-        end
-
-        if attempt >= max_attempts
-          puts "\nError: PostgreSQL did not become ready in time."
-          exit 1
-        end
-      else
-        puts "Error: Failed to start pgvector container."
-        exit 1
-      end
-    end
-
-    # Ensure the script has proper Ruby path
-    script_path = File.expand_path("docker/services/ruby/scripts/utilities/process_documentation.rb", __dir__)
-
-    # Set environment variables for batch processing
-    ENV['HELP_EMBEDDINGS_BATCH_SIZE'] ||= '50'
-    ENV['HELP_CHUNKS_PER_RESULT'] ||= '3'
-
-    # Check if Ruby container is running
-    ruby_running = system("docker ps --format '{{.Names}}' | grep -q 'monadic-chat-ruby-container'")
-
-    # Change to the project root directory before running the script
-    Dir.chdir(__dir__) do
-      if ruby_running
-        # Run inside Ruby container with --include-internal flag
-        puts "Running inside Ruby container (with internal docs)..."
-        docker_cmd = "docker exec -e OPENAI_API_KEY='#{ENV['OPENAI_API_KEY']}' monadic-chat-ruby-container bash -c 'cd /monadic && ruby scripts/utilities/process_documentation.rb --include-internal'"
-        system(docker_cmd)
-      else
-        # Run locally with --include-internal flag
-        puts "Running locally (Ruby container not running, with internal docs)..."
-        system("ruby #{script_path} --include-internal")
-      end
-
-      if $?.success?
-        puts "Help database built successfully with internal documentation!"
-        puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
-        puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
-        puts "\nNote: Internal documentation is NOT exported (only available in local database)"
-      else
-        puts "Error building help database"
-        exit 1
-      end
-    end
+    # Just call the standard build task
+    Rake::Task['help:build'].invoke
   end
 
-  desc "Rebuild help database (drop existing data first)"
+  desc "Rebuild help database from scratch (includes internal docs for development)"
   task :rebuild do
-    puts "Rebuilding help database from scratch..."
+    puts "Rebuilding help database from scratch (including internal docs)..."
     
     # Load API key from config
     require 'dotenv'
@@ -2016,12 +1944,12 @@ namespace :help do
     end
     
     if $?.success?
-      puts "Help database rebuilt successfully!"
+      puts "Help database rebuilt successfully (including internal documentation)!"
       puts "Batch size used: #{ENV['HELP_EMBEDDINGS_BATCH_SIZE']}"
       puts "Chunks per result: #{ENV['HELP_CHUNKS_PER_RESULT']}"
-      
-      # Export the database for container builds
-      puts "\nExporting help database..."
+
+      # Export the database for container builds (internal docs are filtered out during export)
+      puts "\nExporting help database (public documentation only)..."
       export_script = File.expand_path("docker/services/ruby/scripts/utilities/export_help_database_docker.rb", __dir__)
       
       if ruby_running

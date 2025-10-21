@@ -341,6 +341,54 @@ The stdio wrapper is a thin bridge (< 100 lines) that adds minimal overhead.
 - Only accessible by same user
 - No credential storage
 
+## VectorDB Build Process
+
+### Standard Build (Development)
+
+The standard `rake help:build` command now includes internal documentation by default:
+
+```bash
+# Build VectorDB with both public and internal docs
+rake help:build
+
+# Or rebuild from scratch
+rake help:rebuild
+```
+
+**What happens during build:**
+1. Processes `docs/` (public documentation)
+2. Processes `docs_dev/` (internal documentation)
+3. Stores both in local PGVector database with `is_internal` flag
+4. **Exports only public docs** for packaging (internal docs filtered out)
+
+### Export Safety Mechanism
+
+The export process (`export_help_database_docker.rb`) automatically filters internal documentation:
+
+```ruby
+# Line 146: Only export public documents
+SELECT * FROM help_docs WHERE is_internal = FALSE
+
+# Line 186: Only export public items
+SELECT hi.* FROM help_items hi
+JOIN help_docs hd ON hi.doc_id = hd.id
+WHERE hd.is_internal = FALSE
+```
+
+**Result:**
+- **Developers**: Local database contains all documentation
+- **End Users**: Packaged app contains only public documentation
+- **MCP Access**: Developers can search all docs, users can search only public docs
+
+### Deprecated Task
+
+`rake help:build_dev` is now deprecated and redirects to `rake help:build`:
+
+```bash
+# This now shows a deprecation warning and calls rake help:build
+rake help:build_dev
+```
+
 ## Future Improvements
 
 ### Potential Enhancements

@@ -217,9 +217,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // if on Firefox, disable the #tts-panel
+  // if on Firefox, disable the #voice-panel
   if (runningOnFirefox) {
-    $("#tts-panel").hide();
+    $("#voice-panel").hide();
   }
 });
 
@@ -3056,6 +3056,14 @@ $(function () {
   window.originalParams = {};
   resetParams();
 
+  // Restore STT model from cookie
+  const savedSTTModel = getCookie("stt-model");
+  if (savedSTTModel) {
+    $("#stt-model").val(savedSTTModel);
+    params["stt_model"] = savedSTTModel;
+    console.log("Restored STT model from cookie:", savedSTTModel);
+  }
+
   $("#tts-provider").on("change", function () {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = $("#tts-provider option:selected").val();
@@ -3104,6 +3112,12 @@ $(function () {
   $("#gemini-tts-voice").on("change", function () {
     params["gemini_tts_voice"] = $("#gemini-tts-voice option:selected").val();
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
+  });
+
+  $("#stt-model").on("change", function () {
+    params["stt_model"] = $("#stt-model option:selected").val();
+    setCookie("stt-model", params["stt_model"], 30);
+    console.log("STT model changed to:", params["stt_model"]);
   });
 
   $("#conversation-language").on("change", function () {

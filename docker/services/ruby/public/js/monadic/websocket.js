@@ -3112,7 +3112,19 @@ let loadedApp = "Chat";
           $("#openai-tts-4o").prop("disabled", false);
           $("#openai-tts").prop("disabled", false);
           $("#openai-tts-hd").prop("disabled", false);
-          
+
+          // Enable OpenAI STT models when token is verified
+          $("#openai-stt-4o-mini").prop("disabled", false);
+          $("#openai-stt-4o").prop("disabled", false);
+          $("#openai-stt-4o-diarize").prop("disabled", false);
+          $("#openai-stt-whisper").prop("disabled", false);
+
+          // Set default STT model if none selected or current selection is disabled
+          const currentSTTModel = $("#stt-model").val();
+          if (!currentSTTModel || $("#stt-model option:selected").prop("disabled")) {
+            $("#stt-model").val("gpt-4o-mini-transcribe").trigger("change");
+          }
+
           // Set OpenAI TTS as default when it becomes available
           // (unless user has already selected another provider)
           const currentProvider = $("#tts-provider").val();
@@ -3142,11 +3154,17 @@ let loadedApp = "Chat";
         $("#send, #clear").prop("disabled", false);
 
         $("#api-token").val("");
-        
+
         // Disable OpenAI TTS options when API connection fails
         $("#openai-tts-4o").prop("disabled", true);
         $("#openai-tts").prop("disabled", true);
         $("#openai-tts-hd").prop("disabled", true);
+
+        // Disable OpenAI STT models when API connection fails
+        $("#openai-stt-4o").prop("disabled", true);
+        $("#openai-stt-4o-diarize").prop("disabled", true);
+        $("#openai-stt-4o-mini").prop("disabled", true);
+        $("#openai-stt-whisper").prop("disabled", true);
 
         const cannotConnectText = getTranslation('ui.messages.cannotConnectToAPI', 'Cannot connect to OpenAI API');
         setAlert(`<i class='fa-solid fa-bolt'></i> ${cannotConnectText}`, "warning");
@@ -3160,11 +3178,17 @@ let loadedApp = "Chat";
         $("#send, #clear").prop("disabled", false);
 
         $("#api-token").val("");
-        
+
         // Disable OpenAI TTS options when token is not verified
         $("#openai-tts-4o").prop("disabled", true);
         $("#openai-tts").prop("disabled", true);
         $("#openai-tts-hd").prop("disabled", true);
+
+        // Disable OpenAI STT models when token is not verified
+        $("#openai-stt-4o").prop("disabled", true);
+        $("#openai-stt-4o-diarize").prop("disabled", true);
+        $("#openai-stt-4o-mini").prop("disabled", true);
+        $("#openai-stt-whisper").prop("disabled", true);
 
         const tokenNotSetText = getTranslation('ui.messages.validTokenNotSet', 'Valid OpenAI token not set');
         setAlert(`<i class='fa-solid fa-bolt'></i> ${tokenNotSetText}`, "warning");
@@ -3808,7 +3832,10 @@ let loadedApp = "Chat";
           // set both gemini provider options enabled
           $("#gemini-flash-provider-option").prop("disabled", false);
           $("#gemini-pro-provider-option").prop("disabled", false);
-          
+
+          // Enable Gemini STT model
+          $("#gemini-stt-flash").prop("disabled", false);
+
           // Populate the gemini voice select element
           $("#gemini-tts-voice").empty();
           voices.forEach((voice) => {
@@ -3828,6 +3855,9 @@ let loadedApp = "Chat";
           // set both gemini provider options disabled
           $("#gemini-flash-provider-option").prop("disabled", true);
           $("#gemini-pro-provider-option").prop("disabled", true);
+
+          // Disable Gemini STT model
+          $("#gemini-stt-flash").prop("disabled", true);
         }
         
         // Apply saved cookie value for provider if it was gemini

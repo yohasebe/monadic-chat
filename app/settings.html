@@ -352,14 +352,6 @@
         <!-- Category: Voice & Audio -->
         <div class="settings-category category-voice">
           <h2 data-i18n="settings.categories.voiceAudio"><i class="fas fa-microphone-alt"></i> Voice & Audio</h2>
-          
-          <label for="stt-model" data-i18n="settings.labels.speechToText">STT_MODEL (Speech-to-Text)</label>
-          <select id="stt-model" name="stt-model">
-            <option value="gpt-4o-transcribe">gpt-4o-transcribe (OpenAI)</option>
-            <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe (OpenAI)</option>
-            <option value="whisper-1">whisper-1 (OpenAI)</option>
-            <option value="gemini-2.5-flash">gemini-2.5-flash (Gemini)</option>
-          </select>
 
           <label for="tts-dict-path" data-i18n="settings.labels.ttsDictPath">TTS Dictionary File Path</label>
           <div style="display: flex; align-items: flex-start; margin-top: 5px; margin-bottom: 10px;">
@@ -459,7 +451,6 @@
           ELEVENLABS_API_KEY: document.getElementById('elevenlabs-api-key').value,
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
-          STT_MODEL: document.getElementById('stt-model').value,
           TTS_DICT_PATH: ttsDictPath,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
@@ -594,7 +585,6 @@
         document.getElementById('elevenlabs-api-key').value = data.ELEVENLABS_API_KEY || '';
         document.getElementById('tavily-api-key').value = data.TAVILY_API_KEY || '';
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
-        document.getElementById('stt-model').value = data.STT_MODEL || 'gpt-4o-transcribe';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('auto-tts-realtime-mode').checked = data.AUTO_TTS_REALTIME_MODE == "true" || false;
         document.getElementById('auto-tts-min-length').value = data.AUTO_TTS_MIN_LENGTH || '50';

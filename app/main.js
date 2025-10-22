@@ -2995,9 +2995,7 @@ function checkAndUpdateEnvFile() {
         envConfig.ROUGE_THEME = 'github:light';
     }
 
-    if (!envConfig.STT_MODEL) {
-        envConfig.STT_MODEL = 'gpt-4o-transcribe';
-    }
+    // STT_MODEL is now managed via Web UI Cookie, not ENV config
 
     if (!envConfig.EMBEDDING_MODEL) {
         envConfig.EMBEDDING_MODEL = 'text-embedding-3-large';

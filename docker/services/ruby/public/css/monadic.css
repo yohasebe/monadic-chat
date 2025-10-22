@@ -1852,7 +1852,7 @@ legend {
   }
   
   /* Optimize panel spacing on mobile */
-  #monadic-info-panel, #control-panel, #ai-status-panel, #tts-panel, #pdf-panel {
+  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel, #pdf-panel {
     margin-bottom: 0.6rem !important; /* Further reduce space between panels */
     padding-top: 0.6rem !important; /* Less padding to reduce overall spacing */
     padding-bottom: 0.6rem !important;
@@ -2041,7 +2041,7 @@ pre code {
 }
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #tts-panel {
+#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #voice-panel {
   border: 1px solid #666;
 }
 

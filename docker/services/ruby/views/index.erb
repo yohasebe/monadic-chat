@@ -675,8 +675,19 @@
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "reset" to clear conversation while keeping the current app selection.</div>
           </div>
 
-          <div id="tts-panel" class="p-3 mb-3 rounded shaded-panel">
+          <div id="voice-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span></h5>
+
+            <div class="my-1">
+              <label for="stt-model" class="div-label my-2" data-i18n="ui.speechToTextModel">Speech-to-Text Model</label>
+              <select class="form-select form-select-sm" id="stt-model">
+                <option id="openai-stt-4o-mini" value="gpt-4o-mini-transcribe" disabled>GPT-4o Mini Transcribe</option>
+                <option id="openai-stt-4o" value="gpt-4o-transcribe" disabled>GPT-4o Transcribe</option>
+                <option id="openai-stt-4o-diarize" value="gpt-4o-transcribe-diarize" disabled>GPT-4o Transcribe (Diarize)</option>
+                <option id="openai-stt-whisper" value="whisper-1" disabled>Whisper-1</option>
+                <option id="gemini-stt-flash" value="gemini-2.5-flash" disabled>Gemini 2.5 Flash</option>
+              </select>
+            </div>
 
             <div class="my-1">
               <label for="tts-provider" class="div-label my-2" data-i18n="ui.textToSpeechProvider">Text-to-Speech Provider</label>

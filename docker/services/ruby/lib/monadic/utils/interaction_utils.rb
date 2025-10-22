@@ -1286,6 +1286,19 @@ module InteractionUtils
     end
   end
 
+  # Format diarized transcript segments into readable text
+  # @param segments [Array<Hash>] Array of segment hashes with 'speaker' and 'text' keys
+  # @return [String] Formatted transcript with speaker labels
+  def format_diarized_segments(segments)
+    return "" unless segments && segments.is_a?(Array)
+
+    segments.map do |seg|
+      speaker = seg["speaker"] || "Unknown"
+      text = seg["text"] || ""
+      "#{speaker}: #{text}"
+    end.join("\n")
+  end
+
   def stt_api_request(blob, format, lang_code, model = "gpt-4o-transcribe")
     # Route to Gemini API if model starts with "gemini-"
     if model.start_with?("gemini-")
@@ -1320,6 +1333,13 @@ module InteractionUtils
       case model
       when "whisper-1"
         options["response_format"] = "verbose_json"
+      when "gpt-4o-transcribe-diarize"
+        options["response_format"] = "diarized_json"
+        options["chunking_strategy"] = "auto"
+        # Note: gpt-4o-transcribe-diarize does not support:
+        # - prompt parameter
+        # - logprobs parameter
+        # - timestamp_granularities[]
       else
         options["response_format"] = "json"
         options["include[]"] = ["logprobs"]
@@ -1348,7 +1368,14 @@ module InteractionUtils
 
     if response.status.success?
       # Audio file uploaded successfully
-      JSON.parse(response.body)
+      result = JSON.parse(response.body)
+
+      # Format diarized segments if using diarize model
+      if model == "gpt-4o-transcribe-diarize" && result["segments"]
+        result["text"] = format_diarized_segments(result["segments"])
+      end
+
+      result
     else
       # Parse error details from response body
       error_message = begin

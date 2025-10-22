@@ -140,9 +140,10 @@ end
 These are configured in the Monadic Chat UI, not in MDSL files:
 
 - `TAVILY_API_KEY` - API key for Tavily web search service (used by providers without native web search)
-- `STT_MODEL` - Speech-to-text model
 - `ROUGE_THEME` - Syntax highlighting theme
 - `UI_LANGUAGE` - Interface language (en, ja, zh, ko, es, fr, de)
+
+Note: Speech-to-text model selection is now managed through the Web UI's Speech Settings panel and persists via browser cookies, not through configuration files.
 
 ## Configuration Storage
 

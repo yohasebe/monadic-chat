@@ -963,22 +963,20 @@ module WebSocketHelper
       @channel.push({ "type" => "error", "content" => "voice_input_empty" }.to_json)
       return
     end
-    
+
     # Decode audio content
     blob = Base64.decode64(obj["content"])
-    
-    # Get configuration
-    model = get_stt_model
+
+    # Get STT model from Web UI (priority) or use default
+    model = obj["stt_model"] || "gpt-4o-mini-transcribe"
     format = obj["format"] || "webm"
-    
+
+    # Store stt_model in session for use by other components (e.g., Video Describer)
+    session[:parameters] ||= {}
+    session[:parameters]["stt_model"] = model
+
     # Process the transcription
     process_transcription(ws, blob, format, obj["lang_code"], model)
-  end
-  
-  # Get the speech-to-text model from config
-  # @return [String] The model name
-  def get_stt_model
-    defined?(CONFIG) && CONFIG["STT_MODEL"] ? CONFIG["STT_MODEL"] : "gpt-4o-transcribe"
   end
   
   # Process audio transcription

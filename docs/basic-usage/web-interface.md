@@ -217,8 +217,11 @@ You can specify the voice used for speech synthesis. Available voices depend on 
 **Text-to-Speech Speed**<br />
 You can adjust the playback speed of the synthesized speech, with values ranging from 0.7 (slower) to 1.2 (faster). Actual quality and supported ranges depend on the selected provider; consult provider documentation for guidance. The Web Speech API also supports speed adjustment, but quality may vary by browser and operating system.
 
+**Speech-to-Text Model**<br />
+Select your preferred speech-to-text model from the dropdown. Available options include OpenAI models (whisper-1, gpt-4o-mini-transcribe, gpt-4o-transcribe, gpt-4o-transcribe-diarize) and Gemini models (gemini-2.5-flash). Models are automatically enabled based on your configured API keys. The gpt-4o-transcribe-diarize model supports speaker identification in multi-person audio. Your selection is saved in a browser cookie and persists across sessions.
+
 **Speech-to-Text (STT) Language**<br />
-Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. Monadic Chat uses the STT model configured in the console settings; refer to the provider documentation for current model offerings.
+Speech-to-Text API is used for speech recognition, and if `Automatic` is selected, it automatically recognizes voice input in different languages. If you want to specify a particular language, select the language from the selector. The language setting acts as a hint for the selected STT model but allows flexible recognition of any spoken language.
 Reference: [OpenAI Whisper API FAQ](https://help.openai.com/en/articles/7031512-whisper-api-faq)
 
 

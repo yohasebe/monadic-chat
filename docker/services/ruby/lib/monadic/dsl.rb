@@ -845,23 +845,31 @@ module MonadicDSL
       elsif block_given?
         # Convert provider to symbol
         provider = @state.settings[:provider].to_s.downcase.to_sym
-        
+
         tool_config = ToolConfiguration.new(@state, provider)
         tool_config.instance_eval(&block)
-        
+
         @state.settings[:tools] = tool_config.to_h
       end
     end
+
+    def agents(&block)
+      if block_given?
+        config = AppAgentsConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:agents] = config.to_hash
+      end
+    end
   end
-  
+
   # Description builder for multi-language support
   class DescriptionBuilder
     attr_reader :descriptions
-    
+
     def initialize
       @descriptions = {}
     end
-    
+
     # Define methods for each supported language
     %w[en ja zh ko es fr de].each do |lang|
       define_method(lang) do |text|
@@ -878,6 +886,22 @@ module MonadicDSL
 
     def edits(edits_array)
       @config[:edits] = edits_array
+    end
+
+    def to_hash
+      @config
+    end
+  end
+
+  # App-level Agents Configuration DSL (for STT, TTS, etc.)
+  class AppAgentsConfiguration
+    def initialize
+      @config = {}
+    end
+
+    def speech_to_text(options = {})
+      model = options[:model] || options["model"]
+      @config[:speech_to_text] = model if model
     end
 
     def to_hash

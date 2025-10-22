@@ -46,8 +46,8 @@
 
 **A**: Monadic Chat supports multiple speech-to-text providers:
 
-- **OpenAI models**: 'whisper-1', 'gpt-4o-mini-transcribe', and 'gpt-4o-transcribe'. The newer models (gpt-4o-mini-transcribe, gpt-4o-transcribe) generally provide improved accuracy and transcription quality.
+- **OpenAI models**: 'whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe', and 'gpt-4o-transcribe-diarize'. The newer models generally provide improved accuracy and transcription quality. The diarize model supports speaker identification in multi-person audio, labeling each speaker's contributions.
 - **Google Gemini**: 'gemini-2.5-flash' provides advanced audio understanding with flexible language recognition. It supports Japanese spacing normalization (automatically removes morpheme-level spaces for natural Japanese text) and handles multilingual input even when a primary language is specified.
 
-You can select your preferred model in the settings panel under the STT_MODEL option. Monadic Chat automatically optimizes the audio format and processing based on which model you select. The language setting acts as a hint for expected language but allows flexible recognition of any spoken language.
+You can select your preferred model in the **Speech Settings** panel under the **Speech-to-Text Model** dropdown. Available models are automatically enabled based on your configured API keys—OpenAI models require an OpenAI API key, and Gemini models require a Gemini API key. Your selection is saved in your browser and persists across sessions. Monadic Chat automatically optimizes the audio format and processing based on which model you select. The language setting acts as a hint for expected language but allows flexible recognition of any spoken language.
 

@@ -64,9 +64,20 @@ module VideoAnalyzeAgent
     end
 
     if audio_file
-      # video description needs whisper-1, not gpt-4o-mini-tts
-      stt_model = "whisper-1" 
-      
+      # Priority for STT model selection:
+      # 1. Web UI selection (user's explicit choice from session)
+      # 2. MDSL default (app developer's recommendation via agents block)
+      # 3. System default (fallback)
+      stt_model = session[:parameters]&.[]("stt_model") ||      # Web UI selection
+                  settings.dig(:agents, :speech_to_text) ||     # MDSL default
+                  "gpt-4o-mini-transcribe"                      # System default
+
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "[VideoAnalyzer] Using STT model: #{stt_model}"
+        puts "  - Web UI selection: #{session[:parameters]&.[]('stt_model') || 'none'}"
+        puts "  - MDSL default: #{settings.dig(:agents, :speech_to_text) || 'none'}"
+      end
+
       audio_command = <<~CMD
         bash -c 'stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
       CMD

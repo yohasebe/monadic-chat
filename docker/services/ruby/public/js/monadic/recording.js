@@ -363,6 +363,8 @@ voiceButton.on("click", function () {
             }
             
             let lang_code = $("#conversation-language").val();
+            let stt_model = $("#stt-model").val() || "gpt-4o-mini-transcribe";
+
             // Extract format from the MIME type
             let format = "webm"; // Default fallback
             if (mediaRecorder.mimeType) {
@@ -377,8 +379,9 @@ voiceButton.on("click", function () {
                 if (format === "x-wav" || format === "wave") format = "wav";
               }
               console.log("Using audio format for STT: " + format);
+              console.log("Using STT model: " + stt_model);
             }
-            const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code});
+            const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code, stt_model: stt_model});
             reconnect_websocket(ws, function () {
               ws.send(json);
             });

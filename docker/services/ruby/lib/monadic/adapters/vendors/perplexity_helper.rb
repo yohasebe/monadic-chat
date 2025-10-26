@@ -5,6 +5,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
 
@@ -549,15 +550,21 @@ module PerplexityHelper
     body["messages"] = context.compact.map do |msg|
       if msg["role"] == "system" && !system_message_modified
         system_message_modified = true
-        content_parts = [{ "type" => "text", "text" => msg["text"] }]
-        
-        # Add language preference if set
-        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-          content_parts << { "type" => "text", "text" => "\n\n---\n\n" + language_prompt } if !language_prompt.empty?
-        end
-        
-        { "role" => msg["role"], "content" => content_parts }
+
+        # Use unified system prompt injector
+        augmented_text = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"],
+          session: session,
+          options: {
+            websearch_enabled: false,
+            reasoning_model: false,
+            websearch_prompt: nil,
+            system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
+
+        { "role" => msg["role"], "content" => [{ "type" => "text", "text" => augmented_text }] }
       else
         message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
         if msg["images"] && role == "user"
@@ -742,15 +749,7 @@ module PerplexityHelper
       }
     end
 
-    # initial prompt in the body is appended with the settings["system_prompt_suffix"
-    if initial_prompt != "" && obj["system_prompt_suffix"].to_s != ""
-      new_text = initial_prompt + "\n\n" + obj["system_prompt_suffix"].strip
-      body["messages"].first["content"].each do |content_item|
-        if content_item["type"] == "text"
-          content_item["text"] = new_text
-        end
-      end
-    end
+    # system_prompt_suffix is now handled by unified system prompt injector above
 
     # Perplexity models support images natively, no need to switch models
     if messages_containing_img

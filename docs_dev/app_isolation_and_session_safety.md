@@ -151,7 +151,7 @@ system_prompt = APPS[app_name].settings["initial_prompt"]
 
 ## Case Studies
 
-### Case Study 1: Mermaid Grapher (Fixed 2025-01)
+### Case Study 1: Mermaid Grapher (Fixed 2024-01)
 
 **Original Problem**:
 ```ruby
@@ -177,7 +177,7 @@ def run_full_validation(code, source: nil)
 end
 ```
 
-### Case Study 2: AutoForge (Fixed 2025-01)
+### Case Study 2: AutoForge (Fixed 2024-01)
 
 **Original Problem**:
 ```ruby

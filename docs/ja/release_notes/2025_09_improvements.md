@@ -75,7 +75,7 @@
 - 設定優先順位のドキュメント
 
 ### 新しいドキュメント
-- `docs_dev/developer/agent_architecture.md` - 完全なエージェントパターンのドキュメント
+- エージェントアーキテクチャパターンに関する内部開発者ドキュメント
 - `docs/release_notes/2025_09_improvements.md` - このファイル
 
 ## テスト

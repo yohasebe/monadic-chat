@@ -4,9 +4,10 @@ For Monadic Chat maintainers. This guide shows the **recommended** way to run te
 
 ## Philosophy
 
-- **Profile-based**: Use `rake test:profile[name]` for all testing needs
+- **Simple**: Use `rake test` for basic testing (Ruby + JavaScript + Python)
+- **Profile-based**: Use `rake test:profile[name]` for specific scenarios
 - **Declarative**: Test configurations live in `config/test/test-config.yml`
-- **Simple**: No complex environment variable combinations
+- **Unified Results**: All test results saved to `./tmp/test_results/`
 
 ## Daily Workflow
 
@@ -18,6 +19,9 @@ rake test:profile[quick]
 
 # Standard development testing (unit + integration, ~1-2min)
 rake test:profile[dev]
+
+# Simple all-tests run (Ruby + JS + Python, no API, ~2-3min)
+rake test
 ```
 
 ### Before Commit
@@ -41,6 +45,9 @@ rake test:profile[ci]
 # Complete test suite including media tests (~10-15min)
 # Requires all API keys configured
 rake test:profile[full]
+
+# Alternative: Direct unified runner with media tests
+rake test:all[full]
 ```
 
 ## Available Profiles
@@ -95,13 +102,19 @@ rake test:report
 ## Understanding Output
 
 ### Artifacts Location
+All test results are centralized in `./tmp/test_results/`:
+
 ```
 tmp/test_results/
-├── index_all_<timestamp>.html    # Combined results dashboard
-├── <run_id>.json                 # Raw RSpec JSON output
-├── <run_id>_report.txt           # Compact text summary
-├── report_<run_id>.html          # Detailed HTML report
-└── <run_id>_failures.json        # Failed examples only
+├── latest/                           # Symlink to most recent Ruby test run
+├── <run_id>/                         # Ruby test results directory
+│   ├── summary_compact.md            # Concise summary
+│   ├── summary_full.md               # Detailed results
+│   └── rspec_report.json             # Machine-readable JSON
+├── <run_id>_jest.json                # JavaScript test results (Jest)
+├── <run_id>_pytest.txt               # Python test output
+├── all_<timestamp>.json              # Unified test suite summary
+└── index_all_<timestamp>.html        # Combined results dashboard
 ```
 
 ### Quick Summary

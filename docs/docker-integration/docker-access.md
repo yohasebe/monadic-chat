@@ -55,11 +55,12 @@ By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you ca
 ### PostgreSQL Container
 - Access database: `psql -U postgres`
 - List databases: `psql -U postgres -l`
-- Access monadic_chat database: `psql -U postgres -d monadic_chat`
+- Access user documents database: `psql -U postgres -d monadic_user_docs`
+- Access help database: `psql -U postgres -d monadic_help`
 
 ### Ruby Container
 - Check Ruby gems: `bundle list`
-- View logs: `tail -f /monadic/logs/sinatra.log`
+- View logs: `tail -f /monadic/log/sinatra.log`
 - Access configuration: `cd /monadic/config`
 
 ## Related Documentation

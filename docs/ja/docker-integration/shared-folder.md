@@ -26,7 +26,7 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 - **Jupyter Notebook**: Jupyterノートブック`.ipynb`ファイル
 - **Video Describer**: 動画から抽出された画像フレーム（PNG形式）と音声（MP3形式）
 - **Speech Draft Helper**: 生成された音声ファイル（OpenAI/ElevenLabsはMP3形式、GeminiはWAV形式）
-- **Syntax Tree**: 生成された構文木図（SVG形式）
+- **Syntax Tree**: 生成された樹形図（SVG形式）
 - **Concept Visualizer**: 生成された概念図（SVG形式）
 - **Mermaid Grapher**: 生成されたダイアグラムのプレビュー画像（PNG形式）
 - **DrawIO Grapher**: 生成されたダイアグラムファイル（.drawio形式）

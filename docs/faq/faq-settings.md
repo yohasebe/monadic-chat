@@ -15,7 +15,7 @@ For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/
 
 ##### Q: Rebuilding Monadic Chat (rebuilding the containers) fails. What should I do? :id=container-rebuild-failures
 
-**A**: Check the contents of the log files in the shared folder.
+**A**: Check the contents of the log files in the log folder.
 
 If you are developing additional apps or modifying existing apps, check the contents of `server.log` in the log folder. If an error message is displayed, correct the app code based on the error message.
 

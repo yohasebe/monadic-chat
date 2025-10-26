@@ -10,7 +10,7 @@ app "AutoForgeGrok" do
   end
 
   icon "hammer"
-  display_name "Auto Forge (Grok)"
+  display_name "Auto Forge"
   initiate_from_assistant true
 
   llm do

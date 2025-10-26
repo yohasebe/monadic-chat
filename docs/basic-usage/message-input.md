@@ -14,11 +14,9 @@ Enter a message in the text area and click the `Send` button to send the message
 
 ## Uploading Images :id=uploading-images
 
-Uploading images is supported for providers that expose vision-capable models (e.g., OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Perplexity). Consult each provider's documentation for the most up-to-date list of supported models.
+Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude, xAI Grok, Google Gemini, Mistral, Perplexity).
 
-?> **Note:** PDF uploads are available only for providers whose APIs natively support document attachments (for example, OpenAI, Anthropic Claude, and Google Gemini at the time of writing). Refer to provider documentation for current availability.
-
-Click `Image` (or `Image/PDF` for models that support PDF) to select an image to attach to the message. Supported image formats include JPG, JPEG, PNG, GIF, and WebP.
+Click `Image` (or `Image/PDF` for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP.
 
 <!-- > 📸 **Screenshot needed**: File upload dialog showing image format options -->
 
@@ -30,22 +28,13 @@ After uploading the image, image recognition is performed, and the AI agent prov
 
 ## Uploading PDFs :id=uploading-pdfs
 
-When using a provider that supports PDF uploads (such as OpenAI, Anthropic Claude, or Google Gemini), the `Image/PDF` button allows you to attach PDF files in addition to images. Availability depends on the selected model and provider features.
+Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Click the `Image/PDF` button to attach a PDF file.
 
-
-<!-- ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400') -->
-
-As with images, when you upload a PDF file, the contents of the PDF are recognized, and the AI agent provides information about the PDF according to the text prompt.
+?> **Anthropic Claude**: Claude apps support direct PDF upload for AI content recognition.
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-To continue the conversation about the contents of the PDF in the chat, you need to upload the same PDF file with each message input. Once you upload a PDF during a session, Monadic Chat will send that PDF to the AI agent with each message until the session ends. 
-
-For API usage optimization:
-- **Anthropic Claude**: If you have enabled `Prompt Caching` in the System Settings, the PDF will be explicitly cached, significantly reducing API costs
-- **OpenAI**: PDFs are automatically cached for 5-10 minutes without any special configuration, reducing API costs for cached portions
-
-To end the conversation about the PDF, click the delete `×` button to clear the PDF.
+Once uploaded, the PDF is sent with each message until you click the delete `×` button. Enable `Prompt Caching` in System Settings to reduce API costs when repeatedly referencing the same PDF.
 
 
 ## Reading Text from Document Files :id=reading-text-from-document-files
@@ -74,16 +63,18 @@ After voice input, a `p-value` indicating the confidence of the voice input is d
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 
-You can select the Speech-to-Text (STT) model in the console settings. Monadic Chat exposes the STT models that are available from your configured providers (for example, OpenAI Whisper and newer transcribe-capable models). Refer to the provider documentation for detailed capabilities; Monadic automatically optimizes audio formats for each supported model.
-
+Select the Speech-to-Text model in the console settings. Available models include OpenAI and Gemini options.
 
 ## Text-to-Speech Playback
 
-Monadic Chat offers two ways to play synthesized speech:
+**Play Button**<br />
+Click the `Play` button on any AI response to listen to synthesized speech. Click `Stop` to halt playback.
 
-### Play Button
-Each AI response message includes a `Play` button that allows you to listen to the synthesized speech. Click the `Play` button to start playback, and it will change to a `Stop` button. Click `Stop` to halt the playback. The speech is generated using your selected TTS provider and voice settings.
+**Auto Speech**<br />
+When enabled in Chat Interaction Controls, AI responses are automatically read aloud. Useful for voice conversations when combined with `Easy Submit`.
 
+## Provider-Specific Features
 
-### Auto Speech
-When `Auto Speech` is enabled in the Chat Interaction Controls, AI responses are automatically read aloud as soon as they are received. This feature works seamlessly with all supported TTS providers (OpenAI, ElevenLabs, Gemini, and Web Speech API). Auto Speech is particularly useful for voice conversations when combined with `Easy Submit` for hands-free interaction.
+### OpenAI Predicted Outputs
+
+?> **OpenAI**: OpenAI apps support Predicted Outputs using the `__DATA__` separator in prompts to distinguish instructions from data to be processed. This speeds up responses and reduces token usage ([Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)).

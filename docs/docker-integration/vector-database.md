@@ -82,6 +82,8 @@ The PDF Navigator app leverages this system to provide intelligent document Q&A 
 
 The app displays which document and text segment was used for each answer, clearly communicating the source of information to users.
 
+?> For information about PDF storage mode options (local vs. cloud), see the [PDF Storage](../basic-usage/pdf_storage.md) documentation.
+
 ## Use in Monadic Help :id=use-in-monadic-help
 
 Monadic Chat uses two separate databases for vector storage:

@@ -1,61 +1,61 @@
 # Monadic Chat Scripts
 
-このディレクトリには、Monadic Chatの開発・運用に役立つ各種スクリプトが整理されています。
+This directory contains various utility scripts to help with Monadic Chat development and operations.
 
-## ディレクトリ構造
+## Directory Structure
 
 ### `/utilities/`
-ビルドやセットアップに必要な汎用ユーティリティスクリプト
-- `download_assets.sh` - 必要なアセット（CSS、JS、フォント等）をダウンロード
-- `fix_font_awesome_paths.sh` - Font Awesomeのパスを修正
+General utility scripts needed for build and setup
+- `download_assets.sh` - Download required assets (CSS, JS, fonts, etc.)
+- `fix_font_awesome_paths.sh` - Fix Font Awesome paths
 
 ### `/cli_tools/`
-コマンドラインから直接実行できる各種ツール
-- `content_fetcher.rb` - ファイルの内容を読み取り、バイナリチェックを行う
-- `image_query.rb` - 画像をBase64エンコードしてOpenAI APIに問い合わせる
-- `stt_query.rb` - 音声ファイルから文字起こし（Speech-to-Text）
-- `tts_query.rb` - テキストから音声生成（Text-to-Speech）
-- `video_query.rb` - 動画ファイルの解析とフレーム抽出
+Various tools that can be executed directly from command line
+- `content_fetcher.rb` - Read file contents and perform binary checks
+- `image_query.rb` - Base64 encode images and query OpenAI API
+- `stt_query.rb` - Speech-to-Text transcription from audio files
+- `tts_query.rb` - Text-to-Speech generation
+- `video_query.rb` - Video file analysis and frame extraction
 
 ### `/generators/`
-コンテンツを生成するスタンドアロンツール
-- `image_generator_grok.rb` - Grok APIを使用した画像生成
-- `image_generator_openai.rb` - OpenAI DALL-E APIを使用した画像生成
-- `video_generator_veo.rb` - Google Veo APIを使用した動画生成
+Standalone tools for content generation
+- `image_generator_grok.rb` - Image generation using Grok API
+- `image_generator_openai.rb` - Image generation using OpenAI DALL-E API
+- `video_generator_veo.rb` - Video generation using Google Veo API
 
 ### `/diagnostics/`
-各機能の診断・テスト用スクリプト
-- `/apps/concept_visualizer/` - Concept Visualizerアプリの診断ツール
-- `/apps/wikipedia/` - Wikipedia機能のテストツール
+Diagnostic and testing scripts for various features
+- `/apps/concept_visualizer/` - Diagnostic tools for Concept Visualizer app
+- `/apps/wikipedia/` - Testing tools for Wikipedia functionality
 
-## 使用方法
+## Usage
 
-### CLIツールの例
+### CLI Tools Examples
 
 ```bash
-# ファイル内容を取得（最大10MBまで）
+# Fetch file contents (up to 10MB)
 ruby scripts/cli_tools/content_fetcher.rb /path/to/file.txt
 
-# 画像について質問
+# Ask questions about an image
 ruby scripts/cli_tools/image_query.rb /path/to/image.png "What is in this image?"
 
-# 音声を文字起こし
+# Transcribe audio to text
 ruby scripts/cli_tools/stt_query.rb /path/to/audio.mp3
 ```
 
-### 診断ツールの例
+### Diagnostic Tools Examples
 
 ```bash
-# Concept Visualizerの基本機能テスト
+# Test Concept Visualizer basic functionality
 cd scripts/diagnostics/apps/concept_visualizer/
 ./test_concept_visualizer_simple.sh
 
-# Wikipedia読み込みテスト
+# Test Wikipedia loading
 ruby scripts/diagnostics/apps/wikipedia/test_wikipedia_loading.rb
 ```
 
-## 注意事項
+## Notes
 
-- 多くのスクリプトはAPIキーの設定が必要です（`OPENAI_API_KEY`等）
-- 診断スクリプトはDockerコンテナが起動している状態で実行してください
-- CLIツールは独立して動作しますが、必要な依存関係がインストールされている必要があります
+- Many scripts require API key configuration (e.g., `OPENAI_API_KEY`)
+- Diagnostic scripts should be run with Docker containers running
+- CLI tools operate independently but require necessary dependencies to be installed

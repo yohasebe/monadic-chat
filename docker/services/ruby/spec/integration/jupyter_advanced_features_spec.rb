@@ -34,13 +34,10 @@ RSpec.describe "Jupyter Advanced Features", :integration do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
       expect(result).to include("Access it at:")
       
-      # Extract actual filename with timestamp - handle "Notebook 'filename'" format
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      # Extract actual filename with timestamp
+      # Format: "Notebook test_advanced_1729636800.ipynb created successfully..."
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       # Add cells with output
       cells = [
@@ -62,12 +59,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
     
     it "handles interrupt request appropriately" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       interrupt_result = app_instance.interrupt_jupyter_execution(filename: actual_filename)
       expect(interrupt_result).to include("not currently supported")
@@ -78,12 +71,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
     it "can move cells to new positions" do
       # Create notebook with multiple cells
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       cells = [
         { "cell_type" => "markdown", "source" => "# Cell 0" },
@@ -108,12 +97,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
     
     it "handles invalid indices gracefully" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       # Try to move with invalid index
       move_result = app_instance.move_jupyter_cell(
@@ -128,12 +113,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
   describe "Cell Insertion" do
     it "can insert cells at specific positions" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       # Add initial cells
       initial_cells = [
@@ -161,12 +142,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
     
     it "can insert and run cells" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
       
       # Insert cells with run flag
       insert_cells = [
@@ -189,12 +166,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
   describe "Integration with existing features" do
     it "works with existing add, delete, update functions" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+'([^']+\.ipynb)'/)
-                          result.match(/Notebook\s+'([^']+\.ipynb)'/)[1]
-                        elsif result.match(/([^\/]+\.ipynb)/)
-                          result.match(/([^\/]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Use new insert function
       app_instance.insert_jupyter_cells(
@@ -237,12 +210,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
   describe "Error Verification and Fixing" do
     it "automatically detects ImportError in code cells" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
-                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
-                        elsif result.match(/([^\/\s]+\.ipynb)/)
-                          result.match(/([^\/\s]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Add cell with ImportError
       cells = [
@@ -264,12 +233,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
 
     it "automatically detects NameError in code cells" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
-                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
-                        elsif result.match(/([^\/\s]+\.ipynb)/)
-                          result.match(/([^\/\s]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Add cell with NameError
       cells = [
@@ -290,12 +255,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
 
     it "reports success when all cells execute without errors" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
-                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
-                        elsif result.match(/([^\/\s]+\.ipynb)/)
-                          result.match(/([^\/\s]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Add valid cells
       cells = [
@@ -316,12 +277,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
 
     it "can fix errors using update_jupyter_cell" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
-                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
-                        elsif result.match(/([^\/\s]+\.ipynb)/)
-                          result.match(/([^\/\s]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Add cell with error
       cells = [
@@ -363,12 +320,8 @@ RSpec.describe "Jupyter Advanced Features", :integration do
 
     it "detects multiple errors across different cells" do
       result = app_instance.create_jupyter_notebook(filename: test_notebook)
-      actual_filename = if result.match(/Notebook\s+([^\s]+\.ipynb)/)
-                          result.match(/Notebook\s+([^\s]+\.ipynb)/)[1]
-                        elsif result.match(/([^\/\s]+\.ipynb)/)
-                          result.match(/([^\/\s]+\.ipynb)/)[1]
-                        end
-      skip "Could not extract filename" unless actual_filename
+      actual_filename = result.match(/Notebook\s+(\S+\.ipynb)/)&.[](1)
+      skip "Could not extract filename from: #{result}" unless actual_filename
 
       # Add multiple cells with different errors
       cells = [

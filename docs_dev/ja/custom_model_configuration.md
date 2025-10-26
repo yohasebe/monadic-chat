@@ -6,6 +6,13 @@ Monadic Chatでは、カスタム`models.json`ファイルを作成すること�
 - 既存モデルのパラメータのオーバーライド
 - temperature、max tokensなどのデフォルト値のカスタマイズ
 
+## カスタムモデル設定を使用する場合
+
+- **新しいモデル**: プロバイダーが新モデルをリリースしたが、Monadic Chatの`model_spec.js`がまだ更新されていない場合
+- **カスタムパラメータ**: 組み込みのデフォルト値とは異なる値が必要な場合
+- **テスト**: 未リリースまたは実験的なモデルを試す場合
+- **カスタムアプリ**: 特定のモデル要件を持つカスタムMonadicアプリを開発する場合
+
 ## セットアップ
 
 1. Monadic Chatの設定ディレクトリに`models.json`という名前のファイルを作成します：
@@ -157,3 +164,24 @@ docs/examples/models.json.example
 - 各プロバイダーはネイティブAPIの用語を使用します（例：OpenAIは"reasoning_effort"、Claudeは"thinking_budget"）
 - すべてのプロパティがプロバイダー内のすべてのモデルに適用されるわけではありません
 - カスタムモデルはそのプロバイダーと同じプロパティ規則に従う必要があります
+
+## MDSLとの統合
+
+MDSLでカスタムMonadicアプリを開発する際、モデルIDでカスタムモデルを参照できます：
+
+```ruby
+app "MyCustomApp" do
+  llm do
+    provider "OpenAI"
+    model ["my-custom-model", "gpt-4o"]
+  end
+end
+```
+
+アプリは`models.json`からカスタムモデル仕様を使用します。
+
+## 関連ドキュメント
+
+- [MDSL言語リファレンス](./mdsl/mdsl_type_reference.md) - カスタムアプリの作成
+- [Model Spec Vocabulary](/docs_dev/developer/model_spec_vocabulary.md) - SSOT実装の詳細（英語のみ）
+- [設定リファレンス](/docs/ja/reference/configuration.md) - すべての設定オプション

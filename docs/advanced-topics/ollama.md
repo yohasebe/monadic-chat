@@ -50,7 +50,7 @@ The models will be automatically installed during the container build process an
 
 ### Manual Installation
 
-If no `olsetup.sh` is found, the system will automatically pull `llama3.2` as a default. You can change the default model by setting the `OLLAMA_DEFAULT_MODEL` configuration variable in your `~/monadic/config/env` file.
+If no `olsetup.sh` is found, the system will automatically pull `llama3.2` as a default. You can change the default model through the configuration settings.
 
 To manually add more models, connect to the Ollama container from your terminal:
 

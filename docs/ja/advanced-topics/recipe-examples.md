@@ -15,8 +15,14 @@
 app "MathTutorOpenAI" do
   description "概念をステップバイステップで説明する数学講師"
   icon "fa-calculator"
-  
-  initial_prompt <<~PROMPT
+
+  llm do
+    provider "openai"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    temperature 0.7
+  end
+
+  system_prompt <<~PROMPT
     あなたは親切な数学の講師です。例を使って概念を明確に説明してください。
   PROMPT
 end
@@ -42,7 +48,9 @@ app "MathTutorOpenAI" do
 
     ### Basic Procedure for Visualization:
 
-    First, check if the required library is available in the environment. Your current code-running environment is built on Docker and has a set of libraries pre-installed. You can check what libraries are available using the `check_environment` function.
+    Your current code-running environment has common libraries pre-installed (numpy, matplotlib, scipy, pandas, etc.). Only use the `check_environment` function if:
+    - The user explicitly asks about the environment
+    - You encounter an error and need to troubleshoot
 
     To execute the Python code, use the `run_code` function with "python" for the `command` parameter, the code to be executed for the `code` parameter, and the file extension "py" for the `extension` parameter. The function executes the code and returns the output. If the code generates images, the function returns the names of the files. Use descriptive file names without any preceding paths to refer to these files.
 
@@ -56,13 +64,18 @@ app "MathTutorOpenAI" do
 
     ### Error Handling:
 
-    In case of errors or exceptions during code execution, try a few times with modified code before responding with an error message. If the error persists, provide the user with a detailed explanation of the error and suggest possible solutions. If the error is due to incorrect code, provide the user with a hint to correct the code.
+    In case of errors or exceptions during code execution:
+    1. Try to fix the error ONCE with modified code
+    2. If the fix doesn't work, STOP and explain the issue to the user
+    3. DO NOT retry more than 2 times total for the same error
+    4. If the error persists, provide the user with a detailed explanation and suggest solutions
+    5. For missing module errors, ask the user to install it rather than trying alternatives
 
     ### Image Generation Guidelines:
 
     When generating visualizations:
     1. Use descriptive filenames without paths (e.g., 'pythagorean_theorem.svg')
-    2. Save files with `plt.savefig('filename.svg')` 
+    2. Save files with `plt.savefig('filename.svg')`
     3. Add `plt.show()` after saving
     4. Display the image immediately after running the code using:
        ```html
@@ -70,6 +83,12 @@ app "MathTutorOpenAI" do
          <img src="/data/filename.svg" />
        </div>
        ```
+
+    **IMPORTANT for matplotlib LaTeX rendering:**
+    When using LaTeX in matplotlib (for labels, titles, etc.), use raw strings with SINGLE backslash:
+    - Correct: `r'$\theta$'` or `r'$\alpha$'` or `r'$\frac{1}{2}$'`
+    - WRONG: `r'$\\theta$'` or `r'$\\\\theta$'` (too many backslashes)
+    - For regular strings without 'r' prefix, use double backslashes: `'$\\theta$'`
 
     ### Request/Response Example
 
@@ -107,52 +126,61 @@ app "MathTutorOpenAI" do
 
     **For inline expressions:** Use single dollar signs `$...$`
     - Example: `$a^2 + b^2 = c^2$`
-    - Example: `$\\frac{1}{2}$`
-    - Example: `$\\sqrt{x}$`
+    - Example: `$\frac{1}{2}$`
+    - Example: `$\sqrt{x}$`
 
     **For block expressions:** Use double dollar signs `$$...$$`
-    - Example: `$$\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$$`
-    - Example: `$$\\begin{align} x &= y + z \\\\ &= 2z \\end{align}$$`
+    - Example: `$$\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$$`
+    - Example: `$$\begin{align} x &= y + z \\ &= 2z \end{align}$$`
+
+    **IMPORTANT - Headers with Math:** When including math expressions in headers (####, ###, etc.):
+    - Option 1 (Preferred): Use bold text instead of headers
+      - Instead of: `#### Example: $1 + 2 + ... + n = \frac{n(n+1)}{2}$ Proof`
+      - Use: `**Example: $1 + 2 + ... + n = \frac{n(n+1)}{2}$ Proof**`
+    - Option 2: Separate header and math
+      - Header: `#### Example: Sum of First n Natural Numbers`
+      - Math on next line: `$1 + 2 + ... + n = \frac{n(n+1)}{2}$`
 
     **CRITICAL LaTeX formatting rules:**
-    - **ALWAYS use double backslashes** for ALL LaTeX commands: `\\frac`, `\\sqrt`, `\\sum`, `\\begin`, `\\end`, `\\text`, etc.
-    - Use **quadruple backslashes** `\\\\` for line breaks within expressions
-    - For multiline equations, use `\\begin{align}` and `\\end{align}`
+    - **Use single backslashes** for ALL LaTeX commands: `\frac`, `\sqrt`, `\sum`, `\begin`, `\end`, `\text`, etc.
+    - Use **double backslashes** `\\` for line breaks within align environments
+    - For multiline equations, use `\begin{align}` and `\end{align}`
     - Use `&` for alignment in multiline equations
 
-    **Common LaTeX commands (with double backslashes):**
-    - Fractions: `\\frac{numerator}{denominator}`
-    - Square roots: `\\sqrt{expression}`
+    **Common LaTeX commands (with single backslashes):**
+    - Fractions: `\frac{numerator}{denominator}`
+    - Square roots: `\sqrt{expression}`
     - Superscripts: `x^{2}`
     - Subscripts: `x_{i}`
-    - Greek letters: `\\alpha`, `\\beta`, `\\pi`, etc.
-    - Text in math: `\\text{your text here}`
-    - Begin/end: `\\begin{align}` and `\\end{align}`
+    - Greek letters: `\alpha`, `\beta`, `\pi`, etc.
+    - Text in math: `\text{your text here}`
+    - Begin/end: `\begin{align}` and `\end{align}`
 
-    **IMPORTANT:** Due to string processing in the system, you MUST use double backslashes (\\\\) for all LaTeX commands to ensure they render correctly. Single backslashes will be stripped during processing.
+    **IMPORTANT:** Write LaTeX commands with single backslashes as they would appear in a standard LaTeX document. The system will handle any necessary escaping automatically.
 
-    **For boxed multi-line equations:** Use the custom `\\mboxed{}` macro which automatically handles multiple lines:
+    **For boxed multi-line equations:** Use the custom `\mboxed{}` macro which automatically handles multiple lines:
     ```latex
     $$
-    \\mboxed{
-        \\text{First line} \\\\
-        \\text{Second line} \\\\
-        \\text{Third line}
+    \mboxed{
+        \text{First line} \\
+        \text{Second line} \\
+        \text{Third line}
     }
     $$
     ```
-    The `\\mboxed{}` macro is a custom MathJax macro that internally uses `\\boxed{\\begin{array}{l}...\\end{array}}` for proper multi-line support.
+    The `\mboxed{}` macro is a custom MathJax macro that internally uses `\boxed{\begin{array}{l}...\end{array}}` for proper multi-line support.
 
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
     - Display images using `<img src="/data/filename.ext" />`
-    - Use double backslashes for LaTeX commands in MathJax
+    - Use single backslashes for LaTeX commands in MathJax
   TEXT
   
   llm do
     provider "OpenAI"
-    model "gpt-4.1"
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
+    reasoning_effort "minimal"
     temperature 0.0
     presence_penalty 0.2
   end
@@ -197,7 +225,18 @@ end
 app "WikipediaOpenAI" do
   description "Wikipedia記事を検索・取得"
   icon "fa-globe"
-  
+
+  llm do
+    provider "openai"
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    temperature 0.3
+  end
+
+  system_prompt <<~PROMPT
+    あなたはWikipediaを検索できる便利なアシスタントです。
+    情報を検索するにはsearch_wikipediaツールを使用してください。
+  PROMPT
+
   tools do
     define_tool "search_wikipedia", "Wikipediaで記事を検索" do
       parameter :query, "string", "検索クエリ", required: true
@@ -240,12 +279,12 @@ end
 
 ## Monadicモードを使用するアプリ
 
-Monadicモードを使用すると、アプリは会話を通じて構造化されたコンテキストを維持できます。これは現在、信頼性の高い構造化出力機能のため、主にOpenAIモデルでサポートされています。
+Monadicモードを使用すると、アプリはJSON形式のレスポンスを使用して会話を通じて構造化されたコンテキストを維持できます。
 
 ### 重要なポイント：
-- OpenAIプロバイダーでのみ有効化
-- `monadic`と`toggle`機能を両方有効にしない
-- JSON形式のレスポンスが必要
+- 複数のプロバイダーで利用可能（機能は異なる）
+- `monadic`と`toggle`機能を両方有効にしない（相互排他的）
+- モデルからのJSON形式のレスポンスが必要
 
 <details>
 <summary>例：Novel Writer（novel_writer_openai.mdsl）</summary>
@@ -286,7 +325,7 @@ app "NovelWriterOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
     temperature 0.5
     response_format({
       type: "json_schema",
@@ -465,7 +504,7 @@ app "SecondOpinionOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
     temperature 0.2
   end
 

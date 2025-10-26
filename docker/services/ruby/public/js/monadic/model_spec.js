@@ -154,6 +154,110 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf_upload": true
   },
+  "gpt-4o-2024-08-06": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_pdf_upload": true
+  },
+  "gpt-4o-2024-11-20": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_pdf_upload": true
+  },
+  "gpt-4o-mini-2024-07-18": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_pdf_upload": true
+  },
+  "gpt-4o-audio-preview": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "audio_capability": true
+  },
+  "gpt-4o-audio-preview-2024-10-01": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "audio_capability": true
+  },
+  "gpt-4o-audio-preview-2024-12-17": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "audio_capability": true
+  },
+  "gpt-4o-realtime-preview": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4096],
+    "temperature": [[0.6, 1.2], 0.8],
+    "tool_capability": true,
+    "vision_capability": false,
+    "audio_capability": true,
+    "realtime_capability": true
+  },
+  "gpt-4o-realtime-preview-2024-10-01": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4096],
+    "temperature": [[0.6, 1.2], 0.8],
+    "tool_capability": true,
+    "vision_capability": false,
+    "audio_capability": true,
+    "realtime_capability": true
+  },
+  "gpt-4o-realtime-preview-2024-12-17": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 4096],
+    "temperature": [[0.6, 1.2], 0.8],
+    "tool_capability": true,
+    "vision_capability": false,
+    "audio_capability": true,
+    "realtime_capability": true
+  },
+  "gpt-4o-transcribe-diarize": {
+    "context_window": [1, 128000],
+    "max_output_tokens": [1, 16384],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": false,
+    "vision_capability": false,
+    "supports_diarization": true
+  },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
     "context_window": [1, 400000],

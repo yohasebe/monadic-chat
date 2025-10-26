@@ -34,50 +34,48 @@ Monadic Chat Consoleを終了します。
 
 ![Action Menu](../assets/images/action-menu.png ':size=150')
 
-**Start** <br />
+**開始** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
 
-**Build All** <br />
+**停止** <br />
+Monadic Chatを停止します。
+
+**再起動** <br />
+Monadic Chatを再起動します。
+
+**すべてビルド** <br />
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
 ?> **補足:** メニューから実行するビルドコマンドは常に Docker の `--no-cache` フラグ付きで動作し、Dockerfile の変更や依存関係の更新を確実に反映します。
 
 <!-- > 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力 -->
 
-**Build Ruby Container** <br />
+**Ruby コンテナをビルド** <br />
 Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。
 
-**Build Python Container** <br />
+**Python コンテナをビルド** <br />
 AIエージェントが利用するDockerイメージおよびコンテナ（`monadic-chat-python-container`）を構築します。
 
-**Build Ollama Container** <br />
-Ollama経由でローカル言語モデルを実行するためのDockerイメージおよびコンテナ（`monadic-chat-ollama-container`）を構築します。このコンテナはリソースを節約するため「Build All」では自動的に構築されません。Ollama機能を使用するには、このオプションを明示的に選択する必要があります。
-
-**Build User Containers** <br />
+**ユーザーコンテナをビルド** <br />
 ユーザーが定義したDockerイメージおよびコンテナを構築します。なお、ユーザー定義コンテナはMonadic Chat起動時に自動的には構築されませんので、ユーザーコンテナ定義を追加または変更した後は、このメニューオプションを使用して手動で構築する必要があります。
 
-**Uninstall Images and Containers** <br />
-Monadic ChatのDockerイメージおよびコンテナを削除します。
+**Ollama コンテナをビルド** <br />
+Ollama経由でローカル言語モデルを実行するためのDockerイメージおよびコンテナ（`monadic-chat-ollama-container`）を構築します。このコンテナはリソースを節約するため「すべてビルド」では自動的に構築されません。Ollama機能を使用するには、このオプションを明示的に選択する必要があります。
 
-**Start JupyterLab** <br />
+**JupyterLab を開始** <br />
 JupyterLabを起動します。JupyterLabは[http://localhost:8889](http://localhost:8889)でアクセスできます。
 
-
-**Stop JupyterLab** <br />
+**JupyterLab を停止** <br />
 JupyterLabを停止します。
 
-**Start Selenium Container** <br />
-次回以降の Monadic Chat 起動時に Selenium コンテナを自動で立ち上げます。Selenium コンテナは「From URL」やウェブ検索など、ブラウザ自動化が必要な機能で利用されます。この設定は Monadic Chat の再起動後に反映されます。
-
-**Stop Selenium Container** <br />
+**Selenium コンテナを停止** <br />
 次回の Monadic Chat 起動時に Selenium コンテナが自動で起動しないようにします。Selenium を無効化すると、Tavily API キーが設定されている場合は「From URL」機能が Tavily を利用し、キーが無い場合は関連ボタンが非表示になります。この設定は Monadic Chat の再起動後に有効になります。Selenium を利用するアプリ機能を実行すると、コンテナが停止中で利用できない旨がアシスタントから案内されます。
 
-**Export Document DB** <br />
-Monadic Chatのベクトルデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.gz`という名前で共有フォルダに保存されます。
-
-
-**Import Document DB** <br />
+**ドキュメント DB をインポート** <br />
 Monadic Chatで以前にエクスポートされたPDFドキュメントデータをインポートします。インポートの際には、共有フォルダに`monadic.gz`という名前のファイルを配置してください。
+
+**ドキュメント DB をエクスポート** <br />
+Monadic Chatのベクトルデータベースに保存されているPDFドキュメントデータをエクスポートします。エクスポートされたファイルは`monadic.gz`という名前で共有フォルダに保存されます。
 
 ### Open メニュー
 
@@ -123,7 +121,7 @@ Monadic Chatのログファイルが保存されているフォルダを開き�
 Monadic Chatのコンソールパネルを開きます。
 
 **Settings** <br />
-Monadic Chatの設定パネルを開きます。
+Monadic Chatの設定パネルを開きます。注意：これはWebインターフェース内のシステム設定パネルとは異なります。
 
 ### File メニュー
 
@@ -141,7 +139,7 @@ Monadic ChatのすべてのDockerイメージとコンテナを削除します�
 
 ## 設定パネル
 
-下記の設定はすべて`~/monadic/config/env`ファイルに保存されます。
+設定パネルで行った設定は自動的に保存されます。
 
 ![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
@@ -206,8 +204,4 @@ Monadic Chatのアプリケーションモードを選択します。"Standalone
 
 
 **Extra Logging** <br />
-詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。この設定は概ね `MONADIC_DEBUG=api` を有効にすることに相当しますが、より細かなカテゴリやレベルの制御が必要な場合は、下記の統合デバッグ設定の変数を使用してください。
-
-注：より詳細なデバッグ制御には、`~/monadic/config/env` ファイルで統一デバッグシステムの設定変数を使用できます：
-- `MONADIC_DEBUG=api,embeddings`（カンマ区切りのカテゴリ）
-- `MONADIC_DEBUG_LEVEL=debug`（none, error, warning, info, debug, verbose）
+詳しいログ情報を有効にするかどうかを選択します。有効にすると、APIリクエストとレスポンスの詳細がログに記録されます。ログファイルは `~/monadic/log/extra.log` に保存されます。

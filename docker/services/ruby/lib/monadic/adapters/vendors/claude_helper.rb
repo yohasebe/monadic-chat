@@ -7,6 +7,7 @@ require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../base_vendor_helper"
@@ -453,40 +454,30 @@ module ClaudeHelper
         check_num_tokens(msg)
       end
 
-      # Add appropriate websearch prompt based on implementation
-      if system_prompts.empty? && use_native_websearch
-        prompt_suffix = WEBSEARCH_PROMPT
-        text = msg["text"] + "\n---\n" + prompt_suffix
-      else
-        text = msg["text"]
-      end
-      
-      # Inject language preference from runtime settings if it's the first system prompt
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Claude Language Injection Check:"
-        extra_log.puts "  - system_prompts.empty? = #{system_prompts.empty?}"
-        extra_log.puts "  - session[:runtime_settings] exists? = #{!session[:runtime_settings].nil?}"
-        extra_log.puts "  - runtime_settings content = #{session[:runtime_settings].inspect}" if session[:runtime_settings]
-        extra_log.puts "  - language = #{session[:runtime_settings][:language]}" if session[:runtime_settings]
-        extra_log.close
-      end
-      
-      if system_prompts.empty? && session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
+      # Use unified system prompt injector only for the first system prompt
+      if system_prompts.empty?
+        text = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"],
+          session: session,
+          options: {
+            websearch_enabled: use_native_websearch,
+            reasoning_model: false,
+            websearch_prompt: WEBSEARCH_PROMPT,
+            system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n"
+        )
+
         if CONFIG["EXTRA_LOGGING"]
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] Claude Language Injection ACTIVE:"
-          extra_log.puts "  - Language: #{session[:runtime_settings][:language]}"
-          extra_log.puts "  - Prompt length: #{language_prompt.length}"
-          extra_log.puts "  - Adding to text: #{!language_prompt.empty?}"
+          extra_log.puts "[#{Time.now}] Claude System Prompt Injection:"
+          extra_log.puts "  - Base prompt length: #{msg['text'].length}"
+          extra_log.puts "  - Augmented prompt length: #{text.length}"
+          extra_log.puts "  - Injections applied: #{text != msg['text']}"
           extra_log.close
         end
-        text += "\n\n" + language_prompt unless language_prompt.empty?
-      elsif CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Language Injection SKIPPED - conditions not met"
-        extra_log.close
+      else
+        text = msg["text"]
       end
 
       sp = { type: "text", text: text }

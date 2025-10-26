@@ -21,7 +21,7 @@ Monadicモードでは、AIからの各レスポンスにメッセージと構�
 
 ## Monadicモードが使用される場合
 
-Monadicモードは統一インターフェースを通じてすべてのプロバイダーでサポートされています：
+Monadic Chatは複数のプロバイダーでMonadicモードをサポートしていますが、機能と制限は異なります：
 
 - **OpenAI** - `response_format`によるネイティブサポート（ツール実行との併用可能）
 - **Claude** - システムプロンプトによるJSON構造化（ツール多用アプリでは`monadic: false`が必要）
@@ -105,8 +105,8 @@ app "MyAppOpenAI" do
     monadic true  # OpenAIでは自動的に設定されます
     context_size 20
   end
-  
-  initial_prompt <<~PROMPT
+
+  system_prompt <<~PROMPT
     あなたはコンテキストを維持するAIアシスタントです。
     
     以下のJSON形式でレスポンスを返してください：

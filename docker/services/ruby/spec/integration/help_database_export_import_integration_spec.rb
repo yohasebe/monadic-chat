@@ -389,6 +389,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         section TEXT NOT NULL,
         language VARCHAR(10) NOT NULL,
         items INTEGER NOT NULL,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -396,7 +397,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         UNIQUE(file_path, language)
       )
     SQL
-    
+
     conn.exec(<<-SQL)
       CREATE TABLE IF NOT EXISTS help_items (
         id SERIAL PRIMARY KEY,
@@ -404,6 +405,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         text TEXT NOT NULL,
         position INTEGER NOT NULL,
         heading TEXT,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -423,36 +425,36 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
     
     # Insert help_docs
     doc1_id = conn.exec_params(
-      "INSERT INTO help_docs (title, file_path, section, language, items, metadata, embedding) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-      ["Test Document 1", "/test/doc1.md", "test", "en", 2, 
+      "INSERT INTO help_docs (title, file_path, section, language, items, is_internal, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+      ["Test Document 1", "/test/doc1.md", "test", "en", 2, false,
        '{"category": "test"}', "[0.1,0.2,0.3]"]
     )[0]["id"]
-    
+
     doc2_id = conn.exec_params(
-      "INSERT INTO help_docs (title, file_path, section, language, items, metadata, embedding) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-      ["Test Document 2", "/test/doc2.md", "test", "ja", 1,
+      "INSERT INTO help_docs (title, file_path, section, language, items, is_internal, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+      ["Test Document 2", "/test/doc2.md", "test", "ja", 1, false,
        '{"category": "test"}', "[0.4,0.5,0.6]"]
     )[0]["id"]
-    
+
     # Insert help_items
     conn.exec_params(
-      "INSERT INTO help_items (doc_id, text, position, heading, metadata, embedding) 
-       VALUES ($1, $2, $3, $4, $5, $6)",
-      [doc1_id, "Test item 1", 0, "Heading 1", '{"type": "text"}', "[0.7,0.8,0.9]"]
+      "INSERT INTO help_items (doc_id, text, position, heading, is_internal, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [doc1_id, "Test item 1", 0, "Heading 1", false, '{"type": "text"}', "[0.7,0.8,0.9]"]
     )
-    
+
     conn.exec_params(
-      "INSERT INTO help_items (doc_id, text, position, heading, metadata, embedding) 
-       VALUES ($1, $2, $3, $4, $5, $6)",
-      [doc1_id, "Test item 2", 1, "Heading 2", '{"type": "text"}', "[0.1,0.3,0.5]"]
+      "INSERT INTO help_items (doc_id, text, position, heading, is_internal, metadata, embedding)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [doc1_id, "Test item 2", 1, "Heading 2", false, '{"type": "text"}', "[0.1,0.3,0.5]"]
     )
-    
+
     conn.exec_params(
-      "INSERT INTO help_items (doc_id, text, position, heading, metadata) 
-       VALUES ($1, $2, $3, $4, $5)",
-      [doc2_id, "Test item 3", 0, "Heading 3", '{"type": "text"}']
+      "INSERT INTO help_items (doc_id, text, position, heading, is_internal, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6)",
+      [doc2_id, "Test item 3", 0, "Heading 3", false, '{"type": "text"}']
     )
     
     conn.close
@@ -476,19 +478,21 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         section TEXT NOT NULL,
         language VARCHAR(10) NOT NULL,
         items INTEGER NOT NULL,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(file_path, language)
       );
-      
+
       CREATE TABLE IF NOT EXISTS help_items (
         id SERIAL PRIMARY KEY,
         doc_id INTEGER REFERENCES help_docs(id) ON DELETE CASCADE,
         text TEXT NOT NULL,
         position INTEGER NOT NULL,
         heading TEXT,
+        is_internal BOOLEAN DEFAULT FALSE,
         metadata JSONB NOT NULL,
         embedding vector(3),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -506,6 +510,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         "section" => "import",
         "language" => "en",
         "items" => 1,
+        "is_internal" => false,
         "metadata" => { "test" => true },
         "embedding" => [0.1, 0.2, 0.3],
         "created_at" => Time.now.to_s,
@@ -513,7 +518,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
       }
     ]
     File.write(File.join(test_export_dir, "help_docs.json"), JSON.pretty_generate(docs))
-    
+
     # Create help_items.json
     items = [
       {
@@ -522,6 +527,7 @@ RSpec.describe "Help Database Export/Import Integration", :integration do
         "text" => "Import test item",
         "position" => 0,
         "heading" => "Import Test",
+        "is_internal" => false,
         "metadata" => { "test" => true },
         "embedding" => [0.4, 0.5, 0.6],
         "created_at" => Time.now.to_s

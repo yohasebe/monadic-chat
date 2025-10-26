@@ -8,6 +8,7 @@ require_relative "../../utils/error_pattern_detector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/language_config"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
@@ -791,20 +792,25 @@ module GeminiHelper
     # Extract system message for systemInstruction
     system_message = context.find { |msg| msg["role"] == "system" }
     non_system_messages = context.select { |msg| msg["role"] != "system" }
-    
+
     # Set systemInstruction if there's a system message
     if system_message
-      system_parts = [system_message["text"]]
-      
-      # Add language preference if set
-      if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-        system_parts << language_prompt if !language_prompt.empty?
-      end
-      
+      # Use unified system prompt injector
+      augmented_system_prompt = Monadic::Utils::SystemPromptInjector.augment(
+        base_prompt: system_message["text"],
+        session: session,
+        options: {
+          websearch_enabled: false,  # Gemini handles websearch differently
+          reasoning_model: false,
+          websearch_prompt: nil,
+          system_prompt_suffix: obj["system_prompt_suffix"]
+        },
+        separator: "\n\n---\n\n"
+      )
+
       body["systemInstruction"] = {
         "parts" => [
-          { "text" => system_parts.join("\n\n---\n\n") }
+          { "text" => augmented_system_prompt }
         ]
       }
     end
@@ -836,10 +842,17 @@ module GeminiHelper
         end
       end
       
-      # append prompt suffix to the first item of parts with the key "text"
+      # Use unified system prompt injector for user message augmentation
       body["contents"].last["parts"].each do |part|
         if part["text"]
-          part["text"] = "#{part["text"]}\n\n#{obj["prompt_suffix"]}"
+          augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
+            base_message: part["text"],
+            session: session,
+            options: {
+              prompt_suffix: obj["prompt_suffix"]
+            }
+          )
+          part["text"] = augmented_text
           break
         end
       end
@@ -2992,7 +3005,8 @@ module GeminiHelper
       # Supports: imagen3, imagen4, imagen4-ultra, imagen4-fast
       # Defaults to imagen4-fast for best performance
       image_model = IMAGE_GENERATION_MODELS[model] || IMAGE_GENERATION_MODEL
-      
+      # system_info: Using image_model #{image_model} for generation
+
       # Make API request to Imagen 3
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict?key=#{api_key}")
 

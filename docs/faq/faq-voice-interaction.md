@@ -26,13 +26,13 @@
 
 ##### Q: What is Gemini TTS and how does it differ from other providers? :id=gemini-tts-overview
 
-**A**: Gemini TTS is Google's text-to-speech service that uses the gemini-2.5-flash-preview-tts model. It provides 8 unique voices (Aoede, Charon, Fenrir, Kore, Orus, Puck, Schedar, Zephyr) with natural-sounding speech synthesis. Gemini TTS requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs WAV format).
+**A**: Gemini TTS is Google's text-to-speech service that provides multiple unique voices with natural-sounding speech synthesis. It requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs LINEAR16 PCM audio).
 
 ---
 
 ##### Q: Can I save the input text as an audio file by synthesizing speech? :id=saving-audio-files
 
-**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an audio file. The Speech Draft Helper supports multiple TTS providers: OpenAI and ElevenLabs output MP3 files, while Gemini outputs WAV files. You can choose different voices and providers for audio generation.
+**A**: Yes, you can save the synthesized speech as a file by selecting the `Speech Draft Helper` app, entering the text, and instructing the AI agent to convert it to an audio file. The Speech Draft Helper supports multiple TTS providers: OpenAI and ElevenLabs output MP3 files, while Gemini outputs LINEAR16 PCM audio. You can choose different voices and providers for audio generation.
 
 ---
 
@@ -46,8 +46,8 @@
 
 **A**: Monadic Chat supports multiple speech-to-text providers:
 
-- **OpenAI models**: 'whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe', and 'gpt-4o-transcribe-diarize'. The newer models generally provide improved accuracy and transcription quality. The diarize model supports speaker identification in multi-person audio, labeling each speaker's contributions.
-- **Google Gemini**: 'gemini-2.5-flash' provides advanced audio understanding with flexible language recognition. It supports Japanese spacing normalization (automatically removes morpheme-level spaces for natural Japanese text) and handles multilingual input even when a primary language is specified.
+- **OpenAI models**: Multiple models with varying accuracy and features. Advanced models support speaker identification (diarization) for multi-person audio.
+- **Google Gemini**: Provides advanced audio understanding with flexible language recognition and multilingual support.
 
-You can select your preferred model in the **Speech Settings** panel under the **Speech-to-Text Model** dropdown. Available models are automatically enabled based on your configured API keys—OpenAI models require an OpenAI API key, and Gemini models require a Gemini API key. Your selection is saved in your browser and persists across sessions. Monadic Chat automatically optimizes the audio format and processing based on which model you select. The language setting acts as a hint for expected language but allows flexible recognition of any spoken language.
+You can select your preferred model in the **Speech Settings** panel under the **Speech-to-Text Model** dropdown. Available models are automatically enabled based on your configured API keys. Your selection is saved in your browser and persists across sessions.
 

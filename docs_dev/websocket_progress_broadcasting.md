@@ -119,11 +119,11 @@ This means messages are being sent directly instead of through channel. Ensure `
 
 ## Code Locations
 
-- Main implementation: `/lib/monadic/utils/websocket.rb:91-233`
-- GPT-5-Codex integration: `/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
-- AutoForge integration: `/apps/auto_forge/auto_forge_tools.rb`
-- JavaScript handler: `/public/js/monadic/websocket.js:1920-1939`
-- Tests: `/spec/lib/monadic/utils/websocket_helper_spec.rb`
+- Main implementation: `docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
+- GPT-5-Codex integration: `docker/services/ruby/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
+- AutoForge integration: `docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
+- JavaScript handler: `docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
+- Tests: `docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`
 
 ## Notes
 

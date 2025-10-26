@@ -5,6 +5,7 @@ require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/function_call_error_handler"
 require 'strscan'
 require 'securerandom'
@@ -490,18 +491,21 @@ module DeepSeekHelper
     body["messages"] = context.compact.map do |msg|
       if msg["role"] == "system" && !system_message_modified
         system_message_modified = true
-        content_parts = [msg["text"]]
-        
-        # Add language preference if set
-        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-          content_parts << language_prompt if !language_prompt.empty?
-        end
-        
-        # Add websearch prompt if enabled
-        content_parts << WEBSEARCH_PROMPT if websearch
-        
-        { "role" => msg["role"], "content" => content_parts.join("\n\n---\n\n") }
+
+        # Use unified system prompt injector
+        augmented_content = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"],
+          session: session,
+          options: {
+            websearch_enabled: websearch,
+            reasoning_model: false,
+            websearch_prompt: WEBSEARCH_PROMPT,
+            system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
+
+        { "role" => msg["role"], "content" => augmented_content }
       else
         { "role" => msg["role"], "content" => msg["text"] }
       end
@@ -625,7 +629,17 @@ module DeepSeekHelper
     if role == "tool"
       body["messages"] += obj["function_returns"]
     elsif role == "user"
-      body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
+      # Use unified system prompt injector for user message augmentation
+      if body["messages"].last && body["messages"].last["content"]
+        augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: body["messages"].last["content"],
+          session: session,
+          options: {
+            prompt_suffix: APPS[app].settings["prompt_suffix"]
+          }
+        )
+        body["messages"].last["content"] = augmented_content
+      end
     end
 
     if obj["model"].include?("reasoner")

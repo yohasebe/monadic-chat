@@ -140,9 +140,9 @@ Docker外で実行する場合、Rakefileは自動的に以下を設定します
 ### バージョン更新
 
 `update_version`タスクは以下のファイルのバージョン番号を更新します：
-- `lib/monadic/version.rb`
+- `docker/services/ruby/lib/monadic/version.rb`
 - `package.json`と`package-lock.json`
-- `monadic.sh`
+- `docker/monadic.sh`
 - ドキュメントファイル
 - `CHANGELOG.md`（新しいバージョンセクションを追加）
 

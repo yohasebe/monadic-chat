@@ -245,8 +245,8 @@ Useful for testing, examples, or conversation templates.
 
 **A**: Server mode allows multiple users:
 
-1. Set `DISTRIBUTED_MODE=true` in config
-2. Run `rake server`
+1. Set `DISTRIBUTED_MODE=server` in `~/monadic/config/env`
+2. Start the application normally (the setting is read on startup)
 3. Access from browser at server IP
 4. Each user needs their own API keys
 5. Sessions are isolated
@@ -414,10 +414,11 @@ SQL,sequel
 
 ### Q: What if code execution fails repeatedly? :id=code-execution-errors
 
-**A**: Code Interpreter has retry mechanisms:
-- Automatic error detection
-- Up to 3 retry attempts
-- Self-correction for common issues
+**A**: Code Interpreter has intelligent error handling:
+- Detects repeating error patterns automatically
+- Stops retrying when the same error pattern occurs 3 times
+- Provides context-aware suggestions for different error types
+- For system errors, suggests specific fixes (missing packages, permissions, resources)
 - If persistent, check:
   - Python package availability
   - Memory limits

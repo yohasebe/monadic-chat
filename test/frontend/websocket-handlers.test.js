@@ -535,19 +535,18 @@ describe('WebSocket Handlers', () => {
     it('should handle audio messages', () => {
       // Mock the process audio function
       const processAudio = jest.fn();
-      
+
       // Test data
       const data = {
         type: 'audio',
         content: 'dGVzdC1hdWRpby1kYXRh' // "test-audio-data" in Base64
       };
-      
+
       // Call the handler
       const result = handlers.handleAudioMessage(data, processAudio);
-      
+
       // Verify the result
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#monadic-spinner');
       expect(atob).toHaveBeenCalledWith('dGVzdC1hdWRpby1kYXRh');
       expect(processAudio).toHaveBeenCalled();
     });

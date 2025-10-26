@@ -77,7 +77,7 @@ featuresブロック内のすべての設定はオプションです：
 
 #### コンテキスト管理
 - `context_size` - 含める過去のメッセージ数
-- `monadic` - JSONベースの状態管理を有効化（すべてのプロバイダーで対応）
+- `monadic` - JSONベースの状態管理を有効化（複数プロバイダーで利用可能、機能は異なる）
 - `toggle` - 折りたたみ可能セクションを有効化（Claude/Gemini/Mistral/Cohere）
 - `prompt_suffix` - すべてのユーザーメッセージに追加されるテキスト
 
@@ -102,51 +102,14 @@ end
 
 !> **重要**: `jupyter`機能はUIの機能を有効にするだけです。実際のJupyter機能を使用するには、アプリで対応するツール定義（`run_jupyter`、`create_jupyter_notebook`など）を実装する必要があります。例については、Jupyter Notebookアプリの実装を参照してください。
 
-## プロバイダー固有の動作
-
-### OpenAI
-- 構造化出力のための`monadic`モードをサポート
-- 標準モデルは`temperature`、`presence_penalty`、`frequency_penalty`をサポート
-- 推論モデル（パターン：`/^o[13](-|$)/i`）は自動的に`reasoning_effort`を使用
-  - モデル：o1、o1-mini、o1-preview、o1-pro、o3、o3-pro、o4シリーズ
-  - temperature、ペナルティ、ファンクションコーリングなし（ほとんどのモデル）
-  - 一部はストリーミングをサポートしない（o1-pro、o3-pro）
-
-### Claude
-- コンテキスト表示に`toggle`モードを使用
-- `initiate_from_assistant: true`が必要
-- Claude 4.0モデルは`reasoning_effort`を`budget_tokens`に変換してサポート
-
-### Gemini
-- `toggle`モードを使用
-- `initiate_from_assistant: true`が必要
-- 推論モデル（パターン：/2\.5.*preview/i）は`budgetTokens`を使用した`thinkingConfig`を使用
-  - reasoning_effortマッピング：low=30%、medium=60%、high=80%（max_tokensの）
-- 標準モデルは温度調整をサポート
-
-### Mistral
-- `toggle`モードを使用
-- Magistralモデル（パターン：`/^magistral(-|$)/i`）は`reasoning_effort`を直接使用
-  - モデル：magistral-medium、magistral-small、magistralバリアント
-  - 思考ブロックを出力から除去、LaTeX形式を変換
-- `initiate_from_assistant: false`が必要
-- `presence_penalty`と`frequency_penalty`をサポート
-
 ## システムレベル設定
 
 これらはMDSLファイルではなく、Monadic Chatの設定パネルで設定されます：
 
-- `TAVILY_API_KEY` - Tavilyウェブ検索サービスのAPIキー（ネイティブウェブ検索非対応プロバイダー用）
-- `STT_MODEL` - 音声認識モデル
-- `ROUGE_THEME` - シンタックスハイライトテーマ
-- `UI_LANGUAGE` - インターフェース言語（英語、日本語、中国語、韓国語、スペイン語、フランス語、ドイツ語）
-
-
-## 設定の保存
-
-すべての設定は`~/monadic/config/env`ファイルに保存され、以下の方法で編集できます：
-- Electron設定パネル（対応する設定の場合）
-- ファイルの直接編集（高度な設定の場合）
+- 各プロバイダーのAPIキー（OpenAI、Claude、Geminiなど）
+- Tavilyウェブ検索用APIキー
+- シンタックスハイライトテーマ
+- 音声認識モデル選択
 
 設定はアプリケーション起動時に読み込まれ、セッション間で保持されます。
 
@@ -157,10 +120,11 @@ end
 app "ChatOpenAI" do
   description "OpenAIを使用した汎用チャットアプリケーション"
   icon "fa-comments"
-  
+
   llm do
     provider "openai"
-    model "gpt-4.1-mini"
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
+    reasoning_effort "minimal"
     temperature 0.7
     max_tokens 4000
   end

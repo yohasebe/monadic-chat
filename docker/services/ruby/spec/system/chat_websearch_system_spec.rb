@@ -30,17 +30,22 @@ RSpec.describe "Chat Apps Web Search Configuration", type: :system do
         
         features_content = features_match[1]
         
-        # Check websearch setting exists and is false by default
+        # Check websearch setting based on provider capabilities
         if features_content.match(/websearch\s+(true|false)/)
           websearch_enabled = features_content.match(/websearch\s+(true|false)/)[1] == "true"
-          
-          # Expect websearch to be false by default for user control
-          expect(websearch_enabled).to eq(false), 
-            "#{app_name} should have websearch disabled by default (found: websearch true)"
-          
-          # But system prompt should still mention web search capability
-          expect(content).to match(/web\s+search|current\s+events|recent\s+information/i), 
-            "#{app_name} should mention web search capability in prompt (can be enabled by user)"
+
+          # Native providers: openai, perplexity, grok, xai, gemini, google, claude, anthropic
+          provider_normalized = provider.downcase
+          has_native_support = ['openai', 'perplexity', 'grok', 'xai', 'gemini', 'google', 'claude', 'anthropic'].include?(provider_normalized)
+
+          expected_value = has_native_support
+
+          expect(websearch_enabled).to eq(expected_value),
+            "#{app_name} should have websearch #{expected_value} (provider: #{provider}, native support: #{has_native_support})"
+
+          # System prompt should still mention web search capability
+          expect(content).to match(/web\s+search|current\s+events|recent\s+information/i),
+            "#{app_name} should mention web search capability in prompt"
         else
           # If websearch is not explicitly set, it defaults to false
           puts "#{app_name}: websearch not explicitly set (defaults to false)"

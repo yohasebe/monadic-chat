@@ -25,8 +25,8 @@ Monadic Chat implements an agent architecture pattern for complex code generatio
 
 ### Grok-Code Agent (xAI)
 
-**Main Model**: Grok-4-Fast-Reasoning
-**Code Generation Model**: Grok-Code-Fast-1
+**Main Model**: `grok-4-fast-reasoning` or `grok-4-fast-non-reasoning`
+**Code Generation Model**: `grok-code-fast-1`
 
 **Apps Using This Pattern**:
 - Code Interpreter Grok
@@ -35,9 +35,9 @@ Monadic Chat implements an agent architecture pattern for complex code generatio
 - Research Assistant Grok
 
 **How It Works**:
-1. Grok-4-Fast-Reasoning handles user interaction and tool orchestration
+1. `grok-4-fast-reasoning` or `grok-4-fast-non-reasoning` handles user interaction and tool orchestration
 2. When complex code generation is needed, `grok_code_agent` function is called
-3. Grok-Code-Fast-1 generates optimized code
+3. `grok-code-fast-1` generates optimized code
 4. Result is returned to Grok-4 for integration into the conversation
 
 ## Implementation Details

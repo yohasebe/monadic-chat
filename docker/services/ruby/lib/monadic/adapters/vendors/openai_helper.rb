@@ -12,6 +12,7 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/pdf_storage_config"
 require_relative "../../utils/json_repair"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_schema_validator"
@@ -898,27 +899,41 @@ module OpenAIHelper
       num_system_messages = 0
       body["messages"].each do |msg|
         if msg["role"] == "system"
-          msg["role"] = "developer" 
+          msg["role"] = "developer"
           msg["content"].each do |content_item|
             if content_item["type"] == "text" && num_system_messages == 0
+              base_text = if websearch_enabled && websearch_prompt
+                            "Web search enabled\n---\n" + content_item["text"]
+                          else
+                            "Formatting re-enabled\n---\n" + content_item["text"]
+                          end
+
+              # Use unified system prompt injector
+              # Note: For reasoning models, websearch_prompt is handled above separately
+              augmented_text = Monadic::Utils::SystemPromptInjector.augment(
+                base_prompt: base_text,
+                session: session,
+                options: {
+                  websearch_enabled: false,  # Already handled above
+                  reasoning_model: true,
+                  websearch_prompt: nil,
+                  system_prompt_suffix: obj["system_prompt_suffix"]
+                },
+                separator: "\n\n"
+              )
+
+              # Add websearch_prompt at the end if enabled (reasoning model specific position)
               if websearch_enabled && websearch_prompt
-                text = "Web search enabled\n---\n" + content_item["text"] + "\n---\n" + websearch_prompt
-              else
-                text = "Formatting re-enabled\n---\n" + content_item["text"]
+                augmented_text += "\n---\n" + websearch_prompt
               end
-              
-              # Inject language preference from runtime settings
-              if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-                language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-                if CONFIG["EXTRA_LOGGING"]
-                  puts "[DEBUG] OpenAI Reasoning Model Language Injection:"
-                  puts "  - Language: #{session[:runtime_settings][:language]}"
-                  puts "  - Prompt length: #{language_prompt.length}"
-                end
-                text += "\n\n" + language_prompt unless language_prompt.empty?
+
+              if CONFIG["EXTRA_LOGGING"]
+                puts "[DEBUG] OpenAI Reasoning Model System Prompt Injection:"
+                puts "  - Base text length: #{base_text.length}"
+                puts "  - Augmented text length: #{augmented_text.length}"
               end
-              
-              content_item["text"] = text
+
+              content_item["text"] = augmented_text
             end
           end
           num_system_messages += 1
@@ -997,12 +1012,20 @@ module OpenAIHelper
       end
     end
 
-    if last_text.to_s != "" && prompt_suffix.to_s != ""
-      new_text = last_text.to_s + "\n\n" + prompt_suffix.strip
-      if body.dig("messages", -1, "content")
+    # Use unified system prompt injector for user message augmentation
+    if last_text.to_s != "" && body.dig("messages", -1, "content")
+      augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
+        base_message: last_text.to_s,
+        session: session,
+        options: {
+          prompt_suffix: prompt_suffix
+        }
+      )
+
+      if augmented_text != last_text.to_s
         body["messages"].last["content"].each do |content_item|
           if content_item["type"] == "text"
-            content_item["text"] = new_text
+            content_item["text"] = augmented_text
           end
         end
       end
@@ -1033,53 +1056,34 @@ module OpenAIHelper
       end
     end
 
-    # initial prompt in the body is appended with the settings["system_prompt_suffix" and web search prompt if enabled
+    # Use unified system prompt injector for dynamic prompt augmentation
     if initial_prompt.to_s != ""
-      parts = [initial_prompt.to_s]
-      
-      # Add web search prompt for non-reasoning models using Responses API
-      if websearch_enabled && websearch_prompt && !reasoning_model
-        parts << websearch_prompt.strip
-      end
-      
-      # Add system prompt suffix if present
-      if obj["system_prompt_suffix"].to_s != ""
-        parts << obj["system_prompt_suffix"].strip
-      end
-      
-      # Add language preference from runtime settings
+      augmented_prompt = Monadic::Utils::SystemPromptInjector.augment(
+        base_prompt: initial_prompt.to_s,
+        session: session,
+        options: {
+          websearch_enabled: websearch_enabled,
+          reasoning_model: reasoning_model,
+          websearch_prompt: websearch_prompt,
+          system_prompt_suffix: obj["system_prompt_suffix"]
+        },
+        separator: "\n\n"
+      )
+
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] OpenAI Language Injection Check:"
-        extra_log.puts "  - session.object_id = #{session.object_id}"
-        extra_log.puts "  - session[:runtime_settings] exists? = #{!session[:runtime_settings].nil?}"
-        extra_log.puts "  - runtime_settings content = #{session[:runtime_settings].inspect}" if session[:runtime_settings]
-        extra_log.puts "  - language = #{session[:runtime_settings][:language]}" if session[:runtime_settings]
+        extra_log.puts "[#{Time.now}] OpenAI System Prompt Injection:"
+        extra_log.puts "  - Base prompt length: #{initial_prompt.to_s.length}"
+        extra_log.puts "  - Augmented prompt length: #{augmented_prompt.length}"
+        extra_log.puts "  - Injections applied: #{augmented_prompt != initial_prompt.to_s}"
         extra_log.close
       end
-      
-      if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-        language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] OpenAI Language Injection ACTIVE:"
-          extra_log.puts "  - Language: #{session[:runtime_settings][:language]}"
-          extra_log.puts "  - Prompt length: #{language_prompt.length}"
-          extra_log.puts "  - Adding to parts: #{!language_prompt.empty?}"
-          extra_log.close
-        end
-        parts << language_prompt.strip unless language_prompt.empty?
-      elsif CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] OpenAI Language Injection SKIPPED - conditions not met"
-        extra_log.close
-      end
-      
-      if parts.length > 1
-        new_text = parts.join("\n\n")
+
+      # Update the first message content with augmented prompt
+      if augmented_prompt != initial_prompt.to_s
         body["messages"].first["content"].each do |content_item|
           if content_item["type"] == "text"
-            content_item["text"] = new_text
+            content_item["text"] = augmented_prompt
           end
         end
       end

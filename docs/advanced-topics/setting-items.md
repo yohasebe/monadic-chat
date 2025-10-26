@@ -80,7 +80,7 @@ All settings in the features block are optional:
 
 #### Context Management
 - `context_size` - Number of previous messages to include
-- `monadic` - Enable JSON-based state management (supported by all providers)
+- `monadic` - Enable JSON-based state management (available across providers with varying capabilities)
 - `toggle` - Enable collapsible sections (Claude/Gemini/Mistral/Cohere)
 - `prompt_suffix` - Text appended to every user message
 
@@ -105,51 +105,14 @@ end
 
 !> **Important:** The `jupyter` feature only enables the UI capability. Actual Jupyter functionality requires implementing corresponding tool definitions (such as `run_jupyter`, `create_jupyter_notebook`, etc.) in your app. See the Jupyter Notebook app implementation for examples.
 
-## Provider-Specific Behaviors
-
-### OpenAI
-- Supports `monadic` mode for structured outputs
-- **Standard models** support `temperature`, `presence_penalty`, `frequency_penalty`
-- **Reasoning models** (pattern: `/^o[13](-|$)/i`) automatically use `reasoning_effort` instead
-  - Models: o1, o1-mini, o1-preview, o1-pro, o3, o3-pro, o4 series
-  - No temperature, penalties, or function calling (most models)
-  - Some don't support streaming (o1-pro, o3-pro)
-
-### Claude
-- Uses `toggle` mode for context display
-- Requires `initiate_from_assistant: true`
-- **Claude 4.0** models support `reasoning_effort` converted to `budget_tokens`
-
-### Gemini
-- Uses `toggle` mode
-- Requires `initiate_from_assistant: true`
-- **Reasoning models** (pattern: /2\.5.*preview/i) use `thinkingConfig` with `budgetTokens`
-  - reasoning_effort mapped: low=30%, medium=60%, high=80% of max_tokens
-- **Standard models** support temperature adjustment
-
-### Mistral
-- Uses `toggle` mode
-- **Magistral models** (pattern: `/^magistral(-|$)/i`) use `reasoning_effort` directly
-  - Models: magistral-medium, magistral-small, magistral variants
-  - Thinking blocks removed from output, LaTeX formatting converted
-- Requires `initiate_from_assistant: false`
-- Supports `presence_penalty` and `frequency_penalty`
-
 ## System-Level Settings
 
-These are configured in the Monadic Chat UI, not in MDSL files:
+These are configured in the Monadic Chat settings panel, not in MDSL files:
 
-- `TAVILY_API_KEY` - API key for Tavily web search service (used by providers without native web search)
-- `ROUGE_THEME` - Syntax highlighting theme
-- `UI_LANGUAGE` - Interface language (en, ja, zh, ko, es, fr, de)
-
-Note: Speech-to-text model selection is now managed through the Web UI's Speech Settings panel and persists via browser cookies, not through configuration files.
-
-## Configuration Storage
-
-All settings are stored in the `~/monadic/config/env` file and can be edited through:
-- The Electron settings panel (for supported settings)
-- Direct file editing (for advanced settings)
+- API keys for various providers (OpenAI, Claude, Gemini, etc.)
+- Tavily API key for web search
+- Syntax highlighting theme
+- Speech-to-text model selection
 
 Settings are loaded at application startup and persist between sessions.
 
@@ -159,10 +122,11 @@ Settings are loaded at application startup and persist between sessions.
 app "ChatOpenAI" do
   description "General-purpose chat application with OpenAI"
   icon "fa-comments"
-  
+
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+    model ["<model-1>", "<model-2>"]  # Array of model IDs for user selection
+    reasoning_effort "minimal"
     temperature 0.7
     max_tokens 4000
   end

@@ -20,6 +20,9 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 ### Testing
 - [Testing](testing/) - Ruby service testing documentation
 
+### Vendors
+- [Vendors](vendors/) - AI provider integration architecture and design decisions
+
 ### Apps
 - [Apps](apps/) - Application-specific documentation
 

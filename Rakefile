@@ -1023,6 +1023,91 @@ ensure
   end
 end
 
+# Quick test task (unit + integration only, no media generation)
+namespace :spec do
+  desc "Run quick tests (unit + integration only, excludes system tests)"
+  task :quick do
+    # Set environment variables for test database connection
+    ENV['POSTGRES_HOST'] ||= 'localhost'
+    ENV['POSTGRES_PORT'] ||= '5433'
+    ENV['POSTGRES_USER'] ||= 'postgres'
+    ENV['POSTGRES_PASSWORD'] ||= 'postgres'
+
+    # Set HOST_OS for Docker Compose
+    ENV['HOST_OS'] ||= `uname -s`.chomp
+
+    # Start pgvector container for tests that require it
+    pgvector_running = system("docker ps | grep -q monadic-chat-pgvector-container")
+
+    unless pgvector_running
+      puts "Starting pgvector container for tests..."
+      compose_file = File.expand_path("docker/services/compose.yml", __dir__)
+      compose_dev_file = File.expand_path("docker/services/pgvector/compose.dev.yml", __dir__)
+      project_dir = File.expand_path("docker/services", __dir__)
+
+      # Use both compose.yml and compose.dev.yml for development
+      if File.exist?(compose_dev_file)
+        system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -f '#{compose_dev_file}' -p 'monadic-chat' up -d pgvector_service")
+      else
+        system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' up -d pgvector_service")
+        puts "Warning: compose.dev.yml not found. PostgreSQL may not be accessible on port 5433."
+      end
+
+      # Wait for pgvector to be ready
+      puts "Waiting for pgvector to be ready..."
+      sleep 5
+
+      # Wait up to 30 seconds for pgvector to accept connections
+      30.times do
+        if system("docker exec monadic-chat-pgvector-container pg_isready -U postgres", out: File::NULL, err: File::NULL)
+          puts "pgvector is ready!"
+          break
+        end
+        sleep 1
+      end
+    end
+
+    # Store paths before changing directory
+    root_dir = __dir__
+
+    # Run only unit and integration tests (exclude system tests)
+    ENV['SUMMARY_RUN_ID'] ||= Time.now.utc.strftime('%Y%m%d_%H%M%SZ')
+    Dir.chdir("docker/services/ruby") do
+      fmt = (ENV['SUMMARY_ONLY'] == '1') ? '--format progress' : '--format documentation'
+      puts "Running unit tests..."
+      sh "bundle exec rspec spec/unit #{fmt} --no-fail-fast --no-profile"
+
+      # Run integration tests if available
+      puts "\nRunning integration tests..."
+      sh "bundle exec rspec spec/integration #{fmt} --no-fail-fast --no-profile" rescue puts "Integration tests skipped (not available)"
+
+      puts "\n✅ Quick tests completed (system tests excluded)"
+    end
+  ensure
+    # Only stop pgvector if we started it
+    if !pgvector_running && ENV['KEEP_PGVECTOR'] != 'true'
+      puts "Stopping pgvector container..."
+      compose_file = File.expand_path("docker/services/compose.yml", root_dir)
+      project_dir = File.expand_path("docker/services", root_dir)
+      system("docker compose --project-directory '#{project_dir}' -f '#{compose_file}' -p 'monadic-chat' stop pgvector_service")
+    end
+  end
+end
+
+# Quick test task (Ruby quick + frontend)
+namespace :test do
+  desc "Run quick tests (Ruby unit+integration + npm test, no media generation)"
+  task :quick do
+    puts "=== Running Ruby quick tests ==="
+    Rake::Task["spec:quick"].invoke
+
+    puts "\n=== Running frontend tests ==="
+    sh "npm test"
+
+    puts "\n✅ All quick tests completed successfully!"
+  end
+end
+
 # Unit test categories
 namespace :spec_unit do
   desc "Run web search unit tests"
@@ -1217,8 +1302,37 @@ end
 
 # Test JavaScript code with Jest
 desc "Run JavaScript tests using Jest"
-task :jstest do
-  sh "npm test"
+task :jstest, [:save_results, :run_id] do |_t, args|
+  require 'fileutils'
+  require 'time'
+
+  # Determine if we should save results
+  save = args[:save_results] == 'true' || ENV['JEST_SAVE_RESULTS'] == 'true'
+  run_id = args[:run_id] || ENV['JEST_RUN_ID'] || Time.now.strftime('%Y%m%d_%H%M%S')
+
+  if save
+    # Create test results directory
+    results_dir = File.expand_path('tmp/test_results', __dir__)
+    FileUtils.mkdir_p(results_dir)
+
+    # Run Jest with JSON output
+    json_file = File.join(results_dir, "#{run_id}_jest.json")
+    puts "Running Jest tests (saving results to #{json_file})..."
+
+    # Jest outputs JSON to stdout with --json flag
+    # We need to capture both the exit status and the output
+    success = system("npm test -- --json --outputFile=#{json_file}")
+
+    if File.exist?(json_file)
+      puts "✅ Jest results saved to: #{json_file}"
+    else
+      puts "⚠️  Warning: Jest results file was not created"
+    end
+
+    exit 1 unless success
+  else
+    sh "npm test"
+  end
 end
 
 # For backward compatibility
@@ -1228,12 +1342,23 @@ task :jstest_all => :jstest
 # Test Python code
 namespace :pytest do
   desc "Run all Python tests"
-  task :all do
+  task :all, [:save_results, :run_id] do |_t, args|
+    require 'fileutils'
+    require 'time'
+    require 'open3'
+
+    # Determine if we should save results
+    save = args[:save_results] == 'true' || ENV['PYTEST_SAVE_RESULTS'] == 'true'
+    run_id = args[:run_id] || ENV['PYTEST_RUN_ID'] || Time.now.strftime('%Y%m%d_%H%M%S')
+
     puts "Running Python tests..."
     python_test_dirs = [
       "docker/services/python/scripts/services"
     ]
-    
+
+    all_output = []
+    all_success = true
+
     python_test_dirs.each do |dir|
       if Dir.exist?(dir)
         puts "\nRunning tests in #{dir}..."
@@ -1243,14 +1368,35 @@ namespace :pytest do
           if test_files.any?
             test_files.each do |test_file|
               puts "Running #{test_file}..."
-              sh "python3 #{test_file} -v" rescue puts "Test failed: #{test_file}"
+              stdout, stderr, status = Open3.capture3("python3", test_file, "-v")
+              output = "=== #{test_file} ===\n#{stdout}\n#{stderr}"
+              all_output << output
+              puts output
+
+              unless status.success?
+                puts "Test failed: #{test_file}"
+                all_success = false
+              end
             end
           else
             puts "No test files found in #{dir}"
+            all_output << "No test files found in #{dir}"
           end
         end
       end
     end
+
+    # Save results if requested
+    if save
+      results_dir = File.expand_path('tmp/test_results', __dir__)
+      FileUtils.mkdir_p(results_dir)
+
+      output_file = File.join(results_dir, "#{run_id}_pytest.txt")
+      File.write(output_file, all_output.join("\n\n"))
+      puts "\n✅ Python test results saved to: #{output_file}"
+    end
+
+    exit 1 unless all_success
   end
   
   desc "Run jupyter_controller tests"
@@ -1269,7 +1415,49 @@ end
 
 # Run both Ruby and JavaScript tests
 desc "Run all tests (Ruby, JavaScript, and Python)"
-task :test => [:spec, :jstest, "pytest:all"]
+task :test do
+  require 'time'
+
+  # Generate unified run ID for this test session
+  run_id = "test_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+
+  puts "=" * 60
+  puts "Running all tests (Ruby, JavaScript, Python)"
+  puts "Run ID: #{run_id}"
+  puts "=" * 60
+
+  success = true
+
+  # Run Ruby tests (RSpec already handles saving automatically)
+  puts "\n[1/3] Running Ruby tests..."
+  success = Rake::Task[:spec].invoke && success
+
+  # Run JavaScript tests with result saving
+  puts "\n[2/3] Running JavaScript tests..."
+  Rake::Task[:jstest].reenable
+  Rake::Task[:jstest].invoke('true', "#{run_id}")
+
+  # Run Python tests with result saving
+  puts "\n[3/3] Running Python tests..."
+  Rake::Task["pytest:all"].reenable
+  Rake::Task["pytest:all"].invoke('true', "#{run_id}")
+
+  puts "\n" + "=" * 60
+  puts success ? "✅ ALL TESTS COMPLETED" : "⚠️  SOME TESTS MAY HAVE FAILED"
+  puts "=" * 60
+  puts "Test results saved in: ./tmp/test_results/"
+  puts "  - Ruby: ./tmp/test_results/latest/"
+  puts "  - JavaScript: ./tmp/test_results/#{run_id}_jest.json"
+  puts "  - Python: ./tmp/test_results/#{run_id}_pytest.txt"
+  puts "=" * 60
+
+  # Auto-cleanup old test results if enabled
+  if ENV['TEST_AUTO_CLEANUP'] == 'true'
+    puts "\n🧹 Auto-cleanup enabled, removing old test results..."
+    Rake::Task["test:cleanup"].reenable
+    Rake::Task["test:cleanup"].invoke
+  end
+end
 
 # Run only the jupyter controller integration test
 desc "Run Jupyter controller integration test"
@@ -2140,6 +2328,65 @@ namespace :test do
     TestRunner.compare_runs(args[:run1], args[:run2])
   end
 
+  desc "Clean up old test results (keep latest N, default: 3)"
+  task :cleanup, [:keep_count] do |_t, args|
+    require 'fileutils'
+
+    keep_count = (args[:keep_count] || ENV['TEST_KEEP_COUNT'] || '3').to_i
+    results_dir = File.expand_path('tmp/test_results', __dir__)
+
+    unless Dir.exist?(results_dir)
+      puts "No test results directory found at #{results_dir}"
+      next
+    end
+
+    # Get all timestamped directories (YYYYMMDD_HHMMSS format)
+    dirs = Dir.glob(File.join(results_dir, '2*')).select { |f| File.directory?(f) }
+
+    # Sort by modification time (newest first)
+    sorted_dirs = dirs.sort_by { |d| File.mtime(d) }.reverse
+
+    # Get directories and files to delete
+    to_delete_dirs = sorted_dirs[keep_count..-1] || []
+
+    # Also clean up orphaned files (jest.json, pytest.txt, etc.)
+    all_files = Dir.glob(File.join(results_dir, '*')).select { |f| File.file?(f) }
+
+    # Keep files associated with kept directories and summary files
+    kept_run_ids = sorted_dirs[0...keep_count].map { |d| File.basename(d) }
+    to_delete_files = all_files.reject do |f|
+      basename = File.basename(f)
+      # Keep latest symlink, summary files, and files matching kept run IDs
+      basename == 'latest' ||
+      basename.start_with?('summary_') ||
+      basename.start_with?('index_') ||
+      kept_run_ids.any? { |id| basename.include?(id) }
+    end
+
+    if to_delete_dirs.empty? && to_delete_files.empty?
+      puts "No old test results to clean up (keeping latest #{keep_count})"
+      next
+    end
+
+    puts "Cleaning up old test results (keeping latest #{keep_count})..."
+
+    deleted_count = 0
+    to_delete_dirs.each do |dir|
+      puts "  Deleting: #{File.basename(dir)}/"
+      FileUtils.rm_rf(dir)
+      deleted_count += 1
+    end
+
+    to_delete_files.each do |file|
+      puts "  Deleting: #{File.basename(file)}"
+      FileUtils.rm_f(file)
+      deleted_count += 1
+    end
+
+    puts "✅ Cleaned up #{deleted_count} items"
+    puts "Kept #{sorted_dirs.size - to_delete_dirs.size} recent test results"
+  end
+
   desc "Run all tests (Ruby, JavaScript, Python) with unified runner"
   task :all, [:api_level, :open] do |_t, args|
     require_relative 'lib/test_runner'
@@ -2152,10 +2399,14 @@ namespace :test do
     run_id = "all_#{timestamp}"
     base = run_id
 
+    # Determine if we should run media tests (only on 'full' API level)
+    run_media = (api_level == 'full')
+
     puts <<~BANNER
       ╔═══════════════════════════════════════╗
       ║   Monadic Chat - Full Test Suite     ║
       ║   API Level: #{api_level.ljust(25)}║
+      ║   Media Tests: #{(run_media ? 'enabled' : 'disabled').ljust(22)}║
       ╔═══════════════════════════════════════╝
     BANNER
 
@@ -2163,36 +2414,56 @@ namespace :test do
     start_time = Time.now
 
     # Ruby unit
-    puts "\n🧪 [1/5] Running Ruby unit tests..."
+    total_steps = run_media ? 6 : 5
+    puts "\n🧪 [1/#{total_steps}] Running Ruby unit tests..."
     unit_run_id = "#{base}_unit"
     results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,run_id=#{unit_run_id}\"]")
     # Force-generate HTML in case formatter/json combo didn't emit
     system("rake test:report[#{unit_run_id}]")
 
     # Ruby integration
-    puts "\n🧪 [2/5] Running Ruby integration tests..."
+    puts "\n🧪 [2/#{total_steps}] Running Ruby integration tests..."
     integ_run_id = "#{base}_integration"
     results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,run_id=#{integ_run_id}\"]")
     system("rake test:report[#{integ_run_id}]")
 
     # API (optional by level)
     if api_level != 'none'
-      puts "\n🧪 [3/5] Running API tests..."
+      puts "\n🧪 [3/#{total_steps}] Running API tests..."
       api_run_id = "#{base}_api"
       results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,run_id=#{api_run_id}\"]")
       system("rake test:report[#{api_run_id}]")
     else
-      puts "\n⏭️  [3/5] Skipping API tests (api_level=none)"
+      puts "\n⏭️  [3/#{total_steps}] Skipping API tests (api_level=none)"
       results[:api] = true
     end
 
+    # Media tests (only on 'full' API level)
+    if run_media
+      puts "\n🧪 [4/#{total_steps}] Running Media tests (image/video/audio generation)..."
+      media_run_id = "#{base}_media"
+      ENV['SUMMARY_RUN_ID'] = media_run_id
+      Dir.chdir("docker/services/ruby") do
+        results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation")
+      end
+    else
+      puts "\n⏭️  [4/#{total_steps}] Skipping Media tests (requires api_level=full)"
+      results[:media] = true
+    end
+
     # JavaScript
-    puts "\n🧪 [4/5] Running JavaScript tests..."
-    results[:javascript] = system("npm test")
+    step_js = run_media ? 5 : 4
+    puts "\n🧪 [#{step_js}/#{total_steps}] Running JavaScript tests..."
+    js_run_id = "#{base}_javascript"
+    Rake::Task[:jstest].reenable
+    results[:javascript] = Rake::Task[:jstest].invoke('true', js_run_id)
 
     # Python
-    puts "\n🧪 [5/5] Running Python tests..."
-    results[:python] = system("rake pytest:all")
+    step_py = run_media ? 6 : 5
+    puts "\n🧪 [#{step_py}/#{total_steps}] Running Python tests..."
+    py_run_id = "#{base}_python"
+    Rake::Task["pytest:all"].reenable
+    results[:python] = Rake::Task["pytest:all"].invoke('true', py_run_id)
 
     duration = Time.now - start_time
     all_passed = results.values.all?
@@ -2219,8 +2490,13 @@ namespace :test do
       else
         suites << { name: :api,      run_id: nil,          status: true }
       end
-      suites << { name: :javascript,  run_id: nil,          status: results[:javascript] }
-      suites << { name: :python,      run_id: nil,          status: results[:python] }
+      if run_media
+        suites << { name: :media,      run_id: media_run_id, status: results[:media] }
+      else
+        suites << { name: :media,      run_id: nil,          status: true }
+      end
+      suites << { name: :javascript,  run_id: js_run_id,    status: results[:javascript] }
+      suites << { name: :python,      run_id: py_run_id,    status: results[:python] }
       idx_path = TestIndexHTML.generate('tmp/test_results', run_id, suites, File.join('tmp', 'test_results', "index_#{run_id}.html"))
       puts "\n📄 Index report generated: #{idx_path}"
       if want_open

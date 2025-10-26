@@ -5,7 +5,6 @@ This directory contains documentation for specific Monadic Chat applications.
 ## Contents
 
 - [Chord Accompanist](chord_accompanist.md) - Piano chord accompaniment generator
-- [Chord Accompanist Plan](chord_accompanist_plan.md) - Planning document for Chord Accompanist
 - [GPT-5-Codex Agent](gpt5_codex_agent.md) - GPT-5-Codex integration and usage patterns
 - [Mermaid Grapher](mermaid_grapher.md) - Diagram generation with Mermaid syntax
 - [Monadic Help](monadic_help.md) - Built-in help system documentation

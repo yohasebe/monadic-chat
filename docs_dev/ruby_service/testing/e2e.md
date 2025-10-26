@@ -50,8 +50,8 @@ RUN_API=true RUN_MEDIA=true bundle exec rake spec_api:media
 ### Manual Test Execution
 ```bash
 cd docker/services/ruby
-bundle exec rspec spec/e2e/chat_workflow_spec.rb
-bundle exec rspec spec/e2e/code_interpreter_workflow_spec.rb:23  # specific line
+bundle exec rspec spec/e2e/jupyter_notebook_grok_spec.rb
+bundle exec rspec spec/e2e/monadic_context_display_spec.rb:23  # specific line
 ```
 
 ## Test Philosophy

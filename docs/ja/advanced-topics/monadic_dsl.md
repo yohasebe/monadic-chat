@@ -29,10 +29,10 @@ app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があ
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    model "<model-id>"
     temperature 0.7
   end
-  
+
   features do
     image true
     auto_speech false
@@ -67,7 +67,7 @@ end
 ```ruby
 llm do
   provider "anthropic"  # AIプロバイダー (anthropic, openai, cohere, etc.)
-  model "claude-sonnet-4-20250514"  # モデル名
+  model "<model-id>"  # モデル名
   temperature 0.7  # レスポンスのランダム性 (0.0-1.0)
   max_tokens 4000  # 最大レスポンス長
 end
@@ -85,6 +85,78 @@ end
 - `ollama` - [https://ollama.ai](https://ollama.ai) (ローカルモデル)
 
 どのアプリがどのモデルと互換性があるかの完全な概要については、基本アプリのドキュメントの[モデル互換性](/ja/basic-usage/basic-apps.md#app-availability)セクションを参照してください。
+
+#### モデル指定のベストプラクティス
+
+MDSLでモデルを指定する方法は3つあり、それぞれ異なる用途に適しています：
+
+**標準アプリ（`docker/services/ruby/apps/`内の組み込みアプリ）**
+
+安定性と予測可能性のために具体的なモデル名を使用：
+
+```ruby
+llm do
+  provider "openai"
+  model "gpt-4.1"  # 明示的なモデル名で一貫した動作を保証
+end
+```
+
+- ✅ 予測可能な動作
+- ✅ デバッグが容易
+- ✅ 本番環境のアプリに適している
+- ⚠️ 新しいモデルがリリースされた際に定期的な更新が必要
+
+**カスタムアプリ（`~/monadic/data/apps/`内のユーザー作成アプリ）**
+
+柔軟性のために環境変数を使用：
+
+```ruby
+llm do
+  provider "openai"
+  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # ユーザー設定を尊重
+end
+```
+
+- ✅ ユーザーが`~/monadic/config/env`経由でカスタマイズ可能
+- ✅ ENV変数が未設定の場合、自動的にシステムデフォルトを使用
+- ✅ 将来性がある（ハードコードされたモデル名なし）
+- ✅ カスタムアプリに推奨
+
+**設定の優先順位**
+
+モデル値は以下の順序で解決されます（優先度の高い順）：
+
+1. **明示的なMDSL値**: `model "gpt-4.1"`（最優先）
+2. **環境変数**: `~/monadic/config/env`の`ENV["OPENAI_DEFAULT_MODEL"]`
+3. **システムデフォルト**: `docker/services/ruby/config/system_defaults.json`
+4. **ハードコードされたフォールバック**: 組み込みのデフォルト値
+
+**複数のモデル選択肢**
+
+配列を使用してユーザーにモデルの選択肢を提供：
+
+```ruby
+llm do
+  provider "openai"
+  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # ユーザーがドロップダウンから選択可能
+end
+```
+
+**プロバイダー固有の環境変数**
+
+各プロバイダーには対応する環境変数があります：
+
+| プロバイダー | 環境変数 |
+|------------|---------|
+| OpenAI | `OPENAI_DEFAULT_MODEL` |
+| Anthropic/Claude | `ANTHROPIC_DEFAULT_MODEL` |
+| Gemini/Google | `GEMINI_DEFAULT_MODEL` |
+| Mistral | `MISTRAL_DEFAULT_MODEL` |
+| Cohere | `COHERE_DEFAULT_MODEL` |
+| DeepSeek | `DEEPSEEK_DEFAULT_MODEL` |
+| Perplexity | `PERPLEXITY_DEFAULT_MODEL` |
+| xAI/Grok | `GROK_DEFAULT_MODEL` |
+| Ollama | `OLLAMA_DEFAULT_MODEL` |
 
 ### 3. システムプロンプト
 
@@ -152,10 +224,10 @@ app "ChatClaude" do  # クラス名と正確に一致する必要があります
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    model "<model-id>"
     temperature 0.7
   end
-  
+
   features do
     monadic false  # 標準モードを使用
     initiate_from_assistant true
@@ -184,10 +256,10 @@ app "MathTutorOpenAI" do  # クラス名と正確に一致する必要があり�
   
   llm do
     provider "openai"
-    model "gpt-4.1"
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
     temperature 0.7
   end
-  
+
   features do
     sourcecode true     # コードハイライトを有効にする
     image true          # 画像表示を有効にする
@@ -242,10 +314,11 @@ app "MermaidGrapherOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+    model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
+    reasoning_effort "minimal"
     temperature 0.0
   end
-  
+
   features do
     mermaid true
     image true
@@ -295,10 +368,11 @@ app "WikipediaOpenAI" do
   
   llm do
     provider "openai"
-    model "gpt-4.1"
-    temperature 0.3
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    reasoning_effort "minimal"
+    temperature 0.0
   end
-  
+
   features do
     group "OpenAI"
   end

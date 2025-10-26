@@ -77,7 +77,7 @@ MCPサーバーはMonadic Chatアプリのすべてのツールを自動的に�
 - `CodeInterpreterOpenAI__run_code` - コードの実行
 - `ImageGeneratorOpenAI__generate_image_with_dalle` - 画像の生成
 - `MonadicHelpOpenAI__find_help_topics` - ヘルプドキュメントの検索
-- `SyntaxTreeOpenAI__render_syntax_tree` - 構文木図の作成
+- `SyntaxTreeOpenAI__render_syntax_tree` - 樹形図の作成
 - `MermaidGrapherOpenAI__generate_mermaid_diagram` - Mermaid図の作成
 
 各ツールには以下が含まれます：

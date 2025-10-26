@@ -46,9 +46,9 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 #### 1. MDSL設定（`auto_forge_openai.mdsl`、`auto_forge_claude.mdsl`、`auto_forge_grok.mdsl`）
 - 各プロバイダーのアプリインターフェイスとシステムプロンプトを定義
 - 利用可能なモデルを設定：
-  - OpenAI：オーケストレーションにGPT-5、コード生成にGPT-5-Codex
-  - Claude：オーケストレーションと生成の両方にClaude Opus 4.1
-  - Grok：オーケストレーションにGrok-4-Fast-Reasoning、コード生成にGrok-Code-Fast-1
+  - OpenAI：オーケストレーションにgpt-5、コード生成にgpt-5-codexとgpt-4.1をフォールバック
+  - Claude：オーケストレーションと生成の両方にclaude-sonnet-4-5-20250929
+  - Grok：オーケストレーションにgrok-4-fast-reasoningとgrok-4-fast-non-reasoning、コード生成にgrok-code-fast-1
 - `generate_additional_file`を含むツールメソッドを登録
 - オーケストレーションにプロバイダーのchat/responses APIを使用
 
@@ -68,9 +68,9 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 - 変更のためのコンテキスト永続化
 
 #### 4. HTMLジェネレーター
-- **OpenAI**: `agents/html_generator.rb` - GPT-5-Codexとインターフェイス
-- **Claude**: `agents/claude_html_generator.rb` - Claude Opusとインターフェイス
-- **Grok**: `agents/grok_html_generator.rb` - Grok-Code-Fast-1とインターフェイス
+- **OpenAI**: `agents/html_generator.rb`でGPT5CodexAgentを使用 - GPT-5-Codexとインターフェイス
+- **Claude**: `agents/html_generator.rb`でClaudeOpusAgentコールバックを使用 - Claudeモデルとclaude_opus_agentを介してインターフェイス
+- **Grok**: `agents/grok_html_generator.rb`でGrokCodeAgentを使用 - Grok-Code-Fast-1とインターフェイス
 - 各プロバイダーのコード生成モデルに最適化されたプロンプトを構築
 - 新規生成と変更の両方を処理
 - HTML出力を抽出して検証
@@ -93,9 +93,9 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 
 ```ruby
 # オーケストレーションはMDSLからのモデルを使用：
-# - OpenAIにGPT-5
-# - ClaudeにClaude Opus 4.1
-# - GrokにGrok-4-Fast-Reasoning
+# - OpenAIにgpt-5
+# - Claudeにclaude-sonnet-4-5-20250929
+# - Grokにgrok-4-fast-reasoning
 # プロバイダーヘルパーは自動的に正しいAPIにルーティング。
 
 # コード生成はプロバイダー固有のエージェントに委譲
@@ -133,7 +133,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - プロジェクト名の完全なUTF-8サポート
 - ファイルシステムで安全でない文字のみ置換
 - 日本語/中国語/絵文字文字は保持
-- 例：「病気診断アプリ」→「病気診断アプリ_20250127_162936」
+- 例：「病気診断アプリ」→「病気診断アプリ_20240127_162936」
 
 ### コンテキスト永続化
 ```json
@@ -144,8 +144,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
     "description": "...",
     "features": [...]
   },
-  "created_at": "2025-01-27T16:29:36Z",
-  "modified_at": "2025-01-27T17:15:22Z",
+  "created_at": "2024-01-27T16:29:36Z",
+  "modified_at": "2024-01-27T17:15:22Z",
   "modification_count": 3
 }
 ```
@@ -254,25 +254,28 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 
 ### ユニットテスト
 ```ruby
-# spec/unit/apps/auto_forge_spec.rb
-- プロジェクト名のサニタイズ
-- コンテキスト永続化
-- ファイル操作
-- エラーハンドリング
+# spec/unit/apps/auto_forge_orchestrator_spec.rb
+- プロジェクトオーケストレーションロジック
+- コンテキスト管理
 
-# spec/unit/apps/auto_forge/auto_forge_cli_additional_files_spec.rb
+# spec/unit/apps/auto_forge_html_generator_spec.rb
+- HTML生成と検証
+
+# spec/unit/apps/auto_forge_codex_response_analyzer_spec.rb
+- Codexレスポンスのパースと分析
+
+# spec/unit/apps/auto_forge_error_explainer_spec.rb
+- エラーメッセージ生成
+
+# spec/unit/apps/auto_forge_cli_additional_files_spec.rb
 - CLIオプションファイル提案ヒューリスティック
-- 追加ファイル生成ガードレール
+
+# spec/unit/apps/auto_forge_tools_diagnosis_spec.rb
+- ツール診断機能
 ```
 
 ### 統合テスト
-```ruby
-# spec/integration/apps/auto_forge_integration_spec.rb
-- エンドツーエンド生成
-- 変更ワークフロー
-- Seleniumデバッグ
-- APIインタラクション
-```
+エンドツーエンドワークフローについてはシステムテストを参照
 
 ## 既知の制限
 

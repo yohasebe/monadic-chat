@@ -76,7 +76,7 @@ ElevenLabs V3 was originally designed to process all text at once for optimal qu
 - **Minimum Length**: 8 characters (cleaned text)
 - **Prefetch**: Enabled for combined segments
 
-## Code Simplification and Quality Improvements (2025-10-14)
+## Code Simplification and Quality Improvements (2024-10-14)
 
 ### Gemini TTS Endpoint Optimization
 
@@ -141,7 +141,7 @@ end
 
 **Location:** `docker/services/ruby/lib/monadic/utils/interaction_utils.rb` (lines ~323-327)
 
-## Safety Improvements (Added 2025-10-12)
+## Safety Improvements (Added 2024-10-12)
 
 ### 1. STOP_TTS Thread Cleanup
 
@@ -213,7 +213,7 @@ ElevenLabs V3: Combined all segments into one (legacy mode)
 - **Perceived Latency**: Dramatically reduced
 - **User Experience**: Feels nearly instantaneous
 
-## Performance Benchmark Results (2025-10-14)
+## Performance Benchmark Results (2024-10-14)
 
 Comprehensive latency measurements for 116-character test text across all providers:
 
@@ -271,7 +271,7 @@ Comprehensive latency measurements for 116-character test text across all provid
 - "Flash" name is misleading for TTS performance
 - Best suited when quality matters more than latency
 - Prefetch optimization is most critical for this provider
-- **Investigation (2025-10-14):** Tested both `streamGenerateContent` and `generateContent` endpoints - latency unchanged (~6-7s), confirming API-side bottleneck
+- **Investigation (2024-10-14):** Tested both `streamGenerateContent` and `generateContent` endpoints - latency unchanged (~6-7s), confirming API-side bottleneck
 
 ### Prefetch Impact:
 - These measurements are for single-segment text (116 characters)

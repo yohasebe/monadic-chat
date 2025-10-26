@@ -1,4 +1,4 @@
-app "Mermaid Grapher" do
+app "MermaidGrapherOpenAI" do
   description do
     en <<~TEXT
     Create diagrams using Mermaid markdown syntax.

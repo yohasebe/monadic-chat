@@ -90,17 +90,14 @@ describe('UI State Management', () => {
   
   describe('Special State Handlers', () => {
     test('should handle streaming state changes', () => {
-      // Mock toggle button
-      document.body.innerHTML = '<div id="toggle-menu"></div>';
-      const toggleBtn = document.getElementById('toggle-menu');
-      
+      // Note: toggleMenuLocked feature was removed to improve UX
+      // Menu toggle is now a pure UI operation that doesn't interfere with streaming
+
       UIState.set('isStreaming', true);
-      expect(UIState.get('toggleMenuLocked')).toBe(true);
-      expect(toggleBtn.classList.contains('streaming-active')).toBe(true);
-      
+      expect(UIState.get('isStreaming')).toBe(true);
+
       UIState.set('isStreaming', false);
-      expect(UIState.get('toggleMenuLocked')).toBe(false);
-      expect(toggleBtn.classList.contains('streaming-active')).toBe(false);
+      expect(UIState.get('isStreaming')).toBe(false);
     });
     
     test('should track window width changes', () => {

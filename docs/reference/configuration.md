@@ -34,9 +34,11 @@ Monadic Chat uses the following priority order for configuration values (highest
 ### Example
 
 For the OpenAI default model:
-- If `OPENAI_DEFAULT_MODEL=gpt-4.1-mini` is set in `~/monadic/config/env`, it will be used
-- Otherwise, the value from `system_defaults.json` (`gpt-4.1`) will be used
+- If `OPENAI_DEFAULT_MODEL=<model-id>` is set in `~/monadic/config/env`, it will be used
+- Otherwise, the value from `system_defaults.json` will be used
 - If neither exists, the hardcoded default in the application will be applied
+
+> **Note**: For current default values, refer to `docker/services/ruby/config/system_defaults.json`. Model names are updated frequently, so it's recommended to check the implementation files for the latest values.
 
 ## API Keys
 
@@ -54,17 +56,19 @@ For the OpenAI default model:
 
 ## Model Settings
 
-| Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
-| `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `gpt-4.1` | `gpt-4.1-mini` |
-| `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `claude-sonnet-4-20250514` | `claude-3.5-haiku-20241022` |
-| `TOKEN_COUNT_SOURCE` | Token counting source policy | `python_only` | `provider_only` / `hybrid` |
-| `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `gemini-2.5-flash` | `gemini-1.5-pro` |
-| `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `mistral-large-latest` | `magistral-medium-2509` |
-| `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `command-a-03-2025` | `command-a-reasoning-08-2025` |
-| `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `deepseek-chat` | `deepseek-coder` |
-| `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `sonar-reasoning-pro` | `sonar-reasoning` |
-| `XAI_DEFAULT_MODEL` | Default model for Grok apps | `grok-4-fast-reasoning` | `grok-4-fast-non-reasoning` |
+> **Note**: For default values, refer to `docker/services/ruby/config/system_defaults.json`. The table below shows variable names and usage only.
+
+| Variable | Description | Usage Example |
+|----------|-------------|---------------|
+| `OPENAI_DEFAULT_MODEL` | Default model for OpenAI apps | `OPENAI_DEFAULT_MODEL=<model-id>` |
+| `ANTHROPIC_DEFAULT_MODEL` | Default model for Claude apps | `ANTHROPIC_DEFAULT_MODEL=<model-id>` |
+| `TOKEN_COUNT_SOURCE` | Token counting source policy | `TOKEN_COUNT_SOURCE=python_only` (options: `provider_only`, `hybrid`) |
+| `GEMINI_DEFAULT_MODEL` | Default model for Gemini apps | `GEMINI_DEFAULT_MODEL=<model-id>` |
+| `MISTRAL_DEFAULT_MODEL` | Default model for Mistral apps | `MISTRAL_DEFAULT_MODEL=<model-id>` |
+| `COHERE_DEFAULT_MODEL` | Default model for Cohere apps | `COHERE_DEFAULT_MODEL=<model-id>` |
+| `DEEPSEEK_DEFAULT_MODEL` | Default model for DeepSeek apps | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
+| `PERPLEXITY_DEFAULT_MODEL` | Default model for Perplexity apps | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
+| `GROK_DEFAULT_MODEL` | Default model for Grok apps | `GROK_DEFAULT_MODEL=<model-id>` |
 
 ## System Settings
 
@@ -75,13 +79,13 @@ For the OpenAI default model:
 | `MAX_CHAR_COUNT` | Maximum message length | `200000` | 1000-500000 |
 | `PDF_BOLD_FONT_PATH` | Path to bold font for PDF generation | (optional) | File path |
 | `PDF_STANDARD_FONT_PATH` | Path to standard font for PDF generation | (optional) | File path |
-| `ROUGE_THEME` | Syntax highlighting theme | `monokai.sublime` | See [available themes](../basic-usage/syntax-highlighting.md) |
+| `ROUGE_THEME` | Syntax highlighting theme | `pastie:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
 
 ## Voice Settings
 
 | Variable | Description | Default | Range/Options |
 |----------|-------------|---------|---------------|
-| `STT_MODEL` | Speech-to-text model | `gpt-4o-transcribe` | `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1` |
+| `STT_MODEL` | Speech-to-text model | See system_defaults.json | Refer to provider documentation for available models |
 | `TTS_DICT_PATH` | Path to TTS pronunciation dictionary | (optional) | File path |
 | `TTS_DICT_DATA` | Inline TTS pronunciation data | (optional) | CSV format |
 | `AUTO_TTS_MIN_LENGTH` | Minimum text length before TTS generation in realtime mode | `50` | 20-200 characters |
@@ -182,7 +186,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Model Preferences
-OPENAI_DEFAULT_MODEL=gpt-4.1
+OPENAI_DEFAULT_MODEL=<model-id>
 
 # UI Settings
 FONT_SIZE=18
@@ -193,7 +197,7 @@ ROUGE_THEME=github
 ```bash
 # Web Search and Voice
 TAVILY_API_KEY=tvly-...
-STT_MODEL=whisper-1
+STT_MODEL=<model-id>
 
 # PDF Processing
 PDF_RAG_TOKENS=6000

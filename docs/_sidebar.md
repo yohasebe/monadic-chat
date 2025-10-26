@@ -11,7 +11,7 @@
     - [Web Interface](/basic-usage/web-interface.md)
     - [Message Input](/basic-usage/message-input.md)
     - [Basic Apps](/basic-usage/basic-apps.md)
-    - [Language Models](/basic-usage/language-models.md)
+    - [PDF Storage](/basic-usage/pdf_storage.md)
     - [Syntax Highlighting](/basic-usage/syntax-highlighting.md)
 
 - **Docker Integration**
@@ -24,6 +24,7 @@
 
 - **Advanced Topics**
 
+    - [Advanced Configuration](/advanced-topics/advanced-configuration.md)
     - [Development of Extra Apps](/advanced-topics/develop_apps.md)
     - [Monadic DSL Reference](/advanced-topics/monadic_dsl.md)
     - [Application Setting Items](/advanced-topics/setting-items.md)

@@ -4,13 +4,13 @@ AutoForge（「Artifact Builder」として提供）は、インテリジェン�
 
 ## 概要
 
-AutoForgeは、計画とオーケストレーションにGPT-5、Claude Opus 4.1、またはGrok-4-Fast-Reasoningを使用し、プロバイダー固有のコード生成（GPT-5-Codex、Claude Opus、またはGrok-Code-Fast-1）と組み合わせます。外部依存関係を必要としない、CSS・JavaScriptを組み込んだ自己完結型HTMLアプリケーションや、スタンドアロンCLIスクリプトを作成します。
+AutoForgeは、計画とオーケストレーションに高度なAIモデルを使用し、プロバイダー固有のコード生成モデルと組み合わせます。外部依存関係を必要としない、CSS・JavaScriptを組み込んだ自己完結型HTMLアプリケーションや、スタンドアロンCLIスクリプトを作成します。
 
 ## 主な機能
 
 ### 1. インテリジェントなアプリケーション生成
-- **自律的な計画**: GPT-5、Claude Opus、またはGrok-4-Fast-Reasoningが要件を分析し、詳細な実装計画を作成
-- **プロバイダー固有のコード生成**: GPT-5-Codex、Claude Opus、またはGrok-Code-Fast-1がプロダクション準備の完了したアーティファクトを提供
+- **自律的な計画**: 高度なAIモデルが要件を分析し、詳細な実装計画を作成
+- **プロバイダー固有のコード生成**: 専門的なコード生成モデルがプロダクション準備の完了したアーティファクトを提供
 - **単一ファイル出力**: WebアプリはHTMLファイル1つ、CLIツールはスタンドアロンスクリプトとして提供
 
 ### 2. CLIツールサポート
@@ -116,8 +116,8 @@ CLIプロジェクトで利用可能。明確な価値を追加する場合に�
 ## 技術詳細
 
 ### アーキテクチャ
-- **オーケストレーション層**: GPT-5（OpenAI）、Claude Opus 4.1（Claude）、またはGrok-4-Fast-Reasoning（xAI）が、MDSLアプリを介した計画、ユーザーインタラクション、ツール調整を処理
-- **コード生成層**: GPT-5-Codex、Claude Opus、またはGrok-Code-Fast-1がWeb/CLIアーティファクトを生成
+- **オーケストレーション層**: GPT-5（OpenAI）、Claude Sonnet 4.5（Claude）、またはGrok-4-Fast-Reasoning（xAI）が、MDSLアプリを介した計画、ユーザーインタラクション、ツール調整を処理
+- **コード生成層**: GPT-5-Codex、Claude Sonnet 4.5、またはGrok-Code-Fast-1がWeb/CLIアーティファクトを生成
 - **ファイル管理**: Rubyバックエンドがプロジェクトストレージ、コンテキストの永続化、オプションのファイル生成を管理
 - **デバッグ層**: Python/Selenium統合がWebアプリの自動テストを提供
 
@@ -171,7 +171,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 - Rubyバックエンドを備えたMonadic Chat
 - 以下のいずれか：
   - GPT-5とGPT-5-Codexへのアクセス権を持つOpenAI APIキー
-  - Claude Opus 4.1へのアクセス権を持つAnthropic APIキー
+  - Claude Sonnet 4.5へのアクセス権を持つAnthropic APIキー
   - Grok-4-Fast-ReasoningとGrok-Code-Fast-1へのアクセス権を持つxAI APIキー
 
 ### オプション要件
@@ -196,7 +196,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 
 ### 一般的な問題
 
-1. **ファイルが生成されない**: GPT-5-CodexまたはClaude Opusは、複雑なアプリで2〜5分かかることがあります。生成実行中、進捗状況がストリーミング一時カードに表示されます
+1. **ファイルが生成されない**: GPT-5-CodexまたはClaude Sonnet 4.5は、複雑なアプリで2〜5分かかることがあります。生成実行中、進捗状況がストリーミング一時カードに表示されます
 2. **Seleniumが利用できない**: Docker Seleniumコンテナが実行中であることを確認
 3. **Unicode文字**: 特殊文字を含むプロジェクト名は完全にサポートされています
 4. **カスタムファイルリクエストが拒否される**: ファイル名がシンプル（ディレクトリなし）であることを確認し、必要なコンテンツを説明する明確な指示を含めてください
@@ -211,7 +211,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 
 AutoForgeは複数のプロバイダーをサポートします：
 - **OpenAI Auto Forge**: GPT-5がワークフローをオーケストレートし、GPT-5-Codexがコード生成を処理
-- **Claude Auto Forge**: Claude Opus 4.1がClaude Responses APIを介してオーケストレートとコード生成を実行
+- **Claude Auto Forge**: Claude Sonnet 4.5がClaude Responses APIを介してオーケストレートとコード生成を実行
 - **Grok Auto Forge**: Grok-4-Fast-Reasoningがワークフローをオーケストレートし、Grok-Code-Fast-1がコード生成を処理
 
 すべてのバリアントは、ステータスバーを監視することなく生成を追跡できるよう、長時間実行の進捗更新をストリーミング一時カードにブロードキャストします。

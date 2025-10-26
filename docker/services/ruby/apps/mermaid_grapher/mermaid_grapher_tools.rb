@@ -2,7 +2,7 @@ require 'cgi'
 require 'json'
 require_relative '../../lib/monadic/utils/environment'
 
-class MermaidGrapher < MonadicApp
+class MermaidGrapherOpenAI < MonadicApp
   def validate_mermaid_syntax(code:)
     raise ArgumentError, "Code cannot be empty" if code.to_s.strip.empty?
 

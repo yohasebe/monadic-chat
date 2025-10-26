@@ -22,6 +22,7 @@ High-level system design and component relationships:
 
 ### 🔧 Core Systems
 Implementation details of key features:
+- **[System Prompt Injection](system_prompt_injection.md)** - Unified dynamic prompt augmentation system
 - **[Logging](logging.md)** - Debug and trace logging configuration
 - **[Error Handling](error_handling.md)** - Error detection and recovery strategies
 - **[WebSocket Progress Broadcasting](websocket_progress_broadcasting.md)** - Real-time progress updates

@@ -107,7 +107,7 @@ RSpec.describe HelpDatabaseExporter do
         ]
         allow(mock_conn).to receive(:exec).with(/SELECT \* FROM help_docs/).and_return(docs_result)
         
-        # Mock help_items query
+        # Mock help_items query (with JOIN for is_internal filtering)
         items_result = [
           {
             "id" => "1",
@@ -121,7 +121,9 @@ RSpec.describe HelpDatabaseExporter do
           }
         ]
         allow(mock_conn).to receive(:exec).with(/SELECT \* FROM help_items/).and_return(items_result)
-        
+        # Support new JOIN query for filtering internal docs
+        allow(mock_conn).to receive(:exec).with(/SELECT hi\.\* FROM help_items hi JOIN/).and_return(items_result)
+
         # Mock count queries
         allow(mock_conn).to receive(:exec).with(/SELECT COUNT/).and_return([{"count" => "1"}])
         allow(mock_conn).to receive(:close)

@@ -55,11 +55,12 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 ### PostgreSQLコンテナ
 - データベースにアクセス: `psql -U postgres`
 - データベース一覧を表示: `psql -U postgres -l`
-- monadic_chatデータベースにアクセス: `psql -U postgres -d monadic_chat`
+- ユーザードキュメントデータベースにアクセス: `psql -U postgres -d monadic_user_docs`
+- ヘルプデータベースにアクセス: `psql -U postgres -d monadic_help`
 
 ### Rubyコンテナ
 - Ruby gemsを確認: `bundle list`
-- ログを表示: `tail -f /monadic/logs/sinatra.log`
+- ログを表示: `tail -f /monadic/log/sinatra.log`
 - 設定にアクセス: `cd /monadic/config`
 
 ## 関連ドキュメント

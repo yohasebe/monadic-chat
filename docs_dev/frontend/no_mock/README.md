@@ -13,18 +13,118 @@ All tests are successfully running without mocks!
 
 ## Philosophy
 
-Traditional mock-based testing often leads to:
-- Testing the mocks instead of real behavior
-- Brittle tests that break when implementation details change
-- False confidence from tests that don't reflect actual usage
-- High maintenance burden for mock updates
+### Problems with Heavy Mocking
 
-The no-mock approach focuses on:
-- Using real DOM provided by jsdom
-- Loading actual libraries (jQuery, etc.)
-- Testing user workflows, not implementation details
-- Verifying actual DOM state changes
-- Real event handling and propagation
+Traditional mock-based frontend testing has several issues:
+
+1. **Over-Mocking**: Tests verify mock behavior, not real code
+   - Mock implementations may not match actual library behavior
+   - Changes to library usage require updating mocks
+   - False confidence: tests pass but real browser fails
+
+2. **Brittleness**: Tests break when implementation details change
+   - Tightly coupled to jQuery method calls
+   - Requires maintaining complex mock systems
+   - Refactoring becomes difficult
+
+3. **Maintenance Burden**: Complex mock infrastructure
+   - Global mock objects in `test/setup.js`
+   - Event handler tracking in global variables
+   - Mock chaining for jQuery-style APIs
+
+4. **Limited Coverage**: Mocks can't catch integration issues
+   - Real DOM interactions
+   - Browser API quirks
+   - Timing and race conditions
+
+### Benefits of No-Mock Approach
+
+The no-mock approach provides significant advantages:
+
+1. **Reliability**: Tests reflect actual user behavior
+2. **Maintainability**: No mock updates needed when implementation changes
+3. **Confidence**: Catches real integration issues
+4. **Documentation**: Tests serve as usage examples
+5. **Debugging**: Easier to debug real code vs mock interactions
+
+### Core Principles
+
+- **Use Real DOM**: jsdom provides actual DOM functionality
+- **Load Real Libraries**: Actual jQuery, MathJax, mermaid
+- **Test User Workflows**: Focus on integration over isolated functions
+- **Verify Actual State**: Check actual DOM state, not mock calls
+- **Real Event Handling**: Use real DOM events and propagation
+
+### Example: Mock-Based vs No-Mock
+
+**Mock-Based Pattern (❌ Fragile)**:
+```javascript
+test('send button triggers message submission', () => {
+  // Setup mocks
+  const sendHandler = global.eventHandlers['#send']['click'];
+  $('#message').val.mockReturnValue('test message');
+  global.WebSocketClient.send = jest.fn();
+
+  // Execute mock handler
+  sendHandler();
+
+  // Verify mock calls
+  expect(global.WebSocketClient.send).toHaveBeenCalledWith('test message');
+});
+```
+
+**Problems**:
+- Tests mock implementation, not real behavior
+- Requires global event handler tracking
+- Doesn't test actual DOM updates
+- Can't catch real WebSocket issues
+
+**No-Mock Pattern (✅ Robust)**:
+```javascript
+test('send button triggers message submission', async () => {
+  // Load real HTML fixture
+  document.body.innerHTML = await loadFixture('chat-interface.html');
+
+  // Load real JavaScript libraries
+  await loadScript('/js/jquery.min.js');
+  await loadScript('/js/monadic/websocket.js');
+
+  // Set up test WebSocket server
+  const wsServer = new WS.Server({ port: 8081 });
+  const receivedMessages = [];
+  wsServer.on('connection', (ws) => {
+    ws.on('message', (data) => {
+      receivedMessages.push(JSON.parse(data));
+    });
+  });
+
+  // Perform actual user interaction
+  const messageInput = document.getElementById('message');
+  messageInput.value = 'test message';
+
+  const sendButton = document.getElementById('send');
+  sendButton.click();
+
+  // Wait for real WebSocket message
+  await waitFor(() => {
+    expect(receivedMessages).toHaveLength(1);
+    expect(receivedMessages[0].content).toBe('test message');
+  });
+
+  // Verify actual DOM state
+  expect(messageInput.value).toBe('');
+  expect(sendButton.disabled).toBe(true);
+
+  // Cleanup
+  wsServer.close();
+});
+```
+
+**Benefits**:
+- Tests real user flow from input to WebSocket
+- Uses actual DOM and libraries
+- Catches real integration issues
+- No mock maintenance needed
 
 ## Running Tests
 
@@ -51,7 +151,7 @@ npm run test:no-mock message-input.test.js
 
 ### Test Categories
 - `message-input.test.js` - Message textarea behavior and validation
-- `websocket-communication.test.js` - Real WebSocket message handling
+- `websocket-ui-behavior.test.js` - WebSocket UI behavior and handling
 - `message-cards.test.js` - Message display and interaction
 
 ## Writing No-Mock Tests

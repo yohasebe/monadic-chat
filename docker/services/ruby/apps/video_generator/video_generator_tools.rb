@@ -18,7 +18,7 @@ end
 class VideoGeneratorOpenAI < MonadicApp
   include MonadicHelper
   # The generate_video_with_sora method is provided by MonadicHelper
-  # via image_generation_helper.rb
+  # via media_generation_helper.rb
 
   private
 

@@ -137,7 +137,7 @@ create_jupyter_notebook("math_notebook")
 - 明確で一貫したエラー報告形式
 - 手動での`get_jupyter_cells_with_results`呼び出しが不要
 
-**実装**：`lib/monadic/adapters/jupyter_helper.rb` 421-446行
+**実装**：`lib/monadic/adapters/jupyter_helper.rb` 415-446行
 
 #### エラー修正ワークフロー
 

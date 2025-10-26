@@ -3,17 +3,30 @@
 require "spec_helper"
 
 RSpec.describe "Selenium Integration", :integration do
-  before(:all) do
-    # Ensure Selenium container is available
-    begin
-      selenium_url = "http://localhost:4444/wd/hub/status"
-      uri = URI(selenium_url)
-      response = Net::HTTP.get_response(uri)
-      unless response.code == "200"
-        skip "Selenium container not available"
+  before(:context) do
+    # Ensure Selenium container is started (DockerContainerManager should handle this)
+    # Wait a bit for container to be fully ready
+    max_attempts = 10
+    attempt = 0
+
+    while attempt < max_attempts
+      begin
+        selenium_url = "http://localhost:4444/wd/hub/status"
+        uri = URI(selenium_url)
+        response = Net::HTTP.get_response(uri)
+        if response.code == "200"
+          puts "✅ Selenium container is ready"
+          break
+        end
+      rescue => e
+        puts "⏳ Waiting for Selenium... (#{attempt + 1}/#{max_attempts})" if ENV['DEBUG_CONTAINERS']
       end
-    rescue => e
-      skip "Selenium container not available: #{e.message}"
+
+      attempt += 1
+      if attempt >= max_attempts
+        skip "Selenium container not available after #{max_attempts} attempts"
+      end
+      sleep 2
     end
   end
 

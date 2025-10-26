@@ -52,6 +52,18 @@ class ProcessDocumentation
       puts "External docs found: #{Dir.glob(File.join(DOCS_PATH, '**/*.md')).count}"
     end
 
+    # Collect all existing files from filesystem for cleanup
+    existing_files = collect_existing_files(include_internal: include_internal)
+
+    # Cleanup deleted files from database before processing
+    puts "\n=== Cleaning Up Deleted Files ==="
+    deleted_count = @help_db.cleanup_deleted_files(existing_files)
+    if deleted_count > 0
+      puts "Removed #{deleted_count} orphaned database entries"
+    else
+      puts "No orphaned entries found"
+    end
+
     # Process external documentation (always)
     process_language_docs("en", DOCS_PATH, is_internal: false)
     process_root_docs(is_internal: false)
@@ -79,6 +91,48 @@ class ProcessDocumentation
   end
 
   private
+
+  # Collect all existing documentation files from filesystem
+  # Returns a hash with language as key and array of relative file paths as value
+  def collect_existing_files(include_internal: false)
+    existing_files = { "en" => [] }
+
+    # Collect root documentation files
+    project_root = File.expand_path("../../../../..", __dir__)
+    readme_path = File.join(project_root, "README.md")
+    changelog_path = File.join(project_root, "CHANGELOG.md")
+
+    existing_files["en"] << "README.md" if File.exist?(readme_path)
+    existing_files["en"] << "CHANGELOG.md" if File.exist?(changelog_path)
+
+    # Collect external documentation files
+    if Dir.exist?(DOCS_PATH)
+      markdown_files = Dir.glob(File.join(DOCS_PATH, "**/*.md"))
+      markdown_files.reject! { |f| f.include?("/node_modules/") || f.include?("/_") }
+      markdown_files.reject! { |f| f.include?("/ja/") || f.include?("/zh/") || f.include?("/ko/") }
+
+      markdown_files.each do |file_path|
+        relative_path = file_path.sub(DOCS_PATH + "/", "")
+        next if relative_path.start_with?("_") || relative_path == "index.md"
+        existing_files["en"] << relative_path
+      end
+    end
+
+    # Collect internal documentation files (if requested)
+    if include_internal && Dir.exist?(DOCS_DEV_PATH)
+      markdown_files = Dir.glob(File.join(DOCS_DEV_PATH, "**/*.md"))
+      markdown_files.reject! { |f| f.include?("/node_modules/") || f.include?("/_") }
+      markdown_files.reject! { |f| f.include?("/ja/") || f.include?("/zh/") || f.include?("/ko/") }
+
+      markdown_files.each do |file_path|
+        relative_path = file_path.sub(DOCS_DEV_PATH + "/", "")
+        next if relative_path.start_with?("_") || relative_path == "index.md"
+        existing_files["en"] << relative_path
+      end
+    end
+
+    existing_files
+  end
 
   def process_root_docs(is_internal: false)
     # Project root is 5 levels up from this script

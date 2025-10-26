@@ -19,9 +19,7 @@
 
 ##### Q: PDFの内容について AI エージェントに質問することはできますか？ :id=pdf-content-questions
 
-**A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語エンベディングを PGVector データベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Python コンテナ上の MuPDF4LLM で Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
-
-上記はいずれもデフォルトで OpenAI モデルを使用しています。その他のプロバイダーを使用する場合は、`Code` 機能対応のアプリで `Code Interpreter` と同様の仕組みで PDF ファイルを読み込ませることができます。
+**A**: はい、いくつかのやり方があります。[`PDF Navigator`](../basic-usage/basic-apps.md#pdf-navigator) アプリでは、提供された PDF の単語エンベディングをデータベースに格納して、RAG（Retrieval-Augmented Generation）の手法を用いる形で AI に回答させることができます。[`Code Interpreter`](../basic-usage/basic-apps.md#code-interpreter) や [`Content Reader`](../basic-usage/basic-apps.md#content-reader) アプリでは、PDF ファイルを Markdown 形式に変換して、その内容を AI エージェントに読み込ませて、その内容に関する質問ができるようになっています。
 
 また、Anthropic Claude、OpenAI、または Google Gemini のビジョン機能対応モデルを用いたアプリでは、テキスト入力ボックスの下にある `Image` ボタンをクリックして、PDF ファイルを直接アップロードして、内容について AI エージェントに質問することができます。このボタンは、対応モデルを使用している場合に動的にPDFアップロードを許可します。詳しくは [PDF のアップロード](../basic-usage/message-input.md#pdf-のアップロード)を参照してください。
 

@@ -51,7 +51,7 @@ npm run test:no-mock message-input.test.js
 
 ### テストカテゴリ
 - `message-input.test.js` - メッセージテキストエリアの動作と検証
-- `websocket-communication.test.js` - 実際のWebSocketメッセージ処理
+- `websocket-ui-behavior.test.js` - WebSocket UIの動作と処理
 - `message-cards.test.js` - メッセージの表示と相互作用
 
 ## No-Mockテストの書き方

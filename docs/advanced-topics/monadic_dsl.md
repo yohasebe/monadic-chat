@@ -29,10 +29,10 @@ app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    model "<model-id>"
     temperature 0.7
   end
-  
+
   features do
     image_support true
     auto_speech false
@@ -71,7 +71,7 @@ end
 ```ruby
 llm do
   provider "anthropic"  # AI provider (anthropic, openai, cohere, etc.)
-  model "claude-sonnet-4-20250514"  # Model name
+  model "<model-id>"  # Model name
   temperature 0.7  # Response randomness (0.0-1.0)
   max_tokens 4000  # Maximum response length
 end
@@ -89,6 +89,78 @@ Supported providers:
 - `ollama` (Local models via Ollama)
 
 For a complete overview of which apps are compatible with which models, see the [App Availability by Provider](../basic-usage/basic-apps.md#app-availability) section in the Basic Apps documentation.
+
+#### Model Specification Best Practices
+
+There are three approaches to specifying models in MDSL, each suited for different use cases:
+
+**Standard Apps (Built-in apps in `docker/services/ruby/apps/`)**
+
+Use specific model names for stability and predictability:
+
+```ruby
+llm do
+  provider "openai"
+  model "gpt-4.1"  # Explicit model name ensures consistent behavior
+end
+```
+
+- ✅ Predictable behavior
+- ✅ Easy to debug
+- ✅ Suitable for production apps
+- ⚠️ Requires periodic updates when new models are released
+
+**Custom Apps (User-created apps in `~/monadic/data/apps/`)**
+
+Use environment variables for flexibility:
+
+```ruby
+llm do
+  provider "openai"
+  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Respects user preferences
+end
+```
+
+- ✅ Users can customize via `~/monadic/config/env`
+- ✅ Automatically uses system defaults if ENV not set
+- ✅ Future-proof (no hardcoded model names)
+- ✅ Recommended for custom apps
+
+**Configuration Priority**
+
+Model values are resolved in this order (highest to lowest):
+
+1. **Explicit MDSL value**: `model "gpt-4.1"` (highest priority)
+2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` from `~/monadic/config/env`
+3. **System defaults**: `docker/services/ruby/config/system_defaults.json`
+4. **Hardcoded fallback**: Built-in default values
+
+**Multiple Model Options**
+
+Provide users with model choices using an array:
+
+```ruby
+llm do
+  provider "openai"
+  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # Users can select from dropdown
+end
+```
+
+**Provider-Specific Environment Variables**
+
+Each provider has a corresponding environment variable:
+
+| Provider | Environment Variable |
+|----------|---------------------|
+| OpenAI | `OPENAI_DEFAULT_MODEL` |
+| Anthropic/Claude | `ANTHROPIC_DEFAULT_MODEL` |
+| Gemini/Google | `GEMINI_DEFAULT_MODEL` |
+| Mistral | `MISTRAL_DEFAULT_MODEL` |
+| Cohere | `COHERE_DEFAULT_MODEL` |
+| DeepSeek | `DEEPSEEK_DEFAULT_MODEL` |
+| Perplexity | `PERPLEXITY_DEFAULT_MODEL` |
+| xAI/Grok | `GROK_DEFAULT_MODEL` |
+| Ollama | `OLLAMA_DEFAULT_MODEL` |
 
 ### 3. System Prompt
 
@@ -150,19 +222,21 @@ end
 app "Simple Chat" do
   description "Basic chat application with Claude"
   icon "fa-solid fa-comments"
-  
+
   system_prompt <<~PROMPT
     You are a helpful assistant that provides accurate and concise information.
     Always be polite and respond directly to the user's questions.
   PROMPT
-  
+
   llm do
     provider "anthropic"
-    model "claude-3-haiku-20240307"
+    model "<model-id>"  # Specify your model ID (e.g., "claude-sonnet-4-5-latest")
     temperature 0.7
   end
 end
 ```
+
+> **Note**: For actual working examples with current model names, see the app implementations in `docker/services/ruby/apps/`.
 
 ### Code Interpreter-Enabled Math Tutor
 
@@ -185,14 +259,15 @@ app "Math Tutor" do
   PROMPT
   
   llm do
-    provider "anthropic"
-    model "claude-sonnet-4-20250514"
+    provider "openai"
+    model ["<model-1>", "<model-2>"]  # Array of model IDs for user selection
     temperature 0.7
   end
-  
+
   features do
     sourcecode true     # Enable code highlighting
     image true          # Enable clickable images in responses
+    mathjax true        # Enable math notation rendering
   end
   
   tools do
@@ -265,7 +340,7 @@ app "MermaidGrapherOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1") # Use an appropriate model per current OpenAI docs
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
     temperature 0.0
   end
   
@@ -318,7 +393,7 @@ app "WikipediaOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
     temperature 0.3
   end
   

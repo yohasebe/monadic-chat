@@ -8,26 +8,42 @@ Overview
 - Ruby suites save JSON, HTML, and compact text reports by default.
 
 Quick Start
-- Run everything (non‑media API) and auto‑open index (macOS):
+- Basic test run (Ruby + JavaScript + Python, no API calls):
+  - `rake test`
+- Comprehensive test suite with API tests (auto-open index on macOS):
   - `rake test:all[standard,true]`
-- Fast local run without real API calls:
+- Full test suite including media tests (image/video/audio generation):
+  - `rake test:all[full]`
+- Fast local run without API calls:
   - `rake test:all[none]`
 
 Artifacts
-- Per Ruby suite:
-  - `tmp/test_results/<run_id>.json` (RSpec JSON)
-  - `tmp/test_results/<run_id>_report.txt` (compact CLI report)
-  - `tmp/test_results/<run_id>_{failures|pending}.{txt|json}`
-  - `tmp/test_results/report_<run_id>.html` (human‑readable)
-- All‑suites index:
-  - `tmp/test_results/index_all_<timestamp>.html`
+All test results are saved to `./tmp/test_results/` for centralized access:
+
+- **Ruby (RSpec)**:
+  - `tmp/test_results/<run_id>/` (directory with full results)
+  - `tmp/test_results/<run_id>/summary_compact.md` (concise summary)
+  - `tmp/test_results/<run_id>/summary_full.md` (detailed results)
+  - `tmp/test_results/<run_id>/rspec_report.json` (machine-readable)
+  - `tmp/test_results/latest/` (symlink to most recent run)
+
+- **JavaScript (Jest)**:
+  - `tmp/test_results/<run_id>_jest.json` (test results in JSON format)
+
+- **Python (pytest)**:
+  - `tmp/test_results/<run_id>_pytest.txt` (test output)
+
+- **Unified test suite**:
+  - `tmp/test_results/all_<timestamp>.json` (combined summary)
+  - `tmp/test_results/index_all_<timestamp>.html` (HTML report index)
 
 API Levels
-- `full`: `RUN_API=true RUN_API_E2E=true RUN_MEDIA=true`
-- `standard`: `RUN_API=true RUN_API_E2E=true RUN_MEDIA=false`
-- `none`: `RUN_API=false RUN_API_E2E=false RUN_MEDIA=false`
+- `full`: All tests including media generation (image/video/audio)
+- `standard`: API tests without media generation (default)
+- `none`: Local tests only, no API calls
 
 Rake Tasks
+- `rake test` – Run all tests (Ruby + JavaScript + Python, no API)
 - `rake test:help` – list suites and options.
 - `rake test:run[suite,opts]` – run a single suite; accepts:
   - `api_level=full|standard|none` (default: `standard`)
@@ -38,6 +54,7 @@ Rake Tasks
 - `rake test:all[api_level,open]` – orchestrate all suites; `open=true` opens index on macOS.
 - `rake test:report[run_id]` – generate HTML for latest or specific run.
 - `rake test:history[count]`, `rake test:compare[run1,run2]` – browse/diff saved runs.
+- `rake test:cleanup[keep_count]` – clean up old test results (default: keep latest 3).
 
 Implementation Notes
 - Runner loads env defaults from `~/monadic/config/env` when available.
@@ -99,3 +116,11 @@ Sample outputs
 Tips
 - macOS auto‑open: `rake test:all[standard,true]` will open the index page when finished.
 - Custom run ids: pass `run_id=my_run_001` to group artifacts predictably.
+- Auto-cleanup: Set `TEST_AUTO_CLEANUP=true` to automatically clean up old results after tests.
+- Retention policy: Set `TEST_KEEP_COUNT=10` to keep more test results (default: 3).
+
+Cleanup Management
+- Manual cleanup: `rake test:cleanup` (keeps latest 3 by default)
+- Custom retention: `rake test:cleanup[10]` (keeps latest 10)
+- Auto-cleanup: `TEST_AUTO_CLEANUP=true rake test` (cleans up after test run)
+- Check disk usage: `du -sh tmp/test_results`

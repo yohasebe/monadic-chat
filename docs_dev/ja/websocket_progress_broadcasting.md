@@ -117,21 +117,13 @@ EXTRA_LOGGING=true
 ### メッセージがコンソールに表示されるがUIには表示されない
 これは、メッセージがチャネルを介さずに直接送信されていることを意味します。`send_to_session`が`@@channel.push()`を使用していることを確認してください。
 
-## 将来の機能強化
-
-1. **セッション固有フィルタリング**：JavaScriptがsession_idでメッセージをフィルタリングできる
-2. **進捗パーセンテージ**：メッセージに完了率を含める
-3. **キャンセルサポート**：長時間実行操作のキャンセルを許可
-4. **複数の進捗タイプ**：異なる操作に対する異なるUI処理
-5. **レート制限**：進捗メッセージのフラッディングを防止
-
 ## コードの場所
 
-- メイン実装：`/lib/monadic/utils/websocket.rb:91-233`
-- GPT-5-Codex統合：`/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
-- AutoForge統合：`/apps/auto_forge/auto_forge_tools.rb`
-- JavaScriptハンドラー：`/public/js/monadic/websocket.js:1920-1939`
-- テスト：`/spec/lib/monadic/utils/websocket_helper_spec.rb`
+- メイン実装：`docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
+- GPT-5-Codex統合：`docker/services/ruby/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
+- AutoForge統合：`docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
+- JavaScriptハンドラー：`docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
+- テスト：`docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`
 
 ## 注意事項
 

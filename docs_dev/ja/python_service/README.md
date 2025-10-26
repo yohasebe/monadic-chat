@@ -10,24 +10,27 @@
 
 PythonサービスはFlaskベースのAPIサーバーで、以下を提供します：
 
-- **コード実行** - 分離環境でのPythonコードの安全な実行
-- **Jupyter統合** - ノートブックの作成、実行、管理
-- **科学計算** - NumPy、Pandas、Matplotlibなどのライブラリ
+- **トークンカウント** - tiktokenライブラリを使用したテキストのトークン数計算
+- **エンコーディング管理** - エンコーディング名の取得とトークンシーケンスのデコード
+- **JupyterLabアクセス** - ポート8889での直接JupyterLabインターフェース（Flask APIとは別）
+- **科学計算ライブラリ** - JupyterLab環境でNumPy、Pandas、Matplotlibが利用可能
 - **オプションパッケージ** - LaTeX、NLTK、spaCyなど（インストールオプションで設定可能）
 
 ## アーキテクチャ
 
-- **Flask APIサーバー** (`docker/services/python/app.py`) - HTTP REST API
-- **Jupyterコントローラー** - ノートブックライフサイクル管理
+- **Flask APIサーバー** (`docker/services/python/flask/flask_server.py`) - トークンカウントREST API
+- **JupyterLabサーバー** - 直接ノートブックインターフェース（ポート8889）
 - **実行環境** - 科学ライブラリを含む分離されたPythonランタイム
 - **Dockerコンテナ** - オプション依存関係を持つスタンドアロンサービス
 
-## 主要エンドポイント
+## 主要Flask APIエンドポイント
 
-- `POST /execute` - Pythonコードを実行
-- `POST /notebook/create` - 新しいJupyter Notebookを作成
-- `POST /notebook/execute` - ノートブックセルを実行
-- `GET /notebook/status` - ノートブック実行ステータスを確認
+- `GET /health` - サービス可用性のヘルスチェック
+- `GET /warmup` - 一般的なエンコーディングを事前ロードしてレイテンシを削減
+- `POST /get_encoding_name` - モデルのtiktokenエンコーディング名を取得
+- `POST /count_tokens` - テキストのトークン数をカウント
+- `POST /get_tokens_sequence` - カンマ区切りのトークンシーケンスを取得
+- `POST /decode_tokens` - トークンを元のテキストにデコード
 
 ## インストールオプション
 
@@ -43,9 +46,9 @@ Pythonコンテナは**アクション → インストールオプション**�
 
 ## 関連ドキュメント
 
-- [Dockerビルドキャッシング](/ja/docker-build-caching.md) - Pythonコンテナビルドのスマートキャッシング
-- [Dockerアーキテクチャ](/ja/docker-architecture.md) - マルチコンテナオーケストレーション
+- [Dockerビルドキャッシング](../docker-build-caching.md) - Pythonコンテナビルドのスマートキャッシング
+- [Dockerアーキテクチャ](../docker-architecture.md) - マルチコンテナオーケストレーション
 
 参照：
 - `docker/services/python/` - Pythonサービスソースコード
-- `docker/services/python/requirements.txt` - Python依存関係
+- `docker/services/python/Dockerfile` - Python依存関係（Dockerfile内でuvを使用してインストール）

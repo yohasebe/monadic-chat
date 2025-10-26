@@ -20,9 +20,9 @@ Monadic ChatのフロントエンドはバニラJavaScriptで構築され、Ruby
 ## 関連ドキュメント
 
 他の場所でカバーされているフロントエンド関連トピック：
-- [JSコンソール](/ja/js-console.md) - JavaScriptコンソールログモード
-- [外部ライブラリ](/ja/external-libs.md) - ベンダーアセット管理
-- [SSOT正規化](/ja/ssot_normalization_and_accessors.md) - モデル機能語彙
+- [JSコンソール](../js-console.md) - JavaScriptコンソールログモード
+- [外部ライブラリ](../external-libs.md) - ベンダーアセット管理
+- [SSOT正規化](../ssot_normalization_and_accessors.md) - モデル機能語彙
 
 参照：
 - `docs_dev/developer/code_structure.md` - コード構成の公開開発者リファレンス

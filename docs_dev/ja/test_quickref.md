@@ -4,9 +4,10 @@ Monadic Chatメンテナー向け。このガイドは、テストを実行す�
 
 ## 哲学
 
-- **プロファイルベース**：すべてのテストニーズに`rake test:profile[name]`を使用
+- **シンプル**：基本的なテストには`rake test`を使用（Ruby + JavaScript + Python）
+- **プロファイルベース**：特定のシナリオには`rake test:profile[name]`を使用
 - **宣言的**：テスト設定は`config/test/test-config.yml`に存在
-- **シンプル**：複雑な環境変数の組み合わせなし
+- **統一的な結果**：すべてのテスト結果は`./tmp/test_results/`に保存
 
 ## 日常ワークフロー
 
@@ -18,6 +19,9 @@ rake test:profile[quick]
 
 # 標準的な開発テスト（unit + integration、約1-2分）
 rake test:profile[dev]
+
+# シンプルな全テスト実行（Ruby + JS + Python、APIなし、約2-3分）
+rake test
 ```
 
 ### コミット前
@@ -41,6 +45,9 @@ rake test:profile[ci]
 # メディアテストを含む完全テストスイート（約10-15分）
 # すべてのAPIキーの設定が必要
 rake test:profile[full]
+
+# 代替：メディアテストを含む統一ランナー
+rake test:all[full]
 ```
 
 ## 利用可能なプロファイル
@@ -95,13 +102,19 @@ rake test:report
 ## 出力の理解
 
 ### アーティファクトの場所
+すべてのテスト結果は`./tmp/test_results/`に集中保存されます：
+
 ```
 tmp/test_results/
-├── index_all_<timestamp>.html    # 統合結果ダッシュボード
-├── <run_id>.json                 # 生のRSpec JSON出力
-├── <run_id>_report.txt           # コンパクトテキスト要約
-├── report_<run_id>.html          # 詳細HTMLレポート
-└── <run_id>_failures.json        # 失敗した例のみ
+├── latest/                           # 最新のRubyテスト実行へのシンボリックリンク
+├── <run_id>/                         # Rubyテスト結果ディレクトリ
+│   ├── summary_compact.md            # 簡潔なサマリー
+│   ├── summary_full.md               # 詳細な結果
+│   └── rspec_report.json             # 機械可読JSON
+├── <run_id>_jest.json                # JavaScriptテスト結果（Jest）
+├── <run_id>_pytest.txt               # Pythonテスト出力
+├── all_<timestamp>.json              # 統合テストスイートサマリー
+└── index_all_<timestamp>.html        # 統合結果ダッシュボード
 ```
 
 ### クイック要約

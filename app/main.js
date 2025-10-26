@@ -849,18 +849,40 @@ const dockerManager = new DockerManager();
 
 // Compare two version strings (e.g., "1.2.3" vs "1.2.4")
 function compareVersions(version1, version2) {
-  const parts1 = version1.split('.');
-  const parts2 = version2.split('.');
+  // Parse version string into components
+  const parseVersion = (version) => {
+    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/);
+    if (!match) return null;
 
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const part1 = parseInt(parts1[i] || 0, 10);
-    const part2 = parseInt(parts2[i] || 0, 10);
+    return {
+      major: parseInt(match[1], 10),
+      minor: parseInt(match[2], 10),
+      patch: parseInt(match[3], 10),
+      prerelease: match[4] || null
+    };
+  };
 
-    if (part1 < part2) {
-      return -1;
-    } else if (part1 > part2) {
-      return 1;
-    }
+  const v1 = parseVersion(version1);
+  const v2 = parseVersion(version2);
+
+  if (!v1 || !v2) {
+    // Fallback to string comparison if parsing fails
+    return version1.localeCompare(version2);
+  }
+
+  // Compare major.minor.patch
+  if (v1.major !== v2.major) return v1.major - v2.major;
+  if (v1.minor !== v2.minor) return v1.minor - v2.minor;
+  if (v1.patch !== v2.patch) return v1.patch - v2.patch;
+
+  // If versions are equal but one has prerelease, stable version is higher
+  // Examples: 1.0.0 > 1.0.0-beta.3, 1.0.0-beta.3 < 1.0.0
+  if (v1.prerelease && !v2.prerelease) return -1; // v1 is prerelease, v2 is stable
+  if (!v1.prerelease && v2.prerelease) return 1;  // v1 is stable, v2 is prerelease
+
+  // Both are prerelease or both are stable
+  if (v1.prerelease && v2.prerelease) {
+    return v1.prerelease.localeCompare(v2.prerelease);
   }
 
   return 0;

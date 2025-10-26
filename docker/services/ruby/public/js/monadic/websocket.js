@@ -55,8 +55,8 @@ let pendingAudioSegments = {}; // Buffer for out-of-order segments
 let sequenceCheckTimer = null; // Timer for checking missing segments
 let sequenceRetryCount = 0; // Track how many times we've retried waiting for a segment
 let failedSequences = new Set(); // Track sequences that failed to play
-const SEQUENCE_TIMEOUT_MS = 5000; // Wait 5 seconds for missing segments before retrying
-const MAX_SEQUENCE_RETRIES = 2; // Maximum number of retries before giving up on a segment
+const SEQUENCE_TIMEOUT_MS = 3000; // Check for missing segments every 3 seconds
+const MAX_SEQUENCE_RETRIES = 10; // Maximum number of retries before giving up on a segment (30s total)
 
 // Auto Speech completion tracking
 let textResponseCompleted = false; // Track if text response finished

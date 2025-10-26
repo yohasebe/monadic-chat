@@ -5,8 +5,8 @@
 ## コンテンツ
 
 ### API仕様
-- [Cohere Chat API (2025-10-11)](/external_apis/cohere-chat-API-2025-10-11.pdf) - 完全なCohere Chat APIリファレンス
-- [Mistral Chat API (2025-10-11)](/external_apis/mistral-chat-API-2025-10-11.pdf) - 完全なMistral Chat APIリファレンス
+- [Cohere Chat API (2025-10-11)](cohere-chat-API-2025-10-11.pdf) - 完全なCohere Chat APIリファレンス
+- [Mistral Chat API (2025-10-11)](mistral-chat-API-2025-10-11.pdf) - 完全なMistral Chat APIリファレンス
 
 ## 概要
 

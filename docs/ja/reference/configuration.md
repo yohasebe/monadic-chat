@@ -4,6 +4,7 @@
 
 ## 設定カテゴリー
 
+- [設定優先度](#設定優先度)
 - [APIキー](#apiキー)
 - [モデル設定](#モデル設定)
 - [システム設定](#システム設定)
@@ -13,6 +14,31 @@
 - [コンテナ設定](#コンテナ設定)
 - [インストールオプション](#インストールオプション)
 - [PDF処理設定](#pdf処理設定)
+
+## 設定優先度
+
+Monadic Chatは設定値に対して以下の優先順位を使用します（高い順）：
+
+1. **環境変数** (`~/monadic/config/env`)
+   - ユーザー定義の設定が最優先
+   - 他のすべての設定ソースを上書き
+
+2. **システムデフォルト** (`config/system_defaults.json`)
+   - プロバイダー固有のデフォルトモデルと設定
+   - 環境変数が設定されていない場合に適用
+
+3. **ハードコードされたデフォルト**
+   - コード内の組み込みフォールバック値
+   - ENVとsystem_defaultsのどちらも値を提供しない場合の最終手段
+
+### 例
+
+OpenAIのデフォルトモデルの場合：
+- `~/monadic/config/env`に`OPENAI_DEFAULT_MODEL=<model-id>`が設定されている場合、それが使用されます
+- そうでない場合、`system_defaults.json`の値が使用されます
+- どちらも存在しない場合、アプリケーション内のハードコードされたデフォルトが適用されます
+
+> **Note**: 現在のデフォルト値は`docker/services/ruby/config/system_defaults.json`を参照してください。モデル名は頻繁に更新されるため、最新の値は実装ファイルで確認することを推奨します。
 
 ## APIキー
 
@@ -30,16 +56,18 @@
 
 ## モデル設定
 
-| 変数名 | 説明 | デフォルト | 例 |
-|--------|------|------------|-----|
-| `OPENAI_DEFAULT_MODEL` | OpenAIアプリのデフォルトモデル | `gpt-4.1` | `gpt-4.1-mini` |
-| `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `claude-sonnet-4-20250514` | `claude-3.5-haiku-20241022` |
-| `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `gemini-2.5-flash` | `gemini-1.5-pro` |
-| `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `mistral-large-latest` | `magistral-medium-2509` |
-| `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `command-a-03-2025` | `command-a-reasoning-08-2025` |
-| `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `deepseek-chat` | `deepseek-coder` |
-| `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `sonar-reasoning-pro` | `sonar-reasoning` |
-| `XAI_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `grok-4-fast-reasoning` | `grok-4-fast-non-reasoning` |
+> **Note**: デフォルト値は`docker/services/ruby/config/system_defaults.json`を参照してください。以下の表は変数名と用途の説明のみを記載しています。
+
+| 変数名 | 説明 | 使用例 |
+|--------|------|--------|
+| `OPENAI_DEFAULT_MODEL` | OpenAIアプリのデフォルトモデル | `OPENAI_DEFAULT_MODEL=<model-id>` |
+| `ANTHROPIC_DEFAULT_MODEL` | Claudeアプリのデフォルトモデル | `ANTHROPIC_DEFAULT_MODEL=<model-id>` |
+| `GEMINI_DEFAULT_MODEL` | Geminiアプリのデフォルトモデル | `GEMINI_DEFAULT_MODEL=<model-id>` |
+| `MISTRAL_DEFAULT_MODEL` | Mistralアプリのデフォルトモデル | `MISTRAL_DEFAULT_MODEL=<model-id>` |
+| `COHERE_DEFAULT_MODEL` | Cohereアプリのデフォルトモデル | `COHERE_DEFAULT_MODEL=<model-id>` |
+| `DEEPSEEK_DEFAULT_MODEL` | DeepSeekアプリのデフォルトモデル | `DEEPSEEK_DEFAULT_MODEL=<model-id>` |
+| `PERPLEXITY_DEFAULT_MODEL` | Perplexityアプリのデフォルトモデル | `PERPLEXITY_DEFAULT_MODEL=<model-id>` |
+| `GROK_DEFAULT_MODEL` | Grokアプリのデフォルトモデル | `GROK_DEFAULT_MODEL=<model-id>` |
 
 ## システム設定
 
@@ -50,13 +78,13 @@
 | `MAX_CHAR_COUNT` | メッセージの最大文字数 | `200000` | 1000-500000 |
 | `PDF_BOLD_FONT_PATH` | PDF生成用の太字フォントパス | （オプション） | ファイルパス |
 | `PDF_STANDARD_FONT_PATH` | PDF生成用の標準フォントパス | （オプション） | ファイルパス |
-| `ROUGE_THEME` | シンタックスハイライトのテーマ | `monokai.sublime` | [利用可能なテーマ](../basic-usage/syntax-highlighting.md)を参照 |
+| `ROUGE_THEME` | シンタックスハイライトのテーマ | `pastie:light` | [利用可能なテーマ](../basic-usage/syntax-highlighting.md)を参照 |
 
 ## 音声設定
 
 | 変数名 | 説明 | デフォルト | 範囲/オプション |
 |--------|------|------------|----------------|
-| `STT_MODEL` | 音声認識モデル | `gpt-4o-transcribe` | `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1` |
+| `STT_MODEL` | 音声認識モデル | system_defaults.json参照 | 利用可能なモデルはプロバイダーのドキュメント参照 |
 | `TTS_DICT_PATH` | TTS発音辞書のパス | （オプション） | ファイルパス |
 | `TTS_DICT_DATA` | インラインTTS発音データ | （オプション） | CSV形式 |
 | `AUTO_TTS_MIN_LENGTH` | リアルタイムモードでTTS生成前の最小テキスト長 | `50` | 20-200文字 |
@@ -157,7 +185,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # モデル設定
-OPENAI_DEFAULT_MODEL=gpt-4.1
+OPENAI_DEFAULT_MODEL=<model-id>
 
 # UI設定
 FONT_SIZE=18

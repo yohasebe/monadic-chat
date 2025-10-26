@@ -334,7 +334,7 @@ class HelpEmbeddings < TextEmbeddings
   # Alias for MCP adapter compatibility
   def search(query:, num_results: 3)
     results = find_closest_text_multi(query, chunks_per_result: 1, top_n: num_results)
-    
+
     results.map do |r|
       {
         title: r[:title],
@@ -343,6 +343,91 @@ class HelpEmbeddings < TextEmbeddings
         distance: 1 - r[:similarity]  # Convert similarity to distance
       }
     end
+  end
+
+  # Get all file paths currently in the database
+  # Returns a hash with language as key and array of file paths as value
+  def get_all_file_paths
+    result = {}
+
+    self.class.with_retry("Getting all file paths from database") do
+      res = @conn.exec(<<~SQL)
+        SELECT file_path, language
+        FROM help_docs
+        ORDER BY file_path, language
+      SQL
+
+      res.each do |row|
+        language = row["language"]
+        result[language] ||= []
+        result[language] << row["file_path"]
+      end
+    end
+
+    result
+  end
+
+  # Delete documents by file paths
+  # file_paths: array of file paths to delete
+  # language: specific language to delete (nil = all languages)
+  def delete_documents_by_file_paths(file_paths, language: nil)
+    return 0 if file_paths.empty?
+
+    deleted_count = 0
+
+    self.class.with_retry("Deleting documents by file paths") do
+      file_paths.each do |file_path|
+        if language
+          # Delete specific language version
+          res = @conn.exec_params(
+            "DELETE FROM help_docs WHERE file_path = $1 AND language = $2",
+            [file_path, language]
+          )
+        else
+          # Delete all language versions
+          res = @conn.exec_params(
+            "DELETE FROM help_docs WHERE file_path = $1",
+            [file_path]
+          )
+        end
+        deleted_count += res.cmd_tuples
+      end
+    end
+
+    deleted_count
+  end
+
+  # Cleanup deleted files from database
+  # Compares database entries with actual files on filesystem
+  # existing_files: hash with language as key and array of relative file paths as value
+  def cleanup_deleted_files(existing_files)
+    db_files = get_all_file_paths
+    deleted_files = []
+
+    db_files.each do |language, db_file_list|
+      existing_file_list = existing_files[language] || []
+
+      # Find files in DB but not in filesystem
+      orphaned_files = db_file_list - existing_file_list
+
+      orphaned_files.each do |file_path|
+        deleted_files << { file_path: file_path, language: language }
+      end
+    end
+
+    return 0 if deleted_files.empty?
+
+    # Delete orphaned files
+    deleted_count = 0
+    deleted_files.each do |file_info|
+      count = delete_documents_by_file_paths([file_info[:file_path]], language: file_info[:language])
+      if count > 0
+        puts "  Removed orphaned entry: #{file_info[:file_path]} (#{file_info[:language]})"
+        deleted_count += count
+      end
+    end
+
+    deleted_count
   end
 
   private

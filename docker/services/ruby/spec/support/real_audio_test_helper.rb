@@ -93,7 +93,20 @@ module RealAudioTestHelper
   
   # Transcribe audio file using STT CLI tool
   def transcribe_audio_file(audio_file, options = {})
-    model = options[:model] || CONFIG["STT_MODEL"] || "whisper-1"
+    # OpenAI STT supported models
+    valid_openai_stt_models = [
+      "whisper-1", "gpt-4o-transcribe", "gpt-4o-transcribe-diarize",
+      "gpt-4o-mini-transcribe", "gpt-4o-audio-preview",
+      "gpt-4o-audio-preview-2024-10-01", "gpt-4o-audio-preview-2024-12-17"
+    ]
+
+    configured_model = options[:model] || CONFIG["STT_MODEL"]
+    # Validate that the model is a supported OpenAI STT model
+    model = if configured_model && valid_openai_stt_models.include?(configured_model)
+              configured_model
+            else
+              "whisper-1"  # Fallback to default OpenAI model
+            end
     lang = options[:lang] || "en"
     
     # STT tool expects positional arguments: audiofile, outpath, format, lang, model

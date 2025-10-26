@@ -50,7 +50,7 @@ chmod +x ~/monadic/config/olsetup.sh
 
 ### 手動インストール
 
-`olsetup.sh`が見つからない場合、システムは自動的に`llama3.2`をデフォルトとしてプルします。デフォルトモデルは`~/monadic/config/env`ファイルで`OLLAMA_DEFAULT_MODEL`設定変数を設定することで変更できます。
+`olsetup.sh`が見つからない場合、システムは自動的に`llama3.2`をデフォルトとしてプルします。デフォルトモデルは設定で変更できます。
 
 さらにモデルを手動で追加するには、ターミナルからOllamaコンテナーに接続します：
 

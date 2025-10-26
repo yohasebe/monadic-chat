@@ -1,4 +1,22 @@
-- [October 10, 2025] Recent Updates
+- [October 22, 2024] **v1.0.0 - First Stable Release** 🎉
+  - **Production Ready**: Comprehensive testing with 317 passing tests
+  - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security
+  - **Enhanced Stability**: Fixed all test suite issues for reliable operation
+  - **Comprehensive Documentation**: Complete English and Japanese documentation with verified links
+  - **Multi-Platform Support**: Verified builds for macOS (ARM64/x64), Windows, and Linux
+  - **20+ Built-in Apps**: Production-ready applications including Code Interpreter, PDF Chat, AutoForge, Video Analysis
+  - **9 AI Providers**: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek, Ollama
+  - **Advanced Features**:
+    - Web UI STT model selection with speaker diarization
+    - Multimodal interactions (text, image, video, audio)
+    - JupyterLab integration for data science workflows
+    - PDF knowledge base (local PGVector + cloud OpenAI Vector Store)
+    - Voice interaction with TTS/STT support
+    - MCP (Model Context Protocol) server integration
+  - **Developer Experience**: Comprehensive testing infrastructure, debugging tools, and extensible architecture
+  - **Acknowledgments**: Thanks to all contributors and beta testers who helped shape this release
+
+- [October 10, 2024] Recent Updates
   - **Gemini STT Support**: Added Google Gemini as speech-to-text provider
     - New option: gemini-2.5-flash in STT_MODEL settings
     - Supports all major audio formats (WAV, MP3, AAC, OGG, FLAC, AIFF)
@@ -41,7 +59,7 @@
     - Fixes "Web search preview tool is not supported" error
     - Applies to all GPT-5, GPT-4.1, O3, and O4 models with web search support
 
-- [October 5, 2025] 1.0.0-beta.5
+- [October 5, 2024] 1.0.0-beta.5
   - **MDSL Validator Fix**: Fixed method name error in Visual Web Explorer
     - Changed `ModelSpec.get_spec()` to `ModelSpec.get_model_spec()`
     - Resolved "undefined method 'get_spec'" errors preventing app initialization
@@ -71,7 +89,15 @@
     - Enabled initiate_from_assistant for greeting message
     - Assistant now proactively guides users through requirements
 
-- [August 27, 2025] Latest Updates
+- [September 9, 2024] Install Options Rebuild, Atomic Update, Caching
+  - Install Options: Added progress stream and build summary (logs/health) in the window after Save → Rebuild
+  - Atomic Python image update: Build to temp tag → verify → retag only on success; failures keep current image
+  - Per-run logs: `~/monadic/log/build/python/<timestamp>/` with `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
+  - Health checks: Verify LaTeX (`pdflatex`), ImageMagick (`convert`), and selected Python libs (nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers)
+  - Error handling: Safer saving of Install Options with clear dialogs on failure
+  - Dockerfile caching: Split base pip layer and optional libs per RUN; removed `--no-cache` from Python build to leverage cache
+
+- [August 27, 2024] Latest Updates
   - **Thinking/Reasoning Process Display**: Comprehensive implementation across all providers
     - Fixed Cohere thinking fragment concatenation (word-level fragments)
     - Implemented Perplexity dual-format support (JSON + XML tags)
@@ -87,7 +113,7 @@
     - Scroll Buttons: Complete redesign with dark theme, smooth animations, and better positioning
     - Image Generator Mask Editing: Enhanced recognition with mask__ prefix and input_fidelity parameter
 
-- [August 24, 2025] Recent Updates
+- [August 24, 2024] Recent Updates
   - **GPT-5 Streaming Duplicate Fix**: Resolved duplicate character issue during streaming
     - Fixed duplicate characters appearing during GPT-5, GPT-4.1, and chatgpt-4o streaming
     - Server-side: Skip redundant response.in_progress events for these models
@@ -105,7 +131,7 @@
     - Confirmed Perplexity cannot execute code, only provide suggestions
     - Updated documentation to reflect accurate provider capabilities
 
-- [August 23, 2025] Recent Updates
+- [August 23, 2024] Recent Updates
   - **Comprehensive Language Selector**: Unified language control for UI and AI
     - Moved language selector from settings panel to info panel for better visibility
     - Single selector controls STT, TTS, and AI response language
@@ -115,7 +141,7 @@
     - Works seamlessly with initiate_from_assistant mode
     - All WebSocket messages now carry interface_language parameter
 
-- [August 22, 2025] Recent Updates
+- [August 22, 2024] Recent Updates
   - **Unified Error Formatting System**: Consistent error messages across all providers
     - Implemented centralized error formatter for all 8 AI providers
     - Standardized format: `[Provider] Category: Message (Code: XXX) Suggestion: Action`
@@ -134,7 +160,7 @@
     - Enhanced debugging for API request/response analysis
     - 9 tests for conversation formatting workarounds
 
-- [August 16, 2025] Previous Updates
+- [August 16, 2024] Previous Updates
   - **Monadic Mode Investigation**: Comprehensive testing of Claude's compatibility
     - Confirmed fundamental incompatibility between Claude's thinking mode and JSON structure
     - Claude, Gemini, and Grok require `monadic: false` for tool-heavy applications
@@ -149,7 +175,7 @@
     - Documented Claude's specific limitations with thinking blocks
     - Enhanced both English and Japanese docsify documentation
 
-- [August 14-15, 2025] 1.0.0-beta.4
+- [August 14-15, 2024] 1.0.0-beta.4
   - Version updated from 1.0.0-beta.2
   - **Claude Performance Optimizations**: Improved tool calling efficiency
     - Implemented batch processing for multiple tool calls in single API request
@@ -230,7 +256,7 @@
     - All GPT-5 variants: 128K max output tokens (400K context window)
     - Automatic fallback to model defaults when not specified in MDSL
 
-- [June, 2025] 1.0.0-beta.2
+- [June, 2024] 1.0.0-beta.2
   - **Security**: Path traversal protection for file operations
     - Validates file paths are within allowed directories
     - Prevents symlink-based attacks with `File.realpath`
@@ -250,7 +276,7 @@
     - Fixed parameter passing issues for Claude and other providers
   - **Documentation**: Updated provider documentation to reflect native search capabilities
 
-- [June, 2025] 1.0.0-beta.1
+- [June, 2024] 1.0.0-beta.1
   - **Beta Release**: First beta release for version 1.0.0
   - **Important Changes**: See [documentation](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration guide
   - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)
@@ -266,24 +292,24 @@
   - **Performance**: Faster command execution, improved audio processing
   - **UI Improvements**: Provider colors, API key warnings, model switch notifications
 
-- [May, 2025] 0.9.982
+- [May, 2024] 0.9.982
   - Improved text-to-speech with OpenAI, Elevenlabs, and Google Gemini models
   - OpenAI and Anthropic models support native web search
   - xAI Grok models now support native web search via Live Search API
   - Update mechanism changed to manual download only (no automatic updates)
-- [May, 2025] 0.9.93
+- [May, 2024] 0.9.93
   - Web Speech API (macOS and Windows) support for text-to-speech
   - Image generation app updated to support gpt-image-1 with image editing
   - Issues with copy-to-clipboard built-in browser for macOS fixed
   - Issues with text-to-speech and speech-to-text in built-in browser fixed
   - Code Interpreter app support for xAI Grok models added 
-- [April, 2025] 0.9.85
+- [April, 2024] 0.9.85
   - Built-in browser introduced for web UI
   - Server mode (distributed mode) support added: Allows multiple clients
   - Better MathJax rendering
   - Asset inclusion issue fixed
   - Small UI modifications
-- [April, 2025] 0.9.83
+- [April, 2024] 0.9.83
   - Better Markdown rendering with CommonMark support
   - Improved new version notification and update process
   - Added environment variables for configuring default models for each provider (OPENAI_DEFAULT_MODEL, ANTHROPIC_DEFAULT_MODEL, etc.)
@@ -295,7 +321,7 @@
   - Improved card UI and visual styling for message display, code blocks, and syntax highlighting
   - Many UI improvements and bug fixes (role selection, message editing, etc.)
   - TTS replacement dictionary feature availability and stability improvements 
-- [March, 2025] 0.9.76
+- [March, 2024] 0.9.76
   - Added testing infrastructure for both Ruby (RSpec) and JavaScript (Jest) code with initial test suites
   - Changed project license from MIT to Apache License 2.0
   - Default syntax highlighting theme changed to pastie for better readability
@@ -332,7 +358,7 @@
   - Fixed Docker Compose execution in packaged Electron apps with paths containing spaces
   - Added proper quoting for Docker commands to handle installation paths with spaces
   - Improved path handling in monadic.sh for production environments
-- [February, 2025] 0.9.58
+- [February, 2024] 0.9.58
   - Declarative DSL for app authoring with documentation
   - IconHelper utility for simplified app icon management
   - `sysinfo` command added to Python container
@@ -350,7 +376,7 @@
   - Initial system prompt duplication issue fixed
   - TTS/STT support for Safari
   - Selenium image supported for both arm64 and amd64
-- [Jan, 2025] 0.9.37
+- [Jan, 2024] 0.9.37
   - Perplexity `sonar-reasoning` (DeepSeek) model supported
   - OpenAI o1 models supported
   - DeepSeek models supported
@@ -358,14 +384,7 @@
   - New folder structure for config/data/logs introduced
   - Perplexity models supported
   - Start-up time (after build) improved
-  - Perplexity `sonar-reasoning` (DeepSeek) model supported
-  - OpenAI o1 models supported
-  - DeepSeek models supported
-  - Better logging for tool use (function calling)
-  - New folder structure for config/data/logs introduced
-  - Perplexity models supported
-  - Start-up time (after build) improved
-- [Dec, 2024] 0.9.30
+- [Dec, 2023] 0.9.30
   - "From URL" feature added
   - "From file" feature added (pdf, docx, pptx, xlsx, etc.)
   - xAI Grok models supported
@@ -377,7 +396,7 @@
   - Many UI and under-the-hood improvements
   - User container rebuild feature fixed
   - Role selection issue fixed
-- [Nov, 2024] 0.9.22
+- [Nov, 2023] 0.9.22
   - Rebuilding specific containers feature added
   - `pysetup.sh` extra installation script supported
   - Jupyter Notebook apps (for GPT and Claude) improved
@@ -389,50 +408,50 @@
   - [Predicted output](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs) feature added for OpenAI's models
   - [PDF recognition](https://docs.anthropic.com/en/docs/build-with-claude/pdf-support) feature added for Claude Sonnet models
   - AI user feature improved
-- [Oct, 2024] 0.9.6
+- [Oct, 2023] 0.9.6
   - PyMuPDF4LLM integration
   - Anthropic's new sonnet model supported
   - Stability of code running and chart generation improved
-- [Sep, 2024] 0.9.2
+- [Sep, 2023] 0.9.2
   - Beta models (`o1-preview`, `o1-mini`) supported
   - Documentation renewed
   - Stability improvement
   - Better app development support
   - Many under-the-hood improvements
   - Documentation using Docsify released
-- [Aug, 2024] 0.8.11
+- [Aug, 2023] 0.8.11
   - App authoring format changed
   - Claude Jupyter Notebook app added
   - Math rendering improved
   - Second Opinion app added
   - PDF Document import/export feature
-- [Jul, 2024] 
+- [Jul, 2023] 
   - Mistral AI (Chat and Code Interpreter) app added
   - Multiple images can be uploaded for image recognition
   - Continue button introduced
   - Jupyter Notebook app added
   - Browser auto open
-- [Jun, 2024] 
+- [Jun, 2023] 
   - Linux (Ubuntu/Debian) installer released
   - App file name changed from monadic-chat to Monadic Chat
   - Settings menu added
   - Speech Draft Helper app added (with TTS audio file generation)
-  - Menu bar items added; Shared Folder asccessible on Windows
+  - Menu bar items added; Shared Folder accessible on Windows
   - Better uninstallation of containers
   - Monadic Chat Console UI improved
   - AI-User feature introduced
   - Automatic Docker image rebuild feature
   - Source code block copy button added
   - Video Describer app added
-- [May, 2024] Talk to Claude/Cohere/Gemini apps added
+- [May, 2023] Talk to Claude/Cohere/Gemini apps added
   - Ruby/Python/PGVector/Selenium containers structure introduced
-- [Feb, 2024] Mermaid diagram support
+- [Feb, 2023] Mermaid diagram support
   - File reading feature
   - Stability improvement with several apps modified
-- [Jan, 2024] Default model set to `gpt-3.5-turbo-1106`
+- [Jan, 2023] Default model set to `gpt-3.5-turbo-1106`
   - OpenAI's January 2024 models supported
   - Mac/Win Monadic Chat Console UI improved
-  - Image understanging feature
+  - Image understanding feature
   - Voice Interpreter app added
   - More responsive text-to-speech in auto-speech mode
   - Language Practice Plus app updated
@@ -445,10 +464,3 @@
   - Image generation feature added.
   - The initial version of Monadic Chat (1.0.0) has been released.
   - The original command-line program renamed to [Monadic Chat CLI](https://github.com/yohasebe/monadic-chat-cli) and moved to another repository.
-- [September 9, 2025] Install Options Rebuild, Atomic Update, Caching
-  - Install Options: Added progress stream and build summary (logs/health) in the window after Save → Rebuild
-  - Atomic Python image update: Build to temp tag → verify → retag only on success; failures keep current image
-  - Per-run logs: `~/monadic/log/build/python/<timestamp>/` with `docker_build.log`, `post_install.log`, `health.json`, `meta.json`
-  - Health checks: Verify LaTeX (`pdflatex`), ImageMagick (`convert`), and selected Python libs (nltk, spacy, scikit-learn, gensim, librosa, mediapipe, transformers)
-  - Error handling: Safer saving of Install Options with clear dialogs on failure
-  - Dockerfile caching: Split base pip layer and optional libs per RUN; removed `--no-cache` from Python build to leverage cache

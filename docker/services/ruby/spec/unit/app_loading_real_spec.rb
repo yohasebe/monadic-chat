@@ -156,7 +156,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           list_jupyter_notebooks create_and_populate_jupyter_notebook
           restart_jupyter_kernel interrupt_jupyter_execution move_jupyter_cell insert_jupyter_cells
           websearch_agent list_providers_and_voices text_to_speech
-          generate_video_with_veo generate_image_with_imagen
+          generate_video_with_veo generate_image_with_imagen generate_video_with_sora
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
           current_time
         ]

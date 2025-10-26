@@ -46,5 +46,5 @@ end
 - `apps/` - Example MDSL applications
 
 See also:
-- [Ruby Service](/ruby_service/) - Backend implementation details
-- [App Isolation & Session Safety](/app_isolation_and_session_safety.md) - Best practices for app development
+- [Ruby Service](../ruby_service/) - Backend implementation details
+- [App Isolation & Session Safety](../app_isolation_and_session_safety.md) - Best practices for app development

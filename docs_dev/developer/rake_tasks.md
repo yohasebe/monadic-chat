@@ -140,9 +140,9 @@ When running outside Docker, the Rakefile automatically sets:
 ### Version Update
 
 The `update_version` task updates version numbers in:
-- `lib/monadic/version.rb`
+- `docker/services/ruby/lib/monadic/version.rb`
 - `package.json` and `package-lock.json`
-- `monadic.sh`
+- `docker/monadic.sh`
 - Documentation files
 - `CHANGELOG.md` (adds new version section)
 

@@ -53,37 +53,6 @@ rake help:export
 ```
 
 
-## 設定 :id=configuration
-
-### 設定変数 :id=configuration-variables
-
-- `HELP_CHUNK_SIZE`：チャンクあたりの文字数（デフォルト：3000）
-  - 処理中にドキュメントがどのように分割されるかを制御
-  - 大きい値はより多くのコンテキストを保持
-
-- `HELP_OVERLAP_SIZE`：チャンク間の文字の重複（デフォルト：500）
-  - チャンク間のコンテキストの連続性を維持
-  - 推奨：チャンクサイズの15-20％
-
-- `HELP_EMBEDDINGS_BATCH_SIZE`：APIコールのバッチサイズ（デフォルト：50、最大：2048）
-  - 大きいバッチはより効率的だがタイムアウトする可能性
-  - APIの制限に基づいて調整
-
-- `HELP_CHUNKS_PER_RESULT`：結果あたりに返されるチャンク数（デフォルト：3）
-  - より多くのチャンクはより良いコンテキストを提供
-  - 応答の品質と完全性に影響
-
-### 設定例 :id=example-configuration
-
-`~/monadic/config/env`ファイルにこれらの設定を追加します：
-
-```
-HELP_CHUNK_SIZE=4000
-HELP_OVERLAP_SIZE=800
-HELP_EMBEDDINGS_BATCH_SIZE=100
-HELP_CHUNKS_PER_RESULT=5
-```
-
 ## アーキテクチャ :id=architecture
 
 ### データベース構造 :id=database-structure

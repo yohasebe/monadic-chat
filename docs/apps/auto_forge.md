@@ -4,13 +4,13 @@ AutoForge (marketed as "Artifact Builder") is an autonomous application builder 
 
 ## Overview
 
-AutoForge uses GPT-5, Claude Opus 4.1, or Grok-4-Fast-Reasoning for planning and orchestration, combined with provider-specific code generation (GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1). It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
+AutoForge uses advanced AI models for planning and orchestration, combined with provider-specific code generation models. It creates self-contained HTML applications with embedded CSS and JavaScript or standalone CLI scripts, requiring no external dependencies.
 
 ## Key Features
 
 ### 1. Intelligent Application Generation
-- **Autonomous Planning**: GPT-5, Claude Opus, or Grok-4-Fast-Reasoning analyzes requirements and creates detailed implementation plans.
-- **Provider-Specific Codegen**: GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1 delivers production-ready artifacts.
+- **Autonomous Planning**: Advanced AI models analyze requirements and create detailed implementation plans.
+- **Provider-Specific Codegen**: Specialized code generation models deliver production-ready artifacts.
 - **Single-File Output**: Web apps ship as a single HTML file; CLI tools ship as a standalone script.
 
 ### 2. CLI Tool Support
@@ -116,8 +116,8 @@ Example (custom asset):
 ## Technical Details
 
 ### Architecture
-- **Orchestration Layer**: GPT-5 (OpenAI), Claude Opus 4.1 (Claude), or Grok-4-Fast-Reasoning (xAI) handles planning, user interaction, and tool coordination via MDSL apps.
-- **Code Generation Layer**: GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1 produces the web/CLI artifact.
+- **Orchestration Layer**: GPT-5 (OpenAI), Claude Sonnet 4.5 (Claude), or Grok-4-Fast-Reasoning (xAI) handles planning, user interaction, and tool coordination via MDSL apps.
+- **Code Generation Layer**: GPT-5-Codex, Claude Sonnet 4.5, or Grok-Code-Fast-1 produces the web/CLI artifact.
 - **File Management**: The Ruby backend manages project storage, context persistence, and optional file generation.
 - **Debug Layer**: Python/Selenium integration provides automated testing for web apps.
 
@@ -171,7 +171,7 @@ When `debug_application` is used for web apps, you receive:
 - Monadic Chat with Ruby backend
 - One of the following:
   - OpenAI API key with access to GPT-5 and GPT-5-Codex
-  - Anthropic API key with access to Claude Opus 4.1
+  - Anthropic API key with access to Claude Sonnet 4.5
   - xAI API key with access to Grok-4-Fast-Reasoning and Grok-Code-Fast-1
 
 ### Optional Requirements
@@ -196,7 +196,7 @@ When `debug_application` is used for web apps, you receive:
 
 ### Common Issues
 
-1. **Files Not Generated**: GPT-5-Codex or Claude Opus can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
+1. **Files Not Generated**: GPT-5-Codex or Claude Sonnet 4.5 can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
 2. **Selenium Not Available**: Ensure Docker Selenium container is running
 3. **Unicode Characters**: Project names with special characters are fully supported
 4. **Custom file requests rejected**: Make sure the filename is simple (no directories) and include clear instructions describing the desired content.
@@ -211,7 +211,7 @@ When `debug_application` is used for web apps, you receive:
 
 AutoForge supports multiple providers:
 - **OpenAI Auto Forge**: GPT-5 orchestrates the workflow while GPT-5-Codex handles code generation.
-- **Claude Auto Forge**: Claude Opus 4.1 orchestrates and generates code via the Claude Responses API.
+- **Claude Auto Forge**: Claude Sonnet 4.5 orchestrates and generates code via the Claude Responses API.
 - **Grok Auto Forge**: Grok-4-Fast-Reasoning orchestrates the workflow while Grok-Code-Fast-1 handles code generation.
 
 All variants broadcast long-running progress updates to the streaming temp card so you can track generation without monitoring the status bar.

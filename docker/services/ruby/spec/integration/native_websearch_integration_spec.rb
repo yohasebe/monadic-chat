@@ -323,27 +323,28 @@ RSpec.describe "Native Web Search Integration", :integration do
         }
       }
       
-      # Test message that should trigger URL context
-      session[:parameters]["message"] = "What is the latest news about space exploration?"
-      
+      # Test message with URL to trigger URL context feature
+      session[:parameters]["message"] = "Summarize the main content of https://www.nasa.gov/ in 2-3 sentences."
+
       responses = []
       helper.api_request("user", session) do |response|
         responses << response
       end
-      
+
       # Verify we got responses
       expect(responses).not_to be_empty
-      
-      # Gemini URL Context handling
-      
-      # Check for content about space - handle both fragment and assistant response types
+
+      # Gemini URL Context handling - expects fragments from URL content
+
+      # Check for content about NASA website - handle both fragment and assistant response types
       fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
       assistant_response = responses.find { |r| r["type"] == "assistant" }
-      
+
       content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
-      
+
       expect(content).not_to be_empty
-      expect(content.downcase).to match(/space|nasa|exploration|rocket/)
+      # URL Context should return content about NASA's mission, space exploration, or related topics
+      expect(content.downcase).to match(/nasa|space|exploration|mission|science|aeronautics/)
     end
   end
 

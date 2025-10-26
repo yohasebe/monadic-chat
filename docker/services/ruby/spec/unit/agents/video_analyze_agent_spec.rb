@@ -10,11 +10,16 @@ RSpec.describe VideoAnalyzeAgent do
       include VideoAnalyzeAgent
       
       attr_accessor :settings
-      
+
       def initialize
         @settings = { "model" => "gpt-4.1" }
       end
-      
+
+      # Add session method for testing
+      def session
+        @session ||= { parameters: {} }
+      end
+
       # Mock methods that would normally come from MonadicApp
       def send_command(command:, container:)
         # Return mock output based on the command

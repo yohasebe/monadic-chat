@@ -4,12 +4,12 @@ Monadic Chat uses `app.isPackaged` to branch paths for scripts, icons, preload, 
 
 Common patterns (see `app/main.js`):
 - Icons directory:
-  - Packaged: `path.join(process.resourcesPath, 'icons')`
-  - Dev: `path.join(__dirname, 'icons')`
+  - Packaged: `path.join(process.resourcesPath, 'app.asar', 'icons')`
+  - Dev: `path.join(__dirname, '..', 'icons')`
 - Preload script:
-  - Packaged: `path.join(process.resourcesPath, 'preload.js')`
-  - Dev: `path.join(__dirname, 'preload.js')`
-- Monadic shell scripts and static files follow the same pattern.
+  - Packaged: `path.join(process.resourcesPath, 'app.asar', 'preload.js')`
+  - Dev: `path.join(__dirname, '..', 'preload.js')`
+- Monadic shell scripts and static files follow similar patterns with appropriate path adjustments.
 
 Tips:
 - Use `app.isPackaged` (not `path.isPackaged`).

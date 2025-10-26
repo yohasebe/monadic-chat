@@ -12,11 +12,9 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## 画像のアップロード :id=uploading-images
 
-画像アップロードは、ビジョン機能を提供するプロバイダー（例：OpenAI、Anthropic Claude、xAI Grok、Google Gemini、Mistral、Perplexity）で利用できます。対応モデルは各プロバイダーのドキュメントを参照してください。
+画像アップロードは、ビジョン機能を持つモデル（OpenAI、Anthropic Claude、xAI Grok、Google Gemini、Mistral、Perplexity）で利用できます。
 
-注: PDFアップロードは、ドキュメント添付をサポートするプロバイダー（例：OpenAI、Anthropic Claude、Google Gemini）でのみ利用可能です。最新情報は各プロバイダーのドキュメントを確認してください。
-
-`Image`（PDFもサポートするモデルでは`Image/PDF`）をクリックすると、メッセージに添付する画像を選択するダイアログが表示されます。対応している画像形式は JPG、JPEG、PNG、GIF、WebP です。
+`Image`（PDFもサポートするモデルでは`Image/PDF`）をクリックして画像を選択します。対応形式：JPG、JPEG、PNG、GIF、WebP
 
 ![](../assets/images/attach-image.png ':size=400')
 
@@ -26,21 +24,13 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ## PDF のアップロード :id=uploading-pdfs
 
-PDFアップロードに対応しているプロバイダー（Anthropic Claude、OpenAI、Google Gemini など）では、`Image/PDF` ボタンからPDFファイルを添付できます。対応状況は選択したモデルやプロバイダーの仕様に依存します。
+一部のプロバイダー（OpenAI、Anthropic Claude、Google Gemini）はPDFアップロードに対応しています。`Image/PDF`ボタンをクリックしてPDFファイルを添付します。
 
-<!-- ![](../assets/images/monadic-chat-pdf-attachment.png ':size=400') -->
-
-画像の場合と同様に、PDF ファイルをアップロードすると、PDF の内容が認識され、プロンプトのテキストでの指示に応じてAIエージェントが PDF に関する情報を提供します。
+?> **Anthropic Claude**: Claudeのモデルを用いたアプリでは、PDFを直接アップロードしてAIエージェントに内容を認識させることが可能です。
 
 ![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
 
-チャットの中で継続してPDFの内容についてのやり取りを行うためには、毎回のメッセージ入力で同じ PDF をアップロードする必要があります。セッション中にある PDF を一度アップロードすると、Monadic Chat はセッション終了までの間、毎回、AI エージェントにその PDF を送信します。
-
-API使用量の最適化について：
-- **Anthropic Claude**: System Settings画面で `Prompt Caching` を有効にしている場合、PDFは明示的にキャッシュされ、APIコストが大幅に削減されます
-- **OpenAI**: 特別な設定なしにPDFは5〜10分間自動的にキャッシュされ、キャッシュされた部分のAPIコストが削減されます
-
-その PDF についてのやり取りを終了する場合は、削除 `×` ボタンをクリックして、PDF をクリアします。
+一度アップロードすると、削除`×`ボタンをクリックするまで毎回のメッセージでPDFが送信されます。同じPDFを繰り返し参照する場合は、システム設定で`Prompt Caching`を有効にするとAPIコストを削減できます。
 
 ## 文書ファイルからのテキスト読み込み :id=reading-text-from-document-files
 
@@ -68,14 +58,18 @@ API使用量の最適化について：
 
 ## 音声認識モデルの選択 :id=speech-to-text-model-selection
 
-コンソール設定画面でSpeech-to-Text (STT)モデルを選択できます。Monadic Chatは、設定済みのプロバイダーが提供するSTTモデル（例：OpenAI Whisper系など）を一覧に表示します。利用できるモデルや特徴は各プロバイダーのドキュメントを参照してください。Monadic Chatは選択されたモデルに応じて音声フォーマットを自動調整し、最良の文字起こし結果を目指します。
+コンソール設定画面でSpeech-to-Textモデルを選択できます。OpenAIおよびGeminiのモデルが利用可能です。
 
 ## 音声合成の再生
 
-Monadic Chatでは、合成音声を再生する2つの方法を提供しています：
+**再生ボタン**<br />
+AIレスポンスの`再生`ボタンをクリックすると合成音声を聞くことができます。`停止`をクリックすると再生が停止します。
 
-### 再生ボタン
-各AIレスポンスメッセージには`再生`ボタンが含まれており、合成音声を聞くことができます。`再生`ボタンをクリックすると再生が開始され、ボタンが`停止`ボタンに変わります。`停止`をクリックすると再生が停止します。音声は選択したTTSプロバイダーと音声設定を使用して生成されます。
+**自動音声再生（Auto Speech）**<br />
+チャット対話コントロールで有効にすると、AIレスポンスが自動的に読み上げられます。`Easy Submit`と組み合わせると音声対話に便利です。
 
-### 自動音声再生（Auto Speech）
-チャット対話コントロールで`Auto Speech`が有効になっている場合、AIレスポンスは受信されるとすぐに自動的に読み上げられます。この機能は、サポートされているすべてのTTSプロバイダー（OpenAI、ElevenLabs、Gemini、Web Speech API）でシームレスに動作します。自動音声再生は、`Easy Submit`と組み合わせることで、ハンズフリーの音声対話に特に便利です。
+## プロバイダー固有の機能
+
+### OpenAI Predicted Outputs
+
+?> **OpenAI**: OpenAIのモデルを用いたアプリでは、プロンプトの中で `__DATA__` をセパレーターとして使用することで、AIエージェントへの指示と、修正・加工してもらいたいデータを区別して示すことができます。これによりレスポンスを高速化するとともにトークン数を削減できます（[Predicted Outputs](https://platform.openai.com/docs/guides/latency-optimization#use-predicted-outputs)）。

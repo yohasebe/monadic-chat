@@ -210,8 +210,8 @@ def streaming_loop
   end
 end
 
-# CORRECT: EventMachine async HTTP with sequence ordering
-require 'em-http-request'
+# CORRECT: http.rb with Thread + EventMachine.next_tick pattern
+require 'http'
 
 def streaming_loop
   @realtime_tts_sequence_counter ||= 0
@@ -222,7 +222,7 @@ def streaming_loop
       sequence_num = @realtime_tts_sequence_counter
       sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
-      # Non-blocking async request
+      # Non-blocking async request using Thread + EventMachine.next_tick
       tts_api_request_em(
         sentence,
         provider: provider,
@@ -245,13 +245,47 @@ def streaming_loop
     end
   end
 end
+
+# Implementation of tts_api_request_em (lib/monadic/utils/interaction_utils.rb)
+def tts_api_request_em(text, provider:, sequence_id: nil, &block)
+  Thread.new do
+    begin
+      response = HTTP
+        .timeout(connect: 5, read: 15)
+        .headers(headers)
+        .post(api_url, json: body)
+
+      if response.status.success?
+        audio_content = Base64.strict_encode64(response.body.to_s)
+        result = {
+          "type" => "audio",
+          "content" => audio_content
+        }
+        result["sequence_id"] = sequence_id if sequence_id
+
+        # Return to EventMachine reactor thread
+        EventMachine.next_tick { block.call(result) }
+      else
+        EventMachine.next_tick { block.call(error_result) }
+      end
+    rescue => e
+      EventMachine.next_tick { block.call(error_result) }
+    end
+  end
+end
 ```
 
 **Why this pattern works:**
-1. **EventMachine::HttpRequest**: Non-blocking, uses callbacks instead of blocking
-2. **Sequence numbering**: Handles out-of-order HTTP responses (network latency varies)
-3. **Consistent format**: Final segment uses same `"seq#{num}_..."` format as streaming segments
-4. **Client-side reordering**: Segments arrive out-of-order but play in sequence order
+1. **http.rb in Thread**: Modern HTTP client with proper TLS verification, runs in separate thread
+2. **EventMachine.next_tick**: Returns callback to reactor thread, prevents thread-safety issues
+3. **Sequence numbering**: Handles out-of-order HTTP responses (network latency varies)
+4. **Consistent format**: Final segment uses same `"seq#{num}_..."` format as streaming segments
+5. **Client-side reordering**: Segments arrive out-of-order but play in sequence order
+
+**Migration from em-http-request (2025-10):**
+- Replaced `em-http-request` (unmaintained since 2019, CVE-2020-13482) with `http.rb` gem (v5.2, actively maintained)
+- Thread-based pattern bridges EventMachine architecture with modern HTTP client
+- Maintains non-blocking behavior while improving security and stability
 
 ### Client-Side Reordering Buffer
 

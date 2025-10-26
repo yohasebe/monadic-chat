@@ -12,10 +12,14 @@
   - スコープ：アプリヘルパー、プロバイダー統合、実際のAPIワークフロー。
   - 実APIサブセットは`spec/integration/api_smoke`、`spec/integration/api_media`、`spec/integration/provider_matrix`配下にあります。
   - コマンド（Rake）：
-    - `RUN_API=true rake spec_api:smoke` — プロバイダー全体の非メディア実APIスモーク。
-    - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — メディア（画像/音声）テスト。
-    - `RUN_API=true rake spec_api:matrix` — プロバイダー全体の最小マトリックス。
-    - `RUN_API=true rake spec_api:all` — すべての非メディアAPIテスト（+ オプションのマトリックス）。
+    - `rake test` — すべてのテストを実行（Ruby + JavaScript + Python、APIなし）
+    - `rake test:all[standard]` — 包括的なテストスイート（Ruby + API + JS + Python）
+    - `rake test:all[full]` — メディアテスト含む完全テストスイート（画像/動画/音声）
+    - レガシーコマンド：
+      - `RUN_API=true rake spec_api:smoke` — プロバイダー全体の非メディア実APIスモーク
+      - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — メディア（画像/音声）テスト
+      - `RUN_API=true rake spec_api:matrix` — プロバイダー全体の最小マトリックス
+      - `RUN_API=true rake spec_api:all` — すべての非メディアAPIテスト（+ オプションのマトリックス）
 
 - システム（`spec/system`）：
   - スコープ：ライブ外部APIなしのサーバーエンドポイントと高レベル動作。

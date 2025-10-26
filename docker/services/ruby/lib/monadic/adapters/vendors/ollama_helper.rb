@@ -1,4 +1,5 @@
 require 'http'
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -271,8 +272,29 @@ module OllamaHelper
     body = configure_monadic_response(body, :ollama, app)
 
     messages_containing_img = false
+    system_message_modified = false
     body["messages"] = context.compact.map do |msg|
-      message = { "role" => msg["role"], "content" => msg["text"] }
+      # Apply unified system prompt injector to first system message
+      if msg["role"] == "system" && !system_message_modified
+        system_message_modified = true
+
+        augmented_text = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"],
+          session: session,
+          options: {
+            websearch_enabled: false,
+            reasoning_model: false,
+            websearch_prompt: nil,
+            system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
+
+        message = { "role" => msg["role"], "content" => augmented_text }
+      else
+        message = { "role" => msg["role"], "content" => msg["text"] }
+      end
+
       if msg["images"] && role == "user"
         message["images"] = msg["images"]&.map do |img|
           img["data"].split(",")[1]
@@ -299,8 +321,18 @@ module OllamaHelper
         monadic_message = apply_monadic_transformation(base_message, app, "user")
         body["messages"].last["content"] = monadic_message
       end
-      
-      body["messages"].last["content"] += "\n\n" + settings[:prompt_suffix] if settings[:prompt_suffix]
+
+      # Use unified system prompt injector for user message augmentation
+      if body["messages"].last && body["messages"].last["content"]
+        augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: body["messages"].last["content"],
+          session: session,
+          options: {
+            prompt_suffix: settings[:prompt_suffix]
+          }
+        )
+        body["messages"].last["content"] = augmented_content
+      end
     end
 
     target_uri = "#{ollama_endpoint}/chat"

@@ -18,14 +18,24 @@ RSpec.describe 'Websearch Tavily Configuration' do
       let(:apps_dir) { File.join(File.dirname(__FILE__), '../../apps') }
       let(:chat_apps) { Dir.glob(File.join(apps_dir, 'chat', 'chat_*.mdsl')) }
 
-      it 'all Chat apps have websearch disabled by default for user control' do
+      it 'Chat apps have appropriate websearch defaults based on provider capabilities' do
         chat_apps.each do |app_file|
           content = File.read(app_file)
           app_name = File.basename(app_file, '.mdsl')
-          
-          # Check that websearch is false (user must enable it manually)
-          expect(content).to match(/websearch\s+false/), 
-            "Expected #{app_name} to have 'websearch false' for user control"
+          provider = app_name.gsub('chat_', '')
+
+          # Check if provider has native websearch support
+          has_native_support = native_websearch_providers.include?(provider)
+
+          if has_native_support
+            # Providers with native support should have websearch enabled
+            expect(content).to match(/websearch\s+true/),
+              "Expected #{app_name} to have 'websearch true' (provider has native support)"
+          else
+            # Providers without native support should have websearch disabled
+            expect(content).to match(/websearch\s+false/),
+              "Expected #{app_name} to have 'websearch false' (Tavily API required)"
+          end
         end
       end
 

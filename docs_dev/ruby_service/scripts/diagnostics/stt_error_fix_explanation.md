@@ -6,7 +6,7 @@ The `stt_api_request` method in `interaction_utils.rb` was returning a generic "
 ## Solution
 Modified the error handling in `stt_api_request` to parse and include the actual error details from the OpenAI API response.
 
-### Before (lines 748-749):
+### Before (lines 1367-1368):
 ```ruby
 else
   # Debug output removed
@@ -14,7 +14,7 @@ else
 end
 ```
 
-### After (lines 748-758):
+### After (lines 1367-1378):
 ```ruby
 else
   # Parse error details from response body

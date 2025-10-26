@@ -12,9 +12,7 @@
 
 **A**: The `Code Interpreter` app is an application that runs Python scripts using the Python interpreter on the Python container. You can not only ask the AI agent to write Python code but also actually run it and get the results. In addition to Python scripts, you can also read and process CSV files, Microsoft Office files, and audio files (MP3, WAV).
 
-The `Coding Assistant` app provides features to assist in creating various programs (Python, Ruby, JavaScript, etc.). You cannot run code with the AI agent, but you can provide source code and request bug fixes or feature additions.
-
-Though there is a limit to the number of tokens, it is possible to cache the source code and request modifications one after another. The `Coding Assistant` app uses `prompt caching` (Anthropic and OpenAI models) and `predicted outputs` (Open AI models) features to provide an efficient way to request modifications.
+The `Coding Assistant` app provides features to assist in creating various programs (Python, Ruby, JavaScript, etc.). You cannot run code with the AI agent, but you can provide source code and request bug fixes or feature additions. The app supports prompt caching (Anthropic Claude) for efficient repeated modifications.
 
 The `Jupyter Notebook` app uses JupyterLab to write and execute Jupyter Notebook cells. In addition to asking the AI agent to think about the code to enter in the cell, you can create a notebook (`ipynb` file) in a shared folder and add and execute cells one after another. It can be used as a support tool for creating library tutorials or notebooks for programming education.
 
@@ -47,7 +45,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 5070, 8889) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 5070, 5433, 8889) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application or rebuilding the containers from the console.
 
@@ -58,7 +56,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: While most features require internet access to communicate with language model APIs, you can use Monadic Chat offline with Ollama:
 
 1. Build the Ollama container (Actions → Build Ollama Container)
-2. Models are downloaded during the build process based on your `olsetup.sh` script or `OLLAMA_DEFAULT_MODEL` setting
+2. Models are downloaded during the build process
 3. Once models are downloaded, you can use the Chat app with Ollama provider offline
 
 Note that other features like web search, image generation, and cloud-based language models still require internet access.

@@ -4,12 +4,12 @@ Monadic Chatは`app.isPackaged`を使用して、スクリプト、アイコン�
 
 一般的なパターン（`app/main.js`参照）：
 - アイコンディレクトリ：
-  - パッケージ版：`path.join(process.resourcesPath, 'icons')`
-  - 開発版：`path.join(__dirname, 'icons')`
+  - パッケージ版：`path.join(process.resourcesPath, 'app.asar', 'icons')`
+  - 開発版：`path.join(__dirname, '..', 'icons')`
 - プリロードスクリプト：
-  - パッケージ版：`path.join(process.resourcesPath, 'preload.js')`
-  - 開発版：`path.join(__dirname, 'preload.js')`
-- Monadicシェルスクリプトと静的ファイルは同じパターンに従う
+  - パッケージ版：`path.join(process.resourcesPath, 'app.asar', 'preload.js')`
+  - 開発版：`path.join(__dirname, '..', 'preload.js')`
+- Monadicシェルスクリプトと静的ファイルは適切なパス調整を伴う類似のパターンに従う
 
 ヒント：
 - `app.isPackaged`を使用する（`path.isPackaged`ではない）

@@ -20,6 +20,7 @@ eslint.config.*
 /test/tmp/
 /test/version_tmp/
 /tmp/
+/docker/services/tmp/
 /vector_db/
 /notes/
 /node_modules/

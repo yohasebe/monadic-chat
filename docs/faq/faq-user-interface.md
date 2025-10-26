@@ -21,7 +21,7 @@
 
 ##### Q: How is the number of tokens displayed in Monadic Chat Stats calculated? :id=token-count-calculation
 
-**A**: It is calculated using [tiktoken](https://github.com/openai/tiktoken) installed on the Python container. Regardless of the selected model, the `o200k_base` encoding is used, so the value may not always be accurate if a model other than the GPT-4 series is selected. Consider the token count as an approximate value.
+**A**: The token count is calculated automatically. The displayed value is an approximation and may vary slightly depending on the model in use.
 
 ---
 

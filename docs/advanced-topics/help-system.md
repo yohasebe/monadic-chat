@@ -54,37 +54,6 @@ rake help:export
 ```
 
 
-## Configuration :id=configuration
-
-### Configuration Variables :id=configuration-variables
-
-- `HELP_CHUNK_SIZE`: Character count per chunk (default: 3000)
-  - Controls how documentation is split during processing
-  - Larger values preserve more context
-
-- `HELP_OVERLAP_SIZE`: Character overlap between chunks (default: 500)
-  - Maintains context continuity between chunks
-  - Recommended: 15-20% of chunk size
-
-- `HELP_EMBEDDINGS_BATCH_SIZE`: Batch size for API calls (default: 50, max: 2048)
-  - Larger batches are more efficient but may timeout
-  - Adjust based on your API limits
-
-- `HELP_CHUNKS_PER_RESULT`: Number of chunks returned per result (default: 3)
-  - More chunks provide better context
-  - Affects response quality and completeness
-
-### Example Configuration :id=example-configuration
-
-Add these settings to your `~/monadic/config/env` file:
-
-```
-HELP_CHUNK_SIZE=4000
-HELP_OVERLAP_SIZE=800
-HELP_EMBEDDINGS_BATCH_SIZE=100
-HELP_CHUNKS_PER_RESULT=5
-```
-
 ## Architecture :id=architecture
 
 ### Database Structure :id=database-structure

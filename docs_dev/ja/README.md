@@ -22,6 +22,7 @@
 
 ### 🔧 コアシステム
 主要機能の実装詳細：
+- **[システムプロンプトインジェクション](../system_prompt_injection.md)** - 統一された動的プロンプト拡張システム（英語のみ）
 - **[ロギング](logging.md)** - デバッグとトレースログの設定
 - **[エラーハンドリング](error_handling.md)** - エラー検出と回復戦略
 - **[WebSocket進捗ブロードキャスト](websocket_progress_broadcasting.md)** - リアルタイム進捗更新

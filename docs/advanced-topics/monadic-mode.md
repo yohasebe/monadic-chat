@@ -23,7 +23,7 @@ In Monadic Mode, each response from the AI includes both a message and a structu
 
 ## Monadic Mode Support
 
-All providers in Monadic Chat support monadic mode through a unified interface. This includes:
+Monadic Chat provides monadic mode support across multiple providers, though capabilities and limitations vary:
 
 - **OpenAI** - Native `response_format` support (works well with tools)
 - **Claude** - JSON through system prompts (requires `monadic: false` for tool-heavy apps)
@@ -110,8 +110,8 @@ app "MyAppOpenAI" do
     monadic true  # This is set automatically for OpenAI
     context_size 20
   end
-  
-  initial_prompt <<~PROMPT
+
+  system_prompt <<~PROMPT
     You are an AI assistant that maintains context.
     
     Return your response in this JSON format:

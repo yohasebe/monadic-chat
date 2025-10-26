@@ -56,27 +56,27 @@ API_LOG=true RUN_API=true rake spec_api:smoke
 ### SSL errors: `certificate verify failed (unable to get certificate CRL)`
 
 **Symptoms**
-- `rake server:debug` やチャット送信時に `SSL_connect returned=1 ... unable to get certificate CRL` が表示され、初期化や API 呼び出しが失敗する。
-- Gemini / Grok / DeepSeek / Cohere など複数プロバイダーで同時発生し、モデル一覧 (list_models) が取得できず DSL ロードが止まる。
+- `SSL_connect returned=1 ... unable to get certificate CRL` errors appear during `rake server:debug` or chat API calls, causing initialization or API call failures
+- Occurs simultaneously across multiple providers (Gemini, Grok, DeepSeek, Cohere, etc.), preventing model list retrieval and halting DSL loading
 
 **Root cause**
-- macOS などローカル環境で CRL (Certificate Revocation List) チェック用の証明書が欠落している場合、OpenSSL のデフォルト検証が失敗する。
+- OpenSSL's default verification fails when CRL (Certificate Revocation List) check certificates are missing in local environments like macOS
 
-**Resolution (2025-03)**
-- `docker/services/ruby/lib/monadic/utils/ssl_configuration.rb` を追加し、起動時に `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` から `V_FLAG_CRL_CHECK / V_FLAG_CRL_CHECK_ALL` を無効化。
-- `HTTP` gem の `default_options` に同じ `SSLContext` を適用し、Ruby サービス全体で統一。
-- `.env` に `SSL_CERT_FILE` / `SSL_CERT_DIR` を指定すれば独自 CA を優先できる。
-- 既存の HTTP 呼び出し (`HTTP.headers`, `Net::HTTP.start`) は新設定を共有するため追加修正は不要。
+**Resolution (2024-03)**
+- Added `docker/services/ruby/lib/monadic/utils/ssl_configuration.rb` to disable `V_FLAG_CRL_CHECK` and `V_FLAG_CRL_CHECK_ALL` from `OpenSSL::SSL::SSLContext::DEFAULT_PARAMS` at startup
+- Applied same `SSLContext` to `HTTP` gem's `default_options` to unify across entire Ruby service
+- Custom CAs can be prioritized by specifying `SSL_CERT_FILE` / `SSL_CERT_DIR` in `.env`
+- Existing HTTP calls (`HTTP.headers`, `Net::HTTP.start`) share the new configuration without additional modifications
 
 **Operational notes**
-- フェイルセーフとして `Monadic::Utils::ProviderModelCache` を導入。`helper.list_models` が失敗するとデフォルトモデルでフォールバックし DSL ロードを継続する。`EXTRA_LOGGING=true` 時は `[ProviderModelCache] ... fallback` ログで検知できる。
-- フォールバックが不要な運用では `ProviderModelCache.fetch` の利用箇所を調整し、明示的に `clear(:provider)` することで再取得が可能。
-- 将来新たな HTTP クライアントを導入する場合は `SSLConfiguration.configure!` を再利用して CRL 問題が再発しないようにする。
+- Introduced `Monadic::Utils::ProviderModelCache` as failsafe: when `helper.list_models` fails, falls back to default models and continues DSL loading. Detectable via `[ProviderModelCache] ... fallback` logs when `EXTRA_LOGGING=true`
+- For operations without fallback, adjust `ProviderModelCache.fetch` usage locations and explicitly `clear(:provider)` to re-fetch
+- When introducing new HTTP clients in future, reuse `SSLConfiguration.configure!` to prevent CRL issues from recurring
 
 ### LaTeX-dependent apps (Concept Visualizer / Syntax Tree)
-- これらのツールは Python サービスを `INSTALL_LATEX=true` でビルドした環境を前提に設計されている。pdflatex + dvisvgm（および必要なフォント群）が揃った状態でのみ mdsl 側の `disabled` 条件が解除される。
-- Runtime で LaTeX ツールチェーンの有無を再判定したり、フォールバックを追加する必要はない。環境が不足している場合は Docker イメージを再ビルドして整える。
-- Ruby 側でシェルスクリプトを組み立てる際は、`needs_cjk` のようなフラグを先に Ruby で確定させてから文字列に埋め込む。未初期化のまま展開すると `bash: needs_cjk: unbound variable` のようなエラーが発生する。
+- These tools require Python service built with `INSTALL_LATEX=true`. MDSL's `disabled` condition is only lifted when pdflatex + dvisvgm (and necessary fonts) are available
+- No need to re-check LaTeX toolchain availability at runtime or add fallbacks. Rebuild Docker image if environment is insufficient
+- When assembling shell scripts on Ruby side, finalize flags like `needs_cjk` in Ruby before embedding in strings. Expanding uninitialized variables causes `bash: needs_cjk: unbound variable` errors
 
 ### HTML content being corrupted by Markdown processing
 
@@ -90,7 +90,7 @@ API_LOG=true RUN_API=true rake spec_api:smoke
 
 **Root Cause**: HTML blocks are being passed through `markdown_to_html()` which applies smart typography transformations.
 
-**Solution - Placeholder Pattern** (`lib/monadic/utils/websocket.rb:1133-1149`):
+**Solution - Placeholder Pattern** (`docker/services/ruby/lib/monadic/utils/websocket.rb:1384-1402`):
 ```ruby
 # 1. Extract special HTML blocks BEFORE markdown processing
 abc_blocks = []
@@ -114,7 +114,7 @@ end
 - Use placeholder pattern for content that must remain untouched
 - Match the HTML structure exactly when replacing placeholders
 
-**Related Issues**: Chord Accompanist ABC corruption (2025-01)
+**Related Issues**: Chord Accompanist ABC corruption (2024-01)
 
 ### Passing multiline data to Node.js validation scripts
 
@@ -156,7 +156,7 @@ const code = require('fs').readFileSync(0, 'utf-8');
 - Handles special characters correctly
 - Works across both container and host environments
 
-**Related Issues**: Chord Accompanist validation loops (2025-01), Mermaid Grapher validation
+**Related Issues**: Chord Accompanist validation loops (2024-01), Mermaid Grapher validation
 
 ## Development Tips
 

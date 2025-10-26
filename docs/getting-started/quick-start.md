@@ -1,9 +1,12 @@
 # Quick Start Tutorial
 
-This tutorial will help you get started with Monadic Chat in just 10 minutes. You'll learn the basics and try some key features.
+This tutorial will help you get started with Monadic Chat quickly. You'll learn the basics and try some key features.
+
+?> **Note**: If this is your first time running Monadic Chat, initial Docker container setup will take additional time (10-30 minutes depending on your system). Subsequent starts are much faster.
 
 ## Prerequisites
 
+- Docker Desktop is installed and running (see [Installation Guide](installation.md))
 - Monadic Chat is installed and running
 - You have at least one API key (OpenAI recommended for this tutorial)
 
@@ -28,9 +31,9 @@ This tutorial will help you get started with Monadic Chat in just 10 minutes. Yo
 
 ### 2.1 Select the Chat App
 
-1. Click **Open Console** button
+1. Click the **Open Browser** button in the Console Panel
 2. From the app menu, select **Chat** under the OpenAI group
-3. The web interface will open in your browser
+3. The web interface will open
 
 ### 2.2 Start Chatting
 
@@ -140,8 +143,7 @@ Now that you've tried the basics, explore more features:
 
 ## What's Next?
 
-- Learn about [different AI models](../basic-usage/language-models.md)
-- Explore [all available apps](../basic-usage/basic-apps.md)
+- Explore [all available apps and provider capabilities](../basic-usage/basic-apps.md)
 - Create your own apps with [Monadic DSL](../advanced-topics/monadic_dsl.md)
 
 ---

@@ -691,9 +691,9 @@ module InteractionUtils
   end
 
   # EventMachine-compatible async TTS API request
-  # Uses em-http-request for non-blocking HTTP requests in EventMachine reactor
+  # Uses http.rb gem with thread-based async HTTP requests
   # @param text [String] Text to convert to speech
-  # @param provider [String] TTS provider (currently supports OpenAI only)
+  # @param provider [String] TTS provider (OpenAI, ElevenLabs, Gemini)
   # @param voice [String] Voice ID
   # @param speed [Float] Speech speed
   # @param response_format [String] Audio format
@@ -754,71 +754,68 @@ module InteractionUtils
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
 
-      # Use EventMachine::HttpRequest for async HTTP
-      require 'em-http-request'
+      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
+      require 'http'
 
-      http = EventMachine::HttpRequest.new(target_uri,
-        connect_timeout: 5,    # Quick connection for realtime
-        inactivity_timeout: 15  # 15 seconds max for TTS generation
-      ).post(
-        head: {
-          "Content-Type" => "application/json",
-          "Authorization" => "Bearer #{api_key}"
-        },
-        body: body.to_json,
-        keepalive: true          # Reuse connections for better performance
-      )
+      Thread.new do
+        begin
+          response = HTTP
+            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .headers(
+              "Content-Type" => "application/json",
+              "Authorization" => "Bearer #{api_key}"
+            )
+            .post(target_uri, json: body)
 
-      http.callback do
-        if http.response_header.status == 200
-          # Success - encode audio and call block
-          audio_content = Base64.strict_encode64(http.response)
-          result = {
-            "type" => "audio",
-            "content" => audio_content
-          }
-          result["sequence_id"] = sequence_id if sequence_id
+          if response.status.success?
+            # Success - encode audio and call block
+            audio_content = Base64.strict_encode64(response.body.to_s)
+            result = {
+              "type" => "audio",
+              "content" => audio_content
+            }
+            result["sequence_id"] = sequence_id if sequence_id
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS - audio_size=#{http.response.length}, sequence_id=#{sequence_id}")
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}")
+              end
             end
-          end
 
-          block.call(result)
-        else
-          # HTTP error
+            # Return to EventMachine reactor thread
+            EventMachine.next_tick { block.call(result) }
+          else
+            # HTTP error
+            error_result = {
+              "type" => "error",
+              "content" => "ERROR: OpenAI TTS API error: #{response.status}"
+            }
+            error_result["sequence_id"] = sequence_id if sequence_id
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [ERROR] tts_api_request_em: HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
+              end
+            end
+
+            EventMachine.next_tick { block.call(error_result) }
+          end
+        rescue => e
+          # Connection or other error
           error_result = {
             "type" => "error",
-            "content" => "ERROR: OpenAI TTS API error: #{http.response_header.status}"
+            "content" => "ERROR: TTS connection failed: #{e.message}"
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
           if CONFIG["EXTRA_LOGGING"]
             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
             end
           end
 
-          block.call(error_result)
+          EventMachine.next_tick { block.call(error_result) }
         end
-      end
-
-      http.errback do
-        # Connection error
-        error_result = {
-          "type" => "error",
-          "content" => "ERROR: TTS connection failed: #{http.error}"
-        }
-        error_result["sequence_id"] = sequence_id if sequence_id
-
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Connection error - #{http.error}, sequence_id=#{sequence_id}")
-          end
-        end
-
-        block.call(error_result)
       end
 
     when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
@@ -869,71 +866,68 @@ module InteractionUtils
       output_format = "mp3_44100_128"
       target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
 
-      # Use EventMachine::HttpRequest for async HTTP
-      require 'em-http-request'
+      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
+      require 'http'
 
-      http = EventMachine::HttpRequest.new(target_uri,
-        connect_timeout: 5,    # Quick connection for realtime
-        inactivity_timeout: 15  # 15 seconds max for TTS generation
-      ).post(
-        head: {
-          "Content-Type" => "application/json",
-          "xi-api-key" => api_key
-        },
-        body: body.to_json,
-        keepalive: true          # Reuse connections for better performance
-      )
+      Thread.new do
+        begin
+          response = HTTP
+            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .headers(
+              "Content-Type" => "application/json",
+              "xi-api-key" => api_key
+            )
+            .post(target_uri, json: body)
 
-      http.callback do
-        if http.response_header.status == 200
-          # Success - encode audio and call block
-          audio_content = Base64.strict_encode64(http.response)
-          result = {
-            "type" => "audio",
-            "content" => audio_content
-          }
-          result["sequence_id"] = sequence_id if sequence_id
+          if response.status.success?
+            # Success - encode audio and call block
+            audio_content = Base64.strict_encode64(response.body.to_s)
+            result = {
+              "type" => "audio",
+              "content" => audio_content
+            }
+            result["sequence_id"] = sequence_id if sequence_id
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (ElevenLabs) - audio_size=#{http.response.length}, sequence_id=#{sequence_id}")
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (ElevenLabs/http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}")
+              end
             end
-          end
 
-          block.call(result)
-        else
-          # HTTP error
+            # Return to EventMachine reactor thread
+            EventMachine.next_tick { block.call(result) }
+          else
+            # HTTP error
+            error_result = {
+              "type" => "error",
+              "content" => "ERROR: ElevenLabs TTS API error: #{response.status}"
+            }
+            error_result["sequence_id"] = sequence_id if sequence_id
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
+              end
+            end
+
+            EventMachine.next_tick { block.call(error_result) }
+          end
+        rescue => e
+          # Connection or other error
           error_result = {
             "type" => "error",
-            "content" => "ERROR: ElevenLabs TTS API error: #{http.response_header.status}"
+            "content" => "ERROR: ElevenLabs TTS connection failed: #{e.message}"
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
           if CONFIG["EXTRA_LOGGING"]
             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
             end
           end
 
-          block.call(error_result)
+          EventMachine.next_tick { block.call(error_result) }
         end
-      end
-
-      http.errback do
-        # Connection error
-        error_result = {
-          "type" => "error",
-          "content" => "ERROR: ElevenLabs TTS connection failed: #{http.error}"
-        }
-        error_result["sequence_id"] = sequence_id if sequence_id
-
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: ElevenLabs connection error - #{http.error}, sequence_id=#{sequence_id}")
-          end
-        end
-
-        block.call(error_result)
       end
 
     when "gemini", "gemini-flash", "gemini-pro"
@@ -1002,113 +996,108 @@ module InteractionUtils
 
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
 
-      # Use EventMachine::HttpRequest for async HTTP
-      require 'em-http-request'
+      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
+      require 'http'
 
-      http = EventMachine::HttpRequest.new(target_uri,
-        connect_timeout: 5,    # Quick connection for realtime
-        inactivity_timeout: 15  # 15 seconds max for TTS generation
-      ).post(
-        head: {
-          "Content-Type" => "application/json"
-        },
-        body: body.to_json,
-        keepalive: true          # Reuse connections for better performance
-      )
+      Thread.new do
+        begin
+          response = HTTP
+            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .headers("Content-Type" => "application/json")
+            .post(target_uri, json: body)
 
-      http.callback do
-        if http.response_header.status == 200
-          begin
-            gemini_response = JSON.parse(http.response)
+          if response.status.success?
+            begin
+              gemini_response = JSON.parse(response.body.to_s)
 
-            # Extract audio data from Gemini response
-            if gemini_response["candidates"] &&
-               gemini_response["candidates"][0] &&
-               gemini_response["candidates"][0]["content"] &&
-               gemini_response["candidates"][0]["content"]["parts"] &&
-               gemini_response["candidates"][0]["content"]["parts"][0] &&
-               gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
+              # Extract audio data from Gemini response
+              if gemini_response["candidates"] &&
+                 gemini_response["candidates"][0] &&
+                 gemini_response["candidates"][0]["content"] &&
+                 gemini_response["candidates"][0]["content"]["parts"] &&
+                 gemini_response["candidates"][0]["content"]["parts"][0] &&
+                 gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
 
-              audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-              mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+                audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
 
-              result = {
-                "type" => "audio",
-                "content" => audio_data,
-                "mime_type" => mime_type
-              }
-              result["sequence_id"] = sequence_id if sequence_id
+                result = {
+                  "type" => "audio",
+                  "content" => audio_data,
+                  "mime_type" => mime_type
+                }
+                result["sequence_id"] = sequence_id if sequence_id
 
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (Gemini) - audio_size=#{audio_data.length}, sequence_id=#{sequence_id}")
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (Gemini/http.rb) - audio_size=#{audio_data.length}, sequence_id=#{sequence_id}")
+                  end
                 end
-              end
 
-              block.call(result)
-            else
+                # Return to EventMachine reactor thread
+                EventMachine.next_tick { block.call(result) }
+              else
+                error_result = {
+                  "type" => "error",
+                  "content" => "ERROR: Invalid response format from Gemini API"
+                }
+                error_result["sequence_id"] = sequence_id if sequence_id
+
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Invalid Gemini response format (http.rb), sequence_id=#{sequence_id}")
+                  end
+                end
+
+                EventMachine.next_tick { block.call(error_result) }
+              end
+            rescue JSON::ParserError => e
               error_result = {
                 "type" => "error",
-                "content" => "ERROR: Invalid response format from Gemini API"
+                "content" => "ERROR: Failed to parse Gemini response: #{e.message}"
               }
               error_result["sequence_id"] = sequence_id if sequence_id
 
               if CONFIG["EXTRA_LOGGING"]
                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Invalid Gemini response format, sequence_id=#{sequence_id}")
+                  log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini JSON parse error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
                 end
               end
 
-              block.call(error_result)
+              EventMachine.next_tick { block.call(error_result) }
             end
-          rescue JSON::ParserError => e
+          else
+            # HTTP error
             error_result = {
               "type" => "error",
-              "content" => "ERROR: Failed to parse Gemini response: #{e.message}"
+              "content" => "ERROR: Gemini TTS API error: #{response.status}"
             }
             error_result["sequence_id"] = sequence_id if sequence_id
 
             if CONFIG["EXTRA_LOGGING"]
               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini JSON parse error - #{e.message}, sequence_id=#{sequence_id}")
+                log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
               end
             end
 
-            block.call(error_result)
+            EventMachine.next_tick { block.call(error_result) }
           end
-        else
-          # HTTP error
+        rescue => e
+          # Connection or other error
           error_result = {
             "type" => "error",
-            "content" => "ERROR: Gemini TTS API error: #{http.response_header.status}"
+            "content" => "ERROR: Gemini TTS connection failed: #{e.message}"
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
           if CONFIG["EXTRA_LOGGING"]
             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini HTTP error - status=#{http.response_header.status}, sequence_id=#{sequence_id}")
+              log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
             end
           end
 
-          block.call(error_result)
+          EventMachine.next_tick { block.call(error_result) }
         end
-      end
-
-      http.errback do
-        # Connection error
-        error_result = {
-          "type" => "error",
-          "content" => "ERROR: Gemini TTS connection failed: #{http.error}"
-        }
-        error_result["sequence_id"] = sequence_id if sequence_id
-
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Gemini connection error - #{http.error}, sequence_id=#{sequence_id}")
-          end
-        end
-
-        block.call(error_result)
       end
 
     when "web-speech", "webspeech"

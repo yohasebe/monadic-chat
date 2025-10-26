@@ -73,12 +73,12 @@ The MCP server automatically discovers and exposes all tools from Monadic Chat a
 
 ## Example Tools
 
-- `PDFNavigatorOpenAI__search_pdf` - Search PDF documents
+- `PDFNavigatorOpenAI__find_closest_text` - Find closest text in PDF documents
 - `CodeInterpreterOpenAI__run_code` - Execute code
-- `ImageGeneratorOpenAI__generate_image_with_dalle` - Generate images
+- `ImageGeneratorOpenAI__generate_image_with_openai` - Generate images
 - `MonadicHelpOpenAI__find_help_topics` - Search help documentation
 - `SyntaxTreeOpenAI__render_syntax_tree` - Create syntax tree diagrams
-- `MermaidGrapherOpenAI__generate_mermaid_diagram` - Create Mermaid diagrams
+- `MermaidGrapherOpenAI__validate_mermaid_syntax` - Validate Mermaid diagram syntax
 
 Each tool includes:
 - `name`: Unique identifier

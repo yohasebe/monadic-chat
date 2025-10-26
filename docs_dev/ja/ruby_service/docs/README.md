@@ -15,5 +15,5 @@
 
 ## 関連ドキュメント
 
-- [Monadicアーキテクチャ](/ja/ruby_service/monadic_architecture.md) - Rubyサービス全体のアーキテクチャ
-- [Pythonサービス](/ja/python_service/) - Jupyter実行環境
+- [Monadicアーキテクチャ](/docs_dev/ja/ruby_service/monadic_architecture.md) - Rubyサービス全体のアーキテクチャ
+- [Pythonサービス](/docs_dev/ja/python_service/) - Jupyter実行環境

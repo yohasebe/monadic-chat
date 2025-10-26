@@ -48,6 +48,25 @@ end
 
 MISSING_MODEL_ALLOWLIST = load_missing_model_allowlist.freeze
 
+# Normalize model name by removing date suffixes
+# e.g., "gpt-5-pro-2025-10-06" → "gpt-5-pro"
+def normalize_model_name(model)
+  model.sub(/-\d{4}-\d{2}-\d{2}$/, '')
+end
+
+# Check if model should be excluded from model_spec.js
+# Excludes audio, realtime, TTS, STT, image/video generation, and embedding models
+def should_exclude_from_model_spec?(model)
+  return true if model.include?('audio-preview') || model.include?('audio')
+  return true if model.include?('realtime')
+  return true if model.match?(/^tts-/)
+  return true if model.match?(/^whisper-/)
+  return true if model.match?(/^dall-e/)
+  return true if model.match?(/^sora/)
+  return true if model.match?(/^text-embedding/)
+  false
+end
+
 # Initialize global models cache
 $MODELS ||= {}
 
@@ -77,48 +96,59 @@ RSpec.describe "Model Specification Validation" do
 
         available_models = OpenAIHelper.list_models
         skip "No OpenAI models returned; skipping sync check" if available_models.nil? || available_models.empty?
-        
+
         # Filter for GPT models that should be in model_spec
         gpt_models = available_models.select { |m| m.match?(/^(gpt|o1|chatgpt)/) }
 
+        # Exclude models that don't belong in model_spec (audio, realtime, generation, embeddings)
+        gpt_models = gpt_models.reject { |m| should_exclude_from_model_spec?(m) }
+
+        # Normalize model names (remove date suffixes like -2025-10-06)
+        normalized_gpt_models = gpt_models.map { |m| normalize_model_name(m) }.uniq
+
         model_spec_keys = model_spec.keys
-        missing_models = gpt_models - model_spec_keys
+        missing_models = normalized_gpt_models - model_spec_keys
         missing_models -= Array(MISSING_MODEL_ALLOWLIST['openai'])
-        
+
         if missing_models.any?
           puts "\n⚠️  Missing OpenAI models in model_spec.js:"
           missing_models.each { |m| puts "   - #{m}" }
         end
-        
-        expect(missing_models).to be_empty, 
+
+        expect(missing_models).to be_empty,
           "model_spec.js is missing these OpenAI models: #{missing_models.join(', ')}"
       end
       
       it "doesn't contain deprecated OpenAI models" do
         skip "Requires API key" unless ENV["OPENAI_API_KEY"] || CONFIG["OPENAI_API_KEY"]
-        
+
         available_models = OpenAIHelper.list_models
         skip "No OpenAI models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
-        
+
         # Find OpenAI models in model_spec that are not in the API response
         openai_models_in_spec = model_spec.keys.select { |k| k.match?(/^(gpt|o1|chatgpt)/) }
-        
+
+        # Exclude audio/realtime/generation models from deprecated check (they don't belong in model_spec)
+        openai_models_in_spec = openai_models_in_spec.reject { |m| should_exclude_from_model_spec?(m) }
+
         # Filter out models that have explicit deprecated: false flag
         deprecated_models = openai_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
-          # Otherwise, check if it's not in available models
-          !available_models.include?(model)
+          # Normalize model name before checking
+          normalized_model = normalize_model_name(model)
+          # Check if normalized model is not in available models
+          !available_models.any? { |m| normalize_model_name(m) == normalized_model }
         end
         deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['openai'])
-        
+
         if deprecated_models.any?
           puts "\n⚠️  Potentially deprecated OpenAI models in model_spec.js:"
           deprecated_models.each { |m| puts "   - #{m}" }
         end
-        
+
         # This is a warning, not a failure, as some models might be intentionally kept
-        expect(deprecated_models.size).to eq(0), 
+        expect(deprecated_models.size).to eq(0),
           "model_spec.js contains potentially deprecated OpenAI models: #{deprecated_models.join(', ')}"
       end
     end

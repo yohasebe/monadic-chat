@@ -309,7 +309,7 @@ If you encounter type-related bugs:
 
 ## Future Improvements
 
-### Completed (2025-01)
+### Completed (2024-01)
 
 - ✅ Boolean feature flags type preservation
 - ✅ `toBool` helper function for backward compatibility
@@ -525,7 +525,7 @@ end
 
 ## Revision History
 
-- 2025-01: Initial documentation after boolean feature flags fix
-- 2025-01: Added Future Improvements section with medium and long-term plans
+- 2024-01: Initial documentation after boolean feature flags fix
+- 2024-01: Added Future Improvements section with medium and long-term plans
 - Feature flags affected: All 16 boolean parameters
 - Files modified: `websocket.rb`, `utilities.js`, `monadic.js`, `websocket.js`

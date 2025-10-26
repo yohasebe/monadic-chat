@@ -36,6 +36,12 @@ Exit the Monadic Chat Console.
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
 
+**Stop** <br />
+Stop Monadic Chat.
+
+**Restart** <br />
+Restart Monadic Chat.
+
 **Build All** <br />
 Build all Docker images and containers for Monadic Chat.
 
@@ -49,17 +55,11 @@ Build the Docker image and container (`monadic-chat-ruby-container`) that powers
 **Build Python Container** <br />
 Build the Docker image and container (`monadic-chat-python-container`) used by the AI agents.
 
-**Build Ollama Container** <br />
-Build the Docker image and container (`monadic-chat-ollama-container`) for running local language models via Ollama. This container is not built automatically with "Build All" to save resources. You must explicitly choose this option to use Ollama features.
-
-**Build Selenium Container** <br />
-Build the Docker image and container (`monadic-chat-selenium-container`) for web scraping features. This container is included in "Build All" and is always available. You can control whether it starts automatically using the Start/Stop Selenium Container menu items below.
-
 **Build User Containers** <br />
 Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
-**Uninstall Images and Containers** <br />
-Remove the Docker images and containers for Monadic Chat.
+**Build Ollama Container** <br />
+Build the Docker image and container (`monadic-chat-ollama-container`) for running local language models via Ollama. This container is not built automatically with "Build All" to save resources. You must explicitly choose this option to use Ollama features.
 
 **Start JupyterLab** <br />
 Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhost:8889)
@@ -68,19 +68,14 @@ Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhos
 **Stop JupyterLab** <br />
 Stop JupyterLab.
 
-**Start Selenium Container** <br />
-Enable the Selenium container to start automatically on next launch of Monadic Chat. The Selenium container provides web scraping capabilities for features like "From URL" and web search. Note: This setting only takes effect after restarting Monadic Chat.
-
 **Stop Selenium Container** <br />
-Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat.
-Users attempting Selenium-backed tools while the container is disabled will see guidance indicating that the Selenium container is stopped and the feature cannot run until it is re-enabled.
-
-**Export Document DB** <br />
-Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.
-
+Disable the Selenium container from starting automatically on next launch of Monadic Chat. When Selenium is disabled, the system will use Tavily API as a fallback for web scraping features (if Tavily API key is configured). Note: This setting only takes effect after restarting Monadic Chat. Users attempting Selenium-backed tools while the container is disabled will see guidance indicating that the Selenium container is stopped and the feature cannot run until it is re-enabled.
 
 **Import Document DB** <br />
 Import PDF document data previously exported by Monadic Chat. When importing, place a file named `monadic.gz` in the shared folder.
+
+**Export Document DB** <br />
+Export PDF document data stored in Monadic Chat's vector database. The exported file will be saved as `monadic.gz` in the shared folder.
 
 ### Open Menu
 
@@ -100,7 +95,7 @@ Open the folder shared between the host and Docker containers. It can be used fo
 **Open Config Folder** <br />
 Open the `~/monadic/config` folder. This folder contains configuration files for Monadic Chat. The following files are included:
 
-- `env`: Configuration variables for Monadic Chat.
+- `env`: Configuration file (can be configured through GUI).
 - `pysetup.sh`: Script for setting up the Python environment (optional, user-created).
 - `rbsetup.sh`: Script for setting up the Ruby environment (optional, user-created).
 - `olsetup.sh`: Script for setting up Ollama models (optional, user-created).
@@ -144,7 +139,7 @@ Exits the application.
 
 ## Settings Panel
 
-All settings here are saved in the `~/monadic/config/env` file.
+Settings configured in the settings panel are automatically saved.
 
 ![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
 
@@ -208,8 +203,4 @@ Select the browser to use when opening Monadic Chat from the console. "Internal 
 
 
 **Extra Logging** <br />
-Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`. This setting is roughly equivalent to enabling `MONADIC_DEBUG=api`, but for granular categories and levels, prefer the unified debug variables below.
-
-?> **Note:** For more granular debug control, use the unified debug system with configuration variables in `~/monadic/config/env`:
-> - `MONADIC_DEBUG=api,embeddings` (comma-separated categories)
-> - `MONADIC_DEBUG_LEVEL=debug` (none, error, warning, info, debug, verbose)
+Select whether to enable additional logging. When enabled, API requests and responses are logged in detail. The log file is saved as `~/monadic/log/extra.log`.

@@ -115,7 +115,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
   end
   
   system_prompt "You are a helpful assistant."
@@ -168,6 +168,53 @@ class MyAppOpenAI < MonadicApp  # Class name must match the app name in MDSL
   end
 end
 ```
+
+### Model Specification for Custom Apps
+
+**Recommendation**: Custom apps should use environment variables for model specification to respect user preferences and ensure future compatibility.
+
+**Why Use ENV.fetch for Custom Apps:**
+
+```ruby
+llm do
+  provider "openai"
+  model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Recommended for custom apps
+end
+```
+
+**Benefits:**
+- ✅ **User control**: Users can customize models via `~/monadic/config/env`
+- ✅ **Automatic fallback**: Uses `system_defaults.json` when ENV variable not set
+- ✅ **Future-proof**: No hardcoded model names that become outdated
+- ✅ **Consistency**: Matches system-wide model preferences
+
+**Configuration Priority:**
+
+Model values are resolved in this order:
+1. Explicit MDSL value (if provided)
+2. Environment variable from `~/monadic/config/env`
+3. System defaults from `docker/services/ruby/config/system_defaults.json`
+4. Hardcoded fallback
+
+**Alternative: Multiple Model Options**
+
+For apps that need specific model choices:
+
+```ruby
+llm do
+  provider "openai"
+  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # Users select from dropdown
+end
+```
+
+**Standard vs Custom Apps:**
+
+| App Type | Recommended Approach | Reason |
+|----------|---------------------|--------|
+| Standard apps (`docker/services/ruby/apps/`) | Explicit model names | Stability and predictability |
+| Custom apps (`~/monadic/data/apps/`) | `ENV.fetch()` | Flexibility and user control |
+
+For more details, see the [Model Specification Best Practices](monadic_dsl.md#model-specification-best-practices) section in the Monadic DSL documentation.
 
 ### Ensure Session Safety
 
@@ -257,8 +304,6 @@ end
 4. **Use filesystem for persistence**: Write to files instead of instance variables
 5. **Read-only instance vars only**: Configuration that's the same for all users
 
-For detailed information on session safety and app isolation, see the [App Isolation and Session Safety](../../docs_dev/app_isolation_and_session_safety.md) internal documentation.
-
 ## Troubleshooting Common Issues
 
 ### Missing Method Errors
@@ -320,7 +365,7 @@ Specify the icon for the application (emoji or HTML).
 `description` (string, required)
 Describe the application.
 
-`initial_prompt` (string, required)
+`system_prompt` (string, required)
 Specify the text of the system prompt.
 
 `group` (string)
@@ -410,7 +455,7 @@ class MyAppOpenAI < MonadicApp
     # Set parameters
     parameters = {
       message: {
-        model: "gpt-4.1",
+        model: "<model-id>",  # Specify your model ID
         messages: [
           {
             role: "user",

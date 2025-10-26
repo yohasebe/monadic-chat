@@ -137,7 +137,7 @@ When `add_jupyter_cells(run: true)` is called:
 - Clear, consistent error reporting format
 - No need for manual `get_jupyter_cells_with_results` calls
 
-**Implementation**: `lib/monadic/adapters/jupyter_helper.rb` lines 421-446
+**Implementation**: `lib/monadic/adapters/jupyter_helper.rb` lines 415-446
 
 #### Error Fixing Workflow
 

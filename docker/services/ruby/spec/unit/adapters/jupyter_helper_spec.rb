@@ -58,19 +58,26 @@ RSpec.describe "JupyterHelper" do
 
     context "when filename has .ipynb extension" do
       it "does not add another .ipynb extension" do
-        app.add_jupyter_cells(filename: "test_20250925.ipynb", cells: [])
-        # Check that the exact path is constructed correctly
-        expect(File).to have_received(:exist?).with(
-          File.join(MonadicApp::LOCAL_SHARED_VOL, "test_20250925.ipynb")
+        valid_cells = [{ "cell_type" => "code", "source" => "print('hello')" }]
+        app.add_jupyter_cells(filename: "test_20250925.ipynb", cells: valid_cells)
+        # Verify that send_command is called with the correct filename (no double .ipynb)
+        expect(app).to have_received(:send_command).with(
+          hash_including(command: include("test_20250925"))
+        )
+        # Ensure no double extension
+        expect(app).not_to have_received(:send_command).with(
+          hash_including(command: include(".ipynb.ipynb"))
         )
       end
     end
 
     context "when filename does not have .ipynb extension" do
       it "adds .ipynb extension" do
-        app.add_jupyter_cells(filename: "test_20250925", cells: [])
-        expect(File).to have_received(:exist?).with(
-          File.join(MonadicApp::LOCAL_SHARED_VOL, "test_20250925.ipynb")
+        valid_cells = [{ "cell_type" => "code", "source" => "print('hello')" }]
+        app.add_jupyter_cells(filename: "test_20250925", cells: valid_cells)
+        # Verify that send_command is called (meaning the notebook is being processed)
+        expect(app).to have_received(:send_command).with(
+          hash_including(command: include("test_20250925"))
         )
       end
     end

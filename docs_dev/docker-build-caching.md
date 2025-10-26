@@ -59,9 +59,7 @@ rebuild rebuild
 ```
 
 **Key Code Locations:**
-- Version comparison: `docker/monadic.sh:1235`
-- Dockerfile change detection: `docker/monadic.sh:1237`
-- FORCE_REBUILD check: `docker/monadic.sh:368`
+- FORCE_REBUILD check: `docker/monadic.sh:375, 463`
 - Electron FORCE_REBUILD setting: `app/main.js:619-620`
 
 ### Python Container Build Strategy

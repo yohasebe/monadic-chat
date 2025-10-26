@@ -46,9 +46,9 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 #### 1. MDSL Configuration (`auto_forge_openai.mdsl`, `auto_forge_claude.mdsl`, `auto_forge_grok.mdsl`)
 - Defines the app interface and system prompt for each provider
 - Configures available models:
-  - OpenAI: GPT-5 for orchestration, GPT-5-Codex for code generation
-  - Claude: Claude Opus 4.1 for both orchestration and code generation
-  - Grok: Grok-4-Fast-Reasoning for orchestration, Grok-Code-Fast-1 for code generation
+  - OpenAI: gpt-5 for orchestration; gpt-5-codex and gpt-4.1 as fallbacks for code generation
+  - Claude: claude-sonnet-4-5-20250929 for both orchestration and code generation
+  - Grok: grok-4-fast-reasoning and grok-4-fast-non-reasoning for orchestration; grok-code-fast-1 for code generation
 - Registers tool methods, including `generate_additional_file`
 - Uses the provider's chat/responses API for orchestration
 
@@ -68,9 +68,9 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 - Context persistence for modifications
 
 #### 4. HTML Generators
-- **OpenAI**: `agents/html_generator.rb` - Interfaces with GPT-5-Codex
-- **Claude**: `agents/claude_html_generator.rb` - Interfaces with Claude Opus
-- **Grok**: `agents/grok_html_generator.rb` - Interfaces with Grok-Code-Fast-1
+- **OpenAI**: `agents/html_generator.rb` with GPT5CodexAgent - Interfaces with GPT-5-Codex
+- **Claude**: Uses `agents/html_generator.rb` with ClaudeOpusAgent callback - Interfaces with Claude models via claude_opus_agent
+- **Grok**: `agents/grok_html_generator.rb` with GrokCodeAgent - Interfaces with Grok-Code-Fast-1
 - Builds prompts optimized for each provider's code generation model
 - Handles both new generation and modifications
 - Extracts and validates HTML output
@@ -93,9 +93,9 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 
 ```ruby
 # Orchestration uses models from MDSL:
-# - GPT-5 for OpenAI
-# - Claude Opus 4.1 for Claude
-# - Grok-4-Fast-Reasoning for Grok
+# - gpt-5 for OpenAI
+# - claude-sonnet-4-5-20250929 for Claude
+# - grok-4-fast-reasoning for Grok
 # Provider helpers route to the correct API automatically.
 
 # Code generation is delegated to the provider-specific agent
@@ -133,7 +133,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - Full UTF-8 support for project names
 - Only filesystem-unsafe characters are replaced
 - Japanese/Chinese/emoji characters preserved
-- Example: "病気診断アプリ" → "病気診断アプリ_20250127_162936"
+- Example: "病気診断アプリ" → "病気診断アプリ_20240127_162936"
 
 ### Context Persistence
 ```json
@@ -144,8 +144,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
     "description": "...",
     "features": [...]
   },
-  "created_at": "2025-01-27T16:29:36Z",
-  "modified_at": "2025-01-27T17:15:22Z",
+  "created_at": "2024-01-27T16:29:36Z",
+  "modified_at": "2024-01-27T17:15:22Z",
   "modification_count": 3
 }
 ```
@@ -254,25 +254,28 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 
 ### Unit Tests
 ```ruby
-# spec/unit/apps/auto_forge_spec.rb
-- Project name sanitization
-- Context persistence
-- File operations
-- Error handling
+# spec/unit/apps/auto_forge_orchestrator_spec.rb
+- Project orchestration logic
+- Context management
 
-# spec/unit/apps/auto_forge/auto_forge_cli_additional_files_spec.rb
+# spec/unit/apps/auto_forge_html_generator_spec.rb
+- HTML generation and validation
+
+# spec/unit/apps/auto_forge_codex_response_analyzer_spec.rb
+- Codex response parsing and analysis
+
+# spec/unit/apps/auto_forge_error_explainer_spec.rb
+- Error message generation
+
+# spec/unit/apps/auto_forge_cli_additional_files_spec.rb
 - CLI optional file suggestion heuristics
-- Additional file generation guardrails
+
+# spec/unit/apps/auto_forge_tools_diagnosis_spec.rb
+- Tool diagnostic functionality
 ```
 
 ### Integration Tests
-```ruby
-# spec/integration/apps/auto_forge_integration_spec.rb
-- End-to-end generation
-- Modification workflow
-- Selenium debugging
-- API interactions
-```
+See system tests for end-to-end workflows
 
 ## Known Limitations
 

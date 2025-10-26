@@ -10,24 +10,27 @@ This section contains internal documentation for Monadic Chat's Python service, 
 
 The Python service is a Flask-based API server that provides:
 
-- **Code Execution** - Safe execution of Python code in isolated environments
-- **Jupyter Integration** - Notebook creation, execution, and management
-- **Scientific Computing** - NumPy, Pandas, Matplotlib, and other libraries
+- **Token Counting** - Count tokens in text using tiktoken library
+- **Encoding Management** - Get encoding names and decode token sequences
+- **JupyterLab Access** - Direct JupyterLab interface on port 8889 (separate from Flask API)
+- **Scientific Computing Libraries** - NumPy, Pandas, Matplotlib available in JupyterLab environment
 - **Optional Packages** - LaTeX, NLTK, spaCy, and more (configurable via Install Options)
 
 ## Architecture
 
-- **Flask API Server** (`docker/services/python/app.py`) - HTTP REST API
-- **Jupyter Controller** - Notebook lifecycle management
+- **Flask API Server** (`docker/services/python/flask/flask_server.py`) - Token counting REST API
+- **JupyterLab Server** - Direct notebook interface (port 8889)
 - **Execution Environment** - Isolated Python runtime with scientific libraries
 - **Docker Container** - Standalone service with optional dependencies
 
-## Key Endpoints
+## Key Flask API Endpoints
 
-- `POST /execute` - Execute Python code
-- `POST /notebook/create` - Create new Jupyter notebook
-- `POST /notebook/execute` - Execute notebook cells
-- `GET /notebook/status` - Check notebook execution status
+- `GET /health` - Health check for service availability
+- `GET /warmup` - Preload common encodings to reduce latency
+- `POST /get_encoding_name` - Get tiktoken encoding name for a model
+- `POST /count_tokens` - Count tokens in text
+- `POST /get_tokens_sequence` - Get comma-separated token sequence
+- `POST /decode_tokens` - Decode tokens back to original text
 
 ## Install Options
 
@@ -43,8 +46,8 @@ Configuration stored in `~/monadic/config/env` and tracked for smart rebuild det
 
 ## Related Documentation
 
-- [Docker Build Caching](/docker-build-caching.md) - Smart caching for Python container builds
-- [Docker Architecture](/docker-architecture.md) - Multi-container orchestration
+- [Docker Build Caching](../docker-build-caching.md) - Smart caching for Python container builds
+- [Docker Architecture](../docker-architecture.md) - Multi-container orchestration
 
 See also:
 - `docker/services/python/` - Python service source code

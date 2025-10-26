@@ -2,6 +2,7 @@
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -850,18 +851,18 @@ module CohereHelper
     messages = []
     messages_containing_img = false
 
-    initial_prompt_parts = [initial_prompt.to_s]
-    
-    # Add language preference if set
-    if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-      language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-      initial_prompt_parts << language_prompt if !language_prompt.empty?
-    end
-    
-    # Add websearch prompt if enabled
-    initial_prompt_parts << WEBSEARCH_PROMPT if websearch
-    
-    initial_prompt_with_suffix = initial_prompt_parts.join("\n\n---\n\n")
+    # Use unified system prompt injector
+    initial_prompt_with_suffix = Monadic::Utils::SystemPromptInjector.augment(
+      base_prompt: initial_prompt.to_s,
+      session: session,
+      options: {
+        websearch_enabled: websearch,
+        reasoning_model: false,
+        websearch_prompt: WEBSEARCH_PROMPT,
+        system_prompt_suffix: obj["system_prompt_suffix"]
+      },
+      separator: "\n\n---\n\n"
+    )
 
     # Check if any messages contain images first
     context.each do |msg|
@@ -977,7 +978,14 @@ module CohereHelper
 
     # Add current user message if not a tool call
     if role != "tool"
-      current_message = "#{message}\n\n#{obj["prompt_suffix"]}".strip
+      # Use unified system prompt injector for user message augmentation
+      current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
+        base_message: message,
+        session: session,
+        options: {
+          prompt_suffix: obj["prompt_suffix"]
+        }
+      )
       
       # Check if the current message has images
       latest_msg = session[:messages].last
@@ -1075,8 +1083,12 @@ module CohereHelper
           base_message = text_content["text"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
           # Apply monadic transformation using unified interface
           monadic_message = apply_monadic_transformation(base_message, app, "user")
-          # Add prompt suffix back
-          text_content["text"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+          # Add prompt suffix back using unified system
+          text_content["text"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+            base_message: monadic_message,
+            session: session,
+            options: { prompt_suffix: obj["prompt_suffix"] }
+          )
         end
       else
         # Handle simple string content
@@ -1084,8 +1096,12 @@ module CohereHelper
         base_message = messages.last["content"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
         # Apply monadic transformation using unified interface
         monadic_message = apply_monadic_transformation(base_message, app, "user")
-        # Add prompt suffix back
-        messages.last["content"] = "#{monadic_message}\n\n#{obj["prompt_suffix"]}".strip
+        # Add prompt suffix back using unified system
+        messages.last["content"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
+          base_message: monadic_message,
+          session: session,
+          options: { prompt_suffix: obj["prompt_suffix"] }
+        )
       end
     end
 

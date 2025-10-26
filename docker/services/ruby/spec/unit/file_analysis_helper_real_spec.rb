@@ -48,46 +48,48 @@ RSpec.describe "FileAnalysisHelper without mocks" do
         image_path: "/test/image.jpg",
         model: "gpt-4.1"
       )
-      
+
       # Check the captured command
       expect(helper.executed_commands.size).to eq(1)
       executed = helper.executed_commands.last
-      
+
       expect(executed[:command]).to include("image_query.rb")
       expect(executed[:command]).to include("What is this?")
       expect(executed[:command]).to include("/test/image.jpg")
-      expect(executed[:command]).to include("gpt-4.1")
+      # gpt-4.1 is not vision-capable, so it falls back to gpt-5
+      expect(executed[:command]).to include("gpt-5")
       expect(executed[:container]).to eq("ruby")
       expect(result).to eq("Image analysis result")
     end
-    
+
     it "properly escapes special characters in message" do
       # Clear previous commands
       helper.executed_commands.clear
-      
+
       helper.analyze_image(
         message: 'Test with "quotes" and $pecial ch@rs!',
         image_path: "/test/image.jpg"
       )
-      
+
       executed = helper.executed_commands.last
       # Check that quotes are properly escaped
       expect(executed[:command]).to include('\\"quotes\\"')
       # Other special characters should be preserved
       expect(executed[:command]).to include('$pecial ch@rs!')
     end
-    
+
     it "uses settings model when model parameter is not provided" do
       # Clear previous commands
       helper.executed_commands.clear
-      
+
       helper.analyze_image(
         message: "test",
         image_path: "/test/image.jpg"
       )
-      
+
       executed = helper.executed_commands.last
-      expect(executed[:command]).to include("gpt-4.1")
+      # gpt-4.1 from settings is not vision-capable, so it falls back to gpt-5
+      expect(executed[:command]).to include("gpt-5")
     end
   end
   
@@ -113,12 +115,12 @@ RSpec.describe "FileAnalysisHelper without mocks" do
     it "uses default model when not specified" do
       # Clear previous commands
       helper.executed_commands.clear
-      
+
       helper.analyze_audio(audio: "/test/audio.mp3")
-      
+
       executed = helper.executed_commands.last
-      # Default model is gpt-4o-transcribe
-      expect(executed[:command]).to include("gpt-4o-transcribe")
+      # Default model is gpt-4o-mini-transcribe
+      expect(executed[:command]).to include("gpt-4o-mini-transcribe")
     end
     
     it "constructs command with correct parameter order" do

@@ -397,6 +397,32 @@ RSpec.describe "App Helpers Integration", type: :integration do
   end
 
   describe "Web Scraping Integration" do
+    before(:context) do
+      # Ensure Selenium is ready for web scraping tests
+      max_attempts = 10
+      attempt = 0
+
+      while attempt < max_attempts
+        begin
+          selenium_url = "http://localhost:4444/wd/hub/status"
+          uri = URI(selenium_url)
+          response = Net::HTTP.get_response(uri)
+          if response.code == "200"
+            puts "✅ Selenium container ready for web scraping tests"
+            break
+          end
+        rescue => e
+          puts "⏳ Waiting for Selenium... (#{attempt + 1}/#{max_attempts})" if ENV['DEBUG_CONTAINERS']
+        end
+
+        attempt += 1
+        if attempt >= max_attempts
+          skip "Selenium container not available for web scraping tests"
+        end
+        sleep 2
+      end
+    end
+
     it "uses Selenium for web scraping" do
       # Test webpage_fetcher.py which uses Selenium internally for markdown conversion
       fetch_command = [

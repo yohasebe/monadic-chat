@@ -4,240 +4,119 @@
 
 <a href="https://github.com/yohasebe/monadic-chat/releases"><img src="https://img.shields.io/github/v/release/yohasebe/monadic-chat?style=for-the-badge" alt="Release"></a>
 <a href="LICENSE"><img src="https://img.shields.io/github/license/yohasebe/monadic-chat?style=for-the-badge" alt="License"></a>
-<a href="https://yohasebe.github.io/monadic-chat/#/developer/testing_guide"><img src="https://img.shields.io/badge/tests-1358_passing-success?style=for-the-badge" alt="Tests"></a>
-  
+<a href="https://yohasebe.github.io/monadic-chat/#/developer/testing_guide"><img src="https://img.shields.io/badge/tests-passing-success?style=for-the-badge" alt="Tests"></a>
+
   ---
-  
-**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base (Local/Cloud)](./docs/basic-usage/pdf_storage.md) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
-  
+
+**🎯 Features** · [Multimodal](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#multimodal-capabilities) · [PDF Knowledge Base](https://yohasebe.github.io/monadic-chat/#/basic-usage/pdf_storage) · [Web Search](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#web-search-integration) · [Code Execution](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#code-interpreter) · [Voice Chat](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps#voice-chat)
+
   **🤖 Providers** · OpenAI · Claude · Gemini · Mistral · Cohere · Perplexity · xAI · DeepSeek · Ollama
-  
+
   **🛠 Built with** · Ruby · Electron · Docker · PostgreSQL · WebSocket
-  
+
   ---
-  
+
   <img src="https://raw.githubusercontent.com/yohasebe/monadic-chat/refs/heads/main/docs/assets/images/basic-architecture.png" width="800px" alt="Monadic Chat Architecture">
-  
+
 </div>
 
 ## Overview
 
-**Monadic Chat** is a locally hosted web application designed to create and utilize intelligent chatbots. By providing a Linux environment on Docker to GPT and other LLMs, it allows the execution of advanced tasks that require external tools. It supports voice interaction, image and video recognition and generation, and AI-to-AI chat, making it useful not only for various AI applications but also for developing and researching AI-powered applications.
+**Monadic Chat** is a locally hosted web application for creating and utilizing intelligent chatbots. By providing AI models with a real Linux environment through Docker, it enables advanced tasks requiring external tools. With support for voice interaction, image/video processing, and AI-to-AI conversations, Monadic Chat serves both as an AI application platform and a framework for developing AI-powered applications.
 
-Available for **Mac**, **Windows**, and **Linux** (Debian/Ubuntu) with easy-to-use installers.
+**Contextual Conversations**: Like monads in functional programming that wrap values with context, conversations in Monadic Chat can carry structured metadata (reasoning, topics, notes).
 
-[Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)
+**Conversations as Data**: Your conversations are persistent, portable data you own—not ephemeral sessions locked in a web service. Edit, delete, export, and import your conversation history freely.
 
-## Recent Updates (v0.10.x)
+**Available for Mac, Windows, and Linux**
 
-- **Gemini STT support**: Added Google Gemini (`gemini-2.5-flash`) as speech-to-text provider with flexible language recognition, Japanese spacing normalization, and multilingual input handling.
-- **PDF storage hot reload**: `PDF_STORAGE_MODE` / `PDF_DEFAULT_STORAGE` env changes apply instantly without restarting the Ruby service.
-- **Install Options localization**: The Install Options modal now follows the current UI language (English + Japanese, Simplified Chinese, Korean, Spanish, French, German).
-- **ElevenLabs v3 Alpha support**: TTS requests can use `eleven_v3`, with automatic handling of the non-streaming response format.
-- **Gemini tooling fixes**: Jupyter Notebook cells align with provider responses and Code Interpreter returns complete outputs.
-- **Model management**: ModelSpecUtils removes hardcoded model names and keeps GPT-5 endpoints in sync across providers.
-- **Auto Forge enhancements**: Claude-powered generation now mirrors GPT-5 progress in the streaming card, and CLI projects only offer relevant optional files—including on-demand custom text assets.
-- **LaTeX option upgrades**: Rebuilding with the LaTeX install option now bundles TeX Live, Ghostscript, dvisvgm/pdf2svg, and CJK packages so Concept Visualizer / Syntax Tree render Japanese/Chinese/Korean trees without manual tweaks.
-
-### Install Options & Rebuild
-
-- Use Actions → Install Options… to choose optional components (LaTeX, Python libraries, mediapipe, ImageMagick, Selenium).
-- Saving options no longer auto-prompts a rebuild. When ready, run Rebuild explicitly from the main console. The Python image is updated atomically (temp tag → verify → swap) and won’t disrupt a running system.
-- Per-run logs and artifacts are written to `~/monadic/log/build/python/<timestamp>/` (e.g., `docker_build.log`, `post_install.log`, `health.json`, `meta.json`). Layers are split to maximize cache reuse when toggling options.
+📖 **[Documentation](https://yohasebe.github.io/monadic-chat)** (English/Japanese) · 📋 **[Changelog](https://yohasebe.github.io/monadic-chat/#/changelog)**
 
 ## Getting Started
 
-- [**Documentation**](https://yohasebe.github.io/monadic-chat) (English/Japanese)
-- [**Installation**](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
+### Installation
 
-### Keyboard & Clipboard
+1. **Download** the installer for your platform from [Releases](https://github.com/yohasebe/monadic-chat/releases)
+   - macOS: `.dmg` file (Apple Silicon or Intel)
+   - Windows: `.exe` installer
+   - Linux: `.deb` package (Debian/Ubuntu)
 
-- Copy/Paste works across the whole app, including DevTools and the internal browser.
-- Shortcuts: on macOS use `Cmd+C/V/A`, on Windows/Linux use `Ctrl+C/V/A`.
-- Right-click context menu provides Copy/Paste/Select All.
+2. **Install** and launch the application
 
-Security note (internal browser): clipboard read/write is allowed only for the Web UI origin (`localhost:4567`, `127.0.0.1:4567`).
+3. **Configure API keys** in Settings
 
-### Startup Health Tuning
+4. **Start using** built-in applications or create your own
 
-- On Start, the app waits for the Ruby control‑plane to become healthy. Only if the container is explicitly unhealthy will it rebuild Ruby once (when enabled).
-- You can tune this behavior via `~/monadic/config/env`:
+📖 **Detailed installation guide**: [Installation](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)
 
-```
-# Health probe window
-START_HEALTH_TRIES=20
-START_HEALTH_INTERVAL=2
+### Quick Start
 
-# Toggle automatic rebuild on health failure (default: true)
-AUTO_REFRESH_RUBY_ON_HEALTH_FAIL=true
-```
+After installation:
 
+1. Click **Start** to launch the Docker environment
+2. Select an app from the sidebar (start with **Chat** or **Voice Chat**)
+3. Choose your AI provider (OpenAI, Claude, Gemini, etc.)
+4. Start chatting!
 
-## What is Grounding?
+For offline use, install [Ollama](https://ollama.com/) and select it as your provider.
 
-Monadic Chat is an AI framework grounded in the real world. The term **grounding** here has two meanings.
+## Why Monadic Chat?
 
-Typically, discourse involves context and purpose, which are referenced and updated as the conversation progresses. Just as in human-to-human conversations, **maintaining and referencing context** is useful, or even essential, in conversations with AI agents. By defining the format and structure of meta-information in advance, it is expected that conversations with AI agents will become more purposeful. The process of users and AI agents advancing discourse while sharing a foundational background is the first meaning of "grounding."
+Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **locally-run AI platform** that gives you:
 
-Human users can use various tools to achieve their goals. However, in many cases, AI agents cannot do this. Monadic Chat enables AI agents to execute tasks using external tools by providing them with a **freely accessible Linux environment**. This allows AI agents to more effectively support users in achieving their goals. The system includes error pattern detection that prevents infinite retry loops, ensuring stable operation. Since it is an environment on Docker containers, it does not affect the host system. Providing an environment for AI agents to not only provide language responses but also to lead to actual actions - this is the second meaning of "grounding."
+1. **Use Your Preferred Tools**: Access real Docker containers to run code, install packages, and persist files.
+
+2. **Local Data Storage**: Store conversations, code, and files on your local machine, not in cloud services. Work offline with Ollama.
+
+3. **Extensible Platform**: Not just a chatbot—a framework for building custom AI applications with Monadic DSL.
+
+4. **Provider Independence**: Switch between 9 AI providers. Choose the best model for each task.
+
+**Perfect for**: Developers building AI tools, researchers needing reproducible environments, privacy-conscious teams, and anyone wanting full control over their AI infrastructure.
 
 ## Features
 
-### Basic Structure
+### Key Highlights
 
-- 🤖 Use of **AI assistants** via various web and local APIs
-- ⚛️ Easy Docker environment setup using a GUI app with **Electron**
-- 📁 **Shared folder** for syncing local files with files inside Docker containers
-- 📦 User-added **apps** and **containers** functionality
-- 💬 Support for both **Human/AI chat** and **AI/AI chat**
-- ✨ Chat functionality utilizing **multiple AI models**
-- 🔄 **Automatic updates** with in-app notifications and download management
-- 🌐 **Server mode** for multiple clients to connect to a single server
-- 🔍 **Built-in browser** for viewing the web interface within the application
-- ❓ **Help function**: Built-in assistance and documentation with AI agent explanations
+- **🤖 Multi-Provider Support**: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek, and Ollama
+- **🐧 Real Linux Environment**: AI agents can execute code, install packages, and use tools in actual Docker containers
+- **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
+- **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization
+- **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models
+- **📄 PDF Knowledge Base**: Store and query documents locally (PGVector) or in cloud (OpenAI Vector Store)
+- **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, Grok, and Perplexity
+- **🔄 Automatic Updates**: In-app notifications and seamless update downloads
 
-### AI + Linux Environment
+### Featured Applications
 
-- 🐧 Provision of a **Linux environment** to AI agents
-- 🐳 Tools available to LLMs via **Docker containers**
-  - Linux (+ apt)
-  - Ruby (+ gem)
-  - Python (+ pip, Flask API server)
-    - Optional components toggled via Install Options (LaTeX/libraries/tools)
-  - PGVector (+ PostgreSQL)
-  - Selenium (+ Chrome/Chromium)
-  - Ollama (optional, for local LLM models)
-- ⚡️ Use of LLMs via **online and local** APIs
-- 📦 Each container can be managed via **SSH**
-- 📓 Integration with **Jupyter Notebook**
+Chat · Chat Plus · Code Interpreter · Coding Assistant · Research Assistant · Voice Chat · Jupyter Notebook · Auto Forge · Concept Visualizer · Syntax Tree · Video Generator · Math Tutor · PDF Navigator · Image Generator · Language Practice
 
-### AI User & Conversation Management
+📖 **Full list and details**: [Basic Apps](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps) (31 apps total)
 
-- 🧠 **AI User feature** allowing the AI to generate responses as if coming from a human user
-  - Uses a single source of truth (SSOT) for provider defaults; the UI badge shows `Provider (model - effort)` when applicable.
-  - Requests apply provider-specific reasoning settings automatically (e.g., OpenAI reasoning_effort, Claude thinking budget, Gemini thinking config), and omit unsupported parameters like temperature on reasoning models.
-- 🎭 Maintains the user's **tone, style, and language** in AI-generated user messages
-- 🌐 Works with **multiple AI providers** including OpenAI, Claude, Gemini, Mistral, and more
-- 💾 **Export/import** chat data
-- 📝 **Edit** chat data (add, delete, edit)
-- 💬 Specify the number of messages to send to the API as **context size**
-- 📜 Set **roles** for messages (user, assistant, system)
-- 🔢 Generate and import/export **text embeddings** from PDFs
-- 📼 **Logging** of code execution and tool/function use for debugging
-- 📋 **Extract content** from URLs and various file formats (PDF, DOCX, PPTX, XLSX, etc.)
+### Extensibility
 
-### Voice Interaction
+- **Monadic DSL**: Create custom applications with declarative syntax
+- **Docker Integration**: Add your own containers and tools
+- **Ruby & Python**: Extend functionality with familiar languages
+- **MCP Server**: Integrate external tools and services via JSON-RPC 2.0
 
-- 🔈 **Text-to-speech** for AI assistant responses (OpenAI, Elevenlabs, Google Gemini, or Web Speech API)
-- 🎙️ **Speech recognition** using the Speech-to-Text API (OpenAI: whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe; Gemini: gemini-2.5-flash)
-- 🗺️ **Automatic language detection** for text-to-speech
-- 🗣️ Choose the **language and voice** for text-to-speech
-- 😊 **Interactive conversation** with AI agents using speech recognition and text-to-speech
-- 🎧 Save AI assistant's spoken responses as **MP3/WAV audio** files
+📖 **Development guide**: [Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/)
 
-### Image/Video Recognition and Generation
+## Documentation
 
-- 🖼️ **Image generation and editing** using OpenAI's gpt-image-1, Google Imagen 3 & Gemini 2.0 Flash, and xAI Grok
-- ✏️ **Image editing** with OpenAI's gpt-image-1 model for modifying existing images
-- 🎭 **Mask editor** for precise control over which areas of an image to edit
-- 👀 Recognition and description of **uploaded images**
-- 📚 Upload and recognition of **multiple images**
-- 🎥 Recognition and description of **uploaded video content and audio**
-- 🎬 **Video generation** using Google's Veo model for text-to-video and image-to-video creation
-
-### Core Applications
-
-- 💬 **Chat** - Basic conversational AI with web search capabilities (All providers)
-- 💬 **Chat Plus** - Enhanced chat with monadic context management (All providers)
-- 🔧 **Code Interpreter** - Execute code and perform data analysis (All providers)
-- 👨‍💻 **Coding Assistant** - Programming help with code generation and debugging (All providers)
-- 📖 **Content Reader** - Extract and analyze content from files and URLs (All providers)
-- 🔍 **Research Assistant** - Web search and research with comprehensive analysis (All providers)
-- 🎙️ **Voice Chat** - Interactive voice conversations with TTS/STT (All providers)
-- 📓 **Jupyter Notebook** - Interactive notebook environment with error auto-correction (OpenAI, Claude, Gemini, Grok)
-
-### Specialized Applications
-
-- 🌳 **Syntax Tree** - Generate linguistic syntax trees for text analysis with automatic error recovery (OpenAI, Claude)
-- 🛠️ **Auto Forge** - Artifact Builder that creates single-file web apps and CLI tools with provider-specific orchestration (OpenAI, Claude)
-- 🎨 **Concept Visualizer** - Create various diagrams using LaTeX/TikZ including 3D visualizations (OpenAI, Claude)
-- 🎥 **Video Generator** - Create videos from text or images using Google's Veo model (Gemini)
-- 🌐 **Visual Web Explorer** - Capture web pages as screenshots or extract text content (OpenAI, Claude, Gemini, Grok)
-- 🗣️ **Voice Interpreter** - Real-time voice conversation with language translation (OpenAI)
-- 📊 **DrawIO Grapher** - Create professional diagrams in DrawIO format (OpenAI, Claude)
-- 🧮 **Math Tutor** - Interactive mathematics tutoring with MathJax rendering (OpenAI, Claude, Gemini, Grok)
-- 💬 **Second Opinion** - Get verification from different AI providers for accuracy (All providers)
-- 📄 **PDF Navigator** - Navigate and analyze PDF documents using vector database (OpenAI)
-- 📊 **Mermaid Grapher** - Create flowcharts and diagrams using Mermaid syntax (All providers)
-- 🎵 **Chord Accompanist** - Generate musical chord accompaniment patterns in ABC notation (Claude)
-- 🖼️ **Image Generator** - Generate images using DALL-E, Imagen 3, and Grok (OpenAI, Gemini, Grok)
-- 🎥 **Video Describer** - Analyze and describe video content (OpenAI)
-- 📧 **Mail Composer** - Compose professional emails with AI assistance (All providers)
-- 🌐 **Translate** - Language translation with context awareness (All providers)
-- 📖 **Language Practice** - Interactive language learning conversations (All providers)
-- 📖 **Language Practice Plus** - Advanced language learning with monadic context (All providers)
-- ✍️ **Novel Writer** - Creative writing assistant for stories and novels (All providers)
-- 🎤 **Speech Draft Helper** - Create speech drafts and presentations (All providers)
-- 📚 **Wikipedia** - Search and retrieve Wikipedia articles
-- ❓ **Monadic Help** - Built-in help system with AI explanations (OpenAI)
-
-### Configuration and Extension
-
-- 💡 Specify and edit **API parameters** and **system prompts**
-- 🧩 Create custom applications with **Monadic DSL** (Domain Specific Language)
-- 📊 Create diagrams with **DrawIO Grapher** and **Mermaid Grapher** apps with real-time validation
-- 💎 Extend functionality using the **Ruby** programming language
-- 🐍 Extend functionality using the **Python** programming language
-- 🔍 **Web search** capabilities using native search features in OpenAI, Claude, Gemini, xAI Grok, and Perplexity, with [Tavily](https://tavily.com/) API for other providers
-- 🌎 Perform **web scraping** using Selenium
-- 📦 Add custom **Docker containers**
-- 📝 **Declarative DSL** for simplified app development with error pattern detection
-- 🔧 Optional setup scripts (`rbsetup.sh`, `pysetup.sh`, `olsetup.sh`) for custom environment configuration
-- 🔌 **MCP Server** integration for external tool access via JSON-RPC 2.0 protocol
-
-### Support for Multiple LLM APIs
-
-- 👥 Web API
-  - [OpenAI GPT](https://platform.openai.com/docs/overview)
-  - [Google Gemini](https://ai.google.dev/gemini-api)
-  - [Anthropic Claude](https://www.anthropic.com/api)
-  - [Cohere](https://cohere.com/)
-  - [Mistral AI](https://docs.mistral.ai/api/)
-  - [xAI Grok](https://x.ai/api)
-  - [Perplexity](https://docs.perplexity.ai/home)
-  - [DeepSeek](https://www.deepseek.com/)
-- 🦙 [Ollama](https://ollama.com/) in the local Docker environment
-  - Various open source LLM models
-  - New models can be added anytime
-- 🤖💬🤖 **AI-to-AI** chat functionality
-
-### Conversations as Monads
-
-- ♻️ **Monadic mode** enables structured conversations with JSON-based context management
-- 📊 **All providers** now support monadic mode: OpenAI, Claude, Gemini, Mistral, Cohere, DeepSeek, Perplexity, Grok, and Ollama
-- 🔄 Context includes reasoning process, topics discussed, people mentioned, and important notes
-- 🎯 **Chat Plus** apps demonstrate monadic capabilities across all providers
+- 📖 **[Documentation](https://yohasebe.github.io/monadic-chat)** (English/Japanese)
+- 🚀 **[Getting Started](https://yohasebe.github.io/monadic-chat/#/getting-started/installation)**
+- 📚 **[Basic Usage](https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps)**
+- 🐳 **[Docker Integration](https://yohasebe.github.io/monadic-chat/#/docker-integration/basic-architecture)**
+- 💡 **[Advanced Topics](https://yohasebe.github.io/monadic-chat/#/advanced-topics/)**
+- 📖 **[Reference](https://yohasebe.github.io/monadic-chat/#/reference/configuration)**
+- ❓ **[Frequently Asked Questions](https://yohasebe.github.io/monadic-chat/#/faq)**
 
 ## Developer
 
-Yoichiro HASEBE<br />
-[yohasebe@gmail.com](yohasebe@gmail.com)
+Yoichiro HASEBE
+[yohasebe@gmail.com](mailto:yohasebe@gmail.com)
 
 ## License
 
 This software is available as open source under the terms of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-## PDF Knowledge Base (Local/Cloud)
-
-Monadic Chat can persist your PDFs either locally (PGVector) or in the OpenAI Vector Store, then answer questions grounded in those documents, with citations.
-
-- Storage modes: Local (PGVector) or Cloud (OpenAI Vector Store)
-- App‑scoped storage via a lightweight registry (`~/monadic/data/document_store_registry.json`)
-- Cloud upload deduplication (SHA256+size), safe cleanup from the Electron menu
-- UX: unified Local/Cloud list, per‑item/clear confirmations, status widgets
-
-- Mode selection: Use the Settings panel (PDF Storage Mode). You can also set `PDF_STORAGE_MODE=local|cloud` in `~/monadic/config/env`.
-- Backward compatibility: If `PDF_STORAGE_MODE` is not set, `PDF_DEFAULT_STORAGE` is honored.
-
-Read more:
-- User guide: `docs/basic-usage/pdf_storage.md`
-- Dev guide: `docs_dev/developer/pdf_storage_integration.md`

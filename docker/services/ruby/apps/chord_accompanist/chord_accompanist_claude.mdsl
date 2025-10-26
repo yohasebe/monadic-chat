@@ -1,4 +1,4 @@
-app "Chord Accompanist Claude" do
+app "ChordAccompanistClaude" do
   description do
     en "Generate chord accompaniment patterns in ABC notation (Claude)"
     ja "ABC記法でコード伴奏パターンを生成 (Claude)"

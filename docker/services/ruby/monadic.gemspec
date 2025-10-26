@@ -44,10 +44,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "cld"
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "dotenv", "~> 3.1"
-  spec.add_dependency "em-http-request", "~> 1.1"
   spec.add_dependency "faye-websocket", "~> 0.11"
   spec.add_dependency "http", "~> 5.2"
-  spec.add_dependency "httparty", "~> 0.23"
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
   spec.add_dependency "matrix"
@@ -62,13 +60,13 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pg", "~> 1.5"
   spec.add_dependency "pgvector"
   spec.add_dependency "pragmatic_segmenter"
-  spec.add_dependency "rack", "~> 2.2"
+  spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"
   spec.add_dependency "redcarpet"
   spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "rouge", "~> 4.0"
-  spec.add_dependency "sinatra", "~> 3.0"
-  spec.add_dependency "thin", "~> 1.8"
+  spec.add_dependency "sinatra", "~> 4.2"
+  spec.add_dependency "thin", "~> 2.0"
 
   # Uncomment to use RSyntaxTree
   # spec.add_dependency "rsyntaxtree"

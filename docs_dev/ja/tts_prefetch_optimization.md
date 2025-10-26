@@ -32,7 +32,7 @@
 - **事前取得**：有効（2つの同時リクエスト）
 - **コンテキスト連続性**：APIパラメータ経由でサポート
   - `previous_text`：✅ Monadic Chatで実装済み（`interaction_utils.rb:371-373`）
-  - `next_text`：⚠️ APIでサポートされているが未実装
+  - `next_text`：❌ 未実装（APIはこの機能をサポート）
   - セグメント全体でより良い音声連続性を提供
 
 ### OpenAI TTS（Standard、HD、4o Mini）

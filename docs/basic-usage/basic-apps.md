@@ -2,7 +2,7 @@
 
 The following basic apps are available. You can select any of the basic apps and adjust the behavior of the AI agent by changing parameters or rewriting the initial prompt. The adjusted settings can be exported/imported to/from an external JSON file.
 
-Most basic apps support multiple AI providers. See the table below for specific app availability by provider. For information on available models from each provider, see [Language Models](./language-models.md).
+Most basic apps support multiple AI providers. See the table below for specific app availability by provider.
 
 For information on how to develop your own apps, refer to the [App Development](../advanced-topics/develop_apps.md) section.
 
@@ -30,7 +30,6 @@ The table below shows which apps are available for which AI model providers.
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Mermaid Grapher | ✅ | | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | | |
-| Chord Accompanist | | ✅ | | | | | | | |
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | | |
@@ -43,17 +42,31 @@ The table below shows which apps are available for which AI model providers.
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
+## Provider Capabilities Overview
+
+| Provider | Vision Support | Tool/Function Calling | Web Search |
+|----------|----------------|----------------------|------------|
+| OpenAI | ✅ | ✅ | ✅ Native |
+| Claude | ✅ | ✅ | ✅ Native |
+| Gemini | ✅ | ✅ | ✅ Native |
+| Mistral | ✅ | ✅ | ✅ Tavily |
+| Cohere | ✅ | ✅ | ✅ Tavily |
+| xAI Grok | ✅ | ✅ | ✅ Native |
+| Perplexity | ✅ | ❌ | ✅ Native |
+| DeepSeek | ❌ | ✅ | ✅ Tavily |
+| Ollama | Model-dependent | Model-dependent | ✅ Tavily |
+
 ## Assistant :id=assistant
 
 ### Chat
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search capabilities are available but disabled by default for user control over costs and privacy. You can enable web search manually in the app settings when you need current information.
+This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search functionality is available for models that support tool/function calling. For providers with native web search support (OpenAI, Claude, Gemini, Grok, Perplexity), it is enabled by default. For other models, it is available when the Tavily API is configured.
 
 <!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
 
-Availability for this app follows the provider table at the top of this page. For current model offerings, refer to each provider's official documentation.
+Availability for this app follows the provider table at the top of this page.
 
 ### Chat Plus
 
@@ -80,13 +93,13 @@ While the user is speaking, a waveform is displayed. When the user stops speakin
 ![Voice p-value](../assets/images/voice-p-value.png ':size=400')
 
 
-Voice Chat supports the same providers indicated in the availability table. Model-specific capabilities (speech-to-text, TTS, etc.) depend on each provider's published API features.
+Voice Chat supports the same providers indicated in the availability table. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
 ### Wikipedia
 
 ![Wikipedia app icon](../assets/icons/wikipedia.png ':size=40')
 
-This is basically the same as Chat, but for questions about events that occurred after the language model's cutoff date, which GPT cannot answer, it searches Wikipedia for answers. If the query is in a language other than English, the Wikipedia search is conducted in English, and the results are translated back into the original language.
+This is basically the same as Chat, but for questions about events that occurred after the language model's cutoff date, which the AI model cannot answer, it searches Wikipedia for answers. If the query is in a language other than English, the Wikipedia search is conducted in English, and the results are translated back into the original language.
 
 ### Math Tutor
 
@@ -102,7 +115,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 This app provides a two-step consultation process. **Step 1**: Ask your question and receive an initial answer from the AI. **Step 2**: Request verification by saying phrases like "Get a second opinion" or "Double-check this answer." The app will then consult another AI provider to review and comment on the initial response. This helps ensure accuracy and provides diverse viewpoints on complex topics.
 
-Second Opinion is available wherever the provider table lists support. Consult the provider documentation for the latest list of compatible models and tooling.
+Second Opinion is available wherever the provider table lists support.
 
 ### Research Assistant
 
@@ -110,11 +123,7 @@ Second Opinion is available wherever the provider table lists support. Consult t
 
 This app is designed to support academic and scientific research by serving as an intelligent research assistant with powerful web search capabilities. It retrieves and analyzes information from online sources, helping you find current information, verify facts, and research topics comprehensively. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your inquiries.
 
-Research Assistant availability matches the provider table above. Some providers include native web-search features, while others require an external service such as Tavily. Check each provider's official documentation for current capabilities and any extra configuration that may be needed.
-
-?> **Web Search Functionality**: 
-> - **Native search**: Offered by certain providers through their own APIs. Refer to provider docs for supported scopes and limits.
-> - **External services**: When native search is unavailable, you can connect to third-party web search APIs (for example, Tavily). Visit the relevant service documentation for pricing and usage limits.
+Research Assistant availability matches the provider table above. For details on web search functionality (native search, Tavily API, URL content extraction), see the Chat app description or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
 
 ## Language Related :id=language-related
 
@@ -125,7 +134,7 @@ Research Assistant availability matches the provider table above. Some providers
 This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
 
 
-Language Practice supports the providers indicated in the availability table. Refer to provider documentation for current model options and speech capabilities.
+Language Practice supports the providers indicated in the availability table. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
 ### Language Practice Plus
 
@@ -150,7 +159,7 @@ Translate is available for the providers marked in the availability table. Speci
 
 This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
 
-Voice Interpreter follows the provider availability shown in the table above. Speech input/output quality varies by provider—see their official docs for details.
+Voice Interpreter follows the provider availability shown in the table above. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
 
 ## Content Generation :id=content-generation
@@ -159,7 +168,7 @@ Voice Interpreter follows the provider availability shown in the table above. Sp
 
 ![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
-This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, genre, and target word count.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
+This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, and genre.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
 
 
 ### Image Generator
@@ -172,7 +181,7 @@ This application generates images based on descriptions. When the selected provi
 2. **Image Editing**: Modify existing images using text prompts and optional masks
 3. **Image Variation**: Generate alternative versions of an existing image
 
-With the image editing feature, you can:
+With supported models, the image editing feature allows you to:
 - Select an existing image as a base
 - Create mask images to specify areas to modify
   - Click the mask button on uploaded images
@@ -224,17 +233,7 @@ The editing process preserves the original image's composition and details while
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
 
-#### Available Models
-
-**Google Gemini** supports:
-- Imagen 4 Fast (default), Imagen 4, Imagen 4 Ultra, Imagen 3
-- Gemini 2.5 Flash (for image editing)
-
-**OpenAI** supports DALL-E and GPT-Image models.
-
-**Grok/xAI** uses their image generation model.
-
-Image Generator is available with the providers indicated in the availability table. For model capabilities and differences, refer to each provider's official documentation.
+Image Generator is available with the providers indicated in the availability table.
 
 ### Video Generator
 
@@ -242,68 +241,30 @@ Image Generator is available with the providers indicated in the availability ta
 
 This application generates videos using state-of-the-art AI models. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
-**Available Providers:**
-
-#### OpenAI (Sora 2)
-Model versions:
-- `sora-2` — fast model for quick iterations and prototyping (DEFAULT)
-- `sora-2-pro` — high-quality model for production-ready output (slower, more expensive)
-
-**Model Selection Policy:**
-- By default, the assistant always uses `sora-2` (cost-effective, fast)
-- `sora-2-pro` is used ONLY when you explicitly request high quality using keywords like:
-  - "high quality", "production", "professional", "pro", "final version", "publish"
-  - "高品質", "本番用", "プロ", "最終版", "公開用" (Japanese)
-- If your request suggests professional use without explicit keywords, the assistant will ask before choosing `sora-2-pro`
-
-**Specifications:**
-- Supported sizes: 1280x720, 1920x1080, 1080x1920 (portrait), 720x1280 (portrait)
-- Duration: 4, 8, or 16 seconds
-- Default: 1280x720, 8 seconds, sora-2 model
-
-**Content Restrictions:**
-- Only content suitable for audiences under 18
-- No copyrighted characters or music
-- No real people (including public figures)
-- No images with human faces
-
-#### Google Gemini (Veo 3.1)
-Model versions:
-- `veo-3.1-fast-generate-preview` — default (faster turnaround, good quality)
-- `veo-3.1-generate-preview` — higher quality (slower)
-
-By default, the assistant uses the fast model. If you prefer higher quality, indicate so in your request (e.g., "use the quality model").
-
-**Specifications:**
-- Aspect ratio: 16:9
-- Resolution: 720p or 1080p
-- Frame rate: 24 fps
-- Duration: 4, 6, or 8 seconds
-- Audio: Natively generated synchronized audio
-- Person generation control: Option to allow or restrict generation of videos containing people
+Some providers offer both fast and high-quality models. If you prefer higher quality, use keywords like "high quality" or "production" in your request.
 
 **Key Features:**
 - **Text-to-video generation**: Create videos from text descriptions
 - **Image-to-video generation**: Animate existing images by using them as the first frame
-- **Remix (OpenAI only)**: Modify existing videos with targeted adjustments
+- **Remix**: Modify existing videos with new prompts (OpenAI Sora 2 only)
 - **Multiple aspect ratios**: Choose between landscape and portrait formats
 
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
    - Include shot type, subject, action, setting, lighting, and camera movement
 2. For image-to-video: Upload an image to the shared folder and describe how it should be animated
-3. For remix (OpenAI only): After generating a video, request modifications
-4. Specify quality preferences if needed (OpenAI: use keywords; Gemini: ask for quality model)
+3. For remix (OpenAI Sora 2 only): Request modifications after generating a video
+4. Specify quality preferences if needed by using keywords in your prompt
 
-?> **Note:** Video generation typically takes 2–6 minutes (OpenAI) or 11 seconds to 6 minutes (Gemini). Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
+?> **Note:** Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
 
 **Example requests:**
-- "Create a video of a sunset over mountains" → text-to-video with sora-2
-- "高品質なマーケティング動画を作成" → text-to-video with sora-2-pro
-- "Turn this image into a video of waves gently moving" → image-to-video with uploaded image
-- "Make the video more colorful" (after generating) → remix with OpenAI
+- "Create a video of a sunset over mountains" → text-to-video generation
+- "Create a high-quality marketing video" → text-to-video with high-quality model
+- "Turn this image into a video of waves gently moving" → image-to-video generation
+- "Make the video more colorful" (after generating) → remix with modifications (OpenAI Sora 2 only)
 
-Video Generator is available with **OpenAI** (Sora 2) and **Google Gemini** (Veo 3.1) models.
+Video Generator is available with the providers indicated in the availability table.
 
 ### Mail Composer
 
@@ -312,7 +273,7 @@ Video Generator is available with **OpenAI** (Sora 2) and **Google Gemini** (Veo
 This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
 
 
-Mail Composer supports each provider shown in the availability table. Consult provider docs for stylistic features or tone controls offered by specific models.
+Mail Composer supports each provider shown in the availability table.
 
 ### Mermaid Grapher
 
@@ -323,21 +284,13 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 **Key Features:**
 - **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
 - **Real-time validation**: Diagrams are validated using Selenium and the actual Mermaid.js engine before being displayed
-- **Error correction**: If syntax errors occur, the AI automatically analyzes and fixes them
-- **Automatic error fixing**: The AI can detect common issues (like incorrect Sankey syntax) and automatically apply fixes
+- **Error analysis**: When syntax errors occur, analyzes error patterns and provides fix suggestions
 - **Preview generation**: A PNG preview image is saved to your shared folder for easy access
 - **Web search integration**: Can fetch the latest Mermaid.js documentation and examples for unfamiliar diagram types
 
-**Enhanced Validation:**
-- Uses Selenium WebDriver to validate diagrams with the actual Mermaid.js rendering engine
-- Falls back to static validation if Selenium is unavailable
-- Provides specific error messages and suggestions for fixing common issues
-
 **Usage Tips:**
 - Simply describe what you want to visualize, and the AI will create the appropriate diagram
-- For Sankey diagrams, note that the syntax uses CSV format (source,target,value) not arrow notation
 - All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
-- The AI will always validate diagrams before showing them to ensure they render correctly
 
 
 ### DrawIO Grapher
@@ -349,34 +302,6 @@ This application helps you create Draw.io diagrams. Provide your requirements an
 
 DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
 
-### Chord Accompanist
-
-![Chord Accompanist app icon](../assets/icons/music.png ':size=40')
-
-This application generates musical chord accompaniment patterns in ABC notation. Perfect for musicians, composers, and music students who want to quickly create accompaniment patterns for various musical styles.
-
-**Key Features:**
-- **Genre-aware generation**: Creates authentic accompaniment patterns for different musical genres (jazz, classical, pop, rock, etc.)
-- **ABC notation output**: Generates standard ABC notation that can be played and rendered by any ABC-compatible software
-- **Multiple instrument support**: Piano, guitar, bass, and other accompaniment instruments
-- **Automatic validation**: Two-layer validation ensures both syntactical correctness and musical accuracy
-- **Time signature checking**: Validates that each bar has the correct number of beats for the specified time signature
-- **Direct playback**: Generated ABC notation is rendered with audio playback in the web interface
-
-**Enhanced Validation:**
-- **Syntax validation**: Uses the ABCJS library to ensure the ABC code is syntactically correct
-- **Musical validation**: Checks that bar durations match the time signature (e.g., 8 units for 4/4 time)
-- **Real-time rendering**: Displays sheet music and provides audio playback directly in the interface
-
-**Usage Tips:**
-- Specify the tempo, time signature, key, and musical genre for best results
-- The AI can create patterns for specific styles (e.g., "Beatles Let It Be style" or "jazz waltz")
-- Reference specific songs or artists for stylistic guidance
-- All generated ABC notation can be copied and used in other ABC-compatible software
-
-**Available Models:**
-- Anthropic Claude Sonnet 4.5
-
 ### Syntax Tree
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
@@ -384,15 +309,13 @@ This application generates musical chord accompaniment patterns in ABC notation.
 This application generates linguistic syntax trees from sentences in multiple languages. It analyzes the grammatical structure of sentences and creates visual tree diagrams using LaTeX and tikz-qtree. The app supports:
 
 - Multiple languages including English, Japanese, Chinese, and other languages
-- Binary branching analysis (each node has at most 2 children)
 - Editable SVG output that can be modified in vector graphics editors
-- Comprehensive particle analysis for Japanese (includes all particles/joshi)
 - Professional linguistic notation following syntactic theory standards
 
-The generated syntax trees are displayed as SVG images with transparent backgrounds, styled with CSS for web display.
+The generated syntax trees are displayed as SVG images with transparent backgrounds.
 
 
-Syntax Tree availability matches the provider table. Refer to provider documentation for supported reasoning or tool-call limits when generating complex trees.
+Syntax Tree availability matches the provider table.
 
 ### Concept Visualizer :id=concept-visualizer
 
@@ -406,21 +329,11 @@ This application visualizes various concepts and relationships through diagrams 
 - **Multi-language support**: Handles text in various languages including CJK (Chinese, Japanese, Korean)
 - **Professional output**: Generates high-quality SVG diagrams suitable for presentations and publications
 - **Customizable styling**: Appropriate colors, layouts, and visual elements for each diagram type
-- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations using tikz-3dplot
+- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations
 
-The generated diagrams are displayed as editable SVG images that can be further modified in vector graphics editors.
+The generated diagrams are displayed as editable SVG images saved to the shared folder, which can be further modified in vector graphics editors.
 
-
-**Technical Notes:**
-- Uses LaTeX/TikZ for diagram generation with comprehensive package support including:
-  - Core LaTeX packages for basic diagram creation
-  - `texlive-science` for 3D visualizations with tikz-3dplot
-  - CJK language support for multi-language text rendering
-  - `dvisvgm` for high-quality SVG output
-- Generated SVG files are saved to the shared folder and displayed via the `/data/` endpoint
-- Automatically detects and loads appropriate TikZ libraries based on diagram type
-
-Concept Visualizer supports the providers listed in the availability table. Diagram complexity and maximum output size may vary—see provider documentation for current limits.
+Concept Visualizer supports the providers listed in the availability table.
 
 ### Speech Draft Helper
 
@@ -438,8 +351,8 @@ This application captures web pages as screenshots or extracts their text conten
 **Key Features:**
 - **Screenshot Mode**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
 - **Text Extraction Mode**: Convert web content to clean Markdown format
-- **Provider-specific Image Recognition**: When HTML parsing fails, uses each provider's native vision API for text extraction
-- **Customizable Viewports**: Desktop (1920×1080), tablet (1024×768), mobile (375×812), and print (794×1123) presets
+- **Image Recognition Option**: When HTML parsing is difficult, image recognition mode enables text extraction using each provider's vision API
+- **Customizable Viewports**: Desktop, tablet, mobile, and print presets
 - **Overlap Control**: Configure overlap between screenshots for seamless reading
 - **Automatic Naming**: Files are named with domain and timestamp
 
@@ -449,14 +362,7 @@ This application captures web pages as screenshots or extracts their text conten
 - `"Extract text from https://example.com with image recognition"` - Uses vision API when needed
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 
-
-**Technical Notes:**
-- Uses Selenium WebDriver for page rendering
-- `webpage_fetcher.py` handles HTML to Markdown conversion
-- Falls back to provider-specific image recognition APIs when text extraction fails
-- Each provider uses its own native image and vision format; capabilities follow the official API specifications.
-
-Visual Web Explorer is available with the providers marked in the availability table. Refer to provider documentation for current screenshot and OCR capabilities.
+Visual Web Explorer is available with the providers marked in the availability table.
 
 ### Video Describer
 
@@ -464,14 +370,14 @@ Visual Web Explorer is available with the providers marked in the availability t
 
 This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
 
-To use this app, store the video file in the `Shared Folder` and provide the file name.  Specify the frames per second (fps) for frame extraction. If the total number of frames exceeds 50, only 50 frames will be proportionally extracted from the video.
+To use this app, store the video file in the `Shared Folder` and provide the file name.  Specify the frames per second (fps) for frame extraction.
 
 
 ### PDF Navigator
 
 ![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
 
-This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to GPT along with the user's input, and a response is generated based on that content.
+This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to the AI along with the user's input, and a response is generated based on that content.
 
 **Key Features:**
 - **Vector database integration**: Properly connects to PGVector database through the `@embeddings_db` instance variable
@@ -486,27 +392,14 @@ This application reads PDF files and allows the assistant to answer user questio
 - `get_text_snippet`: Retrieve a specific text segment by position
 - `get_text_snippets`: Get all text segments from a specific document
 
-?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation.
+?> The PDF Navigator app uses [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/) to extract text from PDF files and the text data and its embeddings are stored in [PGVector](https://github.com/pgvector/pgvector) database (database name: `monadic_user_docs`). The app now properly connects to the vector database using the `pdf_vector_storage` feature flag, ensuring reliable access to your PDF content. For detailed information about the vector database implementation, see the [Vector Database](../docker-integration/vector-database.md) documentation. For information about storage mode options (local vs. cloud), see [PDF Storage](./pdf_storage.md).
 
 **Configuration Options:**
 
 PDF Navigator behavior can be customized via environment variables in `~/monadic/config/env`:
 
-- `PDF_RAG_TOKENS`: Number of tokens per chunk (default: 4000)
-  - Controls how PDF text is split into chunks for embedding
-  - Larger values provide more context but may reduce search precision
-  - Recommended range: 2000-6000 tokens
-
-- `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks (default: 4)
-  - Provides continuity between adjacent chunks
-  - Helps prevent context loss at chunk boundaries
-  - Recommended range: 2-10 lines
-
-Example configuration:
-```
-PDF_RAG_TOKENS=5000
-PDF_RAG_OVERLAP_LINES=6
-```
+- `PDF_RAG_TOKENS`: Number of tokens per chunk
+- `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks
 
 
 ![PDF button](../assets/images/app-pdf.png ':size=700')
@@ -520,7 +413,7 @@ PDF_RAG_OVERLAP_LINES=6
 
 ![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
 
-This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with GPT.
+This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with the AI.
 
 To specify a file for the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, verify the file name and ensure it's accessible from the current code execution environment.
 
@@ -532,9 +425,8 @@ Supported file formats:
 - Microsoft Excel (xlsx)
 - CSV
 - Text (txt)
-- PNG
-- JPEG
-- MP3
+
+The app can also recognize and describe image files (PNG, JPEG, etc.). Image recognition uses the vision capability of the currently selected model (automatically falls back to a vision-capable model if needed). Additionally, audio files (MP3, etc.) can be transcribed to text. Speech recognition uses the STT model selected in the Speech Settings Panel of the Web UI.
 
 
 ## Code Generation :id=code-generation
@@ -545,25 +437,27 @@ Supported file formats:
 
 This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
 
-?> **Important Notes:**
-> - The app implements automatic error handling to prevent infinite loops when code execution fails
-> - If code execution encounters repeated errors, the app will automatically stop retrying and provide an error message
-> - For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc
+?> **Note:** For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc.
 
 <!-- > 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots -->
 
-Code Interpreter availability matches the provider table. Tooling details—such as container execution support or code-length limits—are documented by each provider and may differ between models.
+Code Interpreter availability matches the provider table. Provider tool-calling specifications may vary, which can affect behavior.
 
 ### Coding Assistant
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-This application is designed for writing computer program code. You can interact with an AI configured as a professional software engineer. It answers various questions, writes code, makes appropriate suggestions, and provides helpful advice through user prompts.
+An AI assistant that functions as a professional software engineer. Supports code creation, file reading/writing, project management, and other development tasks.
 
-?> While Code Interpreter executes the code, Coding Assistant specializes in providing code snippets and advice. A long code snippet will be divided into multiple parts, and the user will be asked if they want to proceed with the next part.
+**Key Features:**
+- Code generation and editing
+- File read/write operations in Shared Folder (write/append mode support)
+- Directory file listing
+- Support for complex coding tasks
 
+?> **Note:** Code Interpreter can execute Python code, while Coding Assistant specializes in code generation and file operations without code execution.
 
-Coding Assistant supports the providers indicated in the availability table. Review provider documentation for guidance on model strengths (reasoning, coding-specific features, etc.).
+Coding Assistant supports the providers indicated in the availability table.
 
 ### Jupyter Notebook :id=jupyter-notebook
 
@@ -571,18 +465,14 @@ Coding Assistant supports the providers indicated in the availability table. Rev
 
 This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
 
-> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
+?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
 
 <!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
 
-**Server Mode Configuration:** Jupyter Notebook functionality is disabled by default in Server Mode. To enable it, set `ALLOW_JUPYTER_IN_SERVER_MODE=true` in your configuration file (`~/monadic/config/env`).
+?> **Note:** For Server Mode restrictions, see [Web Interface - Server Mode](./web-interface.md#server-mode).
 
-Jupyter Notebook is available for the providers shown in the availability table. Some providers may impose stricter tool-call limits or notebook size constraints—check their official documentation for details.
-
-?> **Provider-specific Notes:**
-> - **Gemini**: Uses a combined `create_and_populate_jupyter_notebook` function for better reliability when creating notebooks with cells
-> - All providers support creating notebooks, adding cells, and executing Python code within the Jupyter environment
+Jupyter Notebook is available for the providers shown in the availability table.
 
 ### Monadic Chat Help
 

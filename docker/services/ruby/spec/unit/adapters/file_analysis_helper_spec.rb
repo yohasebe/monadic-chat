@@ -103,18 +103,18 @@ RSpec.describe MonadicHelper do
       # Mock check_vision_capability
       def helper.check_vision_capability(model)
         # Simulate that gpt-3.5 doesn't have vision capability
-        model.include?("gpt-4") ? model : nil
+        model.include?("gpt-4") || model.include?("gpt-5") ? model : nil
       end
-      
+
       helper.settings["model"] = "gpt-3.5-turbo"
-      
+
       helper.analyze_image(
         message: "Test",
         image_path: test_image_path
       )
-      
-      # Should fall back to gpt-4.1
-      expect(helper.last_command).to include('gpt-4.1')
+
+      # Should fall back to gpt-5
+      expect(helper.last_command).to include('gpt-5')
     end
     
     it 'handles empty message' do
@@ -147,12 +147,12 @@ RSpec.describe MonadicHelper do
   describe '#analyze_audio' do
     it 'analyzes audio with default model' do
       audio_path = "/tmp/test_audio.mp3"
-      
+
       result = helper.analyze_audio(
         audio: audio_path,
         model: "gpt-4o-transcribe"
       )
-      
+
       expect(helper.last_command).to include('stt_query.rb')
       expect(helper.last_command).to include(audio_path)
       expect(helper.last_command).to include('gpt-4o-transcribe')
@@ -160,25 +160,52 @@ RSpec.describe MonadicHelper do
       expect(helper.last_container).to eq('ruby')
       expect(result).to include('test audio transcription')
     end
-    
+
+    it 'uses STT model from settings when available' do
+      audio_path = "/tmp/test_audio.mp3"
+      helper.settings["stt_model"] = "gpt-4o-transcribe-diarize"
+
+      result = helper.analyze_audio(
+        audio: audio_path
+      )
+
+      expect(helper.last_command).to include('stt_query.rb')
+      expect(helper.last_command).to include('gpt-4o-transcribe-diarize')
+      expect(result).to include('test audio transcription')
+    end
+
+    it 'falls back to default when STT model not in settings' do
+      audio_path = "/tmp/test_audio.mp3"
+      # Ensure stt_model is not in settings
+      helper.settings.delete("stt_model")
+
+      result = helper.analyze_audio(
+        audio: audio_path
+      )
+
+      expect(helper.last_command).to include('stt_query.rb')
+      expect(helper.last_command).to include('gpt-4o-mini-transcribe')
+      expect(result).to include('test audio transcription')
+    end
+
     it 'handles different audio formats' do
       formats = %w[mp3 wav m4a webm ogg]
-      
+
       formats.each do |format|
         audio_path = "/tmp/test_audio.#{format}"
-        
+
         helper.analyze_audio(audio: audio_path)
-        
+
         expect(helper.last_command).to include(audio_path)
       end
     end
-    
+
     it 'uses whisper model' do
       result = helper.analyze_audio(
         audio: "/tmp/test.mp3",
         model: "whisper-1"
       )
-      
+
       expect(helper.last_command).to include('whisper-1')
       expect(result).to be_a(String)
     end

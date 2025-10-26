@@ -4,6 +4,7 @@ require 'securerandom'
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
+require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_provider_interface"
 require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
@@ -540,18 +541,24 @@ module MistralHelper
     body["messages"] = context.reject do |msg|
                          msg["role"] == "tool"
                        end.map do |msg|
-      # Special handling for system messages with language injection
+      # Special handling for system messages with unified injection
       if msg["role"] == "system" && !system_message_modified
         system_message_modified = true
-        content_parts = [msg["text"]]
-        
-        # Add language preference if set
-        if session[:runtime_settings] && session[:runtime_settings][:language] && session[:runtime_settings][:language] != "auto"
-          language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language(session[:runtime_settings][:language])
-          content_parts << language_prompt if !language_prompt.empty?
-        end
-        
-        { "role" => msg["role"], "content" => content_parts.join("\n\n---\n\n") }
+
+        # Use unified system prompt injector
+        augmented_content = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"],
+          session: session,
+          options: {
+            websearch_enabled: false,  # Mistral handles websearch via tools
+            reasoning_model: false,
+            websearch_prompt: nil,
+            system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
+
+        { "role" => msg["role"], "content" => augmented_content }
       # Check if message contains images
       elsif msg["images"] && msg["role"] == "user"
         content = []

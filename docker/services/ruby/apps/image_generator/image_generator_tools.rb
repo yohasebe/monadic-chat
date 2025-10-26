@@ -30,26 +30,26 @@ class ImageGeneratorOpenAI < MonadicApp
     if background && !%w[transparent opaque auto].include?(background.to_s)
       raise ArgumentError, "Invalid background value: '#{background}'. Must be 'transparent', 'opaque', or 'auto'"
     end
-    
+
     # Validate output_compression parameter if provided
     if output_compression && output_compression.to_i != 0
       if output_compression.to_i < 1 || output_compression.to_i > 100
         raise ArgumentError, "Invalid output_compression value: #{output_compression}. Must be between 1 and 100"
       end
-      
+
       # PNG does not support compression parameter
       if output_format == "png"
         raise ArgumentError, "PNG format does not support compression. Remove output_compression parameter or use JPEG/WEBP format"
       end
     end
-    
+
     # For edit operation with mask, ensure mask parameter is provided
     if operation == "edit" && mask.nil? && images
       # Check if a mask file exists for the image
       puts "Warning: No mask parameter provided for edit operation. Mask may not be applied correctly."
     end
-    
-    # Call the method from ImageGenerationHelper
+
+    # Call the method from MediaGenerationHelper (via MonadicHelper)
     super
   rescue StandardError => e
     { error: "Image generation failed: #{e.message}" }
@@ -64,8 +64,8 @@ class ImageGeneratorGrok < MonadicApp
   def generate_image_with_grok(prompt:)
     # Input validation
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
-    
-    # Call the method from ImageGenerationHelper
+
+    # Call the method from MediaGenerationHelper (via MonadicHelper)
     # Note: The actual implementation doesn't use model, n, size, or output_format parameters
     # It calls a Ruby script that handles these internally
     super

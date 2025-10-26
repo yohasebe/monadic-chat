@@ -15,5 +15,5 @@ These documents provide deep technical details about specific implementations, a
 
 ## Related Documentation
 
-- [Monadic Architecture](/ruby_service/monadic_architecture.md) - Overall Ruby service architecture
-- [Python Service](/python_service/) - Jupyter execution environment
+- [Monadic Architecture](/docs_dev/ruby_service/monadic_architecture.md) - Overall Ruby service architecture
+- [Python Service](/docs_dev/python_service/) - Jupyter execution environment

@@ -431,9 +431,9 @@ if ($("#temperature").val() > 0.5) {  // 自動強制
 
 ## 関連ドキュメント
 
-- [型変換ポリシー](/ja/type_conversion_policy.md) - 全体的なポリシードキュメント
-- [Monadic DSLドキュメント](../../../docs/ja/advanced-topics/monadic_dsl.md) - ユーザー向けDSLガイド
-- [よくある問題](/ja/common-issues.md) - トラブルシューティングガイド
+- [型変換ポリシー](../type_conversion_policy.md) - 全体的なポリシードキュメント
+- [Monadic DSLドキュメント](../../../../docs/ja/advanced-topics/monadic_dsl.md) - ユーザー向けDSLガイド
+- [よくある問題](../common-issues.md) - トラブルシューティングガイド
 
 ## 改訂履歴
 

@@ -11,7 +11,7 @@
     - [Webインターフェイス](/ja/basic-usage/web-interface.md)
     - [メッセージ入力](/ja/basic-usage/message-input.md)
     - [基本アプリ](/ja/basic-usage/basic-apps.md)
-    - [言語モデル](/ja/basic-usage/language-models.md)
+    - [PDFストレージ](/ja/basic-usage/pdf_storage.md)
     - [シンタックスハイライト](/ja/basic-usage/syntax-highlighting.md)
 
 - **Docker連携**
@@ -22,8 +22,9 @@
     - [標準Pythonコンテナ](/ja/docker-integration/python-container.md)
     - [ベクトルデータベース](/ja/docker-integration/vector-database.md)
 
-- **機能追加**
+- **高度な機能**
 
+    - [高度な設定](/ja/advanced-topics/advanced-configuration.md)
     - [アプリの開発](/ja/advanced-topics/develop_apps.md)
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)

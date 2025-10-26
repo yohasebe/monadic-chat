@@ -12,10 +12,14 @@ This project ships multiple test categories. Goals, locations, and commands:
   - Scope: app helpers, provider integrations, and real API workflows.
   - Real-API subsets live under `spec/integration/api_smoke`, `spec/integration/api_media`, and `spec/integration/provider_matrix`.
   - Commands (Rake):
-    - `RUN_API=true rake spec_api:smoke` — non‑media real API smoke across providers.
-    - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — media (image/voice) tests.
-    - `RUN_API=true rake spec_api:matrix` — minimal matrix across providers.
-    - `RUN_API=true rake spec_api:all` — all non‑media API tests (+ optional matrix).
+    - `rake test` — Run all tests (Ruby + JavaScript + Python, no API)
+    - `rake test:all[standard]` — Comprehensive test suite (Ruby + API + JS + Python)
+    - `rake test:all[full]` — Full test suite including media tests (image/video/audio)
+    - Legacy commands:
+      - `RUN_API=true rake spec_api:smoke` — non‑media real API smoke across providers
+      - `RUN_API=true RUN_MEDIA=true rake spec_api:media` — media (image/voice) tests
+      - `RUN_API=true rake spec_api:matrix` — minimal matrix across providers
+      - `RUN_API=true rake spec_api:all` — all non‑media API tests (+ optional matrix)
 
 - System (`spec/system`):
   - Scope: server endpoints and high‑level behavior without live external APIs.
@@ -29,6 +33,406 @@ This project ships multiple test categories. Goals, locations, and commands:
 - Default: skip real APIs unless `RUN_API=true`.
 - Provider coverage: Ollama is included by opt‑in when needed; others depend on keys in `~/monadic/config/env`.
 - Logging during API tests: set `API_LOG=true` for per‑request logging, or use `EXTRA_LOGGING=true` (see Logging Guide).
+
+## Testing Strategy: Mock vs Real API
+
+Monadic Chat uses different testing approaches for different test categories. This is intentional and appropriate:
+
+### Unit Tests (spec/unit/)
+
+**Approach**: Mock-based testing
+
+**Rationale**:
+- Fast execution (no network calls)
+- Isolated testing of individual components
+- No external dependencies required
+- Predictable, deterministic results
+
+**What We Mock**:
+- HTTP client responses
+- External API calls
+- Database interactions
+- File system operations
+
+**Example**:
+```ruby
+# Unit test with mocked HTTP response
+it 'handles API timeout gracefully' do
+  stub_request(:post, /api.openai.com/).to_timeout
+
+  expect { helper.chat(messages: [...]) }
+    .to raise_error(Faraday::TimeoutError)
+end
+```
+
+### Integration Tests - API Category (spec/integration/api_*)
+
+**Approach**: Real API calls (when `RUN_API=true`)
+
+**Rationale**:
+- Catch provider API changes (parameters, endpoints, formats)
+- Test real rate limiting and retry behavior
+- Verify actual error messages and handling
+- Validate streaming response processing
+- Ensure authentication flows work correctly
+
+**What We DON'T Mock**:
+- Provider API endpoints
+- HTTP responses
+- Rate limiting
+- Error responses
+
+**Trade-offs**:
+- Costs money (real API usage)
+- Slower execution (network latency)
+- Requires API keys
+- **But**: Provides genuine confidence in provider integration
+
+**Example**:
+```ruby
+# Integration test with real API call
+it 'generates text with Claude', run_api: true do
+  response = ClaudeHelper.new.chat(
+    model: 'claude-sonnet-4.5',
+    messages: [{ role: 'user', content: 'Say hello' }]
+  )
+
+  # Real provider response
+  expect(response[:text]).to match(/hello|hi|greetings/i)
+  expect(response[:model]).to eq('claude-sonnet-4.5')
+end
+```
+
+### Frontend Tests (test/frontend/)
+
+**Approach**: No-mock testing (real DOM, real libraries)
+
+**Rationale**: See [Frontend Testing Documentation](frontend/no_mock/README.md) for detailed philosophy
+
+**Key Points**:
+- Uses real DOM via jsdom
+- Loads actual JavaScript libraries (jQuery, etc.)
+- Tests user workflows, not implementation details
+- Verifies actual DOM state changes
+
+### Why This Multi-Strategy Approach Works
+
+| Test Type | Speed | Cost | Confidence | Use Case |
+|-----------|-------|------|------------|----------|
+| Unit (mocked) | ⚡ Fast | Free | Medium | Component isolation, edge cases |
+| Integration (real API) | 🐌 Slow | 💰 Paid | High | Provider compatibility, real behavior |
+| Frontend (no-mock) | ⚡ Fast | Free | High | User interactions, DOM behavior |
+
+**The key**: Use the right tool for the right job. Mocks are excellent for unit tests, but real APIs are essential for integration confidence.
+
+## API Integration Testing Philosophy
+
+### Design Principles
+
+Monadic Chat's API integration tests are designed with specific goals and constraints:
+
+#### 1. Real API Calls Over Mocks
+
+**Why**: Mocks cannot catch real-world issues
+
+Mocks can't detect:
+- Provider API changes (new parameters, deprecated endpoints)
+- Rate limiting behavior and retry logic
+- Network timeout handling under real conditions
+- Error message format changes
+- Authentication flow updates
+- Response streaming edge cases
+
+**Trade-off**: Real API calls cost money and time, but provide genuine confidence
+
+#### 2. Cost Tracking and Budget Control
+
+**Infrastructure**: Every test run logs actual API costs
+
+- Costs tracked in `~/monadic/log/test_api_costs.json`
+- Per-provider cost breakdown
+- Historical cost tracking across test runs
+- Enables cost regression detection
+
+**Benefits**:
+- Budget-aware test execution
+- Identify expensive test scenarios
+- Optimize test coverage vs cost tradeoff
+- Track provider pricing changes over time
+
+**Example Cost Log**:
+```json
+{
+  "timestamp": "2025-10-26T10:30:00Z",
+  "total_cost_usd": 0.47,
+  "providers": {
+    "openai": {"requests": 12, "cost": 0.23},
+    "anthropic": {"requests": 8, "cost": 0.18},
+    "gemini": {"requests": 5, "cost": 0.06}
+  }
+}
+```
+
+#### 3. Test Level Strategy (Depth vs Cost)
+
+**ENV-Driven Execution Modes**:
+
+```bash
+# LEVEL_1: Smoke tests (fast, cheap)
+# - Basic connectivity
+# - Simple text generation
+# - ~$0.10 per run
+TEST_LEVEL=1 RUN_API=true rake spec_api:smoke
+
+# LEVEL_2: Functional tests (moderate)
+# - Tool calling
+# - Multi-modal inputs
+# - Streaming responses
+# - ~$1.50 per run
+TEST_LEVEL=2 RUN_API=true rake spec_api:all
+
+# LEVEL_3: Edge cases (comprehensive, expensive)
+# - Large context windows
+# - Complex tool chains
+# - Error recovery scenarios
+# - ~$5.00 per run
+TEST_LEVEL=3 RUN_API=true rake spec_api:all
+```
+
+**Use Cases**:
+- **CI/CD**: LEVEL_1 on every commit
+- **Pre-release**: LEVEL_2 before merging to main
+- **Nightly builds**: LEVEL_3 comprehensive validation
+
+#### 4. Parallelism and Rate Limiting
+
+**Strategy**: Provider-level parallelism with per-provider serialization
+
+```ruby
+# Providers run in parallel (OpenAI, Claude, Gemini simultaneously)
+providers.map do |provider|
+  Thread.new do
+    # Tests for single provider run serially to respect rate limits
+    run_provider_tests(provider)
+  end
+end.each(&:join)
+```
+
+**Benefits**:
+- Faster test execution (providers run concurrently)
+- Respects each provider's rate limits
+- Isolated failures (one provider error doesn't block others)
+- Efficient resource utilization
+
+**Rate Limit Configuration**:
+```ruby
+# Per-provider QPS limits (see table in "Real API smoke defaults" section)
+# Example: OpenAI at 0.5 QPS = ~2 second spacing between requests
+API_RATE_QPS_OPENAI=0.5
+API_RATE_QPS_ANTHROPIC=0.5
+API_RATE_QPS_GEMINI=0.4
+```
+
+#### 5. Graceful Degradation
+
+**Philosophy**: Transient provider errors should not fail entire test suite
+
+**Implementation**:
+- Retry logic with exponential backoff
+- Provider-specific timeout configurations
+- Skip tests when API keys missing (not error)
+- Mark transient failures as pending, not failed
+- Detailed failure logs for debugging
+
+**Example**:
+```ruby
+it 'generates text with Claude' do
+  begin
+    response = call_claude_api(...)
+    expect(response).to have_text_content
+  rescue Faraday::TooManyRequestsError => e
+    skip "Rate limited (retry after #{e.retry_after}s)"
+  rescue Faraday::TimeoutError
+    skip "Provider timeout (network issue, not test failure)"
+  end
+end
+```
+
+### Test Matrix Architecture
+
+**Coverage**: 9 providers × 7 app types = 63 test combinations
+
+**Providers**:
+1. OpenAI (GPT-4, GPT-5, o1/o3 reasoning)
+2. Anthropic (Claude 3.5, Claude 4.5)
+3. Gemini (Gemini 1.5, Gemini 2.0)
+4. Mistral
+5. Cohere (Command R+)
+6. DeepSeek
+7. Perplexity
+8. xAI (Grok)
+9. Ollama (local)
+
+**App Types**:
+1. Simple chat (text generation)
+2. Tool calling (function execution)
+3. Vision (image analysis)
+4. Streaming responses
+5. Multi-modal (text + images)
+6. Reasoning (o1/o3, extended thinking)
+7. Web search integration
+
+**Selective Execution**:
+```bash
+# Test specific provider
+PROVIDERS=openai RUN_API=true rake spec_api:smoke
+
+# Test specific capability across providers
+rspec spec/integration/api_smoke/vision_spec.rb
+
+# Test single app type
+rspec spec/integration/api_smoke/tool_calling_spec.rb
+```
+
+### Cost Optimization Strategies
+
+#### 1. Smart Test Selection
+
+```bash
+# Run cheapest tests first (fail fast)
+rake spec_api:smoke  # $0.10
+
+# Only run expensive tests when smoke passes
+rake spec_api:all    # $1.50
+```
+
+#### 2. Model Selection
+
+```ruby
+# Use cheaper models for basic functionality tests
+OPENAI_TEST_MODEL=gpt-4.1-mini  # Instead of gpt-5
+ANTHROPIC_TEST_MODEL=claude-haiku-4.5  # Instead of claude-sonnet-4.5
+```
+
+#### 3. Minimize Context
+
+```ruby
+# Keep test prompts short
+prompt = "Say hello"  # ✅ Cheap
+prompt = system_prompt + long_context + query  # ❌ Expensive
+```
+
+#### 4. Reuse Expensive Operations
+
+```ruby
+# Cache embeddings, vector stores, file uploads
+let(:uploaded_file) { upload_once_per_suite }
+
+# Avoid re-uploading same test data
+before(:all) { setup_shared_resources }
+after(:all) { cleanup_shared_resources }
+```
+
+### Debugging API Test Failures
+
+#### 1. Enable Detailed Logging
+
+```bash
+API_LOG=true EXTRA_LOGGING=true RUN_API=true rake spec_api:smoke
+```
+
+#### 2. Check Cost Log
+
+```bash
+cat ~/monadic/log/test_api_costs.json | jq '.providers'
+```
+
+#### 3. Run Single Provider
+
+```bash
+PROVIDERS=openai RUN_API=true rspec spec/integration/api_smoke/basic_spec.rb
+```
+
+#### 4. Increase Timeout
+
+```bash
+API_TIMEOUT=120 RUN_API=true rake spec_api:smoke
+```
+
+#### 5. Review Test Artifacts
+
+```bash
+cat ./tmp/test_runs/latest_compact.md
+cat ./tmp/test_runs/latest/summary_full.md
+```
+
+### Best Practices
+
+#### 1. Avoid Strict String Matching
+
+```ruby
+# ❌ Bad: Brittle, provider-specific
+expect(response).to eq "Hello! How can I help you today?"
+
+# ✅ Good: Flexible, intent-based
+expect(response).to match(/hello|hi|greetings/i)
+expect(response.length).to be > 0
+```
+
+#### 2. Use Presence Checks Over Exact Values
+
+```ruby
+# ❌ Bad: Assumes specific tool order
+expect(tools).to eq ["search_web", "calculate", "get_weather"]
+
+# ✅ Good: Verifies capability
+expect(tools).to include("search_web")
+expect(tools.size).to be >= 1
+```
+
+#### 3. Handle Provider Differences
+
+```ruby
+# Different providers may return different metadata
+case provider
+when 'openai'
+  expect(response).to have_key(:model)
+when 'anthropic'
+  expect(response).to have_key(:stop_reason)
+end
+
+# But core functionality should be consistent
+expect(response).to have_text_content
+expect(response).not_to have_errors
+```
+
+#### 4. Tag Expensive Tests
+
+```ruby
+it 'processes large document', :expensive do
+  # Only runs at LEVEL_3
+end
+
+it 'generates 10K token response', :slow, :expensive do
+  # Clearly marked for cost awareness
+end
+```
+
+### Future Improvements
+
+1. **Dynamic Cost Budgets**: Set max spend per test run, stop when exceeded
+2. **Provider Health Checks**: Skip providers with known outages
+3. **Intelligent Retry**: Differentiate transient vs permanent failures
+4. **Cost Prediction**: Estimate test run cost before execution
+5. **Parallel Provider Testing**: Further optimize multi-provider execution
+6. **Historical Trend Analysis**: Track API performance and costs over time
+
+### Related Documentation
+
+- **Test Runner**: `docs_dev/test_runner.md` - Unified test orchestration
+- **Provider Matrix Helper**: `spec/support/provider_matrix_helper.rb`
+- **Cost Tracking**: `~/monadic/log/test_api_costs.json`
+- **Frontend Testing**: `docs_dev/frontend/testing.md` - No-mock approach
 
 ## Real API smoke defaults
 

@@ -170,10 +170,3 @@ Maximum 2 retry attempts to prevent infinite loops:
 2. **Provider Limitations**: Some providers (Gemini) cannot chain multiple tool calls
 3. **Workarounds**: Combined functions can overcome sequential call limitations
 4. **Testing Critical**: Session context issues only appear in multi-turn conversations
-
-## Future Improvements
-
-1. **Unified Context Manager**: Create a shared context management system for non-monadic providers
-2. **Automatic Fallback**: Detect when context is lost and recover automatically
-3. **Session Persistence**: Save notebook context between sessions
-4. **Provider Abstraction**: Hide provider-specific quirks behind a common interface

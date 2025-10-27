@@ -340,7 +340,7 @@ end
    - Verify messages don't leak
    - Confirm context is properly isolated
 
-### Automated Testing (Future)
+### Automated Testing Example
 
 ```ruby
 # spec/integration/app_isolation_spec.rb (example)

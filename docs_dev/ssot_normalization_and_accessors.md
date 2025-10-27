@@ -231,9 +231,9 @@ end
 | Reasoning Models | `is_reasoning_model(model, provider)` | ✅ Migrated |
 | Web Search | `supports_web_search?(model, provider)` | ✅ Migrated |
 | PDF Upload | `supports_pdf_upload?(model, provider)` | ✅ Migrated |
-| Prompt Caching | `supports_prompt_caching?(model, provider)` | ⏳ Planned |
-| Streaming Default | `streaming_default(model, provider)` | ⏳ Planned |
-| Tool Call Limit | `max_tool_calls(model, provider)` | ⏳ Planned |
+| Prompt Caching | `supports_prompt_caching?(model, provider)` | Not migrated (handled per provider) |
+| Streaming Default | `streaming_default(model, provider)` | Not migrated (handled per provider) |
+| Tool Call Limit | `max_tool_calls(model, provider)` | Not migrated (handled per provider) |
 
 ### Benefits of SSOT Approach
 
@@ -243,11 +243,10 @@ end
 4. **Reduced Duplication**: Eliminate redundant hardcoded logic
 5. **Better Testing**: Unit test capability logic independently of helpers
 6. **Easier Debugging**: Centralized audit logging shows capability decisions
-7. **Future-Proof**: New providers can reuse existing accessor infrastructure
+7. **Extensible**: New providers can reuse existing accessor infrastructure
 
 ### Related Documentation
 
 - **Canonical Vocabulary**: `docs_dev/developer/model_spec_vocabulary.md`
 - **Anthropic Implementation**: `docs_dev/ruby_service/vendors/anthropic_architecture.md`
 - **Model Spec Reference**: `docker/services/ruby/public/js/monadic/model_spec.js`
-

@@ -53,10 +53,10 @@ The JavaScript frontend handles `type: "wait"` messages by calling `setAlert(con
 
 ## Features Added
 
-### 1. Session Management (Future-Proofing)
+### 1. Session Management Structure
 - `@@connections_by_session`: Hash mapping session IDs to Sets of WebSocket connections
 - Supports multiple tabs/connections per session
-- Currently broadcasts to all connections via channel, but infrastructure ready for targeted messaging
+- Broadcast currently goes to all connections via the channel while preserving per-session tracking for targeted messaging
 
 ### 2. Progress Broadcasting Methods
 - `broadcast_progress(fragment, target_session_id)`: Main broadcasting method
@@ -70,15 +70,15 @@ The JavaScript frontend handles `type: "wait"` messages by calling `setAlert(con
 ## Design Decisions and Rationale
 
 ### Why Keep Session Management?
-Although we currently broadcast through the channel (which goes to all subscribers), we keep session management for:
-1. **Future targeting**: May need session-specific messages later
-2. **Connection cleanup**: Track and remove dead connections
-3. **Debugging**: Know which sessions have active connections
-4. **Minimal overhead**: Set-based storage is efficient
+Although broadcasting currently goes to all subscribers, maintaining session management:
+1. **Enables targeted messaging** without additional architectural changes
+2. **Supports connection cleanup** by tracking and removing dead connections
+3. **Assists debugging** by exposing which sessions have active connections
+4. **Adds minimal overhead** thanks to set-based storage
 
 ### Why Include session_id in Messages?
 Currently unused by JavaScript, but included for:
-1. **Future filtering**: Clients could filter messages by session
+1. **Client-side filtering**: Clients can filter messages by session
 2. **Debugging**: Track which session generated which message
 3. **Backward compatibility**: Easy to add filtering without changing message format
 

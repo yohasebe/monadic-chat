@@ -48,9 +48,3 @@ We split responsibilities into two layers:
 - Any code path that sets per-message `tokens` from provider usage must check
   the `TOKEN_COUNT_SOURCE` flag before applying the override.
 - Import/export: messages may include a `tokens` field; retain it if present.
-
-## Future work (optional)
-- Add a high-precision mode where providers’ counting endpoints are used for
-  pre-send shaping (Anthropic/Gemini/Cohere/Mistral), still with tiktoken as
-  fallback. This is intentionally not the default.
-

@@ -331,16 +331,16 @@ end
 
 ## SSOT Migration Status
 
-| Feature | Current Implementation | SSOT Status | Priority |
-|---------|----------------------|-------------|----------|
-| Extended Thinking | Hardcoded model check | ✅ In model_spec.js | Migrated |
-| Context Window | Hardcoded case statement | ✅ In model_spec.js | Migrated |
-| Max Output Tokens | Hardcoded case statement | ✅ In model_spec.js | Migrated |
-| Vision Support | Hardcoded model check | ✅ In model_spec.js | Migrated |
-| Streaming Default | Hardcoded true | ⏳ Planned | Medium |
-| Tool Call Limit | Hardcoded constant | ⏳ Planned | Low |
-| Prompt Caching | Hardcoded model check | ⏳ Planned | Low |
-| Thinking Budget | Hardcoded case statement | ⏳ Planned | Medium |
+| Feature | Current Implementation | SSOT Status |
+|---------|-----------------------|-------------|
+| Extended Thinking | Hardcoded model check | ✅ In `model_spec.js` |
+| Context Window | Hardcoded case statement | ✅ In `model_spec.js` |
+| Max Output Tokens | Hardcoded case statement | ✅ In `model_spec.js` |
+| Vision Support | Hardcoded model check | ✅ In `model_spec.js` |
+| Streaming Default | Hardcoded true | Not migrated (handled in `claude_helper.rb`) |
+| Tool Call Limit | Hardcoded constant | Not migrated (handled in `claude_helper.rb`) |
+| Prompt Caching | Hardcoded model check | Not migrated (handled in `claude_helper.rb`) |
+| Thinking Budget | Hardcoded case statement | Not migrated (handled in `claude_helper.rb`) |
 
 ## Related Files
 
@@ -427,11 +427,3 @@ def process_stream(stream)
   yield buffer  # Emit final content
 end
 ```
-
-## Future Improvements
-
-1. **Complete SSOT Migration**: Move all hardcoded patterns to model_spec.js
-2. **Dynamic Model Discovery**: Query Anthropic API for available models
-3. **Adaptive Rate Limiting**: Intelligent retry with exponential backoff
-4. **Cost Tracking**: Monitor token usage and prompt caching effectiveness
-5. **Automatic Model Selection**: Recommend best model for user's task

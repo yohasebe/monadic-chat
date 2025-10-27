@@ -317,13 +317,6 @@ Benchmark script: `tmp/test_all_tts_latency.rb`
 2. **API Rate Limits**: Possible with very frequent requests (unlikely with 2 concurrent)
 3. **ElevenLabs V3**: Some users may prefer legacy single-request mode for quality reasons
 
-## Future Improvements
-
-- [ ] Adaptive concurrency based on segment length
-- [ ] Provider-specific optimization (e.g., V3 quality vs. speed trade-off)
-- [ ] Memory usage monitoring and automatic throttling
-- [ ] Caching for frequently used text segments
-
 ## Related Files
 
 - `docker/services/ruby/lib/monadic/utils/websocket.rb` - Main implementation

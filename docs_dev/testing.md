@@ -418,15 +418,6 @@ it 'generates 10K token response', :slow, :expensive do
 end
 ```
 
-### Future Improvements
-
-1. **Dynamic Cost Budgets**: Set max spend per test run, stop when exceeded
-2. **Provider Health Checks**: Skip providers with known outages
-3. **Intelligent Retry**: Differentiate transient vs permanent failures
-4. **Cost Prediction**: Estimate test run cost before execution
-5. **Parallel Provider Testing**: Further optimize multi-provider execution
-6. **Historical Trend Analysis**: Track API performance and costs over time
-
 ### Related Documentation
 
 - **Test Runner**: `docs_dev/test_runner.md` - Unified test orchestration

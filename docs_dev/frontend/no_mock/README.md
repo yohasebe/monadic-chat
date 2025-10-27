@@ -282,11 +282,3 @@ When migrating existing tests:
 4. Use `waitFor` instead of expecting immediate changes
 5. Verify actual DOM state instead of mock call counts
 6. Test complete user workflows
-
-## Future Improvements
-
-- Add Playwright for browser-based testing of critical paths
-- Create more comprehensive fixtures
-- Add performance benchmarks
-- Implement visual regression testing
-- Add accessibility testing utilities

@@ -95,7 +95,7 @@ function loadParams() {
 - ❌ Couples timing to change event propagation
 - ❌ May trigger unwanted side effects if change handler does more than badge update
 
-**Current Status**: Issue identified, solutions proposed. Implementation pending.
+**Implementation Guidance**: Prefer Solution A for deterministic updates; Solution B remains available when event-driven propagation is acceptable.
 
 ## Best Practices
 
@@ -195,9 +195,3 @@ function debugModelSelection() {
 - `docker/services/ruby/public/js/monadic/websocket.js`: `loadParams()` implementation
 - `docker/services/ruby/public/js/monadic/ui/reasoning.js`: Reasoning UI updates
 - `docker/services/ruby/public/js/monadic/ui/badges.js`: Badge update logic (if exists)
-
-## Future Improvements
-
-1. **State Management Library**: Consider using a simple state management pattern to centralize UI state updates
-2. **Unit Tests**: Add frontend tests for synchronization scenarios
-3. **Event Documentation**: Document which events trigger which UI updates

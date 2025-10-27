@@ -389,15 +389,6 @@ WHERE hd.is_internal = FALSE
 rake help:build_dev
 ```
 
-## Future Improvements
-
-### Potential Enhancements
-
-1. **Native stdio Support**: Implement stdio transport in MCP server
-2. **Connection Pooling**: Reuse HTTP connections in wrapper
-3. **Streaming Responses**: Support long-running tool executions
-4. **Progress Updates**: Show real-time progress for slow operations
-
 ### Known Limitations
 
 1. **Latency**: stdio wrapper adds ~50ms overhead

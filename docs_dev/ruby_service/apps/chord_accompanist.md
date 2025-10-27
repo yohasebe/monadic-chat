@@ -94,18 +94,6 @@ def validate_abc_syntax(abc_code:)
 end
 ```
 
-## Proposed Features (Not Yet Implemented)
-
-- **`preview_abc`**: Render score and capture PNG. MIDI support reserved for future use
-- **`run_multi_agent_pipeline`**: Accept structured payload (`context` + `notes`). When `notes` includes JSON segments (`requirements: {...}; progression_hint: [...]`), Ruby side would extract them and skip additional LLM calls, reducing retry loops
-
-## Future Work Considerations
-
-- Expose downloadable SVG/MIDI when ABCJS APIs are integrated
-- Add automatic chord-progression templates or reference-based inference
-- Include regression tests for sanitiser (unicode dash, smart quotes, extra blank lines)
-- Implement style templates (arpeggio, block chords, walking bass) for consistency
-
 ## Related Files
 
 - **Implementation**: `docker/services/ruby/apps/chord_accompanist/chord_accompanist_tools.rb`

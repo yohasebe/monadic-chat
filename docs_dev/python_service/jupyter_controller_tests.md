@@ -77,10 +77,3 @@ The tests cover:
 2. Cell content can be provided in multiple formats for compatibility
 3. All paths are relative to `/monadic/data/` in production
 4. Timestamps are added to created notebooks to ensure uniqueness
-
-## Future Improvements
-
-- Add support for cell metadata
-- Implement notebook merging functionality
-- Add support for exporting notebooks to different formats
-- Implement cell execution tracking

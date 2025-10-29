@@ -728,7 +728,7 @@ module MonadicDSL
     }
     
     PROVIDER_WRAPPERS = {
-      gemini: ->(tools) { { function_declarations: tools } },
+      gemini: ->(tools) { { "function_declarations" => tools } },
       default: ->(tools) { tools }
     }
     

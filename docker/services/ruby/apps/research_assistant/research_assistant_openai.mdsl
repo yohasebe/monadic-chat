@@ -76,14 +76,15 @@ app "ResearchAssistantOpenAI" do
   end
 
   tools do
-    # Import shared file operations tools (always visible - Phase 1)
-    import_shared_tools :file_operations, visibility: "always"
-
     # Progressive Tool Disclosure unlock mechanism
     define_tool "request_tool", "Request access to a locked tool by name" do
       parameter :tool_name, "string", "Name of the tool to unlock", required: true
       visibility "always"
     end
+
+    # Import shared file operations tools (conditional - Phase 2 evaluation)
+    import_shared_tools :file_operations, visibility: "conditional",
+                        unlock_hint: "Call request_tool(\"file_operations\") when you need to read, write, or list files in the shared folder."
 
     # GPT-5-Codex agent for analysis code generation
     define_tool "gpt5_codex_agent", "Delegate code generation tasks to GPT-5-Codex" do

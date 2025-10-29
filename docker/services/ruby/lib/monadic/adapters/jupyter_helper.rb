@@ -1,4 +1,5 @@
 require 'shellwords'
+require 'cgi'
 
 module MonadicHelper
 
@@ -596,7 +597,9 @@ module MonadicHelper
       if notebook_filename
         # Return in the format expected by Grok's process_functions
         # This format allows extraction of the actual filename with timestamp
-        result = "Notebook #{notebook_filename} created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{notebook_filename}"
+        # URL encode the filename to handle Unicode characters (Japanese, Chinese, etc.)
+        encoded_filename = CGI.escape(notebook_filename)
+        result = "Notebook #{notebook_filename} created successfully. Access it at: #{get_jupyter_base_url}/lab/tree/#{encoded_filename}"
       else
         # For backward compatibility, handle old format responses
         jupyter_host = get_jupyter_host

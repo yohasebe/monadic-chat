@@ -836,11 +836,21 @@ module MonadicDSL
     # @example Custom unlock hint
     #   import_shared_tools :web_tools, visibility: "conditional", unlock_hint: "Call request_tool..."
     def import_shared_tools(*groups, visibility: "conditional", **options)
+      # Track imported tool groups for UI display
+      @state.settings[:imported_tool_groups] ||= []
+
       groups.each do |group|
         # Validate group exists
         unless MonadicSharedTools::Registry.group_exists?(group)
           raise ArgumentError, "Unknown tool group: #{group}. Available: #{MonadicSharedTools::Registry.available_groups.join(', ')}"
         end
+
+        # Record tool group metadata for UI
+        @state.settings[:imported_tool_groups] << {
+          name: group,
+          visibility: visibility,
+          tool_count: MonadicSharedTools::Registry.tools_for(group).length
+        }
 
         # Get tool specifications from registry
         tool_specs = MonadicSharedTools::Registry.tools_for(group)

@@ -528,6 +528,9 @@ module WebSocketHelper
         elsif p == "tools" && (m.is_a?(Array) || m.is_a?(Hash))
           # Tools need to be sent as proper JSON too
           apps[k][p] = m.to_json
+        elsif p == "imported_tool_groups" && m.is_a?(Array)
+          # Send imported tool groups metadata for UI display
+          apps[k][p] = m.to_json
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s

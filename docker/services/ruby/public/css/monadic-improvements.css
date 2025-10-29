@@ -112,3 +112,52 @@
     transform: scale(1.1);
   }
 }
+/* Tool Group Badges */
+.tool-groups-display {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tool-group-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.tool-group-badge.badge-always {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.tool-group-badge.badge-conditional {
+  background-color: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+}
+
+.tool-group-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Dark mode support */
+body.dark-mode .tool-group-badge.badge-always {
+  background-color: #1b5e20;
+  color: #a5d6a7;
+  border-color: #2e7d32;
+}
+
+body.dark-mode .tool-group-badge.badge-conditional {
+  background-color: #bf360c;
+  color: #ffcc80;
+  border-color: #e65100;
+}

@@ -1314,7 +1314,38 @@ function doResetActions(resetToDefaultApp = false) {
   }
 
   $("#base-app-icon").html(apps[currentApp]["icon"]);
-  $("#base-app-desc").html(apps[currentApp]["description"]);
+
+  // Helper function to get icon for tool group
+  function getToolGroupIcon(groupName) {
+    const icons = {
+      'jupyter_operations': '📓',
+      'python_execution': '🐍',
+      'file_operations': '📁',
+      'file_reading': '📄',
+      'web_tools': '🌐',
+      'app_creation': '🛠️'
+    };
+    return icons[groupName] || '📦';
+  }
+
+  // Display description with tool group badges
+  let descriptionHtml = apps[currentApp]["description"];
+  if (apps[currentApp]["imported_tool_groups"]) {
+    try {
+      const toolGroups = JSON.parse(apps[currentApp]["imported_tool_groups"]);
+      if (toolGroups && toolGroups.length > 0) {
+        const badges = toolGroups.map(group => {
+          const icon = getToolGroupIcon(group.name);
+          const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
+          return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
+        }).join(' ');
+        descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
+      }
+    } catch (e) {
+      console.warn('Failed to parse imported_tool_groups:', e);
+    }
+  }
+  $("#base-app-desc").html(descriptionHtml);
 
   $("#model_and_file").show();
   $("#model_parameters").show();

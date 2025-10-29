@@ -148,7 +148,7 @@ app "JupyterNotebookGrok" do
     # This creates the notebook AND adds cells in ONE operation
     define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (USE THIS FOR CREATING NEW NOTEBOOKS)" do
       parameter :filename, "string", "Base filename for the notebook", required: true
-      parameter :cells, "array", "Array of cell objects to add", required: true
+      parameter :cells, "array", "Array of cell objects to add", required: true, items: { "type" => "object" }
       parameter :run, "boolean", "Whether to run the cells after adding", required: false
     end
 

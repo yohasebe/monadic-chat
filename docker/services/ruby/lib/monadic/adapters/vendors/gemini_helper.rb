@@ -979,6 +979,13 @@ module GeminiHelper
     app_settings = APPS[app]&.settings
     app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
 
+    # Debug: Check tools structure
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[DEBUG Gemini Tools] app=#{app}"
+      puts "[DEBUG Gemini Tools] app_tools type: #{app_tools.class}"
+      puts "[DEBUG Gemini Tools] app_tools.inspect: #{app_tools.inspect[0..500]}"
+    end
+
     raw_function_tools =
       if app_tools.is_a?(Hash) && app_tools["function_declarations"]
         app_tools["function_declarations"]
@@ -1344,9 +1351,25 @@ module GeminiHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
+
+      # Debug: Check error_report structure
+      if CONFIG["EXTRA_LOGGING"]
+        STDERR.puts "[Gemini Error Response] Type: #{error_report.class}"
+        STDERR.puts "[Gemini Error Response] Content: #{error_report.inspect[0..500]}"
+      end
+
+      # Handle both hash and array error formats
+      error_message = if error_report.is_a?(Hash)
+        error_report.dig("error", "message") || error_report["message"] || "Unknown API error"
+      elsif error_report.is_a?(Array)
+        error_report.first&.dig("error", "message") || error_report.first&.[]("message") || "Unknown API error (array format)"
+      else
+        "Unknown API error (unexpected format)"
+      end
+
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Gemini",
-        message: error_report.dig("error", "message") || "Unknown API error",
+        message: error_message,
         code: res.status.code
       )
       res = { "type" => "error", "content" => formatted_error }
@@ -1380,9 +1403,18 @@ module GeminiHelper
       [res]
     end
   rescue StandardError => e
+    # Include stack trace in error for debugging
+    error_details = if CONFIG["EXTRA_LOGGING"]
+      "Unexpected error: #{e.message}\nBacktrace: #{e.backtrace[0..5].join("\n")}"
+    else
+      "Unexpected error: #{e.message}"
+    end
+
+    STDERR.puts "[Gemini Error] #{error_details}" if CONFIG["EXTRA_LOGGING"]
+
     error_message = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Gemini",
-      message: "Unexpected error: #{e.message}"
+      message: error_details
     )
     res = { "type" => "error", "content" => error_message }
     block&.call res

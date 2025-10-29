@@ -31,7 +31,7 @@ app "JupyterNotebookGeminiTest" do
     # Simple test tool
     define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (GEMINI PREFERRED)" do
       parameter :filename, "string", "Base filename for the notebook (without .ipynb extension)", required: true
-      parameter :cells, "array", "Array of cell objects to add to the notebook", required: true
+      parameter :cells, "array", "Array of cell objects to add to the notebook", required: true, items: { "type" => "object" }
     end
   end
 end

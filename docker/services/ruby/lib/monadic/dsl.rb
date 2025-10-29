@@ -569,8 +569,13 @@ module MonadicDSL
             "type" => param[:type],
             "description" => param[:description]
           }
-          # Gemini-specific enum handling
 
+          # Add items property for array types (required by Gemini)
+          if param[:type] == "array"
+            props[name.to_s]["items"] = param[:items] || { "type" => "object" }
+          end
+
+          # Gemini-specific enum handling
           if tool.enum_values[name]
             props[name.to_s]["enum"] = tool.enum_values[name]
           end

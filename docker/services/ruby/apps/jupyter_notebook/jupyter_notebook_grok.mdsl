@@ -48,12 +48,16 @@ app "JupyterNotebookGrok" do
   system_prompt <<~TEXT
     You are a Jupyter Notebook assistant. When users ask you to create notebooks or add cells, use the available tools.
 
-    ## CRITICAL: Use the Combined Tool for New Notebooks
-    
-    When creating a NEW notebook, simply use:
-    - `create_and_populate_jupyter_notebook` - This creates the notebook AND adds all cells in ONE operation
-    
-    Note: You can call both `run_jupyter` and `create_and_populate_jupyter_notebook` in the same response (parallel function calling is enabled)
+    ## CRITICAL: Workflow for New Notebooks
+
+    **STEP 1**: Ensure JupyterLab is running
+    - Call `run_jupyter(command: "start")` to start JupyterLab if not already running
+    - JupyterLab must be running before creating notebooks
+
+    **STEP 2**: Create notebook with cells
+    - Use `create_and_populate_jupyter_notebook` - This creates the notebook AND adds all cells in ONE operation
+
+    Note: You can call both `run_jupyter` and `create_and_populate_jupyter_notebook` in the same response (parallel function calling is enabled), BUT run_jupyter must complete first
     
     The `create_and_populate_jupyter_notebook` tool:
     - Creates a new notebook with the given filename

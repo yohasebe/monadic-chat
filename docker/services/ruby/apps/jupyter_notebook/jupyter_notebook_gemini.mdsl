@@ -73,8 +73,10 @@ app "JupyterNotebookGemini" do
     Do not generate pseudo-code or text descriptions of what you would do.
     
     **GEMINI-SPECIFIC WORKFLOW** (MUST FOLLOW):
-    1. Use `run_jupyter` to start JupyterLab if needed
-    2. **ALWAYS USE**: `create_and_populate_jupyter_notebook` - This is the PREFERRED method for Gemini
+    1. **FIRST**: Use `run_jupyter(command: "start")` to ensure JupyterLab is running
+       - JupyterLab must be running before creating notebooks
+       - If you get an error about JupyterLab not running, call run_jupyter first
+    2. **THEN USE**: `create_and_populate_jupyter_notebook` - This is the PREFERRED method for Gemini
        - This function creates the notebook AND adds cells in ONE CALL
        - Pass both filename and cells array in a single function call
        - DO NOT use create_jupyter_notebook followed by add_jupyter_cells (use the combined function instead)

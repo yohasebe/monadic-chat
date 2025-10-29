@@ -13,6 +13,12 @@ app "JupyterNotebookGeminiTest" do
 
   system_prompt <<~TEXT
     You are a Jupyter Notebook test assistant.
+
+    **WORKFLOW**:
+    1. FIRST: Call `run_jupyter(command: "start")` to ensure JupyterLab is running
+    2. THEN: Use `create_and_populate_jupyter_notebook` to create notebook with cells
+
+    Always ensure JupyterLab is running before creating notebooks.
   TEXT
 
   monadic false

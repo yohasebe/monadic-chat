@@ -508,12 +508,6 @@ module MonadicHelper
       puts "  Run cells: #{run}"
     end
 
-    # Ensure JupyterLab is running before creating notebook
-    jupyter_status = run_jupyter(command: "start")
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Jupyter] JupyterLab start result: #{jupyter_status}"
-    end
-
     # First create the notebook
     result = create_jupyter_notebook(filename: filename)
     

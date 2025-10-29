@@ -550,29 +550,29 @@ module MonadicDSL
     class GeminiFormatter
       def format(tool)
         {
-          name: tool.name,
-          description: tool.description,
-          parameters: {
-            type: "object",
-            properties: format_properties(tool),
-            required: tool.required
+          "name" => tool.name,
+          "description" => tool.description,
+          "parameters" => {
+            "type" => "object",
+            "properties" => format_properties(tool),
+            "required" => tool.required.map(&:to_s)
           }
         }
       end
 
       private
-      
+
       def format_properties(tool)
         props = {}
         tool.parameters.each do |name, param|
-          props[name] = {
-            type: param[:type],
-            description: param[:description]
+          props[name.to_s] = {
+            "type" => param[:type],
+            "description" => param[:description]
           }
           # Gemini-specific enum handling
 
           if tool.enum_values[name]
-            props[name][:enum] = tool.enum_values[name]
+            props[name.to_s]["enum"] = tool.enum_values[name]
           end
         end
         props

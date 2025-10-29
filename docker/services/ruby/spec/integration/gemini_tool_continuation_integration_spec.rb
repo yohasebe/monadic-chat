@@ -24,8 +24,10 @@ RSpec.describe "Gemini Tool Continuation Integration", :integration do
     it "maintains function calling capability after tool execution" do
       # Verify app has tools configured
       tools = app_instance.settings[:tools]
-      expect(tools).to be_an(Array)
-      expect(tools).not_to be_empty
+      # Gemini format: {"function_declarations" => [...]}
+      expect(tools).to be_a(Hash)
+      expect(tools).to have_key("function_declarations")
+      expect(tools["function_declarations"]).not_to be_empty
       
       # Create a mock session that simulates tool result processing
       session = {

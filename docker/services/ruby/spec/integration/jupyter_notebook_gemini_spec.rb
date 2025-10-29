@@ -67,10 +67,15 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "has Jupyter-specific tools defined" do
         tools = app_instance.settings[:tools]
-        expect(tools).to be_an(Array)
-        expect(tools).not_to be_empty
+        # Gemini format: {"function_declarations" => [...]}
+        expect(tools).to be_a(Hash)
+        expect(tools).to have_key("function_declarations")
 
-        tool_names = tools.map { |t| t["name"] }
+        function_declarations = tools["function_declarations"]
+        expect(function_declarations).to be_an(Array)
+        expect(function_declarations).not_to be_empty
+
+        tool_names = function_declarations.map { |t| t["name"] }
         expect(tool_names).to include("run_jupyter")
         expect(tool_names).to include("create_jupyter_notebook")
         expect(tool_names).to include("add_jupyter_cells")
@@ -79,13 +84,18 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "has proper tool format for Gemini" do
         tools = app_instance.settings[:tools]
-        
+
+        # Gemini format: {"function_declarations" => [...]}
+        expect(tools).to be_a(Hash)
+        expect(tools).to have_key("function_declarations")
+
+        function_declarations = tools["function_declarations"]
         # Check that each tool has the correct structure
-        tools.each do |tool|
+        function_declarations.each do |tool|
           expect(tool).to have_key("name")
           expect(tool).to have_key("description")
           expect(tool).to have_key("parameters")
-          
+
           # Check parameters structure
           params = tool["parameters"]
           expect(params).to have_key("type")

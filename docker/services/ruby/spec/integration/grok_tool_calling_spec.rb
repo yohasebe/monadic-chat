@@ -232,7 +232,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       # Check that Jupyter notebook management instructions are included
       expect(system_prompt).to include("Jupyter Notebook assistant")
       expect(system_prompt).to include("create_and_populate_jupyter_notebook")
-      expect(system_prompt).to include("Combined Tool")
+      expect(system_prompt).to include("ONE operation")
     end
   end
 end

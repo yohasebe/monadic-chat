@@ -340,86 +340,16 @@ app "JupyterNotebookClaude" do
   end
 
   tools do
-    # Import shared file operations tools (always visible - Phase 1)
-    import_shared_tools :file_operations, visibility: "always"
+    # Import shared Jupyter operations tools (always visible - Phase 1)
+    import_shared_tools :jupyter_operations, visibility: "always"
 
     # Import shared Python execution tools (always visible - Phase 1)
     import_shared_tools :python_execution, visibility: "always"
 
-    define_tool "run_jupyter", "Start or stop JupyterLab" do
-      parameter :command, "string", "Command to run (start or stop)", required: true
-    end
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
 
-    define_tool "create_jupyter_notebook", "Create a new Jupyter notebook" do
-      parameter :filename, "string", "Base filename for the notebook", required: true
-    end
-
-    define_tool "add_jupyter_cells", "Add and run cells in a Jupyter notebook" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :cells, "array", "Array of cell objects to add", required: true
-      parameter :run, "boolean", "Whether to run the cells after adding", required: false
-      parameter :escaped, "boolean", "Whether content is escaped", required: false
-    end
-    
-    define_tool "delete_jupyter_cell", "Delete a cell from a Jupyter notebook" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :index, "integer", "The index of the cell to delete (0-based)", required: true
-    end
-    
-    define_tool "update_jupyter_cell", "Update the content of a cell in a Jupyter notebook" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :index, "integer", "The index of the cell to update (0-based)", required: true
-      parameter :content, "string", "The new content for the cell", required: true
-      parameter :cell_type, "string", "The type of cell (code or markdown)", required: false
-    end
-    
-    define_tool "get_jupyter_cells_with_results", "Get all cells with their execution results, including error information" do
-      parameter :filename, "string", "The notebook filename", required: true
-    end
-    
-    define_tool "execute_and_fix_jupyter_cells", "Execute cells and get error information for fixing" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :max_retries, "integer", "Maximum number of retry attempts", required: false
-    end
-
-    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
-      parameter :file, "string", "File name or file path", required: true
-    end
-
-    define_tool "fetch_text_from_pdf", "Extract text content from a PDF file." do
-      parameter :pdf, "string", "The filename of the PDF to read", required: true
-    end
-
-    define_tool "fetch_text_from_office", "Extract text content from Office files." do
-      parameter :file, "string", "The filename of the Office file to read", required: true
-    end
-
-    define_tool "write_to_file", "Write content to a file." do
-      parameter :filename, "string", "File name or file path", required: true
-      parameter :content, "string", "Content to write to the file", required: true
-    end
-
-    define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
-    end
-    
-    define_tool "restart_jupyter_kernel", "Restart the kernel for a notebook and clear all outputs" do
-      parameter :filename, "string", "The notebook filename", required: true
-    end
-    
-    define_tool "interrupt_jupyter_execution", "Interrupt currently running cells (Note: Limited support)" do
-      parameter :filename, "string", "The notebook filename", required: true
-    end
-    
-    define_tool "move_jupyter_cell", "Move a cell to a new position in the notebook" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :from_index, "integer", "The current index of the cell to move (0-based)", required: true
-      parameter :to_index, "integer", "The target index position (0-based)", required: true
-    end
-    
-    define_tool "insert_jupyter_cells", "Insert cells at a specific position in the notebook" do
-      parameter :filename, "string", "The notebook filename", required: true
-      parameter :index, "integer", "The position to insert cells at (0-based)", required: true
-      parameter :cells, "array", "Array of cell objects to insert", required: true
-      parameter :run, "boolean", "Whether to run the cells after inserting", required: false    end
+    # Import shared file reading tools (always visible - Phase 1)
+    import_shared_tools :file_reading, visibility: "always"
   end
 end

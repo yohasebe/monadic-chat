@@ -194,6 +194,39 @@ end
 
 ### 5. ツール定義
 
+ツールは2つの方法で定義できます：共有ツールグループをインポートする方法と、カスタムツールを定義する方法です。
+
+#### 共有ツールグループのインポート
+
+共有ツールグループは、複数のアプリで再利用できる関連ツールのコレクションです：
+
+```ruby
+# 常時利用可能なツールグループをインポート
+import_shared_tools :file_operations, visibility: "always"
+import_shared_tools :python_execution, visibility: "always"
+
+# 条件付き利用可能なツールグループをインポート
+import_shared_tools :web_automation, visibility: "conditional"
+```
+
+**利用可能なツールグループ**:
+- `:file_operations` - ファイル書き込み、一覧表示、削除（3ツール）
+- `:file_reading` - テキスト、PDF、Officeファイル読み込み（3ツール）
+- `:python_execution` - Pythonコード実行（4ツール）
+- `:jupyter_operations` - Jupyterノートブック管理（12ツール）
+- `:web_automation` - Webスクレイピング、スクリーンショット（4ツール、Seleniumが必要）
+- `:video_analysis_openai` - 動画分析（1ツール、OpenAI APIキーが必要）
+
+**可視性モード**:
+- `always`: ツールグループは常に利用可能
+- `conditional`: ツールグループの可用性は実行時条件に依存（例：Seleniumコンテナが実行中）
+
+各ツールグループの詳細については、[ツールグループ](tool-groups.md)を参照してください。
+
+#### カスタムツールの定義
+
+アプリ固有の機能については、カスタムツールを定義します：
+
 ```ruby
 tools do
   define_tool "book_search", "タイトル、著者、またはISBNで書籍を検索する" do
@@ -206,6 +239,22 @@ end
 ```
 
 **注意**: `parameter`メソッドは`default`キーワードをサポートしていません。デフォルト値は説明文に含めてください。
+
+#### 共有ツールとカスタムツールの組み合わせ
+
+同じアプリで共有ツールグループとカスタムツールの両方を使用できます：
+
+```ruby
+# 共有ツールをインポート
+import_shared_tools :file_operations, visibility: "always"
+
+# カスタムツールを定義
+tools do
+  define_tool "analyze_data", "ファイルからデータを分析する" do
+    parameter :filename, "string", "分析するファイル名", required: true
+  end
+end
+```
 
 ## アプリケーション例
 
@@ -351,9 +400,32 @@ class MermaidGrapherOpenAI < MonadicApp
 end
 ```
 
+#### 共有ツールグループの使用
+
+`import_shared_tools`を使用する場合、ツール実装は`lib/monadic/shared_tools/`の共有モジュールから提供されます。`*_tools.rb`ファイルで共有モジュールをインクルードする必要があります：
+
+```ruby
+# apps/my_app/my_app_tools.rb
+module MyAppTools
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations  # :file_operations用
+  include MonadicSharedTools::WebAutomation   # :web_automation用
+
+  # カスタムツール実装もここに追加可能
+  def my_custom_tool(params)
+    # 実装
+  end
+end
+
+class MyAppOpenAI < MonadicApp
+  include OpenAIHelper
+  include MyAppTools
+end
+```
+
 #### ファサードパターンを使用したヘルパーモジュール
 
-プロバイダー間で共有される機能の場合：
+プロバイダー間で共有されるカスタム機能の場合：
 
 ```ruby
 # wikipedia_openai.mdsl
@@ -447,12 +519,14 @@ DSLアプリのトラブルシューティング時には、次の点を確認�
 
 ## ベストプラクティス
 
-1. **命名規則に従う** - アプリ識別子はRubyクラス名と正確に一致する必要があります
-2. **わかりやすい名前を使用** - 明確なアプリ名とツール名は使いやすさを向上させます
-3. **システムプロンプトを集中させる** - 各ユースケースに特化した指示
-4. **必要な機能のみ有効にする** - 不要な機能を有効にしない
-5. **対象プロバイダーでテスト** - 選択したLLMとの互換性を確保
-6. **アプリを論理的に整理** - 一貫したUI表示のためdisplay_nameを使用
+1. **共有ツールを優先する** - コードの重複を避けるため、共通機能には`import_shared_tools`を使用
+2. **命名規則に従う** - アプリ識別子はRubyクラス名と正確に一致する必要があります
+3. **わかりやすい名前を使用** - 明確なアプリ名とツール名は使いやすさを向上させます
+4. **システムプロンプトを集中させる** - 各ユースケースに特化した指示
+5. **必要な機能のみ有効にする** - 不要な機能を有効にしない
+6. **対象プロバイダーでテスト** - 選択したLLMとの互換性を確保
+7. **アプリを論理的に整理** - 一貫したUI表示のためdisplay_nameを使用
+8. **可用性を確認する** - 条件付きツールについては、使用前に依存関係が満たされているか確認
 
 ## よくある問題と解決策
 

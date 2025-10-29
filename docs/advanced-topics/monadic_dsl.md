@@ -201,6 +201,39 @@ end
 
 ### 5. Tool Definitions
 
+Tools can be defined in two ways: by importing shared tool groups or by defining custom tools.
+
+#### Importing Shared Tool Groups
+
+Shared tool groups are collections of related tools that can be reused across multiple apps:
+
+```ruby
+# Import always-available tool groups
+import_shared_tools :file_operations, visibility: "always"
+import_shared_tools :python_execution, visibility: "always"
+
+# Import conditionally-available tool groups
+import_shared_tools :web_automation, visibility: "conditional"
+```
+
+**Available Tool Groups**:
+- `:file_operations` - File write, list, delete (3 tools)
+- `:file_reading` - Read text, PDF, Office files (3 tools)
+- `:python_execution` - Execute Python code (4 tools)
+- `:jupyter_operations` - Jupyter notebook management (12 tools)
+- `:web_automation` - Web scraping, screenshots (4 tools, requires Selenium)
+- `:video_analysis_openai` - Video analysis (1 tool, requires OpenAI API key)
+
+**Visibility Modes**:
+- `always`: Tool group is always available
+- `conditional`: Tool group availability depends on runtime conditions (e.g., Selenium container running)
+
+See [Tool Groups](tool-groups.md) for detailed information about each tool group.
+
+#### Defining Custom Tools
+
+For app-specific functionality, define custom tools:
+
 ```ruby
 tools do
   define_tool "book_search", "Search for books by title, author, or ISBN" do
@@ -213,6 +246,22 @@ end
 ```
 
 **Note**: The `parameter` method doesn't support the `default` keyword. Include default values in the description instead.
+
+#### Combining Shared and Custom Tools
+
+You can use both shared tool groups and custom tools in the same app:
+
+```ruby
+# Import shared tools
+import_shared_tools :file_operations, visibility: "always"
+
+# Define custom tools
+tools do
+  define_tool "analyze_data", "Analyze data from file" do
+    parameter :filename, "string", "Name of file to analyze", required: true
+  end
+end
+```
 
 ## Example Applications
 
@@ -295,13 +344,38 @@ apps/app_name/
 └── app_name_provider.mdsl   # Additional provider versions
 ```
 
+**For Shared Tool Groups**:
+
+When using `import_shared_tools`, the tool implementations come from shared modules in `lib/monadic/shared_tools/`. Your `*_tools.rb` file should include the shared module:
+
+```ruby
+# apps/my_app/my_app_tools.rb
+module MyAppTools
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations  # For :file_operations
+  include MonadicSharedTools::WebAutomation   # For :web_automation
+
+  # Custom tool implementations can be added here
+  def my_custom_tool(params)
+    # Implementation
+  end
+end
+
+class MyAppOpenAI < MonadicApp
+  include OpenAIHelper
+  include MyAppTools
+end
+```
+
 #### Best Practices
 
-1. **Keep tool definitions explicit**: Define all tools in MDSL files for clarity
-2. **Match implementation methods**: Ensure each tool has a corresponding method in `*_tools.rb`
-3. **Use descriptive names**: Tool and parameter names should be self-documenting
-4. **Add meaningful descriptions**: Help the AI understand when and how to use each tool
-5. **Test tool implementations**: Verify tools work correctly before deployment
+1. **Prefer shared tools**: Use `import_shared_tools` for common functionality instead of duplicating code
+2. **Keep tool definitions explicit**: Define all tools in MDSL files for clarity
+3. **Match implementation methods**: Ensure each custom tool has a corresponding method in `*_tools.rb`
+4. **Use descriptive names**: Tool and parameter names should be self-documenting
+5. **Add meaningful descriptions**: Help the AI understand when and how to use each tool
+6. **Test tool implementations**: Verify tools work correctly before deployment
+7. **Check availability**: For conditional tools, ensure dependencies are met before use
 
 The DSL supports defining tools (functions) that the AI can call. These automatically get translated to the appropriate format for each provider.
 

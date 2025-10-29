@@ -289,6 +289,120 @@ module MonadicSharedTools
         default_hint: "Call request_tool(\"file_reading\") when you need to read text from files, PDFs, or Office documents."
       },
 
+      web_automation: {
+        module_name: 'MonadicSharedTools::WebAutomation',
+        tools: [
+          {
+            name: "capture_viewport_screenshots",
+            description: "Capture a web page as multiple viewport-sized screenshots",
+            parameters: [
+              {
+                name: :url,
+                type: "string",
+                description: "The URL of the web page to capture",
+                required: true
+              },
+              {
+                name: :viewport_width,
+                type: "integer",
+                description: "Width of the viewport in pixels (default: 1920)",
+                required: false
+              },
+              {
+                name: :viewport_height,
+                type: "integer",
+                description: "Height of the viewport in pixels (default: 1080)",
+                required: false
+              },
+              {
+                name: :overlap,
+                type: "integer",
+                description: "Number of pixels to overlap between screenshots (default: 100)",
+                required: false
+              },
+              {
+                name: :preset,
+                type: "string",
+                description: "Use preset viewport sizes: desktop, tablet, mobile, or print",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "list_captured_screenshots",
+            description: "List all screenshots captured in the current session",
+            parameters: []
+          },
+          {
+            name: "get_viewport_presets",
+            description: "Get available viewport preset dimensions",
+            parameters: []
+          },
+          {
+            name: "capture_webpage_text",
+            description: "Extract text content from a web page in Markdown format",
+            parameters: [
+              {
+                name: :url,
+                type: "string",
+                description: "The URL of the web page to extract text from",
+                required: true
+              },
+              {
+                name: :use_image_recognition,
+                type: "boolean",
+                description: "Use image recognition to extract text (useful when HTML parsing fails)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "debug_application",
+            description: "Debug a generated web application using Selenium",
+            parameters: [
+              {
+                name: :spec,
+                type: "object",
+                description: "Specification with project name to debug",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium."
+      },
+
+      video_analysis_openai: {
+        module_name: 'MonadicSharedTools::VideoAnalysisOpenAI',
+        tools: [
+          {
+            name: "analyze_video",
+            description: "Analyze video content and generate description using OpenAI's multimodal capabilities (image recognition + audio transcription)",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The video file to analyze",
+                required: true
+              },
+              {
+                name: :fps,
+                type: "integer",
+                description: "Frames per second to extract (default: 1)",
+                required: false
+              },
+              {
+                name: :query,
+                type: "string",
+                description: "Query to guide the analysis",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"video_analysis\") when you need to analyze video content using image recognition and audio transcription."
+      },
+
       jupyter_operations: {
         module_name: 'MonadicSharedTools::JupyterOperations',
         tools: [

@@ -448,13 +448,13 @@ module AutoForgeTools
 
     debugger = AutoForge::Debugger.new(@context)
 
-    unless debugger.send(:selenium_available?)
+    # Check Selenium availability with retries
+    if error = debugger.send(:check_selenium_or_error)
       html_path = context[:html_path]
       return <<~RESPONSE
-        ⚠️  Selenium container is not running
+        ⚠️  #{error[:error]}
 
-        The debug feature requires the Selenium container to be active.
-        To enable debugging, please ensure Selenium is enabled in your Monadic Chat settings.
+        #{error[:suggestion]}
 
         Note: The application can still be opened directly in your browser:
         #{html_path}
@@ -481,14 +481,12 @@ module AutoForgeTools
 
     debugger = AutoForge::Debugger.new(@context)
 
-    unless debugger.send(:selenium_available?)
-      return {
-        success: false,
-        error: 'Selenium container is not running',
-        hint: 'Please ensure Selenium is enabled in your Monadic Chat settings.',
+    # Check Selenium availability with retries
+    if error = debugger.send(:check_selenium_or_error)
+      return error.merge({
         project_name: context[:project_name],
         html_path: context[:html_path]
-      }
+      })
     end
 
     result = debugger.debug_html(context[:html_path])

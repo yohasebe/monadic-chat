@@ -1509,14 +1509,26 @@ function updateAppBadges(selectedApp) {
             'file_operations': '<i class="fas fa-folder"></i>',
             'file_reading': '<i class="fas fa-book-open"></i>',
             'web_tools': '<i class="fas fa-search"></i>',
-            'app_creation': '<i class="fas fa-tools"></i>'
+            'app_creation': '<i class="fas fa-tools"></i>',
+            'web_automation': '<i class="fas fa-globe"></i>',
+            'video_analysis_openai': '<i class="fas fa-video"></i>',
+            'video_analysis_gemini': '<i class="fas fa-video"></i>'
           };
           return icons[groupName] || '<i class="fas fa-cube"></i>';
         };
 
+        const getDisplayName = (groupName) => {
+          // Special handling for video_analysis_* groups
+          if (groupName.startsWith('video_analysis_')) {
+            return 'video analysis';
+          }
+          // Default: convert snake_case to spaces
+          return groupName.replace(/_/g, ' ');
+        };
+
         toolGroups.forEach(group => {
           const icon = getToolGroupIcon(group.name);
-          const displayName = group.name.replace(/_/g, ' '); // Convert snake_case to spaces
+          const displayName = getDisplayName(group.name);
           const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
           allBadges.push(`<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${displayName}</span>`);
         });

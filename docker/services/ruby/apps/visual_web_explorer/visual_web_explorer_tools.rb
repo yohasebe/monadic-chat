@@ -1,11 +1,17 @@
 module VisualWebExplorerTools
-  
+  include Monadic::Utils::SeleniumHelper
+
   # Track screenshots for the current session
   def initialize_session
     @captured_screenshots = []
   end
-  
+
   def capture_viewport_screenshots(url:, viewport_width: nil, viewport_height: nil, overlap: nil, preset: nil)
+    # Check if Selenium is available
+    if error = check_selenium_or_error
+      return error
+    end
+
     # Validate URL
     unless url =~ /\A#{URI::regexp(['http', 'https'])}\z/
       return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
@@ -117,6 +123,11 @@ module VisualWebExplorerTools
   end
   
   def capture_webpage_text(url:, use_image_recognition: false)
+    # Check if Selenium is available (required for both screenshot capture and webpage fetching)
+    if error = check_selenium_or_error
+      return error
+    end
+
     # Validate URL
     unless url =~ /\A#{URI::regexp(['http', 'https'])}\z/
       return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }

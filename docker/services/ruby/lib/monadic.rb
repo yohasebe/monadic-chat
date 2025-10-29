@@ -714,6 +714,7 @@ require_relative "monadic/utils/json_repair"
 require_relative "monadic/utils/error_pattern_detector"
 require_relative "monadic/utils/model_spec_loader"
 require_relative "monadic/utils/language_config"
+require_relative "monadic/utils/selenium_helper"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"

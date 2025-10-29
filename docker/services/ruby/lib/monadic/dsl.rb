@@ -9,6 +9,8 @@ require_relative 'shared_tools/web_tools'
 require_relative 'shared_tools/app_creation'
 require_relative 'shared_tools/file_reading'
 require_relative 'shared_tools/jupyter_operations'
+require_relative 'shared_tools/web_automation'
+require_relative 'shared_tools/video_analysis_openai'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)

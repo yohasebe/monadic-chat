@@ -5,6 +5,8 @@ require 'fileutils'
 
 module AutoForge
   class Debugger
+    include Monadic::Utils::SeleniumHelper
+
     def initialize(context = {})
       @context = context || {}
     end
@@ -21,12 +23,9 @@ module AutoForge
       end
 
       # Check if Selenium container is available (with retries)
-      unless ensure_selenium_available?
+      if error = check_selenium_or_error
         puts "[AutoForgeDebugger] Selenium not available after retries" if CONFIG && CONFIG["EXTRA_LOGGING"]
-        return {
-          success: false,
-          error: "Selenium container is not available. Please ensure it's running."
-        }
+        return error
       end
 
       puts "[AutoForgeDebugger] Selenium available, executing debug" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -53,33 +52,6 @@ module AutoForge
     end
 
     private
-
-    def ensure_selenium_available?(retries: 3, delay: 2)
-      retries.times do |attempt|
-        return true if selenium_available?
-
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "[AutoForgeDebugger] Selenium check failed (attempt #{attempt + 1}/#{retries}), retrying in #{delay}s"
-        end
-        sleep delay
-      end
-      false
-    end
-
-    def selenium_available?
-      # Check if Selenium container is running
-      # Note: Changed from checking Python container to Selenium container
-      containers = `docker ps --format "{{.Names}}"`
-      selenium_available = containers.include?("monadic-chat-selenium-container") || containers.include?("monadic_selenium")
-      python_available = containers.include?("monadic-chat-python-container") || containers.include?("monadic_python")
-
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        puts "[AutoForgeDebugger] Container check - Selenium: #{selenium_available}, Python: #{python_available}"
-      end
-
-      selenium_available && python_available
-    end
-
 
     def execute_debug_script(html_path, options = {})
       # Use send_command from MonadicApp (same as visual_web_explorer)

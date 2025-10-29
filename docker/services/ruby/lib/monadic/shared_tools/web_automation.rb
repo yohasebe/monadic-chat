@@ -3,12 +3,27 @@
 module Monadic
   module SharedTools
     module WebAutomation
+      # Cache for container availability check (reduces docker ps calls)
+      @availability_cache ||= { ts: Time.at(0), available: false }
+
       # Check if Selenium and Python containers are available
+      # Results are cached for 10 seconds to reduce docker ps overhead
       def self.available?
+        # Return cached result if still valid (10 second TTL)
+        if (Time.now - @availability_cache[:ts]) <= 10
+          return @availability_cache[:available]
+        end
+
+        # Perform actual check
         containers = `docker ps --format "{{.Names}}"`
         selenium_available = containers.include?("monadic-chat-selenium-container") || containers.include?("monadic_selenium")
         python_available = containers.include?("monadic-chat-python-container") || containers.include?("monadic_python")
-        selenium_available && python_available
+        available = selenium_available && python_available
+
+        # Update cache
+        @availability_cache = { ts: Time.now, available: available }
+
+        available
       end
 
       TOOLS = [

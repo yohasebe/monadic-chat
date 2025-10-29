@@ -75,12 +75,176 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call request_tool(\"file_operations\") when you need to read, write, or list files in the shared folder."
-      }
+      },
 
-      # Future tool groups will be added here:
-      # web_tools: { ... },
-      # python_execution: { ... },
-      # app_creation: { ... }
+      python_execution: {
+        module_name: 'MonadicSharedTools::PythonExecution',
+        tools: [
+          {
+            name: "run_code",
+            description: "Execute program code (Python, Ruby, Shell, etc.) and return the output",
+            parameters: [
+              {
+                name: :code,
+                type: "string",
+                description: "Program code to execute",
+                required: true
+              },
+              {
+                name: :command,
+                type: "string",
+                description: "Execution command (e.g., 'python', 'ruby', 'bash')",
+                required: true
+              },
+              {
+                name: :extension,
+                type: "string",
+                description: "File extension (e.g., 'py', 'rb', 'sh')",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "run_bash_command",
+            description: "Execute a bash command in the Python container",
+            parameters: [
+              {
+                name: :command,
+                type: "string",
+                description: "Bash command to execute",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "check_environment",
+            description: "Check the Python container environment (Dockerfile, packages)",
+            parameters: []
+          },
+          {
+            name: "lib_installer",
+            description: "Install a library using package manager (pip, uv, or apt)",
+            parameters: [
+              {
+                name: :command,
+                type: "string",
+                description: "Package name(s) to install",
+                required: true
+              },
+              {
+                name: :packager,
+                type: "string",
+                description: "Package manager to use: 'pip', 'uv', or 'apt' (default: 'pip')",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"python_execution\") when you need to run Python code, execute bash commands, or inspect the execution environment."
+      },
+
+      web_tools: {
+        module_name: 'MonadicSharedTools::WebTools',
+        tools: [
+          {
+            name: "search_web",
+            description: "Search the web using provider-appropriate search method (native or Tavily)",
+            parameters: [
+              {
+                name: :query,
+                type: "string",
+                description: "The search query",
+                required: true
+              },
+              {
+                name: :max_results,
+                type: "integer",
+                description: "Maximum number of results to return (default: 5)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "fetch_web_content",
+            description: "Fetch content from a URL and save to shared folder",
+            parameters: [
+              {
+                name: :url,
+                type: "string",
+                description: "The URL to fetch content from (HTTP/HTTPS)",
+                required: true
+              },
+              {
+                name: :timeout,
+                type: "integer",
+                description: "Request timeout in seconds (default: 10)",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"web_tools\") when you need to search the web or fetch content from URLs."
+      },
+
+      app_creation: {
+        module_name: 'MonadicSharedTools::AppCreation',
+        tools: [
+          {
+            name: "list_monadic_apps",
+            description: "List all available Monadic Chat applications",
+            parameters: []
+          },
+          {
+            name: "get_app_info",
+            description: "Get detailed information about a specific Monadic app",
+            parameters: [
+              {
+                name: :app_name,
+                type: "string",
+                description: "Name of the app (e.g., 'chat_plus', 'code_interpreter')",
+                required: true
+              },
+              {
+                name: :variant,
+                type: "string",
+                description: "Provider variant (e.g., 'openai', 'claude'). Optional, defaults to first available.",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "create_simple_app_template",
+            description: "Create a basic Monadic app template file",
+            parameters: [
+              {
+                name: :app_name,
+                type: "string",
+                description: "Name for the new app (snake_case, e.g., 'my_assistant')",
+                required: true
+              },
+              {
+                name: :display_name,
+                type: "string",
+                description: "Display name for the app (e.g., 'My Assistant')",
+                required: true
+              },
+              {
+                name: :provider,
+                type: "string",
+                description: "AI provider (e.g., 'openai', 'claude') (default: 'openai')",
+                required: false
+              },
+              {
+                name: :description,
+                type: "string",
+                description: "Brief description of the app",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"app_creation\") when you need to list, inspect, or create Monadic Chat applications."
+      }
     }
 
     # Get tool specifications for a given tool group

@@ -145,6 +145,10 @@ app "AutoForgeOpenAI" do
     You have access to GPT-5-Codex for the actual code generation, ensuring high-quality, production-ready code.
   TEXT
 
+  # Import web automation tools (includes debug_application) from shared registry
+  import_shared_tools :web_automation, visibility: "conditional"
+
+  # AutoForge-specific tools
   tools do
     define_tool "generate_application", "Generate a complete web application based on specifications" do
       parameter :spec, "object", "Application specification including name, type, description, and features", required: true
@@ -155,10 +159,6 @@ app "AutoForgeOpenAI" do
     end
 
     define_tool "list_projects", "List previously generated AutoForge projects" do
-    end
-
-    define_tool "debug_application", "Debug a generated application using Selenium to detect errors and test functionality" do
-      parameter :spec, "object", "Specification with project name to debug", required: true
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do

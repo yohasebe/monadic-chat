@@ -68,6 +68,10 @@ app "AutoForgeGrok" do
     - Proactively offer Selenium debugging after generating web applications
   TEXT
 
+  # Import web automation tools (includes debug_application) from shared registry
+  import_shared_tools :web_automation, visibility: "conditional"
+
+  # AutoForge-specific tools
   tools do
     define_tool "generate_application", "Generate a complete application" do
       parameter :spec, "object", "Application specification including name, type, description, and features", required: true
@@ -78,10 +82,6 @@ app "AutoForgeGrok" do
     end
 
     define_tool "list_projects", "List previously generated Auto Forge projects" do
-    end
-
-    define_tool "debug_application", "Debug a generated web application using Selenium" do
-      parameter :spec, "object", "Specification with project name to debug", required: true
     end
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do

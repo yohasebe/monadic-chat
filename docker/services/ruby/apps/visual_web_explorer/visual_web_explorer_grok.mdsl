@@ -79,24 +79,6 @@ app "VisualWebExplorerGrok" do
     context_size 20
   end
 
-  tools do
-    define_tool "capture_viewport_screenshots", "Capture a web page as multiple viewport-sized screenshots" do
-      parameter :url, "string", "The URL of the web page to capture", required: true
-      parameter :viewport_width, "integer", "Width of the viewport in pixels (default: 1920)", required: false
-      parameter :viewport_height, "integer", "Height of the viewport in pixels (default: 1080)", required: false
-      parameter :overlap, "integer", "Number of pixels to overlap between screenshots (default: 100)", required: false
-      parameter :preset, "string", "Use preset viewport sizes: desktop, tablet, mobile, or print", required: false
-    end
-
-    define_tool "list_captured_screenshots", "List all screenshots captured in the current session" do
-    end
-
-    define_tool "get_viewport_presets", "Get available viewport preset dimensions" do
-    end
-
-    define_tool "capture_webpage_text", "Extract text content from a web page in Markdown format" do
-      parameter :url, "string", "The URL of the web page to extract text from", required: true
-      parameter :use_image_recognition, "boolean", "Use image recognition to extract text (useful when HTML parsing fails)", required: false
-    end
-  end
+  # Import web automation tools from shared registry
+  import_shared_tools :web_automation, visibility: "conditional"
 end

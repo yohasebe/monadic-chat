@@ -158,6 +158,31 @@
     <link href="css/print.css?timestamp=<%= @timestamp %>" rel="stylesheet" media="print">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
     <style>
+      /* Toggle button styling - matching btn-sm btn-outline-secondary */
+      #interaction-toggle-all,
+      .stats-toggle-button,
+      .toggle-text {
+        font-size: 0.875rem !important;
+        font-weight: 400 !important;
+        cursor: pointer !important;
+        padding: 0.25rem 0.5rem !important;
+        line-height: 1.5 !important;
+        border: 1px solid #6c757d !important;
+        border-radius: 0.25rem !important;
+        margin-left: 0.5rem !important;
+        display: inline-block !important;
+        color: #6c757d !important;
+        background-color: transparent !important;
+        transition: all 0.15s ease-in-out !important;
+      }
+
+      #interaction-toggle-all:hover,
+      .stats-toggle-button:hover,
+      .toggle-text:hover {
+        background-color: #6c757d !important;
+        color: #fff !important;
+      }
+
       /* Custom styles for ALL select elements */
       .form-select {
         -webkit-appearance: none;
@@ -285,7 +310,13 @@
         border-color: #feb2b2; /* Soft rose border */
         color: #c53030; /* Soft red text */
         vertical-align: middle !important; /* Ensure vertical alignment */
-        line-height: 1.5 !important; /* Match other buttons */
+        /* Match #status-message styling */
+        height: 28px;
+        font-size: 0.875rem;
+        line-height: 1;
+        padding: 0 0.5rem;
+        display: inline-flex;
+        align-items: center;
       }
       
       #cancel_query:hover {
@@ -341,12 +372,24 @@
         align-items: center;
         font-size: 0.875rem;
         width: 200px; /* Fixed width */
+        max-width: 200px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         background-color: #f8f9fa;
         line-height: 1;
         box-sizing: border-box;
+        flex-shrink: 1;
+        min-width: 0; /* Allow flex items to shrink below content size */
+      }
+
+      /* Ensure text inside status message can be ellipsed */
+      #status-message > * {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex-shrink: 1;
+        min-width: 0;
       }
       
       /* Add spacing between icon and text in status message */
@@ -572,7 +615,7 @@
         <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 50px;">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
-            <div class="mb-2" style="display: flex; align-items: center; flex-wrap: wrap;">
+            <div class="mb-3" style="display: flex; align-items: center; flex-wrap: wrap;">
               <div id="monadic-homepage">
                 <% if @debug_mode %>
                   <span class="text text-secondary"><i class="fa-solid fa-book"></i> <a href="/docs/" target="_blank" rel="noopener noreferrer" title="Public documentation (local)">Docs</a> <small style="color: #28a745;">(local)</small></span>
@@ -607,12 +650,6 @@
                 <span id="base-app-icon" class="app-icon"></span>
               </div>
               <div id="base-app-title" class="ms-2 like-h5"></div>
-              <div class="ms-2 like-h6">
-                <span id="monadic-badge" class="badge bg-secondary fw-bold" style="display: none;">monadic</span>
-                <span id="tools-badge" class="badge bg-secondary fw-bold" style="display: none;">tools</span>
-                <span id="websearch-badge" class="badge bg-secondary fw-bold" style="display: none;">web</span>
-                <span id="math-badge" class="badge bg-secondary fw-bold" style="display: none;">math</span>
-              </div>
             </div>
             <div id="base-app-desc" class="mt-2 mb-1"></div>
           </div>
@@ -640,12 +677,11 @@
           <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
             <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span></h5>
             <div id="local-pdf-section">
-              <div class="d-flex align-items-center justify-content-between">
-                <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
-                <div class="d-flex gap-2 flex-column flex-sm-row align-items-stretch">
-                  <button id="local-pdf-refresh" class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                  <button id="local-pdf-clear" class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fa-regular fa-trash-can"></i> Clear All</button>
-                </div>
+              <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <button class="btn btn-sm btn-outline-secondary text-nowrap" id="pdf-import" data-i18n="ui.importFile"><i class="fas fa-file-arrow-up"></i> Import</button>
+                <button id="local-pdf-refresh" class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                <button id="local-pdf-clear" class="btn btn-sm btn-outline-secondary text-nowrap"><i class="fa-regular fa-trash-can"></i> Clear All</button>
               </div>
               <div class="mt-2" id="pdf-titles"></div>
             </div>
@@ -823,14 +859,6 @@
             <!-- OpenAI PDF manager: visible only when OpenAI + supports_pdf_upload -->
             
 
-            <!-- PDF Navigator Import Button - Separate Row -->
-            <form class="row my-2" id="file-import-row" style="display: none;">
-              <div class="col-auto">
-                <label class="form-label" for="pdf-import" data-i18n="ui.pdfToDb">PDF → DB</label>
-                <button class="btn btn-sm btn-warning text-nowrap" id="pdf-import" data-i18n="ui.importFile"><i class="fas fa-file"></i> Import File</button>
-              </div>
-            </form>
-
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
                 <label for="temperature" class="div-label my-2" data-i18n="ui.temperature">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
@@ -888,10 +916,8 @@
             <div class="row my-3 align-items-center">
               <div class="col-12">
                 <fieldset>
-                  <legend data-i18n="ui.voiceConversationControls">Voice Conversation Interaction Controls&nbsp;
-                    <span id="interaction-toggle-all" class="mt-2 mb-0 textbox-caption" style="font-weight: 400; cursor: pointer;" data-i18n="ui.toggleAll">
-                      toggle all
-                    </span>
+                  <legend data-i18n="ui.voiceConversationControls">Voice Conversation Interaction Controls
+                    <span id="interaction-toggle-all" data-i18n="ui.toggleAll">toggle all</span>
                   </legend>
                   <div class="form-check form-switch float-start me-3" id="auto-speech-form">
                     <input class="form-check-input" type="checkbox" id="check-auto-speech">

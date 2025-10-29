@@ -3222,7 +3222,40 @@ let loadedApp = "Chat";
           // Update the currently displayed app description if needed
           const currentApp = $("#apps").val();
           if (currentApp && apps[currentApp]) {
-            $("#base-app-desc").html(apps[currentApp]["description"]);
+            // Display description with tool group badges
+            let descriptionHtml = apps[currentApp]["description"];
+            if (apps[currentApp]["imported_tool_groups"]) {
+              try {
+                // Parse JSON string to array
+                const toolGroups = JSON.parse(apps[currentApp]["imported_tool_groups"]);
+                console.log(`[Tool Groups] ${currentApp}:`, toolGroups);
+                if (toolGroups && toolGroups.length > 0) {
+                  const getToolGroupIcon = (groupName) => {
+                    const icons = {
+                      'jupyter_operations': '📓',
+                      'python_execution': '🐍',
+                      'file_operations': '📁',
+                      'file_reading': '📄',
+                      'web_tools': '🌐',
+                      'app_creation': '🛠️'
+                    };
+                    return icons[groupName] || '📦';
+                  };
+                  const badges = toolGroups.map(group => {
+                    const icon = getToolGroupIcon(group.name);
+                    const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
+                    return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
+                  }).join(' ');
+                  descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
+                  console.log(`[Tool Groups] Badges HTML added for ${currentApp}`);
+                }
+              } catch (e) {
+                console.warn('Failed to parse imported_tool_groups:', e);
+              }
+            } else {
+              console.log(`[Tool Groups] No imported_tool_groups for ${currentApp}`);
+            }
+            $("#base-app-desc").html(descriptionHtml);
             
             // If this is after a reset, re-initialize the app
             // Check if parameters message hasn't been received yet
@@ -3242,6 +3275,19 @@ let loadedApp = "Chat";
               apps[key] = value;
             }
             window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
+
+            // Debug: Log imported_tool_groups for all apps
+            console.log('[Tool Groups Debug] Apps with imported_tool_groups:');
+            Object.keys(apps).forEach(appName => {
+              if (apps[appName]["imported_tool_groups"]) {
+                try {
+                  const parsed = JSON.parse(apps[appName]["imported_tool_groups"]);
+                  console.log(`  ${appName}:`, parsed);
+                } catch (e) {
+                  console.log(`  ${appName}: [parse error]`, apps[appName]["imported_tool_groups"]);
+                }
+              }
+            });
           } catch (_) {}
 
           // Prepare arrays for app classification
@@ -3518,7 +3564,41 @@ let loadedApp = "Chat";
               }
 
               $("#base-app-icon").html(selectedApp["icon"]);
-              $("#base-app-desc").html(selectedApp["description"]);
+
+              // Display description with tool group badges
+              let descriptionHtml = selectedApp["description"];
+              if (selectedApp["imported_tool_groups"]) {
+                try {
+                  // Parse JSON string to array
+                  const toolGroups = JSON.parse(selectedApp["imported_tool_groups"]);
+                  console.log(`[Tool Groups] ${firstValidApp}:`, toolGroups);
+                  if (toolGroups && toolGroups.length > 0) {
+                    const getToolGroupIcon = (groupName) => {
+                      const icons = {
+                        'jupyter_operations': '📓',
+                        'python_execution': '🐍',
+                        'file_operations': '📁',
+                        'file_reading': '📄',
+                        'web_tools': '🌐',
+                        'app_creation': '🛠️'
+                      };
+                      return icons[groupName] || '📦';
+                    };
+                    const badges = toolGroups.map(group => {
+                      const icon = getToolGroupIcon(group.name);
+                      const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
+                      return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
+                    }).join(' ');
+                    descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
+                    console.log(`[Tool Groups] Badges HTML added for ${firstValidApp}`);
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse imported_tool_groups:', e);
+                }
+              } else {
+                console.log(`[Tool Groups] No imported_tool_groups for ${firstValidApp}`);
+              }
+              $("#base-app-desc").html(descriptionHtml);
 
               if (firstValidApp === "PDF") {
                 ws.send(JSON.stringify({ message: "PDF_TITLES" }));
@@ -3613,6 +3693,14 @@ let loadedApp = "Chat";
             window.logTL('resetParams_called_after_apps');
           } else {
             console.log("Skipping resetParams - app already configured");
+
+            // If app is already configured, update badges for initial display
+            if (isFirstAppsMessage && currentApp && typeof window.updateAppBadges === 'function') {
+              setTimeout(function() {
+                console.log("[Initial Load] Updating badges for:", currentApp);
+                window.updateAppBadges(currentApp);
+              }, 200);
+            }
           }
         }
         break;
@@ -3780,10 +3868,51 @@ let loadedApp = "Chat";
               $("#tools-badge").hide();
             }
 
-            $("#base-app-desc").html(currentApp["description"]);
+            // Display description with tool group badges
+            let descriptionHtml = currentApp["description"];
+            if (currentApp["imported_tool_groups"]) {
+              try {
+                // Parse JSON string to array
+                const toolGroups = JSON.parse(currentApp["imported_tool_groups"]);
+                const currentAppName = currentApp["app_name"];
+                console.log(`[Tool Groups] ${currentAppName}:`, toolGroups);
+                if (toolGroups && toolGroups.length > 0) {
+                  const getToolGroupIcon = (groupName) => {
+                    const icons = {
+                      'jupyter_operations': '📓',
+                      'python_execution': '🐍',
+                      'file_operations': '📁',
+                      'file_reading': '📄',
+                      'web_tools': '🌐',
+                      'app_creation': '🛠️'
+                    };
+                    return icons[groupName] || '📦';
+                  };
+                  const badges = toolGroups.map(group => {
+                    const icon = getToolGroupIcon(group.name);
+                    const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
+                    return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
+                  }).join(' ');
+                  descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
+                  console.log(`[Tool Groups] Badges HTML added for ${currentAppName}`);
+                }
+              } catch (e) {
+                console.warn('Failed to parse imported_tool_groups:', e);
+              }
+            } else {
+              console.log(`[Tool Groups] No imported_tool_groups for ${currentApp["app_name"]}`);
+            }
+            $("#base-app-desc").html(descriptionHtml);
+
+            // Trigger badge update after description is set
+            if (typeof window.updateAppBadges === 'function') {
+              setTimeout(function() {
+                window.updateAppBadges(currentApp["app_name"]);
+              }, 150);
+            }
           }
         }
-        
+
         $("#start").focus();
 
         updateAppAndModelSelection(data["content"]);

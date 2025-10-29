@@ -1500,11 +1500,9 @@ $(function () {
     });
 
     if (toBool(apps[appValue]["pdf"]) || toBool(apps[appValue]["pdf_vector_storage"])) {
-      $("#file-import-row").show();
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
     } else {
-      $("#file-import-row").hide();
       $("#pdf-panel").hide();
     }
 
@@ -1667,10 +1665,13 @@ $(function () {
   $("#websearch").on("change", function () {
     if ($(this).is(":checked")) {
       params["websearch"] = true;
-      $("#websearch-badge").show();
     } else {
       params["websearch"] = false;
-      $("#websearch-badge").hide();
+    }
+    // Update badges to reflect toggle state
+    const selectedApp = $("#apps").val();
+    if (selectedApp && typeof window.updateAppBadges === 'function') {
+      window.updateAppBadges(selectedApp);
     }
   })
 
@@ -1682,6 +1683,11 @@ $(function () {
       params["auto_speech"] = false;
       console.log("Auto speech disabled");
     }
+    // Update badges to reflect toggle state
+    const selectedApp = $("#apps").val();
+    if (selectedApp && typeof window.updateAppBadges === 'function') {
+      window.updateAppBadges(selectedApp);
+    }
   })
 
   $("#check-easy-submit").on("change", function () {
@@ -1690,15 +1696,23 @@ $(function () {
     } else {
       params["easy_submit"] = false;
     }
+    // Update badges to reflect toggle state
+    const selectedApp = $("#apps").val();
+    if (selectedApp && typeof window.updateAppBadges === 'function') {
+      window.updateAppBadges(selectedApp);
+    }
   })
 
   $("#mathjax").on("change", function () {
     if ($(this).is(":checked")) {
       params["mathjax"] = true;
-      $("#math-badge").show();
     } else {
       params["mathjax"] = false;
-      $("#math-badge").hide();
+    }
+    // Update badges to reflect toggle state
+    const selectedApp = $("#apps").val();
+    if (selectedApp && typeof window.updateAppBadges === 'function') {
+      window.updateAppBadges(selectedApp);
     }
   });
 
@@ -2067,15 +2081,25 @@ $(function () {
   $("#interaction-toggle-all").on("click", function () {
     const autoSpeechChecked = $("#check-auto-speech").prop("checked");
     const easySubmitChecked = $("#check-easy-submit").prop("checked");
-    
+
     // If any checkbox is unchecked, check all. Otherwise, uncheck all.
     const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
-    
+
     $("#check-auto-speech").prop("checked", shouldCheck);
     $("#check-easy-submit").prop("checked", shouldCheck);
-    
+
+    // Update params
+    params["auto_speech"] = shouldCheck;
+    params["easy_submit"] = shouldCheck;
+
     // Update the button text after toggling
     updateToggleButtonText();
+
+    // Update badges to reflect toggle state
+    const selectedApp = $("#apps").val();
+    if (selectedApp && typeof window.updateAppBadges === 'function') {
+      window.updateAppBadges(selectedApp);
+    }
   });
   
   // Update toggle button text when individual checkboxes change

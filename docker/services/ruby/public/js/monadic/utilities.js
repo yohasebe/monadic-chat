@@ -291,8 +291,7 @@ function listModels(models, openai = false) {
     return `
       <div class="json-item" data-key="stats" data-depth="0">
       <div class="json-toggle" onclick="toggleItem(this)">
-      <i class="fas fa-chevron-right"></i> <span class="toggle-text">${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.clickToToggle') : 'click to toggle'}</span>
-      <span class="ms-2" title="${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokenCount.localEstimate') : 'Token count is estimated locally.'}"><i class="fas fa-info-circle"></i></span>
+      <i class="fas fa-chevron-right"></i> <span class="toggle-text stats-toggle-button" title="${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.tokenCount.localEstimate') : 'Token count is estimated locally.'}">${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.clickToToggle') : 'click to toggle'}</span>
       </div>
       <div class="json-content" style="display: none;">
       <table class="table table-sm mb-0">
@@ -447,6 +446,8 @@ function setAlert(text = "", alertType = "success") {
     if (typeof text === 'string') {
       if (text.includes("CALLING FUNCTIONS")) {
         displayText = `<i class='fas fa-cogs'></i> ${getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions')}`;
+      } else if (text.includes("FUNCTION CALLS COMPLETE") || text.includes("FUNCTIONS COMPLETE")) {
+        displayText = `<i class='fas fa-check'></i> ${getTranslation('ui.messages.functionsComplete', 'Functions complete')}`;
       } else if (text.includes("SEARCHING WEB")) {
         displayText = `<i class='fas fa-search'></i> ${getTranslation('ui.messages.spinnerSearchingWeb', 'Searching web')}`;
       } else if (text.includes("SEARCHING FILES")) {
@@ -459,6 +460,10 @@ function setAlert(text = "", alertType = "success") {
         displayText = `<i class='fas fa-spinner'></i> ${getTranslation('ui.messages.spinnerProcessing', 'Processing')}`;
       } else if (text.includes("THINKING")) {
         displayText = `<i class='fas fa-brain'></i> ${getTranslation('ui.messages.spinnerThinking', 'Thinking')}`;
+      } else if (text === text.toUpperCase() && text.length > 10) {
+        // Generic handler for any other all-caps messages longer than 10 characters
+        // Convert to sentence case
+        displayText = text.charAt(0) + text.slice(1).toLowerCase();
       }
     }
 
@@ -916,12 +921,8 @@ function resetParams() {
     });
 
     if (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])) {
-      $("#file-import-row").show();
       $("#pdf-panel").show();
-    } else if (toBool(params["file"])) {
-      $("#file-import-row").show();
     } else {
-      $("#file-import-row").hide();
       $("#pdf-panel").hide();
     }
     // Reset the flag after loading is complete
@@ -1332,7 +1333,9 @@ function doResetActions(resetToDefaultApp = false) {
   let descriptionHtml = apps[currentApp]["description"];
   if (apps[currentApp]["imported_tool_groups"]) {
     try {
+      // Parse JSON string to array
       const toolGroups = JSON.parse(apps[currentApp]["imported_tool_groups"]);
+      console.log(`[Tool Groups] ${currentApp}:`, toolGroups);
       if (toolGroups && toolGroups.length > 0) {
         const badges = toolGroups.map(group => {
           const icon = getToolGroupIcon(group.name);
@@ -1340,10 +1343,13 @@ function doResetActions(resetToDefaultApp = false) {
           return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
         }).join(' ');
         descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
+        console.log(`[Tool Groups] Badges HTML added for ${currentApp}`);
       }
     } catch (e) {
       console.warn('Failed to parse imported_tool_groups:', e);
     }
+  } else {
+    console.log(`[Tool Groups] No imported_tool_groups for ${currentApp}`);
   }
   $("#base-app-desc").html(descriptionHtml);
 
@@ -1481,6 +1487,87 @@ function applyCollapseStates() {
 window.isPdfSupportedForModel = isPdfSupportedForModel;
 window.isImageGenerationApp = isImageGenerationApp;
 window.isMaskEditingEnabled = isMaskEditingEnabled;
+
+// Function to update badges for an app
+function updateAppBadges(selectedApp) {
+  if (!selectedApp || !apps[selectedApp]) return;
+
+  let currentDesc = apps[selectedApp]["description"];
+  const allBadges = [];
+
+  // Add tool group badges
+  if (apps[selectedApp]["imported_tool_groups"]) {
+    try {
+      const toolGroups = JSON.parse(apps[selectedApp]["imported_tool_groups"]);
+      console.log(`[Badges Handler] Tool groups for ${selectedApp}:`, toolGroups);
+
+      if (toolGroups && toolGroups.length > 0) {
+        const getToolGroupIcon = (groupName) => {
+          const icons = {
+            'jupyter_operations': '<i class="fas fa-book"></i>',
+            'python_execution': '<i class="fas fa-terminal"></i>',
+            'file_operations': '<i class="fas fa-folder"></i>',
+            'file_reading': '<i class="fas fa-book-open"></i>',
+            'web_tools': '<i class="fas fa-search"></i>',
+            'app_creation': '<i class="fas fa-tools"></i>'
+          };
+          return icons[groupName] || '<i class="fas fa-cube"></i>';
+        };
+
+        toolGroups.forEach(group => {
+          const icon = getToolGroupIcon(group.name);
+          const displayName = group.name.replace(/_/g, ' '); // Convert snake_case to spaces
+          const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
+          allBadges.push(`<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${displayName}</span>`);
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to parse imported_tool_groups:', e);
+    }
+  }
+
+  // Add feature badges
+  if (apps[selectedApp]["monadic"]) {
+    allBadges.push(`<span class="tool-group-badge badge-always" title="Structured context management"><i class="fas fa-project-diagram"></i> monadic</span>`);
+  }
+
+  // Show websearch badge ONLY when toggle is checked (user-controlled)
+  if ($("#websearch").is(":checked")) {
+    allBadges.push(`<span id="websearch-badge" class="tool-group-badge badge-always" title="Native web search (provider-integrated)"><i class="fas fa-search"></i> web search</span>`);
+  }
+
+  // Show mathjax badge ONLY when toggle is checked (user-controlled)
+  if ($("#mathjax").is(":checked")) {
+    allBadges.push(`<span id="math-badge" class="tool-group-badge badge-always" title="Mathematical notation rendering"><i class="fas fa-square-root-alt"></i> mathjax</span>`);
+  }
+
+  // Show voice conversation badge ONLY when both auto speech and easy submit are checked
+  if ($("#check-auto-speech").is(":checked") && $("#check-easy-submit").is(":checked")) {
+    allBadges.push(`<span id="voice-conversation-badge" class="tool-group-badge badge-always" title="Voice conversation mode (Auto Speech + Easy Submit)"><i class="fas fa-microphone"></i> voice mode</span>`);
+  }
+
+  // Add badges to description
+  if (allBadges.length > 0) {
+    currentDesc += `<div class="tool-groups-display">${allBadges.join(' ')}</div>`;
+    console.log(`[Badges Handler] Added ${allBadges.length} badges for ${selectedApp}`);
+  }
+
+  $("#base-app-desc").html(currentDesc);
+}
+
+// Add event handler for app selection to update all badges
+$(document).ready(function() {
+  // Handle app change events
+  $("#apps").on("change", function() {
+    const selectedApp = $(this).val();
+    setTimeout(function() {
+      updateAppBadges(selectedApp);
+    }, 100); // Small delay to ensure DOM is ready
+  });
+});
+
+// Global function to trigger badge update (can be called from websocket.js)
+window.updateAppBadges = updateAppBadges;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {

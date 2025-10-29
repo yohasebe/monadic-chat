@@ -846,11 +846,17 @@ module MonadicDSL
         end
 
         # Record tool group metadata for UI
-        @state.settings[:imported_tool_groups] << {
+        metadata = {
           name: group,
           visibility: visibility,
           tool_count: MonadicSharedTools::Registry.tools_for(group).length
         }
+        @state.settings[:imported_tool_groups] << metadata
+
+        # Debug logging (unconditional to verify execution)
+        STDERR.puts "[DEBUG DSL] Imported tool group: #{metadata.inspect}"
+        STDERR.puts "[DEBUG DSL] Settings keys: #{@state.settings.keys.inspect}"
+        STDERR.puts "[DEBUG DSL] Total groups: #{@state.settings[:imported_tool_groups].length}"
 
         # Get tool specifications from registry
         tool_specs = MonadicSharedTools::Registry.tools_for(group)
@@ -1557,6 +1563,11 @@ module MonadicDSL
 
     if state.settings[:progressive_tools]
       class_def << "        @settings[:progressive_tools] = #{state.settings[:progressive_tools].inspect}\n"
+    end
+
+    # Add imported_tool_groups if specified
+    if state.settings[:imported_tool_groups]
+      class_def << "        @settings[:imported_tool_groups] = #{state.settings[:imported_tool_groups].inspect}\n"
     end
     
     # Add tool_choice if specified

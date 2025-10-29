@@ -94,4 +94,9 @@ app "DocumentGeneratorClaude" do
     group "Anthropic"
     skills ["xlsx", "pptx", "docx", "pdf"]
   end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+  end
 end

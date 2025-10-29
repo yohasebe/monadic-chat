@@ -22,66 +22,11 @@ app "MathTutorGemini" do
     group "Google"
   end
   
-  # Tool definitions for Gemini's format
-  tools [
-    {
-      "name" => "run_code",
-      "description" => "Run program code and return the output",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "command" => {
-            "type" => "string",
-            "description" => "Program that execute the code (e.g., 'python')"
-          },
-          "code" => {
-            "type" => "string",
-            "description" => "Program code to be executed"
-          },
-          "extension" => {
-            "type" => "string",
-            "description" => "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
-          }
-        },
-        "required" => ["command", "code", "extension"]
-      }
-    },
-    {
-      "name" => "run_bash_command",
-      "description" => "Run a bash command and return the output",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "command" => {
-            "type" => "string",
-            "description" => "Bash command to be executed"
-          }
-        },
-        "required" => ["command"]
-      }
-    },
-    {
-      "name" => "check_environment",
-      "description" => "Check the environment setup and available tools",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {},
-        "required" => []
-      }
-    },
-    {
-      "name" => "fetch_text_from_file",
-      "description" => "Fetch the text from a file and return its content",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "file" => {
-            "type" => "string",
-            "description" => "File name or file path"
-          }
-        },
-        "required" => ["file"]
-      }
-    }
-  ]
+  tools do
+    # Import shared Python execution tools (always visible - Phase 1)
+    import_shared_tools :python_execution, visibility: "always"
+
+    # Import shared file reading tools (always visible - Phase 1)
+    import_shared_tools :file_reading, visibility: "always"
+  end
 end

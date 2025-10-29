@@ -244,6 +244,49 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call request_tool(\"app_creation\") when you need to list, inspect, or create Monadic Chat applications."
+      },
+
+      file_reading: {
+        module_name: 'MonadicSharedTools::FileReading',
+        tools: [
+          {
+            name: "fetch_text_from_file",
+            description: "Read text content from a file (txt, code, data files, etc.)",
+            parameters: [
+              {
+                name: :file,
+                type: "string",
+                description: "Filename or path relative to shared folder (e.g., 'notes.txt', 'code/script.py')",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "fetch_text_from_pdf",
+            description: "Extract text content from a PDF file with full-page support",
+            parameters: [
+              {
+                name: :file,
+                type: "string",
+                description: "Filename of the PDF to read (e.g., 'documents/report.pdf')",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "fetch_text_from_office",
+            description: "Extract text content from Office files (docx, xlsx, pptx)",
+            parameters: [
+              {
+                name: :file,
+                type: "string",
+                description: "Filename of the Office file to read (e.g., 'reports/summary.docx')",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"file_reading\") when you need to read text from files, PDFs, or Office documents."
       }
     }
 

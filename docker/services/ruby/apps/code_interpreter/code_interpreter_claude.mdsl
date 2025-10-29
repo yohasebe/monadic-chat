@@ -278,16 +278,7 @@ app "CodeInterpreterClaude" do
     # Import shared Python execution tools (always visible - Phase 1)
     import_shared_tools :python_execution, visibility: "always"
 
-    define_tool "fetch_text_from_file", "Fetch text from a file" do
-      parameter :file, "string", "The filename to read", required: true
-    end
-    
-    define_tool "fetch_text_from_pdf", "Fetch text from a PDF file" do
-      parameter :pdf, "string", "The filename of the PDF to read", required: true
-    end
-
-    define_tool "fetch_text_from_office", "Fetch text from a Microsoft Office file" do
-      parameter :file, "string", "The filename of the Office file to read", required: true
-    end
+    # Import shared file reading tools (always visible - Phase 1)
+    import_shared_tools :file_reading, visibility: "always"
   end
 end

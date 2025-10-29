@@ -25,21 +25,10 @@ app "MathTutorGrok" do
   end
   
   tools do
-    define_tool "run_code", "Run program code and return the output." do
-      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
-      parameter :code, "string", "Program code to be executed.", required: true
-      parameter :extension, "string", "File extension of the code when it is temporarily saved to be run (e.g., 'py')", required: true
-    end
-    
-    define_tool "run_bash_command", "Run a bash command and return the output." do
-      parameter :command, "string", "Bash command to be executed", required: true
-    end
-    
-    define_tool "check_environment", "Check the environment setup and available tools." do
-    end
-    
-    define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
-      parameter :file, "string", "File name or file path", required: true
-    end
+    # Import shared Python execution tools (always visible - Phase 1)
+    import_shared_tools :python_execution, visibility: "always"
+
+    # Import shared file reading tools (always visible - Phase 1)
+    import_shared_tools :file_reading, visibility: "always"
   end
 end

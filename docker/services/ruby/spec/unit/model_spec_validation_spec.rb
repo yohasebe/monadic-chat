@@ -74,18 +74,29 @@ RSpec.describe "Model Specification Validation" do
   let(:model_spec_path) { File.join(PROJECT_ROOT, "public/js/monadic/model_spec.js") }
   let(:model_spec) do
     content = File.read(model_spec_path)
-    
+
     # Simple and robust extraction using regex
     begin
       # Extract all model names (quoted strings followed by a colon and opening brace)
       # This will match lines like:   "gpt-4.5-preview-2025-02-27": {
       model_names = content.scan(/^\s*"([^"]+)"\s*:\s*\{/)
-      
+
       # Convert to hash with empty values (we only need the keys)
       model_names.flatten.each_with_object({}) { |key, hash| hash[key] = {} }
     rescue => e
       puts "Error extracting model_spec: #{e.message}"
       {}
+    end
+  end
+
+  # Helper to check deprecated flag for a specific model
+  def model_deprecated?(model_name)
+    content = File.read(model_spec_path)
+    # Find the model's configuration block
+    if content =~ /"#{Regexp.escape(model_name)}"\s*:\s*\{([^}]*"deprecated"\s*:\s*(true|false))/m
+      $2 == 'true'
+    else
+      false  # If no deprecated flag found, assume not deprecated
     end
   end
 
@@ -181,12 +192,14 @@ RSpec.describe "Model Specification Validation" do
         
         claude_models_in_spec = model_spec.keys.select { |k| k.match?(/^claude/) }
         
-        # Filter out models that have explicit deprecated: false flag
+        # Filter out models that have explicit deprecated: true flag or are in available models
         deprecated_models = claude_models_in_spec.select do |model|
-          # Skip if model has deprecated: false explicitly set
-          next false if model_spec[model] && model_spec[model]["deprecated"] == false
-          # Otherwise, check if it's not in available models
-          !available_models.include?(model)
+          # Skip if model is in available models list
+          next false if available_models.include?(model)
+          # Skip if model has deprecated: true (these are intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
+          # Otherwise, it's potentially deprecated (missing from API, no deprecated flag)
+          true
         end
         deprecated_models -= Array(MISSING_MODEL_ALLOWLIST['anthropic'])
         

@@ -14,13 +14,15 @@ RSpec.describe "File Naming Conventions" do
   describe "Ruby Support File Naming" do
     it "follows *_tools.rb convention for tool implementation files" do
       tool_files = Dir.glob(File.join(app_base_dir, "**/*_tools.rb"))
-      
+
       tool_files.each do |file|
         content = File.read(file)
-        # Tool files should contain method definitions
-        expect(content).to match(/def\s+\w+/), 
-          "Tool file #{file} should contain method definitions"
-        
+        # Tool files should contain either method definitions OR include shared tools
+        has_methods = content.match?(/def\s+\w+/)
+        has_includes = content.match?(/include\s+\w+/)
+        expect(has_methods || has_includes).to be_truthy,
+          "Tool file #{file} should contain method definitions or module includes"
+
         # Tool files should not contain constants like ICON, DESCRIPTION
         expect(content).not_to match(/^\s*(ICON|DESCRIPTION|INITIAL_PROMPT)\s*=/),
           "Tool file #{file} should not contain app constants"

@@ -75,7 +75,8 @@ RSpec.describe ProcessDocumentation do
       total_items: 10,
       avg_items_per_doc: 5.0
     })
-    
+    allow(mock_help_db).to receive(:cleanup_deleted_files).and_return(0)
+
     # Create test directory structure
     FileUtils.mkdir_p(File.join(test_docs_dir, "basic-usage"))
     FileUtils.mkdir_p(File.join(test_docs_dir, "advanced-features"))

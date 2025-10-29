@@ -4,6 +4,11 @@ require_relative 'utils/mdsl_validator' rescue nil
 require_relative 'utils/provider_model_cache'
 require_relative 'shared_tools/registry'
 require_relative 'shared_tools/file_operations'
+require_relative 'shared_tools/python_execution'
+require_relative 'shared_tools/web_tools'
+require_relative 'shared_tools/app_creation'
+require_relative 'shared_tools/file_reading'
+require_relative 'shared_tools/jupyter_operations'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)

@@ -287,6 +287,228 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call request_tool(\"file_reading\") when you need to read text from files, PDFs, or Office documents."
+      },
+
+      jupyter_operations: {
+        module_name: 'MonadicSharedTools::JupyterOperations',
+        tools: [
+          {
+            name: "run_jupyter",
+            description: "Start or stop JupyterLab server",
+            parameters: [
+              {
+                name: :command,
+                type: "string",
+                description: "Command to run: 'start' or 'stop'",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "create_jupyter_notebook",
+            description: "Create a new Jupyter notebook with automatic timestamping",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "Base filename for the notebook (without .ipynb extension)",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "add_jupyter_cells",
+            description: "Add and optionally execute cells in a Jupyter notebook",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename (with or without .ipynb extension)",
+                required: true
+              },
+              {
+                name: :cells,
+                type: "array",
+                description: "Array of cell objects with 'cell_type' and 'source' fields",
+                required: true
+              },
+              {
+                name: :run,
+                type: "boolean",
+                description: "Whether to execute the cells after adding (default: true)",
+                required: false
+              },
+              {
+                name: :escaped,
+                type: "boolean",
+                description: "Whether content is escaped (default: false)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "delete_jupyter_cell",
+            description: "Delete a cell from a Jupyter notebook by index",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              },
+              {
+                name: :index,
+                type: "integer",
+                description: "The zero-based index of the cell to delete",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "update_jupyter_cell",
+            description: "Update the content of an existing cell in a Jupyter notebook",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              },
+              {
+                name: :index,
+                type: "integer",
+                description: "The zero-based index of the cell to update",
+                required: true
+              },
+              {
+                name: :content,
+                type: "string",
+                description: "The new content for the cell",
+                required: true
+              },
+              {
+                name: :cell_type,
+                type: "string",
+                description: "The type of cell: 'code' or 'markdown' (default: 'code')",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "get_jupyter_cells_with_results",
+            description: "Get all cells with their execution results, including error information",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "execute_and_fix_jupyter_cells",
+            description: "Execute cells with automatic error detection and optional retry",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              },
+              {
+                name: :max_retries,
+                type: "integer",
+                description: "Maximum number of retry attempts (default: 3)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "list_jupyter_notebooks",
+            description: "List all Jupyter notebooks in the data directory",
+            parameters: []
+          },
+          {
+            name: "restart_jupyter_kernel",
+            description: "Restart the kernel for a notebook and clear all outputs",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "interrupt_jupyter_execution",
+            description: "Interrupt currently running cells in a notebook",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "move_jupyter_cell",
+            description: "Move a cell to a new position in the notebook",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              },
+              {
+                name: :from_index,
+                type: "integer",
+                description: "The current zero-based index of the cell to move",
+                required: true
+              },
+              {
+                name: :to_index,
+                type: "integer",
+                description: "The target zero-based index position",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "insert_jupyter_cells",
+            description: "Insert cells at a specific position in the notebook",
+            parameters: [
+              {
+                name: :filename,
+                type: "string",
+                description: "The notebook filename",
+                required: true
+              },
+              {
+                name: :index,
+                type: "integer",
+                description: "The zero-based position to insert cells at",
+                required: true
+              },
+              {
+                name: :cells,
+                type: "array",
+                description: "Array of cell objects to insert",
+                required: true
+              },
+              {
+                name: :run,
+                type: "boolean",
+                description: "Whether to execute the cells after inserting (default: false)",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"jupyter_operations\") when you need to create, manage, or execute Jupyter notebooks."
       }
     }
 

@@ -343,6 +343,9 @@ app "JupyterNotebookClaude" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import shared Python execution tools (always visible - Phase 1)
+    import_shared_tools :python_execution, visibility: "always"
+
     define_tool "run_jupyter", "Start or stop JupyterLab" do
       parameter :command, "string", "Command to run (start or stop)", required: true
     end
@@ -379,12 +382,6 @@ app "JupyterNotebookClaude" do
       parameter :max_retries, "integer", "Maximum number of retry attempts", required: false
     end
 
-    define_tool "run_code", "Run script code and return the output." do
-      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
-      parameter :code, "string", "Program code to be executed.", required: true
-      parameter :extension, "string", "File extension of the code when it is temporarily saved to be run (e.g., 'py')", required: true
-    end
-
     define_tool "fetch_text_from_file", "Fetch the text from a file and return its content." do
       parameter :file, "string", "File name or file path", required: true
     end
@@ -402,9 +399,6 @@ app "JupyterNotebookClaude" do
       parameter :content, "string", "Content to write to the file", required: true
     end
 
-    define_tool "check_environment", "Check the environment setup and available tools." do
-    end
-    
     define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
     end
     

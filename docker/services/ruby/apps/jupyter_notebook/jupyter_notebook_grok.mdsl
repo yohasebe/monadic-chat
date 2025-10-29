@@ -135,6 +135,9 @@ app "JupyterNotebookGrok" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import shared Python execution tools (always visible - Phase 1)
+    import_shared_tools :python_execution, visibility: "always"
+
     # COMBINED TOOL FOR xAI GROK - Similar to Gemini's approach
     define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (USE THIS FOR CREATING NEW NOTEBOOKS)" do
       parameter :filename, "string", "Base filename for the notebook", required: true
@@ -178,12 +181,6 @@ app "JupyterNotebookGrok" do
       parameter :max_retries, "integer", "Maximum number of retry attempts", required: false
     end
 
-    define_tool "run_code", "Run program code and return the output" do
-      parameter :command, "string", "Program that execute the code (e.g., 'python')", required: true
-      parameter :code, "string", "Program code to be executed", required: true
-      parameter :extension, "string", "File extension of the code (e.g., 'py')", required: true
-    end
-
     define_tool "fetch_text_from_file", "Fetch text from a file" do
       parameter :file, "string", "File name or file path", required: true
     end
@@ -201,9 +198,6 @@ app "JupyterNotebookGrok" do
       parameter :content, "string", "Content to write to the file", required: true
     end
 
-    define_tool "check_environment", "Check the environment setup" do
-    end
-    
     define_tool "list_jupyter_notebooks", "List all Jupyter notebooks in the data directory" do
     end
     

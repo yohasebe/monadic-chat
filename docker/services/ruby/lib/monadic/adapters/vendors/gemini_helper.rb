@@ -1159,20 +1159,21 @@ module GeminiHelper
       if is_jupyter_app
         # Separate information-gathering tools from action tools
         info_tools = ["get_jupyter_cells_with_results", "list_jupyter_notebooks"]
-        action_tools = ["create_jupyter_notebook", "run_jupyter", "add_jupyter_cells", 
-                       "update_jupyter_cell", "delete_jupyter_cell", 
-                       "execute_and_fix_jupyter_cells", "run_code"]
+        action_tools = ["create_jupyter_notebook", "run_jupyter", "add_jupyter_cells",
+                       "update_jupyter_cell", "delete_jupyter_cell",
+                       "execute_and_fix_jupyter_cells", "run_code",
+                       "create_and_populate_jupyter_notebook"]  # Combined tool for Gemini/Grok
         
         # Count only action tools (info tools don't count toward limits)
         action_tool_names = tool_names.reject { |name| info_tools.include?(name) }
         
         # Check what types of operations have been performed
-        has_notebook_creation = action_tool_names.any? { |name| 
-          ["create_jupyter_notebook", "run_jupyter"].include?(name)
+        has_notebook_creation = action_tool_names.any? { |name|
+          ["create_jupyter_notebook", "run_jupyter", "create_and_populate_jupyter_notebook"].include?(name)
         }
         
-        has_cell_operations = action_tool_names.any? { |name| 
-          ["add_jupyter_cells", "update_jupyter_cell", "delete_jupyter_cell"].include?(name)
+        has_cell_operations = action_tool_names.any? { |name|
+          ["add_jupyter_cells", "update_jupyter_cell", "delete_jupyter_cell", "create_and_populate_jupyter_notebook"].include?(name)
         }
         
         has_execution = action_tool_names.any? { |name|
@@ -1184,15 +1185,20 @@ module GeminiHelper
         
         # Determine whether to allow more tool calls based on operation flow
         should_stop = false
-        
+
+        # If create_and_populate was used, it's a complete operation - stop immediately
+        if action_tool_names.include?("create_and_populate_jupyter_notebook")
+          should_stop = true
+        end
+
         # Don't stop immediately after first cell operation
         # Allow multiple add_jupyter_cells calls
-        
+
         # If we've done any execution, stop to show results
         if has_execution
           should_stop = true
         end
-        
+
         # Stop if we've made too many ACTION calls (info calls don't count)
         if action_tool_count >= 5  # Allow enough calls for create + add cells + potential fixes
           should_stop = true

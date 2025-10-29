@@ -59,4 +59,9 @@ app "MailComposerClaude" do
     auto_speech false
     group "Anthropic"
   end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+  end
 end

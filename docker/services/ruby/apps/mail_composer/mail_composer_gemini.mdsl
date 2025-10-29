@@ -60,4 +60,9 @@ app "MailComposerGemini" do
     auto_speech false
     group "Google"
   end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+  end
 end

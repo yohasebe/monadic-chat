@@ -6,6 +6,7 @@ require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module JupyterNotebookTools
   include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include Monadic::Agents::GPT5CodexAgent
 
   # Call GPT-5-Codex agent for complex notebook code generation
@@ -24,6 +25,7 @@ end
 
 module JupyterNotebookGrokTools
   include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include Monadic::Agents::GrokCodeAgent
 
   # Call Grok-Code agent for complex notebook code generation
@@ -49,12 +51,16 @@ end
 
 class JupyterNotebookClaude < MonadicApp
   include ClaudeHelper if defined?(ClaudeHelper)
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   # All methods are inherited from MonadicApp which includes MonadicHelper
   # No additional implementation needed
 end
 
 class JupyterNotebookGemini < MonadicApp
   include GeminiHelper if defined?(GeminiHelper)
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   # All methods are inherited from MonadicApp which includes MonadicHelper
   # No additional implementation needed
 end

@@ -3,6 +3,8 @@ require_relative '../../lib/monadic/adapters/latex_helper'
 
 # Shared tools for Syntax Tree (provider-independent)
 module SyntaxTreeTools
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include LatexHelper
 
   def render_syntax_tree(bracket_notation:, language:)

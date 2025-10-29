@@ -60,4 +60,9 @@ app "MailComposerMistral" do
     auto_speech false
     group "Mistral"
   end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+  end
 end

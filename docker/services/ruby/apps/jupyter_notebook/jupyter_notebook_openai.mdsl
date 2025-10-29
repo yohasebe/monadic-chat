@@ -365,6 +365,9 @@ app "JupyterNotebookOpenAI" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
     define_tool "run_jupyter", "Start or stop JupyterLab" do
       parameter :command, "string", "Command to run (start or stop)", required: true
     end

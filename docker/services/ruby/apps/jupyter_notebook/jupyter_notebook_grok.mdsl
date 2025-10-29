@@ -132,6 +132,9 @@ app "JupyterNotebookGrok" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
     # COMBINED TOOL FOR xAI GROK - Similar to Gemini's approach
     define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (USE THIS FOR CREATING NEW NOTEBOOKS)" do
       parameter :filename, "string", "Base filename for the notebook", required: true

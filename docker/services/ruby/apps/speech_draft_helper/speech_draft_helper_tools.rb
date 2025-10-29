@@ -3,7 +3,9 @@
 
 class SpeechDraftHelperOpenAI < MonadicApp
   include OpenAIHelper
-  
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
+
   # list_providers_and_voices is already available from MonadicHelper
   
   # Override text_to_speech to handle parameter mapping

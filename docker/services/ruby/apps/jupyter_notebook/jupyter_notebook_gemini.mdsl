@@ -511,4 +511,9 @@ app "JupyterNotebookGemini" do
     disabled !CONFIG["GEMINI_API_KEY"]
     jupyter true  # Enable Jupyter functionality
   end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+  end
 end

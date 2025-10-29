@@ -43,6 +43,7 @@ APPS = {} unless defined?(APPS)
 # Load core application files AFTER CONFIG is set
 require_relative '../lib/monadic/app'
 require_relative '../lib/monadic/core'
+require_relative '../lib/monadic/utils/selenium_helper'
 require_relative '../lib/monadic/dsl'
 require_relative '../lib/monadic/adapters/vendors/grok_helper'
 

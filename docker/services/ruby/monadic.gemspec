@@ -43,6 +43,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "activesupport", "~> 8.0"
   spec.add_dependency "cld"
   spec.add_dependency "commonmarker", "~> 2.3"
+  spec.add_dependency "csv"
   spec.add_dependency "dotenv", "~> 3.1"
   spec.add_dependency "faye-websocket", "~> 0.11"
   spec.add_dependency "http", "~> 5.2"

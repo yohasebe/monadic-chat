@@ -293,8 +293,13 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
         # Create a minimal index.html so the test reaches the Selenium check
         File.write(File.join(project_dir, 'index.html'), '<html><body>Test</body></html>')
 
-        # Mock selenium_available? to return false
-        allow_any_instance_of(AutoForge::Debugger).to receive(:selenium_available?).and_return(false)
+        # Mock check_selenium_or_error to return an error hash
+        selenium_error = {
+          success: false,
+          error: 'Selenium container is not running. Web automation features require the Selenium service to be active.',
+          suggestion: 'Please start the Selenium container from the Actions menu (Actions → Start Selenium Container) and try again.'
+        }
+        allow_any_instance_of(AutoForge::Debugger).to receive(:check_selenium_or_error).and_return(selenium_error)
 
         result = tool.debug_application_raw(
           'spec' => {
@@ -305,7 +310,7 @@ RSpec.describe 'AutoForge Diagnosis Integration', type: :integration do
 
         expect(result[:success]).to be false
         expect(result[:error]).to include('Selenium container is not running')
-        expect(result[:hint]).to include('Please ensure Selenium is enabled')
+        expect(result[:suggestion]).to include('Please start the Selenium container')
       end
     end
 

@@ -529,10 +529,16 @@ module WebSocketHelper
           # Tools need to be sent as proper JSON too
           apps[k][p] = m.to_json
         elsif p.to_s == "imported_tool_groups" && m.is_a?(Array)
-          # Send imported tool groups metadata for UI display
-          apps[k][p.to_s] = m.to_json
+          # Send imported tool groups metadata for UI display with real-time availability
+          tool_groups_with_availability = m.map do |group|
+            group_name = group[:name].to_sym
+            # Check real-time availability using Registry
+            available = MonadicSharedTools::Registry.available?(group_name)
+            group.merge(available: available)
+          end
+          apps[k][p.to_s] = tool_groups_with_availability.to_json
           if CONFIG["EXTRA_LOGGING"]
-            puts "[DEBUG WebSocket] #{k} imported_tool_groups: #{m.to_json}"
+            puts "[DEBUG WebSocket] #{k} imported_tool_groups: #{tool_groups_with_availability.to_json}"
           end
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend

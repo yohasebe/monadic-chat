@@ -1527,6 +1527,12 @@ function updateAppBadges(selectedApp) {
         };
 
         toolGroups.forEach(group => {
+          // Skip tool groups that are conditional and not available
+          if (group.visibility === 'conditional' && group.available === false) {
+            console.log(`[Badges Handler] Skipping unavailable tool group: ${group.name}`);
+            return;
+          }
+
           const icon = getToolGroupIcon(group.name);
           const displayName = getDisplayName(group.name);
           const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';

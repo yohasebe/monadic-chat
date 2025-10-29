@@ -369,7 +369,9 @@ module MonadicSharedTools
             ]
           }
         ],
-        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium."
+        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::WebAutomation.available? }
       },
 
       video_analysis_openai: {
@@ -400,7 +402,9 @@ module MonadicSharedTools
             ]
           }
         ],
-        default_hint: "Call request_tool(\"video_analysis\") when you need to analyze video content using image recognition and audio transcription."
+        default_hint: "Call request_tool(\"video_analysis\") when you need to analyze video content using image recognition and audio transcription.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::VideoAnalysisOpenAI.available? }
       },
 
       jupyter_operations: {
@@ -695,6 +699,49 @@ module MonadicSharedTools
     #   Registry.group_exists?(:unknown)          # => false
     def self.group_exists?(group)
       TOOL_GROUPS.key?(group)
+    end
+
+    # Get the visibility setting for a tool group
+    #
+    # @param group [Symbol] Tool group name
+    # @return [String] Visibility setting ('always' or 'conditional')
+    # @example
+    #   Registry.visibility_for(:web_automation) # => "conditional"
+    #   Registry.visibility_for(:file_operations) # => "always"
+    def self.visibility_for(group)
+      config = TOOL_GROUPS[group]
+      return 'always' unless config
+
+      config[:visibility] || 'always'
+    end
+
+    # Check if a tool group is currently available
+    # For 'always' visibility, always returns true
+    # For 'conditional' visibility, evaluates the available_when lambda
+    #
+    # @param group [Symbol] Tool group name
+    # @return [Boolean] true if group is available
+    # @example
+    #   Registry.available?((:web_automation) # => true (if Selenium running)
+    #   Registry.available?(:file_operations) # => true (always available)
+    def self.available?(group)
+      config = TOOL_GROUPS[group]
+      return false unless config
+
+      visibility = config[:visibility] || 'always'
+      return true if visibility == 'always'
+
+      # For conditional visibility, evaluate the lambda
+      available_when = config[:available_when]
+      return true unless available_when
+
+      begin
+        available_when.call
+      rescue => e
+        # If availability check fails, assume unavailable
+        puts "[Registry] Error checking availability for #{group}: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+        false
+      end
     end
   end
 end

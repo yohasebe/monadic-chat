@@ -3,6 +3,14 @@
 module Monadic
   module SharedTools
     module WebAutomation
+      # Check if Selenium and Python containers are available
+      def self.available?
+        containers = `docker ps --format "{{.Names}}"`
+        selenium_available = containers.include?("monadic-chat-selenium-container") || containers.include?("monadic_selenium")
+        python_available = containers.include?("monadic-chat-python-container") || containers.include?("monadic_python")
+        selenium_available && python_available
+      end
+
       TOOLS = [
         {
           type: "function",

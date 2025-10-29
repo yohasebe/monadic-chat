@@ -3,6 +3,11 @@
 module Monadic
   module SharedTools
     module VideoAnalysisOpenAI
+      # Check if OpenAI API key is available
+      def self.available?
+        CONFIG && !CONFIG["OPENAI_API_KEY"].to_s.strip.empty?
+      end
+
       TOOLS = [
         {
           type: "function",

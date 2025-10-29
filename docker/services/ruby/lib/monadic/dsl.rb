@@ -847,24 +847,21 @@ module MonadicDSL
           raise ArgumentError, "Unknown tool group: #{group}. Available: #{MonadicSharedTools::Registry.available_groups.join(', ')}"
         end
 
-        # Record tool group metadata for UI
-        metadata = {
-          name: group,
-          visibility: visibility,
-          tool_count: MonadicSharedTools::Registry.tools_for(group).length
-        }
-        @state.settings[:imported_tool_groups] << metadata
-
-        # Debug logging (unconditional to verify execution)
-        STDERR.puts "[DEBUG DSL] Imported tool group: #{metadata.inspect}"
-        STDERR.puts "[DEBUG DSL] Settings keys: #{@state.settings.keys.inspect}"
-        STDERR.puts "[DEBUG DSL] Total groups: #{@state.settings[:imported_tool_groups].length}"
-
         # Get tool specifications from registry
         tool_specs = MonadicSharedTools::Registry.tools_for(group)
 
-        # Define each tool in the group
+        # Define each tool in the group and count actually added tools
+        added_tool_count = 0
         tool_specs.each do |spec|
+          # Check if tool is already defined (prevent duplicates across groups)
+          existing_tool = @tools.find { |t| t.name == spec.name }
+          if existing_tool
+            if CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[DSL Warning] Tool '#{spec.name}' from group '#{group}' is already defined. Skipping duplicate."
+            end
+            next
+          end
+
           define_tool spec.name, spec.description do
             # Add parameters
             spec.parameters.each do |param|
@@ -880,7 +877,22 @@ module MonadicDSL
               unlock_hint options[:unlock_hint] || MonadicSharedTools::Registry.default_hint_for(group)
             end
           end
+
+          added_tool_count += 1
         end
+
+        # Record tool group metadata for UI (with actual count of added tools)
+        metadata = {
+          name: group,
+          visibility: visibility,
+          tool_count: added_tool_count
+        }
+        @state.settings[:imported_tool_groups] << metadata
+
+        # Debug logging (unconditional to verify execution)
+        STDERR.puts "[DEBUG DSL] Imported tool group: #{metadata.inspect}"
+        STDERR.puts "[DEBUG DSL] Settings keys: #{@state.settings.keys.inspect}"
+        STDERR.puts "[DEBUG DSL] Total groups: #{@state.settings[:imported_tool_groups].length}"
 
         # Ensure request_tool is defined if any conditional tools exist
         ensure_request_tool_defined if visibility == "conditional"

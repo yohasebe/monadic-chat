@@ -740,7 +740,7 @@ module ClaudeHelper
     end
 
     app_settings = APPS[app]&.settings
-    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
+    app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
 
     # Configure tools based on app settings and web search type
     # Skip tool setup if we're processing tool results

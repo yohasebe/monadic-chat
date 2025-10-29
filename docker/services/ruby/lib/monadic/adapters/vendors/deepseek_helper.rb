@@ -524,7 +524,7 @@ module DeepSeekHelper
     
     # Get tools from app settings and apply progressive disclosure if configured
     app_settings = APPS[app]&.settings
-    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
+    app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
     progressive_enabled = !!progressive_settings
 

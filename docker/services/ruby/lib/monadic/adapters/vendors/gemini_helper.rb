@@ -977,8 +977,8 @@ module GeminiHelper
 
     # Get tools from app settings (needed for both regular calls and tool result processing)
     app_settings = APPS[app]&.settings
-    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
-    
+    app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
+
     raw_function_tools =
       if app_tools.is_a?(Hash) && app_tools["function_declarations"]
         app_tools["function_declarations"]
@@ -987,10 +987,10 @@ module GeminiHelper
       else
         []
       end
-    
+
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
     progressive_enabled = !!progressive_settings
-    
+
     filtered_function_tools = raw_function_tools
     if app_settings
       begin
@@ -1005,7 +1005,7 @@ module GeminiHelper
         filtered_function_tools = raw_function_tools
       end
     end
-    
+
     # Re-wrap tools using original structure expectations
     if app_tools.is_a?(Hash) && app_tools["function_declarations"]
       app_tools = { "function_declarations" => filtered_function_tools }

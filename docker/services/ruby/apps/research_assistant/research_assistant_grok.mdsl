@@ -25,6 +25,28 @@ app "ResearchAssistantGrok" do
     Note: I cannot directly access or read local files. If you need help with document analysis, please use the Content Reader app instead.
 
     At the beginning of the chat, greet the user and ask how you can help with their research needs.
+
+    ## Code Generation with Grok-Code Agent (MANDATORY)
+    For ANY code generation request, you MUST use the Grok-Code agent. This includes:
+    - Web applications (HTML/CSS/JavaScript)
+    - Data analysis scripts (Python/R)
+    - API client code
+    - Statistical analysis pipelines
+    - Data processing utilities
+    - Any other programming task
+
+    DO NOT generate code yourself. Grok-Code-Fast-1 is specialized for code generation and produces superior results.
+
+    ## Code Generation Process (MANDATORY STEPS)
+    When the user requests code, web apps, scripts, or any programming task:
+    1. FIRST: Call request_tool("grok_code_agent") to unlock the code generation capability
+    2. THEN: Call grok_code_agent with:
+       - task: Clear description of what code to generate
+       - research_context: Any relevant context or requirements (optional)
+       - data_structure: Data format or API details (optional)
+    3. Present the generated code to the user
+
+    CRITICAL: Always use grok_code_agent for code generation. Never write code directly in your response.
   TEXT
 
   llm do
@@ -49,9 +71,19 @@ app "ResearchAssistantGrok" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    # Progressive Tool Disclosure unlock mechanism
+    define_tool "request_tool", "Request access to a locked tool by name" do
+      parameter :tool_name, "string", "Name of the tool to unlock", required: true
+      visibility "always"
+    end
+
     # Web search tool
     define_tool "websearch_agent", "Perform web search using Grok's native live search capability" do
       parameter :query, "string", "The search query", required: true
+      visibility "always"
     end
 
     # Grok-Code agent for code generation in research context
@@ -59,6 +91,9 @@ app "ResearchAssistantGrok" do
       parameter :task, "string", "Description of the code generation task", required: true
       parameter :research_context, "string", "Context from the research findings", required: false
       parameter :data_structure, "string", "Data structure or format to work with", required: false
+      visibility "conditional"
+      unlock_when tool_request: "grok_code_agent"
+      unlock_hint "Call request_tool(\"grok_code_agent\") when you need Grok-Code for analysis tasks."
     end
   end
 end

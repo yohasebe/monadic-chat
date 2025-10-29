@@ -715,7 +715,7 @@ module ClaudeHelper
       body["max_tokens"] = max_tokens
       body["temperature"] = 1  # Required to be 1 when thinking is enabled
       # Only add tool_choice if not processing tool results
-      body["tool_choice"] = { "type" => "auto" } if role != "tool"
+      body["tool_choice"] = { "type" => "any" } if role != "tool"
       body["thinking"] = {
         "type": "enabled",
         "budget_tokens": budget_tokens
@@ -739,6 +739,9 @@ module ClaudeHelper
       }
     end
 
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
+
     # Configure tools based on app settings and web search type
     # Skip tool setup if we're processing tool results
     if role != "tool"
@@ -755,29 +758,62 @@ module ClaudeHelper
       # Check for web search first, as it should be independent of other tools
       websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
       
-      # Get tools from app settings first
-      app_tools = APPS[app]&.settings&.[]("tools")
-      
-      if tools_param && !tools_param.empty?
-        # If tools_param is provided, prefer app_tools if available
-        if app_tools && !app_tools.empty?
-          body["tools"] = app_tools
-        elsif tools_param.is_a?(Array) && !tools_param.empty?
-          # Use tools from request if app doesn't have them
-          # Filter out any Tavily tools since Claude uses native web search
-          body["tools"] = tools_param.reject do |tool|
-            tool_name = tool.dig("name") || tool.dig("function", "name")
-            ["tavily_search", "tavily_fetch"].include?(tool_name)
-          end
+      include_web_search_tool = websearch_enabled && use_native_websearch
+      web_search_tool = {
+        "type" => "web_search_20250305",
+        "name" => "web_search",
+        "max_uses" => 5
+      }
+
+      combined_tools = []
+      app_tool_list =
+        if app_tools.is_a?(Array)
+          app_tools
+        elsif app_tools
+          [app_tools]
         else
-          body["tools"] = []
+          []
         end
-      elsif app_tools && !app_tools.empty?
-        # If no tools_param but app has tools, use them
-        body["tools"] = app_tools
-      elsif websearch_enabled && use_native_websearch
-        # Even if no other tools, we need to add web search tool
-        body["tools"] = []
+      combined_tools.concat(app_tool_list)
+      combined_tools << web_search_tool if include_web_search_tool
+
+      filtered_tools = combined_tools
+      if progressive_settings = (app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"]))
+        begin
+          filtered_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+            app_name: app,
+            session: session,
+            app_settings: app_settings,
+            default_tools: combined_tools
+          )
+        rescue StandardError => e
+          DebugHelper.debug("Claude: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+          filtered_tools = combined_tools
+        end
+      end
+
+      final_tools = []
+
+      if tools_param && !tools_param.empty?
+        filtered_param = Array(tools_param).reject do |tool|
+          tool_name = tool.dig("name") || tool.dig("function", "name")
+          ["tavily_search", "tavily_fetch"].include?(tool_name)
+        end
+        final_tools.concat(filtered_param)
+      end
+
+      final_tools.concat(filtered_tools)
+      final_tools.compact!
+      final_tools.uniq! do |tool|
+        tool_name = tool.dig("name") || tool.dig(:name)
+        tool_type = tool.dig("type") || tool.dig(:type)
+        "#{tool_type}-#{tool_name}"
+      end
+
+      if final_tools.empty?
+        body.delete("tools")
+      else
+        body["tools"] = final_tools
       end
       
       # Add code execution tool if Skills are specified (required for Skills beta)
@@ -798,26 +834,33 @@ module ClaudeHelper
 
       # Add web search tool if enabled and supported by spec
       if websearch_enabled && use_native_websearch
-        DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
-        # Claude's web search tool requires specific format per documentation
-        # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
-        web_search_tool = {
-        "type" => "web_search_20250305",
-        "name" => "web_search",
-        # Optional: Limit the number of searches per request
-        "max_uses" => 5
-      }
-      body["tools"] ||= []
-      body["tools"] << web_search_tool
+        progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+        already_has_websearch = body["tools"]&.any? do |t|
+          (t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305"))
+        end
 
-      # Log the tool for debugging
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
-        extra_log.puts("Tools array: #{body["tools"].inspect}")
-        extra_log.close
+        unless progressive_settings || already_has_websearch
+          DebugHelper.debug("Claude: Adding web_search_20250305 tool for web search", category: :api, level: :debug)
+          # Claude's web search tool requires specific format per documentation
+          # https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
+          web_search_tool = {
+          "type" => "web_search_20250305",
+          "name" => "web_search",
+          # Optional: Limit the number of searches per request
+          "max_uses" => 5
+        }
+        body["tools"] ||= []
+        body["tools"] << web_search_tool
+
+        # Log the tool for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
+          extra_log.puts("Tools array: #{body["tools"].inspect}")
+          extra_log.close
+        end
       end
-    end
+      end
     end  # end of if role != "tool"
 
     # SSOT: If the model is not tool-capable, keep only native web_search tool (if any)
@@ -837,7 +880,7 @@ module ClaudeHelper
         # only when tool-capable or websearch tool is present
         has_websearch_tool = body["tools"].any? { |t| (t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305")) }
         if tool_capable || has_websearch_tool
-          body["tool_choice"] = { "type" => "auto" }
+          body["tool_choice"] = { "type" => "any" }
         end
       end
     else
@@ -988,33 +1031,48 @@ module ClaudeHelper
         end
       end
       
-      # Get tools from app settings first
-      app_tools = APPS[app]&.settings&.[]("tools")
-      
-      if tools_param && !tools_param.empty?
-        # If tools_param is provided, prefer app_tools if available
-        if app_tools && !app_tools.empty?
-          body["tools"] = app_tools
-        elsif tools_param.is_a?(Array) && !tools_param.empty?
-          # Use tools from request if app doesn't have them
-          # Filter out any Tavily tools since Claude uses native web search
-          body["tools"] = tools_param.reject do |tool|
-            tool_name = tool.dig("name") || tool.dig("function", "name")
-            ["tavily_search", "tavily_fetch"].include?(tool_name)
-          end
+      filtered_function_tools = []
+      function_list =
+        if app_tools.is_a?(Array)
+          app_tools
+        elsif app_tools
+          [app_tools]
         else
-          body["tools"] = []
+          []
         end
-      elsif app_tools && !app_tools.empty?
-        # If no tools_param but app has tools, use them
-        body["tools"] = app_tools
-      end
-      
-      # Only clean up if we have tools
-      if body["tools"] && !body["tools"].empty?
-        body["tools"].uniq!
+
+      if app_settings
+        begin
+          filtered_function_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+            app_name: app,
+            session: session,
+            app_settings: app_settings,
+            default_tools: function_list
+          )
+        rescue StandardError => e
+          DebugHelper.debug("Claude: Progressive tool filtering (tool role) skipped due to #{e.message}", category: :api, level: :warning)
+          filtered_function_tools = function_list
+        end
       else
+        filtered_function_tools = function_list
+      end
+
+      final_tools = []
+      if tools_param && !tools_param.empty?
+        filtered_param = Array(tools_param).reject do |tool|
+          tool_name = tool.dig("name") || tool.dig("function", "name")
+          ["tavily_search", "tavily_fetch"].include?(tool_name)
+        end
+        final_tools.concat(filtered_param)
+      end
+      final_tools.concat(filtered_function_tools)
+      final_tools.compact!
+      final_tools.uniq! { |tool| tool.dig("name") || tool.dig(:name) }
+
+      if final_tools.empty?
         body.delete("tools")
+      else
+        body["tools"] = final_tools
       end
       
       # Log for debugging

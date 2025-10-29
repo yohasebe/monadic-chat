@@ -851,6 +851,10 @@ module CohereHelper
     messages = []
     messages_containing_img = false
 
+    # Check if Progressive Tool Disclosure is enabled
+    # If PTD is active, don't add WEBSEARCH_PROMPT (it conflicts with PTD instructions)
+    ptd_active = APPS[app]&.respond_to?(:settings) && APPS[app].settings.dig(:progressive_tools)
+
     # Use unified system prompt injector
     initial_prompt_with_suffix = Monadic::Utils::SystemPromptInjector.augment(
       base_prompt: initial_prompt.to_s,
@@ -858,7 +862,7 @@ module CohereHelper
       options: {
         websearch_enabled: websearch,
         reasoning_model: false,
-        websearch_prompt: WEBSEARCH_PROMPT,
+        websearch_prompt: ptd_active ? nil : WEBSEARCH_PROMPT,
         system_prompt_suffix: obj["system_prompt_suffix"]
       },
       separator: "\n\n---\n\n"
@@ -957,7 +961,7 @@ module CohereHelper
             # If it's already base64 without the data URL prefix
             mime_type = img["type"] || "image/jpeg"
             content << {
-              "type" => "image", 
+              "type" => "image",
               "image" => "data:#{mime_type};base64,#{img["data"]}"
             }
           end
@@ -1226,29 +1230,107 @@ module CohereHelper
       end
     end
 
-    # Get tools from app settings
-    app_tools = APPS[app]&.settings&.[]("tools")
+    # Get tools from app settings and apply progressive disclosure if configured
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings&.[]("tools")
+    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+    progressive_enabled = !!progressive_settings
+
+    # TEMPORARY DEBUG: Write to file
+    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+      f.puts "\n=== #{Time.now} COHERE REQUEST START ==="
+      f.puts "App: #{app}"
+      f.puts "Progressive enabled: #{progressive_enabled}"
+      f.puts "App tools count: #{app_tools&.length || 0}"
+      if app_tools
+        f.puts "App tools: #{app_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
+      end
+      if progressive_settings
+        f.puts "Progressive metadata structure:"
+        f.puts "  Keys: #{progressive_settings.keys.inspect}"
+        f.puts "  always_visible: #{progressive_settings[:always_visible].inspect}"
+        f.puts "  all_tool_names: #{progressive_settings[:all_tool_names].inspect}"
+        if progressive_settings[:conditional]
+          f.puts "  conditional count: #{progressive_settings[:conditional].length}"
+          progressive_settings[:conditional].each_with_index do |cond, idx|
+            f.puts "    [#{idx}] name=#{cond[:name].inspect}, unlock_conditions=#{cond[:unlock_conditions].inspect}"
+          end
+        end
+      end
+    end
+
+    if app_settings
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_settings,
+          default_tools: app_tools
+        )
+
+        # TEMPORARY DEBUG: Write filtered tools
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "After visible_tools filter:"
+          f.puts "  Filtered tools count: #{app_tools&.length || 0}"
+          if app_tools
+            f.puts "  Visible tools: #{app_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
+          end
+          unlocked = session.dig(:progressive_tools, app.to_s, :unlocked) || []
+          f.puts "  Unlocked in session: #{unlocked.inspect}"
+        end
+      rescue StandardError => e
+        DebugHelper.debug("Cohere: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+        # TEMPORARY DEBUG
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "ERROR in visible_tools: #{e.message}"
+          f.puts e.backtrace.first(5).join("\n")
+        end
+      end
+    end
     
     # Only include tools if this is not a tool response
     if role != "tool"
-      # Handle tools differently for Cohere
-      if obj["tools"] && !obj["tools"].empty?
-        body["tools"] = app_tools || []
-        body["tools"].push(*WEBSEARCH_TOOLS) if websearch && body["tools"]
-        body["tools"].uniq! if body["tools"]
-        DebugHelper.debug("Cohere tools with websearch: #{body["tools"]&.map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-      elsif app_tools && !app_tools.empty?
-        # If no tools param but app has tools, use them
-        body["tools"] = app_tools
-        body["tools"].push(*WEBSEARCH_TOOLS) if websearch
-        body["tools"].uniq!
-        DebugHelper.debug("Cohere tools from app settings: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-      elsif websearch
-        body["tools"] = WEBSEARCH_TOOLS
-        DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+      if progressive_enabled
+        # Progressive disclosure: use ONLY filtered app_tools, ignore obj["tools"]
+        final_tools = Array(app_tools).flatten.compact.select { |tool| tool.is_a?(Hash) }
+
+        if final_tools.empty?
+          body.delete("tools")
+          DebugHelper.debug("Cohere progressive tools: none unlocked", category: :api, level: :debug)
+          # TEMPORARY DEBUG
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "FINAL: No tools sent to API (all filtered out)"
+          end
+        else
+          body["tools"] = final_tools
+          DebugHelper.debug("Cohere progressive tools: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug)
+          # TEMPORARY DEBUG
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "FINAL: Tools sent to API: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.inspect}"
+          end
+        end
       else
-        body.delete("tools")
-        DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
+        # Handle tools differently for Cohere (legacy behaviour)
+        if obj["tools"] && !obj["tools"].empty?
+          base_tools = app_tools || []
+          base_tools = Array(base_tools).select { |tool| tool.is_a?(Hash) }
+          body["tools"] = base_tools
+          body["tools"].push(*WEBSEARCH_TOOLS) if websearch && body["tools"]
+          body["tools"].uniq! if body["tools"]
+          DebugHelper.debug("Cohere tools with websearch: #{body["tools"]&.map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+        elsif app_tools && !app_tools.empty?
+          # If no tools param but app has tools, use them
+          body["tools"] = Array(app_tools).select { |tool| tool.is_a?(Hash) }
+          body["tools"].push(*WEBSEARCH_TOOLS) if websearch
+          body["tools"].uniq!
+          DebugHelper.debug("Cohere tools from app settings: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+        elsif websearch
+          body["tools"] = WEBSEARCH_TOOLS
+          DebugHelper.debug("Cohere tools (websearch only): #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+        else
+          body.delete("tools")
+          DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
+        end
       end
     end # end of role != "tool"
 
@@ -1272,12 +1354,31 @@ module CohereHelper
 
     # Handle tool results in v2 format
     # Only set messages if not already set by reasoning workaround
-    if !body["messages"]
-      if role == "tool" && obj["tool_results"]
-        body["messages"] = obj["tool_results"]
-      else
-        body["messages"] = messages
-      end
+   if !body["messages"]
+     if role == "tool" && obj["tool_results"]
+       # Include system prompt + context + tool results
+       body["messages"] = messages + obj["tool_results"]
+     else
+       body["messages"] = messages
+     end
+   end
+
+    body["messages"] = Array(body["messages"]).compact
+    body["messages"].map! { |msg| normalize_cohere_message(msg) }
+    body["messages"].reject! { |msg| cohere_message_empty?(msg) }
+
+    unless body["messages"].any? { |m| m.is_a?(Hash) && m["role"] == "user" && extract_cohere_text(m).to_s.strip != "" }
+      fallback_text = obj["message"].to_s.strip
+      fallback_text = "Hello" if fallback_text.empty?
+      body["messages"] << normalize_cohere_message({
+        "role" => "user",
+        "content" => [
+          {
+            "type" => "text",
+            "text" => fallback_text
+          }
+        ]
+      })
     end
     
     # Debug logging for message structure
@@ -1533,17 +1634,22 @@ module CohereHelper
                 buffer += text
                 texts << text
 
-                unless text.strip.empty?
-                  if text.length > 0
-                    res = {
-                      "type" => "fragment",
-                      "content" => text,
-                      "sequence" => fragment_sequence,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => fragment_sequence == 0
-                    }
-                    fragment_sequence += 1
-                    block&.call res
+                # PTD: tool_plan is internal reasoning, don't show to user
+                # Only store it for progressive tool detection
+                # If you want to see tool_plan for debugging, set EXTRA_LOGGING=true
+                if ENV["EXTRA_LOGGING"] == "true"
+                  unless text.strip.empty?
+                    if text.length > 0
+                      res = {
+                        "type" => "fragment",
+                        "content" => "[TOOL PLAN] #{text}",
+                        "sequence" => fragment_sequence,
+                        "timestamp" => Time.now.to_f,
+                        "is_first" => fragment_sequence == 0
+                      }
+                      fragment_sequence += 1
+                      block&.call res
+                    end
                   end
                 end
               end
@@ -1844,6 +1950,21 @@ module CohereHelper
         argument_hash = {}  # Ensure it's an empty hash, not nil
       end
 
+      # Handle progressive disclosure: if request_tool is called, unlock the requested tool
+      if function_name == "request_tool" && argument_hash[:tool_name] && APPS[app]&.respond_to?(:settings)
+        begin
+          requested_tool = argument_hash[:tool_name].to_s
+          Monadic::Utils::ProgressiveToolManager.unlock_tool(
+            session: session,
+            app_name: app,
+            tool_name: requested_tool
+          )
+          DebugHelper.debug("Cohere progressive tools: unlocked requested tool '#{requested_tool}' via request_tool", category: :api, level: :info)
+        rescue StandardError => e
+          DebugHelper.debug("Cohere progressive tools: failed to unlock requested tool due to #{e.message}", category: :api, level: :warning)
+        end
+      end
+
       # Execute function and capture result
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
@@ -1925,6 +2046,32 @@ module CohereHelper
           }
         ]
       }
+    end
+
+    # Capture tool requests for progressive disclosure (e.g., request_tool("tavily_search"))
+    if APPS[app]&.respond_to?(:settings)
+      begin
+        # Extract tool_plan text from context (assistant message content)
+        assistant_msg = context.find { |msg| msg["role"] == "assistant" }
+        assistant_text = assistant_msg&.dig("tool_plan") || ""
+
+        # Debug logging to understand what we're capturing
+        DebugHelper.debug("Cohere progressive tools: assistant_msg keys = #{assistant_msg&.keys&.inspect}", category: :api, level: :info)
+        DebugHelper.debug("Cohere progressive tools: assistant_text = '#{assistant_text[0..200]}'", category: :api, level: :info)
+
+        Monadic::Utils::ProgressiveToolManager.capture_tool_requests(
+          session: session,
+          app_name: app,
+          app_settings: APPS[app].settings,
+          text: assistant_text
+        )
+
+        # Check if unlock worked
+        unlocked = session.dig(:progressive_tools, app.to_s, :unlocked) || []
+        DebugHelper.debug("Cohere progressive tools: unlocked tools = #{unlocked.inspect}", category: :api, level: :info)
+      rescue StandardError => e
+        DebugHelper.debug("Cohere progressive tools: failed to capture tool requests due to #{e.message}", category: :api, level: :warning)
+      end
     end
 
     # Store the tool results in the session
@@ -2130,5 +2277,60 @@ module CohereHelper
     end
     
     result
+  end
+
+  def extract_cohere_text(message)
+    return "" unless message.is_a?(Hash)
+
+    content = message["content"]
+    case content
+    when Array
+      text_part = content.find do |part|
+        part.is_a?(Hash) && part["type"].to_s.downcase == "text"
+      end
+      text_part ? text_part["text"].to_s : ""
+    else
+      content.to_s
+    end
+  end
+
+  def normalize_cohere_message(message)
+    return message unless message.is_a?(Hash)
+
+    content = message["content"]
+    if content.is_a?(String)
+      message["content"] = [{ "type" => "text", "text" => content }]
+    elsif content.is_a?(Array)
+      content.each do |part|
+        next unless part.is_a?(Hash)
+        part["type"] = part["type"] ? part["type"].to_s.downcase : "text"
+      end
+    elsif content.nil?
+      message["content"] = [{ "type" => "text", "text" => "" }]
+    end
+
+    message
+  end
+
+  def cohere_message_empty?(message)
+    return false unless message.is_a?(Hash)
+
+    content = message["content"]
+    case content
+    when Array
+      content.all? do |part|
+        next true unless part.is_a?(Hash)
+        type = part["type"].to_s.downcase
+        if type == "image"
+          false
+        else
+          part["text"].to_s.strip.empty?
+        end
+      end
+    when String
+      content.strip.empty?
+    else
+      content.to_s.strip.empty?
+    end
   end
 end

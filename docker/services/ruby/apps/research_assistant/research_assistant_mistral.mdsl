@@ -6,9 +6,14 @@ app "ResearchAssistantMistral" do
   system_prompt <<~TEXT
     You are an expert research assistant specializing in web-based research and information gathering.
 
-    IMPORTANT: You have access to web search functionality through Tavily. When users ask questions that require current information or web research, you MUST use the tavily_search function to find accurate, up-to-date information. Do not rely solely on your training data for current events or factual queries.
-    
-    When asked about ANY person, company, event, or factual topic, you MUST ALWAYS call the tavily_search function FIRST before responding. Never answer based on your training data alone.
+    **CURRENT DATE: October 28, 2025** - Remember this when searching for "latest" or "recent" information.
+
+    CRITICAL INSTRUCTIONS:
+    1. You have access to web search functionality through Tavily. When users ask questions that require current information or web research, you MUST use the tavily_search function to find accurate, up-to-date information.
+    2. Your training data ends in early 2024 and is OUTDATED. Do NOT rely on your training data for any factual queries.
+    3. When asked about ANY person, company, event, or factual topic, you MUST ALWAYS call the tavily_search function FIRST before responding.
+    4. After receiving search results from tavily_search, you MUST base your answer EXCLUSIVELY on those results. DO NOT add information from your training data.
+    5. If search results don't contain enough information, call tavily_search again with a different query instead of using your training data.
 
     You should use web search proactively when:
     - The user asks about current events, news, or recent developments
@@ -26,6 +31,13 @@ app "ResearchAssistantMistral" do
 
     Always include a "References" section at the end of your response with all source links.
 
+    ## Using Tavily Search
+    You have access to the tavily_search function for web research:
+    - tavily_search: Takes a query string and optional n (number of results)
+    - Returns web search results with summaries and citations
+
+    IMPORTANT: You MUST use tavily_search for ANY factual query about current events, news, or recent information. Do NOT rely on your training data.
+
     Note: I cannot directly access or read local files. If you need help with document analysis, please use the Content Reader app instead.
 
     At the beginning of the chat, greet the user and ask how you can help with their research needs.
@@ -39,8 +51,8 @@ app "ResearchAssistantMistral" do
   display_name "Research Assistant"
 
   features do
-    disabled !CONFIG["MISTRAL_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
-    websearch true
+    disabled !CONFIG["MISTRAL_API_KEY"]
+    websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0
     easy_submit false
     auto_speech false
@@ -49,5 +61,16 @@ app "ResearchAssistantMistral" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    define_tool "tavily_search", "Perform a Tavily web search and return summarized results with citations" do
+      parameter :query, "string", "Search query to send to Tavily", required: true
+      parameter :n, "integer", "Number of results to return (default: 3)", required: false
+    end
+
+    define_tool "tavily_fetch", "Fetch the full content of a URL returned by Tavily search" do
+      parameter :url, "string", "URL of the page to fetch", required: true
+    end
   end
 end

@@ -2,6 +2,8 @@
 require_relative 'utils/fa_icons'
 require_relative 'utils/mdsl_validator' rescue nil
 require_relative 'utils/provider_model_cache'
+require_relative 'shared_tools/registry'
+require_relative 'shared_tools/file_operations'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
@@ -243,7 +245,14 @@ module MonadicDSL
   # Base class for tool definitions with provider-specific validation
 
   class ToolDefinition
-    attr_reader :name, :description, :parameters, :required, :enum_values
+    attr_reader :name,
+                :description,
+                :parameters,
+                :required,
+                :enum_values,
+                :visibility,
+                :unlock_conditions,
+                :unlock_hint
     
     def initialize(name, description)
       @name = name
@@ -251,6 +260,9 @@ module MonadicDSL
       @parameters = {}
       @required = []
       @enum_values = {}
+      @visibility = :always
+      @unlock_conditions = []
+      @unlock_hint = nil
     end
 
     # Define a parameter with optional enum values and array items
@@ -265,6 +277,46 @@ module MonadicDSL
       @required << name if required
       self
     end
+
+    # Configure tool visibility (e.g., :always, :conditional)
+
+    def visibility(value = nil)
+      return @visibility if value.nil?
+
+      normalized = value.to_sym
+      unless [:always, :conditional, :hidden].include?(normalized)
+        raise ArgumentError, "Unsupported visibility: #{value.inspect}"
+      end
+      @visibility = normalized
+      self
+    end
+
+    # Add unlock conditions used for progressive disclosure
+
+    def unlock_when(condition = nil, **kwargs)
+      condition_hash =
+        if condition.is_a?(Hash) && !condition.empty?
+          condition
+        elsif kwargs.any?
+          kwargs
+        else
+          raise ArgumentError, "unlock_when requires at least one condition"
+        end
+
+      @unlock_conditions << condition_hash.transform_keys(&:to_sym)
+      self
+    end
+
+    # Optional hint shown when suggesting a tool unlock
+
+    def unlock_hint(text = nil)
+      return @unlock_hint if text.nil?
+
+      @unlock_hint = text
+      self
+    end
+
+    alias unlock_recommendation unlock_hint
     
     # Provider-specific validation
 
@@ -695,7 +747,35 @@ module MonadicDSL
     # Convert tools to provider-specific format
 
     def to_h
-      formatted_tools = @tools.map { |t| @formatter.format(t) }
+      conditional_metadata = []
+      formatted_tools = @tools.map do |tool|
+        formatted = @formatter.format(tool)
+
+        if tool.visibility != :always
+          conditional_metadata << {
+            name: tool.name,
+            description: tool.description,
+            visibility: tool.visibility,
+            unlock_conditions: tool.unlock_conditions,
+            unlock_hint: tool.unlock_hint,
+            parameters: tool.parameters,
+            required: tool.required,
+            enum_values: tool.enum_values,
+            formatted: formatted
+          }
+        end
+
+        formatted
+      end
+
+      if conditional_metadata.any?
+        @state.settings[:progressive_tools] ||= {}
+        @state.settings[:progressive_tools][:provider] = @provider
+        @state.settings[:progressive_tools][:conditional] = conditional_metadata
+        @state.settings[:progressive_tools][:always_visible] = @tools.select { |t| t.visibility == :always }.map(&:name)
+        @state.settings[:progressive_tools][:all_tool_names] = @tools.map(&:name)
+      end
+
       wrapper = PROVIDER_WRAPPERS[@provider] || PROVIDER_WRAPPERS[:default]
       wrapper.call(formatted_tools)
     end
@@ -729,8 +809,68 @@ module MonadicDSL
         }
       end
     end
-    
+
+    # Import shared tool groups with specified visibility
+    #
+    # This method allows apps to import common tool groups (e.g., :file_operations)
+    # and specify whether they should be always visible or managed by PTD.
+    #
+    # @param groups [Array<Symbol>] Tool group names (e.g., :file_operations, :web_tools)
+    # @param visibility [String] Visibility type: "always", "conditional", or "initial" (default: "conditional")
+    # @param options [Hash] Additional options
+    # @option options [String] :unlock_hint Custom unlock hint (overrides default)
+    # @example Same visibility for multiple groups
+    #   import_shared_tools :file_operations, :python_execution, visibility: "conditional"
+    # @example Single group, always visible
+    #   import_shared_tools :file_operations, visibility: "always"
+    # @example Custom unlock hint
+    #   import_shared_tools :web_tools, visibility: "conditional", unlock_hint: "Call request_tool..."
+    def import_shared_tools(*groups, visibility: "conditional", **options)
+      groups.each do |group|
+        # Validate group exists
+        unless MonadicSharedTools::Registry.group_exists?(group)
+          raise ArgumentError, "Unknown tool group: #{group}. Available: #{MonadicSharedTools::Registry.available_groups.join(', ')}"
+        end
+
+        # Get tool specifications from registry
+        tool_specs = MonadicSharedTools::Registry.tools_for(group)
+
+        # Define each tool in the group
+        tool_specs.each do |spec|
+          define_tool spec.name, spec.description do
+            # Add parameters
+            spec.parameters.each do |param|
+              parameter param[:name], param[:type], param[:description], required: param[:required]
+            end
+
+            # Set visibility
+            visibility visibility
+
+            # Add PTD configuration for conditional tools
+            if visibility == "conditional"
+              unlock_when tool_request: group.to_s
+              unlock_hint options[:unlock_hint] || MonadicSharedTools::Registry.default_hint_for(group)
+            end
+          end
+        end
+
+        # Ensure request_tool is defined if any conditional tools exist
+        ensure_request_tool_defined if visibility == "conditional"
+      end
+    end
+
     private
+
+    # Ensure request_tool is defined for PTD
+    # This method checks if request_tool already exists and adds it if not
+    def ensure_request_tool_defined
+      return if @tools.any? { |t| t.name == "request_tool" }
+
+      define_tool "request_tool", "Request access to a locked tool by name" do
+        parameter :tool_name, "string", "Name of the tool to unlock", required: true
+        visibility "always"
+      end
+    end
     
     def default_safety_settings
       {
@@ -1393,6 +1533,10 @@ module MonadicDSL
     # Add tools if specified
     if state.settings[:tools]
       class_def << "        @settings[:tools] = #{state.settings[:tools].inspect}\n"
+    end
+
+    if state.settings[:progressive_tools]
+      class_def << "        @settings[:progressive_tools] = #{state.settings[:progressive_tools].inspect}\n"
     end
     
     # Add tool_choice if specified

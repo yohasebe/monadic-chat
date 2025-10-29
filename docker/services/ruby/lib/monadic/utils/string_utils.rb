@@ -709,51 +709,87 @@ module StringUtils
     
     # Ensure HTML is UTF-8 encoded
     html = html.dup.force_encoding('UTF-8') if html.encoding != Encoding::UTF_8
+
+    # Resolve theme settings once per call
+    theme_info = theme_name || CONFIG["ROUGE_THEME"] || "pastie:light"
+    base_theme, base_mode = theme_info.to_s.split(":")
+    mode = theme_mode || base_mode || "light"
+    theme = base_theme
     
-    # CommonMarker already highlights with Rouge, but we want to use our own theme system
-    html.gsub(/<pre lang="([^"]+)" style="[^"]*"><code>(.+?)<\/code><\/pre>/m) do
-      language = $1
-      code_content = $2
-      
-      # Remove CommonMarker's highlighting spans
-      plain_code = CGI.unescapeHTML(code_content.gsub(/<\/?span[^>]*>/m, ''))
-      
-      # Get theme based on current settings or use provided theme
-      theme_info = theme_name || CONFIG["ROUGE_THEME"] || "pastie:light"
-      theme, mode = theme_info.to_s.split(":")
-      mode = theme_mode || mode || "light"
-      
-      # Map theme name to class
-      theme_mapping = {
-        "base16" => "Base16",
-        "bw" => "BlackWhiteTheme",
-        "monokai_sublime" => "MonokaiSublime",
-        "igor_pro" => "IgorPro",
-        "thankful_eyes" => "ThankfulEyes"
-      }
-      theme_class = theme_mapping[theme] || theme.capitalize
-      
-      # Set light/dark mode for special themes
-      if ["base16", "github", "gruvbox"].include?(theme)
+    theme_mapping = {
+      "base16" => "Base16",
+      "bw" => "BlackWhiteTheme",
+      "monokai_sublime" => "MonokaiSublime",
+      "igor_pro" => "IgorPro",
+      "thankful_eyes" => "ThankfulEyes"
+    }
+    theme_class = theme_mapping[theme] || theme.capitalize
+
+    adjust_theme = lambda do
+      return unless ["base16", "github", "gruvbox"].include?(theme)
+      begin
         theme_klass = Rouge::Themes.const_get(theme_class)
         if mode == "dark"
           theme_klass.dark! if theme_klass.respond_to?(:dark!)
         else
           theme_klass.light! if theme_klass.respond_to?(:light!)
         end
+      rescue NameError
+        # Ignore missing theme class and continue with defaults
+      end
+    end
+
+    highlight_fragment = lambda do |language, code_content|
+      lang = language.to_s.strip
+      lang = "plaintext" if lang.empty?
+      
+      # Remove leftover spans and decode entities
+      plain_code = CGI.unescapeHTML(code_content.to_s.gsub(/<\/?span[^>]*>/m, ''))
+      
+      adjust_theme.call
+      
+      begin
+        lexer = Rouge::Lexer.find_fancy(lang) || Rouge::Lexers::PlainText.new
+      rescue StandardError
+        lexer = Rouge::Lexers::PlainText.new
       end
       
-      # Highlight code with Rouge using the specified theme
+      formatter = Rouge::Formatters::HTML.new
+      
       begin
-        lexer = Rouge::Lexer.find_fancy(language) || Rouge::Lexers::PlainText.new
-        formatter = Rouge::Formatters::HTML.new
         highlighted_code = formatter.format(lexer.lex(plain_code))
-        
-        # Match Kramdown's HTML structure for tests to pass
-        "<div class=\"highlight language-#{language} highlighter-rouge\"><pre class=\"highlight\"><code>#{highlighted_code}</code></pre></div>"
-      rescue => e
-        # Fallback in case of highlighting error
-        "<div class=\"highlight language-#{language} highlighter-rouge\"><pre class=\"highlight\"><code>#{plain_code}</code></pre></div>"
+      rescue StandardError
+        highlighted_code = plain_code
+      end
+      
+      "<div class=\"highlight language-#{lang} highlighter-rouge\"><pre class=\"highlight\"><code>#{highlighted_code}</code></pre></div>"
+    end
+
+    processed = html.gsub(/<pre lang="([^"]+)" style="[^"]*"><code>(.+?)<\/code><\/pre>/m) do
+      language = Regexp.last_match(1)
+      code_content = Regexp.last_match(2)
+      highlight_fragment.call(language, code_content)
+    end
+
+    processed.gsub(%r{<pre([^>]*)>\s*<code([^>]*)>([\s\S]*?)</code>\s*</pre>}m) do
+      pre_attrs = Regexp.last_match(1)
+      code_attrs = Regexp.last_match(2)
+      code_content = Regexp.last_match(3)
+      original = Regexp.last_match(0)
+      
+      # Skip if already highlighted
+      if pre_attrs.to_s.include?("highlight") || code_attrs.to_s.include?("highlight")
+        original
+      else
+        language = nil
+        class_attr = code_attrs.to_s[/class="([^"]*)"/, 1]
+        if class_attr
+          lang_match = class_attr.split.find { |cls| cls.start_with?("language-") }
+          language = lang_match[/language-([\w+\-]+)/, 1] if lang_match
+        end
+        language ||= code_attrs.to_s[/lang="([^"]+)"/, 1]
+        language ||= "plaintext"
+        highlight_fragment.call(language, code_content)
       end
     end
   end
@@ -771,8 +807,29 @@ module StringUtils
     # Ensure text is properly UTF-8 encoded
     text = text.dup.force_encoding('UTF-8') if text.encoding != Encoding::UTF_8
     
+    code_block_placeholders = []
+    text = text.gsub(/```([A-Za-z0-9_\-]*)\s*\n([\s\S]*?)```/) do
+      language = Regexp.last_match(1)
+      code_body = Regexp.last_match(2)
+      placeholder = "HTMLCODEBLOCK_PLACEHOLDER_#{code_block_placeholders.length}"
+      escaped = CGI.escapeHTML(code_body.rstrip)
+      lang_attr = language.to_s.empty? ? "" : " class=\"language-#{language}\""
+      html_block = "<pre><code#{lang_attr}>#{escaped}\n</code></pre>"
+      code_block_placeholders << { placeholder: placeholder, html: html_block }
+      placeholder
+    end
+    
     # Apply markdown normalization to ensure proper parsing
     text = normalize_markdown(text)
+    if CONFIG["EXTRA_LOGGING"]
+      begin
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts "[#{Time.now}] Markdown after normalize:"
+          log.puts text
+        end
+      rescue StandardError
+      end
+    end
 
     # Pre-process to protect ALL bold markdown from smart punctuation
     # This is critical when mixing Japanese and English text with multiple bold items in one paragraph
@@ -784,7 +841,7 @@ module StringUtils
     end
 
     # insert a newline after a line that does not end with a newline
-    pattern = Regexp.new('^(\s*#{1,6}\s+.*)(\n)(?!\n)')
+    pattern = Regexp.new('^(\s*#{1,6}\s+.*)(\n)(?!\n)', Regexp::MULTILINE)
     t1 = text.gsub(pattern, "\\1\\2\n")
     t2 = t1.gsub(/\[^([0-9])^\]/) { "[^#{Regexp.last_match(1)}]" }
     t3 = t2.gsub(/(!\[[^\]]*\]\()(['"])([^\s)]+)(['"])(\))/, '\1\3\5')
@@ -922,6 +979,10 @@ module StringUtils
       # Convert Markdown to HTML
       t8_utf8 = t8.dup.force_encoding('UTF-8')
       html = Commonmarker.to_html(t8_utf8, options: options)
+      code_block_placeholders.each do |block|
+        html.gsub!(block[:placeholder], block[:html])
+      end
+      html = convert_fenced_code_html(html)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
@@ -966,6 +1027,10 @@ module StringUtils
       # Ensure text is UTF-8 encoded
       t3_utf8 = t3.dup.force_encoding('UTF-8')
       html = Commonmarker.to_html(t3_utf8, options: options)
+      code_block_placeholders.each do |block|
+        html.gsub!(block[:placeholder], block[:html])
+      end
+      html = convert_fenced_code_html(html)
       
       # Get theme settings
       theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
@@ -1034,5 +1099,29 @@ module StringUtils
     #{html}
     HTML
     html_with_css
+  end
+
+  def convert_fenced_code_html(html)
+    return html unless html
+
+    result = html.gsub(%r{<p>```([\w+\-]*)\s*(?:\n)?([\s\S]*?)```</p>}m) do
+      language = Regexp.last_match(1)
+      code_body = Regexp.last_match(2)
+      code = CGI.escapeHTML(code_body.rstrip) + "\n"
+      lang_attr = language.to_s.empty? ? "" : " class=\"language-#{language}\""
+      "<pre><code#{lang_attr}>#{code}</code></pre>"
+    end
+
+    # Handle any remaining fenced code blocks that Commonmarker left untouched
+    result = result.gsub(%r{(^|\r?\n)```([\w+\-]*)\s*\r?\n([\s\S]*?)```(?=\r?\n|\Z)}m) do
+      leading = Regexp.last_match(1)
+      language = Regexp.last_match(2)
+      code_body = Regexp.last_match(3)
+      code = CGI.escapeHTML(code_body.rstrip) + "\n"
+      lang_attr = language.to_s.empty? ? "" : " class=\"language-#{language}\""
+      "#{leading}<pre><code#{lang_attr}>#{code}</code></pre>"
+    end
+
+    result
   end
 end

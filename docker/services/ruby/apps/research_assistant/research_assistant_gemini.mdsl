@@ -16,12 +16,13 @@ app "ResearchAssistantGemini" do
     temperature 0.0
     easy_submit false
     auto_speech false
-    initiate_from_assistant true  # Add this like Content Reader
+    initiate_from_assistant true
     mathjax true
     image true
   end
 
   tools do
-    # Uses native Google search - no tool definitions needed
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

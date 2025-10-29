@@ -67,19 +67,8 @@ app "ChatPlusPerplexity" do
   end
   
   tools do
-    define_tool "read_file_from_shared_folder", "Read the contents of a file from the shared folder" do
-      parameter :filepath, "string", "The path to the file within the shared folder", required: true
-    end
-    
-    define_tool "write_file_to_shared_folder", "Write or append text content to a file in the shared folder" do
-      parameter :filename, "string", "The name of the file (without extension)", required: true
-      parameter :extension, "string", "The file extension", required: true
-      parameter :content, "string", "The text content to write to the file", required: true
-      parameter :mode, "string", "Write mode: 'write' (overwrite) or 'append' (add to existing). Defaults to 'write'", required: false
-    end
-    
-    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
-      parameter :directory, "string", "The subdirectory path within the shared folder (optional)", required: false
-    end
+    # Import shared file operations tools (always visible - Phase 1)
+    # Phase 2 will evaluate if PTD (visibility: "conditional") provides value
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

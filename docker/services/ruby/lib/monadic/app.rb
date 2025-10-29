@@ -6,6 +6,7 @@ require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
 require_relative "./utils/flask_app_client"
+require_relative "./utils/progressive_tool_manager"
 
 Dir.glob(File.expand_path("adapters/**/*.rb", __dir__)).sort.each do |rb|
   require rb

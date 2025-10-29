@@ -6,6 +6,7 @@ require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module ResearchAssistantTools
   include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
   include Monadic::Agents::GPT5CodexAgent
 
@@ -25,6 +26,7 @@ end
 
 module ResearchAssistantGrokTools
   include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
   include Monadic::Agents::GrokCodeAgent
 
@@ -46,13 +48,20 @@ class ResearchAssistantOpenAI < MonadicApp
   include OpenAIHelper
   include WebSearchAgent
   include ResearchAssistantTools
-  
+
+  # Request access to a locked tool (Progressive Tool Disclosure)
+  # @param tool_name [String] Name of the tool to unlock
+  # @return [String] Confirmation message
+  def request_tool(tool_name:)
+    "Tool '#{tool_name}' has been unlocked. You can now use it in your next function call."
+  end
+
   # Performs web search using native OpenAI search
   # @param query [String] The search query
   # @return [String] Search results
   def websearch_agent(query:)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query)
   rescue StandardError => e
@@ -62,14 +71,16 @@ end
 
 class ResearchAssistantClaude < MonadicApp
   include ClaudeHelper
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
-  
+
   # Performs web search using native Claude search
   # @param query [String] The search query
   # @return [String] Search results
   def websearch_agent(query:)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query)
   rescue StandardError => e
@@ -79,14 +90,16 @@ end
 
 class ResearchAssistantGemini < MonadicApp
   include GeminiHelper
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
-  
+
   # Performs web search using native Google search
   # @param query [String] The search query
   # @return [String] Search results
   def websearch_agent(query:)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query)
   rescue StandardError => e
@@ -98,6 +111,13 @@ class ResearchAssistantGrok < MonadicApp
   include GrokHelper
   include WebSearchAgent
   include ResearchAssistantGrokTools
+
+  # Request access to a locked tool (Progressive Tool Disclosure)
+  # @param tool_name [String] Name of the tool to unlock
+  # @return [String] Confirmation message
+  def request_tool(tool_name:)
+    "Tool '#{tool_name}' has been unlocked. You can now use it in your next function call."
+  end
 
   # Performs web search using native Grok Live Search
   # @param query [String] The search query
@@ -114,14 +134,17 @@ end
 
 class ResearchAssistantCohere < MonadicApp
   include CohereHelper
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
+
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
   # @return [Hash] Search results from Tavily
   def tavily_search(query:, n: 3)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query, n: n)
   rescue StandardError => e
@@ -131,26 +154,17 @@ end
 
 class ResearchAssistantMistral < MonadicApp
   include MistralHelper
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
-  # Performs web search using Tavily API
-  # @param query [String] The search query
-  # @return [String] Search results
-  def websearch_agent(query:)
-    raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
-    # Call the method from WebSearchAgent module
-    super(query: query)
-  rescue StandardError => e
-    "Web search failed: #{e.message}"
-  end
-  
+
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
   # @return [Hash] Search results from Tavily
   def tavily_search(query:, n: 3)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query, n: n)
   rescue StandardError => e
@@ -160,25 +174,22 @@ end
 
 class ResearchAssistantDeepSeek < MonadicApp
   include DeepSeekHelper
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
   include WebSearchAgent
+
   # Performs web search using Tavily API
   # @param query [String] The search query
   # @param n [Integer] Number of results
   # @return [Hash] Search results from Tavily
   def tavily_search(query:, n: 3)
     raise ArgumentError, "Query cannot be empty" if query.to_s.strip.empty?
-    
+
     # Call the method from WebSearchAgent module
     super(query: query, n: n)
   rescue StandardError => e
     { error: "Web search failed: #{e.message}" }
   end
-end
-
-class ResearchAssistantPerplexity < MonadicApp
-  include PerplexityHelper
-  include WebSearchAgent
-  # Perplexity has built-in web search, no need for Tavily
 end
 
 # Ollama doesn't support web search, so no Research Assistant for Ollama

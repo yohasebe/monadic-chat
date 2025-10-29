@@ -1677,6 +1677,7 @@ post "/load" do
             "mid" => mid, 
             "active" => true 
           }
+          message_obj["app_name"] = app_name if app_name
           # Preserve token count if present in import (for accurate stats without recomputation)
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           
@@ -1719,6 +1720,7 @@ post "/load" do
             html = text
           end
           message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+          message_obj["app_name"] = json_data["parameters"]["app_name"] if json_data["parameters"]["app_name"]
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
           message_obj["images"] = msg["images"] if msg["images"]

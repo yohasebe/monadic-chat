@@ -62,19 +62,7 @@ app "CodingAssistantGemini" do
   end
 
   tools do
-    # File operations
-    define_tool "read_file_from_shared_folder", "Read a file from the shared folder" do
-      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
-    end
-
-    define_tool "write_file_to_shared_folder", "Write or update a file in the shared folder" do
-      parameter :filepath, "string", "Path to the file (relative to shared folder or absolute)", required: true
-      parameter :content, "string", "Content to write to the file", required: true
-      parameter :mode, "string", "Write mode: 'write' to overwrite, 'append' to add (default: 'write')", required: false
-    end
-
-    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
-      parameter :directory, "string", "Subdirectory path (leave empty for root)", required: false
-    end
+    # Import shared file operations tools (always visible)
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

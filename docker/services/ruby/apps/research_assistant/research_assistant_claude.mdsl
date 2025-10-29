@@ -20,7 +20,7 @@ app "ResearchAssistantClaude" do
     - Search results will include source URLs, titles, and content
     
     Provide comprehensive, well-researched answers with inline citations when using web search results.
-    
+
     Note: Web search must be enabled by your organization's administrator in the Anthropic Console.
   TEXT
 
@@ -60,11 +60,13 @@ app "ResearchAssistantClaude" do
     websearch true  # Claude uses native web search
     easy_submit false
     auto_speech false
-    initiate_from_assistant true  # Add this like Content Reader
+    initiate_from_assistant true
     mathjax true
     image true
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

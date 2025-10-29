@@ -426,7 +426,21 @@ module GrokHelper
     end
 
     # Get tools from app settings
-    app_tools = APPS[app]&.settings&.[]("tools")
+    app_instance = APPS[app]
+    app_tools = app_instance&.settings&.[]("tools")
+
+    if app_instance
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_instance.settings,
+          default_tools: app_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Grok: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+      end
+    end
     
     # Include tools based on role and availability
     # When role is "tool" (sending tool results back), don't include tools to prevent infinite loops

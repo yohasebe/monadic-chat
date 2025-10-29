@@ -11,8 +11,8 @@ app "ResearchAssistantDeepSeek" do
   display_name "Research Assistant"
 
   features do
-    disabled !CONFIG["DEEPSEEK_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
-    websearch true
+    disabled !CONFIG["DEEPSEEK_API_KEY"]
+    websearch !!CONFIG["TAVILY_API_KEY"]
     temperature 0.0
     easy_submit false
     auto_speech false
@@ -22,5 +22,16 @@ app "ResearchAssistantDeepSeek" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    define_tool "tavily_search", "Perform a Tavily web search and return summarized results with citations" do
+      parameter :query, "string", "Search query to send to Tavily", required: true
+      parameter :n, "integer", "Number of results to return (default: 3)", required: false
+    end
+
+    define_tool "tavily_fetch", "Fetch the full content of a URL returned by Tavily search" do
+      parameter :url, "string", "URL of the page to fetch", required: true
+    end
   end
 end

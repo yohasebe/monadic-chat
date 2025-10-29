@@ -41,7 +41,7 @@ app "ChatPlusGrok" do
     File operations:
     - When listing files, you can optionally specify a subdirectory within the shared folder
     - When reading files, provide the relative path from the shared folder
-    - When writing files, specify the filename, extension, and content separately
+    - When writing files, provide the file path (supports subdirectories and Unicode characters, e.g., 'プロジェクト/2025年/レポート.md')
     - You can choose to either overwrite (mode: "write") or append to existing files (mode: "append")
 
     ## Context Tracking and Response Format (CRITICAL)
@@ -87,19 +87,8 @@ TEXT
   end
   
   tools do
-    define_tool "read_file_from_shared_folder", "Read the contents of a file from the shared folder" do
-      parameter :filepath, "string", "The path to the file within the shared folder", required: true
-    end
-    
-    define_tool "write_file_to_shared_folder", "Write or append text content to a file in the shared folder" do
-      parameter :filename, "string", "The name of the file (without extension)", required: true
-      parameter :extension, "string", "The file extension", required: true
-      parameter :content, "string", "The text content to write to the file", required: true
-      parameter :mode, "string", "Write mode: 'write' (overwrite) or 'append' (add to existing). Defaults to 'write'", required: false
-    end
-    
-    define_tool "list_files_in_shared_folder", "List files and directories in the shared folder" do
-      parameter :directory, "string", "The subdirectory path within the shared folder (optional)", required: false
-    end
+    # Import shared file operations tools (always visible - Phase 1)
+    # Phase 2 will evaluate if PTD (visibility: "conditional") provides value
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

@@ -551,17 +551,35 @@ module WebSocketHelper
     current_app_name = session["parameters"]["app_name"]
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
     
-    # Convert markdown to HTML for assistant messages if html field is missing
+    params_for_render = session["parameters"] || {}
+    mathjax_enabled = params_for_render["mathjax"].to_s == "true"
+    # Convert markdown to HTML for assistant messages when needed
     filtered_messages.each do |m|
-      if m["role"] == "assistant" && !m["html"]
-        m["html"] = if session["parameters"]&.[]("monadic") && defined?(APPS) && 
-                      session["parameters"]["app_name"] && 
-                      APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
-                    APPS[session["parameters"]["app_name"]].monadic_html(m["text"])
-                  else
-                    mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
-                    markdown_to_html(m["text"], mathjax: mathjax_enabled)
-                  end
+      next unless m["role"] == "assistant"
+
+      needs_render = m["html"].nil? || m["html"].to_s.include?("```")
+      next unless needs_render
+
+      app_name = params_for_render["app_name"]
+      if CONFIG["EXTRA_LOGGING"] && params_for_render["monadic"] && app_name
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Rendering with monadic_html for app=#{app_name}"
+      end
+      if params_for_render["monadic"] && defined?(APPS) && app_name &&
+         APPS[app_name]&.respond_to?(:monadic_html)
+        m["html"] = APPS[app_name].monadic_html(m["text"])
+      else
+        html_raw = markdown_to_html(m["text"], mathjax: mathjax_enabled)
+        if CONFIG["EXTRA_LOGGING"]
+          begin
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] Markdown raw HTML for mid=#{m["mid"]}"
+            extra_log.puts html_raw
+          ensure
+            extra_log.close if extra_log
+          end
+        end
+        m["html"] = html_raw
       end
     end
     
@@ -1280,6 +1298,7 @@ module WebSocketHelper
         when "RESET"
           session[:messages].clear
           session[:parameters].clear
+          session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state
           session[:error] = nil
           session[:obj] = nil
         when "LOAD"

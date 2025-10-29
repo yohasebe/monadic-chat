@@ -522,8 +522,24 @@ module DeepSeekHelper
     # Debug app loading
     DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
     
-    # Get tools from app settings
-    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+    # Get tools from app settings and apply progressive disclosure if configured
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
+    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+    progressive_enabled = !!progressive_settings
+
+    if app_settings
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_settings,
+          default_tools: app_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("DeepSeek: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+      end
+    end
     
     # Debug logging
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
@@ -531,24 +547,44 @@ module DeepSeekHelper
     
     # Only include tools if this is not a tool response
     if role != "tool"
-      # Build the tools array
-      if websearch
-        # Always include websearch tools when websearch is enabled
-        body["tools"] = WEBSEARCH_TOOLS.dup
-        # Add any app-specific tools
-        if app_tools && !app_tools.empty?
-          body["tools"].concat(app_tools)
-          body["tools"].uniq!
+      if progressive_enabled
+        final_tools = []
+        if obj["tools"] && !obj["tools"].empty?
+          final_tools.concat(Array(obj["tools"]))
         end
-        body["tool_choice"] = "auto"
-      elsif app_tools && !app_tools.empty?
-        # Only app tools, no websearch
-        body["tools"] = app_tools
-        body["tool_choice"] = "auto"
+        final_tools.concat(Array(app_tools)) if app_tools
+        final_tools = final_tools.flatten.compact.select { |tool| tool.is_a?(Hash) }
+        final_tools.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+
+        if final_tools.empty?
+          body.delete("tools")
+          body.delete("tool_choice")
+          DebugHelper.debug("DeepSeek progressive tools: none unlocked", category: :api, level: :debug)
+        else
+          body["tools"] = final_tools
+          body["tool_choice"] = "auto"
+          DebugHelper.debug("DeepSeek progressive tools configured: #{final_tools.map { |t| t.dig(:function, :name) || t.dig("function", "name") }.compact.join(", ")}", category: :api, level: :debug)
+        end
       else
-        # No tools at all - don't send empty array
-        body.delete("tools")
-        body.delete("tool_choice")
+        # Build the tools array
+        if websearch
+          # Always include websearch tools when websearch is enabled
+          body["tools"] = WEBSEARCH_TOOLS.dup
+          # Add any app-specific tools
+          if app_tools && !app_tools.empty?
+            body["tools"].concat(app_tools)
+            body["tools"].uniq!
+          end
+          body["tool_choice"] = "auto"
+        elsif app_tools && !app_tools.empty?
+          # Only app tools, no websearch
+          body["tools"] = app_tools
+          body["tool_choice"] = "auto"
+        else
+          # No tools at all - don't send empty array
+          body.delete("tools")
+          body.delete("tool_choice")
+        end
       end
       
       # Apply strict mode if enabled and tools are present

@@ -123,7 +123,11 @@ module MistralHelper
         if response.status.success?
           # Cache filtered and sorted models
 
-          model_data = JSON.parse(response.body)
+          model_data = begin
+            JSON.parse(response.body)
+          rescue JSON::ParserError
+            {"data" => []}
+          end
           $MODELS[:mistral] = model_data["data"]
             .sort_by { |model| model["created"] }
             .reverse
@@ -267,7 +271,11 @@ module MistralHelper
     # Process response
     if response && response.status && response.status.success?
       begin
-        parsed_response = JSON.parse(response.body)
+        parsed_response = begin
+          JSON.parse(response.body)
+        rescue JSON::ParserError
+          {"message" => response.body.to_s}
+        end
         
         # Standard OpenAI-compatible format
         if parsed_response["choices"] && 
@@ -291,16 +299,27 @@ module MistralHelper
       begin
         # Error details are logged to dedicated log files
         
-        error_data = response && response.body ? JSON.parse(response.body.to_s) : {}
+        error_data = if response && response.body
+                       begin
+                         JSON.parse(response.body.to_s)
+                       rescue JSON::ParserError
+                         {"message" => response.body.to_s}
+                       end
+                     else
+                       {}
+                     end
         error_message = if error_data["error"] && error_data["error"].is_a?(Hash)
                          error_data["error"]["message"] || "Unknown error"
                        else
                          error_data["error"] || "Unknown error"
                        end
+        status_code = if response && response.respond_to?(:status) && response.status.respond_to?(:code)
+                        response.status.code
+                      end
         return Monadic::Utils::ErrorFormatter.api_error(
           provider: "Mistral",
           message: error_message,
-          code: res.status.code
+          code: status_code
         )
       rescue => e
         return Monadic::Utils::ErrorFormatter.parsing_error(
@@ -342,6 +361,9 @@ module MistralHelper
 
     # Handle both string and boolean values for websearch parameter
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
+    if session[:parameters]["tavily_disabled"]
+      websearch = false
+    end
     
     # Debug logging for websearch
     DebugHelper.debug("Mistral websearch enabled: #{websearch}", category: :api, level: :info) if websearch
@@ -367,6 +389,7 @@ module MistralHelper
           session[:messages] << res["content"]
         end
     end
+    end
 
     # After sending user card, check API key. If not set, return error card and exit
     api_key = CONFIG["MISTRAL_API_KEY"]
@@ -378,7 +401,6 @@ module MistralHelper
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
-    end
     end
 
     # Old messages in the session are set to inactive
@@ -436,21 +458,88 @@ module MistralHelper
     # Configure monadic response format using unified interface
     body = configure_monadic_response(body, :mistral, app)
 
-    # Skip tool setup if we're processing tool results
-    if role != "tool"
-      # Get tools from app settings
-      app_tools = APPS[app]&.settings&.[]("tools")
-      
-      # Add tools if available
-      if obj["tools"] && !obj["tools"].empty?
-        body["tools"] = app_tools || []
-        # Add websearch tools if websearch is enabled
-        if websearch && body["tools"]
-          body["tools"] = body["tools"] + WEBSEARCH_TOOLS
-          body["tools"].uniq! { |tool| tool.dig(:function, :name) }
-          
-          # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
-          unless app.to_s.include?("ResearchAssistant")
+    # Progressive tool handling (applies to all request phases)
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings&.[]("tools")
+    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+    progressive_enabled = !!progressive_settings
+
+    state_debug = session.dig(:progressive_tools, app.to_s)
+    begin
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [Mistral] progressive state before filter: #{state_debug.inspect}")
+      end
+    rescue StandardError
+    end
+
+    if app_settings
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_settings,
+          default_tools: app_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Mistral: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+      end
+    end
+
+    unless websearch
+      app_tools = Array(app_tools).select do |tool|
+        next false unless tool.is_a?(Hash)
+        name = tool.dig(:function, :name) || tool.dig("function", "name")
+        name && !name.start_with?("tavily_")
+      end
+    end
+
+    final_tools = nil
+    if CONFIG["EXTRA_LOGGING"]
+      unlocked = session.dig(:progressive_tools, app.to_s, :unlocked)
+      DebugHelper.debug("Mistral progressive state: unlocked=#{unlocked.inspect}, app_tools_count=#{Array(app_tools).compact.size}, role=#{role}", category: :api, level: :debug)
+    end
+
+    begin
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [Mistral] app_tools raw: #{app_tools.inspect}")
+        log.puts("[#{Time.now}] [Mistral] obj tools: #{obj['tools'].inspect}")
+        log.puts("[#{Time.now}] [Mistral] websearch flag: #{websearch.inspect}")
+      end
+    rescue StandardError
+    end
+
+    request_tools = obj["tools"]
+    if request_tools.is_a?(String)
+      begin
+        request_tools = JSON.parse(request_tools)
+      rescue JSON::ParserError
+        request_tools = nil
+      end
+    end
+    if request_tools && !websearch
+      request_tools = Array(request_tools).select do |tool|
+        next false unless tool.is_a?(Hash)
+        name = tool.dig(:function, :name) || tool.dig("function", "name")
+        name && !name.start_with?("tavily_")
+      end
+    end
+
+    if progressive_enabled
+      merged = []
+      merged.concat(Array(request_tools)) if request_tools && !request_tools.empty?
+      merged.concat(Array(app_tools)) if app_tools
+      merged = merged.flatten.compact.select { |tool| tool.is_a?(Hash) }
+      merged.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+
+      if merged.empty?
+        DebugHelper.debug("Mistral progressive tools: none unlocked", category: :api, level: :debug)
+      else
+        final_tools = merged
+        DebugHelper.debug("Mistral progressive tools: #{final_tools.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug)
+
+        if websearch && !app.to_s.include?("ResearchAssistant")
+          has_tavily = final_tools.any? { |tool| (tool.dig(:function, :name) || tool.dig("function", "name"))&.start_with?("tavily_") }
+          if has_tavily
             system_msg = context.first
             if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
               system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
@@ -458,33 +547,30 @@ module MistralHelper
               DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
             end
           end
-          
-        end
-    elsif app_tools && !app_tools.empty?
-      # If no tools param but app has tools, use them
-      body["tools"] = app_tools
-      # Add websearch tools if websearch is enabled
-      if websearch
-        body["tools"] = body["tools"] + WEBSEARCH_TOOLS
-        body["tools"].uniq! { |tool| tool.dig(:function, :name) }
-        
-        # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
-        unless app.to_s.include?("ResearchAssistant")
-          system_msg = context.first
-          if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
-            system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
-            system_msg["websearch_added"] = true
-            DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
-          end
         end
       end
-      DebugHelper.debug("Mistral tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
-    elsif websearch
-      body["tools"] = WEBSEARCH_TOOLS
-      DebugHelper.debug("Mistral websearch tools: #{body["tools"].map { |t| t.dig(:function, :name) }.join(", ")}", category: :api, level: :debug)
+    else
+      if request_tools && !request_tools.empty?
+        base = Array(app_tools).select { |tool| tool.is_a?(Hash) } + Array(request_tools).select { |tool| tool.is_a?(Hash) }
+        base = base.flatten.compact
+        base.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+        final_tools = base unless base.empty?
+        DebugHelper.debug("Mistral tools with request merge: #{base.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug) if final_tools
+      elsif app_tools && !app_tools.empty?
+        base = Array(app_tools).select { |tool| tool.is_a?(Hash) }
+        if websearch
+          base += WEBSEARCH_TOOLS
+        end
+        base = base.flatten.compact.select { |tool| tool.is_a?(Hash) }
+        base.uniq! { |tool| tool.dig(:function, :name) || tool.dig("function", "name") }
+        final_tools = base unless base.empty?
+        DebugHelper.debug("Mistral tools from app settings: #{base.map { |t| t.dig(:function, :name) || t.dig('function', 'name') }.compact.join(', ')}", category: :api, level: :debug) if final_tools
+      elsif websearch
+        final_tools = WEBSEARCH_TOOLS.dup
+        DebugHelper.debug("Mistral websearch tools only", category: :api, level: :debug)
+      end
 
-      # Add websearch prompt to system message (skip for Research Assistant which has its own prompt)
-      unless app.to_s.include?("ResearchAssistant")
+      if final_tools && websearch && !app.to_s.include?("ResearchAssistant")
         system_msg = context.first
         if system_msg && system_msg["role"] == "system" && !system_msg["websearch_added"]
           system_msg["text"] += "\n\n#{WEBSEARCH_PROMPT}"
@@ -492,9 +578,20 @@ module MistralHelper
           DebugHelper.debug("Added WEBSEARCH_PROMPT to system message", category: :api, level: :debug)
         end
       end
-      
     end
-    end  # end of role != "tool"
+
+    if final_tools && !final_tools.empty?
+      body["tools"] = final_tools
+    else
+      body.delete("tools")
+      DebugHelper.debug("Mistral: No tools enabled", category: :api, level: :debug)
+    end
+    begin
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [Mistral] final tools for #{app}: #{Array(body['tools']).map { |t| t.dig(:function, :name) || t.dig('function', 'name') || t['name'] }.inspect}")
+      end
+    rescue StandardError
+    end
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice
     begin
@@ -693,12 +790,39 @@ module MistralHelper
                         read: READ_TIMEOUT).post(target_uri, json: body)
 
       unless res.status.success?
-        err_json = JSON.parse(res.body)
-        error_message = Monadic::Utils::ErrorFormatter.api_error(
-          provider: "Mistral",
-          message: err_json["message"] || "Unknown API error",
-          code: res.status.code
-        )
+        begin
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}")
+          end
+        rescue StandardError
+        end
+        error_text = nil
+        err_json = nil
+        begin
+          err_json = JSON.parse(res.body.to_s)
+        rescue JSON::ParserError
+          error_text = res.body.to_s
+        end
+
+        message = if err_json
+                    err_json["message"] || err_json["error"] || err_json["detail"]
+                  else
+                    error_text
+                  end
+        message ||= "Unknown API error"
+
+        if res.status.code.to_i == 401 && message.downcase.include?("api key")
+          error_message = Monadic::Utils::ErrorFormatter.api_key_error(
+            provider: "Mistral",
+            env_var: "MISTRAL_API_KEY"
+          )
+        else
+          error_message = Monadic::Utils::ErrorFormatter.api_error(
+            provider: "Mistral",
+            message: message,
+            code: res.status.code
+          )
+        end
         res = { "type" => "error", "content" => error_message }
         block&.call res
         return [res]
@@ -780,10 +904,16 @@ module MistralHelper
           chunk_id = json["id"]
 
           # Check for errors
-          if json["error"]
-            error_buffer << json["error"]["message"] || "Unknown error"
-            next
+        if json["error"]
+          begin
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [Mistral] streaming error chunk: #{json['error'].inspect}")
+            end
+          rescue StandardError
           end
+          error_buffer << json["error"]["message"] || "Unknown error"
+          next
+        end
 
           # Capture usage if present on this chunk
           if json["usage"].is_a?(Hash)
@@ -930,6 +1060,18 @@ module MistralHelper
         function_name = tool_call.dig("function", "name")
         function_args = tool_call.dig("function", "arguments")
 
+        if function_name && APPS[app]&.respond_to?(:settings)
+          begin
+            Monadic::Utils::ProgressiveToolManager.unlock_tool(
+              session: session,
+              app_name: app,
+              tool_name: function_name
+            )
+          rescue StandardError => e
+            DebugHelper.debug("Mistral progressive tools: unlock_tool failed for #{function_name} due to #{e.message}", category: :api, level: :warning)
+          end
+        end
+
         # Parse arguments
         begin
           args = JSON.parse(function_args)
@@ -958,6 +1100,22 @@ module MistralHelper
             tool_name: function_name,
             message: e.message
           )
+        end
+
+        if function_name.to_s.start_with?("tavily_") && function_return.to_s.downcase.include?("bearer token not found")
+          function_return = {
+            error: "tavily_api_key_missing",
+            message: "Tavily API call failed with 'Bearer token not found'. Please verify that TAVILY_API_KEY is configured, or continue the research without live web search."
+          }
+          session[:parameters]["tavily_disabled"] = true
+          begin
+            Monadic::Utils::ProgressiveToolManager.trigger_event(
+              session: session,
+              app_name: app,
+              event: "tavily_missing"
+            )
+          rescue StandardError
+          end
         end
 
         # Use the error handler module to check for repeated errors
@@ -1009,6 +1167,19 @@ module MistralHelper
           }
         end
       }
+
+      if APPS[app]&.respond_to?(:settings)
+        begin
+          Monadic::Utils::ProgressiveToolManager.capture_tool_requests(
+            session: session,
+            app_name: app,
+            app_settings: APPS[app].settings,
+            text: tool_calls_message["content"]
+          )
+        rescue StandardError => e
+          DebugHelper.debug("Mistral progressive tools: failed to capture tool requests due to #{e.message}", category: :api, level: :warning)
+        end
+      end
       
       # Update session with function returns and tool calls message
       session[:parameters]["function_returns"] = function_returns
@@ -1085,6 +1256,25 @@ module MistralHelper
       # Validate the response
       validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
       response["choices"][0]["message"]["content"] = validated.is_a?(Hash) ? JSON.generate(validated) : validated
+    end
+
+    stored_content = response.dig("choices", 0, "message", "content")
+    if stored_content && !stored_content.to_s.empty?
+      begin
+        session[:messages] << {
+          "role" => "assistant",
+          "text" => stored_content.to_s,
+          "html" => markdown_to_html(stored_content.to_s),
+          "lang" => detect_language(stored_content.to_s),
+          "mid" => SecureRandom.hex(4),
+          "active" => true
+        }
+      rescue StandardError
+        session[:messages] << {
+          "role" => "assistant",
+          "text" => stored_content.to_s
+        }
+      end
     end
 
     [response]

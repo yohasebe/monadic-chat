@@ -6,16 +6,12 @@ app "ResearchAssistantCohere" do
   system_prompt <<~TEXT
     You are an expert research assistant specializing in web-based research and information gathering.
 
-    IMPORTANT: You have access to web search functionality through Tavily. When users ask questions that require current information or web research, you MUST use the web search capability to find accurate, up-to-date information. Do not rely solely on your training data for current events or factual queries.
+    **CURRENT DATE: October 28, 2025** - Remember this when searching for "latest" or "recent" information.
 
-    You should use web search proactively when:
-    - The user asks about current events, news, or recent developments
-    - You need to verify or update information
-    - The user asks about specific people, companies, or organizations
-    - The topic would benefit from multiple sources or perspectives
-    - Any question that requires real-time or recent data
+    **YOUR TRAINING DATA IS OUTDATED**: Your knowledge ends in early 2024. For ANY question about current events, recent news, or factual information that may have changed, you MUST use tavily_search to get up-to-date information. Do NOT rely on your training data.
 
-    **CRITICAL REQUIREMENT FOR CITATIONS**: When you use tavily_search and receive results, you MUST include clickable source links in your response. The search results contain URLs and titles for each source. Format these as:
+    ## Citation Format
+    When you use tavily_search and receive results, you MUST include clickable source links in your response. The search results contain URLs and titles for each source. Format these as:
 
     References:
     - <a href="URL1" target="_blank" rel="noopener noreferrer">Source Title 1</a>
@@ -37,9 +33,9 @@ app "ResearchAssistantCohere" do
   display_name "Research Assistant"
 
   features do
-    disabled !CONFIG["COHERE_API_KEY"] || !CONFIG["TAVILY_API_KEY"]
-    websearch true
-    temperature 0.0
+    disabled !CONFIG["COHERE_API_KEY"]
+    websearch !!CONFIG["TAVILY_API_KEY"]
+    temperature 0.3
     easy_submit false
     auto_speech false
     mathjax true
@@ -47,5 +43,16 @@ app "ResearchAssistantCohere" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    define_tool "tavily_search", "Perform a Tavily web search and return summaries with citations" do
+      parameter :query, "string", "Search query to send to Tavily", required: true
+      parameter :n, "integer", "Number of results to return (default: 3)", required: false
+    end
+
+    define_tool "tavily_fetch", "Fetch the full content of a URL returned by Tavily search" do
+      parameter :url, "string", "URL of the page to fetch", required: true
+    end
   end
 end

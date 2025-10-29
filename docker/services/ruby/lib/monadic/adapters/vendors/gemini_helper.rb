@@ -976,15 +976,57 @@ module GeminiHelper
     end
 
     # Get tools from app settings (needed for both regular calls and tool result processing)
-    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+    app_settings = APPS[app]&.settings
+    app_tools = app_settings && app_settings["tools"] ? app_settings["tools"] : []
     
+    raw_function_tools =
+      if app_tools.is_a?(Hash) && app_tools["function_declarations"]
+        app_tools["function_declarations"]
+      elsif app_tools.is_a?(Array)
+        app_tools
+      else
+        []
+      end
+    
+    progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
+    progressive_enabled = !!progressive_settings
+    
+    filtered_function_tools = raw_function_tools
+    if app_settings
+      begin
+        filtered_function_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app,
+          session: session,
+          app_settings: app_settings,
+          default_tools: raw_function_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Gemini: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning)
+        filtered_function_tools = raw_function_tools
+      end
+    end
+    
+    # Re-wrap tools using original structure expectations
+    if app_tools.is_a?(Hash) && app_tools["function_declarations"]
+      app_tools = { "function_declarations" => filtered_function_tools }
+    else
+      app_tools = filtered_function_tools
+    end
+    
+    google_search_allowed = use_native_websearch &&
+                             (!progressive_enabled || Monadic::Utils::ProgressiveToolManager.unlocked?(
+                               session: session,
+                               app_name: app,
+                               tool_name: "google_search"
+                             ))
+
     # Skip tool setup if we're processing tool results
     if role != "tool"
       # Debug settings
       DebugHelper.debug("Gemini app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
       DebugHelper.debug("Gemini app_tools: #{app_tools.inspect}", category: :api, level: :debug)
       DebugHelper.debug("Gemini app_tools.empty?: #{app_tools.empty?}", category: :api, level: :debug)
-      DebugHelper.debug("Gemini websearch: #{use_native_websearch}", category: :api, level: :debug)
+      DebugHelper.debug("Gemini websearch requested=#{use_native_websearch}, allowed=#{google_search_allowed}", category: :api, level: :debug)
       
       # Check if app_tools has actual function declarations
       has_function_declarations = false
@@ -996,7 +1038,7 @@ module GeminiHelper
         end
       end
       
-      if has_function_declarations && use_native_websearch
+      if has_function_declarations && google_search_allowed
         # Both function declarations and web search are needed
         DebugHelper.debug("Gemini: Both function declarations and Google Search enabled", category: :api, level: :debug)
         
@@ -1035,7 +1077,7 @@ module GeminiHelper
             "mode" => "AUTO"
           }
         }
-      elsif use_native_websearch
+      elsif google_search_allowed
         # Use Google Search grounding tool for web search
         DebugHelper.debug("Gemini: Google Search enabled for web search", category: :api, level: :debug)
         
@@ -1048,7 +1090,7 @@ module GeminiHelper
         # Remove tool_config for google_search as it's not a function declaration
         body.delete("tool_config")
       else
-        DebugHelper.debug("Gemini: No tools or websearch", category: :api, level: :debug)
+        DebugHelper.debug("Gemini: No tools or websearch (google_search_allowed=#{google_search_allowed})", category: :api, level: :debug)
         body.delete("tools")
         body.delete("tool_config")
       end

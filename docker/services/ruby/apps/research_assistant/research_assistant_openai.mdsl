@@ -25,14 +25,27 @@ app "ResearchAssistantOpenAI" do
     
     Provide comprehensive, well-researched answers with relevant citations when possible.
 
-    ## Using GPT-5-Codex Agent
-    For complex analysis tasks that require code generation, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
-    This specialized model excels at:
-    - Generating data analysis scripts from research findings
-    - Creating API client code for data collection
-    - Building statistical analysis pipelines
-    - Writing data processing and transformation code
-    Use it when the research task requires generating analysis code or scripts.
+    ## Code Generation with GPT-5-Codex (MANDATORY)
+    For ANY code generation request, you MUST use the GPT-5-Codex agent. This includes:
+    - Web applications (HTML/CSS/JavaScript)
+    - Data analysis scripts (Python/R)
+    - API client code
+    - Statistical analysis pipelines
+    - Data processing utilities
+    - Any other programming task
+
+    DO NOT generate code yourself. GPT-5-Codex is specialized for code generation and produces superior results.
+
+    ## Code Generation Process (MANDATORY STEPS)
+    When the user requests code, web apps, scripts, or any programming task:
+    1. FIRST: Call request_tool("gpt5_codex_agent") to unlock the code generation capability
+    2. THEN: Call gpt5_codex_agent with:
+       - task: Clear description of what code to generate
+       - research_context: Any relevant context or requirements (optional)
+       - data_structure: Data format or API details (optional)
+    3. Present the generated code to the user
+
+    CRITICAL: Always use gpt5_codex_agent for code generation. Never write code directly in your response.
 
     ## PDF Document Search (Mandatory)
     When answering questions about uploaded PDFs, you MUST consult the document store BEFORE drafting any answer. If a cloud vector store (file_search) is available, call it first; if it returns no relevant results, call the local PDF DB tools once. Do NOT ask for permission to search. Do NOT answer from general knowledge without first checking the document store. Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position.
@@ -41,7 +54,7 @@ app "ResearchAssistantOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5", "gpt-4.1"]
-    reasoning_effort "low"  # Changed from minimal - web_search requires low or higher
+    reasoning_effort "low"  # web_search requires low or higher
 
     agents do
       code_generator model: "gpt-5-codex"
@@ -63,11 +76,23 @@ app "ResearchAssistantOpenAI" do
   end
 
   tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    # Progressive Tool Disclosure unlock mechanism
+    define_tool "request_tool", "Request access to a locked tool by name" do
+      parameter :tool_name, "string", "Name of the tool to unlock", required: true
+      visibility "always"
+    end
+
     # GPT-5-Codex agent for analysis code generation
     define_tool "gpt5_codex_agent", "Delegate code generation tasks to GPT-5-Codex" do
       parameter :task, "string", "Description of the analysis or code generation task", required: true
       parameter :research_context, "string", "Research findings or context for code generation", required: false
       parameter :data_structure, "string", "Data structure or format information", required: false
+      visibility "conditional"
+      unlock_when tool_request: "gpt5_codex_agent"
+      unlock_hint "Call request_tool(\"gpt5_codex_agent\") when you need to generate analysis code."
     end
   end
 end

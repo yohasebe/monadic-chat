@@ -752,6 +752,19 @@ module OpenAIHelper
         # keep app_tools as-is on any error
       end
       
+      if APPS[app]
+        begin
+          app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+            app_name: app,
+            session: session,
+            app_settings: APPS[app].settings,
+            default_tools: app_tools
+          )
+        rescue StandardError => e
+          DebugHelper.debug("OpenAI: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+        end
+      end
+      
       # Tool detection logging removed - not needed in production
       
       if tools_param && !tools_param.empty?
@@ -1165,6 +1178,7 @@ module OpenAIHelper
             output_items = []
 
             # Add reasoning content if present
+            has_reasoning = false
             reasoning_items_payload = msg["reasoning_items"] || msg[:reasoning_items]
             if reasoning_items_payload && !reasoning_items_payload.empty?
               Array(reasoning_items_payload).each do |entry|
@@ -1174,6 +1188,7 @@ module OpenAIHelper
                 normalized = entry.transform_keys { |k| k.to_s }
                 normalized["type"] ||= "reasoning"
                 output_items << normalized
+                has_reasoning = true
               end
             else
               reasoning_text = msg["reasoning_content"] || msg[:reasoning_content]
@@ -1187,11 +1202,13 @@ module OpenAIHelper
                     }
                   ]
                 }
+                has_reasoning = true
               end
             end
 
-            # Add text content if present
-            if content
+            # Add text content (REQUIRED after reasoning, even if empty)
+            # OpenAI Responses API requires a message item to follow reasoning items
+            if content || has_reasoning
               output_items << {
                 "type" => "message",
                 "role" => "assistant",

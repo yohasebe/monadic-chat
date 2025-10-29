@@ -167,6 +167,10 @@ module MDSLSchema
       description: "Array of tool definitions",
       element_type: :hash
     },
+    progressive_tools: {
+      type: :hash,
+      description: "Metadata describing conditional tool disclosure behaviour"
+    },
     cells: {
       type: :array,
       description: "Array of Jupyter notebook cells",

@@ -67,13 +67,12 @@ app "WikipediaOpenAI" do
   end
   
   tools do
+    # Import shared web tools (always visible - Phase 1)
+    import_shared_tools :web_tools, visibility: "always"
+
     define_tool "search_wikipedia", "Search Wikipedia articles using the Wikimedia API" do
       parameter :search_query, "string", "The search query for Wikipedia", required: true
       parameter :language_code, "string", "Language code for Wikipedia (default: 'en')", required: false
-    end
-
-    define_tool "fetch_web_content", "Fetch content from a web URL" do
-      parameter :url, "string", "The URL to fetch content from", required: true
     end
   end
 end

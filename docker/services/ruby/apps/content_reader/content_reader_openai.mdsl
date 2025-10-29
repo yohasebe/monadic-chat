@@ -76,6 +76,9 @@ app "ContentReaderOpenAI" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import shared web tools (always visible - Phase 1)
+    import_shared_tools :web_tools, visibility: "always"
+
     define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
       parameter :pdf, "string", "The filename of the PDF to read", required: true
     end
@@ -95,14 +98,6 @@ app "ContentReaderOpenAI" do
 
     define_tool "analyze_audio", "Analyze and transcribe audio from an audio file" do
       parameter :audio, "string", "The filename of the audio to analyze", required: true
-    end
-
-    define_tool "fetch_web_content", "Fetch and extract text content from a web URL" do
-      parameter :url, "string", "The URL to fetch content from", required: true
-    end
-
-    define_tool "tavily_search", "Search the web using Tavily search engine" do
-      parameter :query, "string", "The search query", required: true
     end
   end
 end

@@ -227,279 +227,6 @@ app "JupyterNotebookGemini" do
   TEXT
 
   # Define tools for Jupyter Notebook operations
-  tools [
-    {
-      "name" => "create_and_populate_jupyter_notebook",
-      "description" => "Create a new Jupyter notebook AND add cells in one operation (GEMINI PREFERRED)",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "Base filename for the notebook (without .ipynb extension)"
-          },
-          "cells" => {
-            "type" => "array",
-            "description" => "Array of cell objects to add to the notebook",
-            "items" => {
-              "type" => "object",
-              "properties" => {
-                "cell_type" => {
-                  "type" => "string",
-                  "enum" => ["code", "markdown"]
-                },
-                "source" => {
-                  "type" => "string",
-                  "description" => "Cell content"
-                }
-              }
-            }
-          }
-        },
-        "required" => ["filename", "cells"]
-      }
-    },
-    {
-      "name" => "run_jupyter",
-      "description" => "Start or stop JupyterLab server",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "command" => {
-            "type" => "string",
-            "description" => "Command to run (start or stop)",
-            "enum" => ["start", "stop"]
-          }
-        },
-        "required" => ["command"]
-      }
-    },
-    {
-      "name" => "create_jupyter_notebook",
-      "description" => "Create a new Jupyter notebook",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "Base filename for the notebook (without .ipynb extension)"
-          }
-        },
-        "required" => ["filename"]
-      }
-    },
-    {
-      "name" => "add_jupyter_cells",
-      "description" => "Add and run cells in a Jupyter notebook",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "The notebook filename"
-          },
-          "cells" => {
-            "type" => "array",
-            "description" => "Array of cell objects to add",
-            "items" => {
-              "type" => "object",
-              "properties" => {
-                "cell_type" => {
-                  "type" => "string",
-                  "enum" => ["code", "markdown"]
-                },
-                "source" => {
-                  "type" => "string",
-                  "description" => "Cell content"
-                }
-              }
-            }
-          },
-          "run" => {
-            "type" => "boolean",
-            "description" => "Whether to run the cells after adding",
-            "default" => true
-          },
-          "escaped" => {
-            "type" => "boolean",
-            "description" => "Whether content is escaped",
-            "default" => false
-          }
-        },
-        "required" => ["filename", "cells"]
-      }
-    },
-    {
-      "name" => "delete_jupyter_cell",
-      "description" => "Delete a cell from a Jupyter notebook",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "The notebook filename"
-          },
-          "index" => {
-            "type" => "integer",
-            "description" => "The index of the cell to delete (0-based)"
-          }
-        },
-        "required" => ["filename", "index"]
-      }
-    },
-    {
-      "name" => "update_jupyter_cell",
-      "description" => "Update the content of a cell in a Jupyter notebook",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "The notebook filename"
-          },
-          "index" => {
-            "type" => "integer",
-            "description" => "The index of the cell to update (0-based)"
-          },
-          "content" => {
-            "type" => "string",
-            "description" => "The new content for the cell"
-          },
-          "cell_type" => {
-            "type" => "string",
-            "description" => "The type of cell (code or markdown)",
-            "enum" => ["code", "markdown"]
-          }
-        },
-        "required" => ["filename", "index", "content"]
-      }
-    },
-    {
-      "name" => "get_jupyter_cells_with_results",
-      "description" => "Get all cells with their execution results, including error information",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "The notebook filename"
-          }
-        },
-        "required" => ["filename"]
-      }
-    },
-    {
-      "name" => "execute_and_fix_jupyter_cells",
-      "description" => "Execute cells and get error information for fixing",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "The notebook filename"
-          },
-          "max_retries" => {
-            "type" => "integer",
-            "description" => "Maximum number of retry attempts",
-            "default" => 3
-          }
-        },
-        "required" => ["filename"]
-      }
-    },
-    {
-      "name" => "run_code",
-      "description" => "Run program code and return the output",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "command" => {
-            "type" => "string",
-            "description" => "Program that execute the code (e.g., 'python')"
-          },
-          "code" => {
-            "type" => "string",
-            "description" => "Program code to be executed"
-          },
-          "extension" => {
-            "type" => "string",
-            "description" => "File extension of the code when it is temporarily saved to be run (e.g., 'py')"
-          }
-        },
-        "required" => ["command", "code", "extension"]
-      }
-    },
-    {
-      "name" => "fetch_text_from_file",
-      "description" => "Fetch the text from a file and return its content",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "file" => {
-            "type" => "string",
-            "description" => "File name or file path"
-          }
-        },
-        "required" => ["file"]
-      }
-    },
-    {
-      "name" => "fetch_text_from_pdf",
-      "description" => "Extract text content from a PDF file",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "pdf" => {
-            "type" => "string",
-            "description" => "The filename of the PDF to read"
-          }
-        },
-        "required" => ["pdf"]
-      }
-    },
-    {
-      "name" => "fetch_text_from_office",
-      "description" => "Extract text content from Office files",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "file" => {
-            "type" => "string",
-            "description" => "The filename of the Office file to read"
-          }
-        },
-        "required" => ["file"]
-      }
-    },
-    {
-      "name" => "write_to_file",
-      "description" => "Write content to a file",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {
-          "filename" => {
-            "type" => "string",
-            "description" => "File name or file path"
-          },
-          "content" => {
-            "type" => "string",
-            "description" => "Content to write to the file"
-          }
-        },
-        "required" => ["filename", "content"]
-      }
-    },
-    {
-      "name" => "list_jupyter_notebooks",
-      "description" => "List all Jupyter notebooks in the data directory",
-      "parameters" => {
-        "type" => "object",
-        "properties" => {},
-        "required" => []
-      }
-    }
-  ]
-
   # Disable monadic mode for better function calling compatibility (like Grok)
   # Use natural language responses with embedded context information
   monadic false
@@ -513,7 +240,23 @@ app "JupyterNotebookGemini" do
   end
 
   tools do
+    # Import shared Jupyter operations tools (always visible - Phase 1)
+    import_shared_tools :jupyter_operations, visibility: "always"
+
+    # Import shared Python execution tools (always visible - Phase 1)
+    import_shared_tools :python_execution, visibility: "always"
+
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import shared file reading tools (always visible - Phase 1)
+    import_shared_tools :file_reading, visibility: "always"
+
+    # Gemini-specific combined tool for optimal parallel function calling
+    # This creates the notebook AND adds cells in ONE operation
+    define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (GEMINI PREFERRED)" do
+      parameter :filename, "string", "Base filename for the notebook (without .ipynb extension)", required: true
+      parameter :cells, "array", "Array of cell objects to add to the notebook", required: true
+    end
   end
 end

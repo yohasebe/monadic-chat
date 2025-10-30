@@ -46,9 +46,9 @@ app "ImageGeneratorOpenAI" do
     "Welcome! I can help you generate, edit, and create variations of images using OpenAI's models.
 
     **Available Models:**
-    - **gpt-image-1**: Latest model (sizes up to 1792x1024, transparent backgrounds, multiple formats)
+    - **gpt-image-1**: Latest model (sizes up to 1536x1024, transparent backgrounds, multiple formats)
     - **gpt-image-1-mini**: Cost-efficient version, same capabilities but faster
-    - **dall-e-3**: Previous generation (sizes up to 1536x1024)
+    - **dall-e-3**: Previous generation (sizes up to 1792x1024)
     - **dall-e-2**: Legacy model, supports variations
 
     Simply describe the image you want, or upload an image to edit it!"
@@ -89,10 +89,10 @@ app "ImageGeneratorOpenAI" do
        - User specifies dimensions → validate against model capabilities
        - User says "tall" or "portrait":
          • DALL-E 3 → 1024x1792
-         • GPT-Image-1 → 1024x1536
+         • GPT-Image-1/mini → 1024x1536
        - User says "wide" or "landscape":
          • DALL-E 3 → 1792x1024
-         • GPT-Image-1 → 1536x1024
+         • GPT-Image-1/mini → 1536x1024
        - Default → 1024x1024
 
        Model size constraints:
@@ -101,9 +101,9 @@ app "ImageGeneratorOpenAI" do
        - gpt-image-1/mini: 1024x1024, 1536x1024, 1024x1536
 
        CRITICAL: Before calling the tool, verify size is valid for selected model:
-       - If user requests 1792x1024 or 1024x1792, MUST use dall-e-3
+       - If user requests 1792x1024 or 1024x1792, MUST use dall-e-3 (gpt-image-1 does NOT support these sizes)
        - If user requests 1536x1024 or 1024x1536, can use gpt-image-1/mini or dall-e-3
-       - If model is gpt-image-1/mini and size is 1792x*, change to 1536x* and inform user
+       - If model is gpt-image-1/mini and user requests 1792x* size, AUTO-CORRECT to 1536x* and inform user
 
     5. Quality Detection:
        - gpt-image-1/mini: "high" (default), "medium", "low", or "auto"

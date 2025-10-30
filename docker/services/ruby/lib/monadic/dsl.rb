@@ -1040,6 +1040,31 @@ module MonadicDSL
         @state.settings[:agents] = config.to_hash
       end
     end
+
+    # Import shared tools at app level (delegates to ToolConfiguration)
+    # This allows import_shared_tools to be called outside of tools {} block
+    def import_shared_tools(*groups, **options)
+      # Get current provider
+      provider = @state.settings[:provider].to_s.downcase.to_sym
+
+      # Create or get existing tool configuration
+      tool_config = ToolConfiguration.new(@state, provider)
+
+      # If tools are already defined, we need to merge with existing configuration
+      if @state.settings[:tools]
+        # Load existing tools into tool_config
+        existing_tools = @state.settings[:tools]
+        if existing_tools.is_a?(Hash) && existing_tools[:tools]
+          tool_config.instance_variable_set(:@tools, existing_tools[:tools])
+        end
+      end
+
+      # Import the shared tools
+      tool_config.import_shared_tools(*groups, **options)
+
+      # Update state with the new configuration
+      @state.settings[:tools] = tool_config.to_h
+    end
   end
 
   # Description builder for multi-language support

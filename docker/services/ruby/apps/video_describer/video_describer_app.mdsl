@@ -78,12 +78,8 @@ app "VideoDescriberApp" do
     image true
     initiate_from_assistant true
   end
-  
+
   tools do
-    define_tool "analyze_video", "Analyze video content and generate description" do
-      parameter :filename, "string", "The video file to analyze", required: true
-      parameter :fps, "integer", "Frames per second to extract (default: 1)", required: false
-      parameter :query, "string", "Query to guide the analysis", required: false
-    end
+    import_shared_tools :content_analysis_openai, visibility: "conditional"
   end
 end

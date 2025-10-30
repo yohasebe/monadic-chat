@@ -23,6 +23,7 @@ RSpec.describe CodingAssistantTools do
       allow(File).to receive(:read).and_return("test content")
       allow(File).to receive(:size).and_return(100)
       allow(File).to receive(:mtime).and_return(Time.now)
+      allow(File).to receive(:ctime).and_return(Time.now)
       allow(app).to receive(:validate_file_path).and_return(true)
     end
 

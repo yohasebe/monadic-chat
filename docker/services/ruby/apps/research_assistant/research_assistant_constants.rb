@@ -1,6 +1,4 @@
 module ResearchAssistant
-  include WebSearchAgent
-
   ICON = "flask"
 
   DESCRIPTION = <<~TEXT

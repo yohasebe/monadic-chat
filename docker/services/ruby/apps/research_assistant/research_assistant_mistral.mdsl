@@ -64,13 +64,7 @@ app "ResearchAssistantMistral" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
-    define_tool "tavily_search", "Perform a Tavily web search and return summarized results with citations" do
-      parameter :query, "string", "Search query to send to Tavily", required: true
-      parameter :n, "integer", "Number of results to return (default: 3)", required: false
-    end
-
-    define_tool "tavily_fetch", "Fetch the full content of a URL returned by Tavily search" do
-      parameter :url, "string", "URL of the page to fetch", required: true
-    end
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
   end
 end

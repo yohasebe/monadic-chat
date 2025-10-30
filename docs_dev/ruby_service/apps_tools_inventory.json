@@ -1,0 +1,386 @@
+{
+  "metadata": {
+    "title": "Monadic Chat Apps - Tools Inventory",
+    "description": "Comprehensive inventory of shared tool groups and custom tools across all Monadic Chat applications",
+    "generated_date": "2025-10-30",
+    "total_apps": 31,
+    "total_mdsl_files": 120,
+    "shared_tool_groups": 8
+  },
+  "shared_tool_groups": {
+    "file_operations": {
+      "module": "MonadicSharedTools::FileOperations",
+      "visibility": "always",
+      "description": "Read, write, and list files in the shared folder",
+      "tools": [
+        {
+          "name": "read_file_from_shared_folder",
+          "description": "Read a file from shared folder and return its content with metadata"
+        },
+        {
+          "name": "write_file_to_shared_folder",
+          "description": "Write or append content to a file (supports Unicode and subdirectories)"
+        },
+        {
+          "name": "list_files_in_shared_folder",
+          "description": "List all files and directories in a folder or subdirectory"
+        }
+      ],
+      "used_by_apps": 10,
+      "apps": [
+        "chat_plus",
+        "coding_assistant",
+        "content_reader",
+        "document_generator",
+        "jupyter_notebook",
+        "mail_composer",
+        "novel_writer",
+        "research_assistant",
+        "speech_draft_helper",
+        "syntax_tree"
+      ]
+    },
+    "python_execution": {
+      "module": "MonadicSharedTools::PythonExecution",
+      "visibility": "always",
+      "description": "Execute Python, Ruby, Shell, and other code",
+      "tools": [
+        {
+          "name": "run_code",
+          "description": "Execute program code and return the output"
+        },
+        {
+          "name": "run_bash_command",
+          "description": "Execute a bash command in the Python container"
+        },
+        {
+          "name": "check_environment",
+          "description": "Check the Python container environment"
+        },
+        {
+          "name": "lib_installer",
+          "description": "Install a library using package manager (pip, uv, or apt)"
+        }
+      ],
+      "used_by_apps": 3,
+      "apps": [
+        "code_interpreter",
+        "jupyter_notebook",
+        "math_tutor"
+      ]
+    },
+    "file_reading": {
+      "module": "MonadicSharedTools::FileReading",
+      "visibility": "always",
+      "description": "Read text from various file types",
+      "tools": [
+        {
+          "name": "fetch_text_from_file",
+          "description": "Read text content from files (txt, code, data files, etc.)"
+        },
+        {
+          "name": "fetch_text_from_pdf",
+          "description": "Extract text content from a PDF file with full-page support"
+        },
+        {
+          "name": "fetch_text_from_office",
+          "description": "Extract text from Office files (docx, xlsx, pptx)"
+        }
+      ],
+      "used_by_apps": 3,
+      "apps": [
+        "code_interpreter",
+        "jupyter_notebook",
+        "math_tutor"
+      ]
+    },
+    "web_search_tools": {
+      "module": "MonadicSharedTools::WebSearchTools",
+      "visibility": "conditional",
+      "description": "Search the web and fetch content from URLs",
+      "tools": [
+        {
+          "name": "search_web",
+          "description": "Search the web using provider-appropriate search method"
+        },
+        {
+          "name": "fetch_web_content",
+          "description": "Fetch content from a URL and save to shared folder"
+        },
+        {
+          "name": "tavily_search",
+          "description": "Perform a Tavily web search and return summarized results"
+        },
+        {
+          "name": "tavily_fetch",
+          "description": "Fetch the full content of a URL using Tavily API"
+        }
+      ],
+      "used_by_apps": 4,
+      "apps": [
+        "content_reader",
+        "mermaid_grapher",
+        "research_assistant",
+        "wikipedia"
+      ]
+    },
+    "web_automation": {
+      "module": "MonadicSharedTools::WebAutomation",
+      "visibility": "conditional",
+      "description": "Capture and interact with web pages using Selenium",
+      "tools": [
+        {
+          "name": "capture_viewport_screenshots",
+          "description": "Capture a web page as multiple viewport-sized screenshots"
+        },
+        {
+          "name": "list_captured_screenshots",
+          "description": "List all screenshots captured in current session"
+        },
+        {
+          "name": "get_viewport_presets",
+          "description": "Get available viewport preset dimensions"
+        },
+        {
+          "name": "capture_webpage_text",
+          "description": "Extract text content from a web page in Markdown format"
+        },
+        {
+          "name": "debug_application",
+          "description": "Debug a generated web application using Selenium"
+        }
+      ],
+      "used_by_apps": 2,
+      "apps": [
+        "auto_forge",
+        "visual_web_explorer"
+      ]
+    },
+    "content_analysis_openai": {
+      "module": "MonadicSharedTools::ContentAnalysisOpenAI",
+      "visibility": "conditional",
+      "description": "Analyze video, image, and audio content using OpenAI's multimodal capabilities",
+      "tools": [
+        {
+          "name": "analyze_video",
+          "description": "Analyze video content and generate description"
+        },
+        {
+          "name": "analyze_image",
+          "description": "Analyze and describe image contents using OpenAI vision"
+        },
+        {
+          "name": "analyze_audio",
+          "description": "Analyze and transcribe audio using OpenAI's Whisper"
+        }
+      ],
+      "used_by_apps": 3,
+      "apps": [
+        "content_reader",
+        "speech_draft_helper",
+        "video_describer"
+      ]
+    },
+    "jupyter_operations": {
+      "module": "MonadicSharedTools::JupyterOperations",
+      "visibility": "always",
+      "description": "Create, manage, and execute Jupyter notebooks",
+      "tool_count": 11,
+      "used_by_apps": 1,
+      "apps": [
+        "jupyter_notebook"
+      ]
+    },
+    "app_creation": {
+      "module": "MonadicSharedTools::AppCreation",
+      "visibility": "always",
+      "description": "List and create Monadic Chat applications",
+      "tools": [
+        {
+          "name": "list_monadic_apps",
+          "description": "List all available Monadic Chat applications"
+        },
+        {
+          "name": "get_app_info",
+          "description": "Get detailed information about a specific app"
+        },
+        {
+          "name": "create_simple_app_template",
+          "description": "Create a basic app template file"
+        }
+      ],
+      "used_by_apps": 0,
+      "apps": []
+    }
+  },
+  "apps": {
+    "auto_forge": {
+      "display_name": "AutoForge",
+      "providers": ["claude", "grok", "openai"],
+      "imported_tools": {
+        "web_automation": "conditional"
+      },
+      "custom_tools": [
+        {
+          "name": "generate_application",
+          "description": "Generate a complete application"
+        },
+        {
+          "name": "validate_specification",
+          "description": "Validate application specification"
+        },
+        {
+          "name": "list_projects",
+          "description": "List previously generated AutoForge projects"
+        },
+        {
+          "name": "generate_additional_file",
+          "description": "Generate additional files for CLI projects"
+        }
+      ]
+    },
+    "chat": {
+      "display_name": "Chat",
+      "providers": [
+        "claude", "cohere", "deepseek", "gemini", "grok",
+        "mistral", "ollama", "openai", "perplexity"
+      ],
+      "imported_tools": {},
+      "custom_tools": []
+    },
+    "chat_plus": {
+      "display_name": "ChatPlus",
+      "providers": [
+        "claude", "cohere", "deepseek", "gemini", "grok",
+        "mistral", "ollama", "openai", "perplexity"
+      ],
+      "imported_tools": {
+        "file_operations": "always"
+      },
+      "custom_tools": []
+    },
+    "code_interpreter": {
+      "display_name": "CodeInterpreter",
+      "providers": ["claude", "cohere", "deepseek", "gemini", "grok", "mistral", "openai"],
+      "imported_tools": {
+        "python_execution": "always",
+        "file_reading": "always"
+      },
+      "custom_tools_by_provider": {
+        "openai": [
+          {
+            "name": "gpt5_codex_agent",
+            "description": "Delegate complex Python coding tasks to GPT-5-Codex"
+          }
+        ],
+        "grok": [
+          {
+            "name": "grok_code_agent",
+            "description": "Call Grok-Code-Fast-1 agent for complex Python code generation tasks"
+          }
+        ]
+      }
+    },
+    "jupyter_notebook": {
+      "display_name": "JupyterNotebook",
+      "providers": ["claude", "gemini", "grok", "openai"],
+      "imported_tools": {
+        "jupyter_operations": "always",
+        "python_execution": "always",
+        "file_operations": "always",
+        "file_reading": "always"
+      },
+      "custom_tools": [],
+      "custom_tools_by_provider": {
+        "openai": [
+          {
+            "name": "gpt5_codex_agent",
+            "description": "Delegate complex notebook coding tasks to GPT-5-Codex"
+          }
+        ],
+        "gemini": [
+          {
+            "name": "create_and_populate_jupyter_notebook",
+            "description": "Create a new Jupyter notebook AND add cells in one operation"
+          }
+        ],
+        "grok": [
+          {
+            "name": "create_and_populate_jupyter_notebook",
+            "description": "Create a new Jupyter notebook AND add cells in one operation"
+          },
+          {
+            "name": "grok_code_agent",
+            "description": "Call Grok-Code-Fast-1 agent for complex notebook code generation"
+          }
+        ]
+      }
+    },
+    "research_assistant": {
+      "display_name": "ResearchAssistant",
+      "providers": ["claude", "cohere", "deepseek", "gemini", "grok", "mistral", "openai"],
+      "imported_tools": {
+        "file_operations": "always",
+        "web_search_tools": "conditional"
+      },
+      "custom_tools_by_provider": {
+        "openai": [
+          {
+            "name": "request_tool",
+            "description": "Request access to a locked tool by name"
+          },
+          {
+            "name": "gpt5_codex_agent",
+            "description": "Delegate code generation tasks to GPT-5-Codex"
+          }
+        ],
+        "grok": [
+          {
+            "name": "request_tool",
+            "description": "Request access to a locked tool by name"
+          },
+          {
+            "name": "grok_code_agent",
+            "description": "Call Grok-Code-Fast-1 agent for code generation in research context"
+          }
+        ]
+      }
+    }
+  },
+  "statistics": {
+    "apps_by_tool_group": {
+      "file_operations": 10,
+      "web_search_tools": 4,
+      "python_execution": 3,
+      "file_reading": 3,
+      "content_analysis_openai": 3,
+      "web_automation": 2,
+      "jupyter_operations": 1,
+      "app_creation": 0
+    },
+    "apps_with_no_tools": [
+      "chat",
+      "language_practice",
+      "language_practice_plus",
+      "translate",
+      "voice_chat",
+      "voice_interpreter"
+    ],
+    "apps_with_most_imports": [
+      {
+        "app": "jupyter_notebook",
+        "imports": 4,
+        "groups": ["jupyter_operations", "python_execution", "file_operations", "file_reading"]
+      },
+      {
+        "app": "content_reader",
+        "imports": 3,
+        "groups": ["file_operations", "web_search_tools", "content_analysis_openai"]
+      }
+    ],
+    "visibility_distribution": {
+      "always": 5,
+      "conditional": 3
+    }
+  }
+}

@@ -111,11 +111,9 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         if content.include?("second_opinion")
           expect(content).to match(/include\s+SecondOpinionAgent/), "#{file} should include SecondOpinionAgent"
         end
-        
-        # Check for websearch method calls, not just string mentions
-        if content.match(/def\s+websearch|\.websearch|websearch_agent\(/)
-          expect(content).to match(/include\s+WebSearchAgent/), "#{file} should include WebSearchAgent"
-        end
+
+        # Note: Web search functionality is now provided by WebSearchTools shared module
+        # No need to check for WebSearchAgent include - apps use import_shared_tools :web_search_tools instead
       end
     end
 
@@ -386,25 +384,32 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         
         next if mdsl_files.empty? || ruby_files.empty?
         
-        # Extract tool methods from each Ruby file
-        ruby_files.each do |ruby_file|
-          discoverable_tools = extract_tool_methods_from_ruby(ruby_file, standard_tools)
-          
-          # Check definition status in corresponding MDSL files
-          mdsl_files.each do |mdsl_file|
+        # Check definition status in corresponding MDSL files
+        mdsl_files.each do |mdsl_file|
+          # Derive class name from MDSL filename (e.g., image_generator_openai.mdsl -> ImageGeneratorOpenAI)
+          mdsl_basename = File.basename(mdsl_file, '.mdsl')
+          class_name = mdsl_basename.split('_').map(&:capitalize).join
+
+          # Extract tool methods from Ruby file for this specific class
+          ruby_files.each do |ruby_file|
+            discoverable_tools = extract_tool_methods_from_ruby(ruby_file, standard_tools, class_name)
+
+            # Skip if no tools found for this class (class might not exist in this file)
+            next if discoverable_tools.empty?
+
             explicit_tools = extract_tools_from_mdsl(mdsl_file)
             auto_completion_enabled = has_auto_completion_comment(mdsl_file)
-            
+
             # If auto-completion is enabled, tools don't need explicit definitions
             if auto_completion_enabled
               next # Skip validation for auto-completed tools
             end
-            
+
             missing_definitions = discoverable_tools - explicit_tools
-            
+
             # Report undefined tools only when auto-completion is NOT enabled
             missing_definitions.each do |tool_name|
-              test_errors << "Tool '#{tool_name}' implemented in #{ruby_file} but not defined in #{mdsl_file} (auto-completion not enabled)"
+              test_errors << "Tool '#{tool_name}' implemented in #{class_name} (#{ruby_file}) but not defined in #{mdsl_file} (auto-completion not enabled)"
             end
           end
         end
@@ -501,7 +506,12 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       app_dirs = Dir.glob(File.join(app_base_dir, "*/"))
       
       # Provider-specific tools that are OK to differ
-      provider_specific_tools = %w[websearch_agent tavily_search generate_video_with_veo]
+      provider_specific_tools = %w[
+        websearch_agent tavily_search generate_video_with_veo
+        generate_image_with_openai generate_image_with_gemini generate_image_with_grok
+        generate_video_with_sora
+        gpt5_codex_agent grok_code_agent
+      ]
       
       app_dirs.each do |app_dir|
         mdsl_files = Dir.glob(File.join(app_dir, "*.mdsl"))
@@ -570,19 +580,33 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
     known_standard
   end
 
-  def extract_tool_methods_from_ruby(ruby_file, standard_tools)
+  def extract_tool_methods_from_ruby(ruby_file, standard_tools, target_class_name = nil)
     content = File.read(ruby_file)
-    
+
+    # If target_class_name is specified, only extract methods from that specific class
+    if target_class_name
+      # Find the class definition and extract methods only from that class
+      class_match = content.match(/class\s+#{Regexp.escape(target_class_name)}\s+<.*?$(.*?)(?=^class\s|\z)/m)
+      if class_match
+        class_content = class_match[1]
+      else
+        # Class not found in file, return empty array
+        return []
+      end
+    else
+      class_content = content
+    end
+
     # Find the private keyword position to separate public from private methods
-    private_keyword_pos = content.index(/^\s*private\s*$/)
-    
+    private_keyword_pos = class_content.index(/^\s*private\s*$/)
+
     # If there's a private section, only consider methods before it
     if private_keyword_pos
-      public_content = content[0...private_keyword_pos]
+      public_content = class_content[0...private_keyword_pos]
     else
-      public_content = content
+      public_content = class_content
     end
-    
+
     # Extract method definitions that could be tools from public section only
     methods = public_content.scan(/def\s+(\w+)/).flatten
 
@@ -591,13 +615,30 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
     potential_tools = methods.reject { |method|
       method.match?(excluded_patterns) || standard_tools.include?(method)
     }
-    
+
     potential_tools
   end
 
   def extract_tools_from_mdsl(mdsl_file)
     content = File.read(mdsl_file)
-    content.scan(/define_tool\s+"([^"]+)"/).flatten
+
+    # Extract explicitly defined tools
+    explicit_tools = content.scan(/define_tool\s+"([^"]+)"/).flatten
+
+    # Extract tools from import_shared_tools
+    imported_tools = []
+    import_matches = content.scan(/import_shared_tools\s+:(\w+)/)
+
+    import_matches.each do |group_name_match|
+      group_name = group_name_match[0].to_sym
+      # Look up tools in the registry
+      if MonadicSharedTools::Registry.group_exists?(group_name)
+        registry_tools = MonadicSharedTools::Registry.tools_for(group_name)
+        imported_tools.concat(registry_tools.map { |t| t[:name] })
+      end
+    end
+
+    explicit_tools + imported_tools
   end
 
   def has_auto_completion_comment(mdsl_file)

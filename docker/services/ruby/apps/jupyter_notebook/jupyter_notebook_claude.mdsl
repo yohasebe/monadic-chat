@@ -32,9 +32,7 @@ app "JupyterNotebookClaude" do
   icon "rocket"
   
   display_name "Jupyter Notebook"
-  
-  include_modules "WebSearchAgent"
-  
+
   llm do
     provider "anthropic"
     model "claude-sonnet-4-5-20250929"

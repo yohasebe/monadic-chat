@@ -30,9 +30,7 @@ app "MermaidGrapherOpenAI" do
   end
   icon "diagram"
   display_name "Mermaid Grapher"
-  
-  include_modules "WebSearchAgent"
-  
+
   system_prompt <<~TEXT
     You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.
 
@@ -259,10 +257,9 @@ Mermaid code goes here (without "mermaid" tags and Markdown code block)
   end
   
   tools do
-    define_tool "websearch_agent", "Search the web for Mermaid.js syntax examples and documentation" do
-      parameter :query, "string", "Search query (e.g., 'Mermaid.js mindmap syntax example')", required: true
-    end
-    
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
+
     define_tool "validate_mermaid_syntax", "Validate Mermaid diagram syntax before showing to user - ALWAYS use this" do
       parameter :code, "string", "Mermaid diagram code to validate", required: true
     end

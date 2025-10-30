@@ -16,6 +16,8 @@
 ### 機能
 - [言語対応アプリ](language_aware_apps.md) - 多言語アプリケーションサポート
 - [思考/推論表示](thinking_reasoning_display.md) - 内部推論プロセスの可視化
+- [Progressive Tool Disclosure](progressive_tool_disclosure.md) - 動的ツール可用性管理
+- [アプリツールインベントリ](../../../ruby_service/apps_tools_inventory.md) - 全アプリにおける共有ツールグループとカスタムツールの包括的なインベントリ
 
 ### テスト
 - [テスト](testing/) - Rubyサービステストドキュメント

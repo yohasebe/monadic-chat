@@ -143,8 +143,8 @@ module MonadicSharedTools
         default_hint: "Call request_tool(\"python_execution\") when you need to run Python code, execute bash commands, or inspect the execution environment."
       },
 
-      web_tools: {
-        module_name: 'MonadicSharedTools::WebTools',
+      web_search_tools: {
+        module_name: 'MonadicSharedTools::WebSearchTools',
         tools: [
           {
             name: "search_web",
@@ -181,9 +181,41 @@ module MonadicSharedTools
                 required: false
               }
             ]
+          },
+          {
+            name: "tavily_search",
+            description: "Perform a Tavily web search and return summarized results with citations (requires TAVILY_API_KEY)",
+            parameters: [
+              {
+                name: :query,
+                type: "string",
+                description: "Search query to send to Tavily",
+                required: true
+              },
+              {
+                name: :n,
+                type: "integer",
+                description: "Number of results to return (default: 3)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "tavily_fetch",
+            description: "Fetch the full content of a URL using Tavily API (requires TAVILY_API_KEY)",
+            parameters: [
+              {
+                name: :url,
+                type: "string",
+                description: "URL of the page to fetch",
+                required: true
+              }
+            ]
           }
         ],
-        default_hint: "Call request_tool(\"web_tools\") when you need to search the web or fetch content from URLs."
+        default_hint: "Call request_tool(\"web_search_tools\") when you need to search the web or fetch content from URLs.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::WebSearchTools.available? }
       },
 
       app_creation: {
@@ -374,8 +406,8 @@ module MonadicSharedTools
         available_when: -> { MonadicSharedTools::WebAutomation.available? }
       },
 
-      video_analysis_openai: {
-        module_name: 'MonadicSharedTools::VideoAnalysisOpenAI',
+      content_analysis_openai: {
+        module_name: 'MonadicSharedTools::ContentAnalysisOpenAI',
         tools: [
           {
             name: "analyze_video",
@@ -400,11 +432,41 @@ module MonadicSharedTools
                 required: false
               }
             ]
+          },
+          {
+            name: "analyze_image",
+            description: "Analyze and describe the contents of an image file using OpenAI's vision capabilities",
+            parameters: [
+              {
+                name: :message,
+                type: "string",
+                description: "Question or instruction about the image",
+                required: true
+              },
+              {
+                name: :image_path,
+                type: "string",
+                description: "The filename of the image to analyze",
+                required: true
+              }
+            ]
+          },
+          {
+            name: "analyze_audio",
+            description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
+            parameters: [
+              {
+                name: :audio,
+                type: "string",
+                description: "The filename of the audio to analyze",
+                required: true
+              }
+            ]
           }
         ],
-        default_hint: "Call request_tool(\"video_analysis\") when you need to analyze video content using image recognition and audio transcription.",
+        default_hint: "Call request_tool(\"content_analysis_openai\") when you need to analyze video, image, or audio content using OpenAI's multimodal capabilities.",
         visibility: 'conditional',
-        available_when: -> { MonadicSharedTools::VideoAnalysisOpenAI.available? }
+        available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
       },
 
       jupyter_operations: {

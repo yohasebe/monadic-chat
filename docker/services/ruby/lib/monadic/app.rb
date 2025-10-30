@@ -28,7 +28,6 @@ class MonadicApp
   include MonadicAgent
   include MonadicHelper
   include StringUtils
-  include TavilyHelper
   include MonadicChat::AppExtensions
 
   @model_data = {}

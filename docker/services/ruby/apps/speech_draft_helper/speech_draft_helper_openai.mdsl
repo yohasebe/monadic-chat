@@ -95,6 +95,9 @@ app "SpeechDraftHelperOpenAI" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import shared content analysis tools (conditional - requires OpenAI API key)
+    import_shared_tools :content_analysis_openai, visibility: "conditional"
+
     define_tool "fetch_text_from_file", "Fetch text content from a file" do
       parameter :file, "string", "The filename to read", required: true
     end
@@ -107,15 +110,6 @@ app "SpeechDraftHelperOpenAI" do
       parameter :file, "string", "The filename of the Office file to read", required: true
     end
 
-    define_tool "analyze_image", "Analyze an image and return description" do
-      parameter :message, "string", "Question or instruction about the image", required: true
-      parameter :image_path, "string", "Path to the image file or URL", required: true
-    end
-
-    define_tool "analyze_audio", "Analyze audio and return transcription" do
-      parameter :audio_path, "string", "Path to the audio file", required: true
-    end
-    
     define_tool "list_providers_and_voices", "List the available providers and voices for text-to-speech. A voice data consists of voice_id and name."
 
     define_tool "text_to_speech", "Convert the text to speech to generate an MP3 file and return the filename." do

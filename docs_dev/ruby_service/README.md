@@ -16,6 +16,8 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 ### Features
 - [Language Aware Apps](language_aware_apps.md) - Multi-language application support
 - [Thinking/Reasoning Display](thinking_reasoning_display.md) - Internal reasoning process visualization
+- [Progressive Tool Disclosure](progressive_tool_disclosure.md) - Dynamic tool availability management
+- [Apps Tools Inventory](apps_tools_inventory.md) - Comprehensive inventory of shared tool groups and custom tools across all apps
 
 ### Testing
 - [Testing](testing/) - Ruby service testing documentation

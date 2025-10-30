@@ -1823,35 +1823,17 @@ post "/fetch_webpage" do
   # For AJAX requests, respond with JSON
   if request.xhr?
     content_type :json
-    
+
     if params["pageURL"]
       begin
         url = params["pageURL"]
         url_decoded = CGI.unescape(url)
         label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-        user_data_dir = Monadic::Utils::Environment.data_path
+        # Web UI always uses Selenium for URL fetching
+        # (Tavily is only used within Research Assistant apps)
+        markdown = MonadicApp.fetch_webpage(url)
 
-        tavily_api_key = CONFIG["TAVILY_API_KEY"]
-        puts "[DEBUG fetch_webpage] Tavily API key present: #{!tavily_api_key.nil?}"
-        
-        if tavily_api_key
-          puts "[DEBUG fetch_webpage] Using Tavily to fetch: #{url}"
-          puts "[DEBUG fetch_webpage] Methods available: #{self.methods.grep(/tavily/).inspect}"
-          puts "[DEBUG fetch_webpage] TavilyHelper included? #{self.class.included_modules.include?(TavilyHelper)}"
-          begin
-            markdown = tavily_fetch(url: url)
-            puts "[DEBUG fetch_webpage] Tavily returned: #{markdown.inspect}"
-          rescue => e
-            puts "[DEBUG fetch_webpage] Error calling tavily_fetch: #{e.class} - #{e.message}"
-            puts e.backtrace.first(5).join("\n")
-            markdown = "Error: #{e.message}"
-          end
-        else
-          puts "[DEBUG fetch_webpage] Using Selenium to fetch: #{url}"
-          markdown = MonadicApp.fetch_webpage(url)
-        end
-        
         # Check if we got any meaningful content
         if markdown.to_s.strip.empty?
           return { success: false, error: "No content could be extracted from the webpage" }.to_json
@@ -1863,7 +1845,7 @@ post "/fetch_webpage" do
                 else
                   "---\n" + webpage_text
                 end
-        
+
         { success: true, content: result }.to_json
       rescue => e
         { success: false, error: "Error fetching webpage: #{e.message}" }.to_json
@@ -1872,20 +1854,14 @@ post "/fetch_webpage" do
       { success: false, error: "No URL provided" }.to_json
     end
   else
-    # For regular form submissions, maintain original behavior
+    # For regular form submissions, use Selenium
     if params["pageURL"]
       url = params["pageURL"]
       url_decoded = CGI.unescape(url)
       label = params["urlLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
 
-      user_data_dir = Monadic::Utils::Environment.data_path
-
-      tavily_api_key = CONFIG["TAVILY_API_KEY"]
-      if tavily_api_key
-        markdown = tavily_fetch(url: url)
-      else
-        markdown = MonadicApp.fetch_webpage(url)
-      end
+      # Web UI always uses Selenium for URL fetching
+      markdown = MonadicApp.fetch_webpage(url)
 
       webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
       if label.to_s != ""

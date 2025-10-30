@@ -52,7 +52,7 @@ OpenAIのデフォルトモデルの場合：
 | `DEEPSEEK_API_KEY` | DeepSeek APIキー | はい（DeepSeekアプリ使用時） | `...` |
 | `PERPLEXITY_API_KEY` | Perplexity APIキー | はい（Perplexityアプリ使用時） | `pplx-...` |
 | `XAI_API_KEY` | Grokモデル用のxAI APIキー | はい（Grokアプリ使用時） | `xai-...` |
-| `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー | いいえ | `tvly-...` |
+| `TAVILY_API_KEY` | ウェブ検索用のTavily APIキー（Mistral、Cohere、DeepSeek、Ollamaのウェブ検索に必要） | いいえ | `tvly-...` |
 
 ## モデル設定
 

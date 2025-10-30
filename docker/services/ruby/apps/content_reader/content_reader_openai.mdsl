@@ -30,9 +30,7 @@ app "ContentReaderOpenAI" do
     TEXT
   end
   icon "leanpub"
-  
-  # WebSearchAgent is automatically available when websearch feature is enabled
-  
+
   system_prompt <<~TEXT
     You are a professional who explains various concepts easily to even beginners in the field. You can use whatever language the user is comfortable with.
 
@@ -76,8 +74,11 @@ app "ContentReaderOpenAI" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
-    # Import shared web tools (always visible - Phase 1)
-    import_shared_tools :web_tools, visibility: "always"
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
+
+    # Import shared content analysis tools (conditional - requires OpenAI API key)
+    import_shared_tools :content_analysis_openai, visibility: "conditional"
 
     define_tool "fetch_text_from_pdf", "Extract text content from a PDF file" do
       parameter :pdf, "string", "The filename of the PDF to read", required: true
@@ -89,15 +90,6 @@ app "ContentReaderOpenAI" do
 
     define_tool "fetch_text_from_file", "Read text content from a file" do
       parameter :file, "string", "The filename to read", required: true
-    end
-
-    define_tool "analyze_image", "Analyze and describe the contents of an image file" do
-      parameter :message, "string", "Question or instruction about the image", required: true
-      parameter :image_path, "string", "The filename of the image to analyze", required: true
-    end
-
-    define_tool "analyze_audio", "Analyze and transcribe audio from an audio file" do
-      parameter :audio, "string", "The filename of the audio to analyze", required: true
     end
   end
 end

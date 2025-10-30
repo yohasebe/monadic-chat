@@ -29,9 +29,7 @@ app "LanguagePracticePlusOpenAI" do
     TEXT
   end
   icon "language-practice-plus"
-  
-  # WebSearchAgent is automatically available when websearch feature is enabled
-  
+
   system_prompt <<~TEXT
     You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language.
     

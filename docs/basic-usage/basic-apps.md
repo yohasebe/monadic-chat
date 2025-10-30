@@ -62,7 +62,11 @@ The table below shows which apps are available for which AI model providers.
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search functionality is available for models that support tool/function calling. For providers with native web search support (OpenAI, Claude, Gemini, Grok, Perplexity), it is enabled by default. For other models, it is available when the Tavily API is configured.
+This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search functionality is available for models that support tool/function calling:
+- **Native Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default)
+- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use Tavily API when configured (requires `TAVILY_API_KEY` in configuration)
+
+Additionally, the `From URL` feature in the message input area uses Selenium-based web scraping to extract content from any URL, regardless of the provider.
 
 <!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
 
@@ -123,7 +127,12 @@ Second Opinion is available wherever the provider table lists support.
 
 This app is designed to support academic and scientific research by serving as an intelligent research assistant with powerful web search capabilities. It retrieves and analyzes information from online sources, helping you find current information, verify facts, and research topics comprehensively. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your inquiries.
 
-Research Assistant availability matches the provider table above. For details on web search functionality (native search, Tavily API, URL content extraction), see the Chat app description or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
+Research Assistant availability matches the provider table above. Web search capabilities:
+- **Native Search**: OpenAI, Claude, Gemini, Grok, Perplexity (always available)
+- **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
+- **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
+
+For more details, see the Chat app description above or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
 
 ## Language Related :id=language-related
 

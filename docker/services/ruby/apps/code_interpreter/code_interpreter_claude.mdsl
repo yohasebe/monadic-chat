@@ -33,8 +33,6 @@ app "CodeInterpreterClaude" do
 
   display_name "Code Interpreter"
 
-  include_modules "WebSearchAgent", "MonadicHelper"
-
   llm do
     provider "anthropic"
     model "claude-sonnet-4-5-20250929"

@@ -79,6 +79,9 @@ app "ResearchAssistantOpenAI" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
+
     # Progressive Tool Disclosure unlock mechanism
     define_tool "request_tool", "Request access to a locked tool by name" do
       parameter :tool_name, "string", "Name of the tool to unlock", required: true

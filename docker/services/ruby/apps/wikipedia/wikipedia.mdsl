@@ -67,8 +67,8 @@ app "WikipediaOpenAI" do
   end
   
   tools do
-    # Import shared web tools (always visible - Phase 1)
-    import_shared_tools :web_tools, visibility: "always"
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
 
     define_tool "search_wikipedia", "Search Wikipedia articles using the Wikimedia API" do
       parameter :search_query, "string", "The search query for Wikipedia", required: true

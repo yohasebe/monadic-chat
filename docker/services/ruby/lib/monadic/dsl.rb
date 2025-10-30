@@ -5,12 +5,12 @@ require_relative 'utils/provider_model_cache'
 require_relative 'shared_tools/registry'
 require_relative 'shared_tools/file_operations'
 require_relative 'shared_tools/python_execution'
-require_relative 'shared_tools/web_tools'
+require_relative 'shared_tools/web_search_tools'
 require_relative 'shared_tools/app_creation'
 require_relative 'shared_tools/file_reading'
 require_relative 'shared_tools/jupyter_operations'
 require_relative 'shared_tools/web_automation'
-require_relative 'shared_tools/video_analysis_openai'
+require_relative 'shared_tools/content_analysis_openai'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
@@ -827,7 +827,7 @@ module MonadicDSL
     # This method allows apps to import common tool groups (e.g., :file_operations)
     # and specify whether they should be always visible or managed by PTD.
     #
-    # @param groups [Array<Symbol>] Tool group names (e.g., :file_operations, :web_tools)
+    # @param groups [Array<Symbol>] Tool group names (e.g., :file_operations, :web_search_tools)
     # @param visibility [String] Visibility type: "always", "conditional", or "initial" (default: "conditional")
     # @param options [Hash] Additional options
     # @option options [String] :unlock_hint Custom unlock hint (overrides default)
@@ -836,7 +836,7 @@ module MonadicDSL
     # @example Single group, always visible
     #   import_shared_tools :file_operations, visibility: "always"
     # @example Custom unlock hint
-    #   import_shared_tools :web_tools, visibility: "conditional", unlock_hint: "Call request_tool..."
+    #   import_shared_tools :web_search_tools, visibility: "conditional", unlock_hint: "Call request_tool..."
     def import_shared_tools(*groups, visibility: "conditional", **options)
       # Track imported tool groups for UI display
       @state.settings[:imported_tool_groups] ||= []

@@ -62,7 +62,11 @@
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-標準的なチャットアプリケーションです。ユーザーが入力したテキストに対して、AIが適切な絵文字とともに応答します。Web検索機能は、ネイティブWeb検索をサポートするプロバイダー（OpenAI、Claude、Gemini、Grok、Perplexity）ではデフォルトで有効になっており、その他のモデルではTavily APIが設定されている場合に利用できます。
+標準的なチャットアプリケーションです。ユーザーが入力したテキストに対して、AIが適切な絵文字とともに応答します。Web検索機能は以下の方法で利用できます：
+- **ネイティブ検索**: OpenAI、Claude、Gemini、Grok、Perplexityは組み込みのWeb検索機能を使用（対応アプリでデフォルト有効）
+- **Tavily検索**: Mistral、Cohere、DeepSeek、Ollamaは設定ファイルに`TAVILY_API_KEY`を追加することでTavily APIを使用
+
+また、メッセージ入力エリアの`URLから読込`機能により、プロバイダーに関係なく、Seleniumベースのスクレイピングで任意のURLのコンテンツを抽出できます。
 
 <!-- > 📸 **スクリーンショットが必要**: 絵文字を伴う会話を表示するChatアプリのインターフェース -->
 
@@ -123,7 +127,12 @@ Second Opinionアプリの対応状況は冒頭の表を参照してください
 
 アカデミックな研究や科学的研究をサポートするために設計されたアプリケーションで、強力なウェブ検索機能を持つインテリジェントな研究アシスタントとして機能します。オンラインソースから情報を取得・分析し、最新情報の検索、事実の検証、トピックの包括的な調査を支援します。研究アシスタントは、信頼性の高い詳細な洞察、要約、説明を提供し、あなたの探究を進めます。
 
-Research Assistantの対応プロバイダーは冒頭の表を参照してください。Web検索機能の詳細（ネイティブ検索、Tavily API、URLコンテンツ取得）については、Chatアプリの説明または[URLからのテキスト読み込み](./message-input.md#reading-text-from-urls)を参照してください。
+Research Assistantの対応プロバイダーは冒頭の表を参照してください。Web検索機能：
+- **ネイティブ検索**: OpenAI、Claude、Gemini、Grok、Perplexity（常に利用可能）
+- **Tavily検索**: Mistral、Cohere、DeepSeek、Ollama（`TAVILY_API_KEY`が必要）
+- **URLコンテンツ抽出**: 任意のURLからコンテンツを取得するSeleniumベースのスクレイピング（全プロバイダーで利用可能）
+
+詳細については、上記のChatアプリの説明または[URLからのテキスト読み込み](./message-input.md#reading-text-from-urls)を参照してください。
 
 ## 言語関連 :id=language-related
 

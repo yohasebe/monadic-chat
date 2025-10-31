@@ -172,65 +172,56 @@ body.dark-mode .tool-group-badge.badge-conditional:not(.badge-tools):not(.badge-
 
 /* Badge Category Container */
 .badge-category {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  margin-bottom: 6px;
 }
 
 .badge-category-label {
   font-size: 11px;
   font-weight: 600;
   color: #666;
-  min-width: 90px;
-  padding-top: 4px;
   flex-shrink: 0;
+  margin-right: 2px;
 }
 
 .badge-container {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
+  gap: 4px;
+  align-items: center;
 }
 
 body.dark-mode .badge-category-label {
   color: #aaa;
 }
 
-/* Tools Category - Red系 */
+/* Tools Category - Red系 (lighter, softer colors) */
 .badge-tools {
-  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-  border: 1px solid #a93226;
-  color: white;
-}
-
-.badge-tools.badge-conditional {
-  background: linear-gradient(135deg, #e67e73 0%, #d98880 100%);
-  border: 1px solid #cd6155;
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
 }
 
 body.dark-mode .badge-tools {
-  background: linear-gradient(135deg, #c0392b 0%, #922b21 100%);
-  border-color: #7b241c;
+  background-color: #3e2723;
+  border: 1px solid #6d4c41;
+  color: #ffcdd2;
 }
 
-body.dark-mode .badge-tools.badge-conditional {
-  background: linear-gradient(135deg, #a93226 0%, #7b241c 100%);
-  border-color: #641e16;
-}
-
-/* Capabilities Category - Blue系 */
+/* Capabilities Category - Blue系 (lighter, softer colors) */
 .badge-capabilities {
-  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-  border: 1px solid #21618c;
-  color: white;
+  background-color: #e8f4f8;
+  border: 1px solid #b3e5fc;
+  color: #01579b;
 }
 
 body.dark-mode .badge-capabilities {
-  background: linear-gradient(135deg, #2980b9 0%, #1f618d 100%);
-  border-color: #154360;
+  background-color: #1a237e;
+  border: 1px solid #283593;
+  color: #b3e5fc;
 }
 
 /* Hover Effects for 2-category badges */

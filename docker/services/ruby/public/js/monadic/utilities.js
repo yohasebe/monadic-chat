@@ -1589,14 +1589,10 @@ function filterToolBadges(toolBadges) {
 
 // Filter capability badges by user control
 function filterCapabilityBadges(capabilityBadges) {
-  return capabilityBadges.filter(badge => {
-    // Filter user-controlled features by checkbox state
-    if (badge.user_controlled) {
-      const checkboxId = getUserControlCheckbox(badge.id);
-      return checkboxId && $(`#${checkboxId}`).is(":checked");
-    }
-    return true;
-  });
+  // IMPORTANT: Badges show app CAPABILITIES, not current settings
+  // All capability badges should be visible regardless of checkbox state
+  // The checkbox controls whether the feature is ENABLED, not whether the badge shows
+  return capabilityBadges;
 }
 
 // Render individual badge
@@ -1609,14 +1605,11 @@ function renderBadge(badge) {
   </span>`;
 }
 
-// Get badge color class based on type and visibility
+// Get badge color class based on type
 function getBadgeColorClass(badge) {
   // Tools: Red系
   if (badge.type === 'tools') {
-    if (badge.visibility === 'conditional') {
-      return 'badge-tools badge-conditional';
-    }
-    return 'badge-tools badge-always';
+    return 'badge-tools';
   }
 
   // Capabilities: Blue系

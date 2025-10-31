@@ -139,35 +139,10 @@
   font-size: 10px;
 }
 
-/* Legacy styles - kept for backward compatibility but overridden by new styles */
-.tool-group-badge.badge-always:not(.badge-tools):not(.badge-capabilities) {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
-}
-
-.tool-group-badge.badge-conditional:not(.badge-tools):not(.badge-capabilities) {
-  background-color: #fff3e0;
-  color: #e65100;
-  border: 1px solid #ffcc80;
-}
-
+/* Generic hover effect for all badges */
 .tool-group-badge:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Dark mode support for legacy styles */
-body.dark-mode .tool-group-badge.badge-always:not(.badge-tools):not(.badge-capabilities) {
-  background-color: #1b5e20;
-  color: #a5d6a7;
-  border-color: #2e7d32;
-}
-
-body.dark-mode .tool-group-badge.badge-conditional:not(.badge-tools):not(.badge-capabilities) {
-  background-color: #bf360c;
-  color: #ffcc80;
-  border-color: #e65100;
 }
 
 /* Badge Category Container */

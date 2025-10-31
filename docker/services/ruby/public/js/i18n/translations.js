@@ -177,7 +177,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "Text placed at the top of the webpage contents",
         fileToImportLabel: "File to import (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "File to import",
-        documentToConvert: "Document to convert<br />[pdf, docx, pptx, xlsx, and any text-based files]",
+        documentToConvert: "Document to convert (pdf, docx, pptx, xlsx, and text files)",
         urlToFetch: "URL of the page to fetch"
       },
       messages: {
@@ -466,7 +466,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "ウェブページ内容の上部に配置されるテキスト",
         fileToImportLabel: "インポートするファイル (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "インポートするファイル",
-        documentToConvert: "変換するドキュメント<br />[pdf, docx, pptx, xlsx, およびテキストベースのファイル]",
+        documentToConvert: "変換するドキュメント (pdf, docx, pptx, xlsx, およびテキストファイル)",
         urlToFetch: "取得するページのURL"
       },
       messages: {
@@ -750,7 +750,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "放置在网页内容顶部的文本",
         fileToImportLabel: "要导入的文件 (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "要导入的文件",
-        documentToConvert: "要转换的文档<br />[pdf, docx, pptx, xlsx 和任何文本文件]",
+        documentToConvert: "要转换的文档 (pdf, docx, pptx, xlsx 和文本文件)",
         urlToFetch: "要获取的页面URL"
       },
       messages: {
@@ -1056,7 +1056,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "웹페이지 내용 상단에 배치될 텍스트",
         fileToImportLabel: "가져올 파일 (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "가져올 파일",
-        documentToConvert: "변환할 문서<br />[pdf, docx, pptx, xlsx 및 모든 텍스트 기반 파일]",
+        documentToConvert: "변환할 문서 (pdf, docx, pptx, xlsx 및 텍스트 파일)",
         urlToFetch: "가져올 페이지의 URL"
       },
       messages: {
@@ -1334,7 +1334,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "Texto colocado en la parte superior del contenido web",
         fileToImportLabel: "Archivo para importar (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Archivo para importar",
-        documentToConvert: "Documento para convertir<br />[pdf, docx, pptx, xlsx y cualquier archivo de texto]",
+        documentToConvert: "Documento para convertir (pdf, docx, pptx, xlsx y archivos de texto)",
         urlToFetch: "URL de la página para obtener"
       },
       messages: {
@@ -1612,7 +1612,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "Texte placé en haut du contenu web",
         fileToImportLabel: "Fichier à importer (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Fichier à importer",
-        documentToConvert: "Document à convertir<br />[pdf, docx, pptx, xlsx et tous les fichiers texte]",
+        documentToConvert: "Document à convertir (pdf, docx, pptx, xlsx et fichiers texte)",
         urlToFetch: "URL de la page à récupérer"
       },
       messages: {
@@ -1890,7 +1890,7 @@ const webUITranslations = {
         urlLabelPlaceholder: "Text am Anfang des Webinhalts platziert",
         fileToImportLabel: "Zu importierende Datei (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Zu importierende Datei",
-        documentToConvert: "Zu konvertierendes Dokument<br />[pdf, docx, pptx, xlsx und alle textbasierten Dateien]",
+        documentToConvert: "Zu konvertierendes Dokument (pdf, docx, pptx, xlsx und Textdateien)",
         urlToFetch: "URL der abzurufenden Seite"
       },
       messages: {

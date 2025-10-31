@@ -88,6 +88,10 @@ document.addEventListener("DOMContentLoaded", function () {
   try {
     if (window.SessionState && typeof window.SessionState.restore === 'function') {
       console.log('[Session] Restoring session state from localStorage');
+
+      // Set flag to prevent app change confirmation during restoration
+      window.isRestoringSession = true;
+
       window.SessionState.restore();
 
       // Render restored messages to UI
@@ -132,9 +136,16 @@ document.addEventListener("DOMContentLoaded", function () {
       } else {
         console.log('[Session] No messages to restore');
       }
+
+      // Clear restoration flag after a short delay to allow all UI updates to complete
+      setTimeout(() => {
+        window.isRestoringSession = false;
+        console.log('[Session] Restoration flag cleared');
+      }, 1000);
     }
   } catch (e) {
     console.error('[Session] Failed to restore session state:', e);
+    window.isRestoringSession = false;
   }
 
   // Initialize Web UI translations if available
@@ -1384,15 +1395,23 @@ $(function () {
       return;
     }
 
+    // Skip confirmation during session restoration
+    if (window.isRestoringSession) {
+      console.log('[Session] Skipping app change confirmation during restoration');
+      const selectedAppValue = $(this).val();
+      proceedWithAppChange(selectedAppValue);
+      return;
+    }
+
     // Store selected app
     const selectedAppValue = $(this).val();
     const previousAppValue = lastApp;
-    
+
     // Update app icon immediately on selection change
     updateAppSelectIcon(selectedAppValue);
-    
+
     // With customizable select, the selected item styling is handled natively by the browser
-    
+
     // If there are messages and app is changing, show confirmation dialog
     if (messages.length > 0 && selectedAppValue !== previousAppValue) {
       // Prevent the dropdown from changing yet

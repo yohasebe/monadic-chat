@@ -472,20 +472,24 @@ a:hover {
 div.card-body {
   font-size: 1em;
   padding-bottom: 0.75rem;
+  color: var(--text-primary);
 }
 
 div.card-body.role-assistant {
   background-color: var(--bg-card-assistant);
+  color: var(--text-primary);
 }
 
 div.card-body.role-user {
   background-color: var(--bg-card-user);
+  color: var(--text-primary);
 }
 
 /* This rule is replaced by comprehensive role-specific rules below */
 
 div.card-body.role-system {
   background-color: var(--bg-card-system);
+  color: var(--text-primary);
 }
 
 #back_to_top,

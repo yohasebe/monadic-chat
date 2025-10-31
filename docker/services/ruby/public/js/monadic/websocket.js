@@ -3262,6 +3262,11 @@ let loadedApp = "Chat";
             if (!data["from_parameters"]) {
               // Re-initialize the current app with proceedWithAppChange
               setTimeout(function() {
+                // Skip during session restoration to avoid triggering app change modal
+                if (window.isRestoringSession) {
+                  console.log('[Session] Skipping proceedWithAppChange during restoration');
+                  return;
+                }
                 if (typeof window.proceedWithAppChange === 'function') {
                   window.proceedWithAppChange(currentApp);
                 }
@@ -4138,6 +4143,13 @@ let loadedApp = "Chat";
         
         window.SessionState.clearMessages();
         $("#discourse").empty();
+
+        // Save current app name to SessionState for restoration
+        const currentApp = $("#apps").val();
+        if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
+          window.SessionState.setCurrentApp(currentApp);
+          console.log('[Session] Saved app name:', currentApp);
+        }
 
         data["content"].forEach((msg, index) => {
           if (mids.has(msg["mid"])) {

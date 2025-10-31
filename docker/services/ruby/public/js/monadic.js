@@ -94,6 +94,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       window.SessionState.restore();
 
+      // Get restored app name and update lastApp to prevent confirmation dialog
+      const restoredApp = window.SessionState.getCurrentApp();
+      if (restoredApp) {
+        window.lastApp = restoredApp;
+        console.log('[Session] Restored app:', restoredApp);
+      }
+
       // Render restored messages to UI
       const restoredMessages = window.SessionState.getMessages();
       if (restoredMessages && restoredMessages.length > 0) {
@@ -308,8 +315,8 @@ $(function () {
   // UI event handlers
   //////////////////////////////
 
-  // Use "Chat" as the default app if not defined elsewhere
-  let lastApp = typeof defaultApp !== 'undefined' ? defaultApp : "Chat";
+  // Use restored app if available, otherwise use default
+  let lastApp = window.lastApp || (typeof defaultApp !== 'undefined' ? defaultApp : "Chat");
 
   // Common UI operations - centralized for consistency
   const UIOperations = {

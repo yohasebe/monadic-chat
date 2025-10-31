@@ -1551,14 +1551,18 @@ function updateAppBadges(selectedApp) {
   if (visibleToolBadges.length > 0) {
     badgeHtml += '<div class="badge-category">';
     badgeHtml += '<span class="badge-category-label">Tools:</span>';
-    badgeHtml += visibleToolBadges.map(renderBadge).join(' ');
+    badgeHtml += '<div class="badge-container">';
+    badgeHtml += visibleToolBadges.map(renderBadge).join('');
+    badgeHtml += '</div>';
     badgeHtml += '</div>';
   }
 
   if (visibleCapabilityBadges.length > 0) {
     badgeHtml += '<div class="badge-category">';
     badgeHtml += '<span class="badge-category-label">Capabilities:</span>';
-    badgeHtml += visibleCapabilityBadges.map(renderBadge).join(' ');
+    badgeHtml += '<div class="badge-container">';
+    badgeHtml += visibleCapabilityBadges.map(renderBadge).join('');
+    badgeHtml += '</div>';
     badgeHtml += '</div>';
   }
 

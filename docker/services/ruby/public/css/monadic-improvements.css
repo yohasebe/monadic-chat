@@ -112,12 +112,14 @@
     transform: scale(1.1);
   }
 }
-/* Tool Group Badges */
+/* Tool Group Badges - Initial definition (will be extended below) */
 .tool-groups-display {
   margin-top: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
 }
 
 .tool-group-badge {
@@ -137,13 +139,14 @@
   font-size: 10px;
 }
 
-.tool-group-badge.badge-always {
+/* Legacy styles - kept for backward compatibility but overridden by new styles */
+.tool-group-badge.badge-always:not(.badge-tools):not(.badge-capabilities) {
   background-color: #e8f5e9;
   color: #2e7d32;
   border: 1px solid #a5d6a7;
 }
 
-.tool-group-badge.badge-conditional {
+.tool-group-badge.badge-conditional:not(.badge-tools):not(.badge-capabilities) {
   background-color: #fff3e0;
   color: #e65100;
   border: 1px solid #ffcc80;
@@ -154,14 +157,14 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Dark mode support */
-body.dark-mode .tool-group-badge.badge-always {
+/* Dark mode support for legacy styles */
+body.dark-mode .tool-group-badge.badge-always:not(.badge-tools):not(.badge-capabilities) {
   background-color: #1b5e20;
   color: #a5d6a7;
   border-color: #2e7d32;
 }
 
-body.dark-mode .tool-group-badge.badge-conditional {
+body.dark-mode .tool-group-badge.badge-conditional:not(.badge-tools):not(.badge-capabilities) {
   background-color: #bf360c;
   color: #ffcc80;
   border-color: #e65100;
@@ -173,14 +176,23 @@ body.dark-mode .tool-group-badge.badge-conditional {
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .badge-category-label {
   font-size: 11px;
   font-weight: 600;
   color: #666;
-  min-width: 80px;
+  min-width: 90px;
   padding-top: 4px;
+  flex-shrink: 0;
+}
+
+.badge-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
 }
 
 body.dark-mode .badge-category-label {
@@ -228,13 +240,7 @@ body.dark-mode .badge-capabilities {
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-/* Badge Display Container Updates */
-.tool-groups-display {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
-}
-
+/* Dark mode support for badge container */
 body.dark-mode .tool-groups-display {
   border-top-color: #424242;
 }

@@ -107,6 +107,14 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       }
 
+      // Get restored model
+      const restoredModel = window.SessionState.app.model;
+      if (restoredModel) {
+        // Store for later use when model dropdown is populated
+        window.restoredModel = restoredModel;
+        console.log('[Session] Will restore model:', restoredModel);
+      }
+
       // Render restored messages to UI
       const restoredMessages = window.SessionState.getMessages();
       if (restoredMessages && restoredMessages.length > 0) {
@@ -1642,10 +1650,18 @@ $(function () {
       
       // Use shared utility function to get default model
       model = getDefaultModelForApp(apps[appValue], models);
-      
+
       // Override with params if available
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
+      }
+
+      // Override with restored model if available (from session restoration)
+      if (window.restoredModel && models.includes(window.restoredModel)) {
+        model = window.restoredModel;
+        console.log('[Session] Restoring model:', model);
+        // Clear the restored model flag so it's only used once
+        delete window.restoredModel;
       }
 
       // Get provider from app group

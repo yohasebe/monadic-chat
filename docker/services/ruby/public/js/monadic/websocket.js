@@ -4159,11 +4159,18 @@ let loadedApp = "Chat";
         window.SessionState.clearMessages();
         $("#discourse").empty();
 
-        // Save current app name to SessionState for restoration
+        // Save current app and model to SessionState for restoration
         const currentApp = $("#apps").val();
         if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
           window.SessionState.setCurrentApp(currentApp);
           console.log('[Session] Saved app name:', currentApp);
+        }
+
+        // Save current model
+        const currentModel = $("#model").val();
+        if (currentModel && window.SessionState) {
+          window.SessionState.app.model = currentModel;
+          console.log('[Session] Saved model:', currentModel);
         }
 
         data["content"].forEach((msg, index) => {

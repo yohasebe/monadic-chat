@@ -143,6 +143,11 @@ const webUITranslations = {
       listeningPlaceholder: "Listening to your voice input...",
       pressToSend: "Press Send button to send your message.",
       resetDescription: "Press \"Reset\" or click the logo in the top left to clear conversation while keeping the current app selection.",
+      theme: "Theme",
+      themeSystem: "System",
+      themeLight: "Light",
+      themeDark: "Dark",
+      themeDescription: "Select your preferred color theme or follow system settings.",
       uiLanguageNote: "UI language can be changed in system settings.",
       imagePdf: "Image/PDF",
       appCategories: {
@@ -432,6 +437,11 @@ const webUITranslations = {
       listeningPlaceholder: "音声入力を聞いています...",
       pressToSend: "送信ボタンを押してメッセージを送信してください。",
       resetDescription: "「リセット」を押すか、左上のロゴをクリックすると、現在のアプリ選択を維持したまま会話をクリアします。",
+      theme: "テーマ",
+      themeSystem: "システム",
+      themeLight: "ライト",
+      themeDark: "ダーク",
+      themeDescription: "お好みのカラーテーマを選択するか、システム設定に従います。",
       uiLanguageNote: "UI言語はシステム設定で変更できます。",
       imagePdf: "画像/PDF",
       appCategories: {
@@ -641,6 +651,11 @@ const webUITranslations = {
       listeningPlaceholder: "正在听您的语音输入...",
       pressToSend: "按发送按钮发送消息。",
       resetDescription: "按\"重置\"或点击左上角的徽标清除对话，同时保持当前的应用程序选择。",
+      theme: "主题",
+      themeSystem: "系统",
+      themeLight: "浅色",
+      themeDark: "深色",
+      themeDescription: "选择您喜欢的颜色主题或遵循系统设置。",
       uiLanguageNote: "UI语言可以在系统设置中更改。",
       imagePdf: "图像/PDF",
       maxContextSize: "最大上下文大小",
@@ -947,6 +962,11 @@ const webUITranslations = {
       listeningPlaceholder: "음성 입력을 듣고 있습니다...",
       pressToSend: "전송 버튼을 눌러 메시지를 보냅니다.",
       resetDescription: "\"재설정\"을 누르거나 왼쪽 상단의 로고를 클릭하면 현재 앱 선택을 유지하면서 대화를 지웁니다.",
+      theme: "테마",
+      themeSystem: "시스템",
+      themeLight: "밝게",
+      themeDark: "어둡게",
+      themeDescription: "선호하는 색상 테마를 선택하거나 시스템 설정을 따릅니다.",
       uiLanguageNote: "UI 언어는 시스템 설정에서 변경할 수 있습니다.",
       imagePdf: "이미지/PDF",
       maxContextSize: "최대 컨텍스트 크기",
@@ -1225,6 +1245,11 @@ const webUITranslations = {
       listeningPlaceholder: "Escuchando su entrada de voz...",
       pressToSend: "Presione el botón Enviar para enviar el mensaje.",
       resetDescription: "Presione \"Reiniciar\" o haga clic en el logo en la parte superior izquierda para limpiar la conversación mientras mantiene la selección actual de la aplicación.",
+      theme: "Tema",
+      themeSystem: "Sistema",
+      themeLight: "Claro",
+      themeDark: "Oscuro",
+      themeDescription: "Seleccione su tema de color preferido o siga la configuración del sistema.",
       uiLanguageNote: "El idioma de la interfaz se puede cambiar en la configuración del sistema.",
       imagePdf: "Imagen/PDF",
       maxContextSize: "Tamaño máximo del contexto",
@@ -1503,6 +1528,11 @@ const webUITranslations = {
       listeningPlaceholder: "Écoute de votre entrée vocale...",
       pressToSend: "Appuyez sur le bouton Envoyer pour envoyer votre message.",
       resetDescription: "Appuyez sur \"Réinitialiser\" ou cliquez sur le logo en haut à gauche pour effacer la conversation tout en conservant la sélection actuelle de l'application.",
+      theme: "Thème",
+      themeSystem: "Système",
+      themeLight: "Clair",
+      themeDark: "Sombre",
+      themeDescription: "Sélectionnez votre thème de couleur préféré ou suivez les paramètres système.",
       uiLanguageNote: "La langue de l'interface peut être modifiée dans les paramètres du système.",
       imagePdf: "Image/PDF",
       maxContextSize: "Taille maximale du contexte",
@@ -1781,6 +1811,11 @@ const webUITranslations = {
       listeningPlaceholder: "Höre Ihre Spracheingabe...",
       pressToSend: "Drücken Sie die Senden-Taste, um Ihre Nachricht zu senden.",
       resetDescription: "Drücken Sie \"Zurücksetzen\" oder klicken Sie auf das Logo oben links, um die Konversation zu löschen und dabei die aktuelle App-Auswahl beizubehalten.",
+      theme: "Theme",
+      themeSystem: "System",
+      themeLight: "Hell",
+      themeDark: "Dunkel",
+      themeDescription: "Wählen Sie Ihr bevorzugtes Farbthema aus oder folgen Sie den Systemeinstellungen.",
       uiLanguageNote: "Die UI-Sprache kann in den Systemeinstellungen geändert werden.",
       imagePdf: "Bild/PDF",
       maxContextSize: "Maximale Kontextgröße",
@@ -2016,6 +2051,8 @@ class WebUIi18n {
     console.log(`[WebUIi18n] Setting language to: ${language}`);
     if (this.translations[language]) {
       this.currentLanguage = language;
+      // Update HTML lang attribute for accessibility (WCAG 2.1 compliance)
+      document.documentElement.lang = language;
       this.updateUIText();
       
       // Update reasoning labels if available
@@ -2059,6 +2096,8 @@ class WebUIi18n {
     }
     console.warn(`[WebUIi18n] Language ${language} not found, using English`);
     this.currentLanguage = 'en';
+    // Update HTML lang attribute for accessibility (fallback to English)
+    document.documentElement.lang = 'en';
     this.updateUIText();
     return false;
   }

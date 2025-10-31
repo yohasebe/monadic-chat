@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resetWebUI: () => ipcRenderer.send('reset-web-ui'),
   // Notify page of zoom changes so overlay can adjust
   onZoomChanged: (callback) => ipcRenderer.on('zoom-changed', callback),
+  // Theme management (dark mode support)
+  getTheme: () => ipcRenderer.invoke('get-theme'),
+  setTheme: (theme) => ipcRenderer.invoke('set-theme', theme),
+  onThemeChanged: (callback) => ipcRenderer.on('theme-changed', (_event, data) => callback(data)),
   // Clipboard access
   readClipboard: () => {
     if (isTrustedOrigin()) {

@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const extendedContextMenu = require('electron-context-menu');
 const i18n = require('./i18n');
@@ -3583,6 +3583,47 @@ ipcMain.on('focus-main-window', () => {
 // Open external URLs in the default browser when requested by the renderer
 ipcMain.on('open-external', (_event, url) => {
   shell.openExternal(url).catch(err => console.error('Failed to open external link:', err));
+});
+
+// ============================================
+// Theme Management (Dark Mode Support)
+// ============================================
+
+// Get current theme (system or manual override)
+ipcMain.handle('get-theme', () => {
+  // Return 'system', 'light', or 'dark'
+  return nativeTheme.themeSource;
+});
+
+// Set theme (system, light, or dark)
+ipcMain.handle('set-theme', (_event, theme) => {
+  if (['system', 'light', 'dark'].includes(theme)) {
+    nativeTheme.themeSource = theme;
+    return { success: true, theme: nativeTheme.themeSource };
+  }
+  return { success: false, error: 'Invalid theme value' };
+});
+
+// Monitor system theme changes and notify webview window
+nativeTheme.on('updated', () => {
+  const shouldUseDarkColors = nativeTheme.shouldUseDarkColors;
+  const themeSource = nativeTheme.themeSource;
+
+  // Notify webview window if it exists
+  if (webviewWindow && !webviewWindow.isDestroyed()) {
+    webviewWindow.webContents.send('theme-changed', {
+      shouldUseDarkColors,
+      themeSource
+    });
+  }
+
+  // Notify main window if it exists
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('theme-changed', {
+      shouldUseDarkColors,
+      themeSource
+    });
+  }
 });
 
 // Keep track of last check time to reduce frequency

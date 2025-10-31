@@ -652,6 +652,15 @@ $(function () {
       if (window.imageErrorObserver) {
         window.imageErrorObserver.disconnect();
       }
+      // Clean up all other observers
+      if (window.monadicObservers && window.monadicObservers.length > 0) {
+        window.monadicObservers.forEach(observer => {
+          if (observer && typeof observer.disconnect === 'function') {
+            observer.disconnect();
+          }
+        });
+        window.monadicObservers = [];
+      }
     });
 
     $document.on("click", ".yesBtn", function () {
@@ -1924,10 +1933,8 @@ $(function () {
                   .html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
 
         // Save menu state to localStorage to persist across zoom operations
-        try {
-          localStorage.setItem('monadic-menu-hidden', 'true');
-        } catch (e) {
-          console.warn('Failed to save menu state to localStorage:', e);
+        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'true')) {
+          console.warn('Failed to save menu state to localStorage');
         }
 
         if (isMobile) {
@@ -1947,10 +1954,8 @@ $(function () {
                   .html('<i class="fas fa-times"></i>'); // Change to X when menu open
 
         // Save menu state to localStorage to persist across zoom operations
-        try {
-          localStorage.setItem('monadic-menu-hidden', 'false');
-        } catch (e) {
-          console.warn('Failed to save menu state to localStorage:', e);
+        if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'false')) {
+          console.warn('Failed to save menu state to localStorage');
         }
 
         if (isMobile) {

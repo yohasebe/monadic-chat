@@ -4,7 +4,7 @@
   --transition-fast: 200ms;     /* Used for quick interactions */
   --transition-normal: 300ms;    /* Standard transitions */
   --transition-slow: 500ms;      /* Smooth animations like scrolling */
-  
+
   /* Border Settings - Consistent across UI */
   --border-width: 1px;
   --border-radius: 4px;
@@ -13,40 +13,209 @@
   --border-color: #ced4da;
   --border-color-light: rgba(255, 255, 255, 0.3);
   --border-color-dark: rgba(0, 0, 0, 0.2);
-  
+
   /* Shadows - Standardized depths */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.3);
   --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.4);
-  
+
   /* Opacity Levels */
   --opacity-hover: 0.9;
   --opacity-disabled: 0.5;
   --opacity-backdrop: 0.5;
-  
+
   /* Spacing - Based on existing patterns */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 0.75rem;
   --spacing-lg: 1rem;
   --spacing-xl: 1.5rem;
-  
+
   /* Font Sizes - Standardized */
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.25rem;
+
+  /* ============================================ */
+  /* Light Theme Colors (Default) */
+  /* ============================================ */
+
+  /* Background Colors */
+  --bg-body: #DCDCDC;
+  --bg-panel: #F8F8F8;
+  --bg-card-assistant: #fcedee;
+  --bg-card-user: #f6f8ff;
+  --bg-card-system: #ffffff;
+  --bg-code: #f8f8f8;
+  --bg-blockquote: #f8f8f8;
+  --bg-hover: #f2f2f2;
+  --bg-navbar: #F8F8F8;
+  --bg-input: #ffffff;
+
+  /* Text Colors */
+  --text-primary: #333;
+  --text-secondary: #777;
+  --text-tertiary: #666;
+  --text-quaternary: #555;
+  --text-muted: #999;
+  --text-link: #2268cf;
+  --text-link-hover: #174890;
+
+  /* Border Colors */
+  --border-primary: #ced4da;
+  --border-secondary: #e0e0e0;
+  --border-tertiary: #ddd;
+  --border-strong: #555;
+  --border-medium: #666;
+  --border-light: #999;
+
+  /* Accent Colors (remain consistent across themes) */
+  --accent-amber: #ffc107;
+  --accent-red: #DC4C64;
+  --accent-blue: #4CACDC;
+  --accent-green: #22ad50;
+
+  /* Status Colors */
+  --status-error: #dc3545;
+  --status-warning: #fd7e14;
+  --status-info: #0dcaf0;
+  --status-success: #198754;
+
+  /* Component-specific */
+  --scrollbar-thumb: #999;
+  --scrollbar-track: #DCDCDC;
+  --spinner-bg: #777;
+  --code-text: #555;
+  --inline-code-bg: rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================ */
+/* Dark Theme Colors */
+/* ============================================ */
+.dark-theme {
+  /* Background Colors */
+  --bg-body: #1a1a1a;
+  --bg-panel: #2a2a2a;
+  --bg-card-assistant: #3a2a2e;
+  --bg-card-user: #2a2e3a;
+  --bg-card-system: #2a2a2a;
+  --bg-code: #2a2a2a;
+  --bg-blockquote: #2a2a2a;
+  --bg-hover: #3a3a3a;
+  --bg-navbar: #2a2a2a;
+  --bg-input: #2a2a2a;
+
+  /* Text Colors */
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --text-tertiary: #a0a0a0;
+  --text-quaternary: #c0c0c0;
+  --text-muted: #808080;
+  --text-link: #6b9bd8;
+  --text-link-hover: #8fb3e8;
+
+  /* Border Colors */
+  --border-primary: #4a4a4a;
+  --border-secondary: #3a3a3a;
+  --border-tertiary: #444;
+  --border-strong: #5a5a5a;
+  --border-medium: #555;
+  --border-light: #4a4a4a;
+
+  /* Accent Colors (slightly adjusted for dark mode visibility) */
+  --accent-amber: #ffc107;
+  --accent-red: #e56b7f;
+  --accent-blue: #6bc2e8;
+  --accent-green: #4cd374;
+
+  /* Status Colors (adjusted for dark mode) */
+  --status-error: #f47983;
+  --status-warning: #ff9f50;
+  --status-info: #4fd8f0;
+  --status-success: #5bc47f;
+
+  /* Component-specific */
+  --scrollbar-thumb: #555;
+  --scrollbar-track: #2a2a2a;
+  --spinner-bg: #3a3a3a;
+  --code-text: #d0d0d0;
+  --inline-code-bg: rgba(255, 255, 255, 0.1);
+
+  /* Shadows need to be lighter in dark mode */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================== */
+/* Global Accessibility: Focus Indicators */
+/* ============================================== */
+/* Keyboard navigation focus styles for WCAG 2.1 compliance */
+*:focus-visible {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse users, keep for keyboard users */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Button focus styles */
+.btn:focus-visible {
+  outline: 2px solid #4A90E2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
+}
+
+/* Input and textarea focus styles */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+/* Link focus styles */
+a:focus-visible {
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* ============================================== */
+/* Accessibility: Reduced Motion Support */
+/* ============================================== */
+/* Respect user's motion preferences for WCAG 2.1 compliance */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep essential UI feedback transitions */
+  button:hover,
+  .btn:hover,
+  a:hover {
+    transition: background-color 0.01ms, color 0.01ms;
+  }
 }
 
 //CSS (contents kept for reference, style additions added to end)
 /*-------------------------------------------*/
 /* Custom Responsive Navbar Reset */
 #main-nav {
-  background-color: #F8F8F8;
-  border-top: 1px solid #555;
-  border-bottom: 1px solid #555;
+  background-color: var(--bg-navbar);
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-strong);
   box-shadow: none;
 }
 #main-nav .container-fluid {
@@ -203,15 +372,15 @@ html, body, input, button, select, textarea {
 }
 html {
   scrollbar-width: thin;
-  scrollbar-color: #999 transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
   height: 100%;
   margin: 0;
 }
 
 body {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-  color: #333;
-  background-color: #DCDCDC;
+  color: var(--text-primary);
+  background-color: var(--bg-body);
   line-height: 1.8;
   height: 100%;
   margin: 0;
@@ -246,12 +415,12 @@ div.sourcecode-toggle,
 
 /* START: SOURCECODE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
 div.sourcecode {
-  background-color: #f8f8f8;
-  border: 1px solid #ddd;
+  background-color: var(--bg-code);
+  border: 1px solid var(--border-tertiary);
   border-radius: 4px;
   margin-top: 0.5em;
   margin-bottom: 1em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 div.sourcecode pre,
@@ -293,11 +462,11 @@ div.sourcecode-toggle i {
 a {
   font-weight: 500;
   text-decoration: none;
-  color: #2268cf;
+  color: var(--text-link);
 }
 
 a:hover {
-  color: #174890;
+  color: var(--text-link-hover);
 }
 
 div.card-body {
@@ -306,17 +475,17 @@ div.card-body {
 }
 
 div.card-body.role-assistant {
-  background-color: #fcedee;
+  background-color: var(--bg-card-assistant);
 }
 
 div.card-body.role-user {
-  background-color: #f6f8ff;
+  background-color: var(--bg-card-user);
 }
 
 /* This rule is replaced by comprehensive role-specific rules below */
 
 div.card-body.role-system {
-  background-color: #ffffff;
+  background-color: var(--bg-card-system);
 }
 
 #back_to_top,
@@ -557,7 +726,7 @@ button.fixed-width {
 
 .shaded-panel,
 .discourse {
-  background-color: #F8F8F8;
+  background-color: var(--bg-panel);
 }
 
 #status-message table td,
@@ -751,9 +920,9 @@ textarea {
 /* START: BLOCKQUOTE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 blockquote {
   padding: 12px 16px;
-  background-color: #f8f8f8;
-  color: #333;
-  border-left: 4px solid #ddd;
+  background-color: var(--bg-blockquote);
+  color: var(--text-primary);
+  border-left: 4px solid var(--border-tertiary);
   margin: 1em 0;
   border-radius: 0 4px 4px 0;
 }
@@ -788,10 +957,10 @@ blockquote ol {
 
 #status-message {
   font-weight: 600;
-  background: #ffffff;
+  background: var(--bg-input);
   padding: 6px;
   border-radius: 4px;
-  border: 1px solid #999999;
+  border: 1px solid var(--border-light);
 }
 
 #status-message.message-success {
@@ -917,12 +1086,12 @@ div.diagram {
 
 /* START: TABLE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 .card-body table {
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-tertiary);
   border-collapse: collapse;
   width: 100%;
-  background-color: #fff;
+  background-color: var(--bg-input);
   margin: 1.5em 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-text table {
@@ -930,40 +1099,40 @@ div.diagram {
 }
 
 .card-body table tr {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-tertiary);
   padding: 5px;
 }
 
 .card-body table tr:nth-child(even) {
-  background-color: #f9f9f9;
+  background-color: var(--bg-hover);
 }
 
 .card-body table tr:hover {
-  background-color: #f2f2f2;
+  background-color: var(--bg-hover);
 }
 
 .card-body table th,
 .card-body table td {
   padding: 10px;
   text-align: center;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-tertiary);
 }
 
 .card-body table th {
   font-size: 14px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  background-color: #f2f2f2;
-  color: #555;
+  background-color: var(--bg-hover);
+  color: var(--text-quaternary);
   font-weight: 600;
 }
 /* END: TABLE STYLE IMPROVEMENTS */
 
 fieldset {
-  border: 1px solid #999999;
+  border: 1px solid var(--border-light);
   padding: 8px;
   border-radius: 4px;
-  background-color: #ffffff;
+  background-color: var(--bg-input);
 }
 
 legend {
@@ -1062,8 +1231,8 @@ legend {
   margin-top: 0.5em;
   margin-bottom: 1.25em;
   white-space: pre-wrap;
-  background-color: white;
-  border: 1px solid #ccc;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-tertiary);
   border-radius: 4px;
   line-height: 1.6;
 }
@@ -1243,7 +1412,7 @@ legend {
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
-  background-color: #777;
+  background-color: var(--spinner-bg);
   color: white;
   opacity: var(--opacity-hover);
   padding: 12px 12px 8px 12px;
@@ -1298,9 +1467,9 @@ legend {
   align-items: center;
   /* Desktop navbar height */
   height: 65px;
-  border-top: 1px solid #666;
-  border-bottom: 1px solid #666;
-  background-color: #F8F8F8;
+  border-top: 1px solid var(--border-medium);
+  border-bottom: 1px solid var(--border-medium);
+  background-color: var(--bg-navbar);
 }
 
 .file-container {
@@ -1376,13 +1545,13 @@ legend {
 /* START: CODE BLOCK STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 .highlighter-rouge {
   border-radius: 4px;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--border-primary);
   overflow: visible; /* Allow copy button to be visible */
   margin: 1.25em 0; /* No left/right margin */
-  background-color: #f8f8f8;
+  background-color: var(--bg-code);
   padding: 0.75em !important; /* Ensure padding is applied directly */
   position: relative; /* Added for copy button positioning */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .card-text .highlighter-rouge {
@@ -1443,8 +1612,8 @@ legend {
   margin-top: 8px;
   margin-bottom: 10px;
   padding: 10px;
-  background-color: #fff;
-  border: 1px solid #ccc;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-tertiary);
   border-radius: 4px;
   line-height: 1.8;
 }
@@ -1913,16 +2082,16 @@ legend {
 
 ::-webkit-scrollbar {
   width: 8px;
-  background-color: #DCDCDC;
+  background-color: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #999;
+  background-color: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-track {
-  background-color: #DCDCDC;
+  background-color: var(--scrollbar-track);
 }
 
 /* Custom scrollbar for apps dropdown */
@@ -1976,12 +2145,12 @@ div.highlight pre.highlight {
 }
 
 pre {
-  background-color: #f8f8f8;
+  background-color: var(--bg-code);
 }
 
 pre code{
   font-size: 0.96em;
-  background-color: #f8f8f8;
+  background-color: var(--bg-code);
   white-space: pre-wrap;
 }
 
@@ -2021,9 +2190,9 @@ pre code{
 
 /* START: CODE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
 code {
-  color: #555;
+  color: var(--code-text);
   font-size: 0.90em;
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--inline-code-bg);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;

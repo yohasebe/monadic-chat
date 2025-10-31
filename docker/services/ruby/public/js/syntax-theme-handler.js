@@ -28,7 +28,7 @@
     
     // Store the theme in localStorage for future reference
     if (!localStorage.getItem('rouge_theme')) {
-      localStorage.setItem('rouge_theme', storedTheme);
+      StorageHelper.safeSetItem('rouge_theme', storedTheme);
     }
     
     // Extract the theme name from the format "theme:mode"

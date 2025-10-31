@@ -54,12 +54,18 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  
+
   // Observe the document body for changes
   observer.observe(document.body, {
     childList: true,
     subtree: true
   });
+
+  // Store observer globally for cleanup
+  if (!window.monadicObservers) {
+    window.monadicObservers = [];
+  }
+  window.monadicObservers.push(observer);
 });
 
 // Override the existing toggleItem function to check for empty content

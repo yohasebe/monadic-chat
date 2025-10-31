@@ -455,8 +455,8 @@
         if (window.EnvironmentDetector && window.EnvironmentDetector.storage) {
           window.EnvironmentDetector.storage.setItem('monadicState', stateToSave);
         } else {
-          // Fallback to localStorage
-          localStorage.setItem('monadicState', JSON.stringify(stateToSave));
+          // Fallback to localStorage with safe storage helper
+          StorageHelper.safeSetItem('monadicState', JSON.stringify(stateToSave));
         }
         
         this.notifyListeners('state:saved');

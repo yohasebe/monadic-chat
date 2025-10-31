@@ -1608,7 +1608,27 @@ module MonadicDSL
     if state.settings[:imported_tool_groups]
       class_def << "        @settings[:imported_tool_groups] = #{state.settings[:imported_tool_groups].inspect}\n"
     end
-    
+
+    # Build and add badges
+    begin
+      require_relative "utils/badge_builder"
+      all_badges = Monadic::Utils::BadgeBuilder.build_all_badges(state.settings)
+
+      # Validate structure before serializing
+      unless all_badges.is_a?(Hash) && all_badges[:tools].is_a?(Array) && all_badges[:capabilities].is_a?(Array)
+        STDERR.puts "[BadgeBuilder] Invalid badge structure for #{state.name}, using empty badges"
+        all_badges = { tools: [], capabilities: [] }
+      end
+
+      badges_json = all_badges.to_json
+      class_def << "        @settings[:all_badges] = #{badges_json.inspect}\n"
+    rescue StandardError => e
+      STDERR.puts "[BadgeBuilder] Failed to build badges for #{state.name}: #{e.message}"
+      STDERR.puts e.backtrace.first(5).join("\n") if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      # Fail gracefully - empty badges instead of crashing app load
+      class_def << "        @settings[:all_badges] = #{({ tools: [], capabilities: [] }.to_json).inspect}\n"
+    end
+
     # Add tool_choice if specified
     if state.settings[:tool_choice]
       class_def << "        @settings[:tool_choice] = #{state.settings[:tool_choice].inspect}\n"

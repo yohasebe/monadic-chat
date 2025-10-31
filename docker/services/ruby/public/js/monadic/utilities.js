@@ -1490,87 +1490,161 @@ window.isMaskEditingEnabled = isMaskEditingEnabled;
 
 // Function to update badges for an app
 function updateAppBadges(selectedApp) {
-  if (!selectedApp || !apps[selectedApp]) return;
+  if (!selectedApp || !apps[selectedApp]) {
+    console.warn(`[Badges] App ${selectedApp} not found`);
+    return;
+  }
 
-  let currentDesc = apps[selectedApp]["description"];
-  const allBadges = [];
+  const currentDesc = apps[selectedApp]["description"] || "";
 
-  // Add tool group badges
-  if (apps[selectedApp]["imported_tool_groups"]) {
-    try {
-      const toolGroups = JSON.parse(apps[selectedApp]["imported_tool_groups"]);
-      console.log(`[Badges Handler] Tool groups for ${selectedApp}:`, toolGroups);
+  // DEFENSIVE: Parse badge data with multiple fallback strategies
+  let allBadges = { tools: [], capabilities: [] };
 
-      if (toolGroups && toolGroups.length > 0) {
-        const getToolGroupIcon = (groupName) => {
-          const icons = {
-            'jupyter_operations': '<i class="fas fa-book"></i>',
-            'python_execution': '<i class="fas fa-terminal"></i>',
-            'file_operations': '<i class="fas fa-folder"></i>',
-            'file_reading': '<i class="fas fa-book-open"></i>',
-            'web_tools': '<i class="fas fa-search"></i>',
-            'app_creation': '<i class="fas fa-tools"></i>',
-            'web_automation': '<i class="fas fa-globe"></i>',
-            'video_analysis_openai': '<i class="fas fa-video"></i>',
-            'video_analysis_gemini': '<i class="fas fa-video"></i>'
-          };
-          return icons[groupName] || '<i class="fas fa-cube"></i>';
-        };
+  const rawBadges = apps[selectedApp]["all_badges"];
 
-        const getDisplayName = (groupName) => {
-          // Special handling for video_analysis_* groups
-          if (groupName.startsWith('video_analysis_')) {
-            return 'video analysis';
+  if (!rawBadges) {
+    // Strategy 1: No badges defined - use empty structure
+    console.debug(`[Badges] No badges defined for ${selectedApp}`);
+  } else if (typeof rawBadges === 'object') {
+    // Strategy 2: Already an object (backend sent JSON object, not string)
+    allBadges = rawBadges;
+  } else if (typeof rawBadges === 'string') {
+    // Strategy 3: JSON string - attempt parse with fallback
+    if (rawBadges.trim() === '') {
+      console.debug(`[Badges] Empty badge string for ${selectedApp}`);
+    } else {
+      try {
+        const parsed = JSON.parse(rawBadges);
+
+        // Validate structure
+        if (parsed && typeof parsed === 'object') {
+          if (Array.isArray(parsed.tools) && Array.isArray(parsed.capabilities)) {
+            allBadges = parsed;
+          } else {
+            console.error(`[Badges] Invalid badge structure for ${selectedApp}:`, parsed);
+            // Attempt to recover partial data
+            allBadges.tools = Array.isArray(parsed.tools) ? parsed.tools : [];
+            allBadges.capabilities = Array.isArray(parsed.capabilities) ? parsed.capabilities : [];
           }
-          // Default: convert snake_case to spaces
-          return groupName.replace(/_/g, ' ');
-        };
-
-        toolGroups.forEach(group => {
-          // Skip tool groups that are conditional and not available
-          if (group.visibility === 'conditional' && group.available === false) {
-            console.log(`[Badges Handler] Skipping unavailable tool group: ${group.name}`);
-            return;
-          }
-
-          const icon = getToolGroupIcon(group.name);
-          const displayName = getDisplayName(group.name);
-          const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
-          allBadges.push(`<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${displayName}</span>`);
-        });
+        }
+      } catch (e) {
+        console.error(`[Badges] Failed to parse badges for ${selectedApp}:`, e);
+        console.debug('[Badges] Raw badge data:', rawBadges);
+        // Continue with empty badges (don't crash UI)
       }
-    } catch (e) {
-      console.warn('Failed to parse imported_tool_groups:', e);
     }
+  } else {
+    console.error(`[Badges] Unexpected badge data type for ${selectedApp}:`, typeof rawBadges);
   }
 
-  // Add feature badges
-  if (apps[selectedApp]["monadic"]) {
-    allBadges.push(`<span class="tool-group-badge badge-always" title="Structured context management"><i class="fas fa-project-diagram"></i> monadic</span>`);
+  // Defensive: ensure arrays even if structure partially failed
+  allBadges.tools = allBadges.tools || [];
+  allBadges.capabilities = allBadges.capabilities || [];
+
+  // Filter badges
+  const visibleToolBadges = filterToolBadges(allBadges.tools);
+  const visibleCapabilityBadges = filterCapabilityBadges(allBadges.capabilities);
+
+  // Render badges
+  let badgeHtml = '';
+
+  if (visibleToolBadges.length > 0) {
+    badgeHtml += '<div class="badge-category">';
+    badgeHtml += '<span class="badge-category-label">Tools:</span>';
+    badgeHtml += visibleToolBadges.map(renderBadge).join(' ');
+    badgeHtml += '</div>';
   }
 
-  // Show websearch badge ONLY when toggle is checked (user-controlled)
-  if ($("#websearch").is(":checked")) {
-    allBadges.push(`<span id="websearch-badge" class="tool-group-badge badge-always" title="Native web search (provider-integrated)"><i class="fas fa-search"></i> web search</span>`);
+  if (visibleCapabilityBadges.length > 0) {
+    badgeHtml += '<div class="badge-category">';
+    badgeHtml += '<span class="badge-category-label">Capabilities:</span>';
+    badgeHtml += visibleCapabilityBadges.map(renderBadge).join(' ');
+    badgeHtml += '</div>';
   }
 
-  // Show mathjax badge ONLY when toggle is checked (user-controlled)
-  if ($("#mathjax").is(":checked")) {
-    allBadges.push(`<span id="math-badge" class="tool-group-badge badge-always" title="Mathematical notation rendering"><i class="fas fa-square-root-alt"></i> mathjax</span>`);
+  // Update DOM
+  if (badgeHtml) {
+    $("#base-app-desc").html(currentDesc + `<div class="tool-groups-display">${badgeHtml}</div>`);
+    console.log(`[Badges] Added ${visibleToolBadges.length} tools + ${visibleCapabilityBadges.length} capabilities for ${selectedApp}`);
+  } else {
+    $("#base-app-desc").html(currentDesc);
+  }
+}
+
+// Filter tool badges by visibility
+function filterToolBadges(toolBadges) {
+  return toolBadges.filter(badge => {
+    // Filter conditional tool groups by availability
+    if (badge.visibility === 'conditional') {
+      // Check if tool group is available (placeholder - implement actual check)
+      return isToolGroupAvailable(badge.id);
+    }
+    return true;
+  });
+}
+
+// Filter capability badges by user control
+function filterCapabilityBadges(capabilityBadges) {
+  return capabilityBadges.filter(badge => {
+    // Filter user-controlled features by checkbox state
+    if (badge.user_controlled) {
+      const checkboxId = getUserControlCheckbox(badge.id);
+      return checkboxId && $(`#${checkboxId}`).is(":checked");
+    }
+    return true;
+  });
+}
+
+// Render individual badge
+function renderBadge(badge) {
+  const colorClass = getBadgeColorClass(badge);
+  const icon = `<i class="fas ${badge.icon}"></i>`;
+
+  return `<span class="tool-group-badge ${colorClass}" title="${badge.description}">
+    ${icon} ${badge.label}
+  </span>`;
+}
+
+// Get badge color class based on type and visibility
+function getBadgeColorClass(badge) {
+  // Tools: Red系
+  if (badge.type === 'tools') {
+    if (badge.visibility === 'conditional') {
+      return 'badge-tools badge-conditional';
+    }
+    return 'badge-tools badge-always';
   }
 
-  // Show voice conversation badge ONLY when both auto speech and easy submit are checked
-  if ($("#check-auto-speech").is(":checked") && $("#check-easy-submit").is(":checked")) {
-    allBadges.push(`<span id="voice-conversation-badge" class="tool-group-badge badge-always" title="Voice conversation mode (Auto Speech + Easy Submit)"><i class="fas fa-microphone"></i> voice mode</span>`);
+  // Capabilities: Blue系
+  if (badge.type === 'capabilities') {
+    return 'badge-capabilities';
   }
 
-  // Add badges to description
-  if (allBadges.length > 0) {
-    currentDesc += `<div class="tool-groups-display">${allBadges.join(' ')}</div>`;
-    console.log(`[Badges Handler] Added ${allBadges.length} badges for ${selectedApp}`);
+  return 'badge-default';
+}
+
+// Get checkbox ID for user-controlled features
+function getUserControlCheckbox(featureId) {
+  // Use convention: feature ID === checkbox ID
+  const element = $(`#${featureId}`);
+  if (element.length > 0) {
+    return featureId;
   }
 
-  $("#base-app-desc").html(currentDesc);
+  // Fallback: legacy mapping
+  const legacyMapping = {
+    'mathjax': 'mathjax',
+    'mermaid': 'mermaid',
+    'websearch': 'websearch'
+  };
+  return legacyMapping[featureId];
+}
+
+// Check if conditional tool group is available
+function isToolGroupAvailable(groupId) {
+  // Check if conditional tool group is available
+  // For now, return true (implement actual availability check later)
+  return true;
 }
 
 // Add event handler for app selection to update all badges
@@ -1581,6 +1655,14 @@ $(document).ready(function() {
     setTimeout(function() {
       updateAppBadges(selectedApp);
     }, 100); // Small delay to ensure DOM is ready
+  });
+
+  // Handle checkbox changes for user-controlled capabilities
+  $("#mathjax, #mermaid, #websearch").on("change", function() {
+    const selectedApp = $("#apps").val();
+    if (selectedApp) {
+      updateAppBadges(selectedApp);
+    }
   });
 });
 

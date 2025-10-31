@@ -893,10 +893,15 @@ window.loadParams = function(params, calledFor = "loadParams") {
 
   // Set context size from configuration or use default
   $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
-  
+
   // Reset the flag after loading is complete
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });
+
+  // Update toggle button text to reflect checkbox states
+  if (typeof window.updateToggleButtonText === 'function') {
+    window.updateToggleButtonText();
+  }
 
   // (reverted) no deferred update here; proceedWithAppChange triggers model change as needed
 }

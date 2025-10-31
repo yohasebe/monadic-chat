@@ -2060,11 +2060,11 @@ $(function () {
   });
 
   // Function to update toggle button text based on checkbox states
-  function updateToggleButtonText() {
+  window.updateToggleButtonText = function() {
     const autoSpeechChecked = $("#check-auto-speech").prop("checked");
     const easySubmitChecked = $("#check-easy-submit").prop("checked");
     const $toggleButton = $("#interaction-toggle-all");
-    
+
     if (typeof webUIi18n !== 'undefined' && webUIi18n.initialized) {
       // Show appropriate text based on current state
       if (autoSpeechChecked && easySubmitChecked) {
@@ -2075,7 +2075,7 @@ $(function () {
         $toggleButton.text(webUIi18n.t('ui.toggleAll'));
       }
     }
-  }
+  };
   
   // Toggle all interaction checkboxes
   $("#interaction-toggle-all").on("click", function () {
@@ -2093,7 +2093,7 @@ $(function () {
     params["easy_submit"] = shouldCheck;
 
     // Update the button text after toggling
-    updateToggleButtonText();
+    window.updateToggleButtonText();
 
     // Update badges to reflect toggle state
     const selectedApp = $("#apps").val();
@@ -2104,12 +2104,12 @@ $(function () {
   
   // Update toggle button text when individual checkboxes change
   $("#check-auto-speech, #check-easy-submit").on("change", function() {
-    updateToggleButtonText();
+    window.updateToggleButtonText();
   });
   
   // Initialize toggle button text on page load
   $(document).ready(function() {
-    updateToggleButtonText();
+    window.updateToggleButtonText();
   });
 
   $("#start").on("click", function () {

@@ -1612,7 +1612,13 @@ module MonadicDSL
     # Build and add badges
     begin
       require_relative "utils/badge_builder"
-      all_badges = Monadic::Utils::BadgeBuilder.build_all_badges(state.settings)
+
+      # IMPORTANT: BadgeBuilder expects features as a nested hash
+      # but DSL stores them flat in settings. Create a temporary hash with features nested.
+      badge_settings = state.settings.dup
+      badge_settings[:features] = state.features
+
+      all_badges = Monadic::Utils::BadgeBuilder.build_all_badges(badge_settings)
 
       # Validate structure before serializing
       unless all_badges.is_a?(Hash) && all_badges[:tools].is_a?(Array) && all_badges[:capabilities].is_a?(Array)

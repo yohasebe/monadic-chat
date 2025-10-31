@@ -84,6 +84,59 @@ document.addEventListener("DOMContentLoaded", function () {
     console.warn('Failed to restore menu state from localStorage on page load:', e);
   }
 
+  // Restore session state and render saved messages
+  try {
+    if (window.SessionState && typeof window.SessionState.restore === 'function') {
+      console.log('[Session] Restoring session state from localStorage');
+      window.SessionState.restore();
+
+      // Render restored messages to UI
+      const restoredMessages = window.SessionState.getMessages();
+      if (restoredMessages && restoredMessages.length > 0) {
+        console.log(`[Session] Rendering ${restoredMessages.length} restored messages`);
+
+        restoredMessages.forEach(msg => {
+          if (!msg || !msg.role) {
+            console.warn('[Session] Skipping invalid message:', msg);
+            return;
+          }
+
+          // Determine badge (role label) for the message
+          let badge = '';
+          if (msg.role === 'user') {
+            badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>";
+          } else if (msg.role === 'assistant') {
+            badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+          } else if (msg.role === 'system') {
+            badge = "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>";
+          }
+
+          // Create and append the card
+          if (typeof window.createCard === 'function') {
+            const cardElement = window.createCard(
+              msg.role,
+              badge,
+              msg.html || msg.content || '',
+              msg.lang || 'en',
+              msg.mid || '',
+              msg.active !== false,  // Default to true if not specified
+              msg.images || []
+            );
+            $("#discourse").append(cardElement);
+          } else {
+            console.warn('[Session] createCard function not available yet, message will not be rendered');
+          }
+        });
+
+        console.log('[Session] Session restore complete');
+      } else {
+        console.log('[Session] No messages to restore');
+      }
+    }
+  } catch (e) {
+    console.error('[Session] Failed to restore session state:', e);
+  }
+
   // Initialize Web UI translations if available
   if (typeof webUIi18n !== 'undefined') {
     // Try to get saved language from cookie

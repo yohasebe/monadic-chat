@@ -98,7 +98,13 @@ document.addEventListener("DOMContentLoaded", function () {
       const restoredApp = window.SessionState.getCurrentApp();
       if (restoredApp) {
         window.lastApp = restoredApp;
-        console.log('[Session] Restored app:', restoredApp);
+        // Also set the app selection if apps dropdown exists
+        if ($("#apps").length && $("#apps").find(`option[value="${restoredApp}"]`).length) {
+          $("#apps").val(restoredApp);
+          console.log('[Session] Restored app selection:', restoredApp);
+        } else {
+          console.log('[Session] Restored app (dropdown not ready):', restoredApp);
+        }
       }
 
       // Render restored messages to UI
@@ -144,11 +150,11 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('[Session] No messages to restore');
       }
 
-      // Clear restoration flag after a short delay to allow all UI updates to complete
+      // Clear restoration flag after a delay to allow all UI updates and WebSocket initialization to complete
       setTimeout(() => {
         window.isRestoringSession = false;
         console.log('[Session] Restoration flag cleared');
-      }, 1000);
+      }, 3000);  // Extended to 3 seconds to ensure WebSocket connection is established
     }
   } catch (e) {
     console.error('[Session] Failed to restore session state:', e);
@@ -1421,13 +1427,21 @@ $(function () {
 
     // If there are messages and app is changing, show confirmation dialog
     if (messages.length > 0 && selectedAppValue !== previousAppValue) {
+      console.log('[App Change] Modal trigger:', {
+        messagesLength: messages.length,
+        selectedApp: selectedAppValue,
+        previousApp: previousAppValue,
+        isRestoring: window.isRestoringSession,
+        lastApp: window.lastApp
+      });
+
       // Prevent the dropdown from changing yet
       event.preventDefault();
       // Set dropdown back to previous value temporarily
       $(this).val(previousAppValue);
       // Restore previous icon
       updateAppSelectIcon(previousAppValue);
-      
+
       // Show confirmation dialog
       $("#appChangeConfirmation").data("newApp", selectedAppValue).modal("show");
       return;
@@ -1437,6 +1451,21 @@ $(function () {
     proceedWithAppChange(selectedAppValue);
   });
   
+  // Handle cancellation of app change
+  $("#appChangeConfirmation").on("hidden.bs.modal", function() {
+    // If user cancelled (not confirmed), restore the original app selection
+    const newAppValue = $(this).data("newApp");
+    const currentAppValue = $("#apps").val();
+
+    // If modal closed but app wasn't changed (user cancelled), ensure selection is correct
+    if (currentAppValue !== newAppValue && currentAppValue !== lastApp) {
+      // Restore to lastApp
+      $("#apps").val(lastApp);
+      updateAppSelectIcon(lastApp);
+      console.log('[App Change] Modal cancelled, restored to:', lastApp);
+    }
+  });
+
   // Handle confirmation of app change
   $("#appChangeConfirmed").on("click", function() {
     const newAppValue = $("#appChangeConfirmation").data("newApp");

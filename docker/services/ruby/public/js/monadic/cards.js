@@ -18,6 +18,11 @@ function escapeHtml(unsafe)
 function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false) {
   const status_class = status === true ? "active" : "";
 
+  // Ensure html is a string
+  if (html === undefined || html === null) {
+    html = '';
+  }
+
   let replaced_html;
   if (role === "system") {
     // Don't escape HTML for system messages as they may contain formatted content

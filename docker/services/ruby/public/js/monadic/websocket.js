@@ -3501,38 +3501,53 @@ let loadedApp = "Chat";
           const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
           // Select the default app only when not importing and no valid selection exists
           let firstValidApp;
-          
-          // First, try to find a Chat app from OpenAI (if API key is available)
-          const openAIChatOption = $("#apps option").filter(function() {
-            return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
-          }).first();
-          
-          if (!importRequestedApp && !hasCurrentValidSelection && openAIChatOption.length > 0) {
-            firstValidApp = openAIChatOption.val();
-          } else {
-            // Look for any Chat app from other providers
-            const anyChatOption = $("#apps option").filter(function() {
-              const val = $(this).val();
-              return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
+
+          // PRIORITY 1: Check if window.lastApp exists (from session restoration)
+          if (window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
+            firstValidApp = window.lastApp;
+            console.log('[Session] Using restored app:', firstValidApp);
+          } else if (window.lastApp) {
+            console.log('[Session] Restored app not available:', window.lastApp);
+          }
+
+          // PRIORITY 2: Try to find a Chat app from OpenAI (if API key is available)
+          if (!firstValidApp) {
+            const openAIChatOption = $("#apps option").filter(function() {
+              return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
             }).first();
-            
-            if (!importRequestedApp && !hasCurrentValidSelection && anyChatOption.length > 0) {
-              firstValidApp = anyChatOption.val();
+
+            if (!importRequestedApp && !hasCurrentValidSelection && openAIChatOption.length > 0) {
+              firstValidApp = openAIChatOption.val();
             } else {
-              // Fallback: select the first available non-disabled app
-              if (!importRequestedApp && !hasCurrentValidSelection) {
-                firstValidApp = $("#apps option").filter(function() {
-                  return !$(this).prop('disabled') && !$(this).text().includes('──');
-                }).first().val();
+              // Look for any Chat app from other providers
+              const anyChatOption = $("#apps option").filter(function() {
+                const val = $(this).val();
+                return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
+              }).first();
+
+              if (!importRequestedApp && !hasCurrentValidSelection && anyChatOption.length > 0) {
+                firstValidApp = anyChatOption.val();
+              } else {
+                // Fallback: select the first available non-disabled app
+                if (!importRequestedApp && !hasCurrentValidSelection) {
+                  firstValidApp = $("#apps option").filter(function() {
+                    return !$(this).prop('disabled') && !$(this).text().includes('──');
+                  }).first().val();
+                }
               }
             }
           }
           
           if (!importRequestedApp && !hasCurrentValidSelection && firstValidApp) {
             $("#apps").val(firstValidApp);
-            
+
             // Set lastApp to prevent confirmation dialog on initial load
             lastApp = firstValidApp;
+
+            // Also set window.lastApp for session restoration
+            if (typeof window.lastApp !== 'undefined') {
+              window.lastApp = firstValidApp;
+            }
             
             // Ensure stop_apps_trigger is false so change event will be processed
             stop_apps_trigger = false;

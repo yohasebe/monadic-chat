@@ -283,6 +283,63 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
         expect(backend_badges.size).to eq(1)
       end
     end
+
+    context "with feature name aliases" do
+      it "normalizes pdf_vector_storage to pdf" do
+        settings = {
+          features: { pdf_vector_storage: true }
+        }
+
+        result = described_class.build_all_badges(settings)
+
+        pdf_badge = result[:capabilities].find { |b| b[:id] == "pdf" }
+        expect(pdf_badge).not_to be_nil
+        expect(pdf_badge[:label]).to eq("pdf input")
+      end
+
+      it "normalizes pdf_upload to pdf" do
+        settings = {
+          features: { pdf_upload: true }
+        }
+
+        result = described_class.build_all_badges(settings)
+
+        pdf_badge = result[:capabilities].find { |b| b[:id] == "pdf" }
+        expect(pdf_badge).not_to be_nil
+      end
+    end
+  end
+
+  describe ".normalize_feature_names" do
+    it "preserves original feature names" do
+      features = { image: true, websearch: true }
+      normalized = described_class.normalize_feature_names(features)
+
+      expect(normalized[:image]).to be true
+      expect(normalized[:websearch]).to be true
+    end
+
+    it "maps pdf_vector_storage to pdf" do
+      features = { pdf_vector_storage: true }
+      normalized = described_class.normalize_feature_names(features)
+
+      expect(normalized[:pdf]).to be true
+      expect(normalized[:pdf_vector_storage]).to be true # Original preserved
+    end
+
+    it "maps pdf_upload to pdf" do
+      features = { pdf_upload: true }
+      normalized = described_class.normalize_feature_names(features)
+
+      expect(normalized[:pdf]).to be true
+    end
+
+    it "handles empty features hash" do
+      features = {}
+      normalized = described_class.normalize_feature_names(features)
+
+      expect(normalized).to eq({})
+    end
   end
 
   describe ".get_tool_group_icon" do

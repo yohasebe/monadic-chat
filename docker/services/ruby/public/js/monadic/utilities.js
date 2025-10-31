@@ -1545,14 +1545,29 @@ function updateAppBadges(selectedApp) {
   const visibleToolBadges = filterToolBadges(allBadges.tools);
   const visibleCapabilityBadges = filterCapabilityBadges(allBadges.capabilities);
 
+  // Separate tools by visibility (always vs conditional)
+  const alwaysTools = visibleToolBadges.filter(b => b.visibility === 'always');
+  const conditionalTools = visibleToolBadges.filter(b => b.visibility === 'conditional');
+
   // Render badges
   let badgeHtml = '';
 
-  if (visibleToolBadges.length > 0) {
+  // Always tools
+  if (alwaysTools.length > 0) {
     badgeHtml += '<div class="badge-category">';
-    badgeHtml += '<span class="badge-category-label">Tools:</span>';
+    badgeHtml += '<span class="badge-category-label">Tools (Always):</span>';
     badgeHtml += '<div class="badge-container">';
-    badgeHtml += visibleToolBadges.map(renderBadge).join('');
+    badgeHtml += alwaysTools.map(renderBadge).join('');
+    badgeHtml += '</div>';
+    badgeHtml += '</div>';
+  }
+
+  // Conditional tools
+  if (conditionalTools.length > 0) {
+    badgeHtml += '<div class="badge-category">';
+    badgeHtml += '<span class="badge-category-label">Tools (Conditional):</span>';
+    badgeHtml += '<div class="badge-container">';
+    badgeHtml += conditionalTools.map(renderBadge).join('');
     badgeHtml += '</div>';
     badgeHtml += '</div>';
   }

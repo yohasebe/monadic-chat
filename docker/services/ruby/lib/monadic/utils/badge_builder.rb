@@ -127,9 +127,12 @@ module Monadic
         badges = []
         features = settings[:features] || {}
 
+        # Normalize feature names (handle MDSL naming variations)
+        normalized_features = normalize_feature_names(features)
+
         # Badge-worthy features (filter out internal flags)
         BADGE_WORTHY_FEATURES.each do |feature_name, config|
-          next unless features[feature_name]
+          next unless normalized_features[feature_name]
 
           badges << {
             type: :capabilities,
@@ -162,6 +165,31 @@ module Monadic
         end
 
         badges
+      end
+
+      # Normalize feature names from MDSL to canonical badge names
+      #
+      # Maps actual MDSL feature names to the canonical names expected by BADGE_WORTHY_FEATURES
+      #
+      # @param features [Hash] Raw features hash from MDSL
+      # @return [Hash] Normalized features hash
+      def self.normalize_feature_names(features)
+        normalized = features.dup
+
+        # Feature name aliases (MDSL name => canonical badge name)
+        feature_aliases = {
+          pdf_vector_storage: :pdf,
+          pdf_upload: :pdf
+        }
+
+        # Apply aliases
+        feature_aliases.each do |mdsl_name, canonical_name|
+          if features[mdsl_name]
+            normalized[canonical_name] = true
+          end
+        end
+
+        normalized
       end
 
       # Get Font Awesome icon for tool group

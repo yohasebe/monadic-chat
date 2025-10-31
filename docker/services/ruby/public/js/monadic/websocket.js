@@ -4168,6 +4168,19 @@ let loadedApp = "Chat";
               }
               const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
               $("#discourse").append(userElement);
+
+              // Save to SessionState for persistence across page reloads
+              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
+                window.SessionState.addMessage({
+                  role: 'user',
+                  html: "<p>" + msg_text + "</p>",
+                  lang: msg["lang"],
+                  mid: msg["mid"],
+                  active: msg["active"],
+                  images: images
+                });
+              }
+
               break;
             }
             case "assistant": {
@@ -4186,6 +4199,17 @@ let loadedApp = "Chat";
 
               const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
+
+              // Save to SessionState for persistence across page reloads
+              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
+                window.SessionState.addMessage({
+                  role: 'assistant',
+                  html: html,
+                  lang: msg["lang"],
+                  mid: msg["mid"],
+                  active: msg["active"]
+                });
+              }
 
               const htmlContent = $("#discourse div.card:last");
 
@@ -4219,6 +4243,18 @@ let loadedApp = "Chat";
             case "system": {
               const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(systemElement);
+
+              // Save to SessionState for persistence across page reloads
+              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
+                window.SessionState.addMessage({
+                  role: 'system',
+                  html: msg["html"],
+                  lang: msg["lang"],
+                  mid: msg["mid"],
+                  active: msg["active"]
+                });
+              }
+
               break;
             }
           }

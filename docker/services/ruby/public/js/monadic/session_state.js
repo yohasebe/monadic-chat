@@ -250,6 +250,15 @@
       }
       
       this.notifyListeners('message:added', message);
+
+      // Auto-save state after adding message (debounced to avoid excessive writes)
+      if (!this._saveTimeout) {
+        this._saveTimeout = setTimeout(() => {
+          this.save();
+          this._saveTimeout = null;
+        }, 500);  // Save 500ms after the last message addition
+      }
+
       return message;
       } catch (error) {
         console.error('[SessionState.addMessage] Error:', error);

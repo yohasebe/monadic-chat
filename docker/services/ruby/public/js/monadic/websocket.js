@@ -2040,6 +2040,19 @@ let streamingResponse = false; // Keep local variable for backward compatibility
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
+/**
+ * Checks if the system is currently busy processing
+ * @returns {boolean} - true if system is busy (spinner visible, calling functions, or streaming)
+ */
+function isSystemBusy() {
+  return $("#monadic-spinner").is(":visible") ||
+         callingFunction ||
+         streamingResponse;
+}
+
+// Make isSystemBusy globally accessible
+window.isSystemBusy = isSystemBusy;
+
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
   let wsUrl = 'ws://localhost:4567';
@@ -2856,15 +2869,17 @@ let loadedApp = "Chat";
       case "tts_stopped": {
         // TTS was stopped, reset the UI state
         $("#monadic-spinner").hide();
-        
+
         // Reset response state
         responseStarted = false;
-        
-        // Set alert to ready state
-        const readyToStartText = typeof webUIi18n !== 'undefined' ? 
-          webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
-        
+
+        // Set alert to ready state - only if system is not busy
+        if (!isSystemBusy()) {
+          const readyToStartText = typeof webUIi18n !== 'undefined' ?
+            webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
+        }
+
         break;
       }
       
@@ -3041,8 +3056,8 @@ let loadedApp = "Chat";
         if (handled) {
           $("#select-role").prop("disabled", false);
 
-          // Only update status-message if we're not currently calling functions
-          if (!callingFunction) {
+          // Only update status-message if system is not busy
+          if (!isSystemBusy()) {
             $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           }
 
@@ -3100,13 +3115,9 @@ let loadedApp = "Chat";
         // These operations are still needed regardless of which path handled the message
         if (handled) {
           verified = "full";
-          // Only show "Ready" if there are no pending operations
-          // Check if we're waiting for additional processing (like app initialization)
-          if (!callingFunction && $("#monadic-spinner").is(":hidden")) {
-            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
-          }
-          // Otherwise keep showing the current processing status
+          // Don't show "Ready" here - wait until apps_list is fully loaded
+          // This prevents "Ready" from appearing while apps are still being loaded
+          // The status will be updated to "Ready" by the apps_list handler
           
           // Enable OpenAI TTS options when token is verified
           $("#openai-tts-4o").prop("disabled", false);
@@ -3262,12 +3273,8 @@ let loadedApp = "Chat";
             if (!data["from_parameters"]) {
               // Re-initialize the current app with proceedWithAppChange
               setTimeout(function() {
-                // Skip during session restoration to avoid triggering app change modal
-                if (window.isRestoringSession) {
-                  console.log('[Session] Skipping proceedWithAppChange during restoration');
-                  return;
-                }
                 if (typeof window.proceedWithAppChange === 'function') {
+                  console.log('[WebSocket] Calling proceedWithAppChange for:', currentApp);
                   window.proceedWithAppChange(currentApp);
                 }
               }, 100);
@@ -3499,6 +3506,15 @@ let loadedApp = "Chat";
           const importRequestedApp = data && data["content"] && data["content"]["app_name"];
           const currentSelectVal = $("#apps").val();
           const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
+          console.log('[Model Debug] App selection state:', {
+            importRequestedApp,
+            currentSelectVal,
+            hasCurrentValidSelection,
+            lastApp: window.lastApp,
+            isRestoringSession: window.isRestoringSession,
+            initialAppLoaded: window.initialAppLoaded,
+            appsMessageCount: window.appsMessageCount
+          });
           // Select the default app only when not importing and no valid selection exists
           let firstValidApp;
 
@@ -3538,7 +3554,13 @@ let loadedApp = "Chat";
             }
           }
           
-          if (!importRequestedApp && !hasCurrentValidSelection && firstValidApp) {
+          // Set the app in dropdown if we have a valid app to select
+          // During session restoration, we may already have a selection but still need to initialize
+          const shouldSetApp = !importRequestedApp && firstValidApp && (!hasCurrentValidSelection || window.isRestoringSession);
+          console.log('[Model Debug] Should set app:', { shouldSetApp, importRequestedApp, firstValidApp, hasCurrentValidSelection, isRestoringSession: window.isRestoringSession });
+
+          if (shouldSetApp) {
+            console.log('[Model Debug] Setting app in dropdown:', firstValidApp);
             $("#apps").val(firstValidApp);
 
             // Set lastApp to prevent confirmation dialog on initial load
@@ -3548,10 +3570,10 @@ let loadedApp = "Chat";
             if (typeof window.lastApp !== 'undefined') {
               window.lastApp = firstValidApp;
             }
-            
+
             // Ensure stop_apps_trigger is false so change event will be processed
             stop_apps_trigger = false;
-            
+
             // Use display_name if available, otherwise fall back to app_name
             const selectedApp = apps[firstValidApp];
             if (selectedApp) {
@@ -3628,17 +3650,33 @@ let loadedApp = "Chat";
               // Use setTimeout to ensure DOM and all dependencies are ready
               setTimeout(function() {
                 const recentlyImported = (typeof window !== 'undefined' && window.lastImportTime) ? (Date.now() - window.lastImportTime < 1000) : false;
-                if (typeof window !== 'undefined' && (window.isImporting || recentlyImported || hasCurrentValidSelection)) {
-                  // Skip auto-selection during or right after import
+                const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
+                console.log('[Model Debug] First timeout (100ms) check:', {
+                  isImporting: window.isImporting,
+                  recentlyImported,
+                  hasCurrentValidSelection,
+                  firstValidApp,
+                  isRestoringSession: window.isRestoringSession,
+                  isImportingNotRestoring,
+                  lastImportTime: window.lastImportTime,
+                  timeSinceImport: window.lastImportTime ? Date.now() - window.lastImportTime : 'N/A',
+                  willProceed: !(isImportingNotRestoring || recentlyImported)
+                });
+                // Skip only during import (when NOT restoring session), not during session restoration
+                if (typeof window !== 'undefined' && (isImportingNotRestoring || recentlyImported)) {
+                  // Skip auto-selection during or right after import (but not during session restoration)
+                  console.log('[Model Debug] Skipping proceedWithAppChange in first timeout (import detected, not restoring)');
                   return;
                 }
+                console.log('[Model Debug] Calling proceedWithAppChange from first timeout:', firstValidApp);
                 window.logTL('auto_select_app', { firstValidApp });
                 if (typeof window.proceedWithAppChange === 'function') {
                   // Call proceedWithAppChange directly for reliable initialization
                   window.proceedWithAppChange(firstValidApp);
                   window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
-                  
+
                 } else {
+                  console.log('[Model Debug] proceedWithAppChange function not available');
                   // Fallback to triggering change event if function not available
                   $("#apps").trigger('change');
                   window.logTL('apps_change_triggered');
@@ -3651,19 +3689,42 @@ let loadedApp = "Chat";
           // (e.g., because hasCurrentValidSelection was true due to default selection), explicitly initialize.
           setTimeout(function() {
             try {
-              if (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded) {
+              const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
+              console.log('[Model Debug] Second timeout (150ms) check:', {
+                appsMessageCount: window.appsMessageCount,
+                importRequestedApp,
+                initialAppLoaded: window.initialAppLoaded,
+                selectedApp: $("#apps").val(),
+                isImporting: window.isImporting,
+                isRestoringSession: window.isRestoringSession,
+                isImportingNotRestoring,
+                willProceed: (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring)
+              });
+              // Skip during import (when NOT restoring session), but allow during session restoration
+              if (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
                 const sel = $("#apps").val();
                 if (sel) {
-                  window.initialAppLoaded = true;
+                  console.log('[Model Debug] Calling proceedWithAppChange from second timeout:', sel);
                   window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
                   if (typeof window.proceedWithAppChange === 'function') {
                     window.proceedWithAppChange(sel);
+                    // Set flag AFTER proceedWithAppChange completes
+                    window.initialAppLoaded = true;
+                    console.log('[Model Debug] Set initialAppLoaded = true after proceedWithAppChange');
                   } else {
+                    console.log('[Model Debug] proceedWithAppChange function not available, triggering change');
                     $("#apps").trigger('change');
+                    window.initialAppLoaded = true;
                   }
+                } else {
+                  console.log('[Model Debug] No app selected in second timeout');
                 }
+              } else {
+                console.log('[Model Debug] Skipping second timeout - conditions not met');
               }
-            } catch (_) {}
+            } catch (e) {
+              console.error('[Model Debug] Error in second timeout:', e);
+            }
           }, 150);
           
           // Update the AI User provider dropdown if the function is available
@@ -3800,7 +3861,11 @@ let loadedApp = "Chat";
           }
           
           console.log("loadParams handling complete, breaking...");
-          
+
+          // Mark as initialized to prevent duplicate initialization from timeout blocks
+          window.initialAppLoaded = true;
+          console.log('[Model Debug] Set initialAppLoaded = true after parameters message');
+
           // Don't rebuild the model list here - loadParams already handles it
           // The code below was causing the model selector to be reset
           break;
@@ -4052,19 +4117,10 @@ let loadedApp = "Chat";
           setStats(infoHtml);
         }
 
-        if ($("#apps option").length === 0) {
-          const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
-          setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
-        } else {
-          // Only show "Ready" if we're not currently calling functions
-          if (!callingFunction) {
-            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
-          }
-        }
-
-        // Only hide spinner if we're not calling functions
-        if (!callingFunction) {
+        // Hide spinner first unless we're calling functions or streaming
+        // Note: We check callingFunction and streamingResponse directly here,
+        // not isSystemBusy(), to avoid circular dependency with spinner visibility
+        if (!callingFunction && !streamingResponse) {
           // Mark text response as completed
           window.setTextResponseCompleted(true);
           // Check if we can hide spinner (depends on Auto Speech mode)
@@ -4072,6 +4128,19 @@ let loadedApp = "Chat";
             window.checkAndHideSpinner();
           } else {
             $("#monadic-spinner").hide();
+          }
+        }
+
+        // Then update status message after spinner is hidden
+        if ($("#apps option").length === 0) {
+          const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
+          setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
+        } else {
+          // Show "Ready" unless we're calling functions or streaming
+          // At this point (after token verification), we can safely update status
+          if (!callingFunction && !streamingResponse) {
+            const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
           }
         }
         break;
@@ -4139,8 +4208,35 @@ let loadedApp = "Chat";
         break;
       }
       case "past_messages": {
+        // During session restoration, completely ignore past_messages from server
+        // We already restored messages from localStorage
+        if (window.isRestoringSession) {
+          console.log('[Session] Session restoration - ignoring past_messages from server');
+          console.log('[Session] Received past_messages from server:', {
+            messageCount: data["content"].length,
+            roles: data["content"].map(m => m.role),
+            mids: data["content"].map(m => m.mid)
+          });
+          console.log('[Session] Keeping locally restored messages instead');
+
+          // Save current app and model, but DON'T touch messages
+          const currentApp = $("#apps").val();
+          if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
+            window.SessionState.setCurrentApp(currentApp);
+          }
+          const currentModel = $("#model").val();
+          if (currentModel && window.SessionState) {
+            window.SessionState.app.model = currentModel;
+          }
+
+          // DON'T clear or update messages - keep what we restored from localStorage
+          console.log('[Session] Preserved', window.SessionState.getMessages().length, 'locally restored messages');
+          break;
+        }
+
         // If we just reset, ignore past messages completely
         if (window.SessionState.shouldForceNewSession()) {
+          console.log('[Session] Reset detected - clearing messages and UI');
           window.SessionState.clearMessages();
           $("#discourse").empty();
           setStats(formatInfo([]), "info");
@@ -4153,9 +4249,13 @@ let loadedApp = "Chat";
           } else {
             $("#start-label").text('Start Session');
           }
+          // Clear reset flags after processing so they don't persist
+          window.SessionState.clearResetFlags();
+          console.log('[Session] Reset flags cleared after processing');
           break;
         }
-        
+
+        console.log('[Session] Processing past_messages, clearing discourse');
         window.SessionState.clearMessages();
         $("#discourse").empty();
 
@@ -4570,16 +4670,17 @@ let loadedApp = "Chat";
         // Reset sequence retry count for new response
         sequenceRetryCount = 0;
 
-        // If we receive an HTML message while callingFunction is true,
-        // this is likely the result of a tool call, so reset the flag
-        if (callingFunction && data.content && data.content.role === 'assistant') {
-          callingFunction = false;
-        }
-        
+        // Note: We no longer reset callingFunction here as it was premature.
+        // The flag will be properly reset in streaming_complete handler with appropriate delays.
+        // This prevents "Ready for input" from appearing while function calls are still ongoing.
+
         // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
         $("#temp-card").hide();
         $("#temp-reasoning-card").remove();
         
+        // Always add message to SessionState for persistence, regardless of which handler processes it
+        window.SessionState.addMessage(data["content"]);
+
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
@@ -4588,13 +4689,13 @@ let loadedApp = "Chat";
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           }
         }
-        
+
         // Update AI User button state
         updateAIUserButtonState(messages);
-        
+
         if (!handled) {
           // Fallback to inline handling
-          window.SessionState.addMessage(data["content"]);
+          // Note: SessionState.addMessage already called above
 
           let html = data["content"]["html"];
 
@@ -4644,8 +4745,10 @@ let loadedApp = "Chat";
               spinnerCheckInterval = null;
             }
             
-            // Only hide spinner if we're not waiting for function calls
-            if (!callingFunction) {
+            // Hide spinner unless we're calling functions or streaming
+            // Note: We check callingFunction and streamingResponse directly here,
+            // not isSystemBusy(), to avoid circular dependency with spinner visibility
+            if (!callingFunction && !streamingResponse) {
               // Mark text response as completed
               window.setTextResponseCompleted(true);
               // Check if we can hide spinner (depends on Auto Speech mode)
@@ -4726,9 +4829,9 @@ let loadedApp = "Chat";
               }, 100);
             }
           } else {
-            // For non-assistant messages, show "Ready for input" only if not calling functions
+            // For non-assistant messages, show "Ready for input" only if system is not busy
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            if (!callingFunction) {
+            if (!isSystemBusy()) {
               const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
               setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
             }
@@ -4757,16 +4860,18 @@ let loadedApp = "Chat";
             spinnerCheckInterval = null;
           }
           
-          // Only hide spinner if we're not waiting for function calls
-          if (!callingFunction) {
+          // Hide spinner unless we're calling functions or streaming
+          // Note: We check callingFunction and streamingResponse directly here,
+          // not isSystemBusy(), to avoid circular dependency with spinner visibility
+          if (!callingFunction && !streamingResponse) {
             // Mark text response as completed
             window.setTextResponseCompleted(true);
             // Check if we can hide spinner (depends on Auto Speech mode)
             checkAndHideSpinner();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if we're not waiting for function calls
-          if (!callingFunction) {
+          // Only show "Ready for input" if system is not busy
+          if (!isSystemBusy()) {
             const readyText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
@@ -4789,16 +4894,18 @@ let loadedApp = "Chat";
             spinnerCheckInterval = null;
           }
           
-          // Only hide spinner if we're not waiting for function calls
-          if (!callingFunction) {
+          // Hide spinner unless we're calling functions or streaming
+          // Note: We check callingFunction and streamingResponse directly here,
+          // not isSystemBusy(), to avoid circular dependency with spinner visibility
+          if (!callingFunction && !streamingResponse) {
             // Mark text response as completed
             window.setTextResponseCompleted(true);
             // Check if we can hide spinner (depends on Auto Speech mode)
             checkAndHideSpinner();
           }
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if we're not waiting for function calls
-          if (!callingFunction) {
+          // Only show "Ready for input" if system is not busy
+          if (!isSystemBusy()) {
             const readyText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
@@ -5049,9 +5156,11 @@ let loadedApp = "Chat";
           clearInterval(window.spinnerCheckInterval);
           window.spinnerCheckInterval = null;
         }
-        
-        // Hide the spinner unless we're still processing function calls
-        if (!callingFunction) {
+
+        // Hide the spinner unless we're calling functions or streaming
+        // Note: We check callingFunction and streamingResponse directly here,
+        // not isSystemBusy(), to avoid circular dependency with spinner visibility
+        if (!callingFunction && !streamingResponse) {
           // Mark text response as completed
           window.setTextResponseCompleted(true);
           // Check if we can hide spinner (depends on Auto Speech mode)
@@ -5062,39 +5171,24 @@ let loadedApp = "Chat";
           }
         }
 
-        // Check if there are any pending operations before showing "Ready for input"
-        // This includes checking for active spinners or recent DOM updates
-        let pendingOperations = false;
-        
-        // Check if any spinner is still visible (in case of multiple spinners) or if we're calling functions
-        if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0 || callingFunction) {
-          pendingOperations = true;
-        }
-        
-        // Set a proper delay to ensure all DOM updates are complete
-        // Increased delay to avoid premature "Ready for input" display
+        // Check if system is busy before showing "Ready for input"
+        // Set a proper delay to ensure all DOM updates and async operations are complete
         setTimeout(function() {
-          // Re-check for pending operations after delay
-          pendingOperations = false;
-          if ($(".spinner:visible").length > 0 || $(".fa-spinner:visible").length > 0 || callingFunction) {
-            pendingOperations = true;
-          }
-          
-          // Only show "Ready for input" if no pending operations detected
-          if (!pendingOperations && !streamingResponse) {
-            const readyText = typeof webUIi18n !== 'undefined' ? 
+          // Only show "Ready for input" if system is not busy
+          if (!isSystemBusy()) {
+            const readyText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
           } else {
-            // If operations are still pending, wait and check again
+            // If system is still busy, wait and check again
             let checkInterval = setInterval(function() {
-              if ($(".spinner:visible").length === 0 && $(".fa-spinner:visible").length === 0 && !callingFunction && !streamingResponse) {
+              if (!isSystemBusy()) {
                 clearInterval(checkInterval);
                 const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
                 setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
               }
             }, 500); // Check every 500ms
-            
+
             // Safety timeout to prevent infinite checking
             setTimeout(function() {
               clearInterval(checkInterval);

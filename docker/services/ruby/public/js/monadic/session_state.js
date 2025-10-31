@@ -320,6 +320,9 @@
         this.forceNewSession = true;
         this.justReset = true;
         this.notifyListeners('flags:reset', { forceNew: true, justReset: true });
+        // Save to localStorage so flags persist across page reloads
+        this.save();
+        console.log('[SessionState] Reset flags set and saved to localStorage');
       } catch (error) {
         console.error('[SessionState.setResetFlags] Error:', error);
       }
@@ -333,6 +336,9 @@
         this.forceNewSession = false;
         this.justReset = false;
         this.notifyListeners('flags:cleared', { forceNew: false, justReset: false });
+        // Save to localStorage to persist cleared flags
+        this.save();
+        console.log('[SessionState] Reset flags cleared and saved to localStorage');
       } catch (error) {
         console.error('[SessionState.clearResetFlags] Error:', error);
       }
@@ -444,7 +450,9 @@
         const stateToSave = {
           session: {
             id: this.session.id,
-            started: this.session.started
+            started: this.session.started,
+            forceNew: this.session.forceNew,
+            justReset: this.session.justReset
           },
           app: {
             current: this.app.current,

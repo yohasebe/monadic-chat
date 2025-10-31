@@ -426,7 +426,8 @@ function attachEventListeners($card) {
     if (typeof window.responseStarted !== 'undefined') {
       window.responseStarted = false;
     }
-    if (typeof setAlert === 'function') {
+    // Only update status if system is not busy
+    if (typeof setAlert === 'function' && typeof window.isSystemBusy === 'function' && !window.isSystemBusy()) {
       const readyToStartText = getTranslation('ui.messages.readyToStart', 'Ready to start');
       setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
     }

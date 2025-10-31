@@ -42,8 +42,45 @@ function renderThinkingBlock(thinkingContent, title = null) {
  */
 function toggleThinkingBlock(blockId) {
   const block = document.getElementById(blockId);
-  if (block) {
-    block.classList.toggle('expanded');
+  if (!block) return;
+
+  const content = block.querySelector('.thinking-block-content');
+  if (!content) return;
+
+  const isExpanding = !block.classList.contains('expanded');
+
+  if (isExpanding) {
+    // Measure actual content height before expanding
+    content.style.maxHeight = 'none';
+    content.style.overflow = 'visible';
+    const actualHeight = content.scrollHeight;
+    content.style.maxHeight = '0';
+    content.style.overflow = 'hidden';
+
+    // Force reflow
+    content.offsetHeight;
+
+    // Apply actual height for smooth animation
+    block.classList.add('expanded');
+    content.style.maxHeight = actualHeight + 'px';
+
+    // Remove inline max-height after animation completes
+    setTimeout(() => {
+      if (block.classList.contains('expanded')) {
+        content.style.maxHeight = 'none';
+      }
+    }, 500); // Match --transition-slow
+  } else {
+    // Collapsing: set current height first
+    const currentHeight = content.scrollHeight;
+    content.style.maxHeight = currentHeight + 'px';
+
+    // Force reflow
+    content.offsetHeight;
+
+    // Then collapse to 0
+    block.classList.remove('expanded');
+    content.style.maxHeight = '0';
   }
 }
 
@@ -445,9 +482,10 @@ function handleHtmlMessage(data, messages, createCardFunc) {
         }
         
         // Clear the "Connected" status and show "Ready for input"
-        if (typeof setAlert === 'function') {
+        // Only update if system is not busy
+        if (typeof setAlert === 'function' && typeof window.isSystemBusy === 'function' && !window.isSystemBusy()) {
           const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-      setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
         }
       } else {
         // Keep spinner visible but update message

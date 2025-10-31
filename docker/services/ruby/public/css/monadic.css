@@ -69,7 +69,7 @@
   --border-secondary: #e0e0e0;
   --border-tertiary: #ddd;
   --border-strong: #555;
-  --border-medium: #666;
+  --border-medium: #999;
   --border-light: #999;
 
   /* Accent Colors (remain consistent across themes) */
@@ -83,6 +83,17 @@
   --status-warning: #fd7e14;
   --status-info: #0dcaf0;
   --status-success: #198754;
+
+  /* Button Colors - Unified for consistency */
+  --btn-primary: #007bff;
+  --btn-secondary: #718096;
+  --btn-warning: #ffa726;
+  --btn-danger: #ef5350;
+  --btn-info: #29b6f6;
+
+  /* Panel Borders - Lightened for softer appearance */
+  --panel-border: #9e9e9e;
+  --panel-border-subtle: #e0e0e0;
 
   /* Component-specific */
   --scrollbar-thumb: #999;
@@ -137,6 +148,17 @@
   --status-info: #4fd8f0;
   --status-success: #5bc47f;
 
+  /* Button Colors - Adjusted for dark mode visibility */
+  --btn-primary: #4a9eff;
+  --btn-secondary: #8b96a8;
+  --btn-warning: #ffb84d;
+  --btn-danger: #ff6b6b;
+  --btn-info: #52c9ff;
+
+  /* Panel Borders - Darker for dark mode */
+  --panel-border: #555;
+  --panel-border-subtle: #3a3a3a;
+
   /* Component-specific */
   --scrollbar-thumb: #555;
   --scrollbar-track: #2a2a2a;
@@ -149,6 +171,20 @@
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.5);
   --shadow-xl: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* ============================================== */
+/* Dark Theme Card Styles */
+/* ============================================== */
+/* Improve card appearance in dark mode */
+.dark-theme .card {
+  border-color: var(--border-primary);
+  background-color: transparent;
+}
+
+/* Ensure smooth corners without visible gaps */
+.dark-theme .card-body {
+  border-radius: var(--border-radius);
 }
 
 /* ============================================== */
@@ -520,8 +556,10 @@ div.card-body.role-system {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   color: #fff;
   background-color: rgba(52, 58, 64, 0.8); /* Dark background for visibility */
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -993,14 +1031,23 @@ blockquote ol {
 #interaction-check-all,
 #interaction-uncheck-all,
 #interaction-toggle-all {
-  transition: color var(--transition-fast) ease, text-decoration var(--transition-fast) ease;
+  transition: color var(--transition-fast) ease, transform var(--transition-fast) ease;
+  display: inline-block;
 }
 
-#interaction-check-all:hover,
-#interaction-uncheck-all:hover,
-#interaction-toggle-all:hover {
-  color: #495057;
-  text-decoration: underline;
+@media (hover: hover) {
+  #interaction-check-all:hover,
+  #interaction-uncheck-all:hover,
+  #interaction-toggle-all:hover {
+    color: #495057;
+    transform: translateY(-1px);
+  }
+
+  .dark-theme #interaction-check-all:hover,
+  .dark-theme #interaction-uncheck-all:hover,
+  .dark-theme #interaction-toggle-all:hover {
+    color: #aaa;
+  }
 }
 
 div.sourcecode-toggle:hover {
@@ -1014,11 +1061,19 @@ div.sourcecode-toggle:hover {
   color: #777;
   cursor: pointer;
   margin-left: 0.5em;
+  transition: transform var(--transition-fast), color var(--transition-fast);
+  display: inline-block;
 }
 
-.toggle-text:hover {
-  color: #555;
-  text-decoration: underline;
+@media (hover: hover) {
+  .toggle-text:hover {
+    color: #555;
+    transform: translateY(-1px);
+  }
+
+  .dark-theme .toggle-text:hover {
+    color: #aaa;
+  }
 }
 
 #message,
@@ -1317,14 +1372,15 @@ legend {
   background-color: #ffffff !important;
   border: 1px solid #dee2e6 !important;
   color: #495057 !important;
-  padding: 5px 10px !important;
+  padding: 0.5rem !important;
   font-size: 13px !important;
   border-radius: 5px !important;
   cursor: pointer !important;
   transition: all var(--transition-fast) ease !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
   line-height: 1.2 !important;
-  min-height: 30px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -1862,9 +1918,9 @@ legend {
     width: auto !important; /* Auto width to fit content */
     margin-right: 10px !important; /* Space between buttons */
     margin-bottom: 5px !important;
-    padding: 6px 12px !important; /* Uniform padding */
+    padding: 0.5rem 0.75rem !important; /* Uniform padding */
     height: auto !important;
-    min-height: 32px !important; /* Smaller consistent height */
+    min-height: 44px !important; /* Touch-friendly size */
     flex: 0 0 auto !important; /* Don't grow or shrink */
     font-size: 0.85em !important; /* Slightly smaller font */
   }
@@ -2214,8 +2270,8 @@ pre code {
 }
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #voice-panel {
-  border: 1px solid #666;
+#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #voice-panel {
+  border: 1px solid var(--panel-border);
 }
 
 /* Optimize config and main-panel spacing on mobile */
@@ -2600,13 +2656,12 @@ h1 {
   border-top: none;
   max-height: 0;
   overflow: hidden;
-  transition: max-height var(--transition-normal) ease-out, padding var(--transition-normal) ease-out;
+  transition: max-height var(--transition-slow) ease-out, padding var(--transition-normal) ease-out;
 }
 
 .thinking-block.expanded .thinking-block-content {
-  max-height: 2000px;
   padding: 1em;
-  transition: max-height var(--transition-slow) ease-in, padding var(--transition-normal) ease-in;
+  /* max-height is set dynamically by JavaScript for accurate animation */
 }
 
 .thinking-block-content pre {
@@ -2778,4 +2833,123 @@ img.base64-image,
   direction: ltr;
   text-align: left;
 }
+}
+
+/* ============================================== */
+/* Button Hover Effects - Consistent Interaction */
+/* ============================================== */
+
+/* Base hover lift class - adds subtle elevation on hover */
+.btn-hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  will-change: transform, box-shadow;
+}
+
+/* Hover effect - only on devices that support hover */
+@media (hover: hover) {
+  .btn-hover-lift:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Dark mode - lighter shadow for better visibility */
+  .dark-theme .btn-hover-lift:hover:not(:disabled) {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* Focus-visible for keyboard navigation */
+.btn-hover-lift:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  outline: 2px solid #4A90E2;
+  outline-offset: 2px;
+}
+
+.dark-theme .btn-hover-lift:focus-visible {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Disabled state - no hover effect */
+.btn-hover-lift:disabled {
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
+/* Auto-apply hover lift to common button types */
+.btn-warning,
+.btn-secondary,
+.btn-primary,
+.btn-outline-secondary,
+.btn-outline-primary,
+#start-button,
+#reset,
+#load,
+#save,
+#export-pdf,
+#theme-system,
+#theme-light,
+#theme-dark {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .btn-warning:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-outline-secondary:hover:not(:disabled),
+  .btn-outline-primary:hover:not(:disabled),
+  #start-button:hover:not(:disabled),
+  #reset:hover:not(:disabled),
+  #load:hover:not(:disabled),
+  #save:hover:not(:disabled),
+  #export-pdf:hover:not(:disabled),
+  #theme-system:hover:not(:disabled),
+  #theme-light:hover:not(:disabled),
+  #theme-dark:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Warning buttons - add background color change */
+  .btn-warning:hover:not(:disabled),
+  #reset:hover:not(:disabled),
+  #load:hover:not(:disabled),
+  #save:hover:not(:disabled),
+  #export-pdf:hover:not(:disabled) {
+    background-color: #e0a800 !important;
+    border-color: #d39e00 !important;
+  }
+
+  /* Secondary buttons - add background color change */
+  .btn-secondary:hover:not(:disabled),
+  #theme-system:hover:not(:disabled),
+  #theme-light:hover:not(:disabled),
+  #theme-dark:hover:not(:disabled) {
+    background-color: #5a6268 !important;
+    border-color: #545b62 !important;
+  }
+
+  /* Primary buttons - add background color change */
+  .btn-primary:hover:not(:disabled),
+  #start-button:hover:not(:disabled) {
+    background-color: #0069d9 !important;
+    border-color: #0062cc !important;
+  }
+
+  .dark-theme .btn-warning:hover:not(:disabled),
+  .dark-theme .btn-secondary:hover:not(:disabled),
+  .dark-theme .btn-primary:hover:not(:disabled),
+  .dark-theme .btn-outline-secondary:hover:not(:disabled),
+  .dark-theme .btn-outline-primary:hover:not(:disabled),
+  .dark-theme #start-button:hover:not(:disabled),
+  .dark-theme #reset:hover:not(:disabled),
+  .dark-theme #load:hover:not(:disabled),
+  .dark-theme #save:hover:not(:disabled),
+  .dark-theme #export-pdf:hover:not(:disabled),
+  .dark-theme #theme-system:hover:not(:disabled),
+  .dark-theme #theme-light:hover:not(:disabled),
+  .dark-theme #theme-dark:hover:not(:disabled) {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
 }

@@ -87,12 +87,45 @@ document.addEventListener("DOMContentLoaded", function () {
   // Restore session state and render saved messages
   try {
     if (window.SessionState && typeof window.SessionState.restore === 'function') {
+      console.log('[Session] ====== STARTING SESSION RESTORATION ======');
       console.log('[Session] Restoring session state from localStorage');
+
+      // Debug: Check localStorage content before restoration
+      try {
+        const rawState = localStorage.getItem('monadicState');
+        if (rawState) {
+          const parsed = JSON.parse(rawState);
+          console.log('[Session] localStorage monadicState:', parsed);
+          if (parsed.conversation && parsed.conversation.messages) {
+            console.log('[Session] localStorage has', parsed.conversation.messages.length, 'messages');
+          }
+        } else {
+          console.log('[Session] No monadicState in localStorage');
+        }
+      } catch (e) {
+        console.error('[Session] Error reading localStorage:', e);
+      }
 
       // Set flag to prevent app change confirmation during restoration
       window.isRestoringSession = true;
 
+      // Reset app initialization flags to allow re-initialization
+      window.initialAppLoaded = false;
+      window.appsMessageCount = 0;
+
+      // Clear import flag to prevent it from interfering with restoration
+      window.isImporting = false;
+      window.lastImportTime = null;
+
+      console.log('[Session] Flags reset: initialAppLoaded=false, appsMessageCount=0, isImporting=false');
+
       window.SessionState.restore();
+
+      // Check if user requested a reset - if so, skip message restoration only
+      const shouldSkipMessageRestoration = window.SessionState.shouldForceNewSession();
+      if (shouldSkipMessageRestoration) {
+        console.log('[Session] Reset flags detected - will skip message restoration but continue initialization');
+      }
 
       // Get restored app name and update lastApp to prevent confirmation dialog
       const restoredApp = window.SessionState.getCurrentApp();
@@ -115,9 +148,12 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('[Session] Will restore model:', restoredModel);
       }
 
-      // Render restored messages to UI
+      // Render restored messages to UI (skip if reset was requested)
       const restoredMessages = window.SessionState.getMessages();
-      if (restoredMessages && restoredMessages.length > 0) {
+      console.log('[Session] Retrieved messages from SessionState:', restoredMessages);
+      console.log('[Session] Message details:', restoredMessages.map(m => ({ role: m.role, hasContent: !!m.html || !!m.content, mid: m.mid })));
+
+      if (!shouldSkipMessageRestoration && restoredMessages && restoredMessages.length > 0) {
         console.log(`[Session] Rendering ${restoredMessages.length} restored messages`);
 
         restoredMessages.forEach(msg => {
@@ -138,6 +174,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
           // Create and append the card
           if (typeof window.createCard === 'function') {
+            console.log('[Session] Creating card for message:', {
+              role: msg.role,
+              hasHtml: !!msg.html,
+              hasContent: !!msg.content,
+              contentLength: (msg.html || msg.content || '').length,
+              mid: msg.mid
+            });
             const cardElement = window.createCard(
               msg.role,
               badge,
@@ -148,12 +191,26 @@ document.addEventListener("DOMContentLoaded", function () {
               msg.images || []
             );
             $("#discourse").append(cardElement);
+            console.log('[Session] Card appended to discourse. Current discourse children:', $("#discourse").children().length);
           } else {
             console.warn('[Session] createCard function not available yet, message will not be rendered');
           }
         });
 
-        console.log('[Session] Session restore complete');
+        console.log('[Session] Session restore complete. Final discourse children:', $("#discourse").children().length);
+        console.log('[Session] Discourse HTML length:', $("#discourse").html().length);
+
+        // Update START button label to "Continue Session" when messages exist
+        if (window.i18nReady) {
+          window.i18nReady.then(() => {
+            const continueText = webUIi18n.t('ui.session.continueSession') || 'Continue Session';
+            $("#start-label").text(continueText);
+            console.log('[Session] Updated START button to "Continue Session"');
+          });
+        } else {
+          $("#start-label").text('Continue Session');
+          console.log('[Session] Updated START button to "Continue Session"');
+        }
       } else {
         console.log('[Session] No messages to restore');
       }
@@ -161,7 +218,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Clear restoration flag after a delay to allow all UI updates and WebSocket initialization to complete
       setTimeout(() => {
         window.isRestoringSession = false;
-        console.log('[Session] Restoration flag cleared');
+        console.log('[Session] Restoration flag cleared. Discourse children at clear time:', $("#discourse").children().length);
       }, 3000);  // Extended to 3 seconds to ensure WebSocket connection is established
     }
   } catch (e) {
@@ -1512,6 +1569,7 @@ $(function () {
   // Function to handle the actual app change
   // Make it globally accessible for initialization from websocket.js
   window.proceedWithAppChange = function proceedWithAppChange(appValue) {
+    console.log('[Model Debug] proceedWithAppChange called with:', appValue);
     try {
       if (window.logTL) {
         const hasApp = !!(apps && apps[appValue]);
@@ -1547,8 +1605,11 @@ $(function () {
       $("#ai_user").attr("title", "Generate AI user response based on conversation");
     }
 
+    // Skip early return during initial load or session restoration
+    // to ensure proper initialization even if messages already exist
     if (messages.length > 0) {
-      if (appValue === lastApp) {
+      if (appValue === lastApp && window.initialAppLoaded) {
+        console.log('[Model Debug] Early return - same app and already initialized');
         return;
       }
     }
@@ -1639,26 +1700,31 @@ $(function () {
 
     let model;
     // Never mutate apps[appValue].group here; app definitions are authoritative.
-    
+
     // Use shared utility function to get models for the app
     let models = getModelsForApp(apps[appValue]);
+    console.log('[Model Debug] Models for app:', { app: appValue, modelsCount: models.length, models: models.slice(0, 5) });
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
       let modelList = listModels(models, openai);
+      console.log('[Model Debug] Setting model dropdown HTML, list length:', modelList.length);
       $("#model").html(modelList);
-      
+
       // Use shared utility function to get default model
       model = getDefaultModelForApp(apps[appValue], models);
+      console.log('[Model Debug] Default model:', model);
 
       // Override with params if available
       if (params["model"] && models.includes(params["model"])) {
         model = params["model"];
+        console.log('[Model Debug] Overriding with params model:', model);
       }
 
       // Override with restored model if available (from session restoration)
       if (window.restoredModel && models.includes(window.restoredModel)) {
         model = window.restoredModel;
+        console.log('[Model Debug] Overriding with restored model:', model);
         console.log('[Session] Restoring model:', model);
         // Clear the restored model flag so it's only used once
         delete window.restoredModel;
@@ -1681,17 +1747,26 @@ $(function () {
         $("#websearch").prop("disabled", true).attr('title', tt2);
       }
 
+      console.log('[Model Debug] Setting model value in dropdown:', model);
       $("#model").val(model);
-      
+      console.log('[Model Debug] Model dropdown value after setting:', $("#model").val());
+      console.log('[Model Debug] Model dropdown options count:', $("#model option").length);
+
       if ($("#model").val() !== model) {
+        console.log('[Model Debug] Model value mismatch, retrying after delay');
         // Try again after a delay
         setTimeout(() => {
           $("#model").val(model);
+          console.log('[Model Debug] Retry: Model dropdown value after setting:', $("#model").val());
           if ($("#model").val() === model) {
+            console.log('[Model Debug] Retry succeeded, triggering change');
             $("#model").trigger("change");
+          } else {
+            console.warn('[Model Debug] Retry failed, model still not set correctly');
           }
         }, 100);
       } else {
+        console.log('[Model Debug] Model set successfully, triggering change');
         $("#model").trigger("change");
       }
       // Use UI utilities module if available, otherwise fallback

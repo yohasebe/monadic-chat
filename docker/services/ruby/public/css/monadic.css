@@ -99,8 +99,8 @@
   /* Background Colors */
   --bg-body: #1a1a1a;
   --bg-panel: #2a2a2a;
-  --bg-card-assistant: #6a5860;
-  --bg-card-user: #58606a;
+  --bg-card-assistant: #3d3d3d;
+  --bg-card-user: #424242;
   --bg-card-system: #2a2a2a;
   --bg-code: #2a2a2a;
   --bg-blockquote: #2a2a2a;
@@ -109,11 +109,11 @@
   --bg-input: #2a2a2a;
 
   /* Text Colors */
-  --text-primary: #e0e0e0;
-  --text-secondary: #b0b0b0;
-  --text-tertiary: #a0a0a0;
-  --text-quaternary: #c0c0c0;
-  --text-muted: #808080;
+  --text-primary: #f5f5f5;
+  --text-secondary: #d0d0d0;
+  --text-tertiary: #b8b8b8;
+  --text-quaternary: #e0e0e0;
+  --text-muted: #999;
   --text-link: #6b9bd8;
   --text-link-hover: #8fb3e8;
 

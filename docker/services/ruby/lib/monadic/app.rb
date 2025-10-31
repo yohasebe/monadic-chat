@@ -411,20 +411,6 @@ class MonadicApp
     timeout_value = (command.include?("video_generator_veo") || command.include?("video_generator_openai")) ? 480 : 120  # 8 minutes for video, 2 minutes default
     stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value)
 
-    # Debug output for PDF processing (only when MONADIC_DEBUG is set)
-    if ENV["MONADIC_DEBUG"] && command.include?("pdf2txt.py")
-      puts "DEBUG send_command:"
-      puts "Original command: #{command}"
-      puts "System command: #{system_command}"
-      puts "Status success?: #{status.success?}"
-      puts "Stdout length: #{stdout.length}"
-      puts "Stdout empty?: #{stdout.strip.empty?}"
-      puts "Stderr: #{stderr}" unless stderr.empty?
-      puts "Exit status: #{status.exitstatus}"
-      puts "Success message: '#{success}'"
-      puts "Success with output: '#{success_with_output}'"
-    end
-
     if block_given?
       yield(stdout, stderr, status)
     elsif status.success?

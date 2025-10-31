@@ -1487,7 +1487,7 @@ module GeminiHelper
             extra_log.puts(JSON.pretty_generate(json_obj))
             
             # Specifically log if this is a web search response
-            if session[:parameters]["websearch"] && json_obj["candidates"]
+            if CONFIG["EXTRA_LOGGING"] && session[:parameters]["websearch"] && json_obj["candidates"]
               json_obj["candidates"].each_with_index do |candidate, idx|
                 if candidate["content"] && candidate["content"]["parts"]
                   candidate["content"]["parts"].each_with_index do |part, part_idx|

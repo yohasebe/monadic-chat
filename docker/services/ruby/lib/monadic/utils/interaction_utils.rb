@@ -1404,57 +1404,45 @@ module InteractionUtils
 
       if res.status.success?
         res_json = JSON.parse(res.body)
-        
-        # Debug output
-        puts "[DEBUG tavily_fetch] Response structure: #{res_json.keys}"
-        puts "[DEBUG tavily_fetch] Full response: #{res_json.inspect}"
-        
+
         # Check for failed results
         if res_json["failed_results"] && !res_json["failed_results"].empty?
           failed = res_json["failed_results"][0]
-          puts "[DEBUG tavily_fetch] Failed result details: #{failed.inspect}"
           return { error: "Tavily fetch failed: #{failed['error']} for URL: #{failed['url']}" }
         end
-        
+
         # Extract content from results array
         if res_json["results"] && res_json["results"].is_a?(Array) && !res_json["results"].empty?
           result = res_json["results"][0]
-          puts "[DEBUG tavily_fetch] Result keys: #{result.keys}"
-          
+
           # Try different possible content fields
           content = result["raw_content"] || result["content"] || result["text"]
-          
+
           if content.nil? || content.empty?
-            puts "[DEBUG tavily_fetch] No content found in result. Available keys: #{result.keys}"
             return { error: "No content found in Tavily response" }
           end
-          
+
           return content
         else
-          puts "[DEBUG tavily_fetch] No results in response"
           return { error: "No results found in Tavily response" }
         end
       else
         # Parse the response body only once
-        puts "[DEBUG tavily_fetch] HTTP Error: #{res.status}"
         error_report = begin
           JSON.parse(res.body)
         rescue
           res.body.to_s
         end
-        puts "[DEBUG tavily_fetch] Error response: #{error_report}"
         error_message = error_report.is_a?(Hash) ? (error_report["error"] || error_report["message"] || "Unknown error") : error_report.to_s
         { error: "Tavily API error: #{error_message}" }
       end
     rescue HTTP::Error, HTTP::TimeoutError => e
-      puts "[DEBUG tavily_fetch] Network error: #{e.class} - #{e.message}"
       { error: "Network error occurred: #{e.message}" }
     rescue JSON::ParserError => e
-      puts "[DEBUG tavily_fetch] JSON parse error: #{e.message}"
       { error: "Error parsing response: #{e.message}" }
     rescue StandardError => e
-      puts "[DEBUG tavily_fetch] Unexpected error: #{e.class} - #{e.message}"
-      puts e.backtrace.first(5).join("\n")
+      STDERR.puts "[ERROR] Unexpected error in tavily_fetch: #{e.class} - #{e.message}"
+      STDERR.puts e.backtrace.first(5).join("\n")
       { error: "Unexpected error in tavily_fetch: #{e.message}" }
     end
   end

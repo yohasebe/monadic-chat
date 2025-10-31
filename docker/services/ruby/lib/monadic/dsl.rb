@@ -889,11 +889,6 @@ module MonadicDSL
         }
         @state.settings[:imported_tool_groups] << metadata
 
-        # Debug logging (unconditional to verify execution)
-        STDERR.puts "[DEBUG DSL] Imported tool group: #{metadata.inspect}"
-        STDERR.puts "[DEBUG DSL] Settings keys: #{@state.settings.keys.inspect}"
-        STDERR.puts "[DEBUG DSL] Total groups: #{@state.settings[:imported_tool_groups].length}"
-
         # Ensure request_tool is defined if any conditional tools exist
         ensure_request_tool_defined if visibility == "conditional"
       end

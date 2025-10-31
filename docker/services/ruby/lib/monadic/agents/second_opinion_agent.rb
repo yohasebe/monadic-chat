@@ -5,11 +5,7 @@ module SecondOpinionAgent
   def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
-    
-    # Debug output to track the issue
-    puts "SecondOpinionAgent DEBUG: Input provider=#{provider.inspect}, model=#{model.inspect}"
-    puts "SecondOpinionAgent DEBUG: Determined provider=#{target_provider.inspect}, model=#{target_model.inspect}"
-    
+
     # Validate model is not nil or empty
     if target_model.nil? || target_model.to_s.strip.empty?
       return {
@@ -188,10 +184,7 @@ module SecondOpinionAgent
       if provider_normalized == "ollama" && default_model.nil?
         default_model = get_ollama_default_model
       end
-      
-      # Log for debugging
-      puts "SecondOpinionAgent DEBUG: Provider #{provider_normalized} -> Default model: #{default_model.inspect}"
-      
+
       return [provider_normalized, default_model]
     end
     

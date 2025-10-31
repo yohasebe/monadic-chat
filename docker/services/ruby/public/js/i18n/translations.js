@@ -2048,13 +2048,12 @@ class WebUIi18n {
   }
 
   setLanguage(language) {
-    console.log(`[WebUIi18n] Setting language to: ${language}`);
     if (this.translations[language]) {
       this.currentLanguage = language;
       // Update HTML lang attribute for accessibility (WCAG 2.1 compliance)
       document.documentElement.lang = language;
       this.updateUIText();
-      
+
       // Update reasoning labels if available
       if (window.ReasoningLabels) {
         const selectedModel = document.getElementById('model')?.value;
@@ -2063,7 +2062,7 @@ class WebUIi18n {
           const provider = window.getProviderFromGroup ? window.getProviderFromGroup(window.apps[currentApp].group) : null;
           if (provider) {
             window.ReasoningLabels.updateUILabels(provider, selectedModel);
-            
+
             // Update description text
             const description = window.ReasoningLabels.getDescription(provider, selectedModel);
             const descElement = document.getElementById('reasoning-description');
@@ -2075,7 +2074,7 @@ class WebUIi18n {
                 descElement.style.display = 'none';
               }
             }
-            
+
             // Update option labels
             const select = document.getElementById('reasoning-effort');
             if (select && !select.disabled) {
@@ -2090,8 +2089,7 @@ class WebUIi18n {
           }
         }
       }
-      
-      console.log(`[WebUIi18n] Language set successfully to: ${language}`);
+
       return true;
     }
     console.warn(`[WebUIi18n] Language ${language} not found, using English`);
@@ -2120,10 +2118,6 @@ class WebUIi18n {
   }
 
   updateUIText() {
-    console.log(`[WebUIi18n] Updating UI text for language: ${this.currentLanguage}`);
-    const elementsCount = document.querySelectorAll('[data-i18n]').length;
-    console.log(`[WebUIi18n] Found ${elementsCount} elements with data-i18n attribute`);
-    
     // Update role selector options
     const roleOptions = document.querySelectorAll('#select-role option');
     if (roleOptions.length > 0) {
@@ -2132,12 +2126,12 @@ class WebUIi18n {
       roleOptions[2].textContent = this.t('ui.roleOptions.sampleAssistant') || 'Assistant (to add to past messages)';
       roleOptions[3].textContent = this.t('ui.roleOptions.sampleSystem') || 'System (to provide additional direction)';
     }
-    
+
     // Update elements with data-i18n attribute
     document.querySelectorAll('[data-i18n]').forEach(element => {
       const key = element.getAttribute('data-i18n');
       const translation = this.t(key);
-      
+
       if (element.tagName === 'INPUT' && element.type === 'button') {
         element.value = translation;
       } else if (element.placeholder !== undefined) {
@@ -2260,11 +2254,10 @@ class WebUIi18n {
       const savedUILanguage = getCookie('ui-language') || 'en';
       this.setLanguage(savedUILanguage);
       this.initialized = true;
-      
+
       // Update session button text
       this.updateSessionButton();
-      
-      console.log('[WebUIi18n] Initialization complete');
+
       resolve();
     });
     
@@ -2317,10 +2310,8 @@ function getCookie(name) {
 // Initialize with saved language preference
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize i18n system
-  webUIi18n.init().then(() => {
-    console.log('[WebUIi18n] Ready for use');
-  });
-  
+  webUIi18n.init();
+
   // Conversation language selector only changes conversation language, NOT UI
   const conversationLanguageSelector = document.getElementById('conversation-language');
   if (conversationLanguageSelector) {
@@ -2329,13 +2320,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedConversationLanguage) {
       conversationLanguageSelector.value = savedConversationLanguage;
     }
-    
+
     // Track if this is a programmatic change from UI language sync
     let isProgrammaticChange = false;
-    
+
     conversationLanguageSelector.addEventListener('change', (event) => {
       const newLanguage = event.target.value;
-      console.log(`[WebUIi18n] Conversation language changed to: ${newLanguage}`);
       // Save to cookie for persistence (for AI conversation language only)
       document.cookie = `conversation-language=${newLanguage}; path=/; max-age=31536000`;
       

@@ -1167,7 +1167,7 @@ module WebSocketHelper
       end
 
       # Debug logging for research assistant apps
-      if obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
+      if CONFIG["EXTRA_LOGGING"] && obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
         puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
         puts "[DEBUG WebSocket] App name from obj: #{obj["app_name"]}"
       end
@@ -1786,7 +1786,7 @@ module WebSocketHelper
             app_obj = APPS[app_name]
             
             # Debug logging for troubleshooting
-            if app_name && (app_name.include?("Perplexity") || app_name.include?("DeepSeek"))
+            if CONFIG["EXTRA_LOGGING"] && app_name && (app_name.include?("Perplexity") || app_name.include?("DeepSeek"))
               puts "[DEBUG WebSocket] Processing message for app: #{app_name}"
               puts "[DEBUG WebSocket] App object found: #{!app_obj.nil?}"
               puts "[DEBUG WebSocket] ChatPlusPerplexity exists: #{APPS.key?("ChatPlusPerplexity")}"

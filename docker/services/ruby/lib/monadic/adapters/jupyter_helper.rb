@@ -651,7 +651,7 @@ module MonadicHelper
         addr ? addr.ip_address : "127.0.0.1"
       rescue StandardError => e
         # If error finding IP, fall back to default
-        puts "Error getting IP address: #{e.message}"
+        STDERR.puts "[WARNING] Error getting IP address: #{e.message}" if CONFIG["EXTRA_LOGGING"]
         "127.0.0.1"
       end
     else

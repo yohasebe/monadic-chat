@@ -1502,14 +1502,35 @@ $(function () {
     $("#appChangeConfirmation").modal("hide");
     // Apply the app change
     $("#apps").val(newAppValue);
+
+    // COMPREHENSIVE STATE CLEARING
     // Reset messages via SessionState API (no direct assignment)
     if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
       window.SessionState.clearMessages();
     } else {
       try { window.messages = []; } catch (_) {}
     }
+
     // Clear the discourse area
     $("#discourse").html("");
+
+    // Clear error cards specifically
+    if (typeof clearErrorCards === 'function') {
+      clearErrorCards();
+    }
+
+    // Clear status message
+    if (typeof clearStatusMessage === 'function') {
+      clearStatusMessage();
+    }
+
+    // Clear temp cards
+    $("#temp-card").remove();
+    $("#temp-reasoning-card").remove();
+
+    // Send server-side RESET to clear session
+    ws.send(JSON.stringify({ "message": "RESET" }));
+
     // Reset to settings panel instead of continuing session
     $("#config").show();
     $("#back-to-settings").hide();
@@ -1600,6 +1621,13 @@ $(function () {
     // Restore the preserved values if they were set (during import)
     if (preservedModel && (typeof window !== 'undefined' && window.isImporting)) {
       params["model"] = preservedModel;
+    } else {
+      // NOT importing: Explicitly reset model to new app's default
+      // This ensures switching apps always resets to the correct model
+      if (apps[appValue]["model"]) {
+        params["model"] = apps[appValue]["model"];
+        $("#model").val(apps[appValue]["model"]);
+      }
     }
     if (preservedAppName && (typeof window !== 'undefined' && window.isImporting)) {
       params["app_name"] = preservedAppName;

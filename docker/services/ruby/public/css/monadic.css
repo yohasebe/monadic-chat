@@ -1013,17 +1013,7 @@ blockquote ol {
   border: 1px solid var(--border-light);
 }
 
-#status-message.message-success {
-  color: #22ad50;
-}
-
-#status-message.message-info {
-  color: #61b0ff;
-}
-
-#status-message.message-warning {
-  color: #FF7F07;
-}
+/* Legacy message-{type} classes removed - now using unified text-{type} system */
 
 .textbox-caption {
   font-size: 0.9em;

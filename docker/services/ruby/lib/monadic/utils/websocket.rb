@@ -628,7 +628,9 @@ module WebSocketHelper
   def push_apps_data(ws, apps, filtered_messages)
     @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
     @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
-    @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json) unless session[:messages].empty?
+    # IMPORTANT: Always send past_messages, even if empty
+    # Empty past_messages indicates server restart to the client
+    @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json)
   end
   
   # Push voice data to WebSocket

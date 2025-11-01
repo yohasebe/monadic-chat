@@ -4208,18 +4208,42 @@ let loadedApp = "Chat";
         break;
       }
       case "past_messages": {
-        // During session restoration, completely ignore past_messages from server
-        // We already restored messages from localStorage
+        // During session restoration, check if server and client are in sync
         if (window.isRestoringSession) {
-          console.log('[Session] Session restoration - ignoring past_messages from server');
-          console.log('[Session] Received past_messages from server:', {
-            messageCount: data["content"].length,
-            roles: data["content"].map(m => m.role),
-            mids: data["content"].map(m => m.mid)
-          });
-          console.log('[Session] Keeping locally restored messages instead');
+          const serverMessages = data["content"] || [];
+          const localMessages = window.SessionState.getMessages() || [];
 
-          // Save current app and model, but DON'T touch messages
+          // CRITICAL: Detect server restart
+          // If server has 0 messages but localStorage has messages, server was restarted
+          if (serverMessages.length === 0 && localMessages.length > 0) {
+            console.log('[Session] Server restart detected - clearing local state');
+
+            // Clear localStorage (this also clears window.messages via proxy)
+            window.SessionState.clearMessages();
+
+            // Clear DOM
+            $("#discourse").empty();
+
+            // Update statistics display
+            if (typeof setStats === 'function') {
+              setStats(formatInfo([]), "info");
+            }
+
+            // Update START button to "Start Session"
+            if (window.i18nReady) {
+              window.i18nReady.then(() => {
+                const startText = webUIi18n.t('ui.session.startSession') || 'Start Session';
+                $("#start-label").text(startText);
+              });
+            } else {
+              $("#start-label").text('Start Session');
+            }
+
+            break;
+          }
+
+          // Normal case: keep locally restored messages
+          // Save current app and model
           const currentApp = $("#apps").val();
           if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
             window.SessionState.setCurrentApp(currentApp);
@@ -4229,8 +4253,6 @@ let loadedApp = "Chat";
             window.SessionState.app.model = currentModel;
           }
 
-          // DON'T clear or update messages - keep what we restored from localStorage
-          console.log('[Session] Preserved', window.SessionState.getMessages().length, 'locally restored messages');
           break;
         }
 

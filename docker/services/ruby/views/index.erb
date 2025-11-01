@@ -379,34 +379,31 @@
         margin-right: 0.5rem; /* Space between icon and text */
       }
       
+      /* Unified status styling (softer gray for light mode) */
+      #status-message {
+        background-color: #707070 !important; /* Lighter gray background (balanced for light mode UI) */
+        border: 1px solid #808080 !important; /* Slightly lighter border */
+      }
+
+      /* Status type colors (text only) */
       #status-message.text-success {
-        background-color: #f0f9f5; /* Very light mint green */
-        border-color: #c3e6cb; /* Soft green border */
-        color: #155724 !important; /* Dark green text */
+        color: #5cd65c !important; /* Softer green (matches Electron UI .status.running) */
       }
-      
+
       #status-message.text-warning {
-        background-color: #fffaf0; /* Very light warm yellow */
-        border-color: #ffeaa7; /* Soft yellow border */
-        color: #856404 !important; /* Dark amber text */
+        color: #ffa64d !important; /* Softer orange (matches Electron UI .status.stopped) */
       }
-      
+
       #status-message.text-danger {
-        background-color: #fef5f5; /* Very light rose */
-        border-color: #f5c2c7; /* Soft rose border */
-        color: #721c24 !important; /* Dark red text */
+        color: #dc4c64 !important; /* Red */
       }
-      
+
       #status-message.text-info {
-        background-color: #f0f7ff; /* Very light sky blue */
-        border-color: #bee5eb; /* Soft sky blue border */
-        color: #0c5460 !important; /* Dark teal text */
+        color: #64b5f6 !important; /* Blue */
       }
-      
-      #status-message.text-primary {
-        background-color: #f5f7fa; /* Very light gray-blue */
-        border-color: #c8d6e5; /* Soft gray-blue border */
-        color: #2c3e50 !important; /* Dark blue-gray text */
+
+      #status-message.text-secondary {
+        color: #757575 !important; /* Gray */
       }
       
       /* Responsive adjustments */
@@ -1316,6 +1313,7 @@
     <script src="js/monadic/storage-helper.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/theme-manager.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/theme-ui.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/status-config.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/reasoning-mapper.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/reasoning-labels.js?timestamp=<%= @timestamp %>"></script>

@@ -404,8 +404,31 @@ i.fas.fa-bolt,
   border-color: #666 !important;
 }
 
+/* Dark mode: Unified status styling (matches Electron UI design) */
 .dark-theme #status-message {
-  color: #e5e5e5 !important;
+  background-color: #2a2a2a !important; /* Darker gray for dark mode */
+  border: 1px solid #444444 !important; /* Slightly lighter border */
+}
+
+/* Dark mode: Status type colors (lighter versions for dark background) */
+.dark-theme #status-message.text-success {
+  color: #7fd89f !important; /* Lighter green */
+}
+
+.dark-theme #status-message.text-warning {
+  color: #ffb74d !important; /* Lighter orange */
+}
+
+.dark-theme #status-message.text-danger {
+  color: #ef5350 !important; /* Lighter red */
+}
+
+.dark-theme #status-message.text-info {
+  color: #90caf9 !important; /* Lighter blue */
+}
+
+.dark-theme #status-message.text-secondary {
+  color: #bdbdbd !important; /* Lighter gray */
 }
 
 /* Dark mode: Toggle menu button icon visibility */

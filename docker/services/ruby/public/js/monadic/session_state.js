@@ -270,6 +270,8 @@
       try {
         this.conversation.messages = [];
         this.notifyListeners('messages:cleared');
+        // IMPORTANT: Save cleared state to localStorage to prevent restoration
+        this.save();
       } catch (error) {
         console.error('[SessionState.clearMessages] Error:', error);
       }

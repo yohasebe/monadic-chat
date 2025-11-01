@@ -372,16 +372,26 @@ function removeEmojis(text) {
 
 function setAlertClass(alertType = "error") {
   // Apply classes to #status-message
+  // Uses StatusConfig for centralized status type management
+  // Styling is done via CSS in index.erb and monadic-improvements.css
+
   // Remove all existing text-* classes
   $("#status-message").removeClass(function (_index, className) {
     return (className.match(/\btext-\S+/g) || []).join(' ');
   });
-  
+
   // Map error to danger for consistency with Bootstrap
   if (alertType === "error") {
     alertType = "danger";
   }
-  
+
+  // Validate status type if StatusConfig is available
+  if (typeof window.StatusConfig !== 'undefined' && !window.StatusConfig.isValidStatusType(alertType)) {
+    console.warn(`[setAlertClass] Invalid status type: "${alertType}". Valid types:`, window.StatusConfig.getValidStatusTypes());
+    // Fall back to 'secondary' for unknown types
+    alertType = 'secondary';
+  }
+
   // Add the new class
   $("#status-message").addClass(`text-${alertType}`);
 }
@@ -476,6 +486,35 @@ function setAlert(text = "", alertType = "success") {
 function setStats(text = "") {
   // Direct DOM access without global reference
   $("#stats-message").html(`${text}`);
+}
+
+/**
+ * Clear status message text and remove all status type classes
+ * Used during app switching and reset operations
+ */
+function clearStatusMessage() {
+  $("#status-message").html("");
+  $("#status-message").removeClass(function (_index, className) {
+    return (className.match(/\btext-\S+/g) || []).join(' ');
+  });
+}
+
+/**
+ * Clear all error cards from the discourse area
+ * Error cards are created by setAlert() with alertType="error"
+ * They have class "error-message-card"
+ */
+function clearErrorCards() {
+  $(".error-message-card").each(function() {
+    const mid = $(this).attr("id");
+    if (mid) {
+      // Notify server to maintain consistency
+      ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
+      mids.delete(mid);
+    }
+  });
+  // Remove from DOM
+  $(".error-message-card").remove();
 }
 
 function deleteMessage(mid) {
@@ -1275,6 +1314,11 @@ function doResetActions(resetToDefaultApp = false) {
   $("#chat").html("")
   $("#temp-card").hide();
   $("#temp-reasoning-card").remove();
+
+  // Clear error cards and status message explicitly
+  clearErrorCards();
+  clearStatusMessage();
+
   $("#config").show();
   $("#back-to-settings").hide();
   $("#parameter-panel").hide();

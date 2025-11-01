@@ -296,7 +296,9 @@ const webUITranslations = {
         pdfApp: "App",
         pdfProvider: "Provider",
         pdfModel: "Model",
-        pdfExported: "Exported"
+        pdfExported: "Exported",
+        messageActive: "Active (within context)",
+        messageInactive: "Inactive (outside context)"
       },
       session: {
         startSession: "Start Session",
@@ -595,7 +597,9 @@ const webUITranslations = {
         pdfApp: "アプリ",
         pdfProvider: "プロバイダ",
         pdfModel: "モデル",
-        pdfExported: "出力日時"
+        pdfExported: "出力日時",
+        messageActive: "アクティブ（コンテキスト内）",
+        messageInactive: "非アクティブ（コンテキスト外）"
       },
       session: {
         startSession: "セッションを開始",
@@ -906,7 +910,9 @@ const webUITranslations = {
         pdfApp: "应用",
         pdfProvider: "提供商",
         pdfModel: "模型",
-        pdfExported: "导出时间"
+        pdfExported: "导出时间",
+        messageActive: "活动（上下文内）",
+        messageInactive: "非活动（上下文外）"
       },
       session: {
         startSession: "开始会话",
@@ -1189,7 +1195,9 @@ const webUITranslations = {
         pdfApp: "앱",
         pdfProvider: "제공자",
         pdfModel: "모델",
-        pdfExported: "내보내기 날짜"
+        pdfExported: "내보내기 날짜",
+        messageActive: "활성 (컨텍스트 내)",
+        messageInactive: "비활성 (컨텍스트 외)"
       },
       session: {
         startSession: "세션 시작",
@@ -1472,7 +1480,9 @@ const webUITranslations = {
         pdfApp: "App",
         pdfProvider: "Proveedor",
         pdfModel: "Modelo",
-        pdfExported: "Exportado"
+        pdfExported: "Exportado",
+        messageActive: "Activo (dentro del contexto)",
+        messageInactive: "Inactivo (fuera del contexto)"
       },
       session: {
         startSession: "Iniciar Sesión",
@@ -1755,7 +1765,9 @@ const webUITranslations = {
         pdfApp: "App",
         pdfProvider: "Fournisseur",
         pdfModel: "Modèle",
-        pdfExported: "Exporté"
+        pdfExported: "Exporté",
+        messageActive: "Actif (dans le contexte)",
+        messageInactive: "Inactif (hors contexte)"
       },
       session: {
         startSession: "Démarrer Session",
@@ -2038,7 +2050,9 @@ const webUITranslations = {
         pdfApp: "App",
         pdfProvider: "Anbieter",
         pdfModel: "Modell",
-        pdfExported: "Exportiert"
+        pdfExported: "Exportiert",
+        messageActive: "Aktiv (innerhalb des Kontexts)",
+        messageInactive: "Inaktiv (außerhalb des Kontexts)"
       },
       session: {
         startSession: "Sitzung Starten",

@@ -188,6 +188,188 @@
 }
 
 /* ============================================== */
+/* Icon and Link Colors - CSS Variables Based */
+/* ============================================== */
+/* Replaces JavaScript style forcing with pure CSS */
+/* Uses CSS variables defined in Critical CSS */
+/* Reduced !important usage by relying on specificity where possible */
+
+/* ============================================== */
+/* Panel Section Headers - Semantic Classes */
+/* ============================================== */
+.panel-section-header {
+  color: var(--text-secondary);
+  margin-top: 0.5em;
+}
+
+/* Generic secondary text styling */
+.text-secondary-styled {
+  color: var(--text-secondary);
+}
+
+/* App select icon inherits secondary color */
+#app-select-icon {
+  color: var(--text-secondary);
+}
+
+/* Role icon selector in user panel */
+.role-icon-selector {
+  font-size: 1.3em;
+  color: var(--color-user); /* User icon should be user color (blue) */
+}
+
+/* Alert/warning icon colors */
+.alert-warning-icon {
+  color: #FF7F07; /* Orange for alert warnings */
+}
+
+.warning-icon-color {
+  color: #ffc107; /* Bootstrap warning yellow */
+}
+
+/* AI Assistant provider badge */
+.ai-assistant-provider {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.375rem;
+  background-color: var(--bg-panel);
+  font-weight: normal;
+  min-width: 120px;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  height: calc(1.5em + 0.5rem + 2px);
+  vertical-align: middle;
+}
+
+/* App select icon color */
+#app-select-icon i {
+  color: #777;
+}
+
+/* ============================================== */
+/* Info Panel - Semantic Classes (No !important needed) */
+/* ============================================== */
+/* Light mode: gray text and icons */
+#monadic-info-panel .info-panel-link,
+#monadic-info-panel .info-panel-text {
+  color: var(--text-secondary);
+}
+
+#monadic-info-panel .info-panel-link i,
+#monadic-info-panel .info-panel-text i {
+  color: var(--text-secondary);
+}
+
+/* Links remain themed */
+#monadic-info-panel .info-panel-link a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+#monadic-info-panel .info-panel-link a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+/* Header Icons - Yellow (high specificity selectors) */
+#monadic-info-panel h5 i,
+#base-app-icon,
+#base-app-icon i {
+  color: var(--color-icon-primary);
+}
+
+/* Header Icons - Yellow (lower specificity, needs !important) */
+.fas.fa-message,
+.fas.fa-bolt,
+.shaded-panel h5 i,
+.icon-container i,
+.icon-container .app-icon {
+  color: var(--color-icon-primary) !important;
+}
+
+/* AI Assistant Label - Red (high specificity) */
+#ai-assistant-info span[data-i18n="ui.aiAssistant"] {
+  color: var(--color-assistant);
+}
+
+/* AI Assistant Label - Red (generic class, needs !important) */
+.assistant-color {
+  color: var(--color-assistant) !important;
+}
+
+/* Agent Tool Icons - Distinct colors for different agents */
+.agent-icon-gpt5codex {
+  color: #4285f4; /* Google blue */
+}
+
+.agent-icon-claudeopus {
+  color: #6f42c1; /* Purple */
+}
+
+/* Card Header Icons - Semantic Classes (No !important needed) */
+/* .card-role-icon ensures icons get role-specific colors */
+.card-header .card-role-icon {
+  color: inherit; /* Will be overridden by specific icon rules below */
+}
+
+.card-header .card-role-icon .fa-face-smile {
+  color: var(--color-user);
+}
+
+.card-header .card-role-icon .fa-robot,
+.card-header .fa-robot {
+  color: var(--color-assistant);
+}
+
+.card-header .card-role-icon .fa-bars,
+.card-header .fa-bars {
+  color: var(--color-system);
+}
+
+.card-header .fa-info-circle {
+  color: var(--color-info);
+}
+
+/* Links - Theme-aware Colors (ID selectors have sufficient specificity) */
+#monadic-info-panel a,
+#base-app-desc a {
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+#monadic-info-panel a:hover,
+#base-app-desc a:hover {
+  color: var(--color-link-hover);
+  text-decoration: underline;
+}
+
+/* Links with class selector (needs !important to override Bootstrap) */
+.shaded-panel a {
+  color: var(--color-link) !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.shaded-panel a:hover {
+  color: var(--color-link-hover) !important;
+  text-decoration: underline !important;
+}
+
+/* Icons inside links (ID selectors sufficient) */
+#monadic-info-panel a i,
+#base-app-desc a i {
+  color: inherit;
+}
+
+.shaded-panel a i {
+  color: inherit !important;
+}
+
+/* ============================================== */
 /* Global Accessibility: Focus Indicators */
 /* ============================================== */
 /* Keyboard navigation focus styles for WCAG 2.1 compliance */
@@ -255,15 +437,15 @@ a:focus-visible {
   box-shadow: none;
 }
 #main-nav .container-fluid {
-  display: flex !important;
-  align-items: center !important;
-  padding: 0 1rem !important;
-  height: 65px !important;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  height: 65px;
 }
 #main-nav .navbar-brand {
-  display: flex !important;
-  align-items: center !important;
-  margin: 0 !important;
+  display: flex;
+  align-items: center;
+  margin: 0;
   text-decoration: none;
 }
 #main-nav .nav-logo {
@@ -281,7 +463,7 @@ a:focus-visible {
 }
 #main-nav .nav-text .text-highlight {
   font-weight: bold;
-  color: #ffc107;
+  color: var(--color-icon-primary);
   font-size: 1.7rem;
   text-shadow: 0 1px 3px rgba(255, 193, 7, 0.25);
 }
@@ -296,7 +478,7 @@ a:focus-visible {
 }
 @media (max-width: 767px) {
   #main-nav .container-fluid {
-    height: 65px !important;
+    height: 65px;
   }
   #main-nav .nav-logo {
     width: 1.8em;
@@ -312,31 +494,31 @@ a:focus-visible {
 /* Toggle Menu Button Border for Visibility */
 #toggle-menu {
   /* Always transparent background except on hover */
-  background-color: transparent !important;
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
-  border-radius: 4px !important;
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
   /* Fixed size for toggle menu button */
-  width: 28px !important;
-  height: 28px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 0 !important;
-  position: relative !important;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  position: relative;
 }
 #toggle-menu:hover {
-  background-color: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 /* Menu open/closed state styles */
 #toggle-menu.menu-hidden {
-  background-color: transparent !important;
+  background-color: transparent;
 }
 
 #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(0, 0, 0, 0.2) !important;
-  color: #ffc107 !important;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.2);
+  color: var(--color-icon-primary);
 }
 
 /* ********************************************** */
@@ -723,24 +905,24 @@ button.fixed-width {
 }
 
 .monadic-color {
-  color: #ffc107;
+  color: var(--color-icon-primary);
 }
 
 /* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
 .assistant-color {
-  color: #DC4C64;
+  color: var(--color-assistant);
   font-weight: 500;
 }
 
 /* CSS class removed as we now use inline styles */
 
 .user-color {
-  color: #4CACDC;
+  color: var(--color-user);
   font-weight: 500;
 }
 
 .system-color {
-  color: #22ad50;
+  color: var(--color-system);
   font-weight: 500;
 }
 /* END: ROLE COLOR IMPROVEMENTS */
@@ -797,14 +979,14 @@ button.fixed-width {
 }
 
 .app-icon {
-  color: #ffc107;
+  color: var(--color-icon-primary);
   font-size: 1.4em;
 }
 
 /* Styles moved to index.erb file to ensure they take precedence */
 
 .card-body h2 {
-  color: #DC4C64;
+  color: var(--color-assistant);
   font-weight: 500;
   font-size: 1.3em;
   margin: 1.2em 0 1em 0;
@@ -852,7 +1034,7 @@ h5 i,
 .like-h5 i {
   display: inline-block;
   margin-right: 0.2em;
-  color: #ffc107;
+  color: var(--color-icon-primary);
 }
 
 #cancel_query:hover {
@@ -878,7 +1060,7 @@ h5 i,
 }
 
 #cancel_query i {
-  color: #ffc107;
+  color: var(--color-icon-primary);
   margin-right: 3px;
 }
 
@@ -1286,17 +1468,17 @@ div.diagram {
 /* Dark mode: Preserve role-specific colors in sidebar */
 .dark-theme .shaded-panel .assistant-color,
 .dark-theme #monadic-info-panel .assistant-color {
-  color: #DC4C64 !important;
+  color: var(--color-assistant) !important;
 }
 
 .dark-theme .shaded-panel .user-color,
 .dark-theme #monadic-info-panel .user-color {
-  color: #4CACDC !important;
+  color: var(--color-user) !important;
 }
 
 .dark-theme .shaded-panel .system-color,
 .dark-theme #monadic-info-panel .system-color {
-  color: #22ad50 !important;
+  color: var(--color-system) !important;
 }
 
 /* Dark mode: Ensure badge colors are preserved in sidebar */
@@ -1315,11 +1497,15 @@ div.diagram {
 }
 
 /* Dark mode: Specific override for stats and info panels */
+/* Use positive selector approach instead of wildcard + exclusions */
 .dark-theme #stats-message,
-.dark-theme #stats-message *,
-.dark-theme #monadic-info-panel,
-.dark-theme #monadic-info-panel *:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(.badge-tools *):not(.badge-capabilities *) {
-  color: var(--text-primary) !important;
+.dark-theme #stats-message p,
+.dark-theme #stats-message span:not(.assistant-color):not(.user-color):not(.system-color),
+.dark-theme #stats-message div,
+.dark-theme #monadic-info-panel p,
+.dark-theme #monadic-info-panel span:not(.assistant-color):not(.user-color):not(.system-color),
+.dark-theme #monadic-info-panel div:not(.badge-tools):not(.badge-capabilities) {
+  color: var(--text-primary);
 }
 
 /* Dark mode: Card header background */
@@ -1330,28 +1516,28 @@ div.diagram {
 
 /* Dark mode: Preserve role-specific colors in card headers */
 .dark-theme .card-header .assistant-color {
-  color: #DC4C64 !important;
+  color: var(--color-assistant) !important;
 }
 
 .dark-theme .card-header .user-color {
-  color: #4CACDC !important;
+  color: var(--color-user) !important;
 }
 
 .dark-theme .card-header .system-color {
-  color: #22ad50 !important;
+  color: var(--color-system) !important;
 }
 
 /* Dark mode: Card header icons - match text colors */
 .dark-theme .card-header .fa-robot {
-  color: #DC4C64 !important;
+  color: var(--color-assistant) !important;
 }
 
 .dark-theme .card-header .fa-user {
-  color: #4CACDC !important;
+  color: var(--color-user) !important;
 }
 
 .dark-theme .card-header .fa-cog {
-  color: #22ad50 !important;
+  color: var(--color-system) !important;
 }
 
 /* Dark mode: Link colors */
@@ -1424,7 +1610,7 @@ div.diagram {
 .dark-theme #monadic-info-panel h5 .fa-message,
 .dark-theme #monadic-info-panel h5 .fa-bolt,
 .dark-theme .shaded-panel span.text i {
-  color: #ffc107 !important;
+  color: var(--color-icon-primary) !important;
 }
 
 /* Dark mode: App icons - preserve yellow accent */
@@ -1432,7 +1618,7 @@ div.diagram {
 .dark-theme .icon-container .app-icon,
 .dark-theme #base-app-icon,
 .dark-theme #base-app-icon i {
-  color: #ffc107 !important;
+  color: var(--color-icon-primary) !important;
 }
 
 /* Dark mode: Nested json-content - lighter borders and reduced spacing */
@@ -1551,33 +1737,33 @@ legend {
 /* END: CARD TEXT STYLE IMPROVEMENTS */
 
 /* START: ROLE CONSISTENCY IMPROVEMENTS - ADDED 2025-04-08 */
-/* Special handling for cards with pb-1 class */
+/* Special handling for cards with pb-1 class (high specificity) */
 .card-body.pb-1 .card-text p:last-child {
-  margin-bottom: 0.25em !important;
+  margin-bottom: 0.25em;
 }
 
-/* Complete reset and explicit definition for card paragraphs */
+/* Complete reset and explicit definition for card paragraphs (high specificity) */
 .card-body.role-assistant .card-text p,
 .card-body.role-user .card-text p,
 .card-body.role-system .card-text p {
-  margin-top: 0.5em !important;
-  margin-bottom: 0.5em !important;
-  padding: 0 !important;
-  box-sizing: border-box !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-/* First paragraph specific spacing */
+/* First paragraph specific spacing (high specificity) */
 .card-body.role-assistant .card-text p:first-of-type,
 .card-body.role-user .card-text p:first-of-type,
 .card-body.role-system .card-text p:first-of-type {
-  margin-top: 0.2em !important;
+  margin-top: 0.2em;
 }
 
-/* Last paragraph specific spacing */
+/* Last paragraph specific spacing (high specificity) */
 .card-body.role-assistant .card-text p:last-of-type,
 .card-body.role-user .card-text p:last-of-type,
 .card-body.role-system .card-text p:last-of-type {
-  margin-bottom: 0.2em !important;
+  margin-bottom: 0.2em;
 }
 
 /* Ensure consistent white-space handling */
@@ -1619,16 +1805,16 @@ legend {
 }
 
 .toggle-open p {
-  margin-top: 0.75em !important;
-  margin-bottom: 0.75em !important;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
 }
 
 .toggle-open p:first-child {
-  margin-top: 0.25em !important;
+  margin-top: 0.25em;
 }
 
 .toggle-open p:last-child {
-  margin-bottom: 0.25em !important;
+  margin-bottom: 0.25em;
 }
 /* END: TOGGLE SHOW/HIDE STYLE IMPROVEMENTS */
 
@@ -1682,49 +1868,49 @@ legend {
   z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
 
-/* Button styles */
+/* Button styles (specific selectors override Bootstrap without !important) */
 .image-container .btn.remove-file,
 .image-container .btn.create-mask {
-  background-color: #ffffff !important;
-  border: 1px solid #dee2e6 !important;
-  color: #495057 !important;
-  padding: 0.5rem !important;
-  font-size: 13px !important;
-  border-radius: 5px !important;
-  cursor: pointer !important;
-  transition: all var(--transition-fast) ease !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
-  line-height: 1.2 !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  color: #495057;
+  padding: 0.5rem;
+  font-size: 13px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  line-height: 1.2;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-container .btn.remove-file:hover {
-  background-color: #dc3545 !important;
-  color: #ffffff !important;
-  border-color: #dc3545 !important;
-  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3) !important;
+  background-color: #dc3545;
+  color: #ffffff;
+  border-color: #dc3545;
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
 }
 
 .image-container .btn.create-mask {
-  background-color: #007bff !important;
-  color: #ffffff !important;
-  border-color: #007bff !important;
+  background-color: #007bff;
+  color: #ffffff;
+  border-color: #007bff;
 }
 
 .image-container .btn.create-mask:hover {
-  background-color: #0056b3 !important;
-  border-color: #0056b3 !important;
-  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3) !important;
+  background-color: #0056b3;
+  border-color: #0056b3;
+  box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
 }
 
 /* Icon styles */
 .image-container .btn i {
-  font-size: 14px !important;
-  margin: 0 !important;
+  font-size: 14px;
+  margin: 0;
 }
 
 .image-container .btn.create-mask i {
@@ -1797,7 +1983,7 @@ legend {
 
 #monadic-spinner i {
   font-size: 1.8em;
-  color: #ffc107;
+  color: var(--color-icon-primary);
   vertical-align: middle;
   margin-right: 5px;
 }
@@ -2300,7 +2486,7 @@ legend {
   }
   
   .card-header .card-title .fa-face-smile {
-    color: #4CACDC !important;
+    color: var(--color-user) !important;
     font-size: 1.3em !important;
   }
   
@@ -2311,7 +2497,7 @@ legend {
   }
   
   .card-header .card-title .fa-bars {
-    color: #22ad50 !important;
+    color: var(--color-system) !important;
     font-size: 1.3em !important;
   }
   
@@ -3329,7 +3515,7 @@ img.base64-image,
   right: -4px;
   width: 8px;
   height: 8px;
-  background-color: #ffc107; /* Bootstrap warning yellow */
+  background-color: var(--color-icon-primary); /* Bootstrap warning yellow */
   border-radius: 50%;
   border: 2px solid var(--bg-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -3371,7 +3557,7 @@ img.base64-image,
 .dark-theme #monadic-info-panel h5 span.text i.fas.fa-bolt,
 .dark-theme .shaded-panel h5 span i.fas,
 .dark-theme #monadic-info-panel h5 span i.fas {
-  color: #ffc107 !important;
+  color: var(--color-icon-primary) !important;
 }
 
 /* CRITICAL: Sidebar links MUST use link colors (highest priority) */
@@ -3407,7 +3593,7 @@ i.fas.fa-bolt,
 .dark-theme #monadic-info-panel h5 span i,
 .dark-theme .shaded-panel h5 i,
 .dark-theme .shaded-panel h5 span i {
-  color: #ffc107 !important;
+  color: var(--color-icon-primary) !important;
 }
 
 /* Light mode AND dark mode: Links must use link colors */

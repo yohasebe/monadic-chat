@@ -6,6 +6,92 @@
     <meta name="rouge-theme" content="<%= CONFIG["ROUGE_THEME"] || "pastie:light" %>">
     <title>Monadic Chat</title>
 
+    <!-- Critical CSS - Theme variables inline to prevent flash -->
+    <style>
+      :root {
+        /* Light Theme (Default) */
+        --bg-body: #DCDCDC;
+        --bg-panel: #F8F8F8;
+        --text-primary: #333;
+        --text-secondary: #777;
+
+        /* Icon and Accent Colors */
+        --color-icon-primary: #ffc107;
+        --color-assistant: rgb(220, 76, 100);
+        --color-user: #4CACDC;
+        --color-system: #22ad50;
+        --color-info: #2196f3;
+        --color-link: #0d6efd;
+        --color-link-hover: #0a58ca;
+      }
+
+      .dark-theme {
+        /* Dark Theme */
+        --bg-body: #1a1a1a;
+        --bg-panel: #2a2a2a;
+        --text-primary: #f5f5f5;
+        --text-secondary: #d0d0d0;
+
+        /* Icon colors stay the same in dark mode */
+        /* Link colors change for dark mode */
+        --color-link: #6b9bd8;
+        --color-link-hover: #8fb3e8;
+      }
+
+      /* Apply immediately to prevent flash */
+      html, body {
+        background-color: var(--bg-body);
+        color: var(--text-primary);
+        margin: 0;
+        height: 100%;
+      }
+    </style>
+
+    <!-- Theme initialization script - runs immediately to prevent flash -->
+    <script type="text/javascript">
+      (function() {
+        // Helper function to get cookie value
+        function getCookie(name) {
+          const nameEQ = name + "=";
+          const ca = document.cookie.split(';');
+          for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+          }
+          return null;
+        }
+
+        // Get saved theme preference from cookie
+        const themePreference = getCookie('theme-preference') || 'system';
+
+        // Determine current theme
+        let theme = 'light'; // default
+        if (themePreference === 'dark') {
+          theme = 'dark';
+        } else if (themePreference === 'system') {
+          // Check system preference
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme = 'dark';
+          }
+        } else if (themePreference === 'light') {
+          theme = 'light';
+        }
+
+        // Apply theme immediately to prevent flash
+        const html = document.documentElement;
+        if (theme === 'dark') {
+          html.classList.add('dark-theme');
+          html.classList.remove('light-theme');
+          html.setAttribute('data-theme', 'dark');
+        } else {
+          html.classList.add('light-theme');
+          html.classList.remove('dark-theme');
+          html.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+
     <!-- Screen size detection and warning -->
     <script type="text/javascript">
       // Global variable to track if screen meets requirements
@@ -45,7 +131,7 @@
           
           // Add logo/icon
           const icon = document.createElement('div');
-          icon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ffc107; font-size: 48px; margin-bottom: 20px;"></i>';
+          icon.innerHTML = '<i class="fas fa-exclamation-triangle warning-icon-color" style="font-size: 48px; margin-bottom: 20px;"></i>';
           
           // Add title
           const title = document.createElement('h2');
@@ -597,19 +683,19 @@
             <div class="mb-3" style="display: flex; align-items: center; flex-wrap: wrap;">
               <div id="monadic-homepage">
                 <% if @debug_mode %>
-                  <span class="text text-secondary"><i class="fa-solid fa-book"></i> <a href="/docs/" target="_blank" rel="noopener noreferrer" title="Public documentation">Docs</a></span>
+                  <span class="info-panel-link"><i class="fa-solid fa-book"></i> <a href="/docs/" target="_blank" rel="noopener noreferrer" title="Public documentation">Docs</a></span>
                   &nbsp;&nbsp;
-                  <span class="text text-secondary"><i class="fa-solid fa-book"></i> <a href="/docs_dev/" target="_blank" rel="noopener noreferrer" title="Developer documentation">Docs Dev</a></span>
+                  <span class="info-panel-link"><i class="fa-solid fa-book"></i> <a href="/docs_dev/" target="_blank" rel="noopener noreferrer" title="Developer documentation">Docs Dev</a></span>
                 <% else %>
-                  <span class="text text-secondary"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.homepage">Homepage</a></span>
+                  <span class="info-panel-link"><i class="fa-solid fa-house"></i> <a href="https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.homepage">Homepage</a></span>
                 <% end %>
                 &nbsp;&nbsp;
-                <span class="text text-secondary"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
+                <span class="info-panel-link"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
               </div>
             </div>
             <div class="mb-3" style="display: flex; align-items: center;">
               <div id="monadic-version">
-                <span class="text text-secondary"><i class="fa-solid fa-circle-info"></i> <span data-i18n="ui.version">Version</span>:</span> <span class="text text-secondary" id="monadic-version-number"></span>
+                <span class="info-panel-text"><i class="fa-solid fa-circle-info"></i> <span data-i18n="ui.version">Version</span>:</span> <span class="info-panel-text" id="monadic-version-number"></span>
               </div>
             </div>
             
@@ -788,7 +874,7 @@
 
         <div id="main" class="col-md-8 order-md-1 scrollable" style="padding-bottom: 50px;">
           <div id="config" class="rounded p-3 shaded-panel">
-            <h5 class="pb-0" style="color: #777; margin-top: 0.5em;"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
+            <h5 class="pb-0 panel-section-header"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
 
 
             <form class="row my-2">
@@ -796,14 +882,14 @@
                 <label class="form-label" for="apps" data-i18n="ui.baseApp">Base App</label>
                 <div class="position-relative">
                   <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;">
-                    <span id="app-select-icon" style="color: #777;"></span>
+                    <span id="app-select-icon"></span>
                   </div>
                   <div class="app-select-wrapper" style="position: relative; cursor: pointer;">
                     <select class="form-select form-select-sm" id="apps" style="padding-left: 36px; cursor: pointer; pointer-events: none;">
                     </select>
                     <div id="app-select-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: pointer; background-color: transparent;"></div>
                   </div>
-                  <div id="custom-apps-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 50vh; overflow-y: auto; background: white; border: 1px solid #ced4da; border-radius: 0.25rem; z-index: 1100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); scrollbar-color: #bbb #DCDCDC; scrollbar-width: thin;">
+                  <div id="custom-apps-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 50vh; overflow-y: auto; background: var(--bg-input); border: 1px solid var(--border-primary); border-radius: 0.25rem; z-index: 1100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); scrollbar-color: var(--scrollbar-thumb) var(--bg-body); scrollbar-width: thin;">
                     <!-- Options will be inserted here by JavaScript -->
                   </div>
                 </div>
@@ -938,14 +1024,14 @@
           </div>
 
           <div id="main-panel" class="rounded p-3 shaded-panel" style="display :none;">
-            <h5 class="pb-0 mb-0" style="color: #777; margin-top: 0.5em;"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
+            <h5 class="pb-0 mb-0 panel-section-header"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
             <div id="discourse" style="width: 100%; overflow-y: auto; display: none;"></div>
 
             <div id="temp-card" class="card mt-3" style="display:none;">
               <div class="card-header p-2 ps-3 d-flex align-items-center justify-content-between">
                 <div class="fs-5 card-title mb-0">
-                  <span><i class='fas fa-robot' style="color: #DC4C64;"></i></span>
-                  <span class='fw-bold fs-6' style="color: #DC4C64;">Assistant</span>
+                  <span class="card-role-icon"><i class='fas fa-robot'></i></span>
+                  <span class='fw-bold fs-6 assistant-color'>Assistant</span>
                 </div>
                 <div class="me-1 text-secondary d-flex align-items-center">
                   <span id="indicator" class="spinner spinner-grow spinner-grow-sm text-warning float-end growing-spinner"></span>
@@ -993,7 +1079,7 @@
                 <div class="col-auto d-flex align-items-center">
                   <label class="form-check-label ps-1 me-1 text-nowrap" for="select-role" data-i18n="ui.role">Role</label>
                   <div style="display: inline-flex; align-items: center; max-width: 100%;">
-                    <span style="font-size: 1.3em; color: #777;" id="role-icon"><i class="fa-solid fa-face-smile"></i>&nbsp;</span>
+                    <span id="role-icon" class="role-icon-selector"><i class="fa-solid fa-face-smile"></i>&nbsp;</span>
                   </div>
                   <select id="select-role" class="form-select form-select-sm me-3">
                     <option value="user">User</option>
@@ -1006,9 +1092,9 @@
 
               <div class="d-flex align-items-center">
                 <span id="ai-assistant-info" data-model="" class="fw-bold">
-                  <span style="color: #DC4C64;" data-i18n="ui.aiAssistant">AI Assistant</span>
+                  <span data-i18n="ui.aiAssistant">AI Assistant</span>
                   &nbsp;
-                  <span class="ai-assistant-provider" style="display: inline-block; padding: 0.25rem 0.5rem; border: 1px solid #dee2e6; border-radius: 0.375rem; background-color: #f8f9fa; font-weight: normal; min-width: 120px; text-align: left; font-size: 0.875rem; line-height: 1.5; height: calc(1.5em + 0.5rem + 2px); vertical-align: middle;">OpenAI</span>
+                  <span class="ai-assistant-provider">OpenAI</span>
                 </span>
                 &nbsp;<span class="text-secondary mx-2">
                   <i class="fas fa-exchange-alt"></i>
@@ -1074,7 +1160,7 @@
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
           </div>
           <div class="modal-body">
-            <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span style="font-weight: bold; color: #777;" id="pdfToDelete"></span>?
+            <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
           </div>
           <div class="modal-footer">
             <div></div>
@@ -1094,7 +1180,7 @@
           </div>
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
-            <p id="messageToDelete" style="color: #777;"></p>
+            <p id="messageToDelete" class="text-secondary-styled"></p>
           </div>
           <div class="modal-footer flex-column align-items-stretch">
             <button type="button" id="deleteMessageOnly" class="btn btn-sm btn-warning mb-2" data-i18n="ui.deleteMessageOnly"><i class="fa-regular fa-circle-right"></i> Delete this message only</button>
@@ -1366,100 +1452,5 @@
       <a href="#" aria-hidden="true"><i class="fas fa-arrow-up"></i></a>
     </div>
 
-    <!-- Force icon and link colors -->
-    <script>
-    (function() {
-      function applyForcedColors() {
-        // Force header icons to yellow
-        const icons = document.querySelectorAll('.fas.fa-message, .fas.fa-bolt, .shaded-panel h5 i, #monadic-info-panel h5 i');
-        icons.forEach(icon => {
-          icon.style.setProperty('color', '#ffc107', 'important');
-        });
-
-        // Force app icons to yellow
-        const appIcons = document.querySelectorAll('.icon-container i, .icon-container .app-icon, #base-app-icon, #base-app-icon i');
-        appIcons.forEach(icon => {
-          icon.style.setProperty('color', '#ffc107', 'important');
-        });
-
-        // Force AI Assistant label to red
-        const assistantLabels = document.querySelectorAll('#ai-assistant-info span[data-i18n="ui.aiAssistant"], .assistant-color');
-        assistantLabels.forEach(label => {
-          label.style.setProperty('color', 'rgb(220, 76, 100)', 'important');
-        });
-
-        // Force card header icons to role-specific colors
-        const userIcons = document.querySelectorAll('.card-header .fa-face-smile');
-        userIcons.forEach(icon => {
-          icon.style.setProperty('color', '#4CACDC', 'important');
-        });
-
-        const assistantIcons = document.querySelectorAll('.card-header .fa-robot');
-        assistantIcons.forEach(icon => {
-          icon.style.setProperty('color', '#DC4C64', 'important');
-        });
-
-        const systemIcons = document.querySelectorAll('.card-header .fa-bars');
-        systemIcons.forEach(icon => {
-          icon.style.setProperty('color', '#22ad50', 'important');
-        });
-
-        const infoIcons = document.querySelectorAll('.card-header .fa-info-circle');
-        infoIcons.forEach(icon => {
-          icon.style.setProperty('color', '#2196f3', 'important');
-        });
-
-        // Force links to appropriate colors
-        const isDark = document.documentElement.classList.contains('dark-theme');
-        const linkColor = isDark ? '#6b9bd8' : '#0d6efd';
-
-        const links = document.querySelectorAll('.shaded-panel a, #monadic-info-panel a, #base-app-desc a');
-        links.forEach(link => {
-          link.style.setProperty('color', linkColor, 'important');
-          link.style.setProperty('text-decoration', 'none', 'important');
-
-          // Force icons inside links to the same color
-          const linkIcons = link.querySelectorAll('i');
-          linkIcons.forEach(icon => {
-            icon.style.setProperty('color', linkColor, 'important');
-          });
-
-          link.addEventListener('mouseenter', function() {
-            const hoverColor = isDark ? '#8fb3e8' : '#0a58ca';
-            this.style.setProperty('color', hoverColor, 'important');
-            this.style.setProperty('text-decoration', 'underline', 'important');
-            // Also update icons on hover
-            const linkIcons = this.querySelectorAll('i');
-            linkIcons.forEach(icon => {
-              icon.style.setProperty('color', hoverColor, 'important');
-            });
-          });
-
-          link.addEventListener('mouseleave', function() {
-            this.style.setProperty('color', linkColor, 'important');
-            this.style.setProperty('text-decoration', 'none', 'important');
-            // Also restore icon colors
-            const linkIcons = this.querySelectorAll('i');
-            linkIcons.forEach(icon => {
-              icon.style.setProperty('color', linkColor, 'important');
-            });
-          });
-        });
-      }
-
-      // Apply on load
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', applyForcedColors);
-      } else {
-        applyForcedColors();
-      }
-
-      // Re-apply when theme changes
-      window.addEventListener('theme-applied', applyForcedColors);
-
-      // Re-apply periodically to override any dynamic changes
-      setInterval(applyForcedColors, 1000);
-    })();
-    </script>
   </body>
 </html>

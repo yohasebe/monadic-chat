@@ -17,6 +17,9 @@ function escapeHtml(unsafe)
 
 function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false) {
   const status_class = status === true ? "active" : "";
+  const statusTooltip = status === true
+    ? getTranslation('ui.messages.messageActive', 'Active (within context)')
+    : getTranslation('ui.messages.messageInactive', 'Inactive (outside context)');
 
   // Ensure html is a string
   if (html === undefined || html === null) {
@@ -128,9 +131,9 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   }
 
   // Update badge with colored icon (mobile-friendly)
-  const enhancedBadge = badge.replace(/class=['"]text-secondary['"]/g, `class="text-secondary"`);
-  const enhancedBadge2 = enhancedBadge.replace(/<i class=['"]fas (fa-face-smile|fa-robot|fa-bars)['"]><\/i>/g, 
-    `<i class="fas ${roleIcon}" style="color: ${roleIconColor};"></i>`);
+  const enhancedBadge = badge.replace(/class=['"]text-secondary['"]/g, `class="card-role-icon"`);
+  const enhancedBadge2 = enhancedBadge.replace(/<i class=['"]fas (fa-face-smile|fa-robot|fa-bars)['"]><\/i>/g,
+    `<i class="fas ${roleIcon}"></i>`);
 
   // Create the card element with the mid attribute
   const card = $(`
@@ -142,7 +145,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
         <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
         <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-        <span class="status ${status_class}"></span>
+        <span title="${statusTooltip}" class="status ${status_class}"></span>
         </div>
         ` : `
         <div class="me-1 text-secondary d-flex align-items-center">
@@ -151,7 +154,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
         <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
         <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
-        <span class="status ${status_class}"></span>
+        <span title="${statusTooltip}" class="status ${status_class}"></span>
         </div>
         `}
     </div>
@@ -169,6 +172,21 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
 
   // Attach event listeners
   attachEventListeners(card);
+
+  // Initialize Bootstrap tooltips for this card
+  try {
+    if (card && card.tooltip) {
+      card.tooltip({
+        selector: '[title]',
+        trigger: 'hover',
+        delay: { show: 500, hide: 0 },
+        container: 'body',
+        html: false
+      });
+    }
+  } catch (e) {
+    console.warn('Tooltip initialization error:', e);
+  }
 
   // Add to mids Set if mid is not empty
   if (mid !== "") {
@@ -1030,19 +1048,23 @@ window.deleteMessageOnly = function(mid, messageIndex) {
 };
 
   // Combine mouse events into a single listener
-  $card.on("mouseenter.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function () {
+  $card.on("mouseenter.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status", function () {
     $(this).tooltip('show');
     const $icon = $(this).find("i");
-    $icon.css("color", "#DC4C64");
+    if ($icon.length) {
+      $icon.css("color", "#DC4C64");
+    }
   });
 
-  $card.on("mouseleave.cardEvent click.cardEvent touchend.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit", function (event) {
+  $card.on("mouseleave.cardEvent click.cardEvent touchend.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status", function (event) {
     $(this).tooltip('hide');
-    
+
     // Reset color only on mouseleave, not on click or touchend for iOS
     if (event.type === "mouseleave") {
       const $icon = $(this).find("i");
-      $icon.css("color", "");
+      if ($icon.length) {
+        $icon.css("color", "");
+      }
     }
     
     // For iOS devices, handle special case for play/stop buttons
@@ -1156,9 +1178,9 @@ function detachEventListeners($card) {
   if ($card && $card.length) {
     // Remove card-level events
     $card.off(".cardEvent");
-    
+
     // Remove events from child elements
-    $card.find(".func-delete, .func-play, .func-stop, .func-copy, .func-edit").off(".cardEvent");
+    $card.find(".func-delete, .func-play, .func-stop, .func-copy, .func-edit, .status").off(".cardEvent");
     
     // Clean up card text edit button events
     const $cardText = $card.find(".card-text");

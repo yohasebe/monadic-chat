@@ -220,14 +220,54 @@
   border-top-color: #424242;
 }
 
-/* Dark mode: Logo styling - enhance visibility and style */
+/* Dark mode: Info panel - Semantic classes (No !important needed) */
+/* In dark mode, info panel text and icons are white for better contrast */
+.dark-theme #monadic-info-panel .info-panel-link,
+.dark-theme #monadic-info-panel .info-panel-text {
+  color: var(--text-primary);
+}
+
+.dark-theme #monadic-info-panel .info-panel-link i,
+.dark-theme #monadic-info-panel .info-panel-text i {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Card role icons maintain their role-specific colors */
+/* Ensure role colors are visible in dark mode by explicitly setting them */
+.dark-theme .card-header .card-role-icon .fa-face-smile {
+  color: var(--color-user);
+}
+
+.dark-theme .card-header .card-role-icon .fa-robot {
+  color: var(--color-assistant);
+}
+
+.dark-theme .card-header .card-role-icon .fa-bars {
+  color: var(--color-system);
+}
+
+/* Dark mode: AI Assistant and AI User labels maintain assistant/user colors */
+.dark-theme #ai-assistant-info span[data-i18n="ui.aiAssistant"] {
+  color: var(--color-assistant) !important;
+}
+
+.dark-theme .user-color {
+  color: var(--color-user);
+}
+
+/* Dark mode: Role icon selector maintains user color */
+.dark-theme .role-icon-selector {
+  color: var(--color-user) !important;
+}
+
+/* Dark mode: Logo styling - enhance visibility and style (high specificity) */
 .dark-theme #main-nav .nav-text .text-main {
-  color: #e5e5e5 !important;
+  color: #e5e5e5;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
 }
 
 .dark-theme #main-nav .nav-text .text-highlight {
-  color: #ffd54f !important;
+  color: #ffd54f;
   text-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
 }
 
@@ -235,10 +275,10 @@
   filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
 }
 
-/* Dark mode: Outline secondary buttons (Initial Prompt toggles, etc.) */
+/* Dark mode: Outline secondary buttons (needs !important to override Bootstrap) */
 .dark-theme .btn-outline-secondary {
   color: #adb5bd !important;
-  border-color: #555 !important;
+  border-color: #4a4a4a !important; /* Softer border color */
   background-color: transparent !important;
 }
 
@@ -246,139 +286,60 @@
 .dark-theme .btn-outline-secondary:focus {
   color: #f5f5f5 !important;
   background-color: #3a3a3a !important;
-  border-color: #666 !important;
+  border-color: #5a5a5a !important; /* Softer border color on hover */
 }
 
 .dark-theme .btn-outline-secondary:active,
 .dark-theme .btn-outline-secondary.active {
   color: #f5f5f5 !important;
   background-color: #4a4a4a !important;
-  border-color: #666 !important;
+  border-color: #5a5a5a !important; /* Softer border color when active */
 }
 
-/* CRITICAL FIX: Force icon and link colors (HIGHEST PRIORITY - loaded last) */
-/* Header icons - yellow accent for both light and dark mode */
-i.fas.fa-message,
-i.fas.fa-bolt,
-.shaded-panel h5 i,
-.shaded-panel h5 span i,
-#monadic-info-panel h5 i,
-#monadic-info-panel h5 span i,
-.dark-theme i.fas.fa-message,
-.dark-theme i.fas.fa-bolt,
-.dark-theme .shaded-panel h5 i,
-.dark-theme .shaded-panel h5 span i,
-.dark-theme #monadic-info-panel h5 i,
-.dark-theme #monadic-info-panel h5 span i {
-  color: #ffc107 !important;
-}
-
-/* Links - bootstrap blue for light mode, lighter blue for dark mode */
-.shaded-panel a,
-.shaded-panel span a,
-.shaded-panel .text-secondary a,
-#monadic-info-panel a,
-#monadic-info-panel span a,
-#monadic-info-panel .text-secondary a {
-  color: #0d6efd !important;
-  text-decoration: none !important;
-}
-
-.dark-theme .shaded-panel a,
-.dark-theme .shaded-panel span a,
-.dark-theme .shaded-panel .text-secondary a,
-.dark-theme #monadic-info-panel a,
-.dark-theme #monadic-info-panel span a,
-.dark-theme #monadic-info-panel .text-secondary a {
-  color: #6b9bd8 !important;
-  text-decoration: none !important;
-}
-
-.shaded-panel a:hover,
-.shaded-panel span a:hover,
-.shaded-panel .text-secondary a:hover,
-#monadic-info-panel a:hover,
-#monadic-info-panel span a:hover,
-#monadic-info-panel .text-secondary a:hover {
-  color: #0a58ca !important;
-  text-decoration: underline !important;
-}
-
-.dark-theme .shaded-panel a:hover,
-.dark-theme .shaded-panel span a:hover,
-.dark-theme .shaded-panel .text-secondary a:hover,
-.dark-theme #monadic-info-panel a:hover,
-.dark-theme #monadic-info-panel span a:hover,
-.dark-theme #monadic-info-panel .text-secondary a:hover {
-  color: #8fb3e8 !important;
-  text-decoration: underline !important;
-}
-
-/* Dark mode: Icons inside links (e.g., info icons in app descriptions) */
-.dark-theme .shaded-panel a i,
-.dark-theme .shaded-panel span a i,
-.dark-theme #monadic-info-panel a i,
-.dark-theme #monadic-info-panel span a i,
-.dark-theme #base-app-desc a i,
-.dark-theme #base-app-desc a i.fa-circle-info,
-.dark-theme #base-app-desc a i.fa-solid {
-  color: #6b9bd8 !important;
-}
-
-.dark-theme .shaded-panel a:hover i,
-.dark-theme .shaded-panel span a:hover i,
-.dark-theme #monadic-info-panel a:hover i,
-.dark-theme #monadic-info-panel span a:hover i,
-.dark-theme #base-app-desc a:hover i,
-.dark-theme #base-app-desc a:hover i.fa-circle-info,
-.dark-theme #base-app-desc a:hover i.fa-solid {
-  color: #8fb3e8 !important;
-}
-
-/* Dark mode: Modal dialogs */
+/* Dark mode: Modal dialogs (high specificity) */
 .dark-theme .modal-content {
-  background-color: #2b2b2b !important;
-  color: #e5e5e5 !important;
-  border: 1px solid #444 !important;
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+  border: 1px solid #444;
 }
 
 .dark-theme .modal-header {
-  background-color: #333 !important;
-  color: #e5e5e5 !important;
-  border-bottom: 1px solid #444 !important;
+  background-color: #333;
+  color: #e5e5e5;
+  border-bottom: 1px solid #444;
 }
 
 .dark-theme .modal-header .modal-title {
-  color: #e5e5e5 !important;
+  color: #e5e5e5;
 }
 
 .dark-theme .modal-body {
-  background-color: #2b2b2b !important;
-  color: #e5e5e5 !important;
+  background-color: #2b2b2b;
+  color: #e5e5e5;
 }
 
 .dark-theme .modal-footer {
-  background-color: #2b2b2b !important;
-  border-top: 1px solid #444 !important;
+  background-color: #2b2b2b;
+  border-top: 1px solid #444;
 }
 
-/* Dark mode: Modal form inputs */
+/* Dark mode: Modal form inputs (high specificity with attribute selectors) */
 .dark-theme .modal-body input[type="text"],
 .dark-theme .modal-body input[type="file"],
 .dark-theme .modal-body textarea,
 .dark-theme .modal-body select {
-  background-color: #3a3a3a !important;
-  color: #e5e5e5 !important;
-  border: 1px solid #555 !important;
+  background-color: #3a3a3a;
+  color: #e5e5e5;
+  border: 1px solid #555;
 }
 
 .dark-theme .modal-body input[type="text"]::placeholder,
 .dark-theme .modal-body textarea::placeholder {
-  color: #999 !important;
+  color: #999;
 }
 
 .dark-theme .modal-body label {
-  color: #e5e5e5 !important;
+  color: #e5e5e5;
 }
 
 /* Dark mode: Modal close button */
@@ -386,146 +347,151 @@ i.fas.fa-bolt,
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 
-/* Dark mode: Navbar improvements */
+/* Dark mode: Navbar improvements (ID selectors have high specificity) */
 .dark-theme #main-nav {
-  background-color: #2b2b2b !important;
-  border-bottom: 1px solid #444 !important;
+  background-color: #2b2b2b;
+  border-bottom: 1px solid #444;
 }
 
 .dark-theme #main-nav .btn-light {
-  background-color: #3a3a3a !important;
-  color: #e5e5e5 !important;
-  border: 1px solid #555 !important;
+  background-color: #3a3a3a;
+  color: #e5e5e5;
+  border: 1px solid #555;
 }
 
 .dark-theme #main-nav .btn-light:hover {
-  background-color: #4a4a4a !important;
-  color: #fff !important;
-  border-color: #666 !important;
+  background-color: #4a4a4a;
+  color: #fff;
+  border-color: #666;
 }
 
-/* Dark mode: Unified status styling (matches Electron UI design) */
+/* Dark mode: Unified status styling (ID selector has high specificity) */
 .dark-theme #status-message {
-  background-color: #2a2a2a !important; /* Darker gray for dark mode */
-  border: 1px solid #444444 !important; /* Slightly lighter border */
+  background-color: #333333; /* Softer dark gray for better readability */
+  border: 1px solid #4a4a4a; /* Muted border for subtle appearance */
 }
 
-/* Dark mode: Status type colors (lighter versions for dark background) */
+/* Dark mode: Status type colors (ID + class selectors have high specificity) */
 .dark-theme #status-message.text-success {
-  color: #7fd89f !important; /* Lighter green */
+  color: #7fd89f; /* Lighter green */
 }
 
 .dark-theme #status-message.text-warning {
-  color: #ffb74d !important; /* Lighter orange */
+  color: #ffb74d; /* Lighter orange */
 }
 
 .dark-theme #status-message.text-danger {
-  color: #ef5350 !important; /* Lighter red */
+  color: #ef5350; /* Lighter red */
 }
 
 .dark-theme #status-message.text-info {
-  color: #90caf9 !important; /* Lighter blue */
+  color: #90caf9; /* Lighter blue */
 }
 
 .dark-theme #status-message.text-secondary {
-  color: #bdbdbd !important; /* Lighter gray */
+  color: #bdbdbd; /* Lighter gray */
 }
 
-/* Dark mode: Toggle menu button icon visibility */
+/* Dark mode: Toggle menu button (ID selector has high specificity) */
 .dark-theme #toggle-menu {
-  border-color: rgba(255, 255, 255, 0.5) !important;
-  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25); /* Subtle border */
+  color: #adb5bd; /* Muted gray text */
 }
 
 .dark-theme #toggle-menu i {
-  color: #ffffff !important;
+  color: #adb5bd; /* Muted gray icon */
 }
 
 .dark-theme #toggle-menu:hover {
-  background-color: rgba(255, 255, 255, 0.15) !important;
-  border-color: rgba(255, 255, 255, 0.7) !important;
+  background-color: rgba(255, 255, 255, 0.1); /* Subtle hover background */
+  border-color: rgba(255, 255, 255, 0.35); /* Slightly brighter on hover */
+  color: #e0e0e0; /* Lighter on hover */
+}
+
+.dark-theme #toggle-menu:hover i {
+  color: #e0e0e0; /* Lighter icon on hover */
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(255, 255, 255, 0.2) !important;
-  border-color: rgba(255, 255, 255, 0.6) !important;
-  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.15); /* Subtle active background */
+  border-color: rgba(255, 255, 255, 0.4); /* Slightly visible when active */
+  color: #e0e0e0; /* Lighter when active */
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) i {
-  color: #ffffff !important;
+  color: #e0e0e0; /* Lighter icon when active */
 }
 
-/* Dark mode: Custom apps dropdown */
+/* Dark mode: Custom apps dropdown (ID selector has high specificity) */
 .dark-theme #custom-apps-dropdown {
-  background: #2b2b2b !important;
-  border: 1px solid #555 !important;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
+  background: #2b2b2b;
+  border: 1px solid #555;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
 }
 
 .dark-theme .custom-dropdown-option {
-  color: #e5e5e5 !important;
+  color: #e5e5e5;
 }
 
 .dark-theme .custom-dropdown-option i {
-  color: #aaa !important;
+  color: #aaa;
 }
 
 .dark-theme .custom-dropdown-option:hover {
-  background-color: #3a3a3a !important;
+  background-color: #3a3a3a;
 }
 
 .dark-theme .custom-dropdown-option.highlighted {
-  background-color: #1e3a5f !important;
-  color: #ffffff !important;
+  background-color: #1e3a5f;
+  color: #ffffff;
 }
 
 .dark-theme .custom-dropdown-option.active {
-  background-color: #1e3a5f !important;
-  color: #ffffff !important;
-  font-weight: 500 !important;
+  background-color: #1e3a5f;
+  color: #ffffff;
+  font-weight: 500;
 }
 
 .dark-theme .custom-dropdown-option.disabled {
-  background-color: #333 !important;
-  color: #777 !important;
+  background-color: #333;
+  color: #777;
 }
 
 /* Dark mode: Custom dropdown group headers */
 .dark-theme .custom-dropdown-group {
-  background-color: #3a3a3a !important;
+  background-color: #3a3a3a;
 }
 
 /* Keep provider brand colors visible, but brighten secondary text */
 .dark-theme .custom-dropdown-group .api-key-required {
-  color: #aaa !important;
+  color: #aaa;
 }
 
 .dark-theme .custom-dropdown-group .group-toggle-icon i {
-  color: #aaa !important;
+  color: #aaa;
 }
 
-/* Dark mode: Custom dropdown scrollbar */
+/* Dark mode: Custom dropdown scrollbar (pseudo-elements with ID selector) */
 .dark-theme #custom-apps-dropdown::-webkit-scrollbar {
-  background-color: #2b2b2b !important;
+  background-color: #2b2b2b;
 }
 
 .dark-theme #custom-apps-dropdown::-webkit-scrollbar-thumb {
-  background-color: #555 !important;
+  background-color: #555;
 }
 
 .dark-theme #custom-apps-dropdown::-webkit-scrollbar-track {
-  background-color: #2b2b2b !important;
+  background-color: #2b2b2b;
 }
 
-/* Dark mode: Brighten dark provider colors for better visibility */
+/* Dark mode: Brighten dark provider colors for better visibility (attribute selectors) */
 .dark-theme .custom-dropdown-group[data-group="Ollama"] span:first-child,
 .dark-theme .custom-dropdown-group[data-group="Extra"] span:first-child {
-  color: #9ca3af !important; /* Lighter gray for dark mode */
+  color: #9ca3af; /* Lighter gray for dark mode */
 }
 
 .dark-theme .custom-dropdown-group[data-group="DeepSeek"] span:first-child {
-  color: #3b82f6 !important; /* Brighter blue for dark mode */
+  color: #3b82f6; /* Brighter blue for dark mode */
 }
 
 /* Mobile responsive improvements */

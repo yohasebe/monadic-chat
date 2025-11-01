@@ -6,21 +6,21 @@ This is the internal developer documentation for Monadic Chat. It contains techn
 
 **For user-facing documentation**, see the [Public Documentation](https://yohasebe.github.io/monadic-chat/).
 
-## 📚 Documentation Structure
+## Documentation Structure
 
-### 🚀 Getting Started
+### Getting Started
 New to the codebase? Start here:
 - **[Debug Mode & Local Docs](server-debug-mode.md)** - How to run the development server and access local documentation
 - **[Docs Link Checker](docs-link-checker.md)** - Validate all documentation links to prevent 404 errors
 - **[Common Issues](common-issues.md)** - Troubleshooting guide for common development problems
 
-### 🏗️ Architecture
+### Architecture
 High-level system design and component relationships:
 - **[Docker Architecture](docker-architecture.md)** - Container orchestration and service configuration
 - **[Docker Build Caching](docker-build-caching.md)** - Build optimization and caching strategies
 - **[Frontend Architecture](frontend/)** - JavaScript architecture and UI components
 
-### 🔧 Core Systems
+### Core Systems
 Implementation details of key features:
 - **[System Prompt Injection](system_prompt_injection.md)** - Unified dynamic prompt augmentation system
 - **[Logging](logging.md)** - Debug and trace logging configuration
@@ -29,27 +29,27 @@ Implementation details of key features:
 - **[Token Counting](token_counting.md)** - Token usage tracking and optimization
 - **[Type Conversion Policy](type_conversion_policy.md)** - Data type handling conventions
 
-### 🧪 Testing & Quality
+### Testing & Quality
 Test infrastructure and procedures:
 - **[Test Runner](test_runner.md)** - Unified test runner documentation
 - **[Test Quick Reference](test_quickref.md)** - Quick reference for running tests
 - **[Testing Guide](testing.md)** - Testing philosophy and best practices
 
-### 📦 Feature Documentation
+### Feature Documentation
 In-depth documentation of specific features:
 - **[Auto Forge Internals](auto_forge_internals.md)** - Artifact Builder architecture
 - **[SSOT Normalization](ssot_normalization_and_accessors.md)** - Model specification normalization
 - **[TTS Prefetch Optimization](tts_prefetch_optimization.md)** - Text-to-Speech performance optimization
 - **[PDF Registry & Hybrid](pdf_registry_and_hybrid.md)** - PDF document storage abstraction
 
-### 💻 Frontend & ⚙️ Backend
+### Frontend & Backend
 Component-specific documentation:
 - **[Frontend](frontend/)** - JavaScript modules and UI components
 - **[Backend](ruby_service/)** - Ruby service implementation
 - **[Python Service](python_service/)** - Python Flask service
 - **[MDSL](mdsl/)** - Monadic DSL documentation
 
-## 🔄 Documentation Guidelines
+## Documentation Guidelines
 
 ### Internal vs External Documentation
 
@@ -111,7 +111,7 @@ All documentation should reflect the **current implementation only**:
 - ❌ Development workflows
 - ❌ Experimental or unstable features
 
-## 🔍 Local Documentation Access
+## Local Documentation Access
 
 When running in debug mode (`rake server:debug`), both internal and external documentation are available locally:
 - Internal docs: http://localhost:4567/docs_dev/
@@ -119,7 +119,7 @@ When running in debug mode (`rake server:debug`), both internal and external doc
 
 See **[Debug Mode & Local Docs](server-debug-mode.md)** for details.
 
-## 📖 Quick Links
+## Quick Links
 
 - [Public Documentation](https://yohasebe.github.io/monadic-chat/) - User-facing docs
 - [GitHub Repository](https://github.com/yohasebe/monadic-chat) - Source code

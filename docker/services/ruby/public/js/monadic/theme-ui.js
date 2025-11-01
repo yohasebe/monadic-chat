@@ -50,17 +50,17 @@
     // Update button states based on current theme
     function updateButtonStates(activeTheme) {
       // Remove active class from all buttons
-      themeSystemBtn.classList.remove('active', 'btn-primary');
-      themeLightBtn.classList.remove('active', 'btn-primary');
-      themeDarkBtn.classList.remove('active', 'btn-primary');
+      themeSystemBtn.classList.remove('active', 'theme-selected');
+      themeLightBtn.classList.remove('active', 'theme-selected');
+      themeDarkBtn.classList.remove('active', 'theme-selected');
 
-      // Add active class to the selected button
+      // Add active class to the selected button (using theme-selected instead of btn-primary)
       if (activeTheme === 'system') {
-        themeSystemBtn.classList.add('active', 'btn-primary');
+        themeSystemBtn.classList.add('active', 'theme-selected');
       } else if (activeTheme === 'light') {
-        themeLightBtn.classList.add('active', 'btn-primary');
+        themeLightBtn.classList.add('active', 'theme-selected');
       } else if (activeTheme === 'dark') {
-        themeDarkBtn.classList.add('active', 'btn-primary');
+        themeDarkBtn.classList.add('active', 'theme-selected');
       }
     }
 

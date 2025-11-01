@@ -139,6 +139,15 @@
   font-size: 10px;
 }
 
+/* Ensure badge icons inherit text color */
+.badge-tools i {
+  color: inherit;
+}
+
+.badge-capabilities i {
+  color: inherit;
+}
+
 /* Generic hover effect for all badges */
 .tool-group-badge:hover {
   transform: translateY(-1px);
@@ -169,7 +178,7 @@
   align-items: center;
 }
 
-body.dark-mode .badge-category-label {
+.dark-theme .badge-category-label {
   color: #aaa;
 }
 
@@ -180,10 +189,10 @@ body.dark-mode .badge-category-label {
   color: #c62828;
 }
 
-body.dark-mode .badge-tools {
-  background-color: #3e2723;
-  border: 1px solid #6d4c41;
-  color: #ffcdd2;
+.dark-theme .badge-tools {
+  background-color: #ffebee;
+  border: 1px solid #ffcdd2;
+  color: #c62828;
 }
 
 /* Capabilities Category - Blue系 (lighter, softer colors) */
@@ -193,10 +202,10 @@ body.dark-mode .badge-tools {
   color: #01579b;
 }
 
-body.dark-mode .badge-capabilities {
-  background-color: #1a237e;
-  border: 1px solid #283593;
-  color: #b3e5fc;
+.dark-theme .badge-capabilities {
+  background-color: #e8f4f8;
+  border: 1px solid #b3e5fc;
+  color: #01579b;
 }
 
 /* Hover Effects for 2-category badges */
@@ -207,6 +216,352 @@ body.dark-mode .badge-capabilities {
 }
 
 /* Dark mode support for badge container */
-body.dark-mode .tool-groups-display {
+.dark-theme .tool-groups-display {
   border-top-color: #424242;
+}
+
+/* Dark mode: Logo styling - enhance visibility and style */
+.dark-theme #main-nav .nav-text .text-main {
+  color: #e5e5e5 !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+}
+
+.dark-theme #main-nav .nav-text .text-highlight {
+  color: #ffd54f !important;
+  text-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.dark-theme #main-nav .nav-logo {
+  filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
+}
+
+/* Dark mode: Outline secondary buttons (Initial Prompt toggles, etc.) */
+.dark-theme .btn-outline-secondary {
+  color: #adb5bd !important;
+  border-color: #555 !important;
+  background-color: transparent !important;
+}
+
+.dark-theme .btn-outline-secondary:hover,
+.dark-theme .btn-outline-secondary:focus {
+  color: #f5f5f5 !important;
+  background-color: #3a3a3a !important;
+  border-color: #666 !important;
+}
+
+.dark-theme .btn-outline-secondary:active,
+.dark-theme .btn-outline-secondary.active {
+  color: #f5f5f5 !important;
+  background-color: #4a4a4a !important;
+  border-color: #666 !important;
+}
+
+/* CRITICAL FIX: Force icon and link colors (HIGHEST PRIORITY - loaded last) */
+/* Header icons - yellow accent for both light and dark mode */
+i.fas.fa-message,
+i.fas.fa-bolt,
+.shaded-panel h5 i,
+.shaded-panel h5 span i,
+#monadic-info-panel h5 i,
+#monadic-info-panel h5 span i,
+.dark-theme i.fas.fa-message,
+.dark-theme i.fas.fa-bolt,
+.dark-theme .shaded-panel h5 i,
+.dark-theme .shaded-panel h5 span i,
+.dark-theme #monadic-info-panel h5 i,
+.dark-theme #monadic-info-panel h5 span i {
+  color: #ffc107 !important;
+}
+
+/* Links - bootstrap blue for light mode, lighter blue for dark mode */
+.shaded-panel a,
+.shaded-panel span a,
+.shaded-panel .text-secondary a,
+#monadic-info-panel a,
+#monadic-info-panel span a,
+#monadic-info-panel .text-secondary a {
+  color: #0d6efd !important;
+  text-decoration: none !important;
+}
+
+.dark-theme .shaded-panel a,
+.dark-theme .shaded-panel span a,
+.dark-theme .shaded-panel .text-secondary a,
+.dark-theme #monadic-info-panel a,
+.dark-theme #monadic-info-panel span a,
+.dark-theme #monadic-info-panel .text-secondary a {
+  color: #6b9bd8 !important;
+  text-decoration: none !important;
+}
+
+.shaded-panel a:hover,
+.shaded-panel span a:hover,
+.shaded-panel .text-secondary a:hover,
+#monadic-info-panel a:hover,
+#monadic-info-panel span a:hover,
+#monadic-info-panel .text-secondary a:hover {
+  color: #0a58ca !important;
+  text-decoration: underline !important;
+}
+
+.dark-theme .shaded-panel a:hover,
+.dark-theme .shaded-panel span a:hover,
+.dark-theme .shaded-panel .text-secondary a:hover,
+.dark-theme #monadic-info-panel a:hover,
+.dark-theme #monadic-info-panel span a:hover,
+.dark-theme #monadic-info-panel .text-secondary a:hover {
+  color: #8fb3e8 !important;
+  text-decoration: underline !important;
+}
+
+/* Dark mode: Icons inside links (e.g., info icons in app descriptions) */
+.dark-theme .shaded-panel a i,
+.dark-theme .shaded-panel span a i,
+.dark-theme #monadic-info-panel a i,
+.dark-theme #monadic-info-panel span a i,
+.dark-theme #base-app-desc a i,
+.dark-theme #base-app-desc a i.fa-circle-info,
+.dark-theme #base-app-desc a i.fa-solid {
+  color: #6b9bd8 !important;
+}
+
+.dark-theme .shaded-panel a:hover i,
+.dark-theme .shaded-panel span a:hover i,
+.dark-theme #monadic-info-panel a:hover i,
+.dark-theme #monadic-info-panel span a:hover i,
+.dark-theme #base-app-desc a:hover i,
+.dark-theme #base-app-desc a:hover i.fa-circle-info,
+.dark-theme #base-app-desc a:hover i.fa-solid {
+  color: #8fb3e8 !important;
+}
+
+/* Dark mode: Modal dialogs */
+.dark-theme .modal-content {
+  background-color: #2b2b2b !important;
+  color: #e5e5e5 !important;
+  border: 1px solid #444 !important;
+}
+
+.dark-theme .modal-header {
+  background-color: #333 !important;
+  color: #e5e5e5 !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.dark-theme .modal-header .modal-title {
+  color: #e5e5e5 !important;
+}
+
+.dark-theme .modal-body {
+  background-color: #2b2b2b !important;
+  color: #e5e5e5 !important;
+}
+
+.dark-theme .modal-footer {
+  background-color: #2b2b2b !important;
+  border-top: 1px solid #444 !important;
+}
+
+/* Dark mode: Modal form inputs */
+.dark-theme .modal-body input[type="text"],
+.dark-theme .modal-body input[type="file"],
+.dark-theme .modal-body textarea,
+.dark-theme .modal-body select {
+  background-color: #3a3a3a !important;
+  color: #e5e5e5 !important;
+  border: 1px solid #555 !important;
+}
+
+.dark-theme .modal-body input[type="text"]::placeholder,
+.dark-theme .modal-body textarea::placeholder {
+  color: #999 !important;
+}
+
+.dark-theme .modal-body label {
+  color: #e5e5e5 !important;
+}
+
+/* Dark mode: Modal close button */
+.dark-theme .modal-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Dark mode: Navbar improvements */
+.dark-theme #main-nav {
+  background-color: #2b2b2b !important;
+  border-bottom: 1px solid #444 !important;
+}
+
+.dark-theme #main-nav .btn-light {
+  background-color: #3a3a3a !important;
+  color: #e5e5e5 !important;
+  border: 1px solid #555 !important;
+}
+
+.dark-theme #main-nav .btn-light:hover {
+  background-color: #4a4a4a !important;
+  color: #fff !important;
+  border-color: #666 !important;
+}
+
+.dark-theme #status-message {
+  color: #e5e5e5 !important;
+}
+
+/* Dark mode: Toggle menu button icon visibility */
+.dark-theme #toggle-menu {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: #ffffff !important;
+}
+
+.dark-theme #toggle-menu i {
+  color: #ffffff !important;
+}
+
+.dark-theme #toggle-menu:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden) {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden) i {
+  color: #ffffff !important;
+}
+
+/* Dark mode: Custom apps dropdown */
+.dark-theme #custom-apps-dropdown {
+  background: #2b2b2b !important;
+  border: 1px solid #555 !important;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5) !important;
+}
+
+.dark-theme .custom-dropdown-option {
+  color: #e5e5e5 !important;
+}
+
+.dark-theme .custom-dropdown-option i {
+  color: #aaa !important;
+}
+
+.dark-theme .custom-dropdown-option:hover {
+  background-color: #3a3a3a !important;
+}
+
+.dark-theme .custom-dropdown-option.highlighted {
+  background-color: #1e3a5f !important;
+  color: #ffffff !important;
+}
+
+.dark-theme .custom-dropdown-option.active {
+  background-color: #1e3a5f !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+.dark-theme .custom-dropdown-option.disabled {
+  background-color: #333 !important;
+  color: #777 !important;
+}
+
+/* Dark mode: Custom dropdown group headers */
+.dark-theme .custom-dropdown-group {
+  background-color: #3a3a3a !important;
+}
+
+/* Keep provider brand colors visible, but brighten secondary text */
+.dark-theme .custom-dropdown-group .api-key-required {
+  color: #aaa !important;
+}
+
+.dark-theme .custom-dropdown-group .group-toggle-icon i {
+  color: #aaa !important;
+}
+
+/* Dark mode: Custom dropdown scrollbar */
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar {
+  background-color: #2b2b2b !important;
+}
+
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar-thumb {
+  background-color: #555 !important;
+}
+
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar-track {
+  background-color: #2b2b2b !important;
+}
+
+/* Dark mode: Brighten dark provider colors for better visibility */
+.dark-theme .custom-dropdown-group[data-group="Ollama"] span:first-child,
+.dark-theme .custom-dropdown-group[data-group="Extra"] span:first-child {
+  color: #9ca3af !important; /* Lighter gray for dark mode */
+}
+
+.dark-theme .custom-dropdown-group[data-group="DeepSeek"] span:first-child {
+  color: #3b82f6 !important; /* Brighter blue for dark mode */
+}
+
+/* Mobile responsive improvements */
+@media (max-width: 767px) {
+  /* CRITICAL: Maintain scrollable area on mobile with minimal bottom padding */
+  #main.scrollable,
+  .col-md-8.order-md-1.scrollable {
+    max-height: calc(100vh - 65px) !important;
+    overflow-y: auto !important;
+    padding-bottom: 20px !important;
+  }
+
+  /* CRITICAL FIX: Override ALL align-items-center in user-panel */
+  #user-panel .d-flex.align-items-center,
+  #user-panel .d-flex,
+  #user-panel .row.mt-3 .col-auto .d-flex,
+  #user-panel .row .col-auto .d-flex {
+    align-items: flex-start !important;
+  }
+
+  /* CRITICAL FIX: All buttons must have auto height */
+  #user-panel .btn,
+  #user-panel .btn-sm,
+  #user-panel .btn-primary,
+  #user-panel .btn-secondary,
+  #user-panel .btn-warning,
+  #user-panel .btn-info,
+  #send,
+  #clear,
+  #settings,
+  #image-file,
+  #doc,
+  #url,
+  #voice,
+  #ai_user {
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  /* Minimal bottom spacing */
+  #main-panel {
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0 !important;
+  }
+
+  #user-panel {
+    margin-bottom: 30px !important;
+    padding-bottom: 0 !important;
+  }
+}
+
+/* Extra small screens - full width for AI User controls */
+@media (max-width: 480px) {
+  #ai_user_provider {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #ai_user {
+    width: 100% !important;
+  }
 }

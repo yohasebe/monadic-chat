@@ -257,7 +257,15 @@ function attachEventListeners($card) {
       });
       
       // Get message text for preview
-      const messageText = $parentCard.find(".card-body").text().trim();
+      let messageText = $parentCard.find(".card-body").text().trim();
+
+      // Clean up technical content (code blocks, CSS, etc.)
+      // If message looks like code or is too technical, show a generic message
+      if (messageText.startsWith('/*') || messageText.startsWith('//') ||
+          messageText.includes('position: relative') || messageText.includes('{') && messageText.includes('}')) {
+        messageText = "[Message contains code or technical content]";
+      }
+
       const truncatedText = messageText.length > 100 ? messageText.substring(0, 100) + "..." : messageText;
       $("#messageToDelete").text(truncatedText);
       

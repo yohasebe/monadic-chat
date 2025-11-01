@@ -3348,13 +3348,13 @@ $(function () {
   $("#initial-prompt-toggle").on("click", function () {
     const $prompt = $("#initial-prompt");
     const $icon = $("#initial-prompt-icon");
-    
+
     if ($prompt.is(":visible")) {
-      $prompt.slideUp(200);
+      $prompt.slideUp(100);
       $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
     } else {
-      $prompt.slideDown(200, function() {
-        autoResize(document.getElementById('initial-prompt'), 100);
+      $prompt.slideDown(100, function() {
+        autoResize(document.getElementById('initial-prompt'), 0);
       });
       $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
     }
@@ -3363,13 +3363,13 @@ $(function () {
   $("#ai-user-initial-prompt-toggle").on("click", function () {
     const $prompt = $("#ai-user-initial-prompt");
     const $icon = $("#ai-user-initial-prompt-icon");
-    
+
     if ($prompt.is(":visible")) {
-      $prompt.slideUp(200);
+      $prompt.slideUp(100);
       $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
     } else {
-      $prompt.slideDown(200, function() {
-        autoResize(document.getElementById('ai-user-initial-prompt'), 100);
+      $prompt.slideDown(100, function() {
+        autoResize(document.getElementById('ai-user-initial-prompt'), 0);
       });
       $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
     }

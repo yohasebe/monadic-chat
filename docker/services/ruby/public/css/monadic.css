@@ -70,7 +70,7 @@
   --border-tertiary: #ddd;
   --border-strong: #555;
   --border-medium: #999;
-  --border-light: #999;
+  --border-light: #d0d0d0;
 
   /* Accent Colors (remain consistent across themes) */
   --accent-amber: #ffc107;
@@ -133,8 +133,8 @@
   --border-secondary: #3a3a3a;
   --border-tertiary: #444;
   --border-strong: #5a5a5a;
-  --border-medium: #555;
-  --border-light: #4a4a4a;
+  --border-medium: #444;
+  --border-light: #3a3a3a;
 
   /* Accent Colors (slightly adjusted for dark mode visibility) */
   --accent-amber: #ffc107;
@@ -250,8 +250,8 @@ a:focus-visible {
 /* Custom Responsive Navbar Reset */
 #main-nav {
   background-color: var(--bg-navbar);
-  border-top: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
+  border-top: none;
+  border-bottom: 1px solid var(--border-light);
   box-shadow: none;
 }
 #main-nav .container-fluid {
@@ -270,17 +270,20 @@ a:focus-visible {
   width: 2em;
   height: auto;
   margin-right: 0.5rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 #main-nav .nav-text .text-main {
   font-weight: 500;
   font-family: 'Montserrat', sans-serif;
-  color: #666;
+  color: #555;
   font-size: 1.7rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 #main-nav .nav-text .text-highlight {
   font-weight: bold;
   color: #ffc107;
   font-size: 1.7rem;
+  text-shadow: 0 1px 3px rgba(255, 193, 7, 0.25);
 }
 #main-nav .nav-actions .btn {
   padding: var(--spacing-sm);
@@ -778,6 +781,11 @@ button.fixed-width {
   color: rgba(0, 0, 0, .6);
 }
 
+.dark-theme #status-message table td,
+.dark-theme #stats-message table td {
+  color: rgba(255, 255, 255, .7);
+}
+
 .icon-container {
   display: inline-flex;
   justify-content: center;
@@ -1022,6 +1030,10 @@ blockquote ol {
   color: #777;
 }
 
+.dark-theme .textbox-caption {
+  color: #bbb;
+}
+
 #asr-p-value {
   display: inline-flex;
   align-items: center;
@@ -1151,6 +1163,320 @@ div.diagram {
   background-color: var(--bg-input);
   margin: 1.5em 0;
   box-shadow: var(--shadow-sm);
+}
+
+.dark-theme .card-body table {
+  box-shadow: none; /* Remove shadow in dark mode for cleaner appearance */
+}
+
+/* Dark mode support for card content */
+.dark-theme .card,
+.dark-theme .card-body,
+.dark-theme .discourse {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark-theme .card-body strong,
+.dark-theme .card-body b,
+.dark-theme .card strong,
+.dark-theme .card b,
+.dark-theme .discourse strong,
+.dark-theme .discourse b {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: All text in message areas should be visible */
+.dark-theme .card *,
+.dark-theme .card-body *,
+.dark-theme .discourse * {
+  color: inherit;
+}
+
+/* Dark mode support for ALL form elements - lighter background for better visibility */
+.dark-theme input,
+.dark-theme textarea,
+.dark-theme select,
+.dark-theme .form-control,
+.dark-theme .form-select,
+.dark-theme input[type="text"],
+.dark-theme input[type="number"],
+.dark-theme input[type="email"],
+.dark-theme input[type="password"],
+.dark-theme input[type="search"],
+.dark-theme input[type="url"],
+.dark-theme input[type="tel"] {
+  background-color: #353535 !important;
+  color: #f5f5f5 !important;
+  border-color: var(--border-medium) !important;
+}
+
+/* Dark mode: Ensure textarea specifically has white text */
+.dark-theme textarea,
+.dark-theme textarea.form-control,
+.dark-theme #message {
+  color: #f5f5f5 !important;
+}
+
+/* Dark mode: Textarea placeholder text */
+.dark-theme textarea::placeholder,
+.dark-theme textarea.form-control::placeholder,
+.dark-theme #message::placeholder,
+.dark-theme input::placeholder,
+.dark-theme select::placeholder {
+  color: #999 !important;
+  opacity: 1;
+}
+
+/* Dark mode: Checkboxes and radio buttons - keep their native appearance but ensure visibility */
+.dark-theme input[type="checkbox"],
+.dark-theme input[type="radio"] {
+  background-color: transparent !important;
+  border-color: var(--border-medium) !important;
+}
+
+/* Dark mode: Override any white backgrounds in form elements */
+.dark-theme input[style*="background"],
+.dark-theme select[style*="background"],
+.dark-theme textarea[style*="background"] {
+  background-color: #353535 !important;
+}
+
+/* Dark mode: Override any white backgrounds in tables */
+.dark-theme table,
+.dark-theme table tbody,
+.dark-theme table tr,
+.dark-theme table td,
+.dark-theme table th {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Ensure all span and div text is visible */
+.dark-theme .card span,
+.dark-theme .card div,
+.dark-theme .card-body span,
+.dark-theme .card-body div,
+.dark-theme .discourse span,
+.dark-theme .discourse div,
+.dark-theme .card p,
+.dark-theme .card-body p,
+.dark-theme .discourse p,
+.dark-theme .card label,
+.dark-theme .card-body label,
+.dark-theme .discourse label {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Specific override for any remaining dark text */
+.dark-theme .card [style*="color"],
+.dark-theme .card-body [style*="color"],
+.dark-theme .discourse [style*="color"] {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Override any Bootstrap or system colors that might be dark */
+.dark-theme .text-dark,
+.dark-theme .text-muted,
+.dark-theme .text-black-50 {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Sidebar panels - ensure text is visible (specific elements only) */
+/* Exclude h5, h6, icons, and their children to preserve header icon colors */
+.dark-theme .shaded-panel p,
+.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text),
+.dark-theme .shaded-panel div:not(.icon-container):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge),
+.dark-theme .shaded-panel label,
+.dark-theme .shaded-panel td,
+.dark-theme .shaded-panel th {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Preserve role-specific colors in sidebar */
+.dark-theme .shaded-panel .assistant-color,
+.dark-theme #monadic-info-panel .assistant-color {
+  color: #DC4C64 !important;
+}
+
+.dark-theme .shaded-panel .user-color,
+.dark-theme #monadic-info-panel .user-color {
+  color: #4CACDC !important;
+}
+
+.dark-theme .shaded-panel .system-color,
+.dark-theme #monadic-info-panel .system-color {
+  color: #22ad50 !important;
+}
+
+/* Dark mode: Ensure badge colors are preserved in sidebar */
+.dark-theme .shaded-panel .badge-tools,
+.dark-theme .shaded-panel .badge-tools *,
+.dark-theme #monadic-info-panel .badge-tools,
+.dark-theme #monadic-info-panel .badge-tools * {
+  color: #c62828 !important;
+}
+
+.dark-theme .shaded-panel .badge-capabilities,
+.dark-theme .shaded-panel .badge-capabilities *,
+.dark-theme #monadic-info-panel .badge-capabilities,
+.dark-theme #monadic-info-panel .badge-capabilities * {
+  color: #01579b !important;
+}
+
+/* Dark mode: Specific override for stats and info panels */
+.dark-theme #stats-message,
+.dark-theme #stats-message *,
+.dark-theme #monadic-info-panel,
+.dark-theme #monadic-info-panel *:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(.badge-tools *):not(.badge-capabilities *) {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Card header background */
+.dark-theme .card-header {
+  background-color: var(--bg-secondary) !important;
+  border-bottom-color: var(--border-medium) !important;
+}
+
+/* Dark mode: Preserve role-specific colors in card headers */
+.dark-theme .card-header .assistant-color {
+  color: #DC4C64 !important;
+}
+
+.dark-theme .card-header .user-color {
+  color: #4CACDC !important;
+}
+
+.dark-theme .card-header .system-color {
+  color: #22ad50 !important;
+}
+
+/* Dark mode: Card header icons - match text colors */
+.dark-theme .card-header .fa-robot {
+  color: #DC4C64 !important;
+}
+
+.dark-theme .card-header .fa-user {
+  color: #4CACDC !important;
+}
+
+.dark-theme .card-header .fa-cog {
+  color: #22ad50 !important;
+}
+
+/* Dark mode: Link colors */
+.dark-theme a {
+  color: var(--text-link) !important;
+}
+
+.dark-theme a:hover {
+  color: var(--text-link-hover) !important;
+}
+
+/* Dark mode: Sidebar links - ensure link colors are visible */
+.dark-theme .shaded-panel a,
+.dark-theme #monadic-info-panel a,
+.dark-theme .shaded-panel span a,
+.dark-theme #monadic-info-panel span a,
+.dark-theme .shaded-panel .text-secondary a,
+.dark-theme #monadic-info-panel .text-secondary a {
+  color: var(--text-link) !important;
+  text-decoration: none;
+}
+
+.dark-theme .shaded-panel a:hover,
+.dark-theme #monadic-info-panel a:hover,
+.dark-theme .shaded-panel span a:hover,
+.dark-theme #monadic-info-panel span a:hover,
+.dark-theme .shaded-panel .text-secondary a:hover,
+.dark-theme #monadic-info-panel .text-secondary a:hover {
+  color: var(--text-link-hover) !important;
+  text-decoration: underline;
+}
+
+/* Dark mode: Generic badge text visibility - use dark text on light backgrounds */
+/* Note: Specific badge types (badge-tools, badge-capabilities) have their own colors defined in monadic-improvements.css */
+.dark-theme .badge:not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge) {
+  color: #1a1a1a !important;
+}
+
+/* Dark mode: Warning/info button text and icons - use dark color for better contrast */
+/* Dark mode AND light mode: Warning buttons should have dark text */
+.btn-warning,
+.btn-warning *,
+#doc,
+#doc *,
+#url,
+#url *,
+#image-file,
+#image-file *,
+.dark-theme .btn-warning,
+.dark-theme .btn-warning *,
+.dark-theme .btn-info,
+.dark-theme .btn-info *,
+.dark-theme #doc,
+.dark-theme #doc *,
+.dark-theme #url,
+.dark-theme #url *,
+.dark-theme #image-file,
+.dark-theme #image-file * {
+  color: #1a1a1a !important;
+}
+
+/* Dark mode: Sidebar heading icons - preserve yellow accent */
+.dark-theme .shaded-panel h5 i,
+.dark-theme #monadic-info-panel h5 i,
+.dark-theme .shaded-panel h5 span i,
+.dark-theme #monadic-info-panel h5 span i,
+.dark-theme .shaded-panel .like-h6 i,
+.dark-theme .shaded-panel h5 .fa-message,
+.dark-theme .shaded-panel h5 .fa-bolt,
+.dark-theme #monadic-info-panel h5 .fa-message,
+.dark-theme #monadic-info-panel h5 .fa-bolt,
+.dark-theme .shaded-panel span.text i {
+  color: #ffc107 !important;
+}
+
+/* Dark mode: App icons - preserve yellow accent */
+.dark-theme .icon-container i,
+.dark-theme .icon-container .app-icon,
+.dark-theme #base-app-icon,
+.dark-theme #base-app-icon i {
+  color: #ffc107 !important;
+}
+
+/* Dark mode: Nested json-content - lighter borders and reduced spacing */
+.dark-theme .json-content {
+  border-color: var(--border-medium) !important;
+  background-color: var(--bg-input) !important;
+}
+
+.dark-theme .json-content .json-content {
+  border-color: #2a2a2a !important;
+  background-color: #1a1a1a !important;
+  padding: 6px !important;
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.dark-theme .json-content .json-item {
+  margin-bottom: 4px !important;
+}
+
+.dark-theme .json-content .json-content table {
+  padding: 4px !important;
+}
+
+.dark-theme .json-content tbody {
+  background-color: transparent !important;
+}
+
+/* Dark mode: AI Assistant provider badge - fix white background */
+.dark-theme .ai-assistant-provider,
+.dark-theme #ai-assistant-info span[style*="background-color"] {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-medium) !important;
+  color: var(--text-primary) !important;
 }
 
 .card-text table {
@@ -1527,8 +1853,8 @@ legend {
   align-items: center;
   /* Desktop navbar height */
   height: 65px;
-  border-top: 1px solid var(--border-medium);
-  border-bottom: 1px solid var(--border-medium);
+  border-top: none;
+  border-bottom: 1px solid var(--border-light);
   background-color: var(--bg-navbar);
 }
 
@@ -1690,6 +2016,21 @@ legend {
 
 .json-content li p {
   margin: 0;
+}
+
+/* Nested json-content - reduced spacing for both light and dark modes */
+.json-content .json-content {
+  padding: 6px !important;
+  margin-top: 4px !important;
+  margin-bottom: 4px !important;
+}
+
+.json-content .json-item {
+  margin-bottom: 4px !important;
+}
+
+.json-content .json-content table {
+  padding: 4px !important;
 }
 
 .navbar {
@@ -1918,11 +2259,11 @@ legend {
     width: auto !important; /* Auto width to fit content */
     margin-right: 10px !important; /* Space between buttons */
     margin-bottom: 5px !important;
-    padding: 0.5rem 0.75rem !important; /* Uniform padding */
+    padding: 0.25rem 0.5rem !important; /* Reduced padding for smaller buttons */
     height: auto !important;
-    min-height: 44px !important; /* Touch-friendly size */
+    /* Removed min-height for more compact buttons */
     flex: 0 0 auto !important; /* Don't grow or shrink */
-    font-size: 0.85em !important; /* Slightly smaller font */
+    font-size: 0.875rem !important; /* Standard btn-sm size */
   }
   
   /* Optimize user panel spacing for mobile */
@@ -2271,7 +2612,15 @@ pre code {
 /* END: CODE STYLE IMPROVEMENTS */
 
 #config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #voice-panel {
-  border: 1px solid var(--panel-border);
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Remove border from last section */
+#voice-panel {
+  border-bottom: none;
 }
 
 /* Optimize config and main-panel spacing on mobile */
@@ -2660,7 +3009,7 @@ h1 {
 }
 
 .thinking-block.expanded .thinking-block-content {
-  padding: 1em;
+  padding: 0.75em 1em;
   /* max-height is set dynamically by JavaScript for accurate animation */
 }
 
@@ -2672,6 +3021,33 @@ h1 {
   font-size: 0.9em;
   line-height: 1.5;
   color: #444;
+}
+
+/* Dark mode support for thinking blocks */
+.dark-theme .thinking-block {
+  border-color: #444;
+  background-color: #2d2d2d;
+}
+
+.dark-theme .thinking-block-header {
+  background-color: #363636;
+  border-bottom-color: #444;
+}
+
+.dark-theme .thinking-block-header:hover {
+  background-color: #404040;
+}
+
+.dark-theme .thinking-block-title {
+  color: #bbb;
+}
+
+.dark-theme .thinking-block-content {
+  background-color: #2d2d2d;
+}
+
+.dark-theme .thinking-block-content pre {
+  color: #e0e0e0;
 }
 
 /* Provider colors for custom dropdown */
@@ -2913,10 +3289,7 @@ img.base64-image,
 
   /* Warning buttons - add background color change */
   .btn-warning:hover:not(:disabled),
-  #reset:hover:not(:disabled),
-  #load:hover:not(:disabled),
-  #save:hover:not(:disabled),
-  #export-pdf:hover:not(:disabled) {
+  #reset:hover:not(:disabled) {
     background-color: #e0a800 !important;
     border-color: #d39e00 !important;
   }
@@ -2952,4 +3325,130 @@ img.base64-image,
   .dark-theme #theme-dark:hover:not(:disabled) {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
+}
+
+/* Theme Selection Indicator - Yellow dot in top-right corner */
+.theme-selected {
+  position: relative;
+}
+
+.theme-selected::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  background-color: #ffc107; /* Bootstrap warning yellow */
+  border-radius: 50%;
+  border: 2px solid var(--bg-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Secondary button style - balanced gray for white text contrast */
+.btn-secondary {
+  background-color: #78828c !important; /* Slightly lighter gray (between gray-500 and gray-400) */
+  border-color: #78828c !important;
+  color: #ffffff !important;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6470 !important;
+  border-color: #5a6470 !important;
+  color: #ffffff !important;
+}
+
+.dark-theme .btn-secondary {
+  background-color: #5a6470 !important;
+  border-color: #5a6470 !important;
+  color: #e5e7eb !important;
+}
+
+.dark-theme .btn-secondary:hover {
+  background-color: #4b5563 !important;
+  border-color: #4b5563 !important;
+  color: #ffffff !important;
+}
+
+/* CRITICAL: Sidebar heading icons MUST be yellow (highest priority) */
+.dark-theme .shaded-panel h5 i.fas.fa-message,
+.dark-theme .shaded-panel h5 i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 i.fas.fa-message,
+.dark-theme #monadic-info-panel h5 i.fas.fa-bolt,
+.dark-theme .shaded-panel h5 span.text i.fas.fa-message,
+.dark-theme .shaded-panel h5 span.text i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 span.text i.fas.fa-message,
+.dark-theme #monadic-info-panel h5 span.text i.fas.fa-bolt,
+.dark-theme .shaded-panel h5 span i.fas,
+.dark-theme #monadic-info-panel h5 span i.fas {
+  color: #ffc107 !important;
+}
+
+/* CRITICAL: Sidebar links MUST use link colors (highest priority) */
+.dark-theme .shaded-panel span.text-secondary a,
+.dark-theme #monadic-info-panel span.text-secondary a,
+.dark-theme .shaded-panel .text a,
+.dark-theme #monadic-info-panel .text a {
+  color: #6b9bd8 !important;
+  text-decoration: none;
+}
+
+.dark-theme .shaded-panel span.text-secondary a:hover,
+.dark-theme #monadic-info-panel span.text-secondary a:hover,
+.dark-theme .shaded-panel .text a:hover,
+.dark-theme #monadic-info-panel .text a:hover {
+  color: #8fb3e8 !important;
+  text-decoration: underline;
+}
+
+/* ULTIMATE OVERRIDE: Force icon and link colors (both light and dark mode) */
+/* Light mode AND dark mode: Header icons must be yellow */
+#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
+#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
+#monadic-info-panel h5 i,
+#monadic-info-panel h5 span i,
+.shaded-panel h5 i,
+.shaded-panel h5 span i,
+i.fas.fa-message,
+i.fas.fa-bolt,
+.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
+.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 i,
+.dark-theme #monadic-info-panel h5 span i,
+.dark-theme .shaded-panel h5 i,
+.dark-theme .shaded-panel h5 span i {
+  color: #ffc107 !important;
+}
+
+/* Light mode AND dark mode: Links must use link colors */
+#monadic-info-panel a,
+#monadic-info-panel span a,
+#monadic-info-panel .text-secondary a,
+.shaded-panel a,
+.shaded-panel span a,
+.shaded-panel .text-secondary a,
+.dark-theme #monadic-info-panel a,
+.dark-theme #monadic-info-panel span a,
+.dark-theme #monadic-info-panel .text-secondary a,
+.dark-theme .shaded-panel a,
+.dark-theme .shaded-panel span a,
+.dark-theme .shaded-panel .text-secondary a {
+  color: #0d6efd !important;
+  text-decoration: none !important;
+}
+
+#monadic-info-panel a:hover,
+#monadic-info-panel span a:hover,
+#monadic-info-panel .text-secondary a:hover,
+.shaded-panel a:hover,
+.shaded-panel span a:hover,
+.shaded-panel .text-secondary a:hover,
+.dark-theme #monadic-info-panel a:hover,
+.dark-theme #monadic-info-panel span a:hover,
+.dark-theme #monadic-info-panel .text-secondary a:hover,
+.dark-theme .shaded-panel a:hover,
+.dark-theme .shaded-panel span a:hover,
+.dark-theme .shaded-panel .text-secondary a:hover {
+  color: #0a58ca !important;
+  text-decoration: underline !important;
 }

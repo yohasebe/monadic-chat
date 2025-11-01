@@ -77,9 +77,12 @@ For the OpenAI default model:
 | `FONT_SIZE` | Base font size for the interface | `16` | 10-24 |
 | `AUTONOMOUS_ITERATIONS` | Number of autonomous mode iterations | `2` | 1-10 |
 | `MAX_CHAR_COUNT` | Maximum message length | `200000` | 1000-500000 |
+| `MAX_STORED_MESSAGES` | Maximum number of messages stored in localStorage for session restoration | `1000` | 50-1000 (cannot exceed context size when enabled) |
 | `PDF_BOLD_FONT_PATH` | Path to bold font for PDF generation | (optional) | File path |
 | `PDF_STANDARD_FONT_PATH` | Path to standard font for PDF generation | (optional) | File path |
 | `ROUGE_THEME` | Syntax highlighting theme | `pastie:light` | See [available themes](../basic-usage/syntax-highlighting.md) |
+
+> **Note**: `MAX_STORED_MESSAGES` determines how many conversation messages are persisted across browser sessions. When the context size setting is enabled in the Web UI, the actual limit will be the smaller of `MAX_STORED_MESSAGES` or the configured context size value.
 
 ## Voice Settings
 
@@ -103,11 +106,29 @@ For the OpenAI default model:
 
 | Variable | Description | Default | Options |
 |----------|-------------|---------|---------|
-| `DISTRIBUTED_MODE` | Enable multi-user server mode | `false` | `true`, `false` |
+| `DISTRIBUTED_MODE` | Enable multi-user server mode | `false` | `true`, `false`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
 | `PYTHON_PORT` | Port for Python container services | `5070` | 1024-65535 |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
+
+### Application Modes
+
+Monadic Chat supports two application modes that control network accessibility:
+
+**Standalone Mode** (Default: `DISTRIBUTED_MODE=off` or unset)
+- Server binds to `127.0.0.1` (localhost only)
+- Accessible only from the local machine
+- JupyterLab environment enabled
+- Recommended for single-user local development
+
+**Server Mode** (`DISTRIBUTED_MODE=server`)
+- Server binds to `0.0.0.0` (all network interfaces)
+- Accessible from any device on the network via local IP address (e.g., `http://192.168.1.10:4567`)
+- Each connected device maintains an independent session with separate conversation history
+- Sessions are not shared between devices or browser tabs
+- JupyterLab disabled by default for security (enable with `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
+- Session isolation: Messages and conversation state are stored separately per browser session using cookies and localStorage
 
 ## Container Settings
 

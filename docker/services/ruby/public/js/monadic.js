@@ -32,7 +32,7 @@ function getProviderFromGroup(group) {
 // Make the function available globally
 window.getProviderFromGroup = getProviderFromGroup;
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   // Restore menu visibility state from localStorage on page load
   // This ensures the menu state persists across zoom operations and page reloads
   try {
@@ -87,6 +87,11 @@ document.addEventListener("DOMContentLoaded", function () {
   // Restore session state and render saved messages
   try {
     if (window.SessionState && typeof window.SessionState.restore === 'function') {
+      // Load configuration from API before restoring state
+      if (typeof window.SessionState.loadConfig === 'function') {
+        await window.SessionState.loadConfig();
+      }
+
       // Check localStorage content before restoration
       try {
         const rawState = localStorage.getItem('monadicState');

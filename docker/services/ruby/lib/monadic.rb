@@ -1354,7 +1354,8 @@ end
 get "/api/environment" do
   content_type :json
   {
-    has_tavily_key: !CONFIG["TAVILY_API_KEY"].to_s.empty?
+    has_tavily_key: !CONFIG["TAVILY_API_KEY"].to_s.empty?,
+    max_stored_messages: (CONFIG["MAX_STORED_MESSAGES"] || "1000").to_i
   }.to_json
 end
 

@@ -76,9 +76,12 @@ OpenAIのデフォルトモデルの場合：
 | `FONT_SIZE` | インターフェースの基本フォントサイズ | `16` | 10-24 |
 | `AUTONOMOUS_ITERATIONS` | 自律モードの反復回数 | `2` | 1-10 |
 | `MAX_CHAR_COUNT` | メッセージの最大文字数 | `200000` | 1000-500000 |
+| `MAX_STORED_MESSAGES` | セッション復元のためにlocalStorageに保存される最大メッセージ数 | `1000` | 50-1000（context sizeが有効な場合、その値を超えることはできません） |
 | `PDF_BOLD_FONT_PATH` | PDF生成用の太字フォントパス | （オプション） | ファイルパス |
 | `PDF_STANDARD_FONT_PATH` | PDF生成用の標準フォントパス | （オプション） | ファイルパス |
 | `ROUGE_THEME` | シンタックスハイライトのテーマ | `pastie:light` | [利用可能なテーマ](../basic-usage/syntax-highlighting.md)を参照 |
+
+> **注意**: `MAX_STORED_MESSAGES`は、ブラウザセッション間で永続化される会話メッセージの数を決定します。Web UIでcontext size設定が有効になっている場合、実際の上限は`MAX_STORED_MESSAGES`と設定されたcontext sizeの値のうち、小さい方になります。
 
 ## 音声設定
 
@@ -102,11 +105,29 @@ OpenAIのデフォルトモデルの場合：
 
 | 変数名 | 説明 | デフォルト | オプション |
 |--------|------|------------|-----------|
-| `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `false` | `true`, `false` |
+| `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `false` | `true`, `false`, `server` |
 | `SESSION_SECRET` | セッション管理用の秘密鍵 | （自動生成） | 任意の文字列 |
 | `MCP_SERVER_ENABLED` | Model Context Protocolサーバーを有効化 | `false` | `true`, `false` |
 | `PYTHON_PORT` | Pythonコンテナサービスのポート | `5070` | 1024-65535 |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | サーバーモードでJupyterを有効化 | `false` | `true`, `false` |
+
+### アプリケーションモード
+
+Monadic Chatは、ネットワークアクセスを制御する2つのアプリケーションモードをサポートしています：
+
+**Standaloneモード**（デフォルト: `DISTRIBUTED_MODE=off` または未設定）
+- サーバーは`127.0.0.1`（ローカルホストのみ）にバインド
+- ローカルマシンからのみアクセス可能
+- JupyterLab環境が有効
+- シングルユーザーのローカル開発に推奨
+
+**Server Mode** (`DISTRIBUTED_MODE=server`)
+- サーバーは`0.0.0.0`（すべてのネットワークインターフェース）にバインド
+- ネットワーク上の任意のデバイスからローカルIPアドレス経由でアクセス可能（例: `http://192.168.1.10:4567`）
+- 接続された各デバイスは独立したセッションを持ち、会話履歴も個別に管理
+- セッションはデバイス間やブラウザタブ間で共有されない
+- セキュリティのため、デフォルトでJupyterLabは無効（`ALLOW_JUPYTER_IN_SERVER_MODE=true`で有効化可能）
+- セッション分離: メッセージと会話状態はCookieとlocalStorageを使用してブラウザセッションごとに個別に保存
 
 ## コンテナ設定
 

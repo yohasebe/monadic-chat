@@ -175,7 +175,12 @@
       currentSegment: null,
       enabled: false
     },
-    
+
+    // === Configuration ===
+    config: {
+      maxStoredMessages: 1000  // Default, will be loaded from API
+    },
+
     // === Legacy Methods (for backward compatibility) ===
     setResetFlags: function() {
       this.forceNewSession = true;
@@ -449,6 +454,19 @@
     // === State Persistence ===
     save: function() {
       try {
+        // Calculate max messages to store
+        // Use the smaller of: configured limit OR context_size (if enabled)
+        let maxMessages = this.config.maxStoredMessages;
+
+        // Check if context size is enabled and get its value
+        const contextSizeElement = document.getElementById('context-size');
+        if (contextSizeElement && !contextSizeElement.disabled) {
+          const contextSize = parseInt(contextSizeElement.value, 10);
+          if (!isNaN(contextSize) && contextSize > 0) {
+            maxMessages = Math.min(maxMessages, contextSize);
+          }
+        }
+
         const stateToSave = {
           session: {
             id: this.session.id,
@@ -462,8 +480,8 @@
             model: this.app.model
           },
           conversation: {
-            // Only save last 50 messages to avoid storage limits
-            messages: this.conversation.messages.slice(-50)
+            // Save messages up to calculated limit
+            messages: this.conversation.messages.slice(-maxMessages)
           },
           ui: {
             autoScroll: this.ui.autoScroll
@@ -561,8 +579,25 @@
         audio: {
           queueLength: this.audio.queue.length,
           isPlaying: this.audio.isPlaying
-        }
+        },
+        config: { ...this.config }
       };
+    },
+
+    // === Initialization ===
+    loadConfig: async function() {
+      try {
+        const response = await fetch('/api/environment');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.max_stored_messages) {
+            this.config.maxStoredMessages = data.max_stored_messages;
+            console.log(`[SessionState] Max stored messages set to ${data.max_stored_messages}`);
+          }
+        }
+      } catch (error) {
+        console.warn('[SessionState] Failed to load config from API, using defaults:', error);
+      }
     }
   };
   

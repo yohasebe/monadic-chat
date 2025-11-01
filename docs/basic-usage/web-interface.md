@@ -14,7 +14,7 @@ When running in internal browser mode, five additional buttons appear at the bot
 - **Zoom In**: Increase the page zoom factor
 - **Zoom Out**: Decrease the page zoom factor
 - **Reset Zoom**: Reset page zoom to default
-- **New Session**: Clear session data and reset to initial app selection
+- **Reset All**: Completely reset the application including all stored data (localStorage, cookies, cache, etc.) and return to the initial app selection. This provides a fresh start as if you just launched Monadic Chat.
 - **Monadic Chat Console**: Show the main console window
 
 
@@ -122,8 +122,8 @@ Message and token counts for the current session.
 
 ![](../assets/images/monadic-chat-session.png ':size=400')
 
-**Reset**<br />
-Click the `Reset` button or the logo in the top left to clear the conversation while keeping the current app selection.
+**Reset (Reset Conversation)**<br />
+Click the `Reset` button to clear the current conversation and reset parameters to defaults while keeping your app selection. This allows you to start fresh with the same app. For a complete reset including all stored data and returning to the initial app selection, use the **Reset All** button in the floating toolbar (Internal Browser Mode only).
 
 **Settings**<br />
 Return to the System Settings panel. Click `Continue Session` to return to your conversation.

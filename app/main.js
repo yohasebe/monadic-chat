@@ -255,10 +255,10 @@ function openWebViewWindow(url, forceReload = false) {
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass-minus', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomOut(), 'Zoom Out'));
         container.appendChild(makeBtn('fa-solid fa-magnifying-glass', 'rgba(255,255,255,0.9)', () => window.electronAPI.zoomReset(), 'Reset Zoom'));
         container.appendChild(makeBtn('fa-solid fa-arrows-rotate', 'rgba(66,139,202,0.9)', () => {
-          if(confirm('Reset will clear all data and return to the initial state, including app selection. Continue?')) {
+          if(confirm('Reset All will clear all data and return to the initial state, including app selection. Continue?')) {
             window.electronAPI.resetWebUI();
           }
-        }, 'New Session'));
+        }, 'Reset All'));
         container.appendChild(makeBtn('fa-solid fa-terminal', 'rgba(255,193,7,0.9)', () => window.electronAPI.focusMainWindow(), 'Monadic Chat Console'));
 
         document.body.appendChild(container);

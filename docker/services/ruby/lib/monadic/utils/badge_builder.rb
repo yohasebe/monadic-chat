@@ -18,6 +18,13 @@ module Monadic
     #   badges = BadgeBuilder.build_all_badges(settings)
     #   # => { tools: [...], capabilities: [...] }
     class BadgeBuilder
+      # Map agent tool names to generic badge labels
+      AGENT_BADGE_LABELS = {
+        'openai_code_agent' => 'code agent',
+        'grok_code_agent' => 'code agent',
+        'claude_code_agent' => 'code agent'
+      }.freeze
+
       # Main entry point for badge generation
       #
       # @param app_settings [Hash] MDSL settings hash
@@ -90,13 +97,6 @@ module Monadic
           /grok_code_agent/,
           /claude_code_agent/
         ]
-
-        # Map agent tool names to generic badge labels
-        AGENT_BADGE_LABELS = {
-          'openai_code_agent' => 'code agent',
-          'grok_code_agent' => 'code agent',
-          'claude_code_agent' => 'code agent'
-        }.freeze
 
         tools.each do |tool|
           # Additional safety: ensure tool is a Hash

@@ -1,12 +1,12 @@
 require "spec_helper"
-require_relative '../../lib/monadic/agents/openai_code_agent"
+require_relative '../../../lib/monadic/agents/openai_code_agent'
 
-RSpec.describe Monadic::Agents::GPT5CodexAgent do
+RSpec.describe Monadic::Agents::OpenAICodeAgent do
   let(:test_class) do
     Class.new do
       include Monadic::Agents::OpenAICodeAgent
 
-      attr_accessor :gpt5_codex_access
+      attr_accessor :openai_code_access
 
       def list_models
         @models || []
@@ -81,7 +81,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
         allow(ENV).to receive(:[]).and_call_original
-        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
+        allow(ENV).to receive(:[]).with('OPENAI_CODE_MODEL').and_return(nil)
       end
 
       it "makes successful API call" do
@@ -89,14 +89,14 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
 
         expect(result[:success]).to be true
         expect(result[:code]).to eq("Generated code")
-        expect(result[:model]).to eq("gpt-5-codex")
+        expect(result[:model]).to eq("openai-code")
       end
 
       it "builds session with correct structure" do
         app.call_openai_code(prompt: "Test prompt")
         session = app.last_session
 
-        expect(session[:parameters]["model"]).to eq("gpt-5-codex")
+        expect(session[:parameters]["model"]).to eq("openai-code")
         expect(session[:messages].first["text"]).to eq("Test prompt")
         expect(session[:messages].first["role"]).to eq("user")
       end
@@ -131,7 +131,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
         allow(ENV).to receive(:[]).and_call_original
-        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
+        allow(ENV).to receive(:[]).with('OPENAI_CODE_MODEL').and_return(nil)
         app.set_models(["gpt-5-codex"])
         allow(app).to receive(:api_request).and_return([{"error" => "Rate limit exceeded"}])
       end
@@ -148,7 +148,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
         allow(ENV).to receive(:[]).and_call_original
-        allow(ENV).to receive(:[]).with('GPT5_CODEX_MODEL').and_return(nil)
+        allow(ENV).to receive(:[]).with('OPENAI_CODE_MODEL').and_return(nil)
         app.set_models(["gpt-5-codex"])
         allow(app).to receive(:api_request).and_return([{"content" => ""}])
       end
@@ -274,16 +274,16 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     end
   end
 
-  describe "GPT5_CODEX_DEFAULT_TIMEOUT" do
+  describe "OPENAI_CODE_DEFAULT_TIMEOUT" do
     it "uses default timeout value" do
       # The constant is already loaded, just verify it's a reasonable value
-      expect(Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT).to be >= 60
-      expect(Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT).to be <= 1200
+      expect(Monadic::Agents::OpenAICodeAgent::OPENAI_CODE_DEFAULT_TIMEOUT).to be >= 60
+      expect(Monadic::Agents::OpenAICodeAgent::OPENAI_CODE_DEFAULT_TIMEOUT).to be <= 1200
     end
 
     it "respects environment variable when module is loaded" do
       # This test verifies the current loaded value which may be from ENV
-      timeout = Monadic::Agents::GPT5CodexAgent::GPT5_CODEX_DEFAULT_TIMEOUT
+      timeout = Monadic::Agents::OpenAICodeAgent::OPENAI_CODE_DEFAULT_TIMEOUT
       expect(timeout).to be_a(Integer)
       expect(timeout).to be > 0
     end

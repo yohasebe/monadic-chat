@@ -394,32 +394,36 @@
 
 /* Dark mode: Toggle menu button (ID selector has high specificity) */
 .dark-theme #toggle-menu {
-  border-color: rgba(255, 255, 255, 0.25); /* Subtle border */
-  color: #adb5bd; /* Muted gray text */
+  border-color: rgba(255, 255, 255, 0.2); /* Subtle border */
+  color: #c0c0c0; /* Brighter gray icon for visibility */
 }
 
 .dark-theme #toggle-menu i {
-  color: #adb5bd; /* Muted gray icon */
+  color: #c0c0c0; /* Brighter gray icon */
+}
+
+.dark-theme #toggle-menu.menu-hidden {
+  background-color: rgba(255, 255, 255, 0.05); /* Very subtle background when hidden */
 }
 
 .dark-theme #toggle-menu:hover {
-  background-color: rgba(255, 255, 255, 0.1); /* Subtle hover background */
-  border-color: rgba(255, 255, 255, 0.35); /* Slightly brighter on hover */
-  color: #e0e0e0; /* Lighter on hover */
+  background-color: rgba(255, 255, 255, 0.12); /* Subtle hover background */
+  border-color: rgba(255, 255, 255, 0.3); /* Slightly brighter on hover */
+  color: #e8e8e8; /* Lighter on hover */
 }
 
 .dark-theme #toggle-menu:hover i {
-  color: #e0e0e0; /* Lighter icon on hover */
+  color: #e8e8e8; /* Lighter icon on hover */
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(255, 255, 255, 0.15); /* Subtle active background */
-  border-color: rgba(255, 255, 255, 0.4); /* Slightly visible when active */
-  color: #e0e0e0; /* Lighter when active */
+  background-color: rgba(255, 255, 255, 0.18); /* More visible active background */
+  border-color: rgba(255, 255, 255, 0.35); /* More visible when active */
+  color: #f0f0f0; /* Even lighter when active */
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) i {
-  color: #e0e0e0; /* Lighter icon when active */
+  color: #f0f0f0; /* Even lighter icon when active */
 }
 
 /* Dark mode: Custom apps dropdown (ID selector has high specificity) */

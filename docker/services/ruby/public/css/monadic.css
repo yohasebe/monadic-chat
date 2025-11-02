@@ -524,20 +524,7 @@ a:focus-visible {
   color: #212529 !important;
 }
 
-/* Menu open/closed state styles (non-hover only) */
-.btn.btn-light#toggle-menu.menu-hidden {
-  background-color: transparent !important;
-}
-
-.btn.btn-light#toggle-menu:not(.menu-hidden) {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  border-color: rgba(0, 0, 0, 0.2) !important;
-  color: #495057 !important;
-}
-
-.btn.btn-light#toggle-menu:not(.menu-hidden) i {
-  color: #495057 !important;
-}
+/* No separate state-specific styles needed - unified transparent background */
 
 /* ********************************************** */
 /* Override navbar layout to enforce consistent centering */

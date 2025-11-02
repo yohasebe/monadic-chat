@@ -492,7 +492,8 @@ a:focus-visible {
   }
 }
 /* Toggle Menu Button Border for Visibility */
-#toggle-menu {
+/* CRITICAL: Must use .btn.btn-light to override Bootstrap specificity */
+.btn.btn-light#toggle-menu {
   /* Always transparent background except on hover */
   background-color: transparent !important;
   border: 1px solid rgba(0, 0, 0, 0.15) !important; /* Visible but subtle border */
@@ -508,43 +509,34 @@ a:focus-visible {
   color: #6c757d !important; /* Muted gray icon for less contrast */
 }
 
-#toggle-menu i {
+.btn.btn-light#toggle-menu i {
   color: #6c757d !important; /* Muted gray icon */
 }
 
-#toggle-menu:hover {
-  background-color: rgba(0, 0, 0, 0.08) !important;
-  border-color: rgba(0, 0, 0, 0.2) !important;
-  color: #495057 !important; /* Darker on hover */
+/* Unified hover effect for both menu-hidden and menu-visible states */
+.btn.btn-light#toggle-menu:hover {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  border-color: rgba(0, 0, 0, 0.25) !important;
+  color: #212529 !important;
 }
 
-#toggle-menu:hover i {
-  color: #495057 !important;
+.btn.btn-light#toggle-menu:hover i {
+  color: #212529 !important;
 }
 
-/* Menu open/closed state styles */
-#toggle-menu.menu-hidden {
+/* Menu open/closed state styles (non-hover only) */
+.btn.btn-light#toggle-menu.menu-hidden {
   background-color: transparent !important;
 }
 
-#toggle-menu:not(.menu-hidden) {
+.btn.btn-light#toggle-menu:not(.menu-hidden) {
   background-color: rgba(0, 0, 0, 0.05) !important;
   border-color: rgba(0, 0, 0, 0.2) !important;
   color: #495057 !important;
 }
 
-#toggle-menu:not(.menu-hidden) i {
+.btn.btn-light#toggle-menu:not(.menu-hidden) i {
   color: #495057 !important;
-}
-
-#toggle-menu:not(.menu-hidden):hover {
-  background-color: rgba(0, 0, 0, 0.15) !important; /* More visible hover effect */
-  border-color: rgba(0, 0, 0, 0.25) !important; /* Darker border on hover */
-  color: #212529 !important; /* Even darker text on hover */
-}
-
-#toggle-menu:not(.menu-hidden):hover i {
-  color: #212529 !important; /* Even darker icon on hover */
 }
 
 /* ********************************************** */

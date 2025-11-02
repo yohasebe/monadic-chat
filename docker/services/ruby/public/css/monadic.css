@@ -538,7 +538,13 @@ a:focus-visible {
 }
 
 #toggle-menu:not(.menu-hidden):hover {
-  background-color: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(0, 0, 0, 0.15) !important; /* More visible hover effect */
+  border-color: rgba(0, 0, 0, 0.25) !important; /* Darker border on hover */
+  color: #212529 !important; /* Even darker text on hover */
+}
+
+#toggle-menu:not(.menu-hidden):hover i {
+  color: #212529 !important; /* Even darker icon on hover */
 }
 
 /* ********************************************** */

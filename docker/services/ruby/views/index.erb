@@ -465,33 +465,59 @@
         margin-right: 0.5rem; /* Space between icon and text */
       }
       
-      /* Unified status styling (softer gray for light mode) */
+      /* Unified status styling (light background for better readability) */
       #status-message {
-        background-color: #707070 !important; /* Lighter gray background (balanced for light mode UI) */
-        border: 1px solid #808080 !important; /* Slightly lighter border */
+        background-color: #e9ecef !important; /* Very light gray background for better text contrast */
+        border: 1px solid #ced4da !important; /* Subtle border */
       }
 
       /* Status type colors (text only) */
       #status-message.text-success {
-        color: #5cd65c !important; /* Softer green (matches Electron UI .status.running) */
+        color: #198754 !important; /* Darker green for better contrast */
       }
 
       #status-message.text-warning {
-        color: #ffa64d !important; /* Softer orange (matches Electron UI .status.stopped) */
+        color: #fd7e14 !important; /* Orange with good contrast */
       }
 
       #status-message.text-danger {
-        color: #dc4c64 !important; /* Red */
+        color: #dc3545 !important; /* Red */
       }
 
       #status-message.text-info {
-        color: #64b5f6 !important; /* Blue */
+        color: #0d6efd !important; /* Blue */
       }
 
       #status-message.text-secondary {
-        color: #757575 !important; /* Gray */
+        color: #495057 !important; /* Dark gray for good contrast with light background */
       }
-      
+
+      /* Dark mode status styling */
+      body.dark-theme #status-message {
+        background-color: #404040 !important; /* Darker gray background for dark mode */
+        border: 1px solid #555555 !important; /* Subtle border for dark mode */
+      }
+
+      body.dark-theme #status-message.text-success {
+        color: #7fd89f !important; /* Lighter green for dark mode */
+      }
+
+      body.dark-theme #status-message.text-warning {
+        color: #ffb74d !important; /* Lighter orange for dark mode */
+      }
+
+      body.dark-theme #status-message.text-danger {
+        color: #ef5350 !important; /* Lighter red for dark mode */
+      }
+
+      body.dark-theme #status-message.text-info {
+        color: #90caf9 !important; /* Lighter blue for dark mode */
+      }
+
+      body.dark-theme #status-message.text-secondary {
+        color: #bdbdbd !important; /* Light gray for dark mode */
+      }
+
       /* Responsive adjustments */
       @media (max-width: 900px) {
         #status-message {

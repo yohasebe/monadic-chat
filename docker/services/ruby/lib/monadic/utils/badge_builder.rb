@@ -75,6 +75,21 @@ module Monadic
         # 2. From defined tools - DEFENSIVE HANDLING for multiple formats
         tools_data = settings[:tools]
 
+        # Debug logging for Auto Forge apps
+        if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
+          app_name = settings[:app_name] || settings["app_name"] || "Unknown"
+          if app_name.to_s.include?("AutoForge")
+            STDERR.puts "[BadgeBuilder] ===== #{app_name} Tool Badge Building ====="
+            STDERR.puts "[BadgeBuilder] tools_data class: #{tools_data.class}"
+            STDERR.puts "[BadgeBuilder] tools_data keys: #{tools_data.keys if tools_data.respond_to?(:keys)}"
+            if tools_data.is_a?(Hash)
+              STDERR.puts "[BadgeBuilder] tools_data[:tools]: #{tools_data[:tools].inspect[0..500]}"
+            elsif tools_data.is_a?(Array)
+              STDERR.puts "[BadgeBuilder] tools_data (Array): #{tools_data.map { |t| t[:name] || t['name'] }.inspect}"
+            end
+          end
+        end
+
         tools = case tools_data
                 when Hash
                   # OpenAI/Claude format: { tools: [...] }

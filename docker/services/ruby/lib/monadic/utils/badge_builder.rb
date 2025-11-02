@@ -117,7 +117,15 @@ module Monadic
           # Additional safety: ensure tool is a Hash
           next unless tool.is_a?(Hash)
 
-          tool_name = tool[:name] || tool["name"]
+          # Extract tool name - handle both flat (Gemini) and nested (OpenAI/Claude) formats
+          tool_name = if tool[:function] || tool["function"]
+                        # OpenAI/Claude format: { type: "function", function: { name: "tool_name", ... } }
+                        func = tool[:function] || tool["function"]
+                        func[:name] || func["name"]
+                      else
+                        # Gemini format: { name: "tool_name", ... }
+                        tool[:name] || tool["name"]
+                      end
           next unless tool_name
 
           if agent_patterns.any? { |pattern| tool_name.to_s =~ pattern }

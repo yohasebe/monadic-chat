@@ -271,8 +271,6 @@ app "CodeInterpreterGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
-    pdf false
     monadic false  # Required for proper function calling with Gemini
   end
 

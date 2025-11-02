@@ -18,14 +18,10 @@ All boolean feature flags MUST use actual boolean values (`true`/`false`), not s
 | `mathjax` | Boolean | `false` | Enables mathematical notation rendering |
 | `mermaid` | Boolean | `false` | Enables Mermaid diagram rendering |
 | `abc` | Boolean | `false` | Enables ABC music notation rendering |
-| `sourcecode` | Boolean | `false` | Enables enhanced source code highlighting |
 | `monadic` | Boolean | `false` | Enables monadic mode with JSON context |
-| `image` | Boolean | `false` | Enables image upload and display |
-| `pdf` | Boolean | `false` | Enables PDF document upload |
 | `pdf_vector_storage` | Boolean | `false` | Enables vector storage for PDF |
 | `websearch` | Boolean | `false` | Enables web search functionality |
-| `jupyter_access` | Boolean | `false` | Enables Jupyter notebook access |
-| `jupyter` | Boolean | `false` | Alias for `jupyter_access` |
+| `jupyter` | Boolean | `false` | Enables Jupyter notebook access |
 | `image_generation` | Boolean | `false` | Enables AI image generation |
 | `video` | Boolean | `false` | Enables video upload and processing |
 
@@ -35,8 +31,6 @@ app "MyApp" do
   features do
     auto_speech true        # ✅ Correct: boolean
     easy_submit true        # ✅ Correct: boolean
-    image false             # ✅ Correct: boolean
-    pdf false               # ✅ Correct: boolean
   end
 end
 ```
@@ -379,7 +373,7 @@ toBool(false)     → false
 # ✅ Good
 features do
   auto_speech true
-  image false
+
   easy_submit true
 end
 

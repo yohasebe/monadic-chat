@@ -1,17 +1,17 @@
 # Code Interpreter application tools
 # Provides GPT-5-Codex agent integration for complex coding tasks
 
-require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
 require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module CodeInterpreterTools
   include MonadicHelper
-  include Monadic::Agents::GPT5CodexAgent
+  include Monadic::Agents::OpenAICodeAgent
 
   # Call GPT-5-Codex agent for complex Python code generation tasks
-  def gpt5_codex_agent(task:, current_code: nil, error_context: nil)
+  def openai_code_agent(task:, current_code: nil, error_context: nil)
     # Build prompt using the shared helper
-    prompt = build_codex_prompt(
+    prompt = build_openai_code_prompt(
       task: task,
       current_code: current_code,
       error_context: error_context
@@ -19,7 +19,7 @@ module CodeInterpreterTools
 
     # Call the shared GPT-5-Codex implementation
     # Code Interpreter might need longer timeout for complex algorithms
-    call_gpt5_codex(prompt: prompt, app_name: "CodeInterpreter", timeout: 360)
+    call_openai_code(prompt: prompt, app_name: "CodeInterpreter", timeout: 360)
   end
 end
 

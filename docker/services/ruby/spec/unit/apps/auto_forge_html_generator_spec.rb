@@ -20,7 +20,7 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
     context "when Codex returns full HTML" do
       before do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
-        allow(client_double).to receive(:call_gpt5_codex)
+        allow(client_double).to receive(:call_openai_code)
           .and_return({ success: true, code: codex_html })
       end
 
@@ -45,7 +45,7 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
 
       before do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
-        allow(client_double).to receive(:call_gpt5_codex)
+        allow(client_double).to receive(:call_openai_code)
           .and_return({ success: true, code: patch_text })
       end
 
@@ -60,7 +60,7 @@ RSpec.describe AutoForge::Agents::HtmlGenerator do
     context "when Codex fails" do
       before do
         allow(client_double).to receive(:has_gpt5_codex_access?).and_return(true)
-        allow(client_double).to receive(:call_gpt5_codex)
+        allow(client_double).to receive(:call_openai_code)
           .and_return({ success: false, error: 'timeout' })
       end
 

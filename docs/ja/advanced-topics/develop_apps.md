@@ -20,7 +20,6 @@ Monadic Chatでは、**MDSL（Monadic Domain Specific Language）形式**でア�
 - 類似のエラーが3回発生すると停止
 - コンテキストに応じた提案を提供
 
-
 **ツール要件**:
 - システムプロンプトで言及されるすべてのツールには対応する`define_tool`ブロックが必要
 - 一貫したパラメータ名を使用: `fetch_text_from_file`は`:file`、`fetch_text_from_pdf`は`:pdf`を使用
@@ -87,7 +86,7 @@ app "AppNameProvider" do      # プロバイダー付きのID（例: ChatOpenAI�
   features do
     easy_submit false
     auto_speech false
-    image true
+
     group "OpenAI"      # UIでのグループ分け
   end
 
@@ -397,7 +396,6 @@ send_command(command: "ls", container: "python", success_with_output: "Linux ls 
 例として、上記のコードはPythonコンテナ内で`ls`コマンドを実行し、その結果を返します。`command`引数は実行するコマンドを指定します。`container`引数はコマンドを実行するコンテナを略記で指定します。`python`と指定した場合は`monadic-chat-python-container`を指定することになります。`success`引数と`success_with_output`引数はコマンドの実行が成功した場合に、コマンドの実行結果の文字列の前に挿入するメッセージを指定します。成功時のメッセージは省略可能ですが、適切なメッセージを指定することで、AIエージェントがコマンドの実行結果を正しく解釈できるようになります。`success`引数が省略されたときは "Command has been executed" というメッセージが表示されます。`success_with_output`引数を省略した場合は"Command has been executed with the following output: "というメッセージが表示されます。
 
 ?> AIエージェントに直接`send_command`を呼び出すように設定することも可能ですが、適切にエラー処理を行うため、ツールファイル内にRubyでラッパーメソッドを作成し、ファサードパターンを使用することをお勧めします。`MonadicApp`クラスには`run_command`というラッパーメソッドが用意されており、引数が不足している場合に特定のメッセージを返します。ツールファイルで`run_command`を使用することを推奨します。
-
 
 ### プログラム・コードの実行
 

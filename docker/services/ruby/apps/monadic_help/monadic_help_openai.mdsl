@@ -43,11 +43,8 @@ app "MonadicHelpOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     monadic false
     auto_speech false
-    quick_response false
-    web_search false
-    math false
+    websearch false
     initiate_from_assistant true
-    sourcecode true
     context_size 50
   end
   

@@ -10,8 +10,8 @@ require_relative 'auto_forge_utils'
 require_relative 'auto_forge_debugger'
 require_relative 'agents/error_explainer'
 require_relative 'utils/codex_response_analyzer'
-require_relative '../../lib/monadic/agents/gpt5_codex_agent'
-require_relative '../../lib/monadic/agents/claude_opus_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
+require_relative '../../lib/monadic/agents/claude_code_agent'
 require_relative '../../lib/monadic/agents/grok_code_agent'
 
 # Tool methods for AutoForge MDSL application
@@ -128,15 +128,15 @@ module AutoForgeTools
 
     # Debug logging to understand what self is
     puts "[AutoForgeTools] self class: #{self.class}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-    puts "[AutoForgeTools] self responds to call_gpt5_codex: #{self.respond_to?(:call_gpt5_codex)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    puts "[AutoForgeTools] self responds to call_openai_code: #{self.respond_to?(:call_openai_code)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     puts "[AutoForgeTools] self responds to api_request: #{self.respond_to?(:api_request)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
-    puts "[AutoForgeTools] self methods include call_gpt5_codex: #{self.methods.include?(:call_gpt5_codex)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    puts "[AutoForgeTools] self methods include call_openai_code: #{self.methods.include?(:call_openai_code)}" if CONFIG && CONFIG["EXTRA_LOGGING"]
 
     # If self has the method, it should work
-    if self.respond_to?(:call_gpt5_codex)
-      puts "[AutoForgeTools] ✓ self has call_gpt5_codex method" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    if self.respond_to?(:call_openai_code)
+      puts "[AutoForgeTools] ✓ self has call_openai_code method" if CONFIG && CONFIG["EXTRA_LOGGING"]
     else
-      puts "[AutoForgeTools] ✗ self does NOT have call_gpt5_codex method" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      puts "[AutoForgeTools] ✗ self does NOT have call_openai_code method" if CONFIG && CONFIG["EXTRA_LOGGING"]
       # Check what modules are included
       puts "[AutoForgeTools] Included modules: #{self.class.included_modules.map(&:name).join(', ')}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     end
@@ -175,11 +175,11 @@ module AutoForgeTools
     # Dynamically extend the appropriate agent module to avoid helper conflicts
     context[:codex_callback] = case agent
     when :claude
-      # Extend ClaudeOpusAgent to get claude_opus_agent method
-      self.extend(Monadic::Agents::ClaudeOpusAgent) unless self.respond_to?(:claude_opus_agent)
+      # Extend ClaudeCodeAgent to get claude_opus_agent method
+      self.extend(Monadic::Agents::ClaudeCodeAgent) unless self.respond_to?(:claude_code_agent)
       ->(prompt, app_name, &block) do
         actual_block = block || progress_callback
-        self.claude_opus_agent(prompt, app_name || 'ClaudeOpusAgent', &actual_block)
+        self.claude_code_agent(prompt, app_name || 'ClaudeCodeAgent', &actual_block)
       end
     when :grok
       # Extend GrokCodeAgent to get call_grok_code method
@@ -189,11 +189,11 @@ module AutoForgeTools
         self.call_grok_code(prompt: prompt, app_name: app_name || 'AutoForgeGrok', &actual_block)
       end
     else
-      # Extend GPT5CodexAgent to get call_gpt5_codex method
-      self.extend(Monadic::Agents::GPT5CodexAgent) unless self.respond_to?(:call_gpt5_codex)
+      # Extend GPT5CodexAgent to get call_openai_code method
+      self.extend(Monadic::Agents::OpenAICodeAgent) unless self.respond_to?(:call_openai_code)
       ->(prompt, app_name, &block) do
         actual_block = block || progress_callback
-        self.call_gpt5_codex(prompt: prompt, app_name: app_name || 'AutoForgeOpenAI', &actual_block)
+        self.call_openai_code(prompt: prompt, app_name: app_name || 'AutoForgeOpenAI', &actual_block)
       end
     end
 
@@ -944,8 +944,8 @@ module AutoForgeTools
     # Note: Removed @context usage to prevent cross-session contamination
     # Default to OpenAI agent
 
-    if respond_to?(:call_gpt5_codex)
-      ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_gpt5_codex(prompt: prompt, app_name: app_name, &block) }
+    if respond_to?(:call_openai_code)
+      ->(prompt, app_name = 'AutoForgeAdditionalFile', &block) { call_openai_code(prompt: prompt, app_name: app_name, &block) }
     else
       nil
     end
@@ -1039,14 +1039,14 @@ module AutoForgeTools
     errors = fetch_array(diagnosis[:debug_result], :javascript_errors)
     return 'No errors to fix.' if errors.empty?
 
-    unless respond_to?(:call_gpt5_codex)
+    unless respond_to?(:call_openai_code)
       return 'Error correction requires GPT-5-Codex access.'
     end
 
     fix_prompt = build_fix_prompt(diagnosis[:explanations], errors)
     puts '[AutoForge] Calling GPT-5-Codex for fixes...' if CONFIG && CONFIG['EXTRA_LOGGING']
 
-    codex_result = call_gpt5_codex(
+    codex_result = call_openai_code(
       prompt: fix_prompt,
       app_name: 'AutoForgeErrorFixer'
     )
@@ -1652,5 +1652,44 @@ module AutoForgeTools
 
   def format_ms(value)
     value ? "#{value}ms" : 'n/a'
+  end
+
+  # Tool methods for code generation agents
+  # These provide a unified interface for calling different code generation backends
+
+  def openai_code_agent(task:, context: nil, files: nil)
+    # Build prompt using the shared helper from GPT5CodexAgent module
+    prompt = build_openai_code_prompt(
+      task: task,
+      context: context,
+      files: files
+    )
+
+    # Call the shared GPT-5-Codex implementation
+    call_openai_code(prompt: prompt, app_name: "AutoForgeOpenAI")
+  end
+
+  def claude_code_agent(task:, context: nil, files: nil)
+    # Build prompt using the shared helper from ClaudeCodeAgent module
+    prompt = build_claude_code_prompt(
+      task: task,
+      context: context,
+      files: files
+    )
+
+    # Call the shared Claude Opus implementation
+    call_claude_code(prompt: prompt, app_name: "AutoForgeClaude")
+  end
+
+  def grok_code_agent(task:, context: nil, files: nil)
+    # Build prompt using the shared helper from GrokCodeAgent module
+    prompt = build_grok_code_prompt(
+      task: task,
+      context: context,
+      files: files
+    )
+
+    # Call the shared Grok-Code implementation
+    call_grok_code(prompt: prompt, app_name: "AutoForgeGrok")
   end
 end

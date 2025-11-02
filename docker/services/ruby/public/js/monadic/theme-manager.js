@@ -29,18 +29,14 @@
       console.log('[ThemeManager] Initializing...');
 
       try {
-        // Check if running in Electron
-        if (window.electronAPI && typeof window.electronAPI.getTheme === 'function') {
-          // Get initial theme from Electron
-          this.themeSource = await window.electronAPI.getTheme();
-          console.log(`[ThemeManager] Initial theme source: ${this.themeSource}`);
+        // Web UI theme is always managed independently via cookies
+        // Electron native UI (window frame, dialogs) follows system preference
+        this.themeSource = this.getStoredThemePreference();
 
-          // Listen for theme changes from Electron
-          window.electronAPI.onThemeChanged(this.handleThemeChanged.bind(this));
+        if (window.electronAPI) {
+          console.log('[ThemeManager] Running in Electron mode (Web UI theme independent)');
         } else {
-          // Running in external browser - use stored preference or system preference
           console.log('[ThemeManager] Running in external browser mode');
-          this.themeSource = this.getStoredThemePreference();
         }
 
         // Determine and apply theme
@@ -56,36 +52,13 @@
     }
 
     /**
-     * Handle theme changed event from Electron
-     * @param {Object} data - Theme change data
-     * @param {boolean} data.shouldUseDarkColors - Whether to use dark colors
-     * @param {string} data.themeSource - Theme source ('system', 'light', or 'dark')
-     */
-    handleThemeChanged(data) {
-      console.log('[ThemeManager] Theme changed:', data);
-      this.themeSource = data.themeSource;
-
-      // Determine theme based on theme source
-      if (this.themeSource === 'system') {
-        this.currentTheme = data.shouldUseDarkColors ? 'dark' : 'light';
-      } else {
-        this.currentTheme = this.themeSource;
-      }
-
-      this.applyTheme(this.currentTheme);
-    }
-
-    /**
      * Update theme based on current theme source
      */
     updateTheme() {
-      // In Electron, theme will be updated via IPC event
-      // In external browser, check system preference
-      if (!window.electronAPI) {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        this.currentTheme = (this.themeSource === 'system' && prefersDark) || this.themeSource === 'dark' ? 'dark' : 'light';
-        this.applyTheme(this.currentTheme);
-      }
+      // Check system preference for 'system' theme source
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.currentTheme = (this.themeSource === 'system' && prefersDark) || this.themeSource === 'dark' ? 'dark' : 'light';
+      this.applyTheme(this.currentTheme);
     }
 
     /**
@@ -109,10 +82,9 @@
 
       this.currentTheme = theme;
 
-      // Save preference for external browser mode
-      if (!window.electronAPI) {
-        this.saveThemePreference(this.themeSource);
-      }
+      // Save preference to Cookie (both Electron and external browser modes)
+      // This ensures theme persists across app restarts and Reset All operations
+      this.saveThemePreference(this.themeSource);
 
       // Dispatch custom event for other components
       window.dispatchEvent(new CustomEvent('theme-applied', { detail: { theme } }));
@@ -131,35 +103,20 @@
       console.log(`[ThemeManager] Setting theme to: ${themeSource}`);
       this.themeSource = themeSource;
 
-      // In Electron, use IPC to set theme
-      if (window.electronAPI && typeof window.electronAPI.setTheme === 'function') {
-        try {
-          const result = await window.electronAPI.setTheme(themeSource);
-          if (result.success) {
-            console.log('[ThemeManager] Theme set successfully:', result.theme);
-            return true;
-          } else {
-            console.error('[ThemeManager] Failed to set theme:', result.error);
-            return false;
-          }
-        } catch (error) {
-          console.error('[ThemeManager] Error setting theme:', error);
-          return false;
-        }
-      } else {
-        // External browser - apply directly
-        this.updateTheme();
-        return true;
-      }
+      // Apply theme directly (both Electron and external browser)
+      // Web UI theme is independent from Electron native theme
+      this.updateTheme();
+      return true;
     }
 
     /**
-     * Get stored theme preference from localStorage
+     * Get stored theme preference from Cookie
      * @returns {string} Theme source
      */
     getStoredThemePreference() {
       try {
-        const stored = localStorage.getItem('theme-preference');
+        // Use getCookie function from utilities.js
+        const stored = typeof getCookie === 'function' ? getCookie('theme-preference') : null;
         if (stored && ['system', 'light', 'dark'].includes(stored)) {
           return stored;
         }
@@ -170,15 +127,14 @@
     }
 
     /**
-     * Save theme preference to localStorage
+     * Save theme preference to Cookie (30 days, same as voice settings)
      * @param {string} themeSource - Theme source to save
      */
     saveThemePreference(themeSource) {
       try {
-        if (typeof StorageHelper !== 'undefined' && StorageHelper.safeSetItem) {
-          StorageHelper.safeSetItem('theme-preference', themeSource);
-        } else {
-          localStorage.setItem('theme-preference', themeSource);
+        // Use setCookie function from utilities.js (30 days expiration)
+        if (typeof setCookie === 'function') {
+          setCookie('theme-preference', themeSource, 30);
         }
       } catch (e) {
         console.warn('[ThemeManager] Failed to save theme preference:', e);
@@ -224,13 +180,12 @@
     themeManager.init().catch(err => console.error('[ThemeManager] Init failed:', err));
   }
 
-  // Listen for system theme changes in external browser
-  if (!window.electronAPI) {
-    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    darkModeQuery.addEventListener('change', (e) => {
-      if (themeManager.getThemeSource() === 'system') {
-        themeManager.updateTheme();
-      }
-    });
-  }
+  // Listen for system theme changes (both Electron and external browser)
+  // Web UI theme is independent and always checks system preference
+  const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  darkModeQuery.addEventListener('change', (e) => {
+    if (themeManager.getThemeSource() === 'system') {
+      themeManager.updateTheme();
+    }
+  });
 })();

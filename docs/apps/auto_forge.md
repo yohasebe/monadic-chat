@@ -117,7 +117,7 @@ Example (custom asset):
 
 ### Architecture
 - **Orchestration Layer**: GPT-5 (OpenAI), Claude Sonnet 4.5 (Claude), or Grok-4-Fast-Reasoning (xAI) handles planning, user interaction, and tool coordination via MDSL apps.
-- **Code Generation Layer**: GPT-5-Codex, Claude Sonnet 4.5, or Grok-Code-Fast-1 produces the web/CLI artifact.
+- **Code Generation Layer**: OpenAI Code, Claude Sonnet 4.5, or Grok-Code-Fast-1 produces the web/CLI artifact.
 - **File Management**: The Ruby backend manages project storage, context persistence, and optional file generation.
 - **Debug Layer**: Python/Selenium integration provides automated testing for web apps.
 
@@ -170,7 +170,7 @@ When `debug_application` is used for web apps, you receive:
 ### Basic Requirements
 - Monadic Chat with Ruby backend
 - One of the following:
-  - OpenAI API key with access to GPT-5 and GPT-5-Codex
+  - OpenAI API key with access to GPT-5 and OpenAI Code
   - Anthropic API key with access to Claude Sonnet 4.5
   - xAI API key with access to Grok-4-Fast-Reasoning and Grok-Code-Fast-1
 
@@ -196,7 +196,7 @@ When `debug_application` is used for web apps, you receive:
 
 ### Common Issues
 
-1. **Files Not Generated**: GPT-5-Codex or Claude Sonnet 4.5 can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
+1. **Files Not Generated**: OpenAI Code or Claude Sonnet 4.5 can take 2-5 minutes for complex apps. Progress appears in the streaming temp card while generation runs.
 2. **Selenium Not Available**: Ensure Docker Selenium container is running
 3. **Unicode Characters**: Project names with special characters are fully supported
 4. **Custom file requests rejected**: Make sure the filename is simple (no directories) and include clear instructions describing the desired content.
@@ -210,7 +210,7 @@ When `debug_application` is used for web apps, you receive:
 ## Provider Support & Progress Updates
 
 AutoForge supports multiple providers:
-- **OpenAI Auto Forge**: GPT-5 orchestrates the workflow while GPT-5-Codex handles code generation.
+- **OpenAI Auto Forge**: GPT-5 orchestrates the workflow while OpenAI Code handles code generation.
 - **Claude Auto Forge**: Claude Sonnet 4.5 orchestrates and generates code via the Claude Responses API.
 - **Grok Auto Forge**: Grok-4-Fast-Reasoning orchestrates the workflow while Grok-Code-Fast-1 handles code generation.
 
@@ -222,7 +222,7 @@ Grok-Code-Fast-1 excels at:
 - **Fast Iteration**: Quick generation with 92 tokens/sec throughput
 - **Front-End Development**: HTML/CSS/JavaScript, SVG graphics, animations
 - **Modern CSS**: Grid, Flexbox, CSS variables
-- **Cost Efficiency**: 6-7x cheaper than GPT-5-Codex
+- **Cost Efficiency**: 6-7x cheaper than OpenAI Code
 
 Grok-Code-Fast-1 is optimized for:
 - Smaller, focused tasks with iterative development

@@ -1,20 +1,20 @@
 # 2025年9月改善
 
-## GPT-5-CodexとGrok-Codeエージェント統合
+## OpenAI CodeとGrok-Codeエージェント統合
 
 ### 概要
 複雑なコード生成のためのエージェントアーキテクチャパターンを実装。メインの会話モデルが専用モデルに特化したコード生成タスクを委任します。
 
 ### 変更点
 
-#### 1. GPT-5-Codexアクセスの簡素化
+#### 1. OpenAI Codeアクセスの簡素化
 - **以前**: 複雑なモデルリストチェック
 - **現在**: シンプルなAPIキー存在チェック
-- **理由**: すべてのOpenAI APIキー保持者がGPT-5-Codexにアクセス可能
+- **理由**: すべてのOpenAI APIキー保持者がOpenAI Codeにアクセス可能
 
 #### 2. Grok-Code-Fast-1エージェント実装
 - `Monadic::Agents::GrokCodeAgent`モジュールを作成
-- GPT-5-Codex実装と並行
+- OpenAI Code実装と並行
 - すべてのGrokコーディングアプリに統合：
   - Code Interpreter Grok
   - Coding Assistant Grok
@@ -50,7 +50,7 @@
 - `list_files_in_shared_folder` - ディレクトリ内容をリスト
 
 ### サポートされているプロバイダー
-- ✅ OpenAI（+ GPT-5-Codexエージェント）
+- ✅ OpenAI（+ OpenAI Codeエージェント）
 - ✅ Claude
 - ✅ Gemini
 - ✅ Grok（+ Grok-Codeエージェント）
@@ -71,7 +71,7 @@
 `CLAUDE.md`を以下で更新：
 - コード品質ガイドライン
 - 言語使用ルール（日本語コメントと英語識別子）
-- GPT-5-Codexアクセスに関する注意事項
+- OpenAI Codeアクセスに関する注意事項
 - 設定優先順位のドキュメント
 
 ### 新しいドキュメント
@@ -83,7 +83,7 @@
 ### 新しいテストカバレッジ
 - `spec/unit/adapters/jupyter_helper_spec.rb` - Jupyterファイル処理テスト
 - `spec/unit/apps/coding_assistant_tools_spec.rb` - Coding Assistantファイル操作
-- 既存: `spec/unit/agents/gpt5_codex_agent_spec.rb`
+- 既存: `spec/unit/agents/openai_code_agent_spec.rb`
 - 既存: `spec/unit/agents/grok_code_agent_spec.rb`
 
 ### テスト重点領域

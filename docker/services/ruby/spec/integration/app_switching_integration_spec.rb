@@ -42,9 +42,9 @@ RSpec.describe 'App Switching Integration', type: :integration do
         # Test each boolean feature flag across all apps
         boolean_flags = %w[
           auto_speech easy_submit initiate_from_assistant
-          mathjax mermaid abc sourcecode monadic
-          image pdf pdf_vector_storage websearch
-          jupyter_access jupyter image_generation video
+          mathjax mermaid abc monadic
+          pdf_vector_storage websearch
+          jupyter image_generation video
         ]
 
         apps_data.each do |app_name, app_settings|
@@ -176,9 +176,9 @@ RSpec.describe 'App Switching Integration', type: :integration do
       all_flags = apps_data.flat_map { |_, settings| settings.keys }.uniq
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
-        mathjax mermaid abc sourcecode monadic
-        image pdf pdf_vector_storage websearch
-        jupyter_access jupyter image_generation video
+        mathjax mermaid abc monadic
+        pdf_vector_storage websearch
+        jupyter image_generation video
       ]
 
       # Check that boolean flags are consistently boolean type
@@ -201,9 +201,9 @@ RSpec.describe 'App Switching Integration', type: :integration do
 
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
-        mathjax mermaid abc sourcecode monadic
-        image pdf pdf_vector_storage websearch
-        jupyter_access jupyter image_generation video
+        mathjax mermaid abc monadic
+        pdf_vector_storage websearch
+        jupyter image_generation video
       ]
 
       # This is the critical test - no feature flag should be "true" or "false" string

@@ -24,8 +24,6 @@ app "AutoForgeGrok" do
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image false
-    pdf false
     websearch false
   end
 
@@ -86,6 +84,12 @@ app "AutoForgeGrok" do
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+    end
+
+    define_tool "grok_code_agent", "Call Grok-Code-Fast-1 for complex code generation tasks" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :context, "string", "Additional context about requirements", required: false
+      parameter :files, "array", "Array of file objects with path and content", required: false
     end
   end
 end

@@ -1,11 +1,11 @@
 app "AutoForgeOpenAI" do
   description do
     en <<~TEXT
-    Autonomous application builder powered by GPT-5 and GPT-5-Codex. Creates web applications (HTML/CSS/JS) and command-line tools in any language.
+    Autonomous application builder powered by GPT-5 and OpenAI Code. Creates web applications (HTML/CSS/JS) and command-line tools in any language.
     TEXT
 
     ja <<~TEXT
-    GPT-5とGPT-5-Codexによる自律的アプリケーションビルダー。Webアプリケーション（HTML/CSS/JS）とコマンドラインツールを任意の言語で作成します。
+    GPT-5とOpenAI Codeによる自律的アプリケーションビルダー。Webアプリケーション（HTML/CSS/JS）とコマンドラインツールを任意の言語で作成します。
     TEXT
   end
 
@@ -25,8 +25,6 @@ app "AutoForgeOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image false
-    pdf false
     websearch false
   end
 
@@ -142,7 +140,7 @@ app "AutoForgeOpenAI" do
     })
     ```
 
-    You have access to GPT-5-Codex for the actual code generation, ensuring high-quality, production-ready code.
+    You have access to OpenAI Code for the actual code generation, ensuring high-quality, production-ready code.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -163,6 +161,12 @@ app "AutoForgeOpenAI" do
 
     define_tool "generate_additional_file", "Generate additional files for CLI projects (README, config, dependencies)" do
       parameter :file_type, "string", "Type of file to generate: readme, config, or requirements", required: true
+    end
+
+    define_tool "openai_code_agent", "Call OpenAI Code for complex code generation tasks" do
+      parameter :task, "string", "Description of the code generation task", required: true
+      parameter :context, "string", "Additional context about requirements", required: false
+      parameter :files, "array", "Array of file objects with path and content", required: false
     end
   end
 end

@@ -39,7 +39,6 @@ app "ResearchAssistantCohere" do
     easy_submit false
     auto_speech false
     mathjax true
-    image true
   end
 
   tools do

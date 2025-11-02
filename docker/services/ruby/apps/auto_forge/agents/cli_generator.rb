@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-require_relative '../../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
 
 module AutoForge
   module Agents
     class CLIGenerator
-      include Monadic::Agents::GPT5CodexAgent
+      include Monadic::Agents::OpenAICodeAgent
 
       def initialize(context)
         @context = context
@@ -16,22 +16,22 @@ module AutoForge
       def generate(prompt:, app_name: 'CLI Tool', &block)
         full_prompt = build_generation_prompt(prompt)
         agent = (@context[:agent] || :openai).to_sym
-        agent_name = agent == :claude ? 'ClaudeOpusAgent' : app_name
+        agent_name = agent == :claude ? 'ClaudeCodeAgent' : app_name
 
         result =
           if agent == :claude
             if @codex_callback
               @codex_callback.call(full_prompt, agent_name, &block)
-            elsif @app_instance && @app_instance.respond_to?(:claude_opus_agent)
-              @app_instance.claude_opus_agent(full_prompt, agent_name, &block)
+            elsif @app_instance && @app_instance.respond_to?(:claude_code_agent)
+              @app_instance.claude_code_agent(full_prompt, agent_name, &block)
             else
               return { success: false, error: "No Claude Opus access available" }
             end
           else
             if @codex_callback
               @codex_callback.call(full_prompt, agent_name, &block)
-            elsif @app_instance && @app_instance.respond_to?(:call_gpt5_codex)
-              @app_instance.call_gpt5_codex(
+            elsif @app_instance && @app_instance.respond_to?(:call_openai_code)
+              @app_instance.call_openai_code(
                 prompt: full_prompt,
                 app_name: agent_name,
                 &block

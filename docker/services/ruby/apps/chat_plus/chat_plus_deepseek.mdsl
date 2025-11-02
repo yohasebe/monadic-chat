@@ -80,8 +80,6 @@ TEXT
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    image false
-    pdf false
     monadic false  # Required for tool execution
   end
   

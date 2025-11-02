@@ -58,7 +58,5 @@ app "LanguagePracticeGemini" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    image true
-    sourcecode true
   end
 end

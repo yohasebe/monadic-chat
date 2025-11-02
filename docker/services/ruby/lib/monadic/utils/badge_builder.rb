@@ -12,7 +12,7 @@ module Monadic
     # @example
     #   settings = {
     #     imported_tool_groups: [...],
-    #     features: { monadic: true, image: true },
+    #     features: { monadic: true, pdf_vector_storage: true },
     #     agents: { code_generator: "gpt-5-codex" }
     #   }
     #   badges = BadgeBuilder.build_all_badges(settings)
@@ -86,11 +86,17 @@ module Monadic
 
         # Extract agent tools
         agent_patterns = [
-          /gpt5_codex_agent/,
+          /openai_code_agent/,
           /grok_code_agent/,
-          /claude_opus_agent/,
-          /claude_sonnet_agent/
+          /claude_code_agent/
         ]
+
+        # Map agent tool names to generic badge labels
+        AGENT_BADGE_LABELS = {
+          'openai_code_agent' => 'code agent',
+          'grok_code_agent' => 'code agent',
+          'claude_code_agent' => 'code agent'
+        }.freeze
 
         tools.each do |tool|
           # Additional safety: ensure tool is a Hash
@@ -100,13 +106,14 @@ module Monadic
           next unless tool_name
 
           if agent_patterns.any? { |pattern| tool_name.to_s =~ pattern }
-            agent_name = tool_name.to_s.gsub("_agent", "").tr("_", "-")
+            # Use generic label from mapping, or fall back to transformed tool name
+            agent_label = AGENT_BADGE_LABELS[tool_name.to_s] || tool_name.to_s.gsub("_agent", "").tr("_", "-")
             badges << {
               type: :tools,
               subtype: :agent,
               id: tool_name.to_s,
               icon: "fa-robot",
-              label: agent_name,
+              label: agent_label,
               visibility: tool[:visibility] || tool["visibility"] || "conditional",
               description: tool[:description] || tool["description"] || "AI agent",
               order: 2
@@ -130,8 +137,51 @@ module Monadic
         # Normalize feature names (handle MDSL naming variations)
         normalized_features = normalize_feature_names(features)
 
-        # Badge-worthy features (filter out internal flags)
+        # Special handling for image_generation (upload_only vs full generation)
+        if normalized_features[:image_generation]
+          if normalized_features[:image_generation] == "upload_only"
+            badges << {
+              type: :capabilities,
+              subtype: :feature,
+              id: "image_upload",
+              icon: "fa-file-image",
+              label: "image input",
+              description: "Image upload support",
+              user_controlled: false,
+              order: 3
+            }
+          elsif normalized_features[:image_generation] == true
+            badges << {
+              type: :capabilities,
+              subtype: :feature,
+              id: "image_generation",
+              icon: "fa-image",
+              label: "image gen",
+              description: "AI image generation capability",
+              user_controlled: false,
+              order: 3
+            }
+          end
+        end
+
+        # Voice chat capability (easy_submit + auto_speech)
+        if normalized_features[:easy_submit] && normalized_features[:auto_speech]
+          badges << {
+            type: :capabilities,
+            subtype: :feature,
+            id: "voice_chat",
+            icon: "fa-microphone",
+            label: "voice chat",
+            description: "Voice conversation support",
+            user_controlled: false,
+            order: 3
+          }
+        end
+
+        # Badge-worthy features (filter out internal flags and already-handled features)
         BADGE_WORTHY_FEATURES.each do |feature_name, config|
+          # Skip features already handled above
+          next if feature_name == :image_generation
           next unless normalized_features[feature_name]
 
           badges << {
@@ -174,22 +224,8 @@ module Monadic
       # @param features [Hash] Raw features hash from MDSL
       # @return [Hash] Normalized features hash
       def self.normalize_feature_names(features)
-        normalized = features.dup
-
-        # Feature name aliases (MDSL name => canonical badge name)
-        feature_aliases = {
-          pdf_vector_storage: :pdf,
-          pdf_upload: :pdf
-        }
-
-        # Apply aliases
-        feature_aliases.each do |mdsl_name, canonical_name|
-          if features[mdsl_name]
-            normalized[canonical_name] = true
-          end
-        end
-
-        normalized
+        # No aliases needed - all features use their canonical names
+        features.dup
       end
 
       # Get Font Awesome icon for tool group
@@ -245,16 +281,6 @@ module Monadic
           description: "Native web search capability",
           user_controlled: true
         },
-        image: {
-          icon: "fa-file-image",
-          label: "image input",
-          description: "Image upload support"
-        },
-        pdf: {
-          icon: "fa-file-pdf",
-          label: "pdf input",
-          description: "PDF upload support"
-        },
         image_generation: {
           icon: "fa-image",
           label: "image gen",
@@ -269,11 +295,6 @@ module Monadic
           icon: "fa-code",
           label: "jupyter",
           description: "Jupyter notebook integration"
-        },
-        sourcecode: {
-          icon: "fa-code",
-          label: "syntax hl",
-          description: "Syntax highlighting"
         }
       }.freeze
     end

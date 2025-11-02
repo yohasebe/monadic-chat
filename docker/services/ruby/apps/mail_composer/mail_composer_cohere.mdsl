@@ -55,7 +55,6 @@ app "MailComposerCohere" do
   features do
     disabled !CONFIG["COHERE_API_KEY"]
     initiate_from_assistant true
-    image false
     easy_submit false
     auto_speech false
     group "Cohere"

@@ -1,8 +1,8 @@
-# GPT-5-Codex エージェント実装
+# OpenAI Code エージェント実装
 
 ## 概要
 
-GPT-5-Codexは、エージェンティックコーディングタスクに最適化された特化したOpenAIモデルです。通常のチャットモデルとは異なり、Responses APIを使用し、正しく機能するために特定の実装パターンが必要です。
+OpenAI Codeは、エージェンティックコーディングタスクに最適化された特化したOpenAIモデルです。通常のチャットモデルとは異なり、Responses APIを使用し、正しく機能するために特定の実装パターンが必要です。
 
 ## 主要特性
 
@@ -30,7 +30,7 @@ GPT-5-Codexは、エージェンティックコーディングタスクに最適
 
 ### 1. エージェントツール定義（MDSL）
 ```ruby
-define_tool "gpt5_codex_agent", "複雑なコーディングタスクをGPT-5-Codexに委任" do
+define_tool "openai_code_agent", "複雑なコーディングタスクをOpenAI Codeに委任" do
   parameter :task, "string", "コーディングタスクの説明", required: true
   parameter :context, "string", "追加のコンテキストまたは要件", required: false
   parameter :files, "array", "パスとコンテンツを持つファイルオブジェクトの配列", required: false
@@ -39,7 +39,7 @@ end
 
 ### 2. ツール実装
 ```ruby
-def gpt5_codex_agent(task:, context: nil, files: nil)
+def openai_code_agent(task:, context: nil, files: nil)
   # 最小限のプロンプトを構築
   prompt = task
 
@@ -65,7 +65,7 @@ def gpt5_codex_agent(task:, context: nil, files: nil)
     content = results.first["content"] || results.first.dig("choices", 0, "message", "content")
     { code: content, success: true, model: "gpt-5-codex" }
   else
-    { error: "GPT-5-Codexからのレスポンスなし", success: false }
+    { error: "OpenAI Codeからのレスポンスなし", success: false }
   end
 end
 ```
@@ -123,21 +123,21 @@ end
 
 ### アーキテクチャ
 ```
-ユーザー <-> GPT-5（メイン） <-> GPT-5-Codex（エージェント）
+ユーザー <-> GPT-5（メイン） <-> OpenAI Code（エージェント）
            |
            v
       ファイル操作
 ```
 
 1. ユーザーがGPT-5（メインモデル）と対話
-2. GPT-5がGPT-5-Codexに委任するタイミングを決定
-3. GPT-5が複雑なコーディングタスクのために`gpt5_codex_agent`ツールを呼び出す
-4. GPT-5-Codexがタスクを処理してコードを返す
+2. GPT-5がOpenAI Codeに委任するタイミングを決定
+3. GPT-5が複雑なコーディングタスクのために`openai_code_agent`ツールを呼び出す
+4. OpenAI Codeがタスクを処理してコードを返す
 5. GPT-5がファイル操作を使用してコードを保存できる
 
-### GPT-5-Codexを使用するタイミング
+### OpenAI Codeを使用するタイミング
 
-次の場合にGPT-5-Codexに委任：
+次の場合にOpenAI Codeに委任：
 - 完全なアプリケーションの作成
 - 複雑なリファクタリングタスク
 - 詳細なコードレビュー
@@ -152,7 +152,7 @@ end
 
 ## プロンプトガイドライン
 
-GPT-5-Codexドキュメントの「less is more」原則に従います：
+OpenAI Codeドキュメントの「less is more」原則に従います：
 
 ### すべきこと：
 - プロンプトを最小限で直接的に保つ
@@ -174,7 +174,7 @@ begin
   # ... 結果を処理
 rescue StandardError => e
   {
-    error: "GPT-5-Codex呼び出しエラー：#{e.message}",
+    error: "OpenAI Code呼び出しエラー：#{e.message}",
     suggestion: "タスクをより小さな部分に分割してみてください",
     success: false
   }
@@ -186,7 +186,7 @@ end
 1. **APIキー**：`OPENAI_API_KEY`が設定されていることを確認
 2. **モデルアクセス**：アカウントがgpt-5-codexへのアクセスを持つことを確認
 3. **レート制限**：Responses APIは異なる制限がある可能性
-4. **レイテンシー**：GPT-5-Codexは適応的推論を使用するため、レスポンス時間は変動
+4. **レイテンシー**：OpenAI Codeは適応的推論を使用するため、レスポンス時間は変動
 
 ## よくある問題と解決策
 
@@ -199,7 +199,7 @@ end
 **解決策**：`parameters: { "model" => "gpt-5-codex" }`を含める
 
 ### 問題：サンプリングパラメータが拒否される
-**原因**：GPT-5-Codexはtemperature/top_pをサポートしない
+**原因**：OpenAI Codeはtemperature/top_pをサポートしない
 **解決策**：リクエストからすべてのサンプリングパラメータを削除
 
 ### 問題：コンテンツの切り捨て
@@ -208,7 +208,7 @@ end
 
 ## 参照
 
-- [OpenAI GPT-5-Codexドキュメント](https://platform.openai.com/docs/models/gpt-5-codex)
+- [OpenAI OpenAI Codeドキュメント](https://platform.openai.com/docs/models/gpt-5-codex)
 - [Responses APIガイド](https://platform.openai.com/docs/api-reference/responses)
 - `lib/monadic/adapters/vendors/openai_helper.rb` - Responses API実装
 - `public/js/monadic/model_spec.js` - モデル仕様

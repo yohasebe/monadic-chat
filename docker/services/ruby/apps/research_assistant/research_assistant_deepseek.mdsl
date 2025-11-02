@@ -17,7 +17,6 @@ app "ResearchAssistantDeepSeek" do
     easy_submit false
     auto_speech false
     mathjax true
-    image true
     initiate_from_assistant false
   end
 

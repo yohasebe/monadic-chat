@@ -67,7 +67,6 @@ app "LanguagePracticePlusOpenAI" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    image true
     monadic true
   end
 end

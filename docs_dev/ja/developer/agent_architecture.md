@@ -6,10 +6,10 @@ Monadic Chatは、複雑なコード生成タスクのためのエージェン�
 
 ## サポートされているエージェントパターン
 
-### GPT-5-Codexエージェント（OpenAI）
+### OpenAI Codeエージェント（OpenAI）
 
 **メインモデル**: GPT-5
-**コード生成モデル**: GPT-5-Codex
+**コード生成モデル**: OpenAI Code
 
 **このパターンを使用するアプリ**:
 - Code Interpreter OpenAI
@@ -19,8 +19,8 @@ Monadic Chatは、複雑なコード生成タスクのためのエージェン�
 
 **動作方法**:
 1. GPT-5がユーザーインタラクションとツールオーケストレーションを処理
-2. 複雑なコード生成が必要な場合、`gpt5_codex_agent`関数が呼び出される
-3. GPT-5-Codexが`/v1/responses`エンドポイントを使用してアダプティブ推論で最適化されたコードを生成
+2. 複雑なコード生成が必要な場合、`openai_code_agent`関数が呼び出される
+3. OpenAI Codeが`/v1/responses`エンドポイントを使用してアダプティブ推論で最適化されたコードを生成
 4. 結果がGPT-5に返され、会話に統合される
 
 ### Grok-Codeエージェント（xAI）
@@ -45,14 +45,14 @@ Monadic Chatは、複雑なコード生成タスクのためのエージェン�
 ### モジュール構造
 
 ```ruby
-# GPT-5-Codexエージェント
-module Monadic::Agents::GPT5CodexAgent
+# OpenAI Codeエージェント
+module Monadic::Agents::OpenAICodeAgent
   def has_gpt5_codex_access?
     # OpenAI APIキーをチェック
   end
 
   def call_gpt5_codex(prompt:, app_name:, timeout:)
-    # responses API経由でGPT-5-Codexを呼び出し
+    # responses API経由でOpenAI Codeを呼び出し
   end
 
   def build_codex_prompt(task:, context:, current_code:)
@@ -80,7 +80,7 @@ end
 
 ```ruby
 # coding_assistant_openai.mdslからの例
-define_tool "gpt5_codex_agent", "Call GPT-5-Codex agent for complex coding tasks" do
+define_tool "openai_code_agent", "Call OpenAI Code agent for complex coding tasks" do
   parameter :task, "string", "Description of the code generation task", required: true
   parameter :context, "string", "Additional context about the project", required: false
   parameter :files, "array", "Array of file objects with path and content", required: false
@@ -96,8 +96,8 @@ end
 
 ## アクセス制御
 
-### GPT-5-Codexアクセス
-- すべてのOpenAI APIキー保持者がGPT-5-Codexにアクセス可能
+### OpenAI Codeアクセス
+- すべてのOpenAI APIキー保持者がOpenAI Codeにアクセス可能
 - 追加のモデルリストチェックは不要
 - `OPENAI_API_KEY`の存在によってアクセスが決定される
 
@@ -131,7 +131,7 @@ XAI_API_KEY=xai-...
 ## テスト
 
 両方のエージェントモジュールにユニットテストが提供されています:
-- `spec/unit/agents/gpt5_codex_agent_spec.rb`
+- `spec/unit/agents/openai_code_agent_spec.rb`
 - `spec/unit/agents/grok_code_agent_spec.rb`
 
 テストカバレッジ:

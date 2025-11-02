@@ -1680,18 +1680,14 @@ $(function () {
       return !!value;
     });
 
-    if (toBool(apps[appValue]["pdf"]) || toBool(apps[appValue]["pdf_vector_storage"])) {
+    if (toBool(apps[appValue]["pdf_vector_storage"])) {
       $("#pdf-panel").show();
       ws.send(JSON.stringify({ message: "PDF_TITLES" }));
     } else {
       $("#pdf-panel").hide();
     }
 
-    if (toBool(apps[appValue]["image"])) {
-      $("#image-file").show();
-    } else {
-      $("#image-file").hide();
-    }
+    // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
     let model;
     // Never mutate apps[appValue].group here; app definitions are authoritative.

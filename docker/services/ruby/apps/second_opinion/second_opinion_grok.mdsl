@@ -102,8 +102,6 @@ app "SecondOpinionGrok" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    image true
-    pdf false
     group "xAI"
   end
 

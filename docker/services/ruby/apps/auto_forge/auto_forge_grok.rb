@@ -9,6 +9,7 @@ class AutoForgeGrok < MonadicApp
   include GrokHelper
   include AutoForge
   include AutoForgeTools
+  include Monadic::Agents::GrokCodeAgent
 
   def generate_application(spec:)
     super(spec: spec, agent: :grok)

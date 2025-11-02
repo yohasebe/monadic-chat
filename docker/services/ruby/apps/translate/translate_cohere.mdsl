@@ -101,7 +101,6 @@ app "TranslateCohere" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image false
     monadic false
   end
 end

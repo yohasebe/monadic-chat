@@ -5,7 +5,7 @@
 ## コンテンツ
 
 - [コード伴奏](chord_accompanist.md) - ピアノコード伴奏ジェネレーター
-- [GPT-5-Codexエージェント](gpt5_codex_agent.md) - GPT-5-Codex統合と使用パターン
+- [OpenAI Codeエージェント](openai_code_agent.md) - OpenAI Code統合と使用パターン
 - [Mermaidグラファー](mermaid_grapher.md) - Mermaid構文を使用した図生成
 - [Monadicヘルプ](monadic_help.md) - 組み込みヘルプシステムドキュメント
 

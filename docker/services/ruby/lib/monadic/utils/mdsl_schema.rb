@@ -110,14 +110,6 @@ module MDSLSchema
       type: :boolean,
       description: "Start conversation from assistant"
     },
-    image: {
-      type: :boolean,
-      description: "Enable image input support"
-    },
-    pdf: {
-      type: :boolean,
-      description: "Enable PDF upload support"
-    },
     jupyter: {
       type: :boolean,
       description: "Enable Jupyter notebook support"

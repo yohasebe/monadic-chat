@@ -91,10 +91,10 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
     end
 
     context "with tools data in Gemini Array format" do
-      it "extracts agent tools from Array format" do
+      it "extracts agent tools from Array format with generic labels" do
         settings = {
           tools: [
-            { name: "claude_sonnet_agent", description: "Sonnet agent" }
+            { name: "openai_code_agent", description: "Code generation agent" }
           ]
         }
 
@@ -103,7 +103,8 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
         expect(result[:tools]).to be_an(Array)
         agent_badge = result[:tools].find { |b| b[:subtype] == :agent }
         expect(agent_badge).not_to be_nil
-        expect(agent_badge[:label]).to eq("claude-sonnet")
+        expect(agent_badge[:label]).to eq("code agent")
+        expect(agent_badge[:id]).to eq("openai_code_agent")
       end
 
       it "does not crash with non-agent tools in Array format" do

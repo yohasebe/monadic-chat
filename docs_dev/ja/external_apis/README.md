@@ -15,7 +15,7 @@ Monadic Chatは、統一されたベンダーアダプターパターンを通�
 ## サポートされているプロバイダー
 
 ### OpenAI
-- **モデル**：GPT-4o、GPT-4o-mini、GPT-5、GPT-5-Codex、o1、o1-mini、o1-preview、o3-mini
+- **モデル**：GPT-4o、GPT-4o-mini、GPT-5、OpenAI Code、o1、o1-mini、o1-preview、o3-mini
 - **機能**：ストリーミング、関数呼び出し、ビジョン、推論、Responses API
 - **特殊**：PDFドキュメント用Vector Store、TTS/STT
 

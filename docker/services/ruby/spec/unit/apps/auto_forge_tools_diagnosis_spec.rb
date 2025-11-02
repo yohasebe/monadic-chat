@@ -79,7 +79,7 @@ RSpec.describe AutoForgeTools do
       tool.instance_variable_set(:@last_diagnosis, diagnosis)
       tool.instance_variable_get(:@context)[:last_diagnosis] = diagnosis
 
-      allow(tool).to receive(:call_gpt5_codex).and_return({ success: false, error: 'API timeout' })
+      allow(tool).to receive(:call_openai_code).and_return({ success: false, error: 'API timeout' })
 
       message = tool.apply_suggested_fixes('apply fixes')
       expect(message).to include('Failed to generate fixes')

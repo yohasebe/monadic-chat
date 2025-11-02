@@ -51,7 +51,7 @@ app "JupyterNotebookOpenAI" do
 
     ## Your Capabilities
     - Create and manage Jupyter notebooks with code execution
-    - Access to GPT-5-Codex, a specialized coding model, for complex tasks
+    - Access to OpenAI Code, a specialized coding model, for complex tasks
     - Execute Python code in notebook cells
     - Read various file formats (CSV, JSON, PDF, Office documents)
     
@@ -96,8 +96,8 @@ app "JupyterNotebookOpenAI" do
     - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
     
-    ## Using GPT-5-Codex Agent
-    For complex coding tasks in notebooks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+    ## Using OpenAI Code Agent
+    For complex coding tasks in notebooks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
     This specialized model excels at:
     - Writing complex data analysis pipelines
     - Creating machine learning workflows
@@ -356,8 +356,6 @@ app "JupyterNotebookOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    pdf false
     monadic true
     jupyter true
     mathjax true
@@ -377,8 +375,8 @@ app "JupyterNotebookOpenAI" do
     # Import shared file reading tools (always visible - Phase 1)
     import_shared_tools :file_reading, visibility: "always"
 
-    # GPT-5-Codex agent for complex notebook coding tasks
-    define_tool "gpt5_codex_agent", "Delegate complex notebook coding tasks to GPT-5-Codex" do
+    # OpenAI Code agent for complex notebook coding tasks
+    define_tool "openai_code_agent", "Delegate complex notebook coding tasks to OpenAI Code" do
       parameter :task, "string", "Description of the coding task", required: true
       parameter :notebook_context, "string", "Current notebook context or requirements", required: false
       parameter :cell_content, "string", "Current cell content (for debugging/refactoring)", required: false

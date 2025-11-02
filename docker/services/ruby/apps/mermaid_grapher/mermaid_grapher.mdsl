@@ -249,8 +249,6 @@ Mermaid code goes here (without "mermaid" tags and Markdown code block)
   
   features do
     mermaid true
-    image true
-    pdf false
     easy_submit false
     auto_speech false
     initiate_from_assistant false

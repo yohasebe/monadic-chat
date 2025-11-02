@@ -1,20 +1,20 @@
 # September 2025 Improvements
 
-## GPT-5-Codex and Grok-Code Agent Integration
+## OpenAI Code and Grok-Code Agent Integration
 
 ### Overview
 Implemented agent architecture pattern for complex code generation, where main conversational models delegate specialized code generation tasks to dedicated models.
 
 ### Changes
 
-#### 1. GPT-5-Codex Access Simplification
+#### 1. OpenAI Code Access Simplification
 - **Previous**: Complex model list checking
 - **Current**: Simple API key presence check
-- **Reason**: All OpenAI API key holders have access to GPT-5-Codex
+- **Reason**: All OpenAI API key holders have access to OpenAI Code
 
 #### 2. Grok-Code-Fast-1 Agent Implementation
 - Created `Monadic::Agents::GrokCodeAgent` module
-- Parallel to GPT-5-Codex implementation
+- Parallel to OpenAI Code implementation
 - Integrated into all Grok coding apps:
   - Code Interpreter Grok
   - Coding Assistant Grok
@@ -50,7 +50,7 @@ Added file operations to ALL Coding Assistant variants:
 - `list_files_in_shared_folder` - List directory contents
 
 ### Supported Providers
-- ✅ OpenAI (+ GPT-5-Codex agent)
+- ✅ OpenAI (+ OpenAI Code agent)
 - ✅ Claude
 - ✅ Gemini
 - ✅ Grok (+ Grok-Code agent)
@@ -71,7 +71,7 @@ Added to `docs/reference/configuration.md`:
 Updated `CLAUDE.md` with:
 - Code quality guidelines
 - Language usage rules (Japanese comments with English identifiers)
-- GPT-5-Codex access notes
+- OpenAI Code access notes
 - Configuration priority documentation
 
 ### New Documentation
@@ -83,7 +83,7 @@ Updated `CLAUDE.md` with:
 ### New Test Coverage
 - `spec/unit/adapters/jupyter_helper_spec.rb` - Jupyter file handling tests
 - `spec/unit/apps/coding_assistant_tools_spec.rb` - Coding Assistant file operations
-- Existing: `spec/unit/agents/gpt5_codex_agent_spec.rb`
+- Existing: `spec/unit/agents/openai_code_agent_spec.rb`
 - Existing: `spec/unit/agents/grok_code_agent_spec.rb`
 
 ### Test Focus Areas

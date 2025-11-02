@@ -34,7 +34,6 @@ app "AppNameProvider" do  # Rubyクラス名と正確に一致する必要があ
   end
 
   features do
-    image true
     auto_speech false
   end
 end
@@ -172,10 +171,8 @@ PROMPT
 ```ruby
 # 一般的なUI機能:
 features do
-  image true              # UIでの画像処理と添付を有効にする
   auto_speech false       # アシスタントメッセージの自動テキスト読み上げを有効にする
   easy_submit true        # Enterキーでのメッセージ送信を有効にする
-  sourcecode true         # 拡張されたソースコードハイライトを有効にする
   mathjax true            # MathJaxを使用した数学表記のレンダリングを有効にする
   abc true                # ABC音楽表記のレンダリングと再生を有効にする
   mermaid true            # Mermaidダイアグラムレンダリングを有効にする
@@ -185,7 +182,7 @@ end
 # プロバイダー固有の機能:
 features do  
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
-  jupyter_access true     # Jupyterノートブックインターフェースへのアクセスを有効にする
+  jupyter true            # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
   monadic true            # 構造化JSONレスポンス（すべてのプロバイダーでサポート）
   initiate_from_assistant true # AIメッセージで会話を開始
@@ -310,8 +307,6 @@ app "MathTutorOpenAI" do  # クラス名と正確に一致する必要があり�
   end
 
   features do
-    sourcecode true     # コードハイライトを有効にする
-    image true          # 画像表示を有効にする
     mathjax true        # 数式表記を有効にする
   end
   
@@ -370,7 +365,6 @@ app "MermaidGrapherOpenAI" do
 
   features do
     mermaid true
-    image true
   end
   
   tools do

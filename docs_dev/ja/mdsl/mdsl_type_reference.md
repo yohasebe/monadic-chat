@@ -20,12 +20,9 @@
 | `abc` | Boolean | `false` | ABC音楽表記レンダリングを有効化 |
 | `sourcecode` | Boolean | `false` | 拡張ソースコードハイライトを有効化 |
 | `monadic` | Boolean | `false` | JSONコンテキスト付きmonadicモードを有効化 |
-| `image` | Boolean | `false` | 画像アップロードと表示を有効化 |
-| `pdf` | Boolean | `false` | PDFドキュメントアップロードを有効化 |
 | `pdf_vector_storage` | Boolean | `false` | PDFのベクトルストレージを有効化 |
 | `websearch` | Boolean | `false` | Web検索機能を有効化 |
-| `jupyter_access` | Boolean | `false` | Jupyterノートブックアクセスを有効化 |
-| `jupyter` | Boolean | `false` | `jupyter_access`のエイリアス |
+| `jupyter` | Boolean | `false` | Jupyterノートブックアクセスを有効化 |
 | `image_generation` | Boolean | `false` | AI画像生成を有効化 |
 | `video` | Boolean | `false` | 動画アップロードと処理を有効化 |
 
@@ -35,8 +32,6 @@ app "MyApp" do
   features do
     auto_speech true        # ✅ 正しい：boolean
     easy_submit true        # ✅ 正しい：boolean
-    image false             # ✅ 正しい：boolean
-    pdf false               # ✅ 正しい：boolean
   end
 end
 ```
@@ -379,7 +374,7 @@ toBool(false)     → false
 # ✅ 良い
 features do
   auto_speech true
-  image false
+
   easy_submit true
 end
 

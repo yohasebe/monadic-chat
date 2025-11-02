@@ -30,12 +30,11 @@ module MonadicDSL
   # - mermaid: Enables Mermaid diagram rendering and interaction for flowcharts and diagrams
   # - mathjax: Enables mathematical notation rendering using MathJax library
   # - abc: Enables ABC music notation rendering and playback for music composition
-  # - sourcecode: Enables enhanced source code highlighting and formatting (code_highlight)
   # - tools: Defines function-calling capabilities available to the model
   # - image_generation: Enables AI image generation within the conversation
   # - monadic: Enables monadic mode for structured JSON responses and special rendering
   # - websearch: Enables web search functionality for retrieving external information (web_search)
-  # - jupyter_access: Enables access to Jupyter notebooks in the conversation (jupyter)
+  # - jupyter: Enables access to Jupyter notebooks in the conversation
   # - temperature: Controls randomness in model responses (0.0-2.0)
   # - model: Specifies which AI model to use for this app
   # - group: Groups apps by provider (e.g., "OpenAI", "Anthropic", "Google")
@@ -49,9 +48,7 @@ module MonadicDSL
   # - max_tokens: Specifies the maximum number of tokens to generate (max_output_tokens)
   #
   # Note: Some parameters support aliases (shown in parentheses) for backward compatibility:
-  # - sourcecode (code_highlight)
   # - websearch (web_search)
-  # - jupyter (jupyter_access)
   # - max_tokens (max_output_tokens)
 
   class Loader
@@ -1275,26 +1272,18 @@ module MonadicDSL
 
   # Simplified Feature Configuration
   class SimplifiedFeatureConfiguration
-    # Map newer feature names to old ones where needed
-    FEATURE_MAP = {
-      code_highlight: :sourcecode,
-      web_search: :websearch,
-      jupyter_access: :jupyter
-    }
-    
     def initialize(state)
       @state = state
     end
-    
+
     def method_missing(method_name, *args)
       # Default all called methods to true, handle special cases
       value = args.first.nil? ? true : args.first
-      
-      feature_name = FEATURE_MAP[method_name] || method_name
-      @state.features[feature_name] = value
-      
+
+      @state.features[method_name] = value
+
     end
-    
+
     def respond_to_missing?(method_name, include_private = false)
       true
     end
@@ -1458,11 +1447,9 @@ module MonadicDSL
     distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] ? CONFIG["DISTRIBUTED_MODE"] : "off"
     
     # Check if this app should be disabled in server mode due to security concerns
-    jupyter_disabled_in_server = distributed_mode == "server" && 
-      (state.features[:jupyter] == true || 
-       state.features[:jupyter_access] == true || 
-       state.features[:jupyter] == "true" || 
-       state.features[:jupyter_access] == "true")
+    jupyter_disabled_in_server = distributed_mode == "server" &&
+      (state.features[:jupyter] == true ||
+       state.features[:jupyter] == "true")
     
     # Get appropriate environment variable name based on provider
     provider_name = state.settings[:provider].to_s.downcase

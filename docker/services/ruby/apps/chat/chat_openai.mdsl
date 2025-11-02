@@ -57,8 +57,6 @@ app "ChatOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    pdf false
     websearch true
   end
   

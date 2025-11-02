@@ -127,8 +127,6 @@ app "JupyterNotebookGrok" do
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    pdf false
     monadic false
     jupyter true
     mathjax true

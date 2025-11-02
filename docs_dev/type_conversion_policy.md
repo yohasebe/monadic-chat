@@ -24,17 +24,17 @@ JavaScript (Frontend)
 
 **Affected Parameters**:
 - UI Controls: `auto_speech`, `easy_submit`, `initiate_from_assistant`
-- Rendering: `mathjax`, `mermaid`, `abc`, `sourcecode`, `monadic`
-- Capabilities: `image`, `pdf`, `pdf_vector_storage`, `websearch`
-- Advanced: `jupyter_access`, `jupyter`, `image_generation`, `video`
+- Rendering: `mathjax, mermaid, abc, monadic`
+- Capabilities: `pdf_vector_storage`, `websearch`
+- Advanced: `jupyter`, `image_generation`, `video`
 
 **Ruby Implementation** (`lib/monadic/utils/websocket.rb`):
 ```ruby
 # In prepare_apps_data method
 elsif ["auto_speech", "easy_submit", "initiate_from_assistant",
-       "mathjax", "mermaid", "abc", "sourcecode", "monadic",
-       "image", "pdf", "pdf_vector_storage", "websearch",
-       "jupyter_access", "jupyter", "image_generation", "video"].include?(p.to_s)
+       "mathjax, mermaid, abc, monadic",
+       "pdf_vector_storage", "websearch",
+       "jupyter", "image_generation", "video"].include?(p.to_s)
   # Preserve boolean values for feature flags
   # These need to be actual booleans, not strings, for proper JavaScript evaluation
   apps[k][p] = m

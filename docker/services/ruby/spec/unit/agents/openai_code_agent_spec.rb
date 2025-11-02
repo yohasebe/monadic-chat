@@ -1,10 +1,10 @@
 require "spec_helper"
-require_relative "../../../lib/monadic/agents/gpt5_codex_agent"
+require_relative '../../lib/monadic/agents/openai_code_agent"
 
 RSpec.describe Monadic::Agents::GPT5CodexAgent do
   let(:test_class) do
     Class.new do
-      include Monadic::Agents::GPT5CodexAgent
+      include Monadic::Agents::OpenAICodeAgent
 
       attr_accessor :gpt5_codex_access
 
@@ -28,20 +28,20 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
 
   let(:app) { test_class.new }
 
-  describe "#has_gpt5_codex_access?" do
+  describe "#has_openai_code_access?" do
     context "when OpenAI API key is configured" do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
       end
 
       it "returns true" do
-        expect(app.has_gpt5_codex_access?).to be true
+        expect(app.has_openai_code_access?).to be true
       end
 
       it "caches the result" do
-        app.has_gpt5_codex_access?
+        app.has_openai_code_access?
         stub_const("CONFIG", {})  # Remove API key
-        expect(app.has_gpt5_codex_access?).to be true # cached
+        expect(app.has_openai_code_access?).to be true # cached
       end
     end
 
@@ -51,7 +51,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "returns false" do
-        expect(app.has_gpt5_codex_access?).to be false
+        expect(app.has_openai_code_access?).to be false
       end
     end
 
@@ -61,7 +61,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "returns false" do
-        expect(app.has_gpt5_codex_access?).to be false
+        expect(app.has_openai_code_access?).to be false
       end
     end
 
@@ -71,12 +71,12 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "returns false" do
-        expect(app.has_gpt5_codex_access?).to be false
+        expect(app.has_openai_code_access?).to be false
       end
     end
   end
 
-  describe "#call_gpt5_codex" do
+  describe "#call_openai_code" do
     context "when user has access to GPT-5-Codex" do
       before do
         stub_const("CONFIG", { "OPENAI_API_KEY" => "sk-test123" })
@@ -85,7 +85,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "makes successful API call" do
-        result = app.call_gpt5_codex(prompt: "Write a function")
+        result = app.call_openai_code(prompt: "Write a function")
 
         expect(result[:success]).to be true
         expect(result[:code]).to eq("Generated code")
@@ -93,7 +93,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "builds session with correct structure" do
-        app.call_gpt5_codex(prompt: "Test prompt")
+        app.call_openai_code(prompt: "Test prompt")
         session = app.last_session
 
         expect(session[:parameters]["model"]).to eq("gpt-5-codex")
@@ -104,7 +104,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       it "handles timeout gracefully" do
         allow(Timeout).to receive(:timeout).and_raise(Timeout::Error)
 
-        result = app.call_gpt5_codex(prompt: "Test", timeout: 1)
+        result = app.call_openai_code(prompt: "Test", timeout: 1)
 
         expect(result[:success]).to be false
         expect(result[:timeout]).to be true
@@ -118,7 +118,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "returns error about missing API key" do
-        result = app.call_gpt5_codex(prompt: "Write code")
+        result = app.call_openai_code(prompt: "Write code")
 
         expect(result[:success]).to be false
         expect(result[:error]).to include("not available")
@@ -137,7 +137,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "handles API error response" do
-        result = app.call_gpt5_codex(prompt: "Test")
+        result = app.call_openai_code(prompt: "Test")
 
         expect(result[:success]).to be false
         expect(result[:error]).to eq("Rate limit exceeded")
@@ -154,7 +154,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
       end
 
       it "handles empty response" do
-        result = app.call_gpt5_codex(prompt: "Test")
+        result = app.call_openai_code(prompt: "Test")
 
         expect(result[:success]).to be false
         expect(result[:error]).to include("empty response")
@@ -162,14 +162,14 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     end
   end
 
-  describe "#build_codex_prompt" do
+  describe "#build_openai_code_prompt" do
     it "builds basic prompt from task" do
-      prompt = app.build_codex_prompt(task: "Write a sorting function")
+      prompt = app.build_openai_code_prompt(task: "Write a sorting function")
       expect(prompt).to eq("Write a sorting function")
     end
 
     it "includes current code when provided" do
-      prompt = app.build_codex_prompt(
+      prompt = app.build_openai_code_prompt(
         task: "Fix this code",
         current_code: "def broken() { }"
       )
@@ -180,7 +180,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     end
 
     it "includes error context when provided" do
-      prompt = app.build_codex_prompt(
+      prompt = app.build_openai_code_prompt(
         task: "Fix error",
         error_context: "undefined method 'foo'"
       )
@@ -196,7 +196,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
         { path: "test.rb", content: "test code" }
       ]
 
-      prompt = app.build_codex_prompt(
+      prompt = app.build_openai_code_prompt(
         task: "Refactor",
         files: files
       )
@@ -210,7 +210,7 @@ RSpec.describe Monadic::Agents::GPT5CodexAgent do
     it "limits number of files to 3" do
       files = (1..5).map { |i| { path: "file#{i}.rb", content: "code#{i}" } }
 
-      prompt = app.build_codex_prompt(
+      prompt = app.build_openai_code_prompt(
         task: "Review",
         files: files
       )

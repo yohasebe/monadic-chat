@@ -90,7 +90,6 @@ app "PDFNavigatorOpenAI" do
     auto_speech false
     initiate_from_assistant false
     pdf_vector_storage true
-    image true
     mathjax true
   end
   

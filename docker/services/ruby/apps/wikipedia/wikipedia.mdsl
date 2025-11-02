@@ -59,8 +59,7 @@ app "WikipediaOpenAI" do
   end
   
   features do
-    web_search false
-    image true
+    websearch false
     easy_submit false
     auto_speech false
     initiate_from_assistant false

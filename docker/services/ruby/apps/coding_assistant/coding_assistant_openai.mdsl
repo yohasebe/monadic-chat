@@ -36,7 +36,7 @@ app "CodingAssistantOpenAI" do
 
   ## Your Capabilities
   - You can read, write, and list files in the user's shared folder
-  - You have access to GPT-5-Codex, a specialized coding model, for complex tasks
+  - You have access to OpenAI Code, a specialized coding model, for complex tasks
   - You can analyze code, suggest improvements, and help with debugging
 
   ## Working with Files
@@ -45,8 +45,8 @@ app "CodingAssistantOpenAI" do
   2. Use `write_file_to_shared_folder` to create or update files
   3. Use `list_files_in_shared_folder` to explore the directory structure
 
-  ## Using GPT-5-Codex Agent
-  For complex coding tasks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+  ## Using OpenAI Code Agent
+  For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
   This specialized model excels at:
   - Writing complete applications
   - Complex refactoring
@@ -58,7 +58,7 @@ app "CodingAssistantOpenAI" do
   First, inform the user in English that they can:
   1. Provide prompts describing coding problems or tasks
   2. Ask you to read/write files in their shared folder
-  3. Request complex coding assistance via GPT-5-Codex agent for more complex tasks
+  3. Request complex coding assistance via OpenAI Code agent for more complex tasks
 
   If your response continues in the next message, you should use the following special string at the end of the message: "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results"
   PROMPT
@@ -80,9 +80,6 @@ app "CodingAssistantOpenAI" do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    pdf false
-    sourcecode true
     mathjax false
     initiate_from_assistant true
   end
@@ -91,8 +88,8 @@ app "CodingAssistantOpenAI" do
     # Import shared file operations tools (always visible)
     import_shared_tools :file_operations, visibility: "always"
 
-    # GPT-5-Codex agent for complex coding tasks
-    define_tool "gpt5_codex_agent", "Delegate complex coding tasks to GPT-5-Codex" do
+    # OpenAI Code agent for complex coding tasks
+    define_tool "openai_code_agent", "Delegate complex coding tasks to OpenAI Code" do
       parameter :task, "string", "Description of the coding task", required: true
       parameter :context, "string", "Additional context or requirements", required: false
       parameter :files, "array", "Array of file objects with path and content", required: false

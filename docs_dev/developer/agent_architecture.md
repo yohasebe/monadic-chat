@@ -6,10 +6,10 @@ Monadic Chat implements an agent architecture pattern for complex code generatio
 
 ## Supported Agent Patterns
 
-### GPT-5-Codex Agent (OpenAI)
+### OpenAI Code Agent (OpenAI)
 
 **Main Model**: GPT-5
-**Code Generation Model**: GPT-5-Codex
+**Code Generation Model**: OpenAI Code
 
 **Apps Using This Pattern**:
 - Code Interpreter OpenAI
@@ -19,8 +19,8 @@ Monadic Chat implements an agent architecture pattern for complex code generatio
 
 **How It Works**:
 1. GPT-5 handles user interaction and tool orchestration
-2. When complex code generation is needed, `gpt5_codex_agent` function is called
-3. GPT-5-Codex generates optimized code using the `/v1/responses` endpoint with adaptive reasoning
+2. When complex code generation is needed, `openai_code_agent` function is called
+3. OpenAI Code generates optimized code using the `/v1/responses` endpoint with adaptive reasoning
 4. Result is returned to GPT-5 for integration into the conversation
 
 ### Grok-Code Agent (xAI)
@@ -45,14 +45,14 @@ Monadic Chat implements an agent architecture pattern for complex code generatio
 ### Module Structure
 
 ```ruby
-# GPT-5-Codex Agent
-module Monadic::Agents::GPT5CodexAgent
+# OpenAI Code Agent
+module Monadic::Agents::OpenAICodeAgent
   def has_gpt5_codex_access?
     # Checks for OpenAI API key
   end
 
   def call_gpt5_codex(prompt:, app_name:, timeout:)
-    # Calls GPT-5-Codex via responses API
+    # Calls OpenAI Code via responses API
   end
 
   def build_codex_prompt(task:, context:, current_code:)
@@ -80,7 +80,7 @@ end
 
 ```ruby
 # Example from coding_assistant_openai.mdsl
-define_tool "gpt5_codex_agent", "Call GPT-5-Codex agent for complex coding tasks" do
+define_tool "openai_code_agent", "Call OpenAI Code agent for complex coding tasks" do
   parameter :task, "string", "Description of the code generation task", required: true
   parameter :context, "string", "Additional context about the project", required: false
   parameter :files, "array", "Array of file objects with path and content", required: false
@@ -96,8 +96,8 @@ end
 
 ## Access Control
 
-### GPT-5-Codex Access
-- All OpenAI API key holders have access to GPT-5-Codex
+### OpenAI Code Access
+- All OpenAI API key holders have access to OpenAI Code
 - No additional model list checking required
 - Access determined by presence of `OPENAI_API_KEY`
 
@@ -131,7 +131,7 @@ XAI_API_KEY=xai-...
 ## Testing
 
 Unit tests are provided for both agent modules:
-- `spec/unit/agents/gpt5_codex_agent_spec.rb`
+- `spec/unit/agents/openai_code_agent_spec.rb`
 - `spec/unit/agents/grok_code_agent_spec.rb`
 
 Tests cover:

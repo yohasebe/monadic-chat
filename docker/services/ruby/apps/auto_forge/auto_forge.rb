@@ -13,7 +13,7 @@ require_relative 'agents/html_generator'
 require_relative 'agents/cli_generator'
 require_relative 'agents/grok_html_generator'
 require_relative 'agents/grok_cli_generator'
-require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
 
 module AutoForge
   class Orchestrator

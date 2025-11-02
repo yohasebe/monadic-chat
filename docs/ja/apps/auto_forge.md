@@ -117,7 +117,7 @@ CLIプロジェクトで利用可能。明確な価値を追加する場合に�
 
 ### アーキテクチャ
 - **オーケストレーション層**: GPT-5（OpenAI）、Claude Sonnet 4.5（Claude）、またはGrok-4-Fast-Reasoning（xAI）が、MDSLアプリを介した計画、ユーザーインタラクション、ツール調整を処理
-- **コード生成層**: GPT-5-Codex、Claude Sonnet 4.5、またはGrok-Code-Fast-1がWeb/CLIアーティファクトを生成
+- **コード生成層**: OpenAI Code、Claude Sonnet 4.5、またはGrok-Code-Fast-1がWeb/CLIアーティファクトを生成
 - **ファイル管理**: Rubyバックエンドがプロジェクトストレージ、コンテキストの永続化、オプションのファイル生成を管理
 - **デバッグ層**: Python/Selenium統合がWebアプリの自動テストを提供
 
@@ -170,7 +170,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 ### 基本要件
 - Rubyバックエンドを備えたMonadic Chat
 - 以下のいずれか：
-  - GPT-5とGPT-5-Codexへのアクセス権を持つOpenAI APIキー
+  - GPT-5とOpenAI Codeへのアクセス権を持つOpenAI APIキー
   - Claude Sonnet 4.5へのアクセス権を持つAnthropic APIキー
   - Grok-4-Fast-ReasoningとGrok-Code-Fast-1へのアクセス権を持つxAI APIキー
 
@@ -196,7 +196,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 
 ### 一般的な問題
 
-1. **ファイルが生成されない**: GPT-5-CodexまたはClaude Sonnet 4.5は、複雑なアプリで2〜5分かかることがあります。生成実行中、進捗状況がストリーミング一時カードに表示されます
+1. **ファイルが生成されない**: OpenAI CodeまたはClaude Sonnet 4.5は、複雑なアプリで2〜5分かかることがあります。生成実行中、進捗状況がストリーミング一時カードに表示されます
 2. **Seleniumが利用できない**: Docker Seleniumコンテナが実行中であることを確認
 3. **Unicode文字**: 特殊文字を含むプロジェクト名は完全にサポートされています
 4. **カスタムファイルリクエストが拒否される**: ファイル名がシンプル（ディレクトリなし）であることを確認し、必要なコンテンツを説明する明確な指示を含めてください
@@ -210,7 +210,7 @@ Webアプリに対して`debug_application`を使用すると、以下が得ら�
 ## プロバイダーサポートと進捗更新
 
 AutoForgeは複数のプロバイダーをサポートします：
-- **OpenAI Auto Forge**: GPT-5がワークフローをオーケストレートし、GPT-5-Codexがコード生成を処理
+- **OpenAI Auto Forge**: GPT-5がワークフローをオーケストレートし、OpenAI Codeがコード生成を処理
 - **Claude Auto Forge**: Claude Sonnet 4.5がClaude Responses APIを介してオーケストレートとコード生成を実行
 - **Grok Auto Forge**: Grok-4-Fast-Reasoningがワークフローをオーケストレートし、Grok-Code-Fast-1がコード生成を処理
 
@@ -222,7 +222,7 @@ Grok-Code-Fast-1が優れている点：
 - **高速な反復**: 92トークン/秒のスループットで高速生成
 - **フロントエンド開発**: HTML/CSS/JavaScript、SVGグラフィックス、アニメーション
 - **モダンCSS**: Grid、Flexbox、CSS変数
-- **コスト効率**: GPT-5-Codexより6〜7倍安価
+- **コスト効率**: OpenAI Codeより6〜7倍安価
 
 Grok-Code-Fast-1が最適化されている点：
 - 反復開発を伴う小規模で焦点を絞ったタスク

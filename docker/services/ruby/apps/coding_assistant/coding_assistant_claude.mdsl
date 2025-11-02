@@ -55,9 +55,6 @@ app "CodingAssistantClaude" do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    pdf false
-    sourcecode true
     mathjax false
     initiate_from_assistant false
     group "Anthropic"

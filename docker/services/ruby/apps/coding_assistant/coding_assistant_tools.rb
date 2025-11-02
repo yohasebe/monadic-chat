@@ -1,25 +1,25 @@
 # Coding Assistant application tools
 # Provides file operations and GPT-5-Codex agent integration
 
-require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
 require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module CodingAssistantTools
   include MonadicHelper
   include MonadicSharedTools::FileOperations
-  include Monadic::Agents::GPT5CodexAgent
+  include Monadic::Agents::OpenAICodeAgent
 
   # Call GPT-5-Codex agent for coding tasks
-  def gpt5_codex_agent(task:, context: nil, files: nil)
+  def openai_code_agent(task:, context: nil, files: nil)
     # Build prompt using the shared helper
-    prompt = build_codex_prompt(
+    prompt = build_openai_code_prompt(
       task: task,
       context: context,
       files: files
     )
 
     # Call the shared GPT-5-Codex implementation
-    call_gpt5_codex(prompt: prompt, app_name: "CodingAssistant")
+    call_openai_code(prompt: prompt, app_name: "CodingAssistant")
   end
 end
 

@@ -24,17 +24,17 @@ JavaScript (Frontend)
 
 **影響を受けるパラメータ**：
 - UI制御：`auto_speech`、`easy_submit`、`initiate_from_assistant`
-- レンダリング：`mathjax`、`mermaid`、`abc`、`sourcecode`、`monadic`
-- 機能：`image`、`pdf`、`pdf_vector_storage`、`websearch`
-- 高度：`jupyter_access`、`jupyter`、`image_generation`、`video`
+- レンダリング：`mathjax, mermaid, abc, monadic`
+- 機能：`pdf_vector_storage`、`websearch`
+- 高度：`jupyter`、`image_generation`、`video`
 
 **Ruby実装**（`lib/monadic/utils/websocket.rb`）：
 ```ruby
 # prepare_apps_dataメソッド内
 elsif ["auto_speech", "easy_submit", "initiate_from_assistant",
-       "mathjax", "mermaid", "abc", "sourcecode", "monadic",
-       "image", "pdf", "pdf_vector_storage", "websearch",
-       "jupyter_access", "jupyter", "image_generation", "video"].include?(p.to_s)
+       "mathjax, mermaid, abc, monadic",
+       "pdf_vector_storage", "websearch",
+       "jupyter", "image_generation", "video"].include?(p.to_s)
   # 機能フラグのブール値を保持
   # これらは適切なJavaScript評価のために文字列ではなく実際のブール値である必要があります
   apps[k][p] = m

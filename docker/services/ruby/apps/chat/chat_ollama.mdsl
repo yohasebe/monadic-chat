@@ -56,7 +56,6 @@ app "ChatOllama" do
     disabled !CONFIG["OLLAMA_AVAILABLE"]
     easy_submit false
     auto_speech false
-    image true
     initiate_from_assistant false
     context_size 100
     websearch false

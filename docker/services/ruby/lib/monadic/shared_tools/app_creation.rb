@@ -303,8 +303,6 @@ module MonadicSharedTools
           features do
             easy_submit false
             auto_speech false
-            image false
-            pdf false
           end
 
           tools do

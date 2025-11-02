@@ -62,7 +62,6 @@ app "ResearchAssistantClaude" do
     auto_speech false
     initiate_from_assistant true
     mathjax true
-    image true
   end
 
   tools do

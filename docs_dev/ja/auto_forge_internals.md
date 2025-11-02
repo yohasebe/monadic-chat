@@ -2,7 +2,7 @@
 
 ## 概要
 
-AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、またはGrok-4-Fast-Reasoningのオーケストレーションと、プロバイダー固有のコード生成（GPT-5-Codex、Claude Opus、またはGrok-Code-Fast-1）を組み合わせた洗練されたマルチレイヤーアプリケーション生成システムです。
+AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Code、またはGrok-4-Fast-Reasoningのオーケストレーションと、プロバイダー固有のコード生成（OpenAI Code、Claude Code、またはGrok-Code-Fast-1）を組み合わせた洗練されたマルチレイヤーアプリケーション生成システムです。
 
 ## アーキテクチャ
 
@@ -16,7 +16,7 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
                    │
 ┌──────────────────▼───────────────────────────┐
 │         オーケストレーションレイヤー         │
-│  (GPT-5 / Claude Opus / Grok-4-Fast-         │
+│  (GPT-5 / Claude Code / Grok-4-Fast-         │
 │   Reasoning via provider APIs)               │
 │   - ユーザーインタラクション                 │
 │   - 計画と調整                              │
@@ -34,7 +34,7 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
                    │
 ┌──────────────────▼───────────────────────────┐
 │        コード生成レイヤー                    │
-│  (GPT-5-Codex / Claude Opus /                │
+│  (OpenAI Code / Claude Code /                │
 │   Grok-Code-Fast-1 via provider agents)      │
 │   - HTML/CSS/JS/CLI生成                      │
 │   - プロバイダー固有のエージェント経由       │
@@ -55,8 +55,8 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 #### 2. ツールメソッド（`auto_forge_tools.rb`）
 - 各ツールのコアロジックを実装
 - プロバイダー固有のエージェントを含む：
-  - OpenAIコード生成用の`GPT5CodexAgent`
-  - Claudeコード生成用の`ClaudeOpusAgent`
+  - OpenAIコード生成用の`OpenAICodeAgent`
+  - Claudeコード生成用の`ClaudeCodeAgent`
   - Grokコード生成用の`GrokCodeAgent`
 - プロジェクト管理、オプションのCLIアセット生成、ファイルI/Oを処理
 - オーケストレーションとコード生成間を調整
@@ -68,8 +68,8 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 - 変更のためのコンテキスト永続化
 
 #### 4. HTMLジェネレーター
-- **OpenAI**: `agents/html_generator.rb`でGPT5CodexAgentを使用 - GPT-5-Codexとインターフェイス
-- **Claude**: `agents/html_generator.rb`でClaudeOpusAgentコールバックを使用 - Claudeモデルとclaude_opus_agentを介してインターフェイス
+- **OpenAI**: `agents/html_generator.rb`でOpenAICodeAgentを使用 - OpenAI Codeとインターフェイス
+- **Claude**: `agents/html_generator.rb`でClaudeCodeAgentコールバックを使用 - Claudeモデルとclaude_code_agentを介してインターフェイス
 - **Grok**: `agents/grok_html_generator.rb`でGrokCodeAgentを使用 - Grok-Code-Fast-1とインターフェイス
 - 各プロバイダーのコード生成モデルに最適化されたプロンプトを構築
 - 新規生成と変更の両方を処理
@@ -100,7 +100,7 @@ AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Opus、ま
 
 # コード生成はプロバイダー固有のエージェントに委譲
 call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')          # OpenAI
-claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
+claude_code_agent(prompt, 'AutoForgeClaude')                    # Claude
 call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ```
 
@@ -112,8 +112,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
    - ツール呼び出しと構造化レスポンスを管理
 
 2. **コード生成（プロバイダーエージェント）**：
-   - OpenAI用に`GPT5CodexAgent`経由でGPT-5-Codex
-   - Claude用に`ClaudeOpusAgent`経由でClaude Opus
+   - OpenAI用に`OpenAICodeAgent`経由でOpenAI Code
+   - Claude用に`ClaudeCodeAgent`経由でClaude Code
    - Grok用に`GrokCodeAgent`経由でGrok-Code-Fast-1
    - すべて決定論的パラメータでプロバイダーのResponses APIを使用
    - プロバイダー固有のプロンプトビルダーが各モデルの強みに最適化
@@ -153,12 +153,12 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## プロバイダーバリアントと進捗ブロードキャスト
 
 - 3つのMDSLアプリが共有ツールレイヤーをラップ：
-  - `auto_forge_openai`：GPT-5オーケストレーション + GPT-5-Codex生成
-  - `auto_forge_claude`：Claude Opus 4.1オーケストレーション + 生成
+  - `auto_forge_openai`：GPT-5オーケストレーション + OpenAI Code生成
+  - `auto_forge_claude`：Claude Code 4.1オーケストレーション + 生成
   - `auto_forge_grok`：Grok-4-Fast-Reasoningオーケストレーション + Grok-Code-Fast-1生成
 - プロバイダーエージェントは`source`識別子付きの`wait`フラグメントを発行し、WebSocketレイヤーが一時カードに更新をストリーミングできるようにします：
-  - OpenAI用の`GPT5CodexAgent`
-  - Claude用の`ClaudeOpusAgent`
+  - OpenAI用の`OpenAICodeAgent`
+  - Claude用の`ClaudeCodeAgent`
   - Grok用の`GrokCodeAgent`
 - 進捗フラグメントはオプションで`minutes`/`remaining`値を含みます。欠落している場合でも、UIはプロバイダー固有のステータステキストを表示します。
 - Web UI翻訳キー（`claudeOpusGenerating`、`grokCodeGenerating`など）がすべてのロケールに追加され、進捗メッセージのローカライズが維持されます。
@@ -168,8 +168,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - **オーケストレーションモデル**：バランスの取れた品質と速度のために`reasoning_effort: "medium"`付きのGrok-4-Fast-Reasoning
 - **コード生成モデル**：Grok-Code-Fast-1（`GrokCodeAgent`のデフォルト）
 - **プロンプト最適化**：プロンプトはGrok-Code-Fast-1の強みに合わせて「より小さな集中したタスク」と「反復開発」を強調
-- **パフォーマンス**：92トークン/秒のスループット、GPT-5-Codexよりも大幅に高速
-- **コスト**：GPT-5-Codexより6-7倍安価
+- **パフォーマンス**：92トークン/秒のスループット、OpenAI Codeよりも大幅に高速
+- **コスト**：OpenAI Codeより6-7倍安価
 - **強み**：HTML/CSS/JavaScript、SVGグラフィックス、アニメーション、ビジュアルコンポーネント
 - **エージェントファイル**：
   - `agents/grok_html_generator.rb`：HTML/CSS/JS生成
@@ -185,21 +185,21 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
   - 使用例（USAGE.md）は、引数解析ライブラリ（argparse、OptionParser、clickなど）が検出された場合に提案されます。
   - 「カスタムアセット」エントリは、任意のファイルをオンデマンドで生成できることをオーケストレーターに思い出させるために常に含まれています。
 - `generate_additional_file`は、ディスクに書き込む前にプロジェクトコンテキスト（プロジェクトパス、タイプ、メインファイル）を再検証します。
-- カスタムファイルリクエストには、`file_name`（トラバーサルを避けるためにサニタイズ）と`instructions`の両方が必要です。コンテンツは、メインスクリプトの抜粋と既存ファイルを含むリッチプロンプトを使用して、プロバイダーエージェント（`codex_callback`、`call_gpt5_codex`、または`claude_opus_agent`）を通じて生成されます。
+- カスタムファイルリクエストには、`file_name`（トラバーサルを避けるためにサニタイズ）と`instructions`の両方が必要です。コンテンツは、メインスクリプトの抜粋と既存ファイルを含むリッチプロンプトを使用して、プロバイダーエージェント（`codex_callback`、`call_gpt5_codex`、または`claude_code_agent`）を通じて生成されます。
 
 ## エラーハンドリング
 
 ### 一般的なエラーパターン
 
 1. **モデルエラー**：
-   - GPT-5-Codexがチャットレスポンスを返す → 適切なプロンプトフォーマットで修正
+   - OpenAI Codeがチャットレスポンスを返す → 適切なプロンプトフォーマットで修正
    - Temperatureパラメータエラー → Responses APIモデルでは削除
    - モデルが見つからない → APIキーがアクセス権を持つことを確認
 
 2. **生成エラー**：
    - プレースホルダーHTML（173バイト） → モックジェネレーターの競合（解決済み）
    - 空のレスポンス → タイムアウトまたはAPI問題
-   - 長い生成時間 → GPT-5-Codex / Claude Opusでは正常（2-5分）
+   - 長い生成時間 → OpenAI Code / Claude Codeでは正常（2-5分）
 
 3. **ファイルシステムエラー**：
    - Unicodeプロジェクト名 → 適切なエンコーディングで修正
@@ -280,7 +280,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## 既知の制限
 
 1. **API制約**：
-   - GPT-5-CodexはResponses APIが必要
+   - OpenAI CodeはResponses APIが必要
    - 複雑な生成のストリーミングなし
    - レート制限が適用される
 
@@ -322,7 +322,7 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 | 問題 | 原因 | 解決策 |
 |-------|-------|----------|
 | "Model not found" | モデル名が間違っているかアクセスがない | APIキーの権限を確認 |
-| 生成が遅い | GPT-5-Codexでは正常 | 進捗インジケーターを追加 |
+| 生成が遅い | OpenAI Codeでは正常 | 進捗インジケーターを追加 |
 | 空のHTML | APIタイムアウト | タイムアウト設定を増やす |
 | Unicodeエラー | エンコーディングの問題 | 全体でUTF-8を確保 |
 | Selenium失敗 | コンテナが実行されていない | Dockerステータスを確認 |

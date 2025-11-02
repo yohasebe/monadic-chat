@@ -113,8 +113,7 @@ app "VideoGeneratorOpenAI" do
     auto_speech false
     initiate_from_assistant true
     image_generation "upload_only"
-    format_response false
-    strip_code_blocks true
+    video_generation true
     group "OpenAI"
   end
 

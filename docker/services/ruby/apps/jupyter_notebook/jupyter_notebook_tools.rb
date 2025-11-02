@@ -1,25 +1,25 @@
 # Facade methods for Jupyter Notebook apps
 # All Jupyter functionality is already included in MonadicHelper module
 
-require_relative '../../lib/monadic/agents/gpt5_codex_agent'
+require_relative '../../lib/monadic/agents/openai_code_agent'
 require_relative '../../lib/monadic/agents/grok_code_agent'
 
 module JupyterNotebookTools
   include MonadicHelper
   include MonadicSharedTools::FileOperations
-  include Monadic::Agents::GPT5CodexAgent
+  include Monadic::Agents::OpenAICodeAgent
 
   # Call GPT-5-Codex agent for complex notebook code generation
-  def gpt5_codex_agent(task:, notebook_context: nil, cell_content: nil)
+  def openai_code_agent(task:, notebook_context: nil, cell_content: nil)
     # Build prompt using the shared helper
-    prompt = build_codex_prompt(
+    prompt = build_openai_code_prompt(
       task: task,
       context: notebook_context,
       current_code: cell_content
     )
 
     # Call the shared GPT-5-Codex implementation
-    call_gpt5_codex(prompt: prompt, app_name: "JupyterNotebook")
+    call_openai_code(prompt: prompt, app_name: "JupyterNotebook")
   end
 end
 

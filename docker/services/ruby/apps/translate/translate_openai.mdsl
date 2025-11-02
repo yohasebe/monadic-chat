@@ -77,7 +77,6 @@ app "TranslateOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
     monadic true
   end
 end

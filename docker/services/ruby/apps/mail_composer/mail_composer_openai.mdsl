@@ -55,7 +55,6 @@ app "MailComposerOpenAI" do
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     initiate_from_assistant true
-    image true
     easy_submit false
     auto_speech false
   end

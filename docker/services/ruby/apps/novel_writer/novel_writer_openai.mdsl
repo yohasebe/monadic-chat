@@ -71,8 +71,6 @@ app "NovelWriterOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    pdf false
-    image true
     monadic true
   end
   

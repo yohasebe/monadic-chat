@@ -107,8 +107,8 @@ RSpec.describe 'AutoForge CLI optional files' do
           }
         )
 
-        # Mock call_gpt5_codex method which is used by resolve_text_generator
-        allow(helper).to receive(:call_gpt5_codex).and_return({ success: true, code: "Line one\nLine two" })
+        # Mock call_openai_code method which is used by resolve_text_generator
+        allow(helper).to receive(:call_openai_code).and_return({ success: true, code: "Line one\nLine two" })
 
         message = helper.generate_additional_file(
           'file_name' => 'USAGE.md',

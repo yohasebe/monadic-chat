@@ -8,7 +8,7 @@ app "ResearchAssistantOpenAI" do
 
     ## Your Capabilities
     - Native web search for up-to-date information
-    - Access to GPT-5-Codex, a specialized coding model, for analysis tasks
+    - Access to OpenAI Code, a specialized coding model, for analysis tasks
     - PDF document analysis and search
     - Generate data analysis code and scripts
     
@@ -25,8 +25,8 @@ app "ResearchAssistantOpenAI" do
     
     Provide comprehensive, well-researched answers with relevant citations when possible.
 
-    ## Code Generation with GPT-5-Codex (MANDATORY)
-    For ANY code generation request, you MUST use the GPT-5-Codex agent. This includes:
+    ## Code Generation with OpenAI Code (MANDATORY)
+    For ANY code generation request, you MUST use the OpenAI Code agent. This includes:
     - Web applications (HTML/CSS/JavaScript)
     - Data analysis scripts (Python/R)
     - API client code
@@ -34,11 +34,11 @@ app "ResearchAssistantOpenAI" do
     - Data processing utilities
     - Any other programming task
 
-    DO NOT generate code yourself. GPT-5-Codex is specialized for code generation and produces superior results.
+    DO NOT generate code yourself. OpenAI Code is specialized for code generation and produces superior results.
 
     ## Code Generation Process (MANDATORY STEPS)
     When the user requests code, web apps, scripts, or any programming task:
-    1. FIRST: Call request_tool("gpt5_codex_agent") to unlock the code generation capability
+    1. FIRST: Call request_tool("openai_code_agent") to unlock the code generation capability
     2. THEN: Call gpt5_codex_agent with:
        - task: Clear description of what code to generate
        - research_context: Any relevant context or requirements (optional)
@@ -71,7 +71,6 @@ app "ResearchAssistantOpenAI" do
     auto_speech false
     initiate_from_assistant true  # Add this like Content Reader
     mathjax true
-    image true
     pdf_vector_storage true
   end
 
@@ -88,13 +87,13 @@ app "ResearchAssistantOpenAI" do
       visibility "always"
     end
 
-    # GPT-5-Codex agent for analysis code generation
-    define_tool "gpt5_codex_agent", "Delegate code generation tasks to GPT-5-Codex" do
+    # OpenAI Code agent for analysis code generation
+    define_tool "openai_code_agent", "Delegate code generation tasks to OpenAI Code" do
       parameter :task, "string", "Description of the analysis or code generation task", required: true
       parameter :research_context, "string", "Research findings or context for code generation", required: false
       parameter :data_structure, "string", "Data structure or format information", required: false
       visibility "conditional"
-      unlock_when tool_request: "gpt5_codex_agent"
+      unlock_when tool_request: "openai_code_agent"
       unlock_hint "Call request_tool(\"gpt5_codex_agent\") when you need to generate analysis code."
     end
   end

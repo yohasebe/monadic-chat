@@ -17,7 +17,6 @@ app "MathTutorGemini" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
     mathjax true
     group "Google"
   end

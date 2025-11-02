@@ -176,10 +176,8 @@ PROMPT
 ```ruby
 # Well-supported UI features:
 features do
-  image true              # Enable images in assistant responses to be clickable (opens in new tab)
   auto_speech false       # Enable automatic text-to-speech for assistant messages
   easy_submit true        # Enable submitting messages with Enter key (without clicking Send)
-  sourcecode true         # Enable enhanced source code highlighting (alias: code_highlight)
   mathjax true            # Enable mathematical notation rendering using MathJax
   abc true                # Enable ABC music notation rendering and playback
   mermaid true            # Enable Mermaid diagram rendering for flowcharts and diagrams
@@ -192,7 +190,7 @@ features do
   
   pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
   toggle true             # Enable collapsible sections for meta information and tool usage (primarily for Claude apps)
-  jupyter_access true     # Enable access to Jupyter notebook interface (alias: jupyter)
+  jupyter true            # Enable access to Jupyter notebook interface
   image_generation true   # Enable AI image generation tools in conversation
   monadic true            # Process responses as structured JSON for enhanced display (see Monadic Mode documentation)
   initiate_from_assistant true # Allow assistant to send first message in conversation
@@ -314,8 +312,6 @@ app "Math Tutor" do
   end
 
   features do
-    sourcecode true     # Enable code highlighting
-    image true          # Enable clickable images in responses
     mathjax true        # Enable math notation rendering
   end
   
@@ -420,7 +416,6 @@ app "MermaidGrapherOpenAI" do
   
   features do
     mermaid true
-    image true
   end
   
   tools do

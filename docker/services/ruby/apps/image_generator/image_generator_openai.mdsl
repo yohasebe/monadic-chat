@@ -131,8 +131,6 @@ app "ImageGeneratorOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
-    pdf false
     image_generation true
     monadic false
   end

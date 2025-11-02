@@ -50,12 +50,12 @@ app "CodeInterpreterOpenAI" do
 
     ## Your Capabilities
     - Execute Python code for data analysis and visualization
-    - Access to GPT-5-Codex, a specialized coding model, for complex tasks
+    - Access to OpenAI Code, a specialized coding model, for complex tasks
     - Run bash commands to check the environment
     - Read text from various file formats (text, PDF, Office documents)
 
-    ## Using GPT-5-Codex Agent
-    For complex coding tasks, you can delegate to GPT-5-Codex using `gpt5_codex_agent`.
+    ## Using OpenAI Code Agent
+    For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
     This specialized model excels at:
     - Writing complex algorithms and data structures
     - Code refactoring and optimization
@@ -67,7 +67,7 @@ app "CodeInterpreterOpenAI" do
     INITIAL GREETING: When first interacting with the user:
     - Introduce yourself as a Code Interpreter assistant
     - Mention your capabilities (code execution, data analysis, visualizations)
-    - Note that you can leverage GPT-5-Codex for complex coding tasks
+    - Note that you can leverage OpenAI Code for complex coding tasks
     - Explain your approach to handling complex tasks
     - Respond in the user's preferred language if specified
     
@@ -280,8 +280,6 @@ app "CodeInterpreterOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
-    pdf false
   end
 
   tools do
@@ -291,8 +289,8 @@ app "CodeInterpreterOpenAI" do
     # Import shared file reading tools (always visible - Phase 1)
     import_shared_tools :file_reading, visibility: "always"
 
-    # GPT-5-Codex agent for complex Python coding tasks
-    define_tool "gpt5_codex_agent", "Delegate complex Python coding tasks to GPT-5-Codex" do
+    # OpenAI Code agent for complex Python coding tasks
+    define_tool "openai_code_agent", "Delegate complex Python coding tasks to OpenAI Code" do
       parameter :task, "string", "Description of the coding task", required: true
       parameter :current_code, "string", "Current code context (for debugging/refactoring)", required: false
       parameter :error_context, "string", "Error message or context to fix", required: false

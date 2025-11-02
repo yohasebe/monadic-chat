@@ -3511,20 +3511,23 @@ ipcMain.on('find-in-page-nav', (_event, {term, forward}) => {
   }
 });
 // Reset Web UI: reload the webview to start a fresh session
-ipcMain.on('reset-web-ui', () => {
+ipcMain.on('reset-web-ui', async () => {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
-    // Clear storage data (session, local storage, etc)
-    webviewWindow.webContents.session.clearStorageData()
-      .then(() => {
-        console.log('Web UI session data cleared');
-        // Reload the page to get a fresh UI
-        webviewWindow.reload();
-      })
-      .catch(err => {
-        console.error('Error clearing web UI session:', err);
-        // Try to reload anyway
-        webviewWindow.reload();
+    try {
+      // Clear storage data but preserve cookies (theme, voice settings, etc.)
+      // Only clear localStorage, sessionStorage, and cache
+      await webviewWindow.webContents.session.clearStorageData({
+        storages: ['localstorage', 'sessionstorage', 'cachestorage', 'shadercache']
       });
+      console.log('Web UI session data cleared (cookies preserved)');
+
+      // Reload the page to get a fresh UI
+      webviewWindow.reload();
+    } catch (err) {
+      console.error('Error clearing web UI session:', err);
+      // Try to reload anyway
+      webviewWindow.reload();
+    }
   }
 });
 
@@ -3589,42 +3592,10 @@ ipcMain.on('open-external', (_event, url) => {
 // Theme Management (Dark Mode Support)
 // ============================================
 
-// Get current theme (system or manual override)
-ipcMain.handle('get-theme', () => {
-  // Return 'system', 'light', or 'dark'
-  return nativeTheme.themeSource;
-});
-
-// Set theme (system, light, or dark)
-ipcMain.handle('set-theme', (_event, theme) => {
-  if (['system', 'light', 'dark'].includes(theme)) {
-    nativeTheme.themeSource = theme;
-    return { success: true, theme: nativeTheme.themeSource };
-  }
-  return { success: false, error: 'Invalid theme value' };
-});
-
-// Monitor system theme changes and notify webview window
-nativeTheme.on('updated', () => {
-  const shouldUseDarkColors = nativeTheme.shouldUseDarkColors;
-  const themeSource = nativeTheme.themeSource;
-
-  // Notify webview window if it exists
-  if (webviewWindow && !webviewWindow.isDestroyed()) {
-    webviewWindow.webContents.send('theme-changed', {
-      shouldUseDarkColors,
-      themeSource
-    });
-  }
-
-  // Notify main window if it exists
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('theme-changed', {
-      shouldUseDarkColors,
-      themeSource
-    });
-  }
-});
+// Electron native theme always follows system preference
+// This affects window frame, dialogs, and native UI elements
+// Web UI content theme is managed independently via cookies
+nativeTheme.themeSource = 'system';
 
 // Keep track of last check time to reduce frequency
 let lastDockerStatusCheckTime = 0;

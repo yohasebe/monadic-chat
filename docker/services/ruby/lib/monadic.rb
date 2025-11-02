@@ -1119,22 +1119,21 @@ def init_apps
     prompt_suffix = ""
     response_suffix = ""
 
-    if app.settings["sourcecode"]
-      system_prompt_suffix << <<~SYSPSUFFIX
+    # Always provide code formatting guidance
+    system_prompt_suffix << <<~SYSPSUFFIX
 
-      It is important to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser. 
+    It is important to avoid nesting Markdown code blocks. When embedding the content of a Markdown  file within your response, use the following format. This will ensure that the content is displayed correctly in the browser.
 
-      EXAMPLE_START_HERE
-      <div class="language-markdown highlighter-rouge”><pre class=“highlight”><code>
-      Markdown content here
-      </code></pre></div>
-      EXAMPLE_END_HERE
+    EXAMPLE_START_HERE
+    <div class="language-markdown highlighter-rouge"><pre class="highlight"><code>
+    Markdown content here
+    </code></pre></div>
+    EXAMPLE_END_HERE
 
-      Use backticks to enclose code blocks that are not in Markdown. Make sure to insert a blank line before the opening backticks and after the closing backticks.
+    Use backticks to enclose code blocks that are not in Markdown. Make sure to insert a blank line before the opening backticks and after the closing backticks.
 
-      When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
-      SYSPSUFFIX
-    end
+    When using Markdown code blocks, always insert a blank line between the code block and the element preceding it.
+    SYSPSUFFIX
 
     if app.settings["tools"]
       # the blank line at the beginning is important!
@@ -1263,10 +1262,8 @@ def init_apps
     filtered_apps = {}
     apps.each do |app_name, app|
       settings = app.settings
-      if settings["jupyter"] == true || 
-         settings["jupyter"] == "true" || 
-         settings["jupyter_access"] == true || 
-         settings["jupyter_access"] == "true" ||
+      if settings["jupyter"] == true ||
+         settings["jupyter"] == "true" ||
          app_name.to_s.downcase.include?("jupyter") ||
          settings["display_name"].to_s.downcase.include?("jupyter")
         puts "Filtering out Jupyter app in server mode: #{app_name}" if CONFIG["EXTRA_LOGGING"]
@@ -1688,7 +1685,14 @@ post "/load" do
           message_obj["images"] = msg["images"] if msg["images"]
           message_obj
         end.compact # Remove nil values from invalid messages
-        
+
+        # Debug logging after import (only when EXTRA_LOGGING is enabled)
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'"
+          extra_log.close
+        end
+
         { success: true }.to_json
       rescue JSON::ParserError => e
         { success: false, error: "Invalid JSON format" }.to_json

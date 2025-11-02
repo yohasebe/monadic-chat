@@ -1,13 +1,13 @@
 # WebSocket進捗ブロードキャスト実装
 
 ## 概要
-このドキュメントは、長時間実行されるGPT-5-Codex操作のために実装されたWebSocket進捗ブロードキャスト機能について説明します。この機能は、10分以上かかる可能性のある操作中に、一時カード（黄色の警告エリア）に進捗更新を表示します。
+このドキュメントは、長時間実行されるOpenAI Code操作のために実装されたWebSocket進捗ブロードキャスト機能について説明します。この機能は、10分以上かかる可能性のある操作中に、一時カード（黄色の警告エリア）に進捗更新を表示します。
 
 ## 実装日
 2025-09-28
 
 ## 対処した問題
-GPT-5-Codex操作は10-20分以上かかる場合があります。進捗更新がないと、ユーザーはシステムがまだ動作しているのかフリーズしたのかわかりませんでした。進捗メッセージはコンソールと#status-messageに表示されていましたが、ストリーミングテキストが通常表示されるコンテンツエリアの一時カードには表示されませんでした。
+OpenAI Code操作は10-20分以上かかる場合があります。進捗更新がないと、ユーザーはシステムがまだ動作しているのかフリーズしたのかわかりませんでした。進捗メッセージはコンソールと#status-messageに表示されていましたが、ストリーミングテキストが通常表示されるコンテンツエリアの一時カードには表示されませんでした。
 
 ## ソリューションアーキテクチャ
 
@@ -18,13 +18,13 @@ GPT-5-Codex操作は10-20分以上かかる場合があります。進捗更新�
    - メッセージ配信にEventMachineチャネルを使用するように変更
    - セッションごとの複数接続を追跡するためのセッション管理
 
-2. **`lib/monadic/agents/gpt5_codex_agent.rb`**
+2. **`lib/monadic/agents/openai_code_agent.rb`**
    - 進捗更新のためにWebSocketHelperと統合
    - 長時間操作中に1分間隔で更新を送信
    - 進捗スレッドにセッションコンテキストを渡す
 
 3. **`apps/auto_forge/auto_forge_tools.rb`**
-   - GPT-5-Codexエージェントへ進捗コールバックを渡す
+   - OpenAI Codeエージェントへ進捗コールバックを渡す
 
 ## 重要な実装詳細
 
@@ -120,7 +120,7 @@ EXTRA_LOGGING=true
 ## コードの場所
 
 - メイン実装：`docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
-- GPT-5-Codex統合：`docker/services/ruby/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
+- OpenAI Code統合：`docker/services/ruby/lib/monadic/agents/openai_code_agent.rb:start_progress_thread`
 - AutoForge統合：`docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
 - JavaScriptハンドラー：`docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
 - テスト：`docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`

@@ -122,8 +122,6 @@ app "ChatPlusOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    image true
-    pdf false
     pdf_vector_storage true
     monadic true
     # enhanced_monadic_html true  # Temporarily disabled

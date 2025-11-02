@@ -90,7 +90,7 @@ module BooleanParser
           next if protected_fields.include?(key_str)
           
           # Match boolean-like field names (exact match for single words)
-          key_str.match?(/^(is_|has_|enable_|disable_|use_|websearch$|auto_|monadic$|jupyter$|image$|pdf$|easy_submit$|initiate_from_assistant$|stream$|vision$|reasoning$|ai_user$)/i)
+          key_str.match?(/^(is_|has_|enable_|disable_|use_|websearch$|auto_|monadic$|jupyter$|easy_submit$|initiate_from_assistant$|stream$|vision$|reasoning$|ai_user$)/i)
         end
       end
     end

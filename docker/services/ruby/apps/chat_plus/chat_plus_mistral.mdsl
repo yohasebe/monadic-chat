@@ -80,8 +80,6 @@ app "ChatPlusMistral" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    image true
-    pdf false
     monadic false  # Required for tool execution
   end
   

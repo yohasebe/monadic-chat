@@ -1,8 +1,8 @@
-# GPT-5-Codex Agent Implementation
+# OpenAI Code Agent Implementation
 
 ## Overview
 
-GPT-5-Codex is a specialized OpenAI model optimized for agentic coding tasks. Unlike regular chat models, it uses the Responses API and requires specific implementation patterns to function correctly.
+OpenAI Code is a specialized OpenAI model optimized for agentic coding tasks. Unlike regular chat models, it uses the Responses API and requires specific implementation patterns to function correctly.
 
 ## Key Characteristics
 
@@ -30,7 +30,7 @@ GPT-5-Codex is a specialized OpenAI model optimized for agentic coding tasks. Un
 
 ### 1. Agent Tool Definition (MDSL)
 ```ruby
-define_tool "gpt5_codex_agent", "Delegate complex coding tasks to GPT-5-Codex" do
+define_tool "openai_code_agent", "Delegate complex coding tasks to OpenAI Code" do
   parameter :task, "string", "Description of the coding task", required: true
   parameter :context, "string", "Additional context or requirements", required: false
   parameter :files, "array", "Array of file objects with path and content", required: false
@@ -39,7 +39,7 @@ end
 
 ### 2. Tool Implementation
 ```ruby
-def gpt5_codex_agent(task:, context: nil, files: nil)
+def openai_code_agent(task:, context: nil, files: nil)
   # Build minimal prompt
   prompt = task
 
@@ -65,7 +65,7 @@ def gpt5_codex_agent(task:, context: nil, files: nil)
     content = results.first["content"] || results.first.dig("choices", 0, "message", "content")
     { code: content, success: true, model: "gpt-5-codex" }
   else
-    { error: "No response from GPT-5-Codex", success: false }
+    { error: "No response from OpenAI Code", success: false }
   end
 end
 ```
@@ -123,21 +123,21 @@ end
 
 ### Architecture
 ```
-User <-> GPT-5 (Main) <-> GPT-5-Codex (Agent)
+User <-> GPT-5 (Main) <-> OpenAI Code (Agent)
            |
            v
       File Operations
 ```
 
 1. User interacts with GPT-5 (main model)
-2. GPT-5 determines when to delegate to GPT-5-Codex
-3. GPT-5 calls `gpt5_codex_agent` tool for complex coding tasks
-4. GPT-5-Codex processes the task and returns code
+2. GPT-5 determines when to delegate to OpenAI Code
+3. GPT-5 calls `openai_code_agent` tool for complex coding tasks
+4. OpenAI Code processes the task and returns code
 5. GPT-5 can save the code using file operations
 
-### When to Use GPT-5-Codex
+### When to Use OpenAI Code
 
-Delegate to GPT-5-Codex for:
+Delegate to OpenAI Code for:
 - Writing complete applications
 - Complex refactoring tasks
 - Detailed code reviews
@@ -152,7 +152,7 @@ Keep with GPT-5 for:
 
 ## Prompting Guidelines
 
-Following the "less is more" principle from GPT-5-Codex documentation:
+Following the "less is more" principle from OpenAI Code documentation:
 
 ### DO:
 - Keep prompts minimal and direct
@@ -174,7 +174,7 @@ begin
   # ... process results
 rescue StandardError => e
   {
-    error: "Error calling GPT-5-Codex: #{e.message}",
+    error: "Error calling OpenAI Code: #{e.message}",
     suggestion: "Try breaking the task into smaller pieces",
     success: false
   }
@@ -186,7 +186,7 @@ end
 1. **API Key**: Ensure `OPENAI_API_KEY` is set
 2. **Model Access**: Verify account has access to gpt-5-codex
 3. **Rate Limits**: Responses API may have different limits
-4. **Latency**: GPT-5-Codex uses adaptive reasoning, response times vary
+4. **Latency**: OpenAI Code uses adaptive reasoning, response times vary
 
 ## Common Issues and Solutions
 
@@ -199,7 +199,7 @@ end
 **Solution**: Include `parameters: { "model" => "gpt-5-codex" }`
 
 ### Issue: Sampling parameters rejected
-**Cause**: GPT-5-Codex doesn't support temperature/top_p
+**Cause**: OpenAI Code doesn't support temperature/top_p
 **Solution**: Remove all sampling parameters from request
 
 ### Issue: Content truncation
@@ -208,7 +208,7 @@ end
 
 ## References
 
-- [OpenAI GPT-5-Codex Documentation](https://platform.openai.com/docs/models/gpt-5-codex)
+- [OpenAI OpenAI Code Documentation](https://platform.openai.com/docs/models/gpt-5-codex)
 - [Responses API Guide](https://platform.openai.com/docs/api-reference/responses)
 - `lib/monadic/adapters/vendors/openai_helper.rb` - Responses API implementation
 - `public/js/monadic/model_spec.js` - Model specifications

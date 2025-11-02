@@ -1,13 +1,13 @@
 # WebSocket Progress Broadcasting Implementation
 
 ## Overview
-This document describes the WebSocket progress broadcasting feature implemented for long-running GPT-5-Codex operations. The feature displays progress updates in the temp card (yellow warning area) during operations that may take 10+ minutes.
+This document describes the WebSocket progress broadcasting feature implemented for long-running OpenAI Code operations. The feature displays progress updates in the temp card (yellow warning area) during operations that may take 10+ minutes.
 
 ## Implementation Date
 2025-09-28
 
 ## Problem Addressed
-GPT-5-Codex operations can take 10-20 minutes or longer. Without progress updates, users couldn't tell if the system was still working or had frozen. Progress messages were appearing in console and #status-message but NOT in the content area's temp card where streaming text normally appears.
+OpenAI Code operations can take 10-20 minutes or longer. Without progress updates, users couldn't tell if the system was still working or had frozen. Progress messages were appearing in console and #status-message but NOT in the content area's temp card where streaming text normally appears.
 
 ## Solution Architecture
 
@@ -18,13 +18,13 @@ GPT-5-Codex operations can take 10-20 minutes or longer. Without progress update
    - Modified to use EventMachine channel for message delivery
    - Session management for tracking multiple connections per session
 
-2. **`lib/monadic/agents/gpt5_codex_agent.rb`**
+2. **`lib/monadic/agents/openai_code_agent.rb`**
    - Integrated with WebSocketHelper for progress updates
    - Sends 1-minute interval updates during long operations
    - Passes session context to progress threads
 
 3. **`apps/auto_forge/auto_forge_tools.rb`**
-   - Passes progress callbacks through to GPT-5-Codex agent
+   - Passes progress callbacks through to OpenAI Code agent
 
 ## Critical Implementation Details
 
@@ -120,7 +120,7 @@ This means messages are being sent directly instead of through channel. Ensure `
 ## Code Locations
 
 - Main implementation: `docker/services/ruby/lib/monadic/utils/websocket.rb:91-269`
-- GPT-5-Codex integration: `docker/services/ruby/lib/monadic/agents/gpt5_codex_agent.rb:start_progress_thread`
+- OpenAI Code integration: `docker/services/ruby/lib/monadic/agents/openai_code_agent.rb:start_progress_thread`
 - AutoForge integration: `docker/services/ruby/apps/auto_forge/auto_forge_tools.rb`
 - JavaScript handler: `docker/services/ruby/public/js/monadic/websocket.js:2427-2557`
 - Tests: `docker/services/ruby/spec/lib/monadic/utils/websocket_helper_spec.rb`

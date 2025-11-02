@@ -15,6 +15,12 @@ module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
 
+  # Safe session parameter access that handles both symbol and string keys
+  # This ensures compatibility between import (uses :parameters) and runtime (uses "parameters")
+  def get_session_params
+    session[:parameters] || session["parameters"] || {}
+  end
+
   # Realtime TTS buffer configuration
   # Minimum character length for TTS processing:
   # - Sentences ≤ this length are buffered
@@ -543,7 +549,7 @@ module WebSocketHelper
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
-        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "mathjax", "mermaid", "abc", "sourcecode", "monadic", "image", "pdf", "pdf_vector_storage", "websearch", "jupyter_access", "jupyter", "image_generation", "video"].include?(p.to_s)
+        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "mathjax", "mermaid", "abc", "monadic", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video"].include?(p.to_s)
           # Preserve boolean values for feature flags
           # These need to be actual booleans, not strings, for proper JavaScript evaluation
           apps[k][p] = m
@@ -560,10 +566,20 @@ module WebSocketHelper
   # @return [Array] Filtered and formatted messages
   def prepare_filtered_messages
     # Filter messages by current app_name and exclude search messages
-    current_app_name = session["parameters"]["app_name"]
+    # Support both symbol and string keys for session parameters (import uses symbols, runtime uses strings)
+    params = session[:parameters] || session["parameters"] || {}
+    current_app_name = params["app_name"]
+
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-    
-    params_for_render = session["parameters"] || {}
+
+    # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name})"
+      extra_log.close
+    end
+
+    params_for_render = params
     mathjax_enabled = params_for_render["mathjax"].to_s == "true"
     # Convert markdown to HTML for assistant messages when needed
     filtered_messages.each do |m|
@@ -628,9 +644,17 @@ module WebSocketHelper
   def push_apps_data(ws, apps, filtered_messages)
     @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
     @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
+
     # IMPORTANT: Always send past_messages, even if empty
     # Empty past_messages indicates server restart to the client
     @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json)
+
+    # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent #{filtered_messages.size} past_messages via WebSocket"
+      extra_log.close
+    end
   end
   
   # Push voice data to WebSocket
@@ -959,14 +983,15 @@ module WebSocketHelper
   # @return [String, nil] The HTML content or nil
   def generate_html_for_message(message, content)
     return nil unless message["role"] == "assistant"
-    
-    html_content = if session["parameters"]&.[]("monadic") && 
-                     defined?(APPS) && 
-                     session["parameters"]["app_name"] && 
-                     APPS[session["parameters"]["app_name"]]&.respond_to?(:monadic_html)
-                   APPS[session["parameters"]["app_name"]].monadic_html(content)
+
+    params = get_session_params
+    html_content = if params["monadic"] &&
+                     defined?(APPS) &&
+                     params["app_name"] &&
+                     APPS[params["app_name"]]&.respond_to?(:monadic_html)
+                   APPS[params["app_name"]].monadic_html(content)
                  else
-                   mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+                   mathjax_enabled = params["mathjax"].to_s == "true"
                    markdown_to_html(content, mathjax: mathjax_enabled)
                  end
     
@@ -976,10 +1001,11 @@ module WebSocketHelper
   
   # Update message status after edit
   def update_message_status_after_edit
-    past_messages_data = check_past_messages(session[:parameters])
+    params = get_session_params
+    past_messages_data = check_past_messages(params)
 
     # Filter messages by current app_name and exclude search messages
-    current_app_name = session["parameters"]["app_name"]
+    current_app_name = params["app_name"]
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
     
     # Update status to reflect any changes
@@ -1420,10 +1446,11 @@ module WebSocketHelper
                 "\n\nABC_PLACEHOLDER_#{abc_blocks.size - 1}\n\n"
               end
 
-              html = if session["parameters"]["monadic"]
-                       APPS[session["parameters"]["app_name"]].monadic_html(text_for_markdown)
+              params = get_session_params
+              html = if params["monadic"]
+                       APPS[params["app_name"]].monadic_html(text_for_markdown)
                      else
-                       mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+                       mathjax_enabled = params["mathjax"].to_s == "true"
                        markdown_to_html(text_for_markdown, mathjax: mathjax_enabled)
                      end
 
@@ -1435,8 +1462,8 @@ module WebSocketHelper
                 html.gsub!("ABC_PLACEHOLDER_#{index}", block)
               end
 
-              if session["parameters"]["response_suffix"]
-                html += "\n\n" + session["parameters"]["response_suffix"]
+              if params["response_suffix"]
+                html += "\n\n" + params["response_suffix"]
               end
               
               # Add citation HTML back after markdown processing
@@ -1452,7 +1479,7 @@ module WebSocketHelper
                           "text" => text,
                           "html" => html,
                           "lang" => detect_language(text),
-                          "app_name" => session["parameters"]["app_name"],
+                          "app_name" => params["app_name"],
                           "active" => true } # detect_language is called only once here
 
               if thinking && !thinking.to_s.strip.empty?
@@ -1488,9 +1515,10 @@ module WebSocketHelper
 
               session[:messages] << new_data
               # Filter messages by current app_name to prevent cross-app conversation leakage
-    current_app_name = obj["app_name"] || session["parameters"]["app_name"]
+              params = get_session_params
+    current_app_name = obj["app_name"] || params["app_name"]
     messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-              past_messages_data = check_past_messages(session[:parameters])
+              past_messages_data = check_past_messages(params)
 
               @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
               @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
@@ -1523,10 +1551,11 @@ module WebSocketHelper
           # It will be injected dynamically during API calls
           # Note: MathJax prompts are now handled by SystemPromptInjector
 
+          params = get_session_params
           new_data = { "mid" => SecureRandom.hex(4),
                        "role" => "system",
                        "text" => text,
-                       "app_name" => session["parameters"]["app_name"],
+                       "app_name" => params["app_name"],
                        "active" => true }
           # Initial prompt is added to messages but not shown as the first message
           # @channel.push({ "type" => "html", "content" => new_data }.to_json)
@@ -1538,22 +1567,23 @@ module WebSocketHelper
             images = obj["images"]
             # Generate a unique message ID
             message_id = SecureRandom.hex(4)
-            
+
+            params = get_session_params
             # Create message data
             new_data = {
               "mid" => message_id,
               "role" => obj["role"],
               "text" => text,
-              "app_name" => session["parameters"]["app_name"],
+              "app_name" => params["app_name"],
               "active" => true
             }
-            
+
             # Add images if present
             new_data["images"] = images if images
-            
+
             # Format HTML content based on role
             if obj["role"] == "assistant"
-              mathjax_enabled = session["parameters"]["mathjax"].to_s == "true"
+              mathjax_enabled = params["mathjax"].to_s == "true"
               new_data["html"] = markdown_to_html(text, mathjax: mathjax_enabled)
             else
               # For user and system roles, preserve line breaks

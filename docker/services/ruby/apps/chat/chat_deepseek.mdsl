@@ -53,9 +53,6 @@ app "ChatDeepSeek" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    pdf false
-    image false
-    sourcecode true
     websearch false
     group "DeepSeek"
   end

@@ -356,7 +356,7 @@ window.handleFragmentMessage = function(fragment) {
         <div id="temp-card" class="card mt-3 streaming-card"> 
           <div class="card-header p-2 ps-3 d-flex justify-content-between">
             <div class="fs-5 card-title mb-0">
-              <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+              <span><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
             </div>
           </div>
           <div class="card-body role-assistant">
@@ -2303,9 +2303,7 @@ let loadedApp = "Chat";
       applyAbc(htmlContent);
     }
 
-    if (toBool(params["sourcecode"])) {
-      formatSourceCode(htmlContent);
-    }
+    formatSourceCode(htmlContent);
 
     setCopyCodeButton(htmlContent);
 
@@ -2450,8 +2448,8 @@ let loadedApp = "Chat";
         // These should be displayed in temp card, not status-message
         const isAgentProgress = (
           data["source"] && (
-            data["source"] === "GPT5CodexAgent" ||
-            data["source"] === "ClaudeOpusAgent" ||
+            data["source"] === "openai codeAgent" ||
+            data["source"] === "claude codeAgent" ||
             data["source"] === "GrokCode" ||
             data["source"] === "ImageGenerator" ||
             data["source"] === "VideoAnalyzer" ||
@@ -2473,31 +2471,31 @@ let loadedApp = "Chat";
             let iconHtml = '<i class="fas fa-laptop-code"></i>';
 
             // Select appropriate message based on agent source and time elapsed
-            if (data["source"] === "GPT5CodexAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
+            if (data["source"] === "openai codeAgent") {
+              iconHtml = '<i class="fas fa-laptop-code agent-icon-openaicode"></i>';
               if (minutes <= 1) {
-                messageKey = 'gpt5CodexGenerating';
+                messageKey = 'openai codeGenerating';
               } else if (minutes <= 2) {
-                messageKey = 'gpt5CodexStructuring';
+                messageKey = 'openai codeStructuring';
               } else if (minutes <= 3) {
-                messageKey = 'gpt5CodexAnalyzing';
+                messageKey = 'openai codeAnalyzing';
               } else if (minutes <= 4) {
-                messageKey = 'gpt5CodexOptimizing';
+                messageKey = 'openai codeOptimizing';
               } else {
-                messageKey = 'gpt5CodexFinalizing';
+                messageKey = 'openai codeFinalizing';
               }
-            } else if (data["source"] === "ClaudeOpusAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
+            } else if (data["source"] === "claude codeAgent") {
+              iconHtml = '<i class="fas fa-laptop-code agent-icon-claudecode"></i>';
               if (minutes <= 1) {
-                messageKey = 'claudeOpusGenerating';
+                messageKey = 'claude codeGenerating';
               } else if (minutes <= 2) {
-                messageKey = 'claudeOpusStructuring';
+                messageKey = 'claude codeStructuring';
               } else if (minutes <= 3) {
-                messageKey = 'claudeOpusAnalyzing';
+                messageKey = 'claude codeAnalyzing';
               } else if (minutes <= 4) {
-                messageKey = 'claudeOpusOptimizing';
+                messageKey = 'claude codeOptimizing';
               } else {
-                messageKey = 'claudeOpusFinalizing';
+                messageKey = 'claude codeFinalizing';
               }
             } else {
               // For other agents, use generic progress messages
@@ -2533,10 +2531,10 @@ let loadedApp = "Chat";
           } else if (!waitContent.includes('<i class="fas')) {
             // Add icon if not already present in fallback content
             let iconHtml = '<i class="fas fa-laptop-code"></i>';
-            if (data["source"] === "GPT5CodexAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
-            } else if (data["source"] === "ClaudeOpusAgent") {
-              iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
+            if (data["source"] === "openai codeAgent") {
+              iconHtml = '<i class="fas fa-laptop-code agent-icon-openaicode"></i>';
+            } else if (data["source"] === "claude codeAgent") {
+              iconHtml = '<i class="fas fa-laptop-code agent-icon-claudecode"></i>';
             }
             displayContent = `${iconHtml} ${waitContent}`;
           }
@@ -2550,7 +2548,7 @@ let loadedApp = "Chat";
               <div id="temp-card" class="card mt-3 streaming-card">
                 <div class="card-header p-2 ps-3 d-flex justify-content-between">
                   <div class="fs-5 card-title mb-0">
-                    <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+                    <span><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
                   </div>
                 </div>
                 <div class="card-body role-assistant">
@@ -2562,7 +2560,7 @@ let loadedApp = "Chat";
           }
 
           // Update the temp card with the progress message using the card's standard text styling
-          $("#temp-card .card-text").html(`<div class="mb-0" style="color: inherit;">${displayContent}</div>`);
+          $("#temp-card .card-text").html(`<div class="mb-0">${displayContent}</div>`);
           $("#temp-card").show();
         } else {
           // Regular wait messages go to status-message
@@ -4242,18 +4240,26 @@ let loadedApp = "Chat";
             break;
           }
 
-          // Normal case: keep locally restored messages
-          // Save current app and model
-          const currentApp = $("#apps").val();
-          if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
-            window.SessionState.setCurrentApp(currentApp);
-          }
-          const currentModel = $("#model").val();
-          if (currentModel && window.SessionState) {
-            window.SessionState.app.model = currentModel;
-          }
+          // JSON Import case: server has messages, but localStorage is empty
+          // This happens after JSON import without page reload
+          if (serverMessages.length > 0 && localMessages.length === 0) {
+            console.log('[Session] JSON import detected - loading server messages');
+            // Fall through to normal message processing below
+            // (don't break here - we need to process server messages)
+          } else {
+            // Normal case: keep locally restored messages
+            // Save current app and model
+            const currentApp = $("#apps").val();
+            if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
+              window.SessionState.setCurrentApp(currentApp);
+            }
+            const currentModel = $("#model").val();
+            if (currentModel && window.SessionState) {
+              window.SessionState.app.model = currentModel;
+            }
 
-          break;
+            break;
+          }
         }
 
         // If we just reset, ignore past messages completely
@@ -4322,7 +4328,7 @@ let loadedApp = "Chat";
               } else {
                 images = []
               }
-              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
+              const userElement = createCard("user", "<span class='card-role-icon'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
               $("#discourse").append(userElement);
 
               // Save to SessionState for persistence across page reloads
@@ -4353,7 +4359,7 @@ let loadedApp = "Chat";
                 }
               } 
 
-              const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
+              const gptElement = createCard("assistant", "<span class='card-role-icon'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(gptElement);
 
               // Save to SessionState for persistence across page reloads
@@ -4388,16 +4394,14 @@ let loadedApp = "Chat";
                 applyAbc(gptElement);
               }
 
-              if (toBool(apps[loadedApp]["sourcecode"])) {
-                formatSourceCode(gptElement);
-              }
+              formatSourceCode(gptElement);
 
               setCopyCodeButton(gptElement);
 
               break;
             }
             case "system": {
-              const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
+              const systemElement = createCard("system", "<span class='card-role-icon'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
               $("#discourse").append(systemElement);
 
               // Save to SessionState for persistence across page reloads
@@ -4673,698 +4677,7 @@ let loadedApp = "Chat";
             applyAbc(htmlContent);
           }
 
-          if (toBool(params["sourcecode"])) {
-            formatSourceCode(htmlContent);
-          }
-          
-          setCopyCodeButton(htmlContent);
-        }
-        break;
-      }
-
-      case "html": {
-        responseStarted = false;
-
-        // Reset completion tracking flags at start of new response
-        window.setTextResponseCompleted(false);
-        window.setTtsPlaybackStarted(false);
-
-        // Reset sequence retry count for new response
-        sequenceRetryCount = 0;
-
-        // Note: We no longer reset callingFunction here as it was premature.
-        // The flag will be properly reset in streaming_complete handler with appropriate delays.
-        // This prevents "Ready for input" from appearing while function calls are still ongoing.
-
-        // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
-        $("#temp-card").hide();
-        $("#temp-reasoning-card").remove();
-        
-        // Always add message to SessionState for persistence, regardless of which handler processes it
-        window.SessionState.addMessage(data["content"]);
-
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
-          handled = wsHandlers.handleHtmlMessage(data, messages, appendCard);
-          if (handled) {
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          }
-        }
-
-        // Update AI User button state
-        updateAIUserButtonState(messages);
-
-        if (!handled) {
-          // Fallback to inline handling
-          // Note: SessionState.addMessage already called above
-
-          let html = data["content"]["html"];
-
-          if (data["content"]["thinking"]) {
-            // Use the unified thinking block renderer if available
-            if (typeof renderThinkingBlock === 'function') {
-              const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
-                webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
-              html = renderThinkingBlock(data["content"]["thinking"], thinkingTitle) + html;
-            } else {
-              // Fallback to old style if function not available
-              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["thinking"] + "</div></div>" + html;
-            }
-          } else if(data["content"]["reasoning_content"]) {
-            // Use the unified thinking block renderer if available
-            if (typeof renderThinkingBlock === 'function') {
-              const reasoningTitle = typeof webUIi18n !== 'undefined' ? 
-                webUIi18n.t('ui.messages.reasoningProcess') : "Reasoning Process";
-              html = renderThinkingBlock(data["content"]["reasoning_content"], reasoningTitle) + html;
-            } else {
-              // Fallback to old style if function not available
-              html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html;
-            }
-          }
-          
-          if (data["content"]["role"] === "assistant") {
-            appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
-
-            // Show message input and hide spinner
-            $("#message").show();
-            $("#message").val(""); // Clear the message after successful response
-            $("#message").prop("disabled", false);
-            // Re-enable all input controls
-            $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-            $("#select-role").prop("disabled", false);
-            
-            // Reset streaming flag as response is done
-            streamingResponse = false;
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', false);
-              window.UIState.set('isStreaming', false);
-            }
-            
-            // Clear any pending spinner check interval
-            if (spinnerCheckInterval) {
-              clearInterval(spinnerCheckInterval);
-              spinnerCheckInterval = null;
-            }
-            
-            // Hide spinner unless we're calling functions or streaming
-            // Note: We check callingFunction and streamingResponse directly here,
-            // not isSystemBusy(), to avoid circular dependency with spinner visibility
-            if (!callingFunction && !streamingResponse) {
-              // Mark text response as completed
-              window.setTextResponseCompleted(true);
-              // Check if we can hide spinner (depends on Auto Speech mode)
-              checkAndHideSpinner();
-            }
-            
-            // If this is the first assistant message (from initiate_from_assistant), show user panel
-            if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
-              $("#user-panel").show();
-              setInputFocus();
-            }
-            
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            
-            // For assistant messages, don't show "Ready to start" immediately
-            // Wait for streaming to complete
-            const receivedText = typeof webUIi18n !== 'undefined' ? 
-              webUIi18n.t('ui.messages.responseReceived') : 'Response received';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
-            
-            // Handle auto_speech for TTS auto-playback
-            // Support both boolean and string values for backward compatibility
-            const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
-            const realtimeMode = params && params["auto_tts_realtime_mode"] === true;
-
-            if (window.autoSpeechActive || autoSpeechEnabled) {
-              // Use setTimeout to ensure the card is fully rendered before triggering TTS
-              setTimeout(() => {
-                const lastCard = $("#discourse div.card:last");
-                const playButton = lastCard.find(".func-play");
-                if (playButton.length > 0) {
-                  // Early highlight for Auto TTS: provides immediate visual feedback
-                  // Note: This will be re-highlighted by Play button handler and again
-                  // on first segment reception, but multiple highlights are safe (idempotent)
-                  const cardId = lastCard.attr('id');
-                  if (cardId && typeof window.highlightStopButton === 'function') {
-                    window.highlightStopButton(cardId);
-                  }
-
-                  // In realtime mode, audio is already generated and queued
-                  // Only click Play button for post-completion mode to trigger TTS
-                  if (!realtimeMode) {
-                    // Simulate a click on the play button to trigger TTS
-                    playButton.click();
-                  }
-
-                  // Set timeout to force hide spinner if audio doesn't start playing
-                  // This prevents spinner from being stuck indefinitely
-                  // (applies to both realtime and post-completion modes)
-                  if (window.autoTTSSpinnerTimeout) {
-                    clearTimeout(window.autoTTSSpinnerTimeout);
-                  }
-
-                  window.autoTTSSpinnerTimeout = setTimeout(() => {
-                    // Force hide spinner after 10 seconds if still visible
-                    if ($("#monadic-spinner").is(":visible")) {
-                      console.warn("[Auto TTS] Spinner timeout - forcing hide after 10 seconds");
-                      $("#monadic-spinner").hide();
-
-                      // Reset spinner to default state
-                      $("#monadic-spinner")
-                        .find("span i")
-                        .removeClass("fa-headphones")
-                        .addClass("fa-comment");
-                      $("#monadic-spinner")
-                        .find("span")
-                        .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-
-                      // Reset Auto TTS flags on timeout
-                      window.autoSpeechActive = false;
-                      window.autoPlayAudio = false;
-                    }
-                    window.autoTTSSpinnerTimeout = null;
-                  }, 10000);
-                }
-                // Note: window.autoSpeechActive will be reset when audio starts playing
-                // See audio.play() promise handler where spinner is hidden
-              }, 100);
-            }
-          } else {
-            // For non-assistant messages, show "Ready for input" only if system is not busy
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            if (!isSystemBusy()) {
-              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }
-          }
-
-        } else if (data["content"]["role"] === "user") {
-          let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-          let images;
-          if (data["content"]["images"] !== undefined) {
-            images = data["content"]["images"]
-          }
-          // Use the appendCard helper function
-          appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
-          $("#message").show();
-          $("#message").prop("disabled", false);
-          // Reset streaming flag as response is done
-          streamingResponse = false;
-          if (window.UIState) {
-            window.UIState.set('streamingResponse', false);
-            window.UIState.set('isStreaming', false);
-          }
-          
-          // Clear any pending spinner check interval
-          if (spinnerCheckInterval) {
-            clearInterval(spinnerCheckInterval);
-            spinnerCheckInterval = null;
-          }
-          
-          // Hide spinner unless we're calling functions or streaming
-          // Note: We check callingFunction and streamingResponse directly here,
-          // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
-            // Mark text response as completed
-            window.setTextResponseCompleted(true);
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            checkAndHideSpinner();
-          }
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          }
-        } else if (data["content"]["role"] === "system") {
-          // Use the appendCard helper function
-          appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
-          $("#message").show();
-          $("#message").prop("disabled", false);
-          // Reset streaming flag as response is done
-          streamingResponse = false;
-          if (window.UIState) {
-            window.UIState.set('streamingResponse', false);
-            window.UIState.set('isStreaming', false);
-          }
-          
-          // Clear any pending spinner check interval
-          if (spinnerCheckInterval) {
-            clearInterval(spinnerCheckInterval);
-            spinnerCheckInterval = null;
-          }
-          
-          // Hide spinner unless we're calling functions or streaming
-          // Note: We check callingFunction and streamingResponse directly here,
-          // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
-            // Mark text response as completed
-            window.setTextResponseCompleted(true);
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            checkAndHideSpinner();
-          }
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          }
-        }
-
-        $("#chat").html("");
-        $("#temp-card").hide();
-        $("#indicator").hide();
-        $("#user-panel").show();
-        
-        // Make sure message input is enabled
-        $("#message").prop("disabled", false);
-
-        if (!isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
-        }
-
-        setInputFocus();
-
-        break;
-      }
-      case "user": {
-        // Check if we have a temporary message to remove first
-        const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
-        if (tempMessageIndex !== -1) {
-          window.SessionState.removeMessage(tempMessageIndex);
-        }
-        
-        // Create the proper message object
-        let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
-        if (data["content"]["images"] !== undefined) {
-          message_obj.images = data["content"]["images"];
-        }
-        window.SessionState.addMessage(message_obj);
-        
-        // Format content for display
-        let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-        let images;
-        if (data["content"]["images"] !== undefined) {
-          images = data["content"]["images"];
-        }
-        
-        // Use the appendCard helper function to show the user message
-        appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
-        
-        // Scroll down immediately after showing user message to make it visible
-        if (!isElementInViewport(mainPanel)) {
-          mainPanel.scrollIntoView(false);
-        }
-        
-        // Show loading indicators and clear any previous card content
-        if ($("#temp-card").length) {
-          $("#temp-card .card-text").empty(); // Clear any existing content
-          $("#temp-card").show();
-          window._lastProcessedIndex = -1; // Reset index tracking
-        } else {
-          // Create a new temp card if it doesn't exist
-          const tempCard = $(`
-            <div id="temp-card" class="card mt-3 streaming-card"> 
-              <div class="card-header p-2 ps-3 d-flex justify-content-between">
-                <div class="fs-5 card-title mb-0">
-                  <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-                </div>
-              </div>
-              <div class="card-body role-assistant">
-                <div class="card-text"></div>
-              </div>
-            </div>
-          `);
-          $("#discourse").append(tempCard);
-        }
-        
-        $("#temp-card .status").hide();
-        $("#indicator").show();
-        // Keep the user panel visible but disable interactive elements
-        $("#message").prop("disabled", true);
-        $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
-        $("#select-role").prop("disabled", true);
-        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-        
-        // Show informative spinner message with brain animation icon
-        const processingRequestText = typeof webUIi18n !== 'undefined' ? 
-          webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-        $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
-        $("#monadic-spinner").show(); // Ensure spinner is visible
-        
-        // Mark that we're starting a response process
-        streamingResponse = true;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', true);
-          window.UIState.set('isStreaming', true);
-        }
-        responseStarted = false; // Will be set to true when streaming starts
-
-        // Clear any existing interval first
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
-        }
-        
-        // Keep spinner visible during the initial gap between processing and receiving
-        // Only check for a short period (3 seconds max) to prevent infinite loops
-        let checkCount = 0;
-        window.spinnerCheckInterval = setInterval(() => {
-          checkCount++;
-          
-          // Stop checking after 3 seconds or if response has started
-          if (checkCount > 30 || responseStarted || !streamingResponse) {
-            clearInterval(window.spinnerCheckInterval);
-            window.spinnerCheckInterval = null;
-            return;
-          }
-          
-          // Only re-show spinner if it's hidden and we're still waiting for first fragment
-          if (streamingResponse && !responseStarted && !$("#monadic-spinner").is(":visible")) {
-            const processingRequestText = typeof webUIi18n !== 'undefined' ? 
-              webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-            $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
-            $("#monadic-spinner").show();
-          }
-        }, 100); // Check every 100ms
-        
-        break;
-      }
-
-      case "display_sample": {
-        // Immediately display the sample message
-        const content = data.content;
-        if (!content || !content.mid || !content.role || !content.html || !content.badge) {
-          console.error("Invalid display_sample message format:", data);
-          break;
-        }
-        
-        // First check if this message already exists
-        if ($("#" + content.mid).length > 0) {
-          break;
-        }
-        
-        // Create appropriate element based on role
-        const cardElement = createCard(
-          content.role, 
-          content.badge,
-          content.html,
-          "en", // Default language
-          content.mid,
-          true  // Always active
-        );
-        
-        // Append to discourse
-        $("#discourse").append(cardElement);
-        
-        // Add message to messages array to ensure edit functionality works correctly
-        // This ensures sample messages are treated consistently with API-generated messages
-        if (content.text) {
-          const messageObj = {
-            "role": content.role,
-            "text": content.text,
-            "mid": content.mid
-          };
-          
-          // For assistant role, also include HTML content
-          if (content.role === "assistant") {
-            messageObj.html = content.html;
-          }
-          
-          // Add to messages array - this ensures last message detection works correctly
-          window.SessionState.addMessage(messageObj);
-        }
-        
-        // Apply appropriate styling based on current settings
-        const htmlContent = $("#discourse div.card:last");
-
-        // Use toBool helper for defensive boolean evaluation
-        const toBool = window.toBool || ((value) => {
-          if (typeof value === 'boolean') return value;
-          if (typeof value === 'string') return value === 'true';
-          return !!value;
-        });
-
-        if (toBool(params["toggle"])) {
-          applyToggle(htmlContent);
-        }
-
-        if (toBool(params["mermaid"])) {
-          applyMermaid(htmlContent);
-        }
-
-        if (toBool(params["mathjax"])) {
-          applyMathJax(htmlContent);
-        }
-
-        if (toBool(params["abc"])) {
-          applyAbc(htmlContent);
-        }
-
-        if (toBool(params["sourcecode"])) {
-          formatSourceCode(htmlContent);
-        }
-        
-        setCopyCodeButton(htmlContent);
-        
-        // Scroll to bottom
-        if (autoScroll && !isElementInViewport(chatBottom)) {
-          chatBottom.scrollIntoView(false);
-        }
-        
-        break;
-      }
-      
-      case "sample_success": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleSampleSuccess === 'function') {
-          handled = wsHandlers.handleSampleSuccess(data);
-        }
-        
-        if (!handled) {
-          // Clear any pending timeout to prevent error message
-          if (window.currentSampleTimeout) {
-            clearTimeout(window.currentSampleTimeout);
-            window.currentSampleTimeout = null;
-          }
-          
-          // Hide UI elements
-          $("#monadic-spinner").hide();
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          
-          // Show success alert
-          const roleText = data.role === "user" ? "User" : 
-                          data.role === "assistant" ? "Assistant" : "System";
-          const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
-          setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");
-        }
-        break;
-      }
-      
-      case "streaming_complete": {
-        // Handle streaming completion
-        streamingResponse = false;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', false);
-          window.UIState.set('isStreaming', false);
-        }
-
-        // Clear any pending spinner check interval
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
-        }
-
-        // Hide the spinner unless we're calling functions or streaming
-        // Note: We check callingFunction and streamingResponse directly here,
-        // not isSystemBusy(), to avoid circular dependency with spinner visibility
-        if (!callingFunction && !streamingResponse) {
-          // Mark text response as completed
-          window.setTextResponseCompleted(true);
-          // Check if we can hide spinner (depends on Auto Speech mode)
-          if (typeof window.checkAndHideSpinner === 'function') {
-            window.checkAndHideSpinner();
-          } else {
-            $("#monadic-spinner").hide();
-          }
-        }
-
-        // Check if system is busy before showing "Ready for input"
-        // Set a proper delay to ensure all DOM updates and async operations are complete
-        setTimeout(function() {
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          } else {
-            // If system is still busy, wait and check again
-            let checkInterval = setInterval(function() {
-              if (!isSystemBusy()) {
-                clearInterval(checkInterval);
-                const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-                setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-              }
-            }, 500); // Check every 500ms
-
-            // Safety timeout to prevent infinite checking
-            setTimeout(function() {
-              clearInterval(checkInterval);
-              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }, 10000); // Maximum wait of 10 seconds
-          }
-          
-          // Always ensure UI elements are enabled
-          $("#message").prop("disabled", false);
-          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-
-          // Focus on the message input
-          setInputFocus();
-
-          // Reset sequence tracking for next message (realtime TTS)
-          // This ensures each new message starts from seq1
-          nextExpectedSequence = 1;
-          pendingAudioSegments = {};
-          if (sequenceCheckTimer) {
-            clearTimeout(sequenceCheckTimer);
-            sequenceCheckTimer = null;
-          }
-        }, 250); // Initial 250ms delay
-
-        break;
-      }
-      
-      case "cancel": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleCancelMessage === 'function') {
-          handled = wsHandlers.handleCancelMessage(data);
-        }
-        
-        if (!handled) {
-          // Remove temporary message if it exists
-          const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
-          if (tempMessageIndex !== -1) {
-            window.SessionState.removeMessage(tempMessageIndex);
-          }
-          
-          // Remove any UI cards that may have been created during this initial message
-          if (messages.length === 0) {
-            $("#discourse").empty();
-          }
-          
-          // Don't clear the message so users can edit and resubmit
-          $("#message").attr("placeholder", typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message...");
-          $("#message").prop("disabled", false);
-          
-          // Re-enable all the UI elements individually
-          $("#send").prop("disabled", false);
-          $("#clear").prop("disabled", false);
-          $("#image-file").prop("disabled", false);
-          $("#voice").prop("disabled", false);
-          $("#doc").prop("disabled", false);
-          $("#url").prop("disabled", false);
-          $("#ai_user").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-          
-          $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          
-          // Hide loading indicators
-          $("#temp-card").hide();
-          $("#indicator").hide();
-          
-          // Show message input and hide spinner
-          $("#message").show();
-          $("#monadic-spinner").css("display", "none");
-          
-          // Update AI User button state
-          updateAIUserButtonState(messages);
-          
-          // Show canceled message
-          const operationCanceledText = getTranslation('ui.messages.operationCanceled', 'Operation canceled');
-          setAlert(`<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> ${operationCanceledText}`, "warning");
-          
-          setInputFocus();
-        }
-        break;
-      }
-
-      case "mcp_status": {
-        // Handle MCP server status
-        handleMCPStatus(data["content"]);
-        break;
-      }
-      
-      default: {
-        // Check if this is a fragment message
-        if (data.type === "fragment") {
-          // Handle fragment messages from all vendors
-          if (!responseStarted) {
-            const respondingText = typeof webUIi18n !== 'undefined' ? 
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-          }
-          
-          // Always update spinner for fragments to ensure continuity
-          if (streamingResponse) {
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-          
-          // Use the dedicated fragment handler
-          window.handleFragmentMessage(data);
-          
-          $("#indicator").show();
-          if (autoScroll && !isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
-        } else {
-          // Handle other default messages (for backward compatibility)
-          let content = data["content"];
-          if (!responseStarted || callingFunction) {
-            const respondingText = typeof webUIi18n !== 'undefined' ? 
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            callingFunction = false;
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-            // Show and update spinner message for streaming
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-          $("#indicator").show();
-          if (content !== undefined) {
-            // remove the leading new line characters from content
-            content = content.replace(/^\n+/, "");
-            $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
-          }
-          if (autoScroll && !isElementInViewport(chatBottom)) {
-            chatBottom.scrollIntoView(false);
-          }
-        }
-      }
-    }
+    formatSourceCode(htmlContent);
   }
 
   ws.onclose = function (_e) {

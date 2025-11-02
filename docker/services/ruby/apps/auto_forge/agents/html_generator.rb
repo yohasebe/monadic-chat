@@ -19,7 +19,7 @@ module AutoForge
         codex_caller = nil
 
         if agent == :claude
-          if @context[:app_instance] && @context[:app_instance].respond_to?(:claude_opus_agent)
+          if @context[:app_instance] && @context[:app_instance].respond_to?(:claude_code_agent)
             puts "[HTMLGenerator] Using app_instance for Claude Opus" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             codex_caller = @context[:app_instance]
           elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
@@ -27,7 +27,7 @@ module AutoForge
             codex_caller = @context[:codex_callback]
           end
         else
-          if @context[:app_instance] && @context[:app_instance].respond_to?(:call_gpt5_codex)
+          if @context[:app_instance] && @context[:app_instance].respond_to?(:call_openai_code)
             puts "[HTMLGenerator] Using app_instance for GPT-5-Codex" if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
             codex_caller = @context[:app_instance]
           elsif @context[:codex_callback] && @context[:codex_callback].respond_to?(:call)
@@ -44,14 +44,14 @@ module AutoForge
 
           result =
             if agent == :claude
-              if codex_caller.respond_to?(:claude_opus_agent)
-                codex_caller.claude_opus_agent(full_prompt, 'ClaudeOpusAgent', &block)
+              if codex_caller.respond_to?(:claude_code_agent)
+                codex_caller.claude_code_agent(full_prompt, 'ClaudeCodeAgent', &block)
               else
-                codex_caller.call(full_prompt, 'ClaudeOpusAgent', &block)
+                codex_caller.call(full_prompt, 'ClaudeCodeAgent', &block)
               end
             else
-              if codex_caller.respond_to?(:call_gpt5_codex)
-                codex_caller.call_gpt5_codex(
+              if codex_caller.respond_to?(:call_openai_code)
+                codex_caller.call_openai_code(
                   prompt: full_prompt,
                   app_name: 'AutoForgeOpenAI',
                   &block

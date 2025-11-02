@@ -177,7 +177,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]` |
-| **Custom Tools (OpenAI only)** | • `gpt5_codex_agent` - Delegate complex Python tasks to GPT-5-Codex |
+| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex Python tasks to OpenAI Code |
 | **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
 
 ---
@@ -187,7 +187,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:file_operations [always]` |
-| **Custom Tools (OpenAI only)** | • `gpt5_codex_agent` - Delegate complex tasks to GPT-5-Codex |
+| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex tasks to OpenAI Code |
 | **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
 
 ---
@@ -242,7 +242,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:jupyter_operations [always]`<br/>`:python_execution [always]`<br/>`:file_operations [always]`<br/>`:file_reading [always]` |
-| **Custom Tools (OpenAI only)** | • `gpt5_codex_agent` - Delegate complex notebook tasks to GPT-5-Codex |
+| **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex notebook tasks to OpenAI Code |
 | **Custom Tools (Gemini/Grok)** | • `create_and_populate_jupyter_notebook` - Create notebook with cells in one operation |
 
 ---
@@ -324,7 +324,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]` |
-| **Custom Tools (OpenAI only)** | • `request_tool` - Request access to locked tool<br/>• `gpt5_codex_agent` - Delegate code generation to GPT-5-Codex |
+| **Custom Tools (OpenAI only)** | • `request_tool` - Request access to locked tool<br/>• `openai_code_agent` - Delegate code generation to OpenAI Code |
 | **Custom Tools (Grok only)** | • `request_tool` - Request access to locked tool<br/>• `grok_code_agent` - Call Grok-Code-Fast-1 for code generation |
 
 ---
@@ -448,7 +448,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ### Provider-Specific Custom Tools
 
-- **OpenAI**: gpt5_codex_agent (Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant)
+- **OpenAI**: openai_code_agent (Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant)
 - **Grok**: grok_code_agent (Code Interpreter, Coding Assistant, Jupyter Notebook, Research Assistant)
 - **All Providers**: second_opinion_agent (Second Opinion app, 9 variants)
 
@@ -472,7 +472,7 @@ Tools are marked as "always" or "conditional" visibility:
 
 ### 2. Provider-Specific Variants
 Some apps have provider-specific custom tools:
-- **GPT-5-Codex delegation** (OpenAI): gpt5_codex_agent
+- **OpenAI Code delegation** (OpenAI): openai_code_agent
 - **Grok-Code integration** (Grok): grok_code_agent
 - **Specialized operations** (Gemini): create_and_populate_jupyter_notebook
 

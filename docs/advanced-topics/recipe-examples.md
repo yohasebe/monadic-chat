@@ -189,7 +189,7 @@ app "MathTutorOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
+
     mathjax true
   end
   
@@ -459,7 +459,7 @@ app "NovelWriterOpenAI" do
     auto_speech false
     initiate_from_assistant true
     pdf_vector_storage false
-    image true
+
     monadic true
   end
   
@@ -542,7 +542,7 @@ app "SecondOpinionOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image true
+
     pdf_vector_storage false
   end
 

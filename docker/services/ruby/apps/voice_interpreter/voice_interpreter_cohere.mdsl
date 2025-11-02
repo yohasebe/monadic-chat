@@ -111,8 +111,6 @@ app "VoiceInterpreterCohere" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    image false
-    pdf false
     monadic false
   end
 end

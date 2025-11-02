@@ -60,8 +60,6 @@ app "ChatClaude" do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
-    image true
-    sourcecode true
     initiate_from_assistant false
     websearch true
     group "Anthropic"

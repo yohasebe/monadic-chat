@@ -1,72 +1,72 @@
-# GPT-5-Codex Agent Module
-# Shared functionality for calling GPT-5-Codex from various apps
+# OpenAI Code Agent Module
+# Shared functionality for calling OpenAI Code from various apps
 #
 # This module provides a common implementation for apps that need to
-# delegate complex coding tasks to GPT-5-Codex via the Responses API.
+# delegate complex coding tasks to OpenAI Code via the Responses API.
 
 module Monadic
   module Agents
-    module GPT5CodexAgent
-      # Check if the user has access to GPT-5-Codex model
-      # @return [Boolean] true if GPT-5-Codex is available
-      def has_gpt5_codex_access?
-        return @gpt5_codex_access if defined?(@gpt5_codex_access)
+    module OpenAICodeAgent
+      # Check if the user has access to OpenAI Code model
+      # @return [Boolean] true if OpenAI Code is available
+      def has_openai_code_access?
+        return @openai_code_access if defined?(@openai_code_access)
 
-        # GPT-5-Codex is available to all OpenAI API users
+        # OpenAI Code is available to all OpenAI API users
         # Simply check if OpenAI API key is configured
         api_key = CONFIG && CONFIG["OPENAI_API_KEY"]
-        @gpt5_codex_access = !api_key.nil? && !api_key.to_s.strip.empty?
+        @openai_code_access = !api_key.nil? && !api_key.to_s.strip.empty?
 
         if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "GPT-5-Codex access check: #{@gpt5_codex_access ? 'Available (API key present)' : 'Not available (no API key)'}"
+          puts "OpenAI Code access check: #{@openai_code_access ? 'Available (API key present)' : 'Not available (no API key)'}"
         end
 
-        @gpt5_codex_access
+        @openai_code_access
       end
 
-      # Default timeout for GPT-5-Codex requests (in seconds)
-      # Can be overridden by GPT5_CODEX_TIMEOUT environment variable
-      # GPT-5-Codex can adapt reasoning time from seconds to hours for complex tasks
+      # Default timeout for OpenAI Code requests (in seconds)
+      # Can be overridden by OPENAI_CODE_TIMEOUT environment variable
+      # OpenAI Code can adapt reasoning time from seconds to hours for complex tasks
       # We set a practical limit of 20 minutes for interactive use
-      GPT5_CODEX_DEFAULT_TIMEOUT = (ENV['GPT5_CODEX_TIMEOUT'] || 1200).to_i  # 20 minutes default
+      OPENAI_CODE_DEFAULT_TIMEOUT = (ENV['OPENAI_CODE_TIMEOUT'] || 1200).to_i  # 20 minutes default
 
-      # Call GPT-5-Codex agent for complex coding tasks
-      # @param prompt [String] The complete prompt to send to GPT-5-Codex
+      # Call OpenAI Code agent for complex coding tasks
+      # @param prompt [String] The complete prompt to send to OpenAI Code
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
-      # @param model [String] Model to use (optional, defaults to MDSL config or "gpt-5-codex")
+      # @param model [String] Model to use (optional, defaults to MDSL config or "openai-code")
       # @param block [Proc] Block to call with progress updates (optional)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_gpt5_codex(prompt:, app_name: nil, timeout: nil, model: nil, &block)
+      def call_openai_code(prompt:, app_name: nil, timeout: nil, model: nil, &block)
         begin
           # Track timing for performance analysis
           start_time = Time.now
 
           # Set timeout value with guard
-          actual_timeout = timeout || GPT5_CODEX_DEFAULT_TIMEOUT
-          actual_timeout = GPT5_CODEX_DEFAULT_TIMEOUT unless actual_timeout.is_a?(Integer) && actual_timeout > 0
+          actual_timeout = timeout || OPENAI_CODE_DEFAULT_TIMEOUT
+          actual_timeout = OPENAI_CODE_DEFAULT_TIMEOUT unless actual_timeout.is_a?(Integer) && actual_timeout > 0
 
           # Initialize progress thread variable at proper scope
           progress_thread = nil
 
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
-            puts "[GPT5CodexAgent] ========== TIMING START =========="
-            puts "[GPT5CodexAgent] Start time: #{start_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
-            puts "[GPT5CodexAgent] App: #{app_label}"
-            puts "[GPT5CodexAgent] Prompt length: #{prompt.length} chars"
-            puts "[GPT5CodexAgent] Timeout: #{actual_timeout} seconds"
+            puts "[OpenAICodeAgent] ========== TIMING START =========="
+            puts "[OpenAICodeAgent] Start time: #{start_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+            puts "[OpenAICodeAgent] App: #{app_label}"
+            puts "[OpenAICodeAgent] Prompt length: #{prompt.length} chars"
+            puts "[OpenAICodeAgent] Timeout: #{actual_timeout} seconds"
           end
 
-          # Always show progress for GPT-5-Codex calls since they can take a while
+          # Always show progress for OpenAI Code calls since they can take a while
           if app_name
-            puts "[#{app_name}] 🤖 GPT-5-Codex is generating code..."
+            puts "[#{app_name}] 🤖 OpenAI Code is generating code..."
             puts "[#{app_name}]    Note: Complex tasks may take 5-20 minutes."
           end
 
           # Start progress thread if block given and timeout is long enough
-          progress_enabled = !CONFIG || CONFIG["GPT5_CODEX_PROGRESS_ENABLED"] != false  # Default true
-          progress_interval = (CONFIG && CONFIG["GPT5_CODEX_PROGRESS_INTERVAL"] || 60).to_i
+          progress_enabled = !CONFIG || CONFIG["OPENAI_CODE_PROGRESS_ENABLED"] != false  # Default true
+          progress_interval = (CONFIG && CONFIG["OPENAI_CODE_PROGRESS_INTERVAL"] || 60).to_i
           progress_interval = 60 unless progress_interval > 0  # Guard against invalid values
 
           if block_given? && actual_timeout > 120 && progress_enabled
@@ -80,17 +80,17 @@ module Monadic
 
           # Debug logging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] Starting call_gpt5_codex"
-            puts "[GPT5CodexAgent] App: #{app_name}"
-            puts "[GPT5CodexAgent] Self class: #{self.class}"
-            puts "[GPT5CodexAgent] Responds to api_request: #{respond_to?(:api_request)}"
+            puts "[OpenAICodeAgent] Starting call_openai_code"
+            puts "[OpenAICodeAgent] App: #{app_name}"
+            puts "[OpenAICodeAgent] Self class: #{self.class}"
+            puts "[OpenAICodeAgent] Responds to api_request: #{respond_to?(:api_request)}"
           end
 
           # Check if we have the necessary methods (from OpenAIHelper or compatible module)
           unless respond_to?(:api_request)
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] ERROR: api_request not available"
-              puts "[GPT5CodexAgent] Included modules: #{self.class.included_modules.map(&:name).join(', ')}"
+              puts "[OpenAICodeAgent] ERROR: api_request not available"
+              puts "[OpenAICodeAgent] Included modules: #{self.class.included_modules.map(&:name).join(', ')}"
             end
             return {
               error: "OpenAIHelper not available",
@@ -98,12 +98,12 @@ module Monadic
             }
           end
 
-          # Check if user has access to GPT-5-Codex
-          unless has_gpt5_codex_access?
+          # Check if user has access to OpenAI Code
+          unless has_openai_code_access?
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] ERROR: No GPT-5-Codex access"
-              puts "[GPT5CodexAgent] API Key present: #{!CONFIG['OPENAI_API_KEY'].nil?}"
-              puts "[GPT5CodexAgent] API Key length: #{CONFIG['OPENAI_API_KEY']&.length}"
+              puts "[OpenAICodeAgent] ERROR: No OpenAI Code access"
+              puts "[OpenAICodeAgent] API Key present: #{!CONFIG['OPENAI_API_KEY'].nil?}"
+              puts "[OpenAICodeAgent] API Key length: #{CONFIG['OPENAI_API_KEY']&.length}"
             end
             # Provide user-friendly error message with fallback option
             error_message = build_access_error_message(app_name)
@@ -118,12 +118,12 @@ module Monadic
           # Determine model to use with priority: argument > MDSL config > env var > default
           actual_model = model ||
                          @context&.dig(:agents, :code_generator) ||
-                         ENV['GPT5_CODEX_MODEL'] ||
-                         "gpt-5-codex"
+                         ENV['OPENAI_CODE_MODEL'] ||
+                         "openai-code"
 
           # Log model selection for debugging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] Using model: #{actual_model}"
+            puts "[OpenAICodeAgent] Using model: #{actual_model}"
           end
 
           # Create a proper session object for the API call using abstraction layer
@@ -135,8 +135,8 @@ module Monadic
           results = nil
 
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] About to call api_request"
-            puts "[GPT5CodexAgent] Timeout: #{actual_timeout}s"
+            puts "[OpenAICodeAgent] About to call api_request"
+            puts "[OpenAICodeAgent] Timeout: #{actual_timeout}s"
           end
 
           begin
@@ -153,13 +153,13 @@ module Monadic
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
               api_end_time = Time.now
               api_duration = api_end_time - api_start_time
-              puts "[GPT5CodexAgent] API call completed"
-              puts "[GPT5CodexAgent] API duration: #{api_duration.round(2)} seconds"
-              puts "[GPT5CodexAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
+              puts "[OpenAICodeAgent] API call completed"
+              puts "[OpenAICodeAgent] API duration: #{api_duration.round(2)} seconds"
+              puts "[OpenAICodeAgent] End time: #{api_end_time.strftime('%Y-%m-%d %H:%M:%S.%L')}"
             end
           rescue Timeout::Error
             return {
-              error: "GPT-5-Codex request timed out after #{actual_timeout} seconds",
+              error: "OpenAI Code request timed out after #{actual_timeout} seconds",
               suggestion: "The task may be too complex. Try breaking it into smaller parts.",
               timeout: true,
               success: false
@@ -171,24 +171,24 @@ module Monadic
 
           # Parse the response
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] API Response received"
-            puts "[GPT5CodexAgent] Results class: #{results.class}"
-            puts "[GPT5CodexAgent] Results: #{results.inspect[0..500]}"
+            puts "[OpenAICodeAgent] API Response received"
+            puts "[OpenAICodeAgent] Results class: #{results.class}"
+            puts "[OpenAICodeAgent] Results: #{results.inspect[0..500]}"
           end
 
           if results && results.is_a?(Array) && results.first
             response = results.first
 
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] First response: #{response.class}"
-              puts "[GPT5CodexAgent] Response keys: #{response.keys if response.is_a?(Hash)}"
+              puts "[OpenAICodeAgent] First response: #{response.class}"
+              puts "[OpenAICodeAgent] Response keys: #{response.keys if response.is_a?(Hash)}"
             end
 
             # Check if response contains an error (from API)
             if response.is_a?(Hash) && (response["error"] || response[:error])
               error_msg = response["error"] || response[:error]
               if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-                puts "[GPT5CodexAgent] API returned error: #{error_msg}"
+                puts "[OpenAICodeAgent] API returned error: #{error_msg}"
               end
               return {
                 error: error_msg,
@@ -199,7 +199,7 @@ module Monadic
             # Check if response is an API error string
             if response.is_a?(String) && response.include?("[OpenAI] API Error:")
               if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-                puts "[GPT5CodexAgent] API error string: #{response}"
+                puts "[OpenAICodeAgent] API error string: #{response}"
               end
               return {
                 error: response,
@@ -216,20 +216,20 @@ module Monadic
             # Check if we actually got content
             if content.nil? || content.to_s.strip.empty?
               if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-                puts "[GPT5CodexAgent] Content is empty or nil"
+                puts "[OpenAICodeAgent] Content is empty or nil"
               end
               return {
-                error: "GPT-5-Codex returned empty response",
+                error: "OpenAI Code returned empty response",
                 success: false
               }
             end
 
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] Success! Content length: #{content.length}"
+              puts "[OpenAICodeAgent] Success! Content length: #{content.length}"
               total_time = Time.now - start_time
-              puts "[GPT5CodexAgent] ========== TIMING END =========="
-              puts "[GPT5CodexAgent] Total processing time: #{total_time.round(2)} seconds"
-              puts "[GPT5CodexAgent] ================================"
+              puts "[OpenAICodeAgent] ========== TIMING END =========="
+              puts "[OpenAICodeAgent] Total processing time: #{total_time.round(2)} seconds"
+              puts "[OpenAICodeAgent] ================================"
             end
 
             {
@@ -239,10 +239,10 @@ module Monadic
             }
           else
             if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] No valid response from API"
+              puts "[OpenAICodeAgent] No valid response from API"
             end
             {
-              error: "No response from GPT-5-Codex",
+              error: "No response from OpenAI Code",
               success: false
             }
           end
@@ -252,18 +252,18 @@ module Monadic
           cleanup_progress_thread(progress_thread) if progress_thread
 
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] EXCEPTION: #{e.class} - #{e.message}"
-            puts "[GPT5CodexAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"
+            puts "[OpenAICodeAgent] EXCEPTION: #{e.class} - #{e.message}"
+            puts "[OpenAICodeAgent] Backtrace: #{e.backtrace.first(5).join("\n")}"
           end
           {
-            error: "Error calling GPT-5-Codex: #{e.message}",
+            error: "Error calling OpenAI Code: #{e.message}",
             suggestion: "Try breaking the task into smaller pieces",
             success: false
           }
         end
       end
 
-      # Build a minimal prompt for GPT-5-Codex following "less is more" principle
+      # Build a minimal prompt for OpenAI Code following "less is more" principle
       # @param task [String] The main task description
       # @param options [Hash] Optional context to add to the prompt
       # @option options [String] :current_code Current code for debugging/refactoring
@@ -271,7 +271,7 @@ module Monadic
       # @option options [String] :context Additional context
       # @option options [Array<Hash>] :files Array of file objects with :path and :content
       # @return [String] The built prompt
-      def build_codex_prompt(task:, **options)
+      def build_openai_code_prompt(task:, **options)
         prompt = task
 
         # Add current code context if debugging/refactoring
@@ -327,7 +327,7 @@ module Monadic
       # @param prompt [String] The prompt to send
       # @param model [String] The model to use
       # @return [Hash] Session object for api_request
-      def build_session(prompt:, model: "gpt-5-codex")
+      def build_session(prompt:, model: "openai-code")
         # Get the field name for message content
         content_field = message_content_field.to_s
 
@@ -380,12 +380,12 @@ module Monadic
         # Detect user's language preference if possible
         # This is a simple implementation - could be enhanced
         {
-          error: "GPT-5-Codex is not available in your OpenAI account",
-          suggestion: "To use this advanced coding feature, you need access to GPT-5-Codex. " \
+          error: "OpenAI Code is not available in your OpenAI account",
+          suggestion: "To use this advanced coding feature, you need access to OpenAI Code. " \
                      "This is a specialized model that may require a specific subscription tier. " \
                      "Please check your OpenAI account settings or contact OpenAI support.",
           fallback: "#{app_label} will use the main GPT-5 model instead. " \
-                   "While it can handle many coding tasks, GPT-5-Codex would provide " \
+                   "While it can handle many coding tasks, OpenAI Code would provide " \
                    "more specialized code generation capabilities."
         }
       end
@@ -435,7 +435,7 @@ module Monadic
                   fragment = {
                     "type" => "wait",
                     "content" => progress_message,
-                    "source" => "GPT5CodexAgent",
+                    "source" => "OpenAICodeAgent",
                     "elapsed" => elapsed.to_i,
                     "minutes" => minutes,
                     "remaining" => remaining.to_i
@@ -452,21 +452,21 @@ module Monadic
 
                       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
                         if session_id
-                          puts "[GPT5CodexAgent] Sent progress to session #{session_id}: #{progress_message[0..50]}..."
+                          puts "[OpenAICodeAgent] Sent progress to session #{session_id}: #{progress_message[0..50]}..."
                         else
-                          puts "[GPT5CodexAgent] Broadcasting progress to all: #{progress_message[0..50]}..."
+                          puts "[OpenAICodeAgent] Broadcasting progress to all: #{progress_message[0..50]}..."
                         end
                       end
                     end
                   elsif defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-                    puts "[GPT5CodexAgent] Progress (no WebSocket): #{progress_message}"
+                    puts "[OpenAICodeAgent] Progress (no WebSocket): #{progress_message}"
                   end
 
                   last_update = Time.now
                 rescue => msg_error
                   # Silently handle message building/sending errors
                   if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-                    puts "[GPT5CodexAgent] Progress message error: #{msg_error.message}"
+                    puts "[OpenAICodeAgent] Progress message error: #{msg_error.message}"
                   end
                 end
               end
@@ -474,7 +474,7 @@ module Monadic
           rescue => e
             # Silent handling - log only if extra logging enabled
             if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-              puts "[GPT5CodexAgent] Progress thread error: #{e.message}"
+              puts "[OpenAICodeAgent] Progress thread error: #{e.message}"
             end
           end
         end
@@ -492,7 +492,7 @@ module Monadic
         rescue => e
           # Even cleanup errors should be silent
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
-            puts "[GPT5CodexAgent] Thread cleanup error: #{e.message}"
+            puts "[OpenAICodeAgent] Thread cleanup error: #{e.message}"
           end
         end
       end
@@ -520,13 +520,13 @@ module Monadic
         # Use same HTML/icon format as existing wait messages
         case minutes
         when 0
-          "<i class='fas fa-robot'></i> GPT-5-Codex is analyzing requirements..."
+          "<i class='fas fa-robot'></i> OpenAI Code is analyzing requirements..."
         when 1..2
-          "<i class='fas fa-laptop-code'></i> GPT-5-Codex is generating code (#{time_str} elapsed)...#{timeout_warning}"
+          "<i class='fas fa-laptop-code'></i> OpenAI Code is generating code (#{time_str} elapsed)...#{timeout_warning}"
         when 3..4
-          "<i class='fas fa-cogs'></i> GPT-5-Codex is structuring the solution (#{time_str} elapsed)...#{timeout_warning}"
+          "<i class='fas fa-cogs'></i> OpenAI Code is structuring the solution (#{time_str} elapsed)...#{timeout_warning}"
         when 5..9
-          "<i class='fas fa-brain'></i> GPT-5-Codex is optimizing the implementation (#{time_str} elapsed)...#{timeout_warning}"
+          "<i class='fas fa-brain'></i> OpenAI Code is optimizing the implementation (#{time_str} elapsed)...#{timeout_warning}"
         when 10..14
           "<i class='fas fa-hourglass-half'></i> Complex task in progress (#{time_str} elapsed)#{timeout_warning}"
         when 15..20

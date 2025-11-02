@@ -75,7 +75,6 @@ app "VideoDescriberApp" do
     presence_penalty 0.2
     easy_submit false
     auto_speech false
-    image true
     initiate_from_assistant true
   end
 

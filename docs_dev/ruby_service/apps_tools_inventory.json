@@ -269,8 +269,8 @@
       "custom_tools_by_provider": {
         "openai": [
           {
-            "name": "gpt5_codex_agent",
-            "description": "Delegate complex Python coding tasks to GPT-5-Codex"
+            "name": "openai_code_agent",
+            "description": "Delegate complex Python coding tasks to OpenAI Code"
           }
         ],
         "grok": [
@@ -294,8 +294,8 @@
       "custom_tools_by_provider": {
         "openai": [
           {
-            "name": "gpt5_codex_agent",
-            "description": "Delegate complex notebook coding tasks to GPT-5-Codex"
+            "name": "openai_code_agent",
+            "description": "Delegate complex notebook coding tasks to OpenAI Code"
           }
         ],
         "gemini": [
@@ -330,8 +330,8 @@
             "description": "Request access to a locked tool by name"
           },
           {
-            "name": "gpt5_codex_agent",
-            "description": "Delegate code generation tasks to GPT-5-Codex"
+            "name": "openai_code_agent",
+            "description": "Delegate code generation tasks to OpenAI Code"
           }
         ],
         "grok": [

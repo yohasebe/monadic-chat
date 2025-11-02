@@ -2,7 +2,7 @@
 
 ## Overview
 
-AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5, Claude Opus, or Grok-4-Fast-Reasoning orchestration with provider-specific code generation (GPT-5-Codex, Claude Opus, or Grok-Code-Fast-1).
+AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5, Claude Code, or Grok-4-Fast-Reasoning orchestration with provider-specific code generation (OpenAI Code, Claude Code, or Grok-Code-Fast-1).
 
 ## Architecture
 
@@ -16,7 +16,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
                    │
 ┌──────────────────▼───────────────────────────┐
 │         Orchestration Layer                  │
-│  (GPT-5 / Claude Opus / Grok-4-Fast-         │
+│  (GPT-5 / Claude Code / Grok-4-Fast-         │
 │   Reasoning via provider APIs)               │
 │   - User interaction                         │
 │   - Planning & coordination                  │
@@ -34,7 +34,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
                    │
 ┌──────────────────▼───────────────────────────┐
 │        Code Generation Layer                 │
-│  (GPT-5-Codex / Claude Opus /                │
+│  (OpenAI Code / Claude Code /                │
 │   Grok-Code-Fast-1 via provider agents)      │
 │   - HTML/CSS/JS/CLI generation               │
 │   - via provider-specific agents             │
@@ -55,8 +55,8 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 #### 2. Tool Methods (`auto_forge_tools.rb`)
 - Implements the core logic for each tool
 - Includes provider-specific agents:
-  - `GPT5CodexAgent` for OpenAI code generation
-  - `ClaudeOpusAgent` for Claude code generation
+  - `OpenAICodeAgent` for OpenAI code generation
+  - `ClaudeCodeAgent` for Claude code generation
   - `GrokCodeAgent` for Grok code generation
 - Handles project management, optional CLI asset generation, and file I/O
 - Coordinates between orchestration and code generation
@@ -68,8 +68,8 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 - Context persistence for modifications
 
 #### 4. HTML Generators
-- **OpenAI**: `agents/html_generator.rb` with GPT5CodexAgent - Interfaces with GPT-5-Codex
-- **Claude**: Uses `agents/html_generator.rb` with ClaudeOpusAgent callback - Interfaces with Claude models via claude_opus_agent
+- **OpenAI**: `agents/html_generator.rb` with OpenAICodeAgent - Interfaces with OpenAI Code
+- **Claude**: Uses `agents/html_generator.rb` with ClaudeCodeAgent callback - Interfaces with Claude models via claude_code_agent
 - **Grok**: `agents/grok_html_generator.rb` with GrokCodeAgent - Interfaces with Grok-Code-Fast-1
 - Builds prompts optimized for each provider's code generation model
 - Handles both new generation and modifications
@@ -100,7 +100,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 
 # Code generation is delegated to the provider-specific agent
 call_gpt5_codex(prompt: prompt, app_name: 'AutoForge')          # OpenAI
-claude_opus_agent(prompt, 'AutoForgeClaude')                    # Claude
+claude_code_agent(prompt, 'AutoForgeClaude')                    # Claude
 call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ```
 
@@ -112,8 +112,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
    - Manages tool calls and structured responses
 
 2. **Code Generation (Provider Agents)**:
-   - GPT-5-Codex via `GPT5CodexAgent` for OpenAI
-   - Claude Opus via `ClaudeOpusAgent` for Claude
+   - OpenAI Code via `OpenAICodeAgent` for OpenAI
+   - Claude Code via `ClaudeCodeAgent` for Claude
    - Grok-Code-Fast-1 via `GrokCodeAgent` for Grok
    - All use the provider's Responses API with deterministic parameters
    - Provider-specific prompt builders optimize for each model's strengths
@@ -153,12 +153,12 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## Provider Variants & Progress Broadcasting
 
 - Three MDSL apps wrap the shared tool layer:
-  - `auto_forge_openai`: GPT-5 orchestration + GPT-5-Codex generation
-  - `auto_forge_claude`: Claude Opus 4.1 orchestration + generation
+  - `auto_forge_openai`: GPT-5 orchestration + OpenAI Code generation
+  - `auto_forge_claude`: Claude Code 4.1 orchestration + generation
   - `auto_forge_grok`: Grok-4-Fast-Reasoning orchestration + Grok-Code-Fast-1 generation
 - Provider agents emit `wait` fragments with `source` identifiers so the WebSocket layer can stream updates into the temp card:
-  - `GPT5CodexAgent` for OpenAI
-  - `ClaudeOpusAgent` for Claude
+  - `OpenAICodeAgent` for OpenAI
+  - `ClaudeCodeAgent` for Claude
   - `GrokCodeAgent` for Grok
 - Progress fragments optionally include `minutes`/`remaining` values; when missing, the UI still displays provider-specific status text.
 - Web UI translation keys (`claudeOpusGenerating`, `grokCodeGenerating`, etc.) were added for every locale to keep progress messages localized.
@@ -168,8 +168,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 - **Orchestration Model**: Grok-4-Fast-Reasoning with `reasoning_effort: "medium"` for balanced quality and speed
 - **Code Generation Model**: Grok-Code-Fast-1 (default in `GrokCodeAgent`)
 - **Prompt Optimization**: Prompts emphasize "smaller, focused tasks" and "iterative development" to match Grok-Code-Fast-1's strengths
-- **Performance**: 92 tokens/sec throughput, significantly faster than GPT-5-Codex
-- **Cost**: 6-7x cheaper than GPT-5-Codex
+- **Performance**: 92 tokens/sec throughput, significantly faster than OpenAI Code
+- **Cost**: 6-7x cheaper than OpenAI Code
 - **Strengths**: HTML/CSS/JavaScript, SVG graphics, animations, visual components
 - **Agent Files**:
   - `agents/grok_html_generator.rb`: HTML/CSS/JS generation
@@ -185,21 +185,21 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
   - Usage examples (USAGE.md) are suggested when argument parsing libraries (argparse, OptionParser, click, etc.) are detected.
   - A “custom asset” entry is always included to remind the orchestrator that arbitrary files can be generated on demand.
 - `generate_additional_file` re-validates project context (project path, type, and main file) before writing to disk.
-- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through the provider agent (`codex_callback`, `call_gpt5_codex`, or `claude_opus_agent`) using a rich prompt that includes the main script excerpt and existing files.
+- Custom file requests require both `file_name` (sanitized to avoid traversal) and `instructions`. Content is produced through the provider agent (`codex_callback`, `call_gpt5_codex`, or `claude_code_agent`) using a rich prompt that includes the main script excerpt and existing files.
 
 ## Error Handling
 
 ### Common Error Patterns
 
 1. **Model Errors**:
-   - GPT-5-Codex returning chat responses → Fixed with proper prompt formatting
+   - OpenAI Code returning chat responses → Fixed with proper prompt formatting
    - Temperature parameter errors → Removed for Responses API models
    - Model not found → Ensure API key has access
 
 2. **Generation Errors**:
    - Placeholder HTML (173 bytes) → Mock generator conflict (resolved)
    - Empty response → Timeout or API issues
-   - Long generation time → Normal for GPT-5-Codex / Claude Opus (2-5 minutes)
+   - Long generation time → Normal for OpenAI Code / Claude Code (2-5 minutes)
 
 3. **File System Errors**:
    - Unicode project names → Fixed with proper encoding
@@ -280,7 +280,7 @@ See system tests for end-to-end workflows
 ## Known Limitations
 
 1. **API Constraints**:
-   - GPT-5-Codex requires Responses API
+   - OpenAI Code requires Responses API
    - No streaming for complex generations
    - Rate limits apply
 
@@ -313,7 +313,7 @@ See system tests for end-to-end workflows
 | Issue | Cause | Solution |
 |-------|-------|----------|
 | "Model not found" | Wrong model name or no access | Check API key permissions |
-| Slow generation | Normal for GPT-5-Codex | Add progress indicators |
+| Slow generation | Normal for OpenAI Code | Add progress indicators |
 | Empty HTML | API timeout | Increase timeout settings |
 | Unicode errors | Encoding issues | Ensure UTF-8 throughout |
 | Selenium failures | Container not running | Check Docker status |

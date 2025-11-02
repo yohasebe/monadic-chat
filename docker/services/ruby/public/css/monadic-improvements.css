@@ -421,13 +421,22 @@
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(255, 255, 255, 0.18) !important; /* More visible active background */
-  border-color: rgba(255, 255, 255, 0.4) !important; /* More visible when active */
+  background-color: rgba(255, 255, 255, 0.12) !important; /* Visible active background */
+  border-color: rgba(255, 255, 255, 0.3) !important; /* Visible when active */
   color: #f5f5f5 !important; /* Very light when active */
 }
 
 .dark-theme #toggle-menu:not(.menu-hidden) i {
   color: #f5f5f5 !important; /* Very light icon when active */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden):hover {
+  background-color: rgba(255, 255, 255, 0.18) !important; /* Brighter on hover when active */
+  border-color: rgba(255, 255, 255, 0.4) !important; /* Brighter border on hover when active */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden):hover i {
+  color: #ffffff !important; /* White icon on hover when active */
 }
 
 /* Dark mode: Custom apps dropdown (ID selector has high specificity) */

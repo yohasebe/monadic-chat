@@ -494,8 +494,8 @@ a:focus-visible {
 /* Toggle Menu Button Border for Visibility */
 #toggle-menu {
   /* Always transparent background except on hover */
-  background-color: transparent;
-  border: 1px solid rgba(0, 0, 0, 0.1); /* Subtler border */
+  background-color: transparent !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important; /* Visible but subtle border */
   border-radius: 4px;
   /* Fixed size for toggle menu button */
   width: 28px;
@@ -505,23 +505,40 @@ a:focus-visible {
   justify-content: center;
   padding: 0;
   position: relative;
-  color: #6c757d; /* Muted gray icon for less contrast */
+  color: #6c757d !important; /* Muted gray icon for less contrast */
 }
+
+#toggle-menu i {
+  color: #6c757d !important; /* Muted gray icon */
+}
+
 #toggle-menu:hover {
-  background-color: rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 0, 0, 0.15);
-  color: #495057; /* Darker on hover */
+  background-color: rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  color: #495057 !important; /* Darker on hover */
+}
+
+#toggle-menu:hover i {
+  color: #495057 !important;
 }
 
 /* Menu open/closed state styles */
 #toggle-menu.menu-hidden {
-  background-color: transparent;
+  background-color: transparent !important;
 }
 
 #toggle-menu:not(.menu-hidden) {
-  background-color: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.15);
-  color: var(--color-icon-primary);
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
+  color: #495057 !important;
+}
+
+#toggle-menu:not(.menu-hidden) i {
+  color: #495057 !important;
+}
+
+#toggle-menu:not(.menu-hidden):hover {
+  background-color: rgba(0, 0, 0, 0.1) !important;
 }
 
 /* ********************************************** */

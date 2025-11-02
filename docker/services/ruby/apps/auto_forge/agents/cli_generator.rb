@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../../lib/monadic/agents/openai_code_agent'
+require_relative '../../../lib/monadic/agents/openai_code_agent'
 
 module AutoForge
   module Agents

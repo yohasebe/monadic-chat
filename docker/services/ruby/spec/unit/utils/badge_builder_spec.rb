@@ -59,7 +59,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
         settings = {
           tools: {
             tools: [
-              { name: "gpt5_codex_agent", description: "Code generation", visibility: "conditional" }
+              { name: "openai_code_agent", description: "Code generation", visibility: "conditional" }
             ]
           }
         }
@@ -68,7 +68,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
 
         agent_badge = result[:tools].find { |b| b[:subtype] == :agent }
         expect(agent_badge).not_to be_nil
-        expect(agent_badge[:label]).to eq("gpt5-codex")
+        expect(agent_badge[:label]).to eq("code agent")
         expect(agent_badge[:icon]).to eq("fa-robot")
         expect(agent_badge[:visibility]).to eq("conditional")
       end
@@ -86,7 +86,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
 
         agent_badge = result[:tools].find { |b| b[:subtype] == :agent }
         expect(agent_badge).not_to be_nil
-        expect(agent_badge[:label]).to eq("grok-code")
+        expect(agent_badge[:label]).to eq("code agent")
       end
     end
 
@@ -155,7 +155,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
         settings = {
           tools: [
             "not a hash",
-            { name: "gpt5_codex_agent" },
+            { name: "openai_code_agent" },
             nil
           ]
         }
@@ -172,7 +172,7 @@ RSpec.describe Monadic::Utils::BadgeBuilder do
           tools: {
             tools: [
               { description: "No name" },
-              { name: "gpt5_codex_agent" }
+              { name: "openai_code_agent" }
             ]
           }
         }

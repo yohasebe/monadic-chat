@@ -2719,10 +2719,6 @@ ol li {
   counter-increment: none !important;
 }
 
-ol li::before {
-  content: none !important;
-}
-
 div.highlight pre.highlight {
   padding: 0;
 }

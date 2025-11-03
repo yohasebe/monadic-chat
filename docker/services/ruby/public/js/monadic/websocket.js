@@ -3825,11 +3825,11 @@ let loadedApp = "Chat";
           console.log("model from server:", data["content"]["model"]);
           console.log("group from server:", data["content"]["group"]);
           console.log("Full content:", data["content"]);
-          
+
           loadedApp = data["content"]["app_name"];
-          const pleaseWaitText = getTranslation('ui.messages.pleaseWait', 'Please wait');
-          setAlert(`<i class='fa-solid fa-hourglass-half'></i> ${pleaseWaitText}`, "warning");
-          
+          // Note: Removed "Please wait" message as it's too brief to be useful
+          // (parameters -> past_messages processing takes ~100ms)
+
           // Call loadParams which will handle everything including model selection
           console.log("About to call loadParams...");
           window.logTL('parameters_received', {

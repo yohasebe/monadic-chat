@@ -435,8 +435,8 @@
         display: inline-flex;
         align-items: center;
         font-size: 0.875rem;
-        width: 200px; /* Fixed width */
-        max-width: 200px;
+        width: 250px; /* Increased from 200px to accommodate longer messages */
+        max-width: 250px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -445,6 +445,7 @@
         box-sizing: border-box;
         flex-shrink: 1;
         min-width: 0; /* Allow flex items to shrink below content size */
+        cursor: help; /* Show help cursor to indicate tooltip */
       }
 
       /* Ensure text inside status message can be ellipsed */
@@ -517,13 +518,13 @@
       /* Responsive adjustments */
       @media (max-width: 900px) {
         #status-message {
-          width: 150px;
+          width: 180px; /* Slightly wider for medium screens */
         }
       }
 
       @media (max-width: 800px) {
         #status-message {
-          width: 120px;
+          width: 140px; /* Slightly wider for smaller screens */
         }
       }
       

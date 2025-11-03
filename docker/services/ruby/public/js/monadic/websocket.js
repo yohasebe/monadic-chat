@@ -4436,9 +4436,11 @@ let loadedApp = "Chat";
         });
         setStats(formatInfo(data["content"]), "info");
 
-        // Clear status message after successfully loading past messages
-        $("#status-message").text('');
-        $("#status-icon").removeClass().addClass('text-success');
+        // Set status to connected after successfully loading past messages
+        // Use setAlert to properly set icon and color
+        const connectedText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+          webUIi18n.t('ui.status.connected') : 'Connected';
+        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
 
         if (messages.length > 0) {
           // Ensure i18n is ready before updating text

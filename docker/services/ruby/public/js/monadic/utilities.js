@@ -479,6 +479,21 @@ function setAlert(text = "", alertType = "success") {
     // Direct DOM access
     $("#status-message").html(`${displayText}`);
     setAlertClass(alertType);
+
+    // Add tooltip with full text if message is truncated
+    // Strip HTML tags for tooltip text
+    const plainText = displayText.replace(/<[^>]*>/g, '');
+    $("#status-message").attr('title', plainText);
+
+    // Initialize Bootstrap tooltip if available
+    if (typeof $.fn.tooltip === 'function') {
+      $("#status-message").tooltip('dispose'); // Clean up any existing tooltip
+      $("#status-message").tooltip({
+        placement: 'bottom',
+        trigger: 'hover',
+        delay: { show: 500, hide: 100 }
+      });
+    }
   }
 }
 

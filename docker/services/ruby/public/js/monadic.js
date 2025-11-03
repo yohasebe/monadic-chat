@@ -105,8 +105,18 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error('[Session] Error reading localStorage:', e);
       }
 
-      // Set flag to prevent app change confirmation during restoration
-      window.isRestoringSession = true;
+      // Check if we just imported - if so, don't restore from localStorage
+      const justImported = localStorage.getItem('justImported') === 'true';
+      if (justImported) {
+        console.log('[Session] Just imported - clearing localStorage and loading from server');
+        localStorage.removeItem('justImported');
+        // Clear SessionState so server messages are used
+        window.SessionState.clearMessages();
+        window.isRestoringSession = false;
+      } else {
+        // Set flag to prevent app change confirmation during restoration
+        window.isRestoringSession = true;
+      }
 
       // Reset app initialization flags to allow re-initialization
       window.initialAppLoaded = false;
@@ -116,7 +126,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       window.isImporting = false;
       window.lastImportTime = null;
 
-      window.SessionState.restore();
+      if (!justImported) {
+        window.SessionState.restore();
+      }
 
       // Check if user requested a reset - if so, skip message restoration only
       const shouldSkipMessageRestoration = window.SessionState.shouldForceNewSession();
@@ -3462,7 +3474,11 @@ $(function () {
         // Clean up UI after successful import
         $("#loadModal").modal("hide");
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
-        
+
+        // Set flag to indicate we just imported and should load from server
+        // This prevents isRestoringSession from blocking server messages
+        localStorage.setItem('justImported', 'true');
+
         // Force reload page to load the imported session
         window.location.reload();
       } else {

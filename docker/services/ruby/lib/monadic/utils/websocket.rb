@@ -489,16 +489,18 @@ module WebSocketHelper
   # @return [Hash] Apps data with settings
   def prepare_apps_data(ui_language = nil)
     return {} unless defined?(APPS)
-    
+
     # Get UI language from session parameters if not provided
     ui_language ||= session[:parameters]&.[]("ui_language") || "en"
-    
+
     # Debug logging for language selection
     if CONFIG["EXTRA_LOGGING"]
       puts "[DEBUG] prepare_apps_data called with ui_language: #{ui_language}"
     end
-    
+
     apps = {}
+    largest_app_sizes = {}
+
     APPS.each do |k, v|
       apps[k] = {}
       v.settings.each do |p, m|
@@ -558,7 +560,27 @@ module WebSocketHelper
         end
       end
       v.api_key = settings.api_key if v.respond_to?(:api_key=) && settings.respond_to?(:api_key)
+
+      # Track size of this app's data
+      if CONFIG["EXTRA_LOGGING"]
+        app_json = apps[k].to_json
+        app_size = app_json.bytesize
+        largest_app_sizes[k] = app_size if app_size > 10_000 # Track apps > 10KB
+      end
     end
+
+    # Log largest apps
+    if CONFIG["EXTRA_LOGGING"] && !largest_app_sizes.empty?
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] Apps data sizes:"
+      largest_app_sizes.sort_by { |_, size| -size }.take(5).each do |name, size|
+        extra_log.puts "  #{name}: #{size} bytes (#{(size / 1024.0).round(2)} KB)"
+      end
+      total_size = apps.to_json.bytesize
+      extra_log.puts "  TOTAL: #{total_size} bytes (#{(total_size / 1024.0).round(2)} KB)"
+      extra_log.close
+    end
+
     apps
   end
   
@@ -642,18 +664,39 @@ module WebSocketHelper
   # @param apps [Hash] Apps data
   # @param filtered_messages [Array] Filtered messages
   def push_apps_data(ws, apps, filtered_messages)
-    @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
-    @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
-
-    # IMPORTANT: Always send past_messages, even if empty
-    # Empty past_messages indicates server restart to the client
-    @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json)
-
-    # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
+    # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent #{filtered_messages.size} past_messages via WebSocket"
+      extra_log.puts "[#{Time.now}] push_apps_data START: apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}"
       extra_log.close
+    end
+
+    # Send apps message first
+    @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
+
+    # Use EM.add_timer to delay subsequent messages, giving browser time to process large apps message
+    # This prevents message loss when apps message is very large (>1MB)
+    EM.add_timer(0.05) do
+      @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
+
+      # Debug logging
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message"
+        extra_log.close
+      end
+    end
+
+    # Send past_messages with additional delay to ensure parameters is processed first
+    EM.add_timer(0.1) do
+      @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json)
+
+      # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items"
+        extra_log.close
+      end
     end
   end
   

@@ -2737,6 +2737,52 @@ pre code{
   white-space: pre-wrap;
 }
 
+/* Hide list markers inside code blocks to prevent spurious numbers */
+pre ol,
+pre ul,
+code ol,
+code ul,
+.highlight ol,
+.highlight ul,
+.highlighter-rouge ol,
+.highlighter-rouge ul,
+div.highlight ol,
+div.highlight ul {
+  list-style: none !important;
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Also hide ::marker pseudo-element for code block lists */
+pre ol li,
+pre ul li,
+code ol li,
+code ul li,
+.highlight ol li,
+.highlight ul li,
+.highlighter-rouge ol li,
+.highlighter-rouge ul li,
+div.highlight ol li,
+div.highlight ul li {
+  list-style: none !important;
+  display: block !important;
+}
+
+/* Remove any counter-based numbering in code blocks */
+pre ol li::before,
+pre ul li::before,
+code ol li::before,
+code ul li::before,
+.highlight ol li::before,
+.highlight ul li::before,
+.highlighter-rouge ol li::before,
+.highlighter-rouge ul li::before,
+div.highlight ol li::before,
+div.highlight ul li::before {
+  content: none !important;
+  display: none !important;
+}
+
 
 #voice {
   background-color: #5bc0de; /* Lighter cyan color */

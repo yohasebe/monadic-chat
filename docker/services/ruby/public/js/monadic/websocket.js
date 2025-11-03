@@ -2362,7 +2362,12 @@ let loadedApp = "Chat";
     let data;
     try {
       data = JSON.parse(event.data);
-      
+
+      // Debug: Log all incoming WebSocket messages
+      if (data["type"]) {
+        console.log(`[WS] Received message type: ${data["type"]}, content length: ${JSON.stringify(data).length}`);
+      }
+
       // Clear the safety timeout for valid responses
       clearTimeout(messageTimeout);
     } catch (error) {
@@ -3530,8 +3535,16 @@ let loadedApp = "Chat";
               return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
             }).first();
 
+            console.log('[App Selection Debug] ChatOpenAI search:', {
+              found: openAIChatOption.length > 0,
+              disabled: openAIChatOption.prop('disabled'),
+              importRequestedApp,
+              hasCurrentValidSelection
+            });
+
             if (!importRequestedApp && !hasCurrentValidSelection && openAIChatOption.length > 0) {
               firstValidApp = openAIChatOption.val();
+              console.log('[App Selection Debug] Selected ChatOpenAI');
             } else {
               // Look for any Chat app from other providers
               const anyChatOption = $("#apps option").filter(function() {
@@ -3539,14 +3552,22 @@ let loadedApp = "Chat";
                 return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
               }).first();
 
+              console.log('[App Selection Debug] Any Chat app search:', {
+                found: anyChatOption.length > 0,
+                value: anyChatOption.val()
+              });
+
               if (!importRequestedApp && !hasCurrentValidSelection && anyChatOption.length > 0) {
                 firstValidApp = anyChatOption.val();
+                console.log('[App Selection Debug] Selected Chat app:', firstValidApp);
               } else {
                 // Fallback: select the first available non-disabled app
                 if (!importRequestedApp && !hasCurrentValidSelection) {
-                  firstValidApp = $("#apps option").filter(function() {
+                  const fallbackApp = $("#apps option").filter(function() {
                     return !$(this).prop('disabled') && !$(this).text().includes('──');
-                  }).first().val();
+                  }).first();
+                  firstValidApp = fallbackApp.val();
+                  console.log('[App Selection Debug] Using fallback (first available):', firstValidApp);
                 }
               }
             }
@@ -4414,6 +4435,10 @@ let loadedApp = "Chat";
           mids.add(msg["mid"]);
         });
         setStats(formatInfo(data["content"]), "info");
+
+        // Clear status message after successfully loading past messages
+        $("#status-message").text('');
+        $("#status-icon").removeClass().addClass('text-success');
 
         if (messages.length > 0) {
           // Ensure i18n is ready before updating text

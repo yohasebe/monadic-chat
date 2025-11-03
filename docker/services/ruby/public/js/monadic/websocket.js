@@ -763,6 +763,31 @@ function formatSourceCode(element) {
   })
 }
 
+// Clean up spurious text nodes after code blocks in list items
+// CommonMarker sometimes generates unwanted text nodes (e.g., "0") after code blocks within list items
+function cleanupListCodeBlocks(element) {
+  element.find('li').each(function() {
+    const $li = $(this);
+    // Find all direct child nodes
+    const children = $li.contents();
+
+    children.each(function(index) {
+      // Check if this is a text node that comes after a highlight div
+      if (this.nodeType === Node.TEXT_NODE) {
+        const text = $(this).text().trim();
+        // If it's a single digit or small number, it's likely spurious
+        if (text.match(/^[0-9]{1,2}$/)) {
+          const prevSibling = $(this).prev();
+          // Remove if preceded by a code block
+          if (prevSibling.hasClass('highlight') || prevSibling.find('.highlight').length > 0) {
+            $(this).remove();
+          }
+        }
+      }
+    });
+  });
+}
+
 function applyAbc(element) {
   element.find(".abc-code").each(function () {
     $(this).addClass("sourcecode");
@@ -2304,6 +2329,7 @@ let loadedApp = "Chat";
     }
 
     formatSourceCode(htmlContent);
+    cleanupListCodeBlocks(htmlContent);
 
     setCopyCodeButton(htmlContent);
 
@@ -4408,6 +4434,7 @@ let loadedApp = "Chat";
               }
 
               formatSourceCode(gptElement);
+              cleanupListCodeBlocks(gptElement);
 
               setCopyCodeButton(gptElement);
 
@@ -4697,6 +4724,7 @@ let loadedApp = "Chat";
           }
 
           formatSourceCode(htmlContent);
+          cleanupListCodeBlocks(htmlContent);
 
           setCopyCodeButton(htmlContent);
         }
@@ -5146,6 +5174,7 @@ let loadedApp = "Chat";
         }
 
         formatSourceCode(htmlContent);
+        cleanupListCodeBlocks(htmlContent);
 
         setCopyCodeButton(htmlContent);
         

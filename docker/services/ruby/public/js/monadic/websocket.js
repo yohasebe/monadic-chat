@@ -2238,20 +2238,25 @@ let loadedApp = "Chat";
       }
     }
 
-    // Only verify token once
-    if (!verified) {
-      const verifyingText = typeof webUIi18n !== 'undefined' ? 
-      webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
-    setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
-      // Get UI language from cookie or default to 'en'
-    const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-    ws.send(JSON.stringify({ 
-      message: "CHECK_TOKEN", 
-      initial: true, 
-      contents: $("#token").val(),
-      ui_language: uiLanguage 
-    }));
-    }
+    // Note: CHECK_TOKEN is sent in ws.onopen handler (line 2112-2117)
+    // No need to send it again here
+
+    // Add timeout for token verification (30 seconds)
+    let verificationTimeout = setTimeout(function() {
+      if (!verified) {
+        console.warn('[Token Verification] Timeout after 30 seconds');
+        // Set to partial to allow proceeding with limited functionality
+        verified = "partial";
+
+        // Show timeout error message
+        const timeoutText = typeof webUIi18n !== 'undefined' ?
+          webUIi18n.t('ui.messages.tokenVerificationTimeout') :
+          'Token verification timed out. Proceeding with limited functionality.';
+        setAlert(`<i class='fa-solid fa-triangle-exclamation'></i> ${timeoutText}`, "warning");
+
+        clearInterval(verificationCheckTimer);
+      }
+    }, 30000); // 30 seconds timeout
 
     // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
@@ -2267,6 +2272,7 @@ let loadedApp = "Chat";
           callback(ws);
         }
         clearInterval(verificationCheckTimer);
+        clearTimeout(verificationTimeout); // Clear timeout when verification succeeds
       }
     }, 1000);
   }

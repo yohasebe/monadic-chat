@@ -1351,28 +1351,72 @@ module WebSocketHelper
             session[:parameters]["ui_language"] = obj["ui_language"]
           end
           
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] CHECK_TOKEN handler started"
+            extra_log.close
+          end
+
           if CONFIG["ERROR"].to_s == "true"
             ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" }.to_json)
           else
             token = CONFIG["OPENAI_API_KEY"]
 
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts "[#{Time.now}] CHECK_TOKEN: token present=#{!token.nil?}"
+              extra_log.close
+            end
+
             res = nil
             begin
               res = check_api_key(token) if token
 
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts "[#{Time.now}] CHECK_TOKEN: res=#{res.inspect}"
+                extra_log.puts "[#{Time.now}] CHECK_TOKEN: res.is_a?(Hash)=#{res.is_a?(Hash)}, res.key?('type')=#{res.is_a?(Hash) && res.key?('type')}"
+                extra_log.close
+              end
+
               if token && res.is_a?(Hash) && res.key?("type")
                 if res["type"] == "error"
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (error)"
+                    extra_log.close
+                  end
                   ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
                 else
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_verified (success)"
+                    extra_log.close
+                  end
                   ws.send({ "type" => "token_verified",
                             "token" => token, "content" => res["content"],
                             # "models" => res["models"],
                             "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT }.to_json)
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: token_verified message sent"
+                    extra_log.close
+                  end
                 end
               else
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (invalid response)"
+                  extra_log.close
+                end
                 ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
               end
             rescue StandardError => e
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts "[#{Time.now}] CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}"
+                extra_log.close
+              end
               ws.send({ "type" => "open_ai_api_error", "token" => "", "content" => "" }.to_json)
             end
           end

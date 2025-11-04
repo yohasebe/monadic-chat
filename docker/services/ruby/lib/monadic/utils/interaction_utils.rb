@@ -229,7 +229,20 @@ module InteractionUtils
 
     # Return cached result if available
     cached_result = InteractionUtils.api_key_cache.get(api_key)
-    return cached_result if cached_result
+    if cached_result
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] check_api_key: Using cached result - #{cached_result['type']}"
+        extra_log.close
+      end
+      return cached_result
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] check_api_key: Starting fresh API check"
+      extra_log.close
+    end
 
     target_uri = "#{API_ENDPOINT}/models"
 
@@ -241,8 +254,10 @@ module InteractionUtils
     num_retrial = 0
 
     begin
+      start_time = Time.now
       http = HTTP.headers(headers)
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
+      elapsed = Time.now - start_time
       res_body = JSON.parse(res.body)
 
       result = if res_body && res_body["data"]
@@ -251,6 +266,12 @@ module InteractionUtils
                  { "type" => "error", "content" => "ERROR: API token is not accepted" }
                end
 
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] check_api_key: API check completed in #{elapsed.round(2)}s - result: #{result['type']}"
+        extra_log.close
+      end
+
       # Cache the result
       InteractionUtils.api_key_cache.set(api_key, result)
       result
@@ -258,11 +279,20 @@ module InteractionUtils
     rescue HTTP::Error, HTTP::TimeoutError => e
       if num_retrial < MAX_RETRIES
         num_retrial += 1
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] check_api_key: Retry #{num_retrial}/#{MAX_RETRIES} after error: #{e.class} - #{e.message}"
+          extra_log.close
+        end
         sleep RETRY_DELAY
         retry
       else
         error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
-        # Debug output removed
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] check_api_key: FAILED after #{MAX_RETRIES} retries - #{e.class}: #{e.message}"
+          extra_log.close
+        end
         error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
         # Cache the error result as well
         InteractionUtils.api_key_cache.set(api_key, error_result)

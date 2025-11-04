@@ -487,12 +487,25 @@ function setAlert(text = "", alertType = "success") {
 
     // Initialize Bootstrap tooltip if available
     if (typeof $.fn.tooltip === 'function') {
-      $("#status-message").tooltip('dispose'); // Clean up any existing tooltip
-      $("#status-message").tooltip({
-        placement: 'bottom',
-        trigger: 'hover',
-        delay: { show: 500, hide: 100 }
-      });
+      // Safely dispose existing tooltip if it exists
+      try {
+        const $statusMsg = $("#status-message");
+        if ($statusMsg.data('bs.tooltip')) {
+          $statusMsg.tooltip('dispose');
+        }
+        $statusMsg.tooltip({
+          placement: 'bottom',
+          trigger: 'hover',
+          delay: { show: 500, hide: 100 }
+        });
+      } catch (e) {
+        // Tooltip not initialized yet, just create new one
+        $("#status-message").tooltip({
+          placement: 'bottom',
+          trigger: 'hover',
+          delay: { show: 500, hide: 100 }
+        });
+      }
     }
   }
 }

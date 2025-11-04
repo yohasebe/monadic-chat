@@ -1385,7 +1385,8 @@ get "/" do
   # Pass DEBUG_MODE to template for conditional local documentation link
   @debug_mode = CONFIG["DEBUG_MODE"] || false
 
-  if Faye::WebSocket.websocket?(env)
+  # Check if this is a WebSocket upgrade request
+  if env["HTTP_UPGRADE"]&.downcase == "websocket" && env["HTTP_CONNECTION"]&.downcase&.include?("upgrade")
     websocket_handler(env)
   else
     erb :index
@@ -2018,9 +2019,5 @@ APPS.each do |k, v|
   end
 end
 
-# Capture the INT signal (e.g., when pressing Ctrl+C)
-Signal.trap("INT") do
-  puts "\nTerminating the application . . ."
-  EMBEDDINGS_DB.close_connection
-  exit
-end
+# Note: Signal handling is managed by Falcon server
+# Database connections are automatically closed when workers exit

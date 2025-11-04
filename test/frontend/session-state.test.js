@@ -5,27 +5,40 @@
 const fs = require('fs');
 const path = require('path');
 
+// Helper to load StorageHelper (required by SessionState)
+function loadStorageHelper() {
+  const filePath = path.join(__dirname, '../../docker/services/ruby/public/js/monadic/storage-helper.js');
+  const code = fs.readFileSync(filePath, 'utf8');
+
+  // Execute the code in the current context
+  eval(code);
+}
+
 // Helper to load SessionState file
 function loadSessionState() {
   const filePath = path.join(__dirname, '../../docker/services/ruby/public/js/monadic/session_state.js');
   const code = fs.readFileSync(filePath, 'utf8');
-  
+
   // Execute the code in the current context
   eval(code);
 }
 
 describe('SessionState Tests', () => {
   beforeEach(() => {
-    // Clear any existing SessionState
+    // Clear any existing SessionState and StorageHelper
     delete window.SessionState;
     delete window.safeSessionState;
+    delete window.StorageHelper;
     delete window.messages;
     delete window.forceNewSession;
     delete window.justReset;
-    
+
     // Clear localStorage
     localStorage.clear();
-    
+
+    // Load StorageHelper first (required dependency)
+    loadStorageHelper();
+
     // Load fresh SessionState
     loadSessionState();
   });

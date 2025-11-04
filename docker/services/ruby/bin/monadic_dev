@@ -128,6 +128,8 @@ def start_server(opts)
 
   # Start the server with Falcon
   port_num = opts[:port] || DEFAULT_PORT
+  # Disable macOS fork safety for Falcon (required on macOS)
+  ENV['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
   cmd = "bundle exec falcon serve -b http://0.0.0.0:#{port_num} -c #{DOCKER_HOME}/ruby/config.ru"
 
   if opts[:daemonize]

@@ -138,7 +138,23 @@ module MDSLSchema
       type: :boolean,
       description: "Enable AI user simulation"
     },
-    
+    image: {
+      type: :boolean,
+      description: "Enable image/vision capabilities"
+    },
+    pdf: {
+      type: :boolean,
+      description: "Enable PDF document handling"
+    },
+    video: {
+      type: :boolean,
+      description: "Enable video generation capabilities"
+    },
+    audio: {
+      type: :boolean,
+      description: "Enable audio processing capabilities"
+    },
+
     # Complex data types (arrays/objects)
     images: {
       type: :array,

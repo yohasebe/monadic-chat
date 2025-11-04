@@ -247,8 +247,18 @@ module Monadic
       # @param features [Hash] Raw features hash from MDSL
       # @return [Hash] Normalized features hash
       def self.normalize_feature_names(features)
-        # No aliases needed - all features use their canonical names
-        features.dup
+        normalized = features.dup
+
+        # Map PDF storage variants to canonical 'pdf' name
+        if features[:pdf_vector_storage]
+          normalized[:pdf] = features[:pdf_vector_storage]
+        end
+
+        if features[:pdf_upload]
+          normalized[:pdf] = features[:pdf_upload]
+        end
+
+        normalized
       end
 
       # Get Font Awesome icon for tool group
@@ -318,6 +328,16 @@ module Monadic
           icon: "fa-code",
           label: "jupyter",
           description: "Jupyter notebook integration"
+        },
+        pdf: {
+          icon: "fa-file-pdf",
+          label: "pdf input",
+          description: "PDF document handling capability"
+        },
+        image: {
+          icon: "fa-image",
+          label: "image input",
+          description: "Image upload and processing capability"
         }
       }.freeze
     end

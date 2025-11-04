@@ -71,11 +71,9 @@ module WebSocketHelper
 
     connections_copy.each do |ws|
       begin
-        # async-websocket connections - write and flush
-        Async do
-          ws.write(message)
-          ws.flush
-        end
+        # Synchronous send - removed Async do block for thread compatibility
+        ws.write(message)
+        ws.flush
       rescue => e
         # Log WebSocket send error and remove dead connection
         puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
@@ -90,11 +88,9 @@ module WebSocketHelper
 
     connections_copy.each do |ws|
       begin
-        # async-websocket connections - write and flush
-        Async do
-          ws.write(message)
-          ws.flush
-        end
+        # Synchronous send - removed Async do block for thread compatibility
+        ws.write(message)
+        ws.flush
 
         if CONFIG["EXTRA_LOGGING"]
           puts "[WebSocketHelper] Broadcasted: #{message[0..100]}..."
@@ -169,11 +165,9 @@ module WebSocketHelper
 
     websockets.each do |ws|
       begin
-        # async-websocket connections - write and flush
-        Async do
-          ws.write(message_json)
-          ws.flush
-        end
+        # Synchronous send - removed Async do block for thread compatibility
+        ws.write(message_json)
+        ws.flush
 
         if CONFIG["EXTRA_LOGGING"]
           puts "[WebSocketHelper] Sent to session #{session_id}: #{message_json[0..100]}..."
@@ -724,6 +718,12 @@ module WebSocketHelper
     ps = PragmaticSegmenter::Segmenter.new(text: text)
     segments = ps.segment
 
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[TTS] Original text: '#{text[0..100]}...'"
+      puts "[TTS] Segmented into #{segments.length} segments:"
+      segments.each_with_index { |s, i| puts "[TTS]   [#{i}] '#{s}'" }
+    end
+
     # For Gemini TTS, combine short segments to avoid API failures
     if provider == "gemini-flash" || provider == "gemini-pro"
       combined_segments = []
@@ -804,6 +804,11 @@ module WebSocketHelper
         end
       end
 
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[TTS] After filtering: #{valid_segments.length} valid segments"
+        valid_segments.each_with_index { |s, i| puts "[TTS]   Valid[#{i}] '#{s}'" }
+      end
+
       # Prefetch pipeline: Start first 2 TTS requests in parallel
       # Limited to 2 to respect provider rate limits and concurrent request constraints
       # Most providers have strict limits: OpenAI (RPM), Gemini (QPM), ElevenLabs (concurrent)
@@ -859,12 +864,22 @@ module WebSocketHelper
 
         # Process segments in order
         valid_segments.each_with_index do |segment, i|
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[TTS] Processing segment #{i}/#{valid_segments.length - 1}: '#{segment[0..50]}...'"
+            puts "[TTS] tts_futures.length = #{tts_futures.length}, waiting for index #{i}"
+          end
+
           # Wait for current segment's TTS to complete with error handling
           begin
             res_hash = tts_futures[i]&.value
+
+            if CONFIG["EXTRA_LOGGING"]
+              puts "[TTS] Segment #{i} result: #{res_hash ? res_hash["type"] : "nil"}"
+            end
           rescue => e
             # Thread was killed or errored - create error response
-            puts "TTS segment #{i} failed with exception: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            puts "[TTS] Segment #{i} failed with exception: #{e.message}"
+            puts "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" if CONFIG["EXTRA_LOGGING"]
             res_hash = {
               "type" => "error",
               "content" => "TTS generation failed for segment #{i + 1}"
@@ -924,10 +939,18 @@ module WebSocketHelper
       end
 
       # Signal completion
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[TTS] All segments processed, sending tts_complete"
+      end
+
       WebSocketHelper.broadcast_to_all({
         "type" => "tts_complete",
         "total_segments" => valid_segments.length
       }.to_json)
+
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[TTS] tts_complete sent successfully"
+      end
     end
   end
   
@@ -1129,8 +1152,7 @@ module WebSocketHelper
   end
 
   def websocket_handler(env)
-    # Falcon handles the async event loop automatically
-    # No need for EventMachine.run
+    # Falcon/Async handles the event loop automatically
     handle_websocket_connection(env)
   end
 
@@ -1909,7 +1931,7 @@ module WebSocketHelper
                   complete_sentences = segments[0...-1]
 
                   if auto_tts_realtime_mode
-                    # REALTIME MODE: Use EventMachine async HTTP for non-blocking TTS processing
+                    # REALTIME MODE: Use http.rb async processing for non-blocking TTS
                     if CONFIG["EXTRA_LOGGING"]
                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                         log.puts("[#{Time.now}] [DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}")
@@ -2118,9 +2140,29 @@ module WebSocketHelper
 
             # Process final segment for realtime mode
             # The last incomplete sentence in buffer needs to be processed after streaming completes
-            if obj["auto_speech"] && !cutoff && !obj["monadic"] && auto_tts_realtime_mode
+            # Check both auto_speech and auto_tts_realtime_mode to ensure TTS is intentionally enabled
+            # auto_speech can be boolean true or string "true" from client
+            auto_speech_enabled = obj["auto_speech"] == true || obj["auto_speech"] == "true"
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] Checking final segment conditions:")
+                log.puts("[#{Time.now}] [DEBUG]   auto_speech=#{obj["auto_speech"].inspect}, auto_speech_enabled=#{auto_speech_enabled}")
+                log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
+                log.puts("[#{Time.now}] [DEBUG]   Buffer contents: #{buffer.inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   Short buffer: #{@realtime_tts_short_buffer.inspect}")
+              end
+            end
+
+            if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !obj["monadic"]
               # Get final text from buffer
               final_text = buffer.join.strip
+
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] Final text from buffer: '#{final_text}'")
+                end
+              end
 
               # Also check if there are any buffered short sentences that haven't been sent yet
               if !@realtime_tts_short_buffer.empty?

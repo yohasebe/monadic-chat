@@ -720,8 +720,7 @@ module InteractionUtils
     end
   end
 
-  # EventMachine-compatible async TTS API request
-  # Uses http.rb gem with thread-based async HTTP requests
+  # Async TTS API request using http.rb gem with thread-based processing
   # @param text [String] Text to convert to speech
   # @param provider [String] TTS provider (OpenAI, ElevenLabs, Gemini)
   # @param voice [String] Voice ID
@@ -812,10 +811,10 @@ module InteractionUtils
               end
             end
 
-            # Return to EventMachine reactor thread
+            # Call result block in Async context
             Async do
-            block.call(result)
-          end
+              block.call(result)
+            end
           else
             # HTTP error
             error_result = {
@@ -932,10 +931,10 @@ module InteractionUtils
               end
             end
 
-            # Return to EventMachine reactor thread
+            # Call result block in Async context
             Async do
-            block.call(result)
-          end
+              block.call(result)
+            end
           else
             # HTTP error
             error_result = {

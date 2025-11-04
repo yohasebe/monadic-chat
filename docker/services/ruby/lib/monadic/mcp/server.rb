@@ -4,8 +4,10 @@ require 'sinatra/base'
 require 'json'
 require 'securerandom'
 require 'time'
-require 'eventmachine'
-require 'thin'
+require 'async'
+require 'async/http/endpoint'
+require 'async/http/server'
+require 'protocol/rack'
 require_relative '../utils/debug_helper'
 require_relative 'cache_invalidator'
 
@@ -15,14 +17,16 @@ module Monadic
       include DebugHelper
 
       # Configuration
-      set :server, 'thin'
-      set :port, (CONFIG["MCP_SERVER_PORT"] || 3100).to_i
       set :bind, '127.0.0.1'
       set :public_folder, false
-      set :logging, CONFIG["EXTRA_LOGGING"] == "true"
+      set :logging, false  # Disable Sinatra logging to avoid Rack env issues with Falcon
       set :dump_errors, true
       set :show_exceptions, false
       set :raise_errors, false
+
+      # Explicitly disable logger middleware to avoid Async::HTTP compatibility issues
+      disable :logging
+      set :logger, nil
 
       # Protocol constants
       JSONRPC_VERSION = "2.0"
@@ -37,7 +41,8 @@ module Monadic
 
       # Server status
       @@server_running = false
-      
+      @@server_thread = nil
+
       # Tool cache
       @@tools_cache = nil
       @@tools_cache_time = nil
@@ -48,7 +53,7 @@ module Monadic
         headers['Access-Control-Allow-Origin'] = '*'
         headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
         headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
-        
+
         if request.request_method == 'OPTIONS'
           halt 200
         end
@@ -68,7 +73,7 @@ module Monadic
       post '/mcp' do
         begin
           content_type :json
-          
+
           # Parse JSON-RPC request
           begin
             request_data = JSON.parse(request.body.read)
@@ -130,7 +135,7 @@ module Monadic
 
       def handle_initialize(id, params)
         client_info = params['clientInfo'] || {}
-        
+
         result = {
           protocolVersion: MCP_PROTOCOL_VERSION,
           serverInfo: {
@@ -143,27 +148,27 @@ module Monadic
             prompts: {}
           }
         }
-        
+
         json_rpc_response(id, result)
       end
 
       def handle_tools_list(id, params)
         # Use cached tools if available and not expired
         tools = get_cached_tools
-        
+
         unless tools
           # Build tools list
           tools = []
-          
+
           discover_apps.each do |app_name, app_info|
             next unless app_info[:tools]
-            
+
             app_info[:tools].each do |tool|
               formatted_tool = format_tool_for_mcp(app_name, tool, app_info[:display_name])
               tools << formatted_tool if formatted_tool
             end
           end
-          
+
           # Cache the tools
           cache_tools(tools)
 
@@ -171,33 +176,33 @@ module Monadic
         else
           puts "[MCP] Using cached tools (#{tools.length} tools)" if CONFIG["EXTRA_LOGGING"] == "true"
         end
-        
+
         json_rpc_response(id, { tools: tools })
       end
 
       def handle_tool_call(id, params)
         tool_name = params['name']
         arguments = params['arguments'] || {}
-        
+
         unless tool_name
           return json_rpc_error(id, "Missing tool name", INVALID_PARAMS)
         end
-        
+
         # Parse tool name to get app and tool names
         parts = tool_name.split('__', 2)
         if parts.length != 2
           return json_rpc_error(id, "Invalid tool name format", INVALID_PARAMS)
         end
-        
+
         app_name = parts[0]
         actual_tool_name = parts[1]
-        
+
         # Direct lookup from APPS instead of calling discover_apps
         app_instance = ::APPS[app_name] if defined?(::APPS)
         unless app_instance && app_instance.respond_to?(:settings) && !app_instance.settings['disabled']
           return json_rpc_error(id, "App not found or disabled: #{app_name}", INVALID_PARAMS)
         end
-        
+
         # Execute tool
         begin
           result = execute_app_tool(app_instance, actual_tool_name, arguments)
@@ -230,19 +235,19 @@ module Monadic
 
       def discover_apps
         apps = {}
-        
+
         return apps unless defined?(::APPS) && ::APPS.is_a?(Hash)
-        
+
         ::APPS.each do |app_name, app_instance|
           next unless app_instance.respond_to?(:settings)
-          
+
           settings = app_instance.settings
           next if settings['disabled']
-          
+
           # Get tools from settings
           tools = settings['tools']
           next unless tools
-          
+
           # Handle different tool formats
           tool_list = case tools
                      when Hash
@@ -254,9 +259,9 @@ module Monadic
                      else
                        []
                      end
-          
+
           next if tool_list.empty?
-          
+
           apps[app_name] = {
             instance: app_instance,
             display_name: settings['display_name'] || app_name,
@@ -265,7 +270,7 @@ module Monadic
 
           puts "[MCP] Found #{tool_list.length} tools in app #{app_name}" if CONFIG["EXTRA_LOGGING"] == "true"
         end
-        
+
         apps
       end
 
@@ -294,12 +299,12 @@ module Monadic
       def execute_app_tool(app_instance, tool_name, arguments)
         # Convert arguments to symbol keys for Ruby method calls
         ruby_args = arguments.transform_keys(&:to_sym)
-        
+
         # Check if the app instance responds to the tool method
         unless app_instance.respond_to?(tool_name.to_sym)
           raise "Tool method not found: #{tool_name}"
         end
-        
+
         # Execute the tool with better error handling
         begin
           result = if ruby_args.empty?
@@ -307,7 +312,7 @@ module Monadic
                   else
                     app_instance.send(tool_name.to_sym, **ruby_args)
                   end
-          
+
           # Format the result for MCP
           format_tool_result(result)
         rescue ArgumentError => e
@@ -316,12 +321,12 @@ module Monadic
           params = method.parameters
           required_params = params.select { |type, _| type == :keyreq }.map(&:last)
           optional_params = params.select { |type, _| type == :key }.map(&:last)
-          
+
           error_msg = "Parameter error: #{e.message}\n"
           error_msg += "Required parameters: #{required_params.join(', ')}\n"
           error_msg += "Optional parameters: #{optional_params.join(', ')}\n"
           error_msg += "Provided parameters: #{ruby_args.keys.join(', ')}"
-          
+
           raise error_msg
         end
       end
@@ -421,7 +426,7 @@ module Monadic
       # Cache management methods
       def get_cached_tools
         return nil unless @@tools_cache && @@tools_cache_time
-        
+
         # Check if cache is still valid
         if Time.now - @@tools_cache_time < CACHE_TTL
           @@tools_cache
@@ -453,77 +458,75 @@ module Monadic
         }
       end
 
-      # Start the MCP server
+      # Stop the MCP server
+      def self.stop!
+        if defined?(@@server_thread) && @@server_thread
+          @@server_thread.kill
+          @@server_thread = nil
+          @@server_running = false
+          puts "[MCP] Server stopped"
+        end
+      end
+
+      # Start the MCP server using Async (runs in current Falcon worker)
       def self.start!
         return unless CONFIG["MCP_SERVER_ENABLED"] == true || CONFIG["MCP_SERVER_ENABLED"] == "true"
-        
+
         port = (CONFIG["MCP_SERVER_PORT"] || 3100).to_i
-        
+
         # Check if port is already in use
         begin
           require 'socket'
           server = TCPServer.new('127.0.0.1', port)
           server.close
         rescue Errno::EADDRINUSE
-          puts "MCP Server port #{port} is already in use. Skipping MCP server startup."
+          puts "[MCP] MCP Server port #{port} is already in use. Skipping MCP server startup."
           return
         rescue => e
-          puts "Error checking port availability: #{e.message}"
+          puts "[MCP] Error checking port availability: #{e.message}"
+          return
         end
-        
-        # Check if EventMachine is already running
-        if EM.reactor_running?
-          # If reactor is already running, start server in the existing reactor
+
+        # Start HTTP server as background task in current Async context
+        # This runs within the Falcon worker process, sharing memory and APPS constant
+        Async do |task|
           begin
-            # Configure Thin server
-            thin_server = Thin::Server.new('127.0.0.1', port, self, signals: false)
-            thin_server.silent = true unless CONFIG["EXTRA_LOGGING"] == "true"
-            
-            # Start the server without blocking
-            thin_server.start!
+            puts "[MCP] Starting MCP Server on port #{port} in worker process #{Process.pid}..."
+
+            endpoint = Async::HTTP::Endpoint.parse("http://127.0.0.1:#{port}")
+
+            # Create Rack app
+            app = Rack::Builder.new do
+              run Monadic::MCP::Server
+            end
+
+            # Wrap Rack app for Async::HTTP::Server
+            middleware = Protocol::Rack::Adapter.new(app)
+
+            # Create and bind the server
+            server = Async::HTTP::Server.new(middleware, endpoint)
+
             @@server_running = true
-            puts "MCP Server started on port #{port} (using existing EventMachine reactor)"
-            
+            puts "[MCP] MCP Server started on port #{port}"
+
             # Notify via WebSocket if available
             if defined?(WebSocketHelper)
-              EM.next_tick do
-                WebSocketHelper.broadcast_mcp_status({
-                  enabled: true,
-                  port: port,
-                  status: "running"
-                })
-              end
+              WebSocketHelper.broadcast_mcp_status({
+                enabled: true,
+                port: port,
+                status: "running"
+              })
             end
+
+            # Run the server (this blocks the task)
+            server.run
           rescue => e
-            puts "Failed to start MCP server in existing reactor: #{e.message}"
+            puts "[MCP] Server error: #{e.message}"
             puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
-          end
-        else
-          # Start EventMachine and the server
-          Thread.new do
-            begin
-              EM.run do
-                thin_server = Thin::Server.new('127.0.0.1', port, self, signals: false)
-                thin_server.silent = true unless CONFIG["EXTRA_LOGGING"] == "true"
-                thin_server.start!
-                @@server_running = true
-                puts "MCP Server started on port #{port} (new EventMachine reactor)"
-                
-                # Notify via WebSocket if available
-                if defined?(WebSocketHelper)
-                  EM.next_tick do
-                    WebSocketHelper.broadcast_mcp_status({
-                      enabled: true,
-                      port: port,
-                      status: "running"
-                    })
-                  end
-                end
-              end
-            rescue => e
-              puts "Failed to start MCP server: #{e.message}"
-              puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
-            end
+            @@server_running = false
+          ensure
+            @@server_running = false
+            puts "[MCP] Server stopped" if CONFIG["EXTRA_LOGGING"] == "true"
           end
         end
       end

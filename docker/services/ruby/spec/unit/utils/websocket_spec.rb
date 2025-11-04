@@ -3,7 +3,6 @@
 require 'spec_helper'
 require 'websocket'
 require 'ostruct'
-require 'faye/websocket'
 require_relative '../../../lib/monadic/utils/websocket'
 
 RSpec.describe WebSocketHelper do
@@ -16,25 +15,35 @@ RSpec.describe WebSocketHelper do
   # Mock WebSocket class for testing
   class MockWebSocket
     attr_reader :messages_sent, :closed
-    
+
     def initialize(closed: false)
       @messages_sent = []
       @closed = closed
     end
-    
+
     def send(message)
       raise StandardError, "Connection closed" if @closed
       @messages_sent << message
     end
-    
+
+    # Async::WebSocket-compatible methods
+    def write(message)
+      raise StandardError, "Connection closed" if @closed
+      @messages_sent << message
+    end
+
+    def flush
+      # No-op for mock, but must exist
+    end
+
     def close
       @closed = true
     end
-    
+
     def closed?
       @closed
     end
-    
+
     def ready_state
       @closed ? Faye::WebSocket::CLOSED : Faye::WebSocket::OPEN
     end
@@ -129,18 +138,18 @@ RSpec.describe WebSocketHelper do
     it 'removes dead connections when broadcasting' do
       ws_good = MockWebSocket.new
       ws_dead = MockWebSocket.new(closed: true)
-      
+
       described_class.add_connection(ws_good)
       described_class.add_connection(ws_dead)
-      
+
       described_class.broadcast_mcp_status({ test: true })
-      
-      # The implementation doesn't remove closed connections unless they raise an exception
-      # So we expect both connections to still be in the list
+
+      # Dead connections raise an exception on write(), so they get removed
       connections = get_connections_safely
-      expect(connections).to include(ws_good, ws_dead)
-      
-      # But only the good connection should have received the message
+      expect(connections).to include(ws_good)
+      expect(connections).not_to include(ws_dead)
+
+      # Only the good connection should have received the message
       expect(ws_good.messages_sent.length).to eq(1)
       expect(ws_dead.messages_sent.length).to eq(0)
     end
@@ -407,16 +416,16 @@ RSpec.describe WebSocketHelper do
     
     it 'removes connections on error' do
       described_class.add_connection(ws)
-      
+
       # Simulate connection error
       ws.instance_variable_set(:@closed, true)
-      
+
       # Try to broadcast - should handle the error
       described_class.broadcast_mcp_status({ test: true })
-      
-      # Connection should remain in list unless it raises an exception
+
+      # Connection should be removed because write() raises an exception
       connections = get_connections_safely
-      expect(connections).to include(ws)
+      expect(connections).not_to include(ws)
     end
     
     it 'handles nil WebSocket gracefully' do

@@ -145,6 +145,7 @@ def start_server(opts)
     # Debug mode - run in foreground
     puts "Starting server in debug mode on port #{port_num}..."
     puts "System available at: http://localhost:#{port_num}"
+
     exec(cmd)
   end
 end

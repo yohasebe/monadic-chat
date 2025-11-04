@@ -22,12 +22,25 @@ PGVector Database (3072-dim embeddings)
 
 ### 1. MCP Server (`docker/services/ruby/lib/monadic/mcp/server.rb`)
 
+**Architecture:**
+- Runs as **Async::HTTP::Server within Falcon worker processes** (not separate process)
+- Uses **Rack middleware for lazy initialization** after Async reactor starts
+- Binds to port 3100 via localhost (127.0.0.1)
+- Each of 8 Falcon workers runs its own MCP server instance
+- Shares memory with main application (direct access to `::APPS` constant)
+
 **Key Features:**
-- Sinatra-based HTTP server on port 3100
 - JSON-RPC 2.0 protocol implementation
 - Automatic tool discovery from all apps
 - 5-minute TTL cache for tool list
 - Direct app instance lookup for O(1) tool execution
+
+**Startup Flow:**
+1. Falcon starts and forks into 8 worker processes
+2. On **first HTTP request** to main app, Rack middleware (`MCPServerStarter` in `config.ru`) executes
+3. Middleware calls `Monadic::MCP::Server.start!` once per worker
+4. `start!` launches `Async do` block (requires active Async reactor)
+5. MCP server runs as background task on port 3100
 
 **Important Methods:**
 ```ruby
@@ -45,6 +58,7 @@ end
 - All debug_log calls were replaced with `puts "[MCP] ..."` for reliability
 - Enable `EXTRA_LOGGING=true` in config for detailed logs
 - Check `rake server:debug` terminal for MCP-related output
+- Look for `[MCP] Starting MCP Server on port 3100 in worker process <PID>...` message
 
 ### 2. Stdio Wrapper (`~/monadic/scripts/mcp_stdio_wrapper.rb`)
 

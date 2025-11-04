@@ -34,7 +34,7 @@ module Monadic
       # @param prompt [String] The complete prompt to send to OpenAI Code
       # @param app_name [String] Name of the calling app for logging (optional)
       # @param timeout [Integer] Request timeout in seconds (optional)
-      # @param model [String] Model to use (optional, defaults to MDSL config or "openai-code")
+      # @param model [String] Model to use (optional, defaults to MDSL config or "gpt-5-codex")
       # @param block [Proc] Block to call with progress updates (optional)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
       def call_openai_code(prompt:, app_name: nil, timeout: nil, model: nil, &block)
@@ -119,7 +119,7 @@ module Monadic
           actual_model = model ||
                          @context&.dig(:agents, :code_generator) ||
                          ENV['OPENAI_CODE_MODEL'] ||
-                         "openai-code"
+                         "gpt-5-codex"
 
           # Log model selection for debugging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -327,7 +327,7 @@ module Monadic
       # @param prompt [String] The prompt to send
       # @param model [String] The model to use
       # @return [Hash] Session object for api_request
-      def build_session(prompt:, model: "openai-code")
+      def build_session(prompt:, model: "gpt-5-codex")
         # Get the field name for message content
         content_field = message_content_field.to_s
 

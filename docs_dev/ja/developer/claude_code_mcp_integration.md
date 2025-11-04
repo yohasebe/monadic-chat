@@ -22,12 +22,25 @@ PGVectorデータベース（3072次元埋め込み）
 
 ### 1. MCPサーバー（`docker/services/ruby/lib/monadic/mcp/server.rb`）
 
+**アーキテクチャ：**
+- **Falconワーカープロセス内のAsync::HTTP::Serverとして実行**（別プロセスではない）
+- **Asyncリアクター起動後の遅延初期化**のためにRackミドルウェアを使用
+- localhost（127.0.0.1）のポート3100にバインド
+- 8つのFalconワーカーそれぞれが独自のMCPサーバーインスタンスを実行
+- メインアプリケーションとメモリを共有（`::APPS`定数への直接アクセス）
+
 **主要機能：**
-- ポート3100のSinatraベースHTTPサーバー
 - JSON-RPC 2.0プロトコル実装
 - すべてのアプリからの自動ツール発見
 - 5分間TTLキャッシュでツールリスト管理
 - O(1)ツール実行のための直接アプリインスタンス検索
+
+**起動フロー：**
+1. Falconが起動し、8つのワーカープロセスにfork
+2. メインアプリへの**最初のHTTPリクエスト**時に、Rackミドルウェア（`config.ru`内の`MCPServerStarter`）が実行
+3. ミドルウェアがワーカーごとに1回`Monadic::MCP::Server.start!`を呼び出し
+4. `start!`が`Async do`ブロックを起動（アクティブなAsyncリアクターが必要）
+5. MCPサーバーがポート3100でバックグラウンドタスクとして実行
 
 **重要なメソッド：**
 ```ruby
@@ -45,6 +58,7 @@ end
 - すべてのdebug_log呼び出しは信頼性のために`puts "[MCP] ..."`に置き換えられました
 - 詳細ログのために設定で`EXTRA_LOGGING=true`を有効化
 - MCP関連の出力は`rake server:debug`ターミナルを確認
+- `[MCP] Starting MCP Server on port 3100 in worker process <PID>...`メッセージを探す
 
 ### 2. Stdioラッパー（`~/monadic/scripts/mcp_stdio_wrapper.rb`）
 

@@ -1455,6 +1455,30 @@ end
 desc "Run all tests (Ruby, JavaScript, and Python)"
 task :test do
   require 'time'
+  require 'fileutils'
+
+  # Clean up all old test results before starting
+  results_dir = File.expand_path('tmp/test_results', __dir__)
+  if Dir.exist?(results_dir)
+    puts "\n" + "=" * 60
+    puts "🧹 Cleaning up old test results..."
+    puts "=" * 60
+
+    # Count items to delete
+    dirs = Dir.glob(File.join(results_dir, '2*')).select { |f| File.directory?(f) }
+    files = Dir.glob(File.join(results_dir, '*')).select { |f| File.file?(f) && File.basename(f) != '.DS_Store' }
+    total = dirs.size + files.size
+
+    if total > 0
+      puts "Deleting #{total} items (#{dirs.size} directories, #{files.size} files)..."
+      FileUtils.rm_rf(dirs)
+      FileUtils.rm_f(files)
+      puts "✅ Cleanup complete"
+    else
+      puts "No old results to clean up"
+    end
+    puts "=" * 60 + "\n"
+  end
 
   # Generate unified run ID for this test session
   run_id = "test_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
@@ -1488,13 +1512,6 @@ task :test do
   puts "  - JavaScript: ./tmp/test_results/#{run_id}_jest.json"
   puts "  - Python: ./tmp/test_results/#{run_id}_pytest.txt"
   puts "=" * 60
-
-  # Auto-cleanup old test results if enabled
-  if ENV['TEST_AUTO_CLEANUP'] == 'true'
-    puts "\n🧹 Auto-cleanup enabled, removing old test results..."
-    Rake::Task["test:cleanup"].reenable
-    Rake::Task["test:cleanup"].invoke
-  end
 end
 
 # Run only the jupyter controller integration test

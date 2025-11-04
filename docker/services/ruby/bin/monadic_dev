@@ -128,7 +128,7 @@ def start_server(opts)
 
   # Start the server with Falcon
   port_num = opts[:port] || DEFAULT_PORT
-  cmd = "falcon serve -b http://0.0.0.0:#{port_num} -c #{DOCKER_HOME}/ruby/config.ru"
+  cmd = "bundle exec falcon serve -b http://0.0.0.0:#{port_num} -c #{DOCKER_HOME}/ruby/config.ru"
 
   if opts[:daemonize]
     # For daemonized mode, use background process with output redirection

@@ -253,16 +253,8 @@ module WebSocketHelper
   def self.cleanup_stale_sessions
     @@session_mutex.synchronize do
       @@connections_by_session.each do |session_id, websockets|
-        # Collect dead connections
-        to_remove = []
-        websockets.each do |ws|
-          if ws.nil? || ws.ready_state != Faye::WebSocket::OPEN
-            to_remove << ws
-          end
-        end
-
-        # Remove after iteration
-        to_remove.each { |ws| websockets.delete(ws) }
+        # Remove nil connections (async-websocket doesn't have ready_state)
+        websockets.reject! { |ws| ws.nil? }
 
         # Remove empty sessions
         @@connections_by_session.delete(session_id) if websockets.empty?
@@ -431,10 +423,10 @@ module WebSocketHelper
 
   # Handle the LOAD message by preparing and sending relevant data
   # @param ws [Faye::WebSocket] WebSocket connection
-  def handle_load_message(ws)
+  def handle_load_message(connection)
     # Handle error if present
     if session[:error]
-      ws.send({ "type" => "error", "content" => session[:error] }.to_json)
+      send_to_client(connection, { "type" => "error", "content" => session[:error] })
       session[:error] = nil
     end
     
@@ -445,19 +437,19 @@ module WebSocketHelper
     filtered_messages = prepare_filtered_messages
     
     # Send app data
-    push_apps_data(ws, apps_data, filtered_messages)
+    push_apps_data(connection, apps_data, filtered_messages)
     
     # Handle voice data
-    push_voice_data(ws)
+    push_voice_data(connection)
     
     # Send MCP server status if available
     if defined?(Monadic::MCP::Server)
       mcp_status = Monadic::MCP::Server.status
-      ws.send({ "type" => "mcp_status", "content" => mcp_status }.to_json)
+      send_to_client(connection, { "type" => "mcp_status", "content" => mcp_status })
     end
     
     # Update message status
-    update_message_status(ws, filtered_messages)
+    update_message_status(connection, filtered_messages)
   end
   
   # Prepare apps data with settings
@@ -638,7 +630,7 @@ module WebSocketHelper
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param apps [Hash] Apps data
   # @param filtered_messages [Array] Filtered messages
-  def push_apps_data(ws, apps, filtered_messages)
+  def push_apps_data(connection, apps, filtered_messages)
     # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -647,40 +639,35 @@ module WebSocketHelper
     end
 
     # Send apps message first
-    @channel.push({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
+    send_to_client(connection, { "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }) unless apps.empty?
 
-    # Use EM.add_timer to delay subsequent messages, giving browser time to process large apps message
-    # This prevents message loss when apps message is very large (>1MB)
-    EM.add_timer(0.05) do
-      @channel.push({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
+    # Send parameters message (no delay needed with async-websocket - Fiber scheduler handles ordering)
+    send_to_client(connection, { "type" => "parameters", "content" => session[:parameters] }) unless session[:parameters].empty?
 
-      # Debug logging
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message"
-        extra_log.close
-      end
+    # Debug logging
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message"
+      extra_log.close
     end
 
-    # Send past_messages with additional delay to ensure parameters is processed first
-    EM.add_timer(0.1) do
-      @channel.push({ "type" => "past_messages", "content" => filtered_messages }.to_json)
+    # Send past_messages (sequential sending is naturally ordered with async-websocket)
+    send_to_client(connection, { "type" => "past_messages", "content" => filtered_messages })
 
-      # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items"
-        extra_log.close
-      end
+    # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items"
+      extra_log.close
     end
   end
   
   # Push voice data to WebSocket
   # @param ws [Faye::WebSocket] WebSocket connection
-  def push_voice_data(ws)
+  def push_voice_data(connection)
     elevenlabs_voices = list_elevenlabs_voices
     if elevenlabs_voices && !elevenlabs_voices.empty?
-      @channel.push({ "type" => "elevenlabs_voices", "content" => elevenlabs_voices }.to_json)
+      send_to_client(connection, { "type" => "elevenlabs_voices", "content" => elevenlabs_voices })
     end
     
     # Send Gemini voices if API key is available
@@ -695,19 +682,19 @@ module WebSocketHelper
         { "voice_id" => "schedar", "name" => "Schedar" },
         { "voice_id" => "zephyr", "name" => "Zephyr" }
       ]
-      @channel.push({ "type" => "gemini_voices", "content" => gemini_voices }.to_json)
+      send_to_client(connection, { "type" => "gemini_voices", "content" => gemini_voices })
     end
   end
   
   # Update message status and push info
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param filtered_messages [Array] Filtered messages
-  def update_message_status(ws, filtered_messages)
+  def update_message_status(connection, filtered_messages)
     past_messages_data = check_past_messages(session[:parameters])
 
     # Reuse filtered_messages for change_status
-    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+    send_to_client(connection, { "type" => "change_status", "content" => filtered_messages }) if past_messages_data[:changed]
+    send_to_client(connection, { "type" => "info", "content" => past_messages_data })
   end
 
   # Common TTS playback processing for PLAY_TTS and Auto Speech
@@ -822,7 +809,7 @@ module WebSocketHelper
           prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
 
           # Send audio and progress
-          @channel.push(res_hash.to_json)
+          send_to_client(connection, res_hash)
 
           progress_message = {
             "type" => "tts_progress",
@@ -830,7 +817,7 @@ module WebSocketHelper
             "total_segments" => valid_segments.length,
             "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
           }
-          @channel.push(progress_message.to_json)
+          send_to_client(connection, progress_message)
         end
       else
         # Prefetch mode for API-based TTS providers
@@ -910,7 +897,7 @@ module WebSocketHelper
 
           # Send audio and progress
           if res_hash && res_hash["type"] != "error"
-            @channel.push(res_hash.to_json)
+            send_to_client(connection, res_hash)
 
             progress_message = {
               "type" => "tts_progress",
@@ -918,7 +905,7 @@ module WebSocketHelper
               "total_segments" => valid_segments.length,
               "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
             }
-            @channel.push(progress_message.to_json)
+            send_to_client(connection, progress_message)
           else
             puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
           end
@@ -926,17 +913,17 @@ module WebSocketHelper
       end
 
       # Signal completion
-      @channel.push({
+      send_to_client(connection, {
         "type" => "tts_complete",
         "total_segments" => valid_segments.length
-      }.to_json)
+      })
     end
   end
   
   # Handle DELETE message
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param obj [Hash] Parsed message object
-  def handle_delete_message(ws, obj)
+  def handle_delete_message(connection, obj)
     # Delete the message
     session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
     
@@ -947,14 +934,14 @@ module WebSocketHelper
     filtered_messages = prepare_filtered_messages
     
     # Update status
-    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+    send_to_client(connection, { "type" => "change_status", "content" => filtered_messages }) if past_messages_data[:changed]
+    send_to_client(connection, { "type" => "info", "content" => past_messages_data })
   end
   
   # Handle EDIT message
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param obj [Hash] Parsed message object
-  def handle_edit_message(ws, obj)
+  def handle_edit_message(connection, obj)
     # Find the message to edit
     message_to_edit = session[:messages].find { |m| m["mid"] == obj["mid"] }
     
@@ -985,13 +972,13 @@ module WebSocketHelper
       end
       
       # Push the response
-      @channel.push(response.to_json)
+      send_to_client(connection, response)
       
       # Update message status
       update_message_status_after_edit
     else
       # Message not found
-      @channel.push({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
+      send_to_client(connection, { "type" => "error", "content" => "message_not_found_for_editing" })
     end
   end
   
@@ -1027,16 +1014,16 @@ module WebSocketHelper
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
     
     # Update status to reflect any changes
-    @channel.push({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+    send_to_client(connection, { "type" => "change_status", "content" => filtered_messages }) if past_messages_data[:changed]
+    send_to_client(connection, { "type" => "info", "content" => past_messages_data })
   end
   
   # Handle AUDIO message
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param obj [Hash] Parsed message object
-  def handle_audio_message(ws, obj)
+  def handle_audio_message(connection, obj)
     if obj["content"].nil?
-      @channel.push({ "type" => "error", "content" => "voice_input_empty" }.to_json)
+      send_to_client(connection, { "type" => "error", "content" => "voice_input_empty" })
       return
     end
 
@@ -1052,7 +1039,7 @@ module WebSocketHelper
     session[:parameters]["stt_model"] = model
 
     # Process the transcription
-    process_transcription(ws, blob, format, obj["lang_code"], model)
+    process_transcription(connection, blob, format, obj["lang_code"], model)
   end
   
   # Process audio transcription
@@ -1061,29 +1048,29 @@ module WebSocketHelper
   # @param format [String] The audio format
   # @param lang_code [String] The language code
   # @param model [String] The model to use
-  def process_transcription(ws, blob, format, lang_code, model)
+  def process_transcription(connection, blob, format, lang_code, model)
     begin
       # Request transcription
       res = stt_api_request(blob, format, lang_code, model)
       
       if res["text"] && res["text"] == ""
-        @channel.push({ "type" => "error", "content" => "text_input_empty" }.to_json)
+        send_to_client(connection, { "type" => "error", "content" => "text_input_empty" })
       elsif res["type"] && res["type"] == "error"
         # Include format information in error message for debugging
         error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
-        @channel.push({ "type" => "error", "content" => error_message }.to_json)
+        send_to_client(connection, { "type" => "error", "content" => error_message })
       else
-        send_transcription_result(ws, res, model)
+        send_transcription_result(connection, res, model)
       end
     rescue StandardError => e
       # Log the error but don't crash the application
       log_error("Error processing transcription", e) 
       
       # Send a generic error message to the client
-      @channel.push({ 
+      send_to_client(connection, { 
         "type" => "error", 
         "content" => "An error occurred while processing your audio"
-      }.to_json)
+      })
     end
   end
   
@@ -1091,21 +1078,21 @@ module WebSocketHelper
   # @param ws [Faye::WebSocket] WebSocket connection
   # @param res [Hash] The transcription result
   # @param model [String] The model used
-  def send_transcription_result(ws, res, model)
+  def send_transcription_result(connection, res, model)
     begin
       logprob = calculate_logprob(res, model)
       
-      @channel.push({
+      send_to_client(connection, {
         "type" => "stt",
         "content" => res["text"],
         "logprob" => logprob
-      }.to_json)
+      })
     rescue StandardError => e
       # Handle errors in logprob calculation
-      @channel.push({
+      send_to_client(connection, {
         "type" => "stt",
         "content" => res["text"]
-      }.to_json)
+      })
     end
   end
   
@@ -1137,16 +1124,6 @@ module WebSocketHelper
   end
 
   def handle_websocket_connection(env)
-    queue = Queue.new
-    thread = nil
-    sid = nil
-
-    # Create a new channel for each connection if it doesn't exist
-    @channel ||= EventMachine::Channel.new
-
-    # Share the channel with WebSocketHelper for progress broadcasting
-    WebSocketHelper.set_channel(@channel)
-
     # Generate or retrieve session ID for this WebSocket connection
     ws_session_id = nil
 
@@ -1169,33 +1146,36 @@ module WebSocketHelper
       puts "[WebSocket] Using session ID: #{ws_session_id} for new connection"
     end
 
-    ws = Faye::WebSocket.new(env, nil, { ping: 15 })
-    ws.on :open do
-      sid = @channel.subscribe { |obj| ws.send(obj) }
+    # Use async-websocket to handle the connection
+    Async::WebSocket::Adapters::Rack.open(env) do |connection|
       # Add connection with session ID for progress broadcasting
-      WebSocketHelper.add_connection_with_session(ws, ws_session_id)
+      WebSocketHelper.add_connection_with_session(connection, ws_session_id)
 
       if CONFIG["EXTRA_LOGGING"]
         puts "[WebSocket] Connection opened for session #{ws_session_id}"
       end
-    end
 
-    ws.on :message do |event|
-      # Websocket message logging removed for performance
-
-      # Set session ID in Thread.current for downstream processes
+      # Set session ID for downstream processes
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session if defined?(session) && session.is_a?(Hash)
 
-      begin
-        obj = JSON.parse(event.data)
-        # Normalize boolean values from JavaScript
-        obj = BooleanParser.parse_hash(obj)
-      rescue JSON::ParserError => e
-        DebugHelper.debug("Invalid JSON in WebSocket message: #{event.data[0..100]}", "websocket", level: :error)
-        @channel.push({ "type" => "error", "content" => "invalid_message_format" }.to_json)
-        next
-      end
+      # Variables for message processing
+      queue = Queue.new
+      thread = nil
+
+      # Message processing loop
+      while message_data = connection.read
+        # Websocket message logging removed for performance
+
+        begin
+          obj = JSON.parse(message_data)
+          # Normalize boolean values from JavaScript
+          obj = BooleanParser.parse_hash(obj)
+        rescue JSON::ParserError => e
+          DebugHelper.debug("Invalid JSON in WebSocket message: #{message_data[0..100]}", "websocket", level: :error)
+          send_to_client(connection, { "type" => "error", "content" => "invalid_message_format" })
+          next
+        end
 
       msg = obj["message"] || ""
 
@@ -1243,7 +1223,7 @@ module WebSocketHelper
                                       response_format: response_format,
                                       language: language)
           end
-          @channel.push(res_hash.to_json)
+          send_to_client(connection, res_hash)
         when "TTS_STREAM"
           thread&.join
           provider = obj["provider"]
@@ -1266,7 +1246,7 @@ module WebSocketHelper
           if provider == "webspeech" || provider == "web-speech"
             # Create a special response for Web Speech API
             web_speech_response = { "type" => "web_speech", "content" => text }
-            @channel.push(web_speech_response.to_json)
+            send_to_client(connection, web_speech_response)
           else
             # Generate TTS content for other providers
             tts_api_request(text,
@@ -1275,30 +1255,30 @@ module WebSocketHelper
                             speed: speed,
                             response_format: response_format,
                             language: language) do |fragment|
-              @channel.push(fragment.to_json)
+              send_to_client(connection, fragment)
           end
           end
         when "CANCEL"
           thread&.kill
           thread = nil
           queue.clear
-          @channel.push({ "type" => "cancel" }.to_json)
+          send_to_client(connection, { "type" => "cancel" })
         when "PDF_TITLES"
-          ws.send({
+          send_to_client(connection, {
             "type" => "pdf_titles",
             "content" => list_pdf_titles
-          }.to_json)
+          })
         when "DELETE_PDF"
           title = obj["contents"]
           res = EMBEDDINGS_DB.delete_by_title(title)
           if res
-            ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "#{title} deleted successfully" }.to_json)
+            send_to_client(connection, { "type" => "pdf_deleted", "res" => "success", "content" => "#{title} deleted successfully" })
             # Invalidate caches for mode/presence
             begin
               session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
             rescue StandardError; end
           else
-            ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" }.to_json)
+            send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" })
           end
         when "DELETE_ALL_PDFS"
           begin
@@ -1306,13 +1286,13 @@ module WebSocketHelper
             titles.each do |t|
               EMBEDDINGS_DB.delete_by_title(t)
             end
-            ws.send({ "type" => "pdf_deleted", "res" => "success", "content" => "All local PDFs deleted" }.to_json)
-            ws.send({ "type" => "pdf_titles", "content" => [] }.to_json)
+            send_to_client(connection, { "type" => "pdf_deleted", "res" => "success", "content" => "All local PDFs deleted" })
+            send_to_client(connection, { "type" => "pdf_titles", "content" => [] })
             begin
               session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
             rescue StandardError; end
           rescue StandardError => e
-            ws.send({ "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" }.to_json)
+            send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" })
           end
         when "CHECK_TOKEN"
           # Store ui_language in session parameters if provided
@@ -1328,7 +1308,7 @@ module WebSocketHelper
           end
 
           if CONFIG["ERROR"].to_s == "true"
-            ws.send({ "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" }.to_json)
+            send_to_client(connection, { "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" })
           else
             token = CONFIG["OPENAI_API_KEY"]
 
@@ -1356,17 +1336,17 @@ module WebSocketHelper
                     extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (error)"
                     extra_log.close
                   end
-                  ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+                  send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
                 else
                   if CONFIG["EXTRA_LOGGING"]
                     extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                     extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_verified (success)"
                     extra_log.close
                   end
-                  ws.send({ "type" => "token_verified",
+                  send_to_client(connection, { "type" => "token_verified",
                             "token" => token, "content" => res["content"],
                             # "models" => res["models"],
-                            "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT }.to_json)
+                            "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT })
                   if CONFIG["EXTRA_LOGGING"]
                     extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                     extra_log.puts "[#{Time.now}] CHECK_TOKEN: token_verified message sent"
@@ -1379,7 +1359,7 @@ module WebSocketHelper
                   extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (invalid response)"
                   extra_log.close
                 end
-                ws.send({ "type" => "token_not_verified", "token" => "", "content" => "" }.to_json)
+                send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
               end
             rescue StandardError => e
               if CONFIG["EXTRA_LOGGING"]
@@ -1387,11 +1367,11 @@ module WebSocketHelper
                 extra_log.puts "[#{Time.now}] CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}"
                 extra_log.close
               end
-              ws.send({ "type" => "open_ai_api_error", "token" => "", "content" => "" }.to_json)
+              send_to_client(connection, { "type" => "open_ai_api_error", "token" => "", "content" => "" })
             end
           end
         when "PING"
-          @channel.push({ "type" => "pong" }.to_json)
+          send_to_client(connection, { "type" => "pong" })
         when "RESET"
           session[:messages].clear
           session[:parameters].clear
@@ -1404,20 +1384,20 @@ module WebSocketHelper
             session[:parameters] ||= {}
             session[:parameters]["ui_language"] = obj["ui_language"]
           end
-          handle_load_message(ws)
+          handle_load_message(connection)
         when "DELETE"
-          handle_delete_message(ws, obj)
+          handle_delete_message(connection, obj)
         when "EDIT"
-          handle_edit_message(ws, obj)
+          handle_edit_message(connection, obj)
         when "UPDATE_MCP_CONFIG"
-          handle_mcp_config_update(ws, obj)
+          handle_mcp_config_update(connection, obj)
         when "AI_USER_QUERY"
           # Check if there are enough messages for AI User to work with
           if session[:messages].nil? || session[:messages].size < 2
-            @channel.push({ 
+            send_to_client(connection, { 
               "type" => "error", 
               "content" => "ai_user_requires_conversation"
-            }.to_json)
+            })
             next
           end
           
@@ -1427,8 +1407,8 @@ module WebSocketHelper
           params = obj["contents"]["params"]
           
           # UI feedback
-          @channel.push({ "type" => "wait", "content" => "generating_ai_user_response" }.to_json)
-          @channel.push({ "type" => "ai_user_started" }.to_json)
+          send_to_client(connection, { "type" => "wait", "content" => "generating_ai_user_response" })
+          send_to_client(connection, { "type" => "ai_user_started" })
           
           # Process the request
           begin
@@ -1437,15 +1417,15 @@ module WebSocketHelper
             
             # Handle result
             if result["type"] == "error"
-              @channel.push({ "type" => "error", "content" => result["content"] }.to_json)
+              send_to_client(connection, { "type" => "error", "content" => result["content"] })
             else
               # Send response to client
-              @channel.push({ "type" => "ai_user", "content" => result["content"] }.to_json)
-              @channel.push({ "type" => "ai_user_finished", "content" => result["content"] }.to_json)
+              send_to_client(connection, { "type" => "ai_user", "content" => result["content"] })
+              send_to_client(connection, { "type" => "ai_user_finished", "content" => result["content"] })
             end
           rescue => e
             # Error handling
-            @channel.push({ "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json)
+            send_to_client(connection, { "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } })
           end
         when "HTML"
           thread&.join
@@ -1493,7 +1473,7 @@ module WebSocketHelper
               end
 
               if content["finish_reason"] && content["finish_reason"] == "safety"
-                @channel.push({ "type" => "error", "content" => "api_stopped_safety" }.to_json)
+                send_to_client(connection, { "type" => "error", "content" => "api_stopped_safety" })
               end
 
               # Extract ABC blocks before markdown processing (they're already HTML)
@@ -1565,10 +1545,10 @@ module WebSocketHelper
                 end
               end
 
-              @channel.push({
+              send_to_client(connection, {
                 "type" => "html",
                 "content" => new_data
-              }.to_json)
+              })
 
               session[:messages] << new_data
               # Filter messages by current app_name to prevent cross-app conversation leakage
@@ -1577,11 +1557,11 @@ module WebSocketHelper
     messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
               past_messages_data = check_past_messages(params)
 
-              @channel.push({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
-              @channel.push({ "type" => "info", "content" => past_messages_data }.to_json)
+              send_to_client(connection, { "type" => "change_status", "content" => messages }) if past_messages_data[:changed]
+              send_to_client(connection, { "type" => "info", "content" => past_messages_data })
             rescue StandardError => e
               STDERR.puts "Error processing request: #{e.message}"
-              @channel.push({ "type" => "error", "content" => "something_went_wrong" }.to_json)
+              send_to_client(connection, { "type" => "error", "content" => "something_went_wrong" })
             end
           end
         when "SYSTEM_PROMPT"
@@ -1615,7 +1595,7 @@ module WebSocketHelper
                        "app_name" => params["app_name"],
                        "active" => true }
           # Initial prompt is added to messages but not shown as the first message
-          # @channel.push({ "type" => "html", "content" => new_data }.to_json)
+          # send_to_client(connection, { "type" => "html", "content" => new_data })
           session[:messages] << new_data
 
         when "SAMPLE"
@@ -1663,31 +1643,31 @@ module WebSocketHelper
             end
             
             # Send a dedicated message for immediate display
-            @channel.push({ 
-              "type" => "display_sample", 
+            send_to_client(connection, {
+              "type" => "display_sample",
               "content" => {
                 "mid" => message_id,
                 "role" => obj["role"],
                 "html" => html_content,
                 "badge" => badge
               }
-            }.to_json)
+            })
             
             # Also send HTML message for session history
-            @channel.push({ "type" => "html", "content" => new_data }.to_json)
+            send_to_client(connection, { "type" => "html", "content" => new_data })
             
             # Add a success response to confirm message was processed
-            @channel.push({ "type" => "sample_success", "role" => obj["role"] }.to_json)
+            send_to_client(connection, { "type" => "sample_success", "role" => obj["role"] })
           rescue => e
             # Log the error
             puts "Error processing SAMPLE message: #{e.message}"
             puts e.backtrace
             
             # Inform the client
-            @channel.push({ "type" => "error", "content" => "error_processing_sample" }.to_json)
+            send_to_client(connection, { "type" => "error", "content" => "error_processing_sample" })
           end
         when "AUDIO"
-          handle_audio_message(ws, obj)
+          handle_audio_message(connection, obj)
         when "UPDATE_LANGUAGE"
           # Handle language change during session
           old_language = session[:runtime_settings][:language] if session[:runtime_settings]
@@ -1720,7 +1700,7 @@ module WebSocketHelper
             
             # Resend apps data with updated language descriptions
             apps_data = prepare_apps_data(new_language)
-            @channel.push({ "type" => "apps", "content" => apps_data }.to_json) unless apps_data.empty?
+            send_to_client(connection, { "type" => "apps", "content" => apps_data }) unless apps_data.empty?
             
             # Notify client of successful update
             language_name = if new_language == "auto"
@@ -1729,12 +1709,12 @@ module WebSocketHelper
                               Monadic::Utils::LanguageConfig::LANGUAGES[new_language][:english]
                             end
             
-            @channel.push({
+            send_to_client(connection, {
               "type" => "language_updated",
               "language" => new_language,
               "language_name" => language_name,
               "text_direction" => Monadic::Utils::LanguageConfig.text_direction(new_language)
-            }.to_json)
+            })
           end
         when "STOP_TTS"
           # Stop any running TTS thread and all prefetch threads
@@ -1761,9 +1741,9 @@ module WebSocketHelper
           end
 
           # Send confirmation
-          @channel.push({
+          send_to_client(connection, {
             "type" => "tts_stopped"
-          }.to_json)
+          })
         when "PLAY_TTS"
           # Handle play TTS message
           # This is similar to auto_speech processing but for card playback
@@ -1886,7 +1866,7 @@ module WebSocketHelper
             unless app_obj
               error_msg = "App '#{app_name}' not found in APPS"
               puts "[ERROR] #{error_msg}"
-              @channel.push({ "type" => "error", "content" => error_msg }.to_json)
+              send_to_client(connection, { "type" => "error", "content" => error_msg })
               next
             end
 
@@ -1900,7 +1880,7 @@ module WebSocketHelper
               end
 
               if fragment["type"] == "error"
-                @channel.push({ "type" => "error", "content" => fragment }.to_json)
+                send_to_client(connection, { "type" => "error", "content" => fragment })
                 break
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
@@ -2029,7 +2009,7 @@ module WebSocketHelper
                                         log.puts("[#{Time.now}] [DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
                                       end
                                     end
-                                    @channel.push(res_hash.to_json)
+                                    send_to_client(connection, res_hash)
                                   else
                                     if CONFIG["EXTRA_LOGGING"]
                                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -2093,7 +2073,7 @@ module WebSocketHelper
                                   end
 
                                   # Send audio to client
-                                  @channel.push(res_hash.to_json)
+                                  send_to_client(connection, res_hash)
                                 else
                                   # TTS failed, just log it (fragment already sent)
                                   if CONFIG["EXTRA_LOGGING"]
@@ -2113,18 +2093,18 @@ module WebSocketHelper
                     buffer = [segments.last]
 
                     # Send the fragment to display text (after TTS processing)
-                    @channel.push(fragment.to_json)
+                    send_to_client(connection, fragment)
                   else
                     # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
-                    @channel.push(fragment.to_json)
+                    send_to_client(connection, fragment)
                   end
                 else
                   # Just send the fragment without TTS processing
-                  @channel.push(fragment.to_json)
+                  send_to_client(connection, fragment)
                 end
               else
                 # Handle other fragment types
-                @channel.push(fragment.to_json)
+                send_to_client(connection, fragment)
               end
               sleep 0.01
             end
@@ -2185,7 +2165,7 @@ module WebSocketHelper
                         log.puts("[#{Time.now}] [DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
                       end
                     end
-                    @channel.push(res_hash.to_json)
+                    send_to_client(connection, res_hash)
                   else
                     if CONFIG["EXTRA_LOGGING"]
                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -2239,7 +2219,7 @@ module WebSocketHelper
                                else
                                  "API Error: " + response.to_s
                                end
-                @channel.push({ "type" => "error", "content" => error_content }.to_json)
+                send_to_client(connection, { "type" => "error", "content" => error_content })
               else
                 # Debug logging for response structure (only with EXTRA_LOGGING)
                 if CONFIG["EXTRA_LOGGING"]
@@ -2292,7 +2272,7 @@ module WebSocketHelper
                 # If still no content found
                 if raw_content.nil?
                   puts "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." if CONFIG["EXTRA_LOGGING"]
-                  @channel.push({ "type" => "error", "content" => "content_not_found" }.to_json)
+                  send_to_client(connection, { "type" => "error", "content" => "content_not_found" })
                   break
                 end
                 if raw_content
@@ -2302,7 +2282,7 @@ module WebSocketHelper
                   content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
                 else
                   content = ""
-                  @channel.push({ "type" => "error", "content" => "empty_response" }.to_json)
+                  send_to_client(connection, { "type" => "error", "content" => "empty_response" })
                 end
 
                 response.dig("choices", 0, "message")["content"] = content
@@ -2318,7 +2298,7 @@ module WebSocketHelper
                                                 voice: voice,
                                                 speed: speed,
                                                 response_format: response_format)
-                      @channel.push(res_hash.to_json) if res_hash
+                      send_to_client(connection, res_hash) if res_hash
                     end
                   rescue JSON::ParserError => e
                     # Log the error but don't crash
@@ -2331,32 +2311,47 @@ module WebSocketHelper
             end
             
             # Send streaming complete message after all responses are processed
-            @channel.push({ "type" => "streaming_complete" }.to_json)
+            send_to_client(connection, { "type" => "streaming_complete" })
           end
         end
       end
 
-    ws.on :close do |event|
-      # Remove connection with session ID from the list
-      WebSocketHelper.remove_connection_with_session(ws, ws_session_id)
+      rescue => e
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocket] Error in message loop: #{e.class}: #{e.message}"
+          puts e.backtrace.first(5)
+        end
+      ensure
+        # Clean up on connection close
+        WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocket] Connection closed for session #{ws_session_id}"
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocket] Connection closed for session #{ws_session_id}"
+        end
+
+        # Clean up Thread.current
+        Thread.current[:websocket_session_id] = nil
+        Thread.current[:rack_session] = nil
+
+        thread&.kill
       end
-
-      # Clean up Thread.current
-      Thread.current[:websocket_session_id] = nil
-      Thread.current[:rack_session] = nil
-
-      ws = nil
-      @channel.unsubscribe(sid)
-    end
-
-    ws.rack_response
+    end or [404, {}, ["WebSocket connection failed"]]
   end
-  
+
+  # Helper method to send messages to client via async-websocket
+  def send_to_client(connection, message_hash)
+    Async do
+      connection.write(message_hash.to_json)
+      connection.flush
+    end
+  rescue => e
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[WebSocket] Error sending to client: #{e.message}"
+    end
+  end
+
   # Handle MCP configuration update
-  def handle_mcp_config_update(ws, obj)
+  def handle_mcp_config_update(connection, obj)
     # Update configuration
     CONFIG["MCP_SERVER_ENABLED"] = obj["enabled"] # Keep as boolean
     CONFIG["MCP_SERVER_PORT"] = obj["port"] if obj["port"]
@@ -2367,9 +2362,9 @@ module WebSocketHelper
     # Send updated MCP server status
     if defined?(Monadic::MCP::Server)
       mcp_status = Monadic::MCP::Server.status
-      ws.send({ "type" => "mcp_status", "content" => mcp_status }.to_json)
+      send_to_client(connection, { "type" => "mcp_status", "content" => mcp_status })
     end
     
-    ws.send({ "type" => "info", "content" => "MCP configuration updated" }.to_json)
+    send_to_client(connection, { "type" => "info", "content" => "MCP configuration updated" })
   end
 end

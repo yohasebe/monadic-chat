@@ -813,7 +813,9 @@ module InteractionUtils
             end
 
             # Return to EventMachine reactor thread
-            EventMachine.next_tick { block.call(result) }
+            Async do
+            block.call(result)
+          end
           else
             # HTTP error
             error_result = {
@@ -828,7 +830,9 @@ module InteractionUtils
               end
             end
 
-            EventMachine.next_tick { block.call(error_result) }
+            Async do
+            block.call(error_result)
+          end
           end
         rescue => e
           # Connection or other error
@@ -844,7 +848,9 @@ module InteractionUtils
             end
           end
 
-          EventMachine.next_tick { block.call(error_result) }
+          Async do
+            block.call(error_result)
+          end
         end
       end
 
@@ -856,7 +862,9 @@ module InteractionUtils
           "content" => "ERROR: ELEVENLABS_API_KEY is not set."
         }
         error_result["sequence_id"] = sequence_id if sequence_id
-        EventMachine.next_tick { block.call(error_result) }
+        Async do
+            block.call(error_result)
+          end
         return
       end
 
@@ -925,7 +933,9 @@ module InteractionUtils
             end
 
             # Return to EventMachine reactor thread
-            EventMachine.next_tick { block.call(result) }
+            Async do
+            block.call(result)
+          end
           else
             # HTTP error
             error_result = {
@@ -940,7 +950,9 @@ module InteractionUtils
               end
             end
 
-            EventMachine.next_tick { block.call(error_result) }
+            Async do
+            block.call(error_result)
+          end
           end
         rescue => e
           # Connection or other error
@@ -956,7 +968,9 @@ module InteractionUtils
             end
           end
 
-          EventMachine.next_tick { block.call(error_result) }
+          Async do
+            block.call(error_result)
+          end
         end
       end
 
@@ -968,7 +982,9 @@ module InteractionUtils
           "content" => "ERROR: GEMINI_API_KEY is not set."
         }
         error_result["sequence_id"] = sequence_id if sequence_id
-        EventMachine.next_tick { block.call(error_result) }
+        Async do
+            block.call(error_result)
+          end
         return
       end
 
@@ -1065,7 +1081,9 @@ module InteractionUtils
                 end
 
                 # Return to EventMachine reactor thread
-                EventMachine.next_tick { block.call(result) }
+                Async do
+            block.call(result)
+          end
               else
                 error_result = {
                   "type" => "error",
@@ -1079,7 +1097,9 @@ module InteractionUtils
                   end
                 end
 
-                EventMachine.next_tick { block.call(error_result) }
+                Async do
+            block.call(error_result)
+          end
               end
             rescue JSON::ParserError => e
               error_result = {
@@ -1094,7 +1114,9 @@ module InteractionUtils
                 end
               end
 
-              EventMachine.next_tick { block.call(error_result) }
+              Async do
+            block.call(error_result)
+          end
             end
           else
             # HTTP error
@@ -1110,7 +1132,9 @@ module InteractionUtils
               end
             end
 
-            EventMachine.next_tick { block.call(error_result) }
+            Async do
+            block.call(error_result)
+          end
           end
         rescue => e
           # Connection or other error
@@ -1126,7 +1150,9 @@ module InteractionUtils
             end
           end
 
-          EventMachine.next_tick { block.call(error_result) }
+          Async do
+            block.call(error_result)
+          end
         end
       end
 
@@ -1138,8 +1164,10 @@ module InteractionUtils
       }
       result["sequence_id"] = sequence_id if sequence_id
 
-      # Call block asynchronously using EventMachine.next_tick
-      EventMachine.next_tick { block.call(result) }
+      # Call block asynchronously using Async
+      Async do
+            block.call(result)
+          end
 
     else
       # Unsupported provider
@@ -1155,7 +1183,9 @@ module InteractionUtils
         end
       end
 
-      EventMachine.next_tick { block.call(error_result) }
+      Async do
+            block.call(error_result)
+          end
     end
   end
 

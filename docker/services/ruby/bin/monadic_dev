@@ -9,7 +9,7 @@ require_relative "../lib/monadic/version"
 Dir.chdir(File.expand_path(File.join(__dir__, "..")))
 
 DEFAULT_PORT = 4567
-PID_FILE = __dir__ + "/thin.pid"
+PID_FILE = __dir__ + "/falcon.pid"
 
 DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
 LOG_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "log"))
@@ -126,46 +126,45 @@ def start_server(opts)
     end
   end
 
-  # Start the server
-  cmd = "thin start -R #{DOCKER_HOME}/ruby/config.ru -p #{opts[:port] || DEFAULT_PORT} --pid #{PID_FILE}"
-  cmd += " --log #{File.join(LOG_DIR, "server.log")}" if opts[:log]
-  cmd += " --daemonize" if opts[:daemonize]
+  # Start the server with Falcon
+  port_num = opts[:port] || DEFAULT_PORT
+  cmd = "falcon serve -b http://0.0.0.0:#{port_num} -c #{DOCKER_HOME}/ruby/config.ru"
 
-  if opts[:log] || !opts[:daemonize]
-    puts "Starting server in debug mode..."
-    exec(cmd)
+  if opts[:daemonize]
+    # For daemonized mode, use background process with output redirection
+    log_file = File.join(LOG_DIR, "server.log")
+    cmd += " >> #{log_file} 2>&1 &"
+    puts "Starting server in daemon mode on port #{port_num}..."
+    system(cmd)
+    sleep 1  # Give server time to start
+    puts "Server started on port #{port_num}"
+    puts "System available at: http://localhost:#{port_num}"
   else
-    output = `#{cmd} 2>&1`
-    success = $?.success?
-
-    if success
-      # Notify user of system availability with URL
-      port_num = opts[:port] || DEFAULT_PORT
-      puts "Server started on port #{port_num}"
-      puts "System available at: http://localhost:#{port_num}"
-    else
-      puts "Server failed to start"
-      File.open(File.join(LOG_DIR, "server.log"), "a") do |file|
-        file.puts("Failed to start server at #{Time.now}")
-        file.puts(output)
-      end
-    end
+    # Debug mode - run in foreground
+    puts "Starting server in debug mode on port #{port_num}..."
+    puts "System available at: http://localhost:#{port_num}"
+    exec(cmd)
   end
 end
 
 def stop_server
-  # Stop the main server process
+  # Stop the main server process (Falcon)
   begin
-    if File.exist?(PID_FILE)
-      pid = File.read(PID_FILE).to_i
-      if pid > 0
-        Process.kill(9, pid)
-        File.delete(PID_FILE)
+    # Find and kill falcon processes
+    falcon_pids = `pgrep -f "falcon serve"`.strip.split("\n")
+    if falcon_pids.any?
+      falcon_pids.each do |pid|
+        begin
+          Process.kill(9, pid.to_i)
+          puts "Killed falcon process #{pid}"
+        rescue Errno::ESRCH
+          # Process already stopped
+        end
       end
+      puts "Server stopped; Stopping docker containers"
+    else
+      puts "Server not running"
     end
-    puts "Server stopped; PID file removed; Stopping docker containers"
-  rescue Errno::ESRCH, Errno::ENOENT
-    puts "Server not running"
   rescue StandardError => e
     puts "Error stopping server: #{e.message}"
   end
@@ -174,7 +173,7 @@ def stop_server
   REQUIRED_CONTAINERS.each do |container_name|
     if container_exists?(container_name)
       system("docker container stop #{container_name}")
-      
+
       # Wait for container to stop
       30.times do  # Try for 15 seconds (30 * 0.5)
         break unless container_running?(container_name)
@@ -192,18 +191,9 @@ def restart_server(opts)
 end
 
 def print_status
-  # Check main server status
-  server_status = if File.exist?(PID_FILE)
-    begin
-      pid = File.read(PID_FILE).to_i
-      Process.kill(0, pid)
-      "running"
-    rescue Errno::ESRCH
-      "not running"
-    end
-  else
-    "not running"
-  end
+  # Check main server status (Falcon)
+  falcon_pids = `pgrep -f "falcon serve"`.strip.split("\n")
+  server_status = falcon_pids.any? ? "running (PIDs: #{falcon_pids.join(', ')})" : "not running"
   puts "Main server is #{server_status}"
 
   # Print status of required containers

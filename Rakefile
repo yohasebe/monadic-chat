@@ -145,6 +145,44 @@ namespace :server do
       puts "="*80 + "\n"
     end
 
+    # Clean up any existing Monadic Chat processes before starting
+    puts "\n" + "="*80
+    puts "🧹 Checking for existing Monadic Chat processes..."
+    puts "="*80 + "\n"
+
+    # Check for processes using port 4567
+    port_check = `lsof -ti :4567 2>/dev/null`.strip
+    unless port_check.empty?
+      puts "Found processes using port 4567. Stopping them..."
+      system("lsof -ti :4567 | xargs kill -9 2>/dev/null")
+    end
+
+    # Check for Monadic Chat related processes
+    processes_to_check = [
+      "monadic_server",
+      "falcon serve",
+      "mcp_server.rb"
+    ]
+
+    processes_found = false
+    processes_to_check.each do |process_name|
+      pids = `pgrep -f "#{process_name}" 2>/dev/null`.strip
+      unless pids.empty?
+        processes_found = true
+        puts "Found #{process_name} processes (PIDs: #{pids.split("\n").join(', ')}). Stopping them..."
+        system("pkill -9 -f '#{process_name}' 2>/dev/null")
+      end
+    end
+
+    if port_check.empty? && !processes_found
+      puts "No existing processes found. Ready to start."
+    else
+      puts "Cleanup complete. Waiting 2 seconds before starting server..."
+      sleep 2
+    end
+
+    puts "="*80 + "\n"
+
     sh "./bin/monadic_server.sh debug"
   end
   

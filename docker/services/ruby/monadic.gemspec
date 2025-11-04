@@ -45,7 +45,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "commonmarker", "~> 2.3"
   spec.add_dependency "csv"
   spec.add_dependency "dotenv", "~> 3.1"
-  spec.add_dependency "faye-websocket", "~> 0.11"
+  spec.add_dependency "async", "~> 2.0"
+  spec.add_dependency "async-websocket", "~> 0.30"
   spec.add_dependency "http", "~> 5.2"
   spec.add_dependency "http-form_data"
   spec.add_dependency "i18n_data"
@@ -67,7 +68,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "rouge", "~> 4.0"
   spec.add_dependency "sinatra", "~> 4.2"
-  spec.add_dependency "thin", "~> 2.0"
+  spec.add_dependency "falcon", "~> 0.51"
 
   # Uncomment to use RSyntaxTree
   # spec.add_dependency "rsyntaxtree"

@@ -4,6 +4,9 @@ require 'timeout'
 require 'set'  # For session management with multiple connections
 require 'net/http'
 require 'uri'
+require 'async'
+require 'async/queue'
+require 'async/websocket/adapters/rack'
 require_relative '../agents/ai_user_agent'
 require_relative 'boolean_parser'
 require_relative 'ssl_configuration'
@@ -38,24 +41,24 @@ module WebSocketHelper
   REALTIME_TTS_MIN_LENGTH = realtime_tts_min_length
 
   # Class variable to store WebSocket connections with thread safety
+  # Now stores Async::WebSocket::Connection objects
   @@ws_connections = []
   @@ws_mutex = Mutex.new
-  @@channel = nil  # Store EventMachine channel reference
-  
+
   # Add a connection to the list (thread-safe)
   def self.add_connection(ws)
     @@ws_mutex.synchronize do
       @@ws_connections << ws unless @@ws_connections.include?(ws)
     end
   end
-  
+
   # Remove a connection from the list (thread-safe)
   def self.remove_connection(ws)
     @@ws_mutex.synchronize do
       @@ws_connections.delete(ws)
     end
   end
-  
+
   # Broadcast MCP status to all connected clients (thread-safe)
   def self.broadcast_mcp_status(status)
     message = {
@@ -68,9 +71,10 @@ module WebSocketHelper
 
     connections_copy.each do |ws|
       begin
-        # Check if WebSocket is open (Faye::WebSocket uses ready_state)
-        if ws && ws.ready_state == Faye::WebSocket::OPEN
-          ws.send(message)
+        # async-websocket connections - write and flush
+        Async do
+          ws.write(message)
+          ws.flush
         end
       rescue => e
         # Log WebSocket send error and remove dead connection
@@ -80,38 +84,25 @@ module WebSocketHelper
     end
   end
 
-  # Set the EventMachine channel for broadcasting
-  def self.set_channel(channel)
-    @@channel = channel
-  end
-
   # Broadcast to all connected clients (thread-safe)
   def self.broadcast_to_all(message)
-    # Use EventMachine channel if available (preferred)
-    if @@channel
+    connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
+
+    connections_copy.each do |ws|
       begin
-        @@channel.push(message)
+        # async-websocket connections - write and flush
+        Async do
+          ws.write(message)
+          ws.flush
+        end
+
         if CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Broadcasted via channel: #{message[0..100]}..."
+          puts "[WebSocketHelper] Broadcasted: #{message[0..100]}..."
         end
       rescue => e
-        puts "[WebSocketHelper] Channel broadcast error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      end
-    else
-      # Fallback to direct WebSocket sending
-      connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
-
-      connections_copy.each do |ws|
-        begin
-          # Check if WebSocket is open (Faye::WebSocket uses ready_state)
-          if ws && ws.ready_state == Faye::WebSocket::OPEN
-            ws.send(message)
-          end
-        rescue => e
-          # Log WebSocket send error and remove dead connection
-          puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-          remove_connection(ws)
-        end
+        # Log WebSocket send error and remove dead connection
+        puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        remove_connection(ws)
       end
     end
   end
@@ -164,61 +155,45 @@ module WebSocketHelper
   def self.send_to_session(message_json, session_id)
     return unless session_id
 
-    # IMPORTANT: Always use the channel to ensure messages appear in temp card
-    # Messages must go through the channel to be properly displayed in the UI
-    if @@channel
-      begin
-        # Parse the message to add session_id if not present
-        message_data = JSON.parse(message_json) rescue {}
-        message_data["session_id"] = session_id unless message_data["session_id"]
+    websockets = @@session_mutex.synchronize { @@connections_by_session[session_id].dup }
 
-        # Send via channel - this ensures it appears in temp card
-        @@channel.push(message_data.to_json)
+    if websockets.empty?
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "[WebSocketHelper] No connections found for session #{session_id}"
+      end
+      return
+    end
+
+    # Collect connections to remove (avoid modification during iteration)
+    to_remove = []
+
+    websockets.each do |ws|
+      begin
+        # async-websocket connections - write and flush
+        Async do
+          ws.write(message_json)
+          ws.flush
+        end
 
         if CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Sent to session #{session_id} via channel: #{message_json[0..100]}..."
+          puts "[WebSocketHelper] Sent to session #{session_id}: #{message_json[0..100]}..."
         end
       rescue => e
-        puts "[WebSocketHelper] Channel send error for session #{session_id}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      end
-    else
-      # Fallback: direct send if no channel (shouldn't happen normally)
-      websockets = @@session_mutex.synchronize { @@connections_by_session[session_id].dup }
-
-      if websockets.empty?
         if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] No connections found for session #{session_id}"
+          puts "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}"
         end
-        return
+        to_remove << ws
+      end
+    end
+
+    # Remove dead connections after iteration
+    unless to_remove.empty?
+      @@session_mutex.synchronize do
+        to_remove.each { |ws| @@connections_by_session[session_id].delete(ws) }
       end
 
-      # Collect connections to remove (avoid modification during iteration)
-      to_remove = []
-
-      websockets.each do |ws|
-        begin
-          if ws && ws.ready_state == Faye::WebSocket::OPEN
-            ws.send(message_json)
-          else
-            to_remove << ws
-          end
-        rescue => e
-          if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-            puts "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}"
-          end
-          to_remove << ws
-        end
-      end
-
-      # Remove dead connections after iteration
-      unless to_remove.empty?
-        @@session_mutex.synchronize do
-          to_remove.each { |ws| @@connections_by_session[session_id].delete(ws) }
-        end
-
-        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}"
-        end
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}"
       end
     end
   end
@@ -1156,14 +1131,9 @@ module WebSocketHelper
   end
 
   def websocket_handler(env)
-    # Don't start EventMachine if it's already running
-    if EventMachine.reactor_running?
-      handle_websocket_connection(env)
-    else
-      EventMachine.run do
-        handle_websocket_connection(env)
-      end
-    end
+    # Falcon handles the async event loop automatically
+    # No need for EventMachine.run
+    handle_websocket_connection(env)
   end
 
   def handle_websocket_connection(env)

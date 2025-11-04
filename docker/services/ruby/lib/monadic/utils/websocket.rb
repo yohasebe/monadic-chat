@@ -1170,6 +1170,9 @@ module WebSocketHelper
       queue = Queue.new
       thread = nil
 
+      # Send initial load message immediately after connection
+      handle_load_message(connection)
+
       begin
         while message_data = connection.read
           begin
@@ -2341,10 +2344,8 @@ module WebSocketHelper
   end
 
   def send_to_client(connection, message_hash)
-    Async do
-      connection.write(message_hash.to_json)
-      connection.flush
-    end
+    connection.write(message_hash.to_json)
+    connection.flush
   rescue => e
     if CONFIG["EXTRA_LOGGING"]
       puts "[WebSocket] Error sending to client: #{e.message}"

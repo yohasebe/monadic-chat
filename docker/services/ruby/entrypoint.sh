@@ -12,13 +12,11 @@ else
   echo "Ollama container not found" >> /monadic/log/server.log
 fi
 
-# Run Thin server with optimized settings for faster startup
-thin start -R config.ru -p 4567 -e development -d -l /monadic/log/server.log
+# Print server start message
+echo "[SERVER STARTED]" >> /monadic/log/server.log
+echo "Starting Falcon server at $(date)" >> /monadic/log/server.log
 
-# Check if the thin server started successfully
-if [ $? -ne 0 ]; then
-  echo "Failed to start thin server at $(date)" >> /monadic/log/server.log
-fi
-
-# Keep the container running
-tail -f /dev/null
+# Run Falcon server in foreground with Async support
+# -b binds to all interfaces on port 4567
+# Runs in foreground to keep container alive
+exec bundle exec falcon serve -b http://0.0.0.0:4567 >> /monadic/log/server.log 2>&1

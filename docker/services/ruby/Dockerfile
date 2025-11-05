@@ -108,3 +108,6 @@ RUN /monadic/rbsetup.sh
 
 # Download vendor assets for offline use
 RUN /monadic/scripts/download_assets.sh
+
+# Set the entrypoint to start the Falcon server
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

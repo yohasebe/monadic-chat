@@ -1782,6 +1782,15 @@ $(document).ready(function() {
   // Handle app change events
   $("#apps").on("change", function() {
     const selectedApp = $(this).val();
+
+    // Save selected app to SessionState for restoration on reload
+    if (selectedApp && window.SessionState) {
+      window.SessionState.app.current = selectedApp;
+      window.lastApp = selectedApp;
+      window.SessionState.save();
+      console.log('[App Change] Saved to SessionState:', selectedApp);
+    }
+
     setTimeout(function() {
       updateAppBadges(selectedApp);
     }, 100); // Small delay to ensure DOM is ready

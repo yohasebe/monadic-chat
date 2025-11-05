@@ -2097,6 +2097,16 @@ function connect_websocket(callback) {
 let loadedApp = "Chat";
   let infoHtml = "";
 
+  // Restore session state on page load
+  if (window.SessionState) {
+    window.SessionState.restore();
+    // If we have a saved app, restore it to window.lastApp
+    if (window.SessionState.app && window.SessionState.app.current) {
+      window.lastApp = window.SessionState.app.current;
+      console.log('[Session Restore] Restored lastApp from SessionState:', window.lastApp);
+    }
+  }
+
   ws.onopen = function () {
     console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
     // Update state if available
@@ -3541,10 +3551,14 @@ let loadedApp = "Chat";
           const importRequestedApp = data && data["content"] && data["content"]["app_name"];
           const currentSelectVal = $("#apps").val();
           const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
+          // On initial load without session restore, ignore browser's auto-selection to prioritize Chat apps
+          const hasSessionRestore = !!(window.lastApp && window.lastApp !== null);
+          const isInitialLoad = window.appsMessageCount === 1 && !window.initialAppLoaded && !hasSessionRestore;
           console.log('[Model Debug] App selection state:', {
             importRequestedApp,
             currentSelectVal,
             hasCurrentValidSelection,
+            isInitialLoad,
             lastApp: window.lastApp,
             isRestoringSession: window.isRestoringSession,
             initialAppLoaded: window.initialAppLoaded,
@@ -3571,10 +3585,11 @@ let loadedApp = "Chat";
               found: openAIChatOption.length > 0,
               disabled: openAIChatOption.prop('disabled'),
               importRequestedApp,
-              hasCurrentValidSelection
+              hasCurrentValidSelection,
+              isInitialLoad
             });
 
-            if (!importRequestedApp && !hasCurrentValidSelection && openAIChatOption.length > 0) {
+            if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && openAIChatOption.length > 0) {
               firstValidApp = openAIChatOption.val();
               console.log('[App Selection Debug] Selected ChatOpenAI');
             } else {
@@ -3589,12 +3604,12 @@ let loadedApp = "Chat";
                 value: anyChatOption.val()
               });
 
-              if (!importRequestedApp && !hasCurrentValidSelection && anyChatOption.length > 0) {
+              if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && anyChatOption.length > 0) {
                 firstValidApp = anyChatOption.val();
                 console.log('[App Selection Debug] Selected Chat app:', firstValidApp);
               } else {
                 // Fallback: select the first available non-disabled app
-                if (!importRequestedApp && !hasCurrentValidSelection) {
+                if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad)) {
                   const fallbackApp = $("#apps option").filter(function() {
                     return !$(this).prop('disabled') && !$(this).text().includes('──');
                   }).first();

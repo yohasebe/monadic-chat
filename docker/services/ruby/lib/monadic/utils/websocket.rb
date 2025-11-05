@@ -18,6 +18,12 @@ module WebSocketHelper
   include AIUserAgent
   # Handle websocket connection
 
+  # Access Rack session from thread-local storage in WebSocket context
+  # This is necessary because WebSocket connections don't use the normal HTTP request/response cycle
+  def session
+    Thread.current[:rack_session] || super
+  end
+
   # Safe session parameter access that handles both symbol and string keys
   # This ensures compatibility between import (uses :parameters) and runtime (uses "parameters")
   def get_session_params

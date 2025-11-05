@@ -30,8 +30,7 @@ class ReasoningUIManager {
     // Create Claude slider container
     const claudeUI = document.createElement('div');
     claudeUI.id = 'reasoning-ui-claude';
-    claudeUI.className = 'reasoning-ui-container';
-    claudeUI.style.display = 'none';
+    claudeUI.className = 'reasoning-ui-container hidden';
     claudeUI.innerHTML = `
       <label class="form-label text-nowrap" data-i18n="ui.thinkingBudget">Thinking Budget</label>
       <div class="d-flex align-items-center gap-2">
@@ -45,8 +44,7 @@ class ReasoningUIManager {
     // Create Gemini detailed settings container
     const geminiUI = document.createElement('div');
     geminiUI.id = 'reasoning-ui-gemini';
-    geminiUI.className = 'reasoning-ui-container';
-    geminiUI.style.display = 'none';
+    geminiUI.className = 'reasoning-ui-container hidden';
     geminiUI.innerHTML = `
       <label class="form-label text-nowrap" data-i18n="ui.thinkingMode">Thinking Mode</label>
       <div class="d-flex flex-column gap-2">
@@ -58,9 +56,9 @@ class ReasoningUIManager {
           <option value="high">High (Maximum)</option>
           <option value="custom">Custom...</option>
         </select>
-        <div id="thinking-custom-container" style="display: none;">
+        <div id="thinking-custom-container" class="hidden">
           <div class="d-flex align-items-center gap-2">
-            <input type="number" class="form-control form-control-sm" id="thinking-custom-value" 
+            <input type="number" class="form-control form-control-sm" id="thinking-custom-value"
                    min="0" max="50000" value="10000" step="1000">
             <span class="text-muted">tokens</span>
           </div>
@@ -72,8 +70,7 @@ class ReasoningUIManager {
     // Create DeepSeek simple toggle container
     const deepseekUI = document.createElement('div');
     deepseekUI.id = 'reasoning-ui-deepseek';
-    deepseekUI.className = 'reasoning-ui-container';
-    deepseekUI.style.display = 'none';
+    deepseekUI.className = 'reasoning-ui-container hidden';
     deepseekUI.innerHTML = `
       <label class="form-label text-nowrap" data-i18n="ui.reasoningMode">Reasoning Mode</label>
       <div class="btn-group" role="group">
@@ -108,7 +105,7 @@ class ReasoningUIManager {
     if (presetSelector) {
       presetSelector.addEventListener('change', (e) => {
         const customContainer = document.getElementById('thinking-custom-container');
-        customContainer.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        customContainer.classList.toggle('hidden', e.target.value !== 'custom');
       });
     }
   }
@@ -132,20 +129,20 @@ class ReasoningUIManager {
     // Determine which UI to show
     if (!window.ReasoningMapper || !ReasoningMapper.isSupported(provider, model)) {
       // Not supported - hide everything
-      defaultContainer.style.display = 'none';
+      defaultContainer.classList.add('hidden');
       return;
     }
 
     // By default, show the standard dropdown
-    defaultContainer.style.display = 'block';
-    
+    defaultContainer.classList.remove('hidden');
+
     // Show provider-specific UI when appropriate
     switch (provider) {
       case 'Anthropic':
         // Only use special UI for thinking models with budget
         if (this.isThinkingModel(model) && false) { // Disabled for now - use standard UI
-          defaultContainer.style.display = 'none';
-          document.getElementById('reasoning-ui-claude').style.display = 'block';
+          defaultContainer.classList.add('hidden');
+          document.getElementById('reasoning-ui-claude').classList.remove('hidden');
         }
         break;
 
@@ -177,7 +174,7 @@ class ReasoningUIManager {
   hideAllUIs() {
     const containers = document.querySelectorAll('.reasoning-ui-container');
     containers.forEach(container => {
-      container.style.display = 'none';
+      container.classList.add('hidden');
     });
   }
 
@@ -194,7 +191,7 @@ class ReasoningUIManager {
    */
   getValue() {
     // Claude slider
-    if (document.getElementById('reasoning-ui-claude').style.display !== 'none') {
+    if (!document.getElementById('reasoning-ui-claude').classList.contains('hidden')) {
       return {
         type: 'thinking_budget',
         value: parseInt(document.getElementById('thinking-budget-slider').value)
@@ -202,7 +199,7 @@ class ReasoningUIManager {
     }
 
     // Gemini detailed settings
-    if (document.getElementById('reasoning-ui-gemini').style.display !== 'none') {
+    if (!document.getElementById('reasoning-ui-gemini').classList.contains('hidden')) {
       const preset = document.getElementById('thinking-mode-preset').value;
       if (preset === 'custom') {
         return {
@@ -218,7 +215,7 @@ class ReasoningUIManager {
     }
 
     // DeepSeek toggle
-    if (document.getElementById('reasoning-ui-deepseek').style.display !== 'none') {
+    if (!document.getElementById('reasoning-ui-deepseek').classList.contains('hidden')) {
       const value = document.querySelector('input[name="reasoning-mode"]:checked').value;
       return {
         type: 'reasoning_content',

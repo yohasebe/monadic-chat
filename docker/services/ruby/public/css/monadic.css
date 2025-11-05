@@ -3117,9 +3117,9 @@ h1 {
   max-height: 200px;
   max-width: 200px;
   border-radius: 4px;
-  opacity: 0.6;
   mix-blend-mode: multiply;
   pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 .mask-overlay-label {

@@ -237,7 +237,7 @@ function updateFileDisplay(files) {
       const overlayDisplay = `
         <div class="mask-overlay-container">
           <img class='base-image' alt='${file.title}' src='${file.data}' />
-          <img class='mask-overlay' alt='${maskData.title}' src='${maskData.display_data || maskData.data}' style="opacity: 0.6;" />
+          <img class='mask-overlay opacity-60' alt='${maskData.title}' src='${maskData.display_data || maskData.data}' />
           <div class="mask-overlay-label">MASK</div>
           <div class="mask-controls">
             <button class='btn btn-sm btn-danger remove-mask' data-index='${index}' tabindex="99">
@@ -305,14 +305,14 @@ function updateFileDisplay(files) {
   $(".toggle-mask").on("click", function() {
     const $maskOverlay = $(this).closest(".mask-overlay-container").find(".mask-overlay");
     const $icon = $(this).find("i");
-    
-    if ($maskOverlay.css("opacity") === "0") {
+
+    if ($maskOverlay.hasClass("opacity-0")) {
       // Show mask
-      $maskOverlay.css("opacity", "0.6");
+      $maskOverlay.removeClass("opacity-0").addClass("opacity-60");
       $icon.removeClass("fa-eye").addClass("fa-eye-slash");
     } else {
       // Hide mask
-      $maskOverlay.css("opacity", "0");
+      $maskOverlay.removeClass("opacity-60").addClass("opacity-0");
       $icon.removeClass("fa-eye-slash").addClass("fa-eye");
     }
   });

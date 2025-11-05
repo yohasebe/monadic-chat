@@ -571,3 +571,165 @@
     width: 100% !important;
   }
 }
+
+/* ========================================
+   Layout Components - Replace inline styles
+   ======================================== */
+
+/* Navbar container */
+.navbar-container {
+  height: 65px;
+}
+
+/* Reset area cursor */
+.reset-area {
+  cursor: pointer;
+}
+
+/* Main content area */
+#contents {
+  margin-top: 65px;
+  margin-bottom: 0;
+  padding-bottom: 12px;
+  position: relative;
+  min-height: calc(100vh - 65px);
+}
+
+/* Row without bottom margin */
+.row-no-bottom-margin {
+  margin-bottom: 0 !important;
+}
+
+/* Scrollable areas */
+.scrollable {
+  padding-bottom: 50px;
+}
+
+/* Flexbox utilities */
+.flex-container {
+  display: flex;
+  align-items: center;
+}
+
+.flex-container-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Form control utilities */
+.form-switch-inline {
+  display: inline-block;
+}
+
+.textarea-resizable {
+  resize: vertical;
+}
+
+.div-range {
+  max-width: 100%;
+}
+
+/* Specific component styles */
+#reasoning-effort {
+  min-width: 180px;
+}
+
+#ai_user_provider {
+  width: auto;
+  min-width: 120px;
+}
+
+/* App selector icon positioning */
+.app-selector-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.app-select-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.app-select-wrapper select {
+  padding-left: 36px;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.app-select-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  cursor: pointer;
+  background-color: transparent;
+}
+
+/* Custom apps dropdown */
+#custom-apps-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.25rem;
+  z-index: 1100;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  scrollbar-color: var(--scrollbar-thumb) var(--bg-body);
+  scrollbar-width: thin;
+}
+
+/* Modal close button - remove box shadow */
+.btn-close {
+  box-shadow: none !important;
+}
+
+/* ========================================
+   Icon State Classes - Replace inline styles
+   ======================================== */
+
+/* Icon state classes */
+.icon-success {
+  color: var(--color-assistant) !important; /* #DC4C64 */
+}
+
+.icon-active {
+  color: var(--color-assistant) !important;
+}
+
+/* ========================================
+   Visibility Classes - Replace inline styles
+   ======================================== */
+
+/* Visibility utilities */
+.hidden {
+  display: none !important;
+}
+
+/* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
+
+/* Opacity utilities */
+.opacity-0 {
+  opacity: 0 !important;
+}
+
+.opacity-60 {
+  opacity: 0.6 !important;
+}

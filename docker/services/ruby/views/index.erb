@@ -445,7 +445,6 @@
         box-sizing: border-box;
         flex-shrink: 1;
         min-width: 0; /* Allow flex items to shrink below content size */
-        cursor: help; /* Show help cursor to indicate tooltip */
       }
 
       /* Ensure text inside status message can be ellipsed */
@@ -682,8 +681,8 @@
 
     <!-- Responsive Navbar -->
     <nav id="main-nav" class="navbar fixed-top shaded-y">
-      <div class="container-fluid d-flex align-items-center px-3" style="height: 65px;">
-        <a href="#" class="navbar-brand d-flex align-items-center reset-area" style="cursor: pointer;">
+      <div class="container-fluid d-flex align-items-center px-3 navbar-container">
+        <a href="#" class="navbar-brand d-flex align-items-center reset-area">
           <img src="img/monadic-logo.svg" alt="Logo" class="nav-logo">
           <span class="nav-text"><span class="text-main">Monadic</span><span class="text-highlight"> Chat</span></span>
         </a>
@@ -698,12 +697,12 @@
         </div>
       </div>
     </nav>
-        <div class="container-fluid pt-0 p-3" id="contents" style="margin-top: 65px; margin-bottom: 0; padding-bottom: 12px; position: relative; min-height: calc(100vh - 65px);">
-      <div class="row g-3 mt-0 mb-0" style="margin-bottom: 0 !important;">
-        <div id="menu" class="col-md-4 order-md-2 scrollable" style="padding-bottom: 50px;">
+        <div class="container-fluid pt-0 p-3" id="contents">
+      <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
+        <div id="menu" class="col-md-4 order-md-2 scrollable">
           <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
-            <div class="mb-3" style="display: flex; align-items: center; flex-wrap: wrap;">
+            <div class="mb-3 flex-container-wrap">
               <div id="monadic-homepage">
                 <% if @debug_mode %>
                   <span class="info-panel-link"><i class="fa-solid fa-book"></i> <a href="/docs/" target="_blank" rel="noopener noreferrer" title="Public documentation">Docs</a></span>
@@ -716,7 +715,7 @@
                 <span class="info-panel-link"><i class="fa-brands fa-github"></i> <a href="https://github.com/yohasebe/monadic-chat" target="_blank" rel="noopener noreferrer" data-i18n="ui.github">GitHub</a></span>
               </div>
             </div>
-            <div class="mb-3" style="display: flex; align-items: center;">
+            <div class="mb-3 flex-container">
               <div id="monadic-version">
                 <span class="info-panel-text"><i class="fa-solid fa-circle-info"></i> <span data-i18n="ui.version">Version</span>:</span> <span class="info-panel-text" id="monadic-version-number"></span>
               </div>
@@ -733,7 +732,7 @@
             </div>
 
             <h5 data-i18n="ui.currentBaseApp"><span class="text"><i class="fas fa-bolt"></i></span> Current Base App</h5>
-            <div style="display: flex; align-items: center;">
+            <div class="flex-container">
               <div class="icon-container">
                 <span id="base-app-icon" class="app-icon"></span>
               </div>
@@ -888,14 +887,14 @@
 
           </div>
 
-          <div class="mx-2 me-1" style="display: flex; align-items: center; justify-content: right;">
+          <div class="mx-2 me-1 flex-end">
             <div id="author">
               <!--<span class="text text-secondary"><i class="fa-solid fa-copyright"></i> Yoichiro HASEBE 2025 </span>-->
             </div>
           </div>
         </div>
 
-        <div id="main" class="col-md-8 order-md-1 scrollable" style="padding-bottom: 50px;">
+        <div id="main" class="col-md-8 order-md-1 scrollable">
           <div id="config" class="rounded p-3 shaded-panel">
             <h5 class="pb-0 panel-section-header"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
 
@@ -904,15 +903,15 @@
               <div class="col-5">
                 <label class="form-label" for="apps" data-i18n="ui.baseApp">Base App</label>
                 <div class="position-relative">
-                  <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; pointer-events: none;">
+                  <div class="app-selector-icon">
                     <span id="app-select-icon"></span>
                   </div>
-                  <div class="app-select-wrapper" style="position: relative; cursor: pointer;">
-                    <select class="form-select form-select-sm" id="apps" style="padding-left: 36px; cursor: pointer; pointer-events: none;">
+                  <div class="app-select-wrapper">
+                    <select class="form-select form-select-sm" id="apps">
                     </select>
-                    <div id="app-select-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; cursor: pointer; background-color: transparent;"></div>
+                    <div id="app-select-overlay" class="app-select-overlay"></div>
                   </div>
-                  <div id="custom-apps-dropdown" style="display: none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 50vh; overflow-y: auto; background: var(--bg-input); border: 1px solid var(--border-primary); border-radius: 0.25rem; z-index: 1100; box-shadow: 0 2px 5px rgba(0,0,0,0.2); scrollbar-color: var(--scrollbar-thumb) var(--bg-body); scrollbar-width: thin;">
+                  <div id="custom-apps-dropdown">
                     <!-- Options will be inserted here by JavaScript -->
                   </div>
                 </div>
@@ -943,7 +942,7 @@
               <div class="col-auto ms-2">
                 <label class="form-label text-nowrap" for="reasoning-effort" data-i18n="ui.reasoningEffort">Reasoning Effort</label>
                 <div class="d-flex align-items-center gap-2">
-                  <select class="form-select form-select-sm" id="reasoning-effort" style="min-width: 180px;">
+                  <select class="form-select form-select-sm" id="reasoning-effort">
                     <option value="minimal">minimal</option>
                     <option value="low">low</option>
                     <option value="medium" selected>medium</option>
@@ -960,17 +959,17 @@
             <form class="row my-3" id="model_parameters">
               <div class="col-3">
                 <label for="temperature" class="div-label my-2" data-i18n="ui.temperature">Temperature <small><span id="temperature-value">0.3</span></small></label><br />
-                <input type="range" class="div-range" min="0.0" max="2.0" step="0.1" value="0.3" id="temperature" style="max-width: 100%;">
+                <input type="range" class="div-range" min="0.0" max="2.0" step="0.1" value="0.3" id="temperature">
               </div>
 
               <div class="col-3">
                 <label for="presence-penalty" class="div-label my-2" data-i18n="ui.presencePenalty">Presence Penalty <small><span id="presence-penalty-value">0.0</span></small></label><br />
-                <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="presence-penalty" style="max-width: 100%;">
+                <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="presence-penalty">
               </div>
 
               <div class="col-3">
                 <label for="frequency-penalty" class="div-label my-2" data-i18n="ui.frequencyPenalty">Frequency Penalty <small><span id="frequency-penalty-value">0.0</span></small></label><br />
-                <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="frequency-penalty" style="max-width: 100%;">
+                <input type="range" class="div-range" min="-2.0" max="2.0" step="0.1" value="0.0" id="frequency-penalty">
               </div>
             </form>
 
@@ -980,16 +979,16 @@
                   <i class="fas fa-chevron-down" id="initial-prompt-icon"></i>
                   <span data-i18n="ui.initialPromptAssistant">Initial Prompt for Assistant</span>
                 </button>
-                <div style="display:inline-block;" class="form-check form-switch me-3">
+                <div class="form-check form-switch form-switch-inline me-3">
                   <label class="form-check-label" for="prompt-caching" data-i18n="ui.promptCaching">Prompt Caching</label>
                   <input class="form-check-input" type="checkbox" id="prompt-caching" checked>
                 </div>
-                <div style="display:inline-block;" class="form-check form-switch me-3">
+                <div class="form-check form-switch form-switch-inline me-3">
                   <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
                   <input class="form-check-input" type="checkbox" id="websearch">
                 </div>
 
-                <textarea class="form-control form-control-sm" style="resize: vertical;" id="initial-prompt"></textarea>
+                <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt"></textarea>
               </div>
             </div>
 
@@ -999,15 +998,15 @@
                   <i class="fas fa-chevron-down" id="ai-user-initial-prompt-icon"></i>
                   <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
                 </button>
-                <div style="display:inline-block;" class="form-check form-switch me-3">
+                <div class="form-check form-switch form-switch-inline me-3">
                   <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
-                <div style="display:inline-block;" class="form-check form-switch me-3">
+                <div class="form-check form-switch form-switch-inline me-3">
                   <label class="form-check-label" for="mathjax" data-i18n="ui.mathRendering">Math Rendering</label>
                   <input class="form-check-input" type="checkbox" id="mathjax">
                 </div>
-                <textarea class="form-control form-control-sm" style="resize: vertical;" id="ai-user-initial-prompt"></textarea>
+                <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt"></textarea>
               </div>
             </div>
 
@@ -1069,7 +1068,7 @@
             <div id="user-panel" class="mt-1">
               <div class="row">
                 <div class="col-12 h-25 mt-3">
-                  <textarea id="message" class="form-control form-control-sm" style="resize: vertical; margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
+                  <textarea id="message" class="form-control form-control-sm textarea-resizable" style="margin-bottom: 14px;" rows="4" placeholder="Type your message . . ." data-i18n-placeholder="ui.messagePlaceholder"></textarea>
                   <div class="textbox-caption" id="image-used"></div>
                   <div id="image-base64"></div>
                 </div>
@@ -1124,7 +1123,7 @@
                 </span>&nbsp;
                 <span class="user-color fw-bold" data-i18n="ui.aiUser">AI User</span>
                 &nbsp;&nbsp;
-                <select id="ai_user_provider" class="form-select form-select-sm me-1" style="width: auto; min-width: 120px;">
+                <select id="ai_user_provider" class="form-select form-select-sm me-1">
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="gemini">Gemini</option>
@@ -1161,7 +1160,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="resetConfirmationLabel"><i class="fas fa-arrows-rotate"></i> <span data-i18n="ui.modals.reset">Reset</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <span data-i18n="ui.modals.resetConfirmation">Are you sure you want to reset the chat?</span>
@@ -1180,7 +1179,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="pdfDeleteConfirmationLabel"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deletePDF">Delete PDF</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <span data-i18n="ui.modals.pdfDeleteConfirmation">Are you sure you want to delete</span> <span class="fw-bold text-secondary-styled" id="pdfToDelete"></span>?
@@ -1199,7 +1198,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="deleteConfirmationTitle"><i class="fas fa-trash"></i> <span data-i18n="ui.modals.deleteMessage">Delete Message</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.howToDeleteMessage">How would you like to delete this message?</p>
@@ -1220,7 +1219,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="appChangeConfirmationTitle"><i class="fas fa-exchange-alt"></i> <span data-i18n="ui.modals.changeApp">Change App</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <p data-i18n="ui.modals.appChangeConfirmation">Changing the app will reset all parameters and the current conversation. Do you want to continue?</p>
@@ -1240,7 +1239,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.modals.loadFile">Load File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <form action="/load" method="post" enctype="multipart/form-data" type="hidden">
             <div class="modal-body">
@@ -1264,7 +1263,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="fileModalLabel"><i class="fas fa-file"></i> <span data-i18n="ui.modals.importFile">Import File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="file-title" data-i18n="ui.modals.fileTitleOptional">File Title (Optional)</label>
@@ -1291,7 +1290,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="docModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromFile">From file</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="doc-label" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1317,7 +1316,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="urlModalLabel"><i class="fa-brands fa-markdown"></i> <span data-i18n="ui.modals.fromURL">From URL</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label class="form-label" for="urlLabel" data-i18n="ui.modals.labelOptional">Label (Optional)</label>
@@ -1345,7 +1344,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="imageModalLabel"><i class="fas fa-image"></i> <span data-i18n="ui.modals.selectFile">Select File</span></h5>
-            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" style="box-shadow:none;" aria-label="Close"></button>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>

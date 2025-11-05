@@ -518,11 +518,11 @@ function attachEventListeners($card) {
       
       // Show success indicator
       const icon = $this.find("i");
-      icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-      
+      icon.removeClass("fa-copy").addClass("fa-check icon-success");
+
       // Return to normal state after delay
       setTimeout(() => {
-        icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+        icon.removeClass("fa-check icon-success").addClass("fa-copy");
       }, 1000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
@@ -536,25 +536,25 @@ function attachEventListeners($card) {
         } else {
           throw new Error('No clipboard API available');
         }
-        
+
         // Show success indicator
         const icon = $this.find("i");
-        icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-        
+        icon.removeClass("fa-copy").addClass("fa-check icon-success");
+
         // Return to normal state after delay
         setTimeout(() => {
-          icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+          icon.removeClass("fa-check icon-success").addClass("fa-copy");
         }, 1000);
       } catch (fallbackErr) {
         console.error("All clipboard methods failed: ", fallbackErr);
-        
+
         // Show error indicator
         const icon = $this.find("i");
-        icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-        
+        icon.removeClass("fa-copy").addClass("fa-xmark icon-success");
+
         // Return to normal state after delay
         setTimeout(() => {
-          icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+          icon.removeClass("fa-xmark icon-success").addClass("fa-copy");
         }, 1000);
       }
     }
@@ -800,7 +800,7 @@ function attachEventListeners($card) {
         }
         
         // Change the icon back to the edit icon immediately for user messages
-        $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+        $this.find("i").removeClass("fa-check icon-success").addClass("fa-pen-to-square");
       } else if (currentMessage.role === "assistant") {
         // For assistant messages, temporarily show the raw text like user messages
         // The server will send back properly formatted HTML
@@ -830,9 +830,9 @@ function attachEventListeners($card) {
         if ($existingImages.length > 0) {
           $cardText.append($existingImages);
         }
-        
+
         // Change the icon back to the edit icon immediately for system messages
-        $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+        $this.find("i").removeClass("fa-check icon-success").addClass("fa-pen-to-square");
       }
       
       // Clean up the data attribute
@@ -861,13 +861,13 @@ function attachEventListeners($card) {
       }
       
       ws.send(JSON.stringify(editMessage));
-      
+
       // Change the icon back to the edit icon (for non-user messages, this will be updated again when the server responds)
-      $this.find("i").removeClass("fa-check").addClass("fa-pen-to-square").css("color", "");
+      $this.find("i").removeClass("fa-check icon-success").addClass("fa-pen-to-square");
     });
-    
+
     // Change the icon to indicate edit mode
-    $this.find("i").removeClass("fa-pen-to-square").addClass("fa-check").css("color", "#DC4C64");
+    $this.find("i").removeClass("fa-pen-to-square").addClass("fa-check icon-success");
   });
 
   // No duplicate click handler for .func-delete needed
@@ -1052,7 +1052,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     $(this).tooltip('show');
     const $icon = $(this).find("i");
     if ($icon.length) {
-      $icon.css("color", "#DC4C64");
+      $icon.addClass("icon-active");
     }
   });
 
@@ -1063,7 +1063,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     if (event.type === "mouseleave") {
       const $icon = $(this).find("i");
       if ($icon.length) {
-        $icon.css("color", "");
+        $icon.removeClass("icon-active");
       }
     }
     
@@ -1080,7 +1080,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
         const $icon = $(this).find("i");
         // Add timeout to reset icon color after action completes
         setTimeout(() => {
-          $icon.css("color", "");
+          $icon.removeClass("icon-active");
         }, 500);
       }
     }
@@ -1116,9 +1116,8 @@ function cancelEditMode($cardText, $editButton) {
       // Reset edit button icon if provided
       if ($editButton && $editButton.length) {
         $editButton.find("i")
-          .removeClass("fa-check fa-spinner fa-spin")
-          .addClass("fa-pen-to-square")
-          .css("color", "");
+          .removeClass("fa-check fa-spinner fa-spin icon-active")
+          .addClass("fa-pen-to-square");
       }
       
       // Clean up any edit-specific event listeners
@@ -1137,9 +1136,8 @@ function cancelEditMode($cardText, $editButton) {
         $cardText.find('.inline-edit-textarea, .cancel-edit, .save-edit').remove();
         if ($editButton && $editButton.length) {
           $editButton.find("i")
-            .removeClass("fa-check fa-spinner fa-spin")
-            .addClass("fa-pen-to-square")
-            .css("color", "");
+            .removeClass("fa-check fa-spinner fa-spin icon-active")
+            .addClass("fa-pen-to-square");
         }
       } catch (e) {
         // Last resort fallback - ignore any errors in the error handler

@@ -333,6 +333,13 @@
   color: var(--color-info);
 }
 
+/* Card Title - Vertical alignment for icon and text */
+.card-header .card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 /* Links - Theme-aware Colors (ID selectors have sufficient specificity) */
 #monadic-info-panel a,
 #base-app-desc a {

@@ -665,6 +665,28 @@ module WebSocketHelper
       extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items"
       extra_log.close
     end
+
+    # Send info message to hide spinner and show "Ready" status
+    # For initial load with no parameters, send minimal info data
+    info_data = {
+      changed: false,
+      count_total_system_tokens: 0,
+      count_total_input_tokens: 0,
+      count_total_output_tokens: 0,
+      count_total_active_tokens: 0,
+      count_all_tokens: 0,
+      count_messages: filtered_messages.size,
+      count_active_messages: filtered_messages.size,
+      encoding_name: "o200k_base"
+    }
+    WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => info_data }.to_json)
+
+    # Debug logging for info message (only when EXTRA_LOGGING is enabled)
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent info message to hide spinner"
+      extra_log.close
+    end
   end
   
   # Push voice data to WebSocket
@@ -1878,6 +1900,11 @@ module WebSocketHelper
             # Initialize short sentence buffer for realtime TTS
             @realtime_tts_short_buffer = []
 
+            # Save original auto_speech and monadic values before they might be overwritten
+            # These will be used for final segment processing after streaming completes
+            original_auto_speech = obj["auto_speech"]
+            original_monadic = obj["monadic"]
+
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
             
@@ -2142,19 +2169,20 @@ module WebSocketHelper
             # The last incomplete sentence in buffer needs to be processed after streaming completes
             # Check both auto_speech and auto_tts_realtime_mode to ensure TTS is intentionally enabled
             # auto_speech can be boolean true or string "true" from client
-            auto_speech_enabled = obj["auto_speech"] == true || obj["auto_speech"] == "true"
+            # Use original_auto_speech saved before streaming started (obj may have been overwritten)
+            auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
             if CONFIG["EXTRA_LOGGING"]
               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                 log.puts("[#{Time.now}] [DEBUG] Checking final segment conditions:")
-                log.puts("[#{Time.now}] [DEBUG]   auto_speech=#{obj["auto_speech"].inspect}, auto_speech_enabled=#{auto_speech_enabled}")
-                log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
+                log.puts("[#{Time.now}] [DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled}")
+                log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff}, original_monadic=#{original_monadic}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
                 log.puts("[#{Time.now}] [DEBUG]   Buffer contents: #{buffer.inspect}")
                 log.puts("[#{Time.now}] [DEBUG]   Short buffer: #{@realtime_tts_short_buffer.inspect}")
               end
             end
 
-            if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !obj["monadic"]
+            if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !original_monadic
               # Get final text from buffer
               final_text = buffer.join.strip
 

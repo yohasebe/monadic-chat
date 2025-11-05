@@ -704,7 +704,7 @@ a:hover {
 
 div.card-body {
   font-size: 1em;
-  padding-bottom: 0.75rem;
+  padding: 0.75rem;
   color: var(--text-primary);
 }
 

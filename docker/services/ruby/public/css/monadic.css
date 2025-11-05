@@ -1756,6 +1756,7 @@ legend {
   margin-bottom: 0.5em;
   padding: 0;
   box-sizing: border-box;
+  white-space: pre-line;
 }
 
 /* First paragraph specific spacing (high specificity) */
@@ -1773,9 +1774,6 @@ legend {
 }
 
 /* Ensure consistent white-space handling */
-.card-body.role-assistant .card-text p {
-  white-space: pre-wrap;
-}
 /* END: ROLE CONSISTENCY IMPROVEMENTS */
 
 /* Add proper margins for code blocks in card-text */

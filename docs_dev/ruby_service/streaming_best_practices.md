@@ -159,9 +159,9 @@ Common symptoms:
 - **Excessive line breaks during streaming**: Extra content in fragments (Claude content blocks)
 - **NoMethodError on response body**: Wrong iteration method (Gemini each_line)
 
-## Realtime TTS with EventMachine
+## Realtime TTS with Async
 
-**Critical**: When implementing realtime TTS during streaming, use EventMachine-compatible async HTTP instead of blocking HTTP calls.
+**Critical**: When implementing realtime TTS during streaming, use Async-compatible patterns with Thread + Async do for non-blocking HTTP calls.
 
 ### Sentence Segmentation Strategy
 
@@ -194,10 +194,10 @@ end
 ### Architecture: Async HTTP with Sequence Ordering
 
 ```ruby
-# INCORRECT: Blocking HTTP in EventMachine environment
+# INCORRECT: Blocking HTTP in streaming loop
 def streaming_loop
   http.get.each do |chunk|
-    tts_result = HTTP.post(tts_url, body: text)  # ❌ Blocks EventMachine reactor
+    tts_result = HTTP.post(tts_url, body: text)  # ❌ Blocks streaming
     send_audio(tts_result)
   end
 end
@@ -210,7 +210,7 @@ def streaming_loop
   end
 end
 
-# CORRECT: http.rb with Thread + EventMachine.next_tick pattern
+# CORRECT: http.rb with Thread + Async do pattern
 require 'http'
 
 def streaming_loop
@@ -222,7 +222,7 @@ def streaming_loop
       sequence_num = @realtime_tts_sequence_counter
       sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
-      # Non-blocking async request using Thread + EventMachine.next_tick
+      # Non-blocking async request using Thread + Async do
       tts_api_request_em(
         sentence,
         provider: provider,
@@ -263,13 +263,19 @@ def tts_api_request_em(text, provider:, sequence_id: nil, &block)
         }
         result["sequence_id"] = sequence_id if sequence_id
 
-        # Return to EventMachine reactor thread
-        EventMachine.next_tick { block.call(result) }
+        # Return to Async reactor context
+        Async do
+          block.call(result)
+        end
       else
-        EventMachine.next_tick { block.call(error_result) }
+        Async do
+          block.call(error_result)
+        end
       end
     rescue => e
-      EventMachine.next_tick { block.call(error_result) }
+      Async do
+        block.call(error_result)
+      end
     end
   end
 end
@@ -277,15 +283,10 @@ end
 
 **Why this pattern works:**
 1. **http.rb in Thread**: Modern HTTP client with proper TLS verification, runs in separate thread
-2. **EventMachine.next_tick**: Returns callback to reactor thread, prevents thread-safety issues
+2. **Async do**: Returns callback to Async reactor context, prevents thread-safety issues
 3. **Sequence numbering**: Handles out-of-order HTTP responses (network latency varies)
 4. **Consistent format**: Final segment uses same `"seq#{num}_..."` format as streaming segments
 5. **Client-side reordering**: Segments arrive out-of-order but play in sequence order
-
-**Migration from em-http-request (2025-10):**
-- Replaced `em-http-request` (unmaintained since 2019, CVE-2020-13482) with `http.rb` gem (v5.2, actively maintained)
-- Thread-based pattern bridges EventMachine architecture with modern HTTP client
-- Maintains non-blocking behavior while improving security and stability
 
 ### Client-Side Reordering Buffer
 
@@ -368,48 +369,46 @@ function clearAudioQueue() {
 
 **1. Ruby Closure Variable Capture Bug**
 ```ruby
-# WRONG: Loop variable captured by reference, causes all procs to use last value
+# WRONG: Loop variable captured by reference, causes all blocks to use last value
 complete_sentences.each do |sentence|
   text = sentence  # text is reassigned in each iteration
 
-  EventMachine.defer(
-    proc {
-      tts_api_request(text, ...)  # ❌ Captures 'text' by reference!
-    },
-    proc { |res_hash| ... }
-  )
+  Thread.new do
+    tts_api_request(text, ...) do |res_hash|  # ❌ Captures 'text' by reference!
+      Async do
+        @channel.push(res_hash.to_json)
+      end
+    end
+  end
 end
 
 # Scenario:
-# 1. Loop iteration 1: text = "こんにちは！", EventMachine.defer created
-# 2. Loop iteration 2: text = "お疲れ様です。", EventMachine.defer created
-# 3. Both procs execute: Both see text = "お疲れ様です。" (last value!)
+# 1. Loop iteration 1: text = "こんにちは！", Thread created
+# 2. Loop iteration 2: text = "お疲れ様です。", Thread created
+# 3. Both threads execute: Both see text = "お疲れ様です。" (last value!)
 # Result: First sentence skipped, second sentence played twice
 
 # CORRECT: Explicitly capture value before closure creation
 complete_sentences.each do |sentence|
-  text = sentence
-
   # Create local variables to capture current values
-  sentence_text = text  # ✓ Value captured, not reference
+  sentence_text = sentence  # ✓ Value captured, not reference
   sequence_id = "seq#{n}_..."
 
-  EventMachine.defer(
-    proc {
-      tts_api_request(sentence_text, ...)  # ✓ Uses captured value
-    },
-    proc { |res_hash|
+  Thread.new do
+    tts_api_request(sentence_text, ...) do |res_hash|  # ✓ Uses captured value
       res_hash["sequence_id"] = sequence_id  # ✓ Uses captured value
-      @channel.push(res_hash.to_json)
-    }
-  )
+      Async do
+        @channel.push(res_hash.to_json)
+      end
+    end
+  end
 end
 ```
 
 **Why this happens:**
 - Ruby closures capture variables **by reference**, not by value
-- Loop variables are reassigned each iteration, but proc still holds the reference
-- By the time EventMachine.defer executes the proc, the variable has been reassigned
+- Loop variables are reassigned each iteration, but blocks still hold the reference
+- By the time Thread executes the block, the variable has been reassigned
 - Solution: Create a local variable to explicitly capture the current value
 
 **2. Timer Leak in Sequence Processing**

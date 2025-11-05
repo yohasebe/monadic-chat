@@ -3,6 +3,63 @@
 let uiUtils;
 let formHandlers;
 
+// Shared flag counters to suppress parameter synchronization during server-driven updates
+if (typeof window.suppressParamBroadcastCount === 'undefined') {
+  window.suppressParamBroadcastCount = 0;
+}
+
+function isParamBroadcastSuppressed() {
+  return (window.suppressParamBroadcastCount || 0) > 0;
+}
+
+function sanitizeParamsForSync(source) {
+  if (!source || typeof source !== 'object') return null;
+  let clone;
+  try {
+    clone = JSON.parse(JSON.stringify(source));
+  } catch (e) {
+    clone = Object.assign({}, source);
+  }
+  if (!clone || typeof clone !== 'object') return null;
+  const blacklist = new Set(["message", "images", "audio", "tts_request", "ws_session_id"]);
+  Object.keys(clone).forEach((key) => {
+    if (blacklist.has(key)) {
+      delete clone[key];
+    }
+  });
+  // Ensure app_name is set so other tabs know which app to load
+  if (!clone.app_name) {
+    const currentApp = $("#apps").val();
+    if (currentApp) clone.app_name = currentApp;
+  }
+  return clone;
+}
+
+function broadcastParamsUpdate(reason = null) {
+  if (isParamBroadcastSuppressed()) return;
+  if (typeof window.ws === 'undefined' || !window.ws || window.ws.readyState !== WebSocket.OPEN) return;
+  if (typeof params === 'undefined' || !params) return;
+
+  const payloadParams = sanitizeParamsForSync(params);
+  if (!payloadParams) return;
+
+  const payload = {
+    message: "UPDATE_PARAMS",
+    params: payloadParams
+  };
+  if (reason) {
+    payload.reason = reason;
+  }
+
+  try {
+    window.ws.send(JSON.stringify(payload));
+  } catch (error) {
+    console.warn('[Params Sync] Failed to broadcast params update:', error);
+  }
+}
+
+window.broadcastParamsUpdate = broadcastParamsUpdate;
+
 // Helper function to get formatted provider name from group
 function getProviderFromGroup(group) {
   if (!group) return "OpenAI";
@@ -105,18 +162,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         console.error('[Session] Error reading localStorage:', e);
       }
 
-      // Check if we just imported - if so, don't restore from localStorage
-      const justImported = localStorage.getItem('justImported') === 'true';
-      if (justImported) {
-        console.log('[Session] Just imported - clearing localStorage and loading from server');
-        localStorage.removeItem('justImported');
-        // Clear SessionState so server messages are used
-        window.SessionState.clearMessages();
-        window.isRestoringSession = false;
-      } else {
-        // Set flag to prevent app change confirmation during restoration
-        window.isRestoringSession = true;
-      }
+      // Always restore SessionState first (for app name, model, etc.)
+      window.SessionState.restore();
+
+      // Set flag to prevent app change confirmation during restoration
+      window.isRestoringSession = true;
 
       // Reset app initialization flags to allow re-initialization
       window.initialAppLoaded = false;
@@ -125,10 +175,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       // Clear import flag to prevent it from interfering with restoration
       window.isImporting = false;
       window.lastImportTime = null;
-
-      if (!justImported) {
-        window.SessionState.restore();
-      }
 
       // Check if user requested a reset - if so, skip message restoration only
       const shouldSkipMessageRestoration = window.SessionState.shouldForceNewSession();
@@ -713,12 +759,9 @@ $(function () {
       
       // Show the spinner with robot icon animation
       $("#monadic-spinner").css("display", "block");
-      const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ? 
+      const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
         webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
       $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
-      
-      // Show a tooltip explaining the process
-      $("#status-message").attr("title", "AI User is analyzing the entire conversation to generate a natural user response");
       
       // Enable button after a delay to prevent rapid clicking
       setTimeout(() => {
@@ -1434,6 +1477,13 @@ $(function () {
     } else if (window.shims && window.shims.uiUtils && window.shims.uiUtils.adjustImageUploadButton) {
       window.shims.uiUtils.adjustImageUploadButton(selectedModel);
     }
+
+    if (typeof params === 'object') {
+      params["model"] = selectedModel;
+    }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('model_change');
+    }
   });
 
   $("#reasoning-effort").on("change", function () {
@@ -1445,6 +1495,13 @@ $(function () {
     if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
       const reasoningEffort = $("#reasoning-effort").val();
       $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
+    }
+
+    if (typeof params === 'object') {
+      params["reasoning_effort"] = $("#reasoning-effort").val();
+    }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('reasoning_effort_change');
     }
   });
 
@@ -1606,6 +1663,12 @@ $(function () {
       $("#ai_user").attr("title", "Generate AI user response based on conversation");
     }
 
+    // Update the UI dropdown to match the appValue parameter
+    // This ensures all subsequent code that reads $("#apps").val() gets the correct value
+    if ($("#apps").val() !== appValue) {
+      $("#apps").val(appValue);
+    }
+
     // Skip early return during initial load or session restoration
     // to ensure proper initialization even if messages already exist
     if (messages.length > 0) {
@@ -1629,6 +1692,7 @@ $(function () {
     const preservedGroup = null;
     
     Object.assign(params, apps[appValue]);
+    params["app_name"] = appValue;
     
     // Fill initial_prompt from system_prompt if not present (common for Chat apps)
     if (!params["initial_prompt"] && apps[appValue]["system_prompt"]) {
@@ -1844,7 +1908,11 @@ $(function () {
       $("#math-badge").hide();
     }
 
-    $("#base-app-desc").html(apps[appValue]["description"]);
+    if (typeof window.setBaseAppDescription === 'function') {
+      window.setBaseAppDescription(apps[appValue]["description"] || "");
+    } else {
+      $("#base-app-desc").html(apps[appValue]["description"]);
+    }
 
     $("#initial-prompt-toggle").prop("checked", false).trigger("change");
     $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
@@ -1856,6 +1924,10 @@ $(function () {
         $("#model").trigger("change");
       }
     }, 100);
+
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('app_change');
+    }
 
     $("#apps").focus();
   }
@@ -1870,6 +1942,9 @@ $(function () {
     const selectedApp = $("#apps").val();
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
+    }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('websearch_toggle');
     }
   })
 
@@ -1886,6 +1961,9 @@ $(function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('auto_speech_toggle');
+    }
   })
 
   $("#check-easy-submit").on("change", function () {
@@ -1899,6 +1977,9 @@ $(function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('easy_submit_toggle');
+    }
   })
 
   $("#mathjax").on("change", function () {
@@ -1911,6 +1992,9 @@ $(function () {
     const selectedApp = $("#apps").val();
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
+    }
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('mathjax_toggle');
     }
   });
 
@@ -2310,11 +2394,20 @@ $(function () {
     audioInit();
     $("#asr-p-value").text("").hide();
 
+    // Clear import/initial load flag when user manually starts/continues session
+    // This allows Auto TTS to work normally after user interaction
+    if (window.isProcessingImport) {
+      console.log('[StartButton] Clearing isProcessingImport flag after user pressed Start/Continue button');
+      window.isProcessingImport = false;
+    }
+
     if (checkParams()) {
       params = setParams();
     } else {
       return;
     }
+
+    const shouldSkipAssistant = (typeof window !== 'undefined') && window.skipAssistantInitiation === true;
     
 
     // Ensure UI controls are properly enabled by default
@@ -2377,7 +2470,7 @@ $(function () {
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
       // This prevents auto-generation when importing conversations
-      if ($("#initiate-from-assistant").is(":checked") && messages.length === 0) {
+      if ($("#initiate-from-assistant").is(":checked") && messages.length === 0 && !shouldSkipAssistant) {
         $("#temp-card").show();
         $("#user-panel").hide();
         $("#monadic-spinner").show(); // Show spinner for initial assistant message
@@ -2390,6 +2483,9 @@ $(function () {
               ws.send(JSON.stringify(params));
         });
       } else {
+        if (shouldSkipAssistant) {
+          console.log('[StartButton] Skipping initiate_from_assistant for imported session');
+        }
         $("#user-panel").show();
         ensureControlsEnabled();
         setInputFocus();
@@ -3315,27 +3411,42 @@ $(function () {
     }
 
     setCookie("tts-provider", params["tts_provider"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('tts_provider_change');
+    }
   });
 
   $("#tts-voice").on("change", function () {
     params["tts_voice"] = $("#tts-voice option:selected").val();
     setCookie("tts-voice", params["tts_voice"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('tts_voice_change');
+    }
   });
 
   $("#elevenlabs-tts-voice").on("change", function () {
     params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice option:selected").val();
     setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('elevenlabs_voice_change');
+    }
   });
 
   $("#gemini-tts-voice").on("change", function () {
     params["gemini_tts_voice"] = $("#gemini-tts-voice option:selected").val();
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('gemini_voice_change');
+    }
   });
 
   $("#stt-model").on("change", function () {
     params["stt_model"] = $("#stt-model option:selected").val();
     setCookie("stt-model", params["stt_model"], 30);
     console.log("STT model changed to:", params["stt_model"]);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('stt_model_change');
+    }
   });
 
   $("#conversation-language").on("change", function () {
@@ -3369,12 +3480,19 @@ $(function () {
         console.log("WebSocket readyState:", window.ws.readyState);
       }
     }
+
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('conversation_language_change');
+    }
   });
 
   $("#tts-speed").on("input", function () {
     $("#tts-speed-value").text(parseFloat($(this).val()).toFixed(2));
     params["tts_speed"] = parseFloat($(this).val());
     setCookie("tts-speed", params["tts_speed"], 30);
+    if (!isParamBroadcastSuppressed()) {
+      broadcastParamsUpdate('tts_speed_change');
+    }
   });
 
   $("#error-close").on("click", function (event) {
@@ -3468,19 +3586,22 @@ $(function () {
       
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
-      
+
+      // Debug: Log the response
+      console.log('[Import] Server response:', response);
+
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
         $("#loadModal").modal("hide");
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
-        // Set flag to indicate we just imported and should load from server
-        // This prevents isRestoringSession from blocking server messages
-        localStorage.setItem('justImported', 'true');
+        // Clear local messages to prepare for incoming import data
+        window.SessionState.clearMessages();
 
-        // Force reload page to load the imported session
-        window.location.reload();
+        // Server will push data via WebSocket - no reload needed
+        // The WebSocket 'parameters' handler will set the app name via loadParams
+        console.log('[Import] Import successful - cleared local messages, waiting for WebSocket data push');
       } else {
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Unknown error occurred";

@@ -137,8 +137,8 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
 
   // Create the card element with the mid attribute
   const card = $(`
-    <div class="card mt-3" id="${mid}"> 
-    <div class="card-header p-2 ps-3 d-flex justify-content-between">
+    <div class="card mt-3" id="${mid}">
+    <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
     <div class="fs-5 card-title mb-0">${enhancedBadge2}</div>
     ${(!runningOnChrome && !runningOnEdge && !runningOnSafari) ? `
         <div class="me-1 text-secondary d-flex align-items-center">

@@ -1654,7 +1654,34 @@ post "/load" do
           extra_log.close
         end
 
-        { success: true }.to_json
+        # Push imported data to client via WebSocket (eliminates need for reload)
+        begin
+          # Prepare apps data
+          apps_data = prepare_apps_data
+
+          # Filter messages by app_name and exclude search messages
+          current_app_name = session[:parameters]["app_name"]
+          filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
+
+          # Broadcast data to all connected clients
+          # Mark apps message as from_import to ensure parameters waits for apps processing
+          WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
+          sleep(0.2) # Increased delay to ensure apps message is fully processed before parameters
+          WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
+          sleep(0.05)
+          WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)"
+            extra_log.close
+          end
+        rescue => e
+          # Log error but don't fail the import - client can still reload manually if needed
+          logger.warn "Failed to push import data via WebSocket: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        end
+
+        { success: true, app_name: json_data['parameters']['app_name'] }.to_json
       rescue JSON::ParserError => e
         { success: false, error: "Invalid JSON format" }.to_json
       rescue => e

@@ -3,7 +3,7 @@
 Monadic Chat writes logs on the host at `~/monadic/log`. From the Console Panel (Menu → Open → Open Log Folder), you can jump to this directory.
 
 Common files:
-- `server.log` — the Thin server log for the Ruby web app.
+- `server.log` — the Falcon server log for the Ruby web app.
 - `docker-build.log`, `docker-startup.log` — docker lifecycle logs.
 - `command.log` — shell/code execution traces.
 - `jupyter.log` — Jupyter cell additions/run logs.

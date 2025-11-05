@@ -432,8 +432,9 @@
         border-radius: 0.25rem;
         border: 1px solid #dee2e6;
         transition: all 0.2s ease;
-        display: inline-flex;
+        display: flex;
         align-items: center;
+        justify-content: flex-start;
         font-size: 0.875rem;
         width: 250px; /* Increased from 200px to accommodate longer messages */
         max-width: 250px;
@@ -441,7 +442,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
         background-color: #f8f9fa;
-        line-height: 1;
+        line-height: 28px; /* Match height for perfect vertical centering */
         box-sizing: border-box;
         flex-shrink: 1;
         min-width: 0; /* Allow flex items to shrink below content size */
@@ -454,11 +455,18 @@
         white-space: nowrap;
         flex-shrink: 1;
         min-width: 0;
+        line-height: 1;
+        display: flex;
+        align-items: center;
       }
-      
+
       /* Add spacing between icon and text in status message */
       #status-message i {
         margin-right: 0.5rem; /* Space between icon and text */
+        display: flex;
+        align-items: center;
+        line-height: 1;
+        flex-shrink: 0;
       }
       
       /* Unified status styling (light background for better readability) */
@@ -512,6 +520,49 @@
 
       .dark-theme #status-message.text-secondary {
         color: #d0d0d0 !important; /* Bright gray for dark mode */
+      }
+
+      /* Bootstrap tooltip styling - ensure dark/black tooltips with arrow */
+      .tooltip {
+        z-index: 10000 !important;
+      }
+
+      .tooltip .tooltip-inner {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border-radius: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        max-width: 300px;
+      }
+
+      /* Tooltip arrow styling for all directions */
+      .tooltip .tooltip-arrow {
+        display: block !important;
+      }
+
+      .bs-tooltip-top .tooltip-arrow::before,
+      .bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before {
+        border-top-color: #000000 !important;
+      }
+
+      .bs-tooltip-bottom .tooltip-arrow::before,
+      .bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before {
+        border-bottom-color: #000000 !important;
+      }
+
+      .bs-tooltip-start .tooltip-arrow::before,
+      .bs-tooltip-auto[data-popper-placement^="left"] .tooltip-arrow::before {
+        border-left-color: #000000 !important;
+      }
+
+      .bs-tooltip-end .tooltip-arrow::before,
+      .bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before {
+        border-right-color: #000000 !important;
+      }
+
+      /* Ensure no native browser tooltips appear (title attributes are removed by JS) */
+      #status-message[title] {
+        cursor: default;
       }
 
       /* Responsive adjustments */

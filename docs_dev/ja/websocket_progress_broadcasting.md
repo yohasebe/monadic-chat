@@ -15,7 +15,7 @@ OpenAI Code操作は10-20分以上かかる場合があります。進捗更新�
 
 1. **`lib/monadic/utils/websocket.rb`**
    - WebSocketHelperモジュールに進捗ブロードキャスト機能を追加
-   - メッセージ配信にEventMachineチャネルを使用するように変更
+   - メッセージ配信にWebSocket接続ブロードキャストを使用
    - セッションごとの複数接続を追跡するためのセッション管理
 
 2. **`lib/monadic/agents/openai_code_agent.rb`**
@@ -28,15 +28,18 @@ OpenAI Code操作は10-20分以上かかる場合があります。進捗更新�
 
 ## 重要な実装詳細
 
-### EventMachineチャネル要件
-**重要**：メッセージは一時カードに表示されるためにEventMachineチャネル（`@channel.push()`）を介して送信する必要があります。直接WebSocket送信（`ws.send()`）は一時カードUIに表示されません。
+### WebSocketブロードキャスト要件
+**重要**：メッセージはすべての接続されたクライアントに到達するために、WebSocketHelperブロードキャストメソッドを介して送信する必要があります。`WebSocketHelper.broadcast_progress()`または`WebSocketHelper.broadcast_to_all()`を使用してください。
 
 ```ruby
-# 正しい - メッセージが一時カードに表示される
-@@channel.push(message.to_json)
+# 正しい - すべてのクライアントの一時カードにメッセージが表示される
+WebSocketHelper.broadcast_progress(fragment, target_session_id)
 
-# 間違い - メッセージが一時カードに表示されない
-ws.send(message.to_json)
+# 正しい - すべての接続にブロードキャスト
+WebSocketHelper.broadcast_to_all(message.to_json)
+
+# 間違い - 一つの接続にのみ送信
+ws.write(message.to_json)
 ```
 
 ### メッセージフォーマット
@@ -60,8 +63,8 @@ JavaScriptフロントエンドは`type: "wait"`メッセージを`setAlert(cont
 
 ### 2. 進捗ブロードキャストメソッド
 - `broadcast_progress(fragment, target_session_id)`：メインブロードキャストメソッド
-- `send_to_session(message_json, session_id)`：セッション固有の送信（チャネルを使用）
-- `send_progress_fragment(fragment, target_session_id)`：進捗フラグメントをフィルタリングして送信
+- `send_to_session(message_json, session_id)`：セッション固有の送信（WebSocket接続を使用）
+- `broadcast_to_all(message)`：すべてのアクティブな接続にブロードキャスト
 
 ### 3. 機能フラグ
 - `WEBSOCKET_PROGRESS_ENABLED`：進捗ブロードキャストがアクティブかどうかを制御
@@ -82,18 +85,18 @@ JavaScriptフロントエンドは`type: "wait"`メッセージを`setAlert(cont
 2. **デバッグ**：どのセッションがどのメッセージを生成したかを追跡
 3. **後方互換性**：メッセージフォーマットを変更せずにフィルタリングを簡単に追加
 
-### なぜフォールバック直接送信を維持するのか？
-`send_to_session`メソッドには、チャネルが存在しない場合の直接WebSocket送信のフォールバックコードが含まれています：
-1. **防御的プログラミング**：チャネル初期化が失敗してもシステムが壊れないようにする
-2. **テスト**：一部のテストシナリオではチャネルを初期化しない可能性がある
-3. **移行パス**：アーキテクチャが変更されても、フォールバックが継続性を保証
+### なぜ直接WebSocket接続を使用するのか？
+`send_to_session`メソッドはWebSocket接続に直接送信します：
+1. **シンプルさ**：中間チャネルやメッセージキューが不要
+2. **パフォーマンス**：直接接続送信の方が高速
+3. **互換性**：Async::WebSocketアーキテクチャと連携
 
 ## テストに関する考慮事項
 
-テストファイル`spec/lib/monadic/utils/websocket_helper_spec.rb`はまだ直接WebSocket送信を期待しています。これは意図的です：
-1. テストはWebSocket接続管理ロジックを検証
-2. チャネルの動作は実際の使用を通じて統合テスト
-3. テストを変更するにはEventMachineチャネルのモック化が必要
+テストファイル`spec/lib/monadic/utils/websocket_helper_spec.rb`は直接WebSocket接続管理をテストします：
+1. テストはWebSocket接続追跡とブロードキャストロジックを検証
+2. 統合テストはWebSocket接続を介した実際のメッセージ配信を検証
+3. テストはモックWebSocket接続を使用してブロードキャスト動作を検証
 
 ## 設定
 
@@ -109,13 +112,13 @@ EXTRA_LOGGING=true
 ## トラブルシューティング
 
 ### 進捗が一時カードに表示されない
-1. `@@channel`が設定されているか確認（`handle_websocket_connection`で発生するはず）
+1. `@@ws_connections`でWebSocket接続がアクティブであることを確認
 2. メッセージに`type: "wait"`があることを確認
 3. ブラウザコンソールでWebSocketエラーを確認
 4. `EXTRA_LOGGING`を有効にして詳細なブロードキャストログを確認
 
 ### メッセージがコンソールに表示されるがUIには表示されない
-これは、メッセージがチャネルを介さずに直接送信されていることを意味します。`send_to_session`が`@@channel.push()`を使用していることを確認してください。
+これは、メッセージがWebSocket接続に到達していない可能性があることを意味します。`WebSocketHelper.broadcast_progress()`または`broadcast_to_all()`が正しく呼び出されていることを確認してください。
 
 ## コードの場所
 

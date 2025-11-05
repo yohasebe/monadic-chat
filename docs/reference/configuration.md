@@ -125,10 +125,9 @@ Monadic Chat supports two application modes that control network accessibility:
 **Server Mode** (`DISTRIBUTED_MODE=server`)
 - Server binds to `0.0.0.0` (all network interfaces)
 - Accessible from any device on the network via local IP address (e.g., `http://192.168.1.10:4567`)
-- Each connected device maintains an independent session with separate conversation history
-- Sessions are not shared between devices or browser tabs
+- All connected clients share the same application session (app selection, settings, and conversation history are synchronized in real time)
+- Treat this mode as a collaborative “shared console”; actions taken in one tab or device immediately affect every other connected client
 - JupyterLab disabled by default for security (enable with `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
-- Session isolation: Messages and conversation state are stored separately per browser session using cookies and localStorage
 
 ## Container Settings
 

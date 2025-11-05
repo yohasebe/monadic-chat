@@ -4,7 +4,7 @@
 
 Monadic Chatは、異なる機能のために複数のDockerコンテナを使用します：
 
-- **Ruby**（`monadic-chat-ruby-container`）：メインアプリケーションサーバー（Thin/Rack）
+- **Ruby**（`monadic-chat-ruby-container`）：メインアプリケーションサーバー（Falcon/Rackで個人利用向けに2ワーカー）
 - **Python**（`monadic-chat-python-container`）：PythonツールとエンベディングのためのFlask API
 - **PostgreSQL/PGVector**（`monadic-chat-pgvector-container`）：エンベディング用ベクトルデータベース
 - **Selenium**（`monadic-chat-selenium-container`）：キャプチャ/検索のためのWeb自動化

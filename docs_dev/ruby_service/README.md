@@ -36,7 +36,7 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 
 ## Overview
 
-The Ruby service is the core backend of Monadic Chat, built on Rack and EventMachine. Key components include:
+The Ruby service is the core backend of Monadic Chat, built on Rack and Async/Falcon. Key components include:
 
 - **Rack Application** (`config.ru`, `lib/monadic.rb`) - HTTP/WebSocket server
 - **WebSocket Server** (`lib/monadic/utils/websocket.rb`) - Real-time bidirectional communication
@@ -47,8 +47,9 @@ The Ruby service is the core backend of Monadic Chat, built on Rack and EventMac
 ## Key Technologies
 
 - **Rack** - Web server interface
-- **EventMachine** - Event-driven I/O
-- **WebSocket** - Real-time communication protocol
+- **Falcon** - Async-based web server (runs with 2 workers for personal use)
+- **Async** - Asynchronous I/O framework
+- **Async::WebSocket** - WebSocket support for Async
 - **Docker** - Container orchestration
 - **PostgreSQL/PGVector** - Vector database for embeddings
 

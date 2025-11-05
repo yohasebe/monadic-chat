@@ -1079,7 +1079,7 @@ module InteractionUtils
                   end
                 end
 
-                # Return to EventMachine reactor thread
+                # Return to Async reactor context
                 Async do
             block.call(result)
           end

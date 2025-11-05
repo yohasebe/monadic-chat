@@ -33,7 +33,7 @@
 
 ## 概要
 
-RubyサービスはMonadic Chatのコアバックエンドで、RackとEventMachineで構築されています。主要コンポーネントには以下が含まれます：
+RubyサービスはMonadic Chatのコアバックエンドで、RackとAsync/Falconで構築されています。主要コンポーネントには以下が含まれます：
 
 - **Rackアプリケーション** (`config.ru`、`lib/monadic.rb`) - HTTP/WebSocketサーバー
 - **WebSocketサーバー** (`lib/monadic/utils/websocket.rb`) - リアルタイム双方向通信
@@ -44,8 +44,9 @@ RubyサービスはMonadic Chatのコアバックエンドで、RackとEventMach
 ## 主要技術
 
 - **Rack** - Webサーバーインターフェース
-- **EventMachine** - イベント駆動I/O
-- **WebSocket** - リアルタイム通信プロトコル
+- **Falcon** - Asyncベースのウェブサーバー（個人利用向けに2ワーカーで実行）
+- **Async** - 非同期I/Oフレームワーク
+- **Async::WebSocket** - Async用WebSocketサポート
 - **Docker** - コンテナオーケストレーション
 - **PostgreSQL/PGVector** - エンベディング用ベクトルデータベース
 

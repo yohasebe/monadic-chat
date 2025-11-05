@@ -243,13 +243,13 @@ Useful for testing, examples, or conversation templates.
 
 ### Q: How do I run Monadic Chat in server mode? :id=server-mode
 
-**A**: Server mode allows multiple users:
+**A**: Server mode exposes a single Monadic Chat workspace to the network.
 
 1. Set `DISTRIBUTED_MODE=server` in `~/monadic/config/env`
 2. Start the application normally (the setting is read on startup)
-3. Access from browser at server IP
-4. Each user needs their own API keys
-5. Sessions are isolated
+3. Other devices connect via the host IP (for example `http://192.168.1.10:4567`)
+4. Use shared or team API keys as appropriate
+5. All connected clients see the same conversation, app selection, and settings—treat it as a collaborative session, not isolated personal workspaces
 
 ### Q: Can I add Python libraries? :id=add-python-libraries
 

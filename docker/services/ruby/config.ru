@@ -9,6 +9,11 @@ require_relative "lib/monadic"
 set :logging, true
 set :bind, "0.0.0.0"
 
+# Use in-memory sessions (Pool) for normal operation
+# For import functionality, we'll save/load session data to/from files
+use Rack::Session::Pool, key: 'monadic.session',
+                         expire_after: 86400  # 24 hours
+
 # Middleware to start MCP server once Async reactor is running
 class MCPServerStarter
   def initialize(app)

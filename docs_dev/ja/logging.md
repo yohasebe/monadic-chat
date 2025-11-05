@@ -3,7 +3,7 @@
 Monadic Chatは、ホスト上の`~/monadic/log`にログを書き込みます。コンソールパネル（メニュー → 開く → ログフォルダを開く）から、このディレクトリに移動できます。
 
 一般的なファイル：
-- `server.log` — RubyウェブアプリのThinサーバーログ
+- `server.log` — RubyウェブアプリのFalconサーバーログ
 - `docker-build.log`、`docker-startup.log` — dockerライフサイクルログ
 - `command.log` — シェル/コード実行トレース
 - `jupyter.log` — Jupyterセル追加/実行ログ

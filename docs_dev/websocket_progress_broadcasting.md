@@ -15,7 +15,7 @@ OpenAI Code operations can take 10-20 minutes or longer. Without progress update
 
 1. **`lib/monadic/utils/websocket.rb`**
    - Added progress broadcasting capabilities to WebSocketHelper module
-   - Modified to use EventMachine channel for message delivery
+   - Uses WebSocket connection broadcast for message delivery
    - Session management for tracking multiple connections per session
 
 2. **`lib/monadic/agents/openai_code_agent.rb`**
@@ -28,15 +28,18 @@ OpenAI Code operations can take 10-20 minutes or longer. Without progress update
 
 ## Critical Implementation Details
 
-### EventMachine Channel Requirement
-**IMPORTANT**: Messages MUST be sent through the EventMachine channel (`@channel.push()`) to appear in the temp card. Direct WebSocket sending (`ws.send()`) will NOT display in the temp card UI.
+### WebSocket Broadcasting Requirement
+**IMPORTANT**: Messages MUST be sent through WebSocketHelper broadcasting methods to reach all connected clients. Use `WebSocketHelper.broadcast_progress()` or `WebSocketHelper.broadcast_to_all()`.
 
 ```ruby
-# CORRECT - Messages appear in temp card
-@@channel.push(message.to_json)
+# CORRECT - Messages appear in temp card for all clients
+WebSocketHelper.broadcast_progress(fragment, target_session_id)
 
-# INCORRECT - Messages do NOT appear in temp card
-ws.send(message.to_json)
+# CORRECT - Broadcast to all connections
+WebSocketHelper.broadcast_to_all(message.to_json)
+
+# INCORRECT - Sends to only one connection
+ws.write(message.to_json)
 ```
 
 ### Message Format
@@ -60,8 +63,8 @@ The JavaScript frontend handles `type: "wait"` messages by calling `setAlert(con
 
 ### 2. Progress Broadcasting Methods
 - `broadcast_progress(fragment, target_session_id)`: Main broadcasting method
-- `send_to_session(message_json, session_id)`: Session-specific sending (uses channel)
-- `send_progress_fragment(fragment, target_session_id)`: Filters and sends progress fragments
+- `send_to_session(message_json, session_id)`: Session-specific sending (uses WebSocket connections)
+- `broadcast_to_all(message)`: Broadcast to all active connections
 
 ### 3. Feature Flag
 - `WEBSOCKET_PROGRESS_ENABLED`: Controls whether progress broadcasting is active
@@ -82,18 +85,18 @@ Currently unused by JavaScript, but included for:
 2. **Debugging**: Track which session generated which message
 3. **Backward compatibility**: Easy to add filtering without changing message format
 
-### Why Keep Fallback Direct Send?
-The `send_to_session` method includes fallback code for direct WebSocket sending when no channel exists:
-1. **Defensive programming**: System shouldn't break if channel initialization fails
-2. **Testing**: Some test scenarios might not initialize channels
-3. **Migration path**: If architecture changes, fallback ensures continuity
+### Why Use Direct WebSocket Connections?
+The `send_to_session` method sends directly to WebSocket connections:
+1. **Simplicity**: No need for intermediate channels or message queues
+2. **Performance**: Direct connection sending is faster
+3. **Compatibility**: Works with Async::WebSocket architecture
 
 ## Testing Considerations
 
-The test file `spec/lib/monadic/utils/websocket_helper_spec.rb` still expects direct WebSocket sends. This is intentional because:
-1. Tests verify the WebSocket connection management logic
-2. Channel behavior is integration-tested through actual usage
-3. Changing tests would require mocking EventMachine channels
+The test file `spec/lib/monadic/utils/websocket_helper_spec.rb` tests direct WebSocket connection management:
+1. Tests verify the WebSocket connection tracking and broadcasting logic
+2. Integration tests verify actual message delivery through WebSocket connections
+3. Tests use mock WebSocket connections to verify broadcast behavior
 
 ## Configuration
 
@@ -109,13 +112,13 @@ EXTRA_LOGGING=true
 ## Troubleshooting
 
 ### Progress Not Appearing in Temp Card
-1. Check that `@@channel` is set (should happen in `handle_websocket_connection`)
+1. Check that WebSocket connections are active in `@@ws_connections`
 2. Verify message has `type: "wait"`
 3. Check browser console for WebSocket errors
 4. Enable `EXTRA_LOGGING` to see detailed broadcast logs
 
 ### Messages Appear in Console but Not UI
-This means messages are being sent directly instead of through channel. Ensure `send_to_session` is using `@@channel.push()`.
+This means messages may not be reaching the WebSocket connection. Verify that `WebSocketHelper.broadcast_progress()` or `broadcast_to_all()` is being called correctly.
 
 ## Code Locations
 

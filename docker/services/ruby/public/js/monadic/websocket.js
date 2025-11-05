@@ -13,6 +13,12 @@ let ws = connect_websocket();
 window.ws = ws;  // Make ws globally accessible
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
+if (typeof window.skipAssistantInitiation === 'undefined') {
+  window.skipAssistantInitiation = false;
+}
+if (typeof window.isProcessingImport === 'undefined') {
+  window.isProcessingImport = false;
+}
 
 // Lightweight timeline logger to trace initialization order
 if (!window.logTL) {
@@ -49,6 +55,10 @@ let currentTTSCardId = null; // Track which card is currently playing TTS
 window.globalAudioQueue = globalAudioQueue;
 window.getIsProcessingAudioQueue = () => isProcessingAudioQueue;
 
+if (typeof window.suppressParamBroadcastCount === 'undefined') {
+  window.suppressParamBroadcastCount = 0;
+}
+
 // Sequence-based ordering for realtime TTS
 let nextExpectedSequence = 1; // Track next expected sequence number
 let pendingAudioSegments = {}; // Buffer for out-of-order segments
@@ -69,6 +79,59 @@ window.setTextResponseCompleted = function(value) {
 window.setTtsPlaybackStarted = function(value) {
   ttsPlaybackStarted = value;
 };
+
+// Track temporary suppression of auto speech (e.g., during session import)
+let autoSpeechSuppressed = false;
+
+function resetAutoSpeechSpinner() {
+  if (typeof $ === 'undefined') return;
+  const $spinner = $("#monadic-spinner");
+  $spinner.hide();
+  $spinner.find("span i")
+    .removeClass("fa-headphones")
+    .addClass("fa-comment");
+  $spinner.find("span")
+    .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+}
+
+function setAutoSpeechSuppressed(value, options = {}) {
+  autoSpeechSuppressed = !!value;
+  window.autoSpeechSuppressed = autoSpeechSuppressed;
+
+  if (autoSpeechSuppressed) {
+    // Stop any ongoing playback to avoid overlapping audio
+    if (typeof ttsStop === 'function') {
+      try {
+        ttsStop();
+      } catch (e) {
+        console.warn('[Auto TTS] Failed to stop playback while suppressing:', e);
+      }
+    }
+    // Reset spinner/flags so UI reflects suppressed state
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(false);
+    }
+    if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
+      clearTimeout(window.autoTTSSpinnerTimeout);
+      window.autoTTSSpinnerTimeout = null;
+    }
+    resetAutoSpeechSpinner();
+    window.autoSpeechActive = false;
+    window.autoPlayAudio = false;
+    if (options.log !== false) {
+      console.log('[Auto TTS] Suppression enabled', options.reason ? `(${options.reason})` : '');
+    }
+  } else if (options.log !== false) {
+    console.log('[Auto TTS] Suppression cleared');
+  }
+}
+
+function isAutoSpeechSuppressed() {
+  return autoSpeechSuppressed;
+}
+
+window.setAutoSpeechSuppressed = setAutoSpeechSuppressed;
+window.isAutoSpeechSuppressed = isAutoSpeechSuppressed;
 
 // Audio queue processing delays (configurable)
 const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
@@ -3251,11 +3314,7 @@ let loadedApp = "Chat";
         break;
       }
       case "apps": {
-        console.log("=== APPS MESSAGE RECEIVED ===");
-        console.log("Apps message count:", ++window.appsMessageCount || (window.appsMessageCount = 1));
-        console.log("Current pendingParameters:", window.pendingParameters);
-        console.log("Current #apps value:", $("#apps").val());
-        console.log("isUpdate check: apps has", Object.keys(apps).length, "keys");
+        window.appsMessageCount = (window.appsMessageCount || 0) + 1;
         window.logTL('apps_received', {
           count: window.appsMessageCount,
           hasAppsKeys: Object.keys(apps).length,
@@ -3278,48 +3337,22 @@ let loadedApp = "Chat";
           // Update the currently displayed app description if needed
           const currentApp = $("#apps").val();
           if (currentApp && apps[currentApp]) {
-            // Display description with tool group badges
-            let descriptionHtml = apps[currentApp]["description"];
-            if (apps[currentApp]["imported_tool_groups"]) {
-              try {
-                // Parse JSON string to array
-                const toolGroups = JSON.parse(apps[currentApp]["imported_tool_groups"]);
-                console.log(`[Tool Groups] ${currentApp}:`, toolGroups);
-                if (toolGroups && toolGroups.length > 0) {
-                  const getToolGroupIcon = (groupName) => {
-                    const icons = {
-                      'jupyter_operations': '📓',
-                      'python_execution': '🐍',
-                      'file_operations': '📁',
-                      'file_reading': '📄',
-                      'web_tools': '🌐',
-                      'app_creation': '🛠️'
-                    };
-                    return icons[groupName] || '📦';
-                  };
-                  const badges = toolGroups.map(group => {
-                    const icon = getToolGroupIcon(group.name);
-                    const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
-                    return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
-                  }).join(' ');
-                  descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
-                  console.log(`[Tool Groups] Badges HTML added for ${currentApp}`);
-                }
-              } catch (e) {
-                console.warn('Failed to parse imported_tool_groups:', e);
-              }
+            const descriptionOnly = apps[currentApp]["description"] || "";
+            if (typeof window.setBaseAppDescription === 'function') {
+              window.setBaseAppDescription(descriptionOnly);
             } else {
-              console.log(`[Tool Groups] No imported_tool_groups for ${currentApp}`);
+              $("#base-app-desc").html(descriptionOnly);
             }
-            $("#base-app-desc").html(descriptionHtml);
+            if (typeof window.updateAppBadges === 'function') {
+              window.updateAppBadges(currentApp);
+            }
             
             // If this is after a reset, re-initialize the app
             // Check if parameters message hasn't been received yet
-            if (!data["from_parameters"]) {
+            if (!data["from_parameters"] && !fromParamUpdate) {
               // Re-initialize the current app with proceedWithAppChange
               setTimeout(function() {
                 if (typeof window.proceedWithAppChange === 'function') {
-                  console.log('[WebSocket] Calling proceedWithAppChange for:', currentApp);
                   window.proceedWithAppChange(currentApp);
                 }
               }, 100);
@@ -3333,18 +3366,7 @@ let loadedApp = "Chat";
             }
             window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
 
-            // Debug: Log imported_tool_groups for all apps
-            console.log('[Tool Groups Debug] Apps with imported_tool_groups:');
-            Object.keys(apps).forEach(appName => {
-              if (apps[appName]["imported_tool_groups"]) {
-                try {
-                  const parsed = JSON.parse(apps[appName]["imported_tool_groups"]);
-                  console.log(`  ${appName}:`, parsed);
-                } catch (e) {
-                  console.log(`  ${appName}: [parse error]`, apps[appName]["imported_tool_groups"]);
-                }
-              }
-            });
+            // No need to log imported_tool_groups in production; keep data available in apps object
           } catch (_) {}
 
           // Prepare arrays for app classification
@@ -3554,7 +3576,7 @@ let loadedApp = "Chat";
           // On initial load without session restore, ignore browser's auto-selection to prioritize Chat apps
           const hasSessionRestore = !!(window.lastApp && window.lastApp !== null);
           const isInitialLoad = window.appsMessageCount === 1 && !window.initialAppLoaded && !hasSessionRestore;
-          console.log('[Model Debug] App selection state:', {
+          window.logTL('app_selection_state', {
             importRequestedApp,
             currentSelectVal,
             hasCurrentValidSelection,
@@ -3570,9 +3592,8 @@ let loadedApp = "Chat";
           // PRIORITY 1: Check if window.lastApp exists (from session restoration)
           if (window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
             firstValidApp = window.lastApp;
-            console.log('[Session] Using restored app:', firstValidApp);
           } else if (window.lastApp) {
-            console.log('[Session] Restored app not available:', window.lastApp);
+            window.logTL('restored_app_unavailable', { lastApp: window.lastApp });
           }
 
           // PRIORITY 2: Try to find a Chat app from OpenAI (if API key is available)
@@ -3581,17 +3602,8 @@ let loadedApp = "Chat";
               return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
             }).first();
 
-            console.log('[App Selection Debug] ChatOpenAI search:', {
-              found: openAIChatOption.length > 0,
-              disabled: openAIChatOption.prop('disabled'),
-              importRequestedApp,
-              hasCurrentValidSelection,
-              isInitialLoad
-            });
-
             if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && openAIChatOption.length > 0) {
               firstValidApp = openAIChatOption.val();
-              console.log('[App Selection Debug] Selected ChatOpenAI');
             } else {
               // Look for any Chat app from other providers
               const anyChatOption = $("#apps option").filter(function() {
@@ -3599,14 +3611,8 @@ let loadedApp = "Chat";
                 return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
               }).first();
 
-              console.log('[App Selection Debug] Any Chat app search:', {
-                found: anyChatOption.length > 0,
-                value: anyChatOption.val()
-              });
-
               if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && anyChatOption.length > 0) {
                 firstValidApp = anyChatOption.val();
-                console.log('[App Selection Debug] Selected Chat app:', firstValidApp);
               } else {
                 // Fallback: select the first available non-disabled app
                 if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad)) {
@@ -3614,19 +3620,16 @@ let loadedApp = "Chat";
                     return !$(this).prop('disabled') && !$(this).text().includes('──');
                   }).first();
                   firstValidApp = fallbackApp.val();
-                  console.log('[App Selection Debug] Using fallback (first available):', firstValidApp);
                 }
               }
             }
           }
-          
+
           // Set the app in dropdown if we have a valid app to select
           // During session restoration, we may already have a selection but still need to initialize
           const shouldSetApp = !importRequestedApp && firstValidApp && (!hasCurrentValidSelection || window.isRestoringSession);
-          console.log('[Model Debug] Should set app:', { shouldSetApp, importRequestedApp, firstValidApp, hasCurrentValidSelection, isRestoringSession: window.isRestoringSession });
 
           if (shouldSetApp) {
-            console.log('[Model Debug] Setting app in dropdown:', firstValidApp);
             $("#apps").val(firstValidApp);
 
             // Set lastApp to prevent confirmation dialog on initial load
@@ -3673,40 +3676,15 @@ let loadedApp = "Chat";
 
               $("#base-app-icon").html(selectedApp["icon"]);
 
-              // Display description with tool group badges
-              let descriptionHtml = selectedApp["description"];
-              if (selectedApp["imported_tool_groups"]) {
-                try {
-                  // Parse JSON string to array
-                  const toolGroups = JSON.parse(selectedApp["imported_tool_groups"]);
-                  console.log(`[Tool Groups] ${firstValidApp}:`, toolGroups);
-                  if (toolGroups && toolGroups.length > 0) {
-                    const getToolGroupIcon = (groupName) => {
-                      const icons = {
-                        'jupyter_operations': '📓',
-                        'python_execution': '🐍',
-                        'file_operations': '📁',
-                        'file_reading': '📄',
-                        'web_tools': '🌐',
-                        'app_creation': '🛠️'
-                      };
-                      return icons[groupName] || '📦';
-                    };
-                    const badges = toolGroups.map(group => {
-                      const icon = getToolGroupIcon(group.name);
-                      const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
-                      return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
-                    }).join(' ');
-                    descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
-                    console.log(`[Tool Groups] Badges HTML added for ${firstValidApp}`);
-                  }
-                } catch (e) {
-                  console.warn('Failed to parse imported_tool_groups:', e);
-                }
+              const descriptionOnly = selectedApp["description"] || "";
+              if (typeof window.setBaseAppDescription === 'function') {
+                window.setBaseAppDescription(descriptionOnly);
               } else {
-                console.log(`[Tool Groups] No imported_tool_groups for ${firstValidApp}`);
+                $("#base-app-desc").html(descriptionOnly);
               }
-              $("#base-app-desc").html(descriptionHtml);
+              if (typeof window.updateAppBadges === 'function') {
+                window.updateAppBadges(firstValidApp);
+              }
 
               if (firstValidApp === "PDF") {
                 ws.send(JSON.stringify({ message: "PDF_TITLES" }));
@@ -3714,49 +3692,45 @@ let loadedApp = "Chat";
               
               // Call proceedWithAppChange directly to ensure proper initialization
               // Use setTimeout to ensure DOM and all dependencies are ready
-              setTimeout(function() {
-                const recentlyImported = (typeof window !== 'undefined' && window.lastImportTime) ? (Date.now() - window.lastImportTime < 1000) : false;
-                const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
-                console.log('[Model Debug] First timeout (100ms) check:', {
-                  isImporting: window.isImporting,
-                  recentlyImported,
-                  hasCurrentValidSelection,
-                  firstValidApp,
-                  isRestoringSession: window.isRestoringSession,
-                  isImportingNotRestoring,
-                  lastImportTime: window.lastImportTime,
-                  timeSinceImport: window.lastImportTime ? Date.now() - window.lastImportTime : 'N/A',
-                  willProceed: !(isImportingNotRestoring || recentlyImported)
-                });
-                // Skip only during import (when NOT restoring session), not during session restoration
-                if (typeof window !== 'undefined' && (isImportingNotRestoring || recentlyImported)) {
-                  // Skip auto-selection during or right after import (but not during session restoration)
-                  console.log('[Model Debug] Skipping proceedWithAppChange in first timeout (import detected, not restoring)');
-                  return;
-                }
-                console.log('[Model Debug] Calling proceedWithAppChange from first timeout:', firstValidApp);
-                window.logTL('auto_select_app', { firstValidApp });
-                if (typeof window.proceedWithAppChange === 'function') {
-                  // Call proceedWithAppChange directly for reliable initialization
-                  window.proceedWithAppChange(firstValidApp);
-                  window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
+              if (!fromParamUpdate) {
+                setTimeout(function() {
+                  const recentlyImported = (typeof window !== 'undefined' && window.lastImportTime) ? (Date.now() - window.lastImportTime < 1000) : false;
+                  const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
+                  window.logTL('apps_first_timeout', {
+                    recentlyImported,
+                    hasCurrentValidSelection,
+                    firstValidApp,
+                    isRestoringSession: window.isRestoringSession,
+                    isImportingNotRestoring,
+                    willProceed: !(isImportingNotRestoring || recentlyImported)
+                  });
+                  // Skip only during import (when NOT restoring session), not during session restoration
+                  if (typeof window !== 'undefined' && (isImportingNotRestoring || recentlyImported)) {
+                    return;
+                  }
+                  window.logTL('auto_select_app', { firstValidApp });
+                  if (typeof window.proceedWithAppChange === 'function') {
+                    // Call proceedWithAppChange directly for reliable initialization
+                    window.proceedWithAppChange(firstValidApp);
+                    window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
 
-                } else {
-                  console.log('[Model Debug] proceedWithAppChange function not available');
-                  // Fallback to triggering change event if function not available
-                  $("#apps").trigger('change');
-                  window.logTL('apps_change_triggered');
-                }
-              }, 100);
+                  } else {
+                    // Fallback to triggering change event if function not available
+                    $("#apps").trigger('change');
+                    window.logTL('apps_change_triggered');
+                  }
+                }, 100);
+              }
             }
           }
 
-          // One-time initialization: if first APPS build resulted in a selected value but we didn't auto-select above
-          // (e.g., because hasCurrentValidSelection was true due to default selection), explicitly initialize.
+        // One-time initialization: if first APPS build resulted in a selected value but we didn't auto-select above
+        // (e.g., because hasCurrentValidSelection was true due to default selection), explicitly initialize.
+        if (!fromParamUpdate) {
           setTimeout(function() {
             try {
               const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
-              console.log('[Model Debug] Second timeout (150ms) check:', {
+              window.logTL('apps_second_timeout_check', {
                 appsMessageCount: window.appsMessageCount,
                 importRequestedApp,
                 initialAppLoaded: window.initialAppLoaded,
@@ -3767,32 +3741,31 @@ let loadedApp = "Chat";
                 willProceed: (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring)
               });
               // Skip during import (when NOT restoring session), but allow during session restoration
-              if (window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
+              if (!fromParamUpdate && window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
                 const sel = $("#apps").val();
                 if (sel) {
-                  console.log('[Model Debug] Calling proceedWithAppChange from second timeout:', sel);
                   window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
                   if (typeof window.proceedWithAppChange === 'function') {
                     window.proceedWithAppChange(sel);
                     // Set flag AFTER proceedWithAppChange completes
                     window.initialAppLoaded = true;
-                    console.log('[Model Debug] Set initialAppLoaded = true after proceedWithAppChange');
                   } else {
-                    console.log('[Model Debug] proceedWithAppChange function not available, triggering change');
                     $("#apps").trigger('change');
                     window.initialAppLoaded = true;
                   }
-                } else {
-                  console.log('[Model Debug] No app selected in second timeout');
                 }
               } else {
-                console.log('[Model Debug] Skipping second timeout - conditions not met');
+                window.logTL('apps_second_timeout_skipped', {
+                  importRequestedApp,
+                  selectedApp: $("#apps").val()
+                });
               }
             } catch (e) {
-              console.error('[Model Debug] Error in second timeout:', e);
+              console.error('Error in second timeout:', e);
             }
           }, 150);
-          
+        }
+
           // Update the AI User provider dropdown if the function is available
           if (typeof window.updateAvailableProviders === 'function') {
             window.updateAvailableProviders();
@@ -3811,10 +3784,9 @@ let loadedApp = "Chat";
           // Process the stored parameters after a delay to ensure DOM is ready
           if (params.app_name) {
             loadedApp = params.app_name;
-            console.log("Processing pending parameters for app:", params.app_name);
+            window.logTL('pending_parameters_found', { app: params.app_name });
             // Add delay to ensure dropdown is fully populated
             setTimeout(() => {
-              console.log("Calling loadParams with pending parameters");
               // Call loadParams which will handle the app and model selection
               loadParams(params, "loadParams");
             }, 100);
@@ -3826,25 +3798,17 @@ let loadedApp = "Chat";
           const currentApp = $("#apps").val();
           const isFirstAppsMessage = window.appsMessageCount === 1;
           
-          console.log("Deciding whether to call resetParams:");
-          console.log("  - currentApp:", currentApp);
-          console.log("  - isFirstAppsMessage:", isFirstAppsMessage);
-          console.log("  - loadedApp:", loadedApp);
           window.logTL('post_apps_maybe_reset', { currentApp, isFirstAppsMessage, loadedApp });
           
           // Only reset if this is the first apps message and no app is selected
           // OR if there's no loaded app from import
           if (isFirstAppsMessage && (!currentApp || currentApp === "") && !loadedApp) {
-            console.log("Conditions met, calling resetParams");
             resetParams();
             window.logTL('resetParams_called_after_apps');
           } else {
-            console.log("Skipping resetParams - app already configured");
-
             // If app is already configured, update badges for initial display
             if (isFirstAppsMessage && currentApp && typeof window.updateAppBadges === 'function') {
               setTimeout(function() {
-                console.log("[Initial Load] Updating badges for:", currentApp);
                 window.updateAppBadges(currentApp);
               }, 200);
             }
@@ -3858,6 +3822,16 @@ let loadedApp = "Chat";
           // Empty parameters, this is normal for initial load
           break;
         }
+
+        const fromParamUpdate = data["from_param_update"] === true;
+
+        if (data["from_import"]) {
+          setAutoSpeechSuppressed(true, { reason: 'parameters import' });
+          if (typeof window !== 'undefined') {
+            window.isProcessingImport = true;
+            window.skipAssistantInitiation = true;
+          }
+        }
         
         // Store parameters for later processing if apps not loaded yet
         if (!apps || Object.keys(apps).length === 0) {
@@ -3867,70 +3841,71 @@ let loadedApp = "Chat";
         
         // Only process if we have an app_name
         if (data["content"]["app_name"]) {
-          console.log("=== WEBSOCKET PARAMETERS MESSAGE ===");
-          console.log("app_name from server:", data["content"]["app_name"]);
-          console.log("model from server:", data["content"]["model"]);
-          console.log("group from server:", data["content"]["group"]);
-          console.log("Full content:", data["content"]);
-
+          
           loadedApp = data["content"]["app_name"];
           // Note: Removed "Please wait" message as it's too brief to be useful
           // (parameters -> past_messages processing takes ~100ms)
 
           // Call loadParams which will handle everything including model selection
-          console.log("About to call loadParams...");
           window.logTL('parameters_received', {
             app_name: data["content"]["app_name"],
             has_initial_prompt: !!data["content"]["initial_prompt"],
             model: data["content"]["model"],
             group: data["content"]["group"]
           });
-          
-          // Check if loadParams is defined
-          if (typeof loadParams === 'function') {
-            loadParams(data["content"], "loadParams");
-            window.logTL('loadParams_called_from_parameters', { calledFor: 'loadParams' });
-          } else if (typeof window.loadParams === 'function') {
-            window.loadParams(data["content"], "loadParams");
-          } else {
-            console.error("loadParams function not found! Attempting direct app/model setting...");
-            
-            // Direct fallback approach
-            const appName = data["content"]["app_name"];
-            const model = data["content"]["model"];
-            
-            console.log("Direct setting app:", appName, "model:", model);
-            
-            // Set the app directly
-            if (appName) {
-              $("#apps").val(appName);
-              // Trigger change to update model list
-              $("#apps").trigger('change');
-              
-              // Set model after a delay
-              setTimeout(() => {
-                if (model) {
-                  $("#model").val(model);
-                  if ($("#model").val() !== model) {
-                    console.error("Failed to set model:", model);
-                    // Try again with a longer delay
-                    setTimeout(() => {
-                      $("#model").val(model);
+
+          let releaseParamSuppression = false;
+          if (typeof window !== "undefined") {
+            window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
+            releaseParamSuppression = true;
+          }
+
+          try {
+            // Check if loadParams is defined
+            if (typeof loadParams === 'function') {
+              loadParams(data["content"], "loadParams");
+              window.logTL('loadParams_called_from_parameters', { calledFor: 'loadParams' });
+            } else if (typeof window.loadParams === 'function') {
+              window.loadParams(data["content"], "loadParams");
+            } else {
+              // Direct fallback approach
+              const appName = data["content"]["app_name"];
+              const model = data["content"]["model"];
+
+              // Set the app directly
+              if (appName) {
+                $("#apps").val(appName);
+                // Trigger change to update model list
+                $("#apps").trigger('change');
+                
+                // Set model after a delay
+                setTimeout(() => {
+                  if (model) {
+                    $("#model").val(model);
+                    if ($("#model").val() !== model) {
+                      console.error("Failed to set model:", model);
+                      // Try again with a longer delay
+                      setTimeout(() => {
+                        $("#model").val(model);
+                        $("#model").trigger('change');
+                      }, 500);
+                    } else {
                       $("#model").trigger('change');
-                    }, 500);
-                  } else {
-                    $("#model").trigger('change');
+                    }
                   }
-                }
-              }, 300);
+                }, 300);
+              }
+            }
+          } finally {
+            if (releaseParamSuppression) {
+              setTimeout(() => {
+                window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 1) - 1);
+              }, 600);
             }
           }
           
-          console.log("loadParams handling complete, breaking...");
-
           // Mark as initialized to prevent duplicate initialization from timeout blocks
           window.initialAppLoaded = true;
-          console.log('[Model Debug] Set initialAppLoaded = true after parameters message');
 
           // Don't rebuild the model list here - loadParams already handles it
           // The code below was causing the model selector to be reset
@@ -4019,41 +3994,12 @@ let loadedApp = "Chat";
               $("#tools-badge").hide();
             }
 
-            // Display description with tool group badges
-            let descriptionHtml = currentApp["description"];
-            if (currentApp["imported_tool_groups"]) {
-              try {
-                // Parse JSON string to array
-                const toolGroups = JSON.parse(currentApp["imported_tool_groups"]);
-                const currentAppName = currentApp["app_name"];
-                console.log(`[Tool Groups] ${currentAppName}:`, toolGroups);
-                if (toolGroups && toolGroups.length > 0) {
-                  const getToolGroupIcon = (groupName) => {
-                    const icons = {
-                      'jupyter_operations': '📓',
-                      'python_execution': '🐍',
-                      'file_operations': '📁',
-                      'file_reading': '📄',
-                      'web_tools': '🌐',
-                      'app_creation': '🛠️'
-                    };
-                    return icons[groupName] || '📦';
-                  };
-                  const badges = toolGroups.map(group => {
-                    const icon = getToolGroupIcon(group.name);
-                    const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
-                    return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
-                  }).join(' ');
-                  descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
-                  console.log(`[Tool Groups] Badges HTML added for ${currentAppName}`);
-                }
-              } catch (e) {
-                console.warn('Failed to parse imported_tool_groups:', e);
-              }
+            const descriptionOnly = currentApp["description"] || "";
+            if (typeof window.setBaseAppDescription === 'function') {
+              window.setBaseAppDescription(descriptionOnly);
             } else {
-              console.log(`[Tool Groups] No imported_tool_groups for ${currentApp["app_name"]}`);
+              $("#base-app-desc").html(descriptionOnly);
             }
-            $("#base-app-desc").html(descriptionHtml);
 
             // Trigger badge update after description is set
             if (typeof window.updateAppBadges === 'function') {
@@ -4274,6 +4220,13 @@ let loadedApp = "Chat";
         break;
       }
       case "past_messages": {
+        if (data["from_import"]) {
+          setAutoSpeechSuppressed(true, { reason: 'past_messages import' });
+          if (typeof window !== 'undefined') {
+            window.isProcessingImport = true;
+            window.skipAssistantInitiation = true;
+          }
+        }
         // During session restoration, check if server and client are in sync
         if (window.isRestoringSession) {
           const serverMessages = data["content"] || [];
@@ -4865,8 +4818,25 @@ let loadedApp = "Chat";
             // Support both boolean and string values for backward compatibility
             const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
             const realtimeMode = params && params["auto_tts_realtime_mode"] === true;
+            const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
 
-            if (window.autoSpeechActive || autoSpeechEnabled) {
+            if (suppressionActive) {
+              window.autoSpeechActive = false;
+              window.autoPlayAudio = false;
+              if (typeof window.setTtsPlaybackStarted === 'function') {
+                window.setTtsPlaybackStarted(true);
+              }
+              if (typeof checkAndHideSpinner === 'function') {
+                checkAndHideSpinner();
+              } else {
+                resetAutoSpeechSpinner();
+              }
+              if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
+                clearTimeout(window.autoTTSSpinnerTimeout);
+                window.autoTTSSpinnerTimeout = null;
+              }
+              console.log('[Auto TTS] Auto playback skipped because suppression is active');
+            } else if (window.autoSpeechActive || autoSpeechEnabled) {
               // Use setTimeout to ensure the card is fully rendered before triggering TTS
               setTimeout(() => {
                 const lastCard = $("#discourse div.card:last");
@@ -5021,6 +4991,14 @@ let loadedApp = "Chat";
         break;
       }
       case "user": {
+        const importInProgress = (typeof window !== 'undefined') && window.isImporting;
+        if (isAutoSpeechSuppressed() && !importInProgress) {
+          setAutoSpeechSuppressed(false, { log: false });
+        }
+        if (typeof window !== 'undefined') {
+          window.skipAssistantInitiation = false;
+          window.isProcessingImport = false;
+        }
         // Check if we have a temporary message to remove first
         const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
         if (tempMessageIndex !== -1) {

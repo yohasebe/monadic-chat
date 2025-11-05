@@ -431,15 +431,15 @@ module WebSocketHelper
       send_to_client(connection, { "type" => "error", "content" => session[:error] })
       session[:error] = nil
     end
-    
+
     # Prepare app data
     apps_data = prepare_apps_data
 
     # Filter and prepare messages
     filtered_messages = prepare_filtered_messages
 
-    # Send app data
-    push_apps_data(connection, apps_data, filtered_messages)
+    # Send app data with from_initial_load flag to suppress Auto TTS
+    push_apps_data(connection, apps_data, filtered_messages, from_initial_load: true)
 
     # Handle voice data
     push_voice_data(connection)
@@ -632,11 +632,11 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param apps [Hash] Apps data
   # @param filtered_messages [Array] Filtered messages
-  def push_apps_data(connection, apps, filtered_messages)
+  def push_apps_data(connection, apps, filtered_messages, from_initial_load: false)
     # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data START: apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}"
+      extra_log.puts "[#{Time.now}] push_apps_data START: apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
       extra_log.close
     end
 
@@ -656,8 +656,11 @@ module WebSocketHelper
     end
 
     # Send past_messages with additional delay to ensure parameters is processed first
+    # Add from_initial_load flag to suppress Auto TTS during automatic session restoration
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
-    WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages }.to_json)
+    past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
+    past_messages_data["from_initial_load"] = true if from_initial_load
+    WebSocketHelper.broadcast_to_all(past_messages_data.to_json)
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
@@ -1613,6 +1616,37 @@ module WebSocketHelper
               WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "something_went_wrong" }.to_json)
             end
           end
+        when "UPDATE_PARAMS"
+          incoming = obj["params"]
+          unless incoming.is_a?(Hash)
+            send_to_client(connection, { "type" => "error", "content" => "invalid_parameters" })
+            next
+          end
+
+          session[:parameters] ||= {}
+
+          sanitized = {}
+          incoming.each do |key, value|
+            next if key.nil?
+            normalized_key = key.to_s
+            next if ["message", "images", "audio", "tts_request", "ws_session_id"].include?(normalized_key)
+            sanitized[normalized_key] = value
+          end
+
+          sanitized["app_name"] = sanitized["app_name"].to_s if sanitized.key?("app_name")
+
+          session[:parameters].merge!(sanitized)
+
+          begin
+            WebSocketHelper.broadcast_to_all({
+              "type" => "parameters",
+              "content" => session[:parameters],
+              "from_param_update" => true
+            }.to_json)
+          rescue StandardError => e
+            DebugHelper.debug("Parameter broadcast failed: #{e.message}", "websocket", level: :error) if defined?(DebugHelper)
+          end
+
         when "SYSTEM_PROMPT"
           text = obj["content"] || ""
           

@@ -480,12 +480,11 @@ function setAlert(text = "", alertType = "success") {
     $("#status-message").html(`${displayText}`);
     setAlertClass(alertType);
 
-    // Add tooltip with full text if message is truncated
+    // Initialize Bootstrap tooltip with full text if message is truncated
     // Strip HTML tags for tooltip text
     const plainText = displayText.replace(/<[^>]*>/g, '');
-    $("#status-message").attr('title', plainText);
 
-    // Initialize Bootstrap tooltip if available
+    // Use Bootstrap tooltip only (remove native title attribute to avoid duplicate tooltips)
     if (typeof $.fn.tooltip === 'function') {
       // Safely dispose existing tooltip if it exists
       try {
@@ -493,17 +492,23 @@ function setAlert(text = "", alertType = "success") {
         if ($statusMsg.data('bs.tooltip')) {
           $statusMsg.tooltip('dispose');
         }
+        // Remove title attribute to prevent native browser tooltip
+        $statusMsg.removeAttr('title');
         $statusMsg.tooltip({
           placement: 'bottom',
           trigger: 'hover',
-          delay: { show: 500, hide: 100 }
+          delay: { show: 500, hide: 100 },
+          title: plainText
         });
       } catch (e) {
         // Tooltip not initialized yet, just create new one
-        $("#status-message").tooltip({
+        const $statusMsg = $("#status-message");
+        $statusMsg.removeAttr('title');
+        $statusMsg.tooltip({
           placement: 'bottom',
           trigger: 'hover',
-          delay: { show: 500, hide: 100 }
+          delay: { show: 500, hide: 100 },
+          title: plainText
         });
       }
     }
@@ -573,6 +578,20 @@ function deleteMessage(mid) {
 //////////////////////////////
 
   let stop_apps_trigger = false;
+
+function setBaseAppDescription(html) {
+  const $desc = $("#base-app-desc");
+  if (!$desc.length) return;
+  const normalized = (html == null ? '' : String(html));
+  const previous = $desc.data('renderedHtml');
+  if (previous === normalized) {
+    return;
+  }
+  $desc.data('renderedHtml', normalized);
+  $desc.html(normalized);
+}
+
+window.setBaseAppDescription = setBaseAppDescription;
 
 window.loadParams = function(params, calledFor = "loadParams") {
   $("#model-non-default").hide();
@@ -1011,6 +1030,9 @@ function setParams() {
     params["initiate_from_assistant"] = $("#initiate-from-assistant").prop('checked') ? true : false;
   }
   // If checkbox doesn't exist, keep the value from apps[app_name]
+  if (typeof window !== 'undefined' && window.skipAssistantInitiation) {
+    params["initiate_from_assistant"] = false;
+  }
 
   if ($("#mathjax").is(":checked")) {
     params["mathjax"] = true;
@@ -1405,29 +1427,12 @@ function doResetActions(resetToDefaultApp = false) {
     return icons[groupName] || '📦';
   }
 
-  // Display description with tool group badges
-  let descriptionHtml = apps[currentApp]["description"];
-  if (apps[currentApp]["imported_tool_groups"]) {
-    try {
-      // Parse JSON string to array
-      const toolGroups = JSON.parse(apps[currentApp]["imported_tool_groups"]);
-      console.log(`[Tool Groups] ${currentApp}:`, toolGroups);
-      if (toolGroups && toolGroups.length > 0) {
-        const badges = toolGroups.map(group => {
-          const icon = getToolGroupIcon(group.name);
-          const visibilityClass = group.visibility === 'always' ? 'badge-always' : 'badge-conditional';
-          return `<span class="tool-group-badge ${visibilityClass}" title="${group.tool_count} tools (${group.visibility})">${icon} ${group.name}</span>`;
-        }).join(' ');
-        descriptionHtml += `<div class="tool-groups-display">${badges}</div>`;
-        console.log(`[Tool Groups] Badges HTML added for ${currentApp}`);
-      }
-    } catch (e) {
-      console.warn('Failed to parse imported_tool_groups:', e);
-    }
-  } else {
-    console.log(`[Tool Groups] No imported_tool_groups for ${currentApp}`);
+  // Display description without badges; badge rendering handled by updateAppBadges
+  const descriptionOnly = apps[currentApp]["description"] || "";
+  setBaseAppDescription(descriptionOnly);
+  if (typeof window.updateAppBadges === 'function') {
+    window.updateAppBadges(currentApp);
   }
-  $("#base-app-desc").html(descriptionHtml);
 
   $("#model_and_file").show();
   $("#model_parameters").show();
@@ -1621,8 +1626,27 @@ function updateAppBadges(selectedApp) {
   const rawBadges = apps[selectedApp]["all_badges"];
 
   if (!rawBadges) {
-    // Strategy 1: No badges defined - use empty structure
-    console.debug(`[Badges] No badges defined for ${selectedApp}`);
+    // Strategy 1: Fallback to imported_tool_groups if available
+    const importedToolGroups = apps[selectedApp]["imported_tool_groups"];
+    if (importedToolGroups) {
+      try {
+        const parsedGroups = typeof importedToolGroups === 'string' ? JSON.parse(importedToolGroups) : importedToolGroups;
+        if (Array.isArray(parsedGroups) && parsedGroups.length > 0) {
+          allBadges.tools = parsedGroups.map(group => ({
+            id: group.name,
+            label: group.name,
+            description: `${group.tool_count} tools (${group.visibility})`,
+            icon: 'fa-toolbox',
+            visibility: group.visibility || 'always',
+            type: 'tools'
+          }));
+        }
+      } catch (e) {
+        console.warn(`[Badges] Failed to parse imported_tool_groups for ${selectedApp}:`, e);
+      }
+    } else {
+      console.debug(`[Badges] No badges defined for ${selectedApp}`);
+    }
   } else if (typeof rawBadges === 'object') {
     // Strategy 2: Already an object (backend sent JSON object, not string)
     allBadges = rawBadges;
@@ -1701,10 +1725,9 @@ function updateAppBadges(selectedApp) {
 
   // Update DOM
   if (badgeHtml) {
-    $("#base-app-desc").html(currentDesc + `<div class="tool-groups-display">${badgeHtml}</div>`);
-    console.log(`[Badges] Added ${visibleToolBadges.length} tools + ${visibleCapabilityBadges.length} capabilities for ${selectedApp}`);
+    setBaseAppDescription(currentDesc + `<div class="tool-groups-display">${badgeHtml}</div>`);
   } else {
-    $("#base-app-desc").html(currentDesc);
+    setBaseAppDescription(currentDesc);
   }
 }
 

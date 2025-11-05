@@ -109,6 +109,10 @@ function handleFragmentWithAudio(data, processAudio) {
     try {
       // Check for auto_speech flag
       const isAutoSpeech = data.auto_speech === true;
+      const suppressionActive = (typeof window !== 'undefined') &&
+        typeof window.isAutoSpeechSuppressed === 'function' &&
+        window.isAutoSpeechSuppressed();
+
       // First process the fragment part
       if (data.fragment) {
         // Add fragment to DOM or update UI as needed
@@ -172,6 +176,18 @@ function handleFragmentWithAudio(data, processAudio) {
       
       // Check if this is a Web Speech API message
       if (data.audio && data.audio.type === 'web_speech') {
+        if (suppressionActive) {
+          if (window.speechSynthesis) {
+            try {
+              window.speechSynthesis.cancel();
+            } catch (cancelErr) {
+              console.warn('[Auto TTS] Failed to cancel Web Speech synthesis during suppression:', cancelErr);
+            }
+          }
+          console.log('[Auto TTS] Skipped Web Speech playback due to suppression');
+          return true;
+        }
+
         if (window.speechSynthesis && isAutoSpeech) {
           try {
             // Get text from data
@@ -209,6 +225,20 @@ function handleFragmentWithAudio(data, processAudio) {
       else if (data.audio && typeof processAudio === 'function') {
         // The audio processing might vary between environments
         try {
+          if (suppressionActive) {
+            // Ensure any queued audio is cleared so playback cannot start later
+            if (typeof clearAudioQueue === 'function') {
+              clearAudioQueue();
+            }
+            if (typeof window.resetAudioVariables === 'function') {
+              window.resetAudioVariables();
+            }
+            window.autoSpeechActive = false;
+            window.autoPlayAudio = false;
+            console.log('[Auto TTS] Skipped audio segment due to suppression');
+            return true;
+          }
+
           // Extract audio content
           if (data.audio.content && typeof data.audio.content === 'string') {
             const audioData = Uint8Array.from(atob(data.audio.content), c => c.charCodeAt(0));

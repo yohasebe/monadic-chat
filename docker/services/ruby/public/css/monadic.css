@@ -1770,14 +1770,14 @@ legend {
 .card-body.role-assistant .card-text p:first-of-type,
 .card-body.role-user .card-text p:first-of-type,
 .card-body.role-system .card-text p:first-of-type {
-  margin-top: 0.2em;
+  margin-top: 0;
 }
 
 /* Last paragraph specific spacing (high specificity) */
 .card-body.role-assistant .card-text p:last-of-type,
 .card-body.role-user .card-text p:last-of-type,
 .card-body.role-system .card-text p:last-of-type {
-  margin-bottom: 0.2em;
+  margin-bottom: 0;
 }
 
 /* Ensure consistent white-space handling */

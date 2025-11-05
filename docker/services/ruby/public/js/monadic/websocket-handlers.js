@@ -127,7 +127,7 @@ function handleFragmentWithAudio(data, processAudio) {
               // Create a new temporary card for streaming text
               const tempCard = $(`
                 <div id="temp-card" class="card mt-3 streaming-card">
-                  <div class="card-header p-2 ps-3 d-flex justify-content-between">
+                  <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
                     <div class="fs-5 card-title mb-0">
                       <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
                     </div>

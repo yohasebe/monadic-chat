@@ -416,8 +416,8 @@ window.handleFragmentMessage = function(fragment) {
       
       // Create a new temporary card for streaming text
       tempCard = $(`
-        <div id="temp-card" class="card mt-3 streaming-card"> 
-          <div class="card-header p-2 ps-3 d-flex justify-content-between">
+        <div id="temp-card" class="card mt-3 streaming-card">
+          <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
             <div class="fs-5 card-title mb-0">
               <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
             </div>
@@ -2656,7 +2656,7 @@ let loadedApp = "Chat";
             // Create a new temporary card for streaming text
             tempCard = $(`
               <div id="temp-card" class="card mt-3 streaming-card">
-                <div class="card-header p-2 ps-3 d-flex justify-content-between">
+                <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
                   <div class="fs-5 card-title mb-0">
                     <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
                   </div>
@@ -5035,8 +5035,8 @@ let loadedApp = "Chat";
         } else {
           // Create a new temp card if it doesn't exist
           const tempCard = $(`
-            <div id="temp-card" class="card mt-3 streaming-card"> 
-              <div class="card-header p-2 ps-3 d-flex justify-content-between">
+            <div id="temp-card" class="card mt-3 streaming-card">
+              <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
                 <div class="fs-5 card-title mb-0">
                   <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
                 </div>

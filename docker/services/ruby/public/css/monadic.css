@@ -1759,8 +1759,8 @@ legend {
 .card-body.role-assistant .card-text p,
 .card-body.role-user .card-text p,
 .card-body.role-system .card-text p {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
   padding: 0;
   box-sizing: border-box;
   white-space: pre-line;
@@ -1770,14 +1770,14 @@ legend {
 .card-body.role-assistant .card-text p:first-of-type,
 .card-body.role-user .card-text p:first-of-type,
 .card-body.role-system .card-text p:first-of-type {
-  margin-top: 0;
+  margin-top: 0 !important;
 }
 
 /* Last paragraph specific spacing (high specificity) */
 .card-body.role-assistant .card-text p:last-of-type,
 .card-body.role-user .card-text p:last-of-type,
 .card-body.role-system .card-text p:last-of-type {
-  margin-bottom: 0;
+  margin-bottom: 0 !important;
 }
 
 /* Ensure consistent white-space handling */

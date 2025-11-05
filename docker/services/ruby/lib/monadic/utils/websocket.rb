@@ -21,7 +21,7 @@ module WebSocketHelper
   # Access Rack session from thread-local storage in WebSocket context
   # This is necessary because WebSocket connections don't use the normal HTTP request/response cycle
   def session
-    Thread.current[:rack_session] || super
+    Thread.current[:rack_session] || (defined?(super) ? super : {})
   end
 
   # Safe session parameter access that handles both symbol and string keys
@@ -1007,21 +1007,24 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param obj [Hash] Parsed message object
   def handle_edit_message(connection, obj)
-    # Find the message to edit
-    message_to_edit = session[:messages].find { |m| m["mid"] == obj["mid"] }
-    
-    if message_to_edit
-      # Update the message text
-      message_to_edit["text"] = obj["content"]
-      
+    # Find the message index to edit
+    message_index = session[:messages].find_index { |m| m["mid"] == obj["mid"] }
+
+    if message_index
+      # Update the message directly in the array to ensure it's persisted
+      session[:messages][message_index]["text"] = obj["content"]
+
       # Update images if provided in the edit request
       if obj["images"] && obj["images"].is_a?(Array)
-        message_to_edit["images"] = obj["images"]
+        session[:messages][message_index]["images"] = obj["images"]
       end
-      
+
+      # Get the updated message for response
+      message_to_edit = session[:messages][message_index]
+
       # Generate HTML content if needed
       html_content = generate_html_for_message(message_to_edit, obj["content"])
-      
+
       # Create response with updated HTML for the client
       response = {
         "type" => "edit_success",
@@ -1030,15 +1033,15 @@ module WebSocketHelper
         "role" => message_to_edit["role"],
         "html" => html_content
       }
-      
+
       # Include images if they exist
       if message_to_edit["images"] && message_to_edit["images"].is_a?(Array) && !message_to_edit["images"].empty?
         response["images"] = message_to_edit["images"]
       end
-      
+
       # Push the response
       WebSocketHelper.broadcast_to_all(response.to_json)
-      
+
       # Update message status
       update_message_status_after_edit
     else

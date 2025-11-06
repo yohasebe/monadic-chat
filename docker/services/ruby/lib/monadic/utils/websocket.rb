@@ -695,10 +695,13 @@ module WebSocketHelper
   # @param apps [Hash] Apps data
   # @param filtered_messages [Array] Filtered messages
   def push_apps_data(connection, apps, filtered_messages, from_initial_load: false)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data START: apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
+      extra_log.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
       extra_log.close
     end
 
@@ -711,17 +714,29 @@ module WebSocketHelper
       "docker" => session[:docker]
     }
     apps_message["current_app_name"] = current_app_name if current_app_name
-    WebSocketHelper.broadcast_to_all(apps_message.to_json) unless apps.empty?
+    unless apps.empty?
+      if ws_session_id
+        WebSocketHelper.send_to_session(apps_message.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(apps_message.to_json)
+      end
+    end
 
     # Use sleep to delay subsequent messages, giving browser time to process large apps message
     # This prevents message loss when apps message is very large (>1MB)
     sleep(0.05)
-    WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters] }.to_json) unless session[:parameters].empty?
+    unless session[:parameters].empty?
+      if ws_session_id
+        WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters] }.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters] }.to_json)
+      end
+    end
 
     # Debug logging
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message"
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message to session #{ws_session_id}"
       extra_log.close
     end
 
@@ -730,12 +745,16 @@ module WebSocketHelper
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
     past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
     past_messages_data["from_initial_load"] = true if from_initial_load
-    WebSocketHelper.broadcast_to_all(past_messages_data.to_json)
+    if ws_session_id
+      WebSocketHelper.send_to_session(past_messages_data.to_json, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all(past_messages_data.to_json)
+    end
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items"
+      extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}"
       extra_log.close
     end
 
@@ -752,7 +771,11 @@ module WebSocketHelper
       count_active_messages: filtered_messages.size,
       encoding_name: "o200k_base"
     }
-    WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => info_data }.to_json)
+    if ws_session_id
+      WebSocketHelper.send_to_session({ "type" => "info", "content" => info_data }.to_json, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => info_data }.to_json)
+    end
 
     # Debug logging for info message (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
@@ -1054,18 +1077,31 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param obj [Hash] Parsed message object
   def handle_delete_message(connection, obj)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     # Delete the message
     session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
-    
+
     # Check message status
     past_messages_data = check_past_messages(session[:parameters])
-    
+
     # Filter messages
     filtered_messages = prepare_filtered_messages
-    
-    # Update status
-    WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+
+    # Update status - send to session only
+    if past_messages_data[:changed]
+      if ws_session_id
+        WebSocketHelper.send_to_session({ "type" => "change_status", "content" => filtered_messages }.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json)
+      end
+    end
+    if ws_session_id
+      WebSocketHelper.send_to_session({ "type" => "info", "content" => past_messages_data }.to_json, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+    end
     sync_session_state!
   end
   
@@ -1073,6 +1109,9 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param obj [Hash] Parsed message object
   def handle_edit_message(connection, obj)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     # Find the message index to edit
     message_index = session[:messages].find_index { |m| m["mid"] == obj["mid"] }
 
@@ -1105,16 +1144,24 @@ module WebSocketHelper
         response["images"] = message_to_edit["images"]
       end
 
-      # Push the response
-      WebSocketHelper.broadcast_to_all(response.to_json)
+      # Push the response - send to session only
+      if ws_session_id
+        WebSocketHelper.send_to_session(response.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(response.to_json)
+      end
 
       # Update message status
       update_message_status_after_edit
 
       sync_session_state!
     else
-      # Message not found
-      WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
+      # Message not found - send error to session only
+      if ws_session_id
+        WebSocketHelper.send_to_session({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
+      end
     end
   end
   
@@ -1729,12 +1776,20 @@ module WebSocketHelper
 
           sync_session_state!
 
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           begin
-            WebSocketHelper.broadcast_to_all({
+            param_message = {
               "type" => "parameters",
               "content" => session[:parameters],
               "from_param_update" => true
-            }.to_json)
+            }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(param_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(param_message)
+            end
           rescue StandardError => e
             DebugHelper.debug("Parameter broadcast failed: #{e.message}", "websocket", level: :error) if defined?(DebugHelper)
           end

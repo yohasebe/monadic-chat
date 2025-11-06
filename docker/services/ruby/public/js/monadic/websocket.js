@@ -68,6 +68,15 @@ let failedSequences = new Set(); // Track sequences that failed to play
 const SEQUENCE_TIMEOUT_MS = 3000; // Check for missing segments every 3 seconds
 const MAX_SEQUENCE_RETRIES = 10; // Maximum number of retries before giving up on a segment (30s total)
 
+let tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
+function updateTabForegroundState() {
+  tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
+}
+function isForegroundTab() {
+  return tabIsForeground;
+}
+window.isForegroundTab = isForegroundTab;
+
 // Auto Speech completion tracking
 let textResponseCompleted = false; // Track if text response finished
 let ttsPlaybackStarted = false; // Track if TTS playback started (audio is actually playing)
@@ -81,6 +90,7 @@ window.setTtsPlaybackStarted = function(value) {
 };
 
 // Track temporary suppression of auto speech (e.g., during session import)
+const autoSpeechSuppressionReasons = new Set();
 let autoSpeechSuppressed = false;
 
 function resetAutoSpeechSpinner() {
@@ -94,34 +104,52 @@ function resetAutoSpeechSpinner() {
     .html('<i class="fas fa-comment fa-pulse"></i> Starting');
 }
 
-function setAutoSpeechSuppressed(value, options = {}) {
-  autoSpeechSuppressed = !!value;
+function updateAutoSpeechSuppressedFlag() {
+  autoSpeechSuppressed = autoSpeechSuppressionReasons.size > 0;
   window.autoSpeechSuppressed = autoSpeechSuppressed;
+}
+
+function setAutoSpeechSuppressed(value, options = {}) {
+  const reason = options.reason || 'general';
+  const wasSuppressed = autoSpeechSuppressed;
+
+  if (value) {
+    autoSpeechSuppressionReasons.add(reason);
+  } else if (options.reason) {
+    autoSpeechSuppressionReasons.delete(reason);
+  } else {
+    autoSpeechSuppressionReasons.clear();
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      autoSpeechSuppressionReasons.add('background_tab');
+    }
+  }
+
+  updateAutoSpeechSuppressedFlag();
 
   if (autoSpeechSuppressed) {
-    // Stop any ongoing playback to avoid overlapping audio
-    if (typeof ttsStop === 'function') {
-      try {
-        ttsStop();
-      } catch (e) {
-        console.warn('[Auto TTS] Failed to stop playback while suppressing:', e);
+    if (!wasSuppressed) {
+      if (typeof ttsStop === 'function') {
+        try {
+          ttsStop();
+        } catch (e) {
+          console.warn('[Auto TTS] Failed to stop playback while suppressing:', e);
+        }
       }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(false);
+      }
+      if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
+        clearTimeout(window.autoTTSSpinnerTimeout);
+        window.autoTTSSpinnerTimeout = null;
+      }
+      resetAutoSpeechSpinner();
+      window.autoSpeechActive = false;
+      window.autoPlayAudio = false;
     }
-    // Reset spinner/flags so UI reflects suppressed state
-    if (typeof window.setTtsPlaybackStarted === 'function') {
-      window.setTtsPlaybackStarted(false);
-    }
-    if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
-      clearTimeout(window.autoTTSSpinnerTimeout);
-      window.autoTTSSpinnerTimeout = null;
-    }
-    resetAutoSpeechSpinner();
-    window.autoSpeechActive = false;
-    window.autoPlayAudio = false;
     if (options.log !== false) {
       console.log('[Auto TTS] Suppression enabled', options.reason ? `(${options.reason})` : '');
     }
-  } else if (options.log !== false) {
+  } else if (wasSuppressed && options.log !== false) {
     console.log('[Auto TTS] Suppression cleared');
   }
 }
@@ -132,6 +160,22 @@ function isAutoSpeechSuppressed() {
 
 window.setAutoSpeechSuppressed = setAutoSpeechSuppressed;
 window.isAutoSpeechSuppressed = isAutoSpeechSuppressed;
+
+function isForegroundTab() {
+  return typeof document !== 'undefined' && document.visibilityState === 'visible';
+}
+
+window.isForegroundTab = isForegroundTab;
+
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      setAutoSpeechSuppressed(false, { reason: 'background_tab', log: false });
+    } else {
+      setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+    }
+  }, { passive: true });
+}
 
 // Audio queue processing delays (configurable)
 const AUDIO_QUEUE_DELAY = window.AUDIO_QUEUE_DELAY || 20; // Default 20ms instead of 100ms
@@ -191,8 +235,20 @@ function checkAndHideSpinner() {
 
 // Export helper functions to window for global access
 window.highlightStopButton = highlightStopButton;
+window.highlightStopButton = highlightStopButton;
 window.removeStopButtonHighlight = removeStopButtonHighlight;
 window.checkAndHideSpinner = checkAndHideSpinner;
+
+if (typeof window !== 'undefined' && typeof setTimeout === 'function') {
+  setTimeout(() => {
+    if (!isForegroundTab()) {
+      setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+      if (typeof $ === 'function') {
+        $('#monadic-spinner').hide();
+      }
+    }
+  }, 0);
+}
 
 // message is submitted upon pressing enter
 const message = $("#message")[0];
@@ -220,7 +276,11 @@ document.addEventListener("keydown", function (event) {
     // Only submit if message is not empty
     if (message.value.trim() !== "") {
       event.preventDefault();
-      $("#send").click();
+      if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+        console.log('[Send] Ignoring auto-submit: tab is not foreground');
+      } else {
+        $("#send").click();
+      }
     }
   }
 });
@@ -383,6 +443,11 @@ const mainPanel = $("#main-panel").get(0);
 // Handle fragment message from streaming response
 // This function will be used by the fragment_with_audio handler and all vendor helpers
 window.handleFragmentMessage = function(fragment) {
+  if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+    // Skip streaming updates in background tabs to avoid duplicate rendering and TTS triggers
+    window.__lastSkippedFragment = fragment;
+    return;
+  }
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
     
@@ -2180,6 +2245,9 @@ let loadedApp = "Chat";
     const verifyingText = typeof webUIi18n !== 'undefined' ? 
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
+    if (!isForegroundTab()) {
+      $('#monadic-spinner').hide();
+    }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
     ws.send(JSON.stringify({ 
@@ -3589,8 +3657,14 @@ let loadedApp = "Chat";
           // Select the default app only when not importing and no valid selection exists
           let firstValidApp;
 
+          // PRIORITY 0: Check if server sent current_app_name (from other active tabs)
+          if (data["current_app_name"] && $("#apps option[value='" + data["current_app_name"] + "']").length && !$("#apps option[value='" + data["current_app_name"] + "']").prop('disabled')) {
+            firstValidApp = data["current_app_name"];
+            window.logTL('using_current_app_from_server', { currentApp: data["current_app_name"] });
+          }
+
           // PRIORITY 1: Check if window.lastApp exists (from session restoration)
-          if (window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
+          if (!firstValidApp && window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
             firstValidApp = window.lastApp;
           } else if (window.lastApp) {
             window.logTL('restored_app_unavailable', { lastApp: window.lastApp });
@@ -4115,7 +4189,11 @@ let loadedApp = "Chat";
           $("#amplitude").hide();
           
           if ($("#check-easy-submit").is(":checked")) {
-            $("#send").click();
+            if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+          console.log('[Send] Ignoring auto-submit: tab is not foreground');
+        } else {
+          $("#send").click();
+        }
           }
           const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
           setAlert(`<i class='fa-solid fa-circle-check'></i> ${voiceFinishedText}`, "secondary");
@@ -4220,254 +4298,180 @@ let loadedApp = "Chat";
         break;
       }
       case "past_messages": {
+        const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
+        console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
+
         if (data["from_import"]) {
           setAutoSpeechSuppressed(true, { reason: 'past_messages import' });
-          if (typeof window !== 'undefined') {
-            window.isProcessingImport = true;
-            window.skipAssistantInitiation = true;
-          }
-        }
-        // During session restoration, check if server and client are in sync
-        if (window.isRestoringSession) {
-          const serverMessages = data["content"] || [];
-          const localMessages = window.SessionState.getMessages() || [];
-
-          // CRITICAL: Detect server restart
-          // If server has 0 messages but localStorage has messages, server was restarted
-          if (serverMessages.length === 0 && localMessages.length > 0) {
-            console.log('[Session] Server restart detected - clearing local state');
-
-            // Clear localStorage (this also clears window.messages via proxy)
-            window.SessionState.clearMessages();
-
-            // Clear DOM
-            $("#discourse").empty();
-
-            // Update statistics display
-            if (typeof setStats === 'function') {
-              setStats(formatInfo([]), "info");
-            }
-
-            // Update START button to "Start Session"
-            if (window.i18nReady) {
-              window.i18nReady.then(() => {
-                const startText = webUIi18n.t('ui.session.startSession') || 'Start Session';
-                $("#start-label").text(startText);
-              });
-            } else {
-              $("#start-label").text('Start Session');
-            }
-
-            break;
-          }
-
-          // Normal case: keep locally restored messages
-          // Save current app and model
-          const currentApp = $("#apps").val();
-          if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
-            window.SessionState.setCurrentApp(currentApp);
-          }
-          const currentModel = $("#model").val();
-          if (currentModel && window.SessionState) {
-            window.SessionState.app.model = currentModel;
-          }
-
-          break;
+          window.isProcessingImport = true;
+          window.skipAssistantInitiation = true;
         }
 
-        // If we just reset, ignore past messages completely
-        if (window.SessionState.shouldForceNewSession()) {
-          console.log('[Session] Reset detected - clearing messages and UI');
+        if (typeof window !== 'undefined') {
+          window.isRestoringSession = false;
+        }
+
+        const shouldSyncSessionState =
+          window.SessionState &&
+          typeof window.SessionState.clearMessages === "function" &&
+          typeof window.SessionState.addMessage === "function";
+
+        if (shouldSyncSessionState) {
           window.SessionState.clearMessages();
-          $("#discourse").empty();
-          setStats(formatInfo([]), "info");
-          // Ensure i18n is ready before updating text
-          if (window.i18nReady) {
-            window.i18nReady.then(() => {
-              const startText = webUIi18n.t('ui.session.startSession');
-              $("#start-label").text(startText);
-            });
-          } else {
-            $("#start-label").text('Start Session');
-          }
-          // Clear reset flags after processing so they don't persist
-          window.SessionState.clearResetFlags();
-          console.log('[Session] Reset flags cleared after processing');
-          break;
         }
 
-        console.log('[Session] Processing past_messages, clearing discourse');
-        window.SessionState.clearMessages();
+        if (typeof mids !== "undefined" && typeof mids.clear === "function") {
+          mids.clear();
+        }
+
         $("#discourse").empty();
 
-        // Save current app and model to SessionState for restoration
         const currentApp = $("#apps").val();
-        if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === 'function') {
+        if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === "function") {
           window.SessionState.setCurrentApp(currentApp);
-          console.log('[Session] Saved app name:', currentApp);
         }
 
-        // Save current model
         const currentModel = $("#model").val();
         if (currentModel && window.SessionState) {
           window.SessionState.app.model = currentModel;
-          console.log('[Session] Saved model:', currentModel);
         }
 
-        data["content"].forEach((msg, index) => {
-          if (mids.has(msg["mid"])) {
+        serverMessages.forEach((msg, index) => {
+          if (!msg || typeof msg !== "object") {
             return;
           }
 
-          window.SessionState.addMessage(msg);
+          if (!msg.mid) {
+            msg.mid = `restored-${Date.now()}-${index}`;
+          }
 
-          if (index === 0 && msg["role"] === "system") {
+          if (shouldSyncSessionState) {
+            window.SessionState.addMessage({ ...msg });
+          }
+
+          if (index === 0 && msg.role === "system") {
             return;
           }
 
-          switch (msg["role"]) {
+          switch (msg.role) {
             case "user": {
-              let msg_text = msg["text"].trim()
-
-              if (msg_text.startsWith("{") && msg_text.endsWith("}")) {
-                const json = JSON.parse(msg_text);
-                msg_text = json.message;
+              let text = (msg.text || "").trim();
+              if (text.startsWith("{") && text.endsWith("}")) {
+                try {
+                  const json = JSON.parse(text);
+                  text = json.message || text;
+                } catch (err) {
+                  console.warn('[Session] Failed to parse user message JSON', err);
+                }
               }
-              msg_text = msg_text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
-
-              let images
-              if (msg["images"] !== undefined) {
-                images = msg["images"]
-              } else {
-                images = []
-              }
-              const userElement = createCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + msg_text + "</p>", msg["lang"], msg["mid"], msg["active"], images);
-              $("#discourse").append(userElement);
-
-              // Save to SessionState for persistence across page reloads
-              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
-                window.SessionState.addMessage({
-                  role: 'user',
-                  html: "<p>" + msg_text + "</p>",
-                  lang: msg["lang"],
-                  mid: msg["mid"],
-                  active: msg["active"],
-                  images: images
-                });
-              }
-
+              const safeHtml = text
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/\n/g, "<br>")
+                .replace(/\s/g, " ");
+              const images = Array.isArray(msg.images) ? msg.images : [];
+              const userCard = createCard(
+                "user",
+                "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>",
+                `<p>${safeHtml}</p>`,
+                msg.lang,
+                msg.mid,
+                msg.active,
+                images
+              );
+              $("#discourse").append(userCard);
               break;
             }
             case "assistant": {
-              let html = msg["html"];
-              if (msg["thinking"]) {
-                // Use the unified thinking block renderer if available
-                if (typeof renderThinkingBlock === 'function') {
-                  const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
-                    webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
-                  html = renderThinkingBlock(msg["thinking"], thinkingTitle) + html;
-                } else {
-                  // Fallback to old style if function not available
-                  html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + msg["thinking"] + "</div></div>" + html;
-                }
-              } 
-
-              const gptElement = createCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, msg["lang"], msg["mid"], msg["active"]);
-              $("#discourse").append(gptElement);
-
-              // Save to SessionState for persistence across page reloads
-              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
-                window.SessionState.addMessage({
-                  role: 'assistant',
-                  html: html,
-                  lang: msg["lang"],
-                  mid: msg["mid"],
-                  active: msg["active"]
-                });
-              }
-
-              const htmlContent = $("#discourse div.card:last");
-
-              // Use toBool helper for defensive boolean evaluation
-              const toBool = window.toBool || ((value) => {
-                if (typeof value === 'boolean') return value;
-                if (typeof value === 'string') return value === 'true';
-                return !!value;
-              });
-
-              if (toBool(apps[loadedApp]["mermaid"])) {
-                applyMermaid(htmlContent);
-              }
-
-              if (toBool(apps[loadedApp]["mathjax"])) {
-                applyMathJax(gptElement);
-              }
-
-              if (toBool(apps[loadedApp]["abc"])) {
-                applyAbc(gptElement);
-              }
-
-              formatSourceCode(gptElement);
-              cleanupListCodeBlocks(gptElement);
-
-              setCopyCodeButton(gptElement);
-
+              const badge =
+                msg.badge ||
+                "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
+              const assistantCard = createCard(
+                "assistant",
+                badge,
+                msg.html || msg.text || "",
+                msg.lang,
+                msg.mid,
+                msg.active,
+                Array.isArray(msg.images) ? msg.images : []
+              );
+              $("#discourse").append(assistantCard);
+              break;
+            }
+            case "info": {
+              const infoCard = createCard(
+                "info",
+                "<span class='text-secondary'><i class='fas fa-info-circle'></i></span> <span class='fw-bold fs-6 text-info'>Info</span>",
+                msg.html || msg.text || "",
+                msg.lang,
+                msg.mid,
+                msg.active
+              );
+              $("#discourse").append(infoCard);
               break;
             }
             case "system": {
-              const systemElement = createCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", msg["html"], msg["lang"], msg["mid"], msg["active"]);
-              $("#discourse").append(systemElement);
-
-              // Save to SessionState for persistence across page reloads
-              if (window.SessionState && typeof window.SessionState.addMessage === 'function') {
-                window.SessionState.addMessage({
-                  role: 'system',
-                  html: msg["html"],
-                  lang: msg["lang"],
-                  mid: msg["mid"],
-                  active: msg["active"]
-                });
-              }
-
+              const systemCard = createCard(
+                "system",
+                "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
+                msg.html || msg.text || "",
+                msg.lang,
+                msg.mid,
+                msg.active
+              );
+              $("#discourse").append(systemCard);
               break;
             }
+            default:
+              break;
           }
 
-          mids.add(msg["mid"]);
+          if (typeof mids !== "undefined" && typeof mids.add === "function") {
+            mids.add(msg.mid);
+          }
         });
-        setStats(formatInfo(data["content"]), "info");
 
-        // Set status to connected after successfully loading past messages
-        // Use setAlert to properly set icon and color
-        const connectedText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-          webUIi18n.t('ui.status.connected') : 'Connected';
+        if (!shouldSyncSessionState && Array.isArray(window.messages)) {
+          window.messages = [...serverMessages];
+        }
+
+        setStats(formatInfo(serverMessages), "info");
+
+        const hasConversation = serverMessages.some((m) => m.role !== "system");
+        const labelPromise = window.i18nReady || Promise.resolve();
+        labelPromise.then(() => {
+          if (hasConversation) {
+            const continueText =
+              typeof webUIi18n !== "undefined" && webUIi18n.initialized
+                ? webUIi18n.t("ui.session.continueSession")
+                : "Continue Session";
+            $("#start-label").text(continueText);
+          } else {
+            const startText =
+              typeof webUIi18n !== "undefined" && webUIi18n.initialized
+                ? webUIi18n.t("ui.session.startSession")
+                : "Start Session";
+            $("#start-label").text(startText);
+          }
+        });
+
+        const connectedText =
+          typeof webUIi18n !== "undefined" && webUIi18n.initialized
+            ? webUIi18n.t("ui.status.connected")
+            : "Connected";
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
 
-        if (messages.length > 0) {
-          // Ensure i18n is ready before updating text
-          if (window.i18nReady) {
-            window.i18nReady.then(() => {
-              const continueText = webUIi18n.t('ui.session.continueSession');
-              $("#start-label").text(continueText);
-            });
-          } else {
-            $("#start-label").text('Continue Session');
-          }
-        } else {
-          // Ensure i18n is ready before updating text
-          if (window.i18nReady) {
-            window.i18nReady.then(() => {
-              const startText = webUIi18n.t('ui.session.startSession');
-              $("#start-label").text(startText);
-            });
-          } else {
-            $("#start-label").text('Start Session');
-          }
-        }
-        
-        // Update AI User button state
-        updateAIUserButtonState(messages);
+        updateAIUserButtonState(serverMessages);
 
+        if (window.SessionState && typeof window.SessionState.clearResetFlags === "function") {
+          window.SessionState.clearResetFlags();
+        }
+        if (window.isProcessingImport) {
+          window.isProcessingImport = false;
+        }
+        if (window.skipAssistantInitiation) {
+          window.skipAssistantInitiation = false;
+        }
         // After loading past messages, set initialLoadComplete to true
         initialLoadComplete = true;
         break;
@@ -4819,8 +4823,14 @@ let loadedApp = "Chat";
             const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
             const realtimeMode = params && params["auto_tts_realtime_mode"] === true;
             const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
+            const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
 
-            if (suppressionActive) {
+            if (!inForeground) {
+              setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+              window.autoSpeechActive = false;
+              window.autoPlayAudio = false;
+              console.log('[Auto TTS] Auto playback skipped because tab is in background');
+            } else if (suppressionActive) {
               window.autoSpeechActive = false;
               window.autoPlayAudio = false;
               if (typeof window.setTtsPlaybackStarted === 'function') {

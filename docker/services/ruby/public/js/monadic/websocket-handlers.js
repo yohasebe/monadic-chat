@@ -107,6 +107,7 @@ function escapeHtml(text) {
 function handleFragmentWithAudio(data, processAudio) {
   if (data && data.type === 'fragment_with_audio') {
     try {
+      const inForeground = typeof window !== 'undefined' && typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
       // Check for auto_speech flag
       const isAutoSpeech = data.auto_speech === true;
       const suppressionActive = (typeof window !== 'undefined') &&
@@ -115,8 +116,9 @@ function handleFragmentWithAudio(data, processAudio) {
 
       // First process the fragment part
       if (data.fragment) {
-        // Add fragment to DOM or update UI as needed
-        if (typeof window.handleFragmentMessage === 'function') {
+        if (!inForeground) {
+          // Skip streaming fragment rendering in background tabs
+        } else if (typeof window.handleFragmentMessage === 'function') {
           window.handleFragmentMessage(data.fragment);
         } else {
           // Fallback direct processing if global handler not available
@@ -176,6 +178,10 @@ function handleFragmentWithAudio(data, processAudio) {
       
       // Check if this is a Web Speech API message
       if (data.audio && data.audio.type === 'web_speech') {
+        if (!inForeground) {
+          console.log('[Auto TTS] Skipped Web Speech playback (background tab)');
+          return true;
+        }
         if (suppressionActive) {
           if (window.speechSynthesis) {
             try {
@@ -223,6 +229,10 @@ function handleFragmentWithAudio(data, processAudio) {
       }
       // Process regular audio data
       else if (data.audio && typeof processAudio === 'function') {
+        if (!inForeground) {
+          console.log('[Auto TTS] Skipping buffered audio in background tab');
+          return true;
+        }
         // The audio processing might vary between environments
         try {
           if (suppressionActive) {
@@ -387,6 +397,10 @@ function handleErrorMessage(data) {
 function handleAudioMessage(data, processAudio) {
   if (data && data.type === 'audio') {
     try {
+      if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+        console.log('[Audio] Ignoring audio message in background tab');
+        return true;
+      }
       // Check if content is a valid string
       if (typeof data.content !== 'string') {
         throw new Error('Invalid audio content format');
@@ -661,6 +675,11 @@ function handleCancelMessage(data) {
     return true;
   }
   return false;
+
+
+function canPlayAudioInForeground() {
+  return typeof window.isForegroundTab === "function" ? window.isForegroundTab() : !(typeof document !== "undefined" && document.hidden);
+}
 }
 
 // Export handlers for browser environments

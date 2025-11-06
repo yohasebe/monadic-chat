@@ -2548,6 +2548,10 @@ $(function () {
 
   $("#send").on("click", function (event) {
     event.preventDefault();
+    if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+      console.log('[Send] Ignoring send click: tab is not foreground');
+      return;
+    }
     if (message.value === "") {
       return;
     }

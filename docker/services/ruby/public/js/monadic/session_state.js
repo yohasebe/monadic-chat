@@ -633,6 +633,9 @@
     // Initialize with empty array if not exists
     window.messages = [];
   }
+  if (typeof window.__cachedMessages === 'undefined') {
+    window.__cachedMessages = [];
+  }
   
   // Override the messages array to sync with SessionState
   // Check if already defined to avoid redefinition errors in tests
@@ -641,6 +644,9 @@
     Object.defineProperty(window, 'messages', {
       get: function() {
         // Return the SessionState messages array
+        if (window.isForegroundTab && typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+          return window.__cachedMessages || [];
+        }
         return window.SessionState.conversation.messages;
       },
       set: function(value) {
@@ -649,6 +655,7 @@
           console.warn('Direct assignment to messages array is deprecated. Use SessionState methods instead.');
           // Clear and repopulate SessionState messages
           window.SessionState.conversation.messages = [...value];
+          window.__cachedMessages = [...value];
           
           // Notify listeners of the change
           if (window.SessionState.notifyListeners) {

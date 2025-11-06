@@ -30,6 +30,17 @@ module WebSocketHelper
     session[:parameters] || session["parameters"] || {}
   end
 
+  def sync_session_state!
+    session_id = Thread.current[:websocket_session_id]
+    return unless session_id
+
+    WebSocketHelper.update_session_state(
+      session_id,
+      messages: session[:messages] || [],
+      parameters: get_session_params || {}
+    )
+  end
+
   # Realtime TTS buffer configuration
   # Minimum character length for TTS processing:
   # - Sentences ≤ this length are buffered
@@ -115,11 +126,50 @@ module WebSocketHelper
   # One session ID can have multiple WebSocket connections (e.g., multiple tabs)
   @@connections_by_session = Hash.new { |h, k| h[k] = Set.new }
   @@session_mutex = Mutex.new
+  @@session_state_mutex = Mutex.new
+  @@session_state = {}
 
   # Feature Flag for progress broadcasting
   def self.progress_broadcast_enabled?
     return false unless defined?(CONFIG)
     CONFIG["WEBSOCKET_PROGRESS_ENABLED"] != false  # Default true
+  end
+
+  def self.deep_clone_session_state(obj)
+    return nil if obj.nil?
+
+    Marshal.load(Marshal.dump(obj))
+  rescue TypeError
+    obj.respond_to?(:dup) ? obj.dup : obj
+  rescue
+    obj
+  end
+
+  def self.update_session_state(session_id, messages:, parameters:)
+    return unless session_id
+
+    @@session_state_mutex.synchronize do
+      @@session_state[session_id] ||= {}
+      state = @@session_state[session_id]
+      state[:messages] = deep_clone_session_state(messages || [])
+      state[:parameters] = deep_clone_session_state(parameters || {})
+    end
+  end
+
+  def self.fetch_session_state(session_id)
+    return nil unless session_id
+
+    @@session_state_mutex.synchronize do
+      state = @@session_state[session_id]
+      if state
+        {
+          messages: deep_clone_session_state(state[:messages] || []),
+          parameters: deep_clone_session_state(state[:parameters] || {})
+        }
+      else
+        nil
+      end
+    end
   end
 
   # Broadcast progress message to specific session or all
@@ -458,6 +508,8 @@ module WebSocketHelper
 
     # Update message status
     update_message_status(connection, filtered_messages)
+
+    sync_session_state!
   end
   
   # Prepare apps data with settings
@@ -569,6 +621,10 @@ module WebSocketHelper
 
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
 
+    if filtered_messages.empty? && (!current_app_name || current_app_name.to_s.empty?)
+      filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+    end
+
     # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -646,8 +702,16 @@ module WebSocketHelper
       extra_log.close
     end
 
-    # Send apps message first
-    WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps, "version" => session[:version], "docker" => session[:docker] }.to_json) unless apps.empty?
+    # Send apps message first with current app name to prevent unnecessary app switching
+    current_app_name = session[:parameters]&.[]("app_name")
+    apps_message = {
+      "type" => "apps",
+      "content" => apps,
+      "version" => session[:version],
+      "docker" => session[:docker]
+    }
+    apps_message["current_app_name"] = current_app_name if current_app_name
+    WebSocketHelper.broadcast_to_all(apps_message.to_json) unless apps.empty?
 
     # Use sleep to delay subsequent messages, giving browser time to process large apps message
     # This prevents message loss when apps message is very large (>1MB)
@@ -731,6 +795,7 @@ module WebSocketHelper
     # Reuse filtered_messages for change_status
     WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
     WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+    sync_session_state!
   end
 
   # Common TTS playback processing for PLAY_TTS and Auto Speech
@@ -1001,6 +1066,7 @@ module WebSocketHelper
     # Update status
     WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
     WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+    sync_session_state!
   end
   
   # Handle EDIT message
@@ -1044,6 +1110,8 @@ module WebSocketHelper
 
       # Update message status
       update_message_status_after_edit
+
+      sync_session_state!
     else
       # Message not found
       WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
@@ -1084,6 +1152,7 @@ module WebSocketHelper
     # Update status to reflect any changes
     WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
     WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+    sync_session_state!
   end
   
   # Handle AUDIO message
@@ -1220,6 +1289,16 @@ module WebSocketHelper
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session if defined?(session) && session.is_a?(Hash)
+
+      if (saved_state = WebSocketHelper.fetch_session_state(ws_session_id))
+        session[:messages] = saved_state[:messages] if saved_state[:messages]
+        if saved_state[:parameters]
+          session[:parameters] ||= {}
+          saved_state[:parameters].each do |key, value|
+            session[:parameters][key] = value
+          end
+        end
+      end
 
       queue = Queue.new
       thread = nil
@@ -1439,6 +1518,7 @@ module WebSocketHelper
           session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state
           session[:error] = nil
           session[:obj] = nil
+          sync_session_state!
         when "LOAD"
           # Store ui_language in session parameters if provided
           if obj["ui_language"]
@@ -1612,6 +1692,7 @@ module WebSocketHelper
               }.to_json)
 
               session[:messages] << new_data
+              sync_session_state!
               # Filter messages by current app_name to prevent cross-app conversation leakage
               params = get_session_params
     current_app_name = obj["app_name"] || params["app_name"]
@@ -1645,6 +1726,8 @@ module WebSocketHelper
           sanitized["app_name"] = sanitized["app_name"].to_s if sanitized.key?("app_name")
 
           session[:parameters].merge!(sanitized)
+
+          sync_session_state!
 
           begin
             WebSocketHelper.broadcast_to_all({
@@ -1689,6 +1772,7 @@ module WebSocketHelper
           # Initial prompt is added to messages but not shown as the first message
           # WebSocketHelper.broadcast_to_all({ "type" => "html", "content" => new_data }.to_json)
           session[:messages] << new_data
+          sync_session_state!
 
         when "SAMPLE"
           begin
@@ -1721,6 +1805,7 @@ module WebSocketHelper
             
             # First add to session
             session[:messages] << new_data
+            sync_session_state!
             
             # Force the system to send a properly formatted message that will be displayed
             if obj["role"] == "user"
@@ -2446,6 +2531,8 @@ module WebSocketHelper
       if CONFIG["EXTRA_LOGGING"]
         puts "[WebSocket] Connection closed for session #{ws_session_id}"
       end
+
+      sync_session_state!
 
       Thread.current[:websocket_session_id] = nil
       Thread.current[:rack_session] = nil

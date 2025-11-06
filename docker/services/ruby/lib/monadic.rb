@@ -1647,6 +1647,14 @@ post "/load" do
           message_obj
         end.compact # Remove nil values from invalid messages
 
+        if session[:websocket_session_id]
+          WebSocketHelper.update_session_state(
+            session[:websocket_session_id],
+            messages: session[:messages],
+            parameters: session[:parameters]
+          )
+        end
+
         # Debug logging after import (only when EXTRA_LOGGING is enabled)
         if CONFIG["EXTRA_LOGGING"]
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1719,6 +1727,14 @@ post "/load" do
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
           message_obj["images"] = msg["images"] if msg["images"]
           message_obj
+        end
+
+        if session[:websocket_session_id]
+          WebSocketHelper.update_session_state(
+            session[:websocket_session_id],
+            messages: session[:messages],
+            parameters: session[:parameters]
+          )
         end
       rescue JSON::ParserError
         handle_error("Error: Invalid JSON file. Please upload a valid JSON file.")
@@ -2000,6 +2016,13 @@ APPS.each do |k, v|
 
   get "/#{endpoint}" do
     session[:messages] = []
+    if session[:websocket_session_id]
+      WebSocketHelper.update_session_state(
+        session[:websocket_session_id],
+        messages: session[:messages],
+        parameters: session[:parameters]
+      )
+    end
     parameters = v.settings.dup
     
     

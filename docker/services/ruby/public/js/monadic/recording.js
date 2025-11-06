@@ -242,6 +242,11 @@ voiceButton.on("click", function () {
 
   // "Start" button is pressed
   if (!isListening) {
+  if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+    console.log('[Voice] Ignoring voice input start: tab is not foreground.');
+    return;
+  }
+
     // Save original placeholder text to restore later
     const originalPlaceholder = $("#message").attr("placeholder");
     // Store it as a data attribute on the message element
@@ -346,6 +351,16 @@ voiceButton.on("click", function () {
           console.log("Audio data size: " + event.data.size + " bytes - Processing...");
           
           soundToBase64(event.data, function (base64) {
+            if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
+              console.log('[Voice] Skipping STT send: tab not foreground.');
+              const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+              $("#message").attr("placeholder", origPlaceholder);
+              $("#voice").html('<i class=\'fas fa-microphone\'></i> Speech Input');
+              $("#send, #clear, #voice").prop("disabled", false);
+              $("#amplitude").hide();
+              $("#monadic-spinner").hide();
+              return;
+            }
             // Double-check the base64 length to ensure we have actual content
             if (!base64 || base64.length < 100) {
               console.log("Base64 audio data too small. Canceling STT processing.");

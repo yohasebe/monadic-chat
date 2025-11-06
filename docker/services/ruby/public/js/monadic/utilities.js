@@ -1166,7 +1166,8 @@ function setParams() {
 }
 
 function checkParams() {
-  if (!$("#initial-prompt").val()) {
+  // Only check initial-prompt if it's visible (not all apps require it)
+  if ($("#initial-prompt").is(":visible") && !$("#initial-prompt").val()) {
     alert("Please enter an initial prompt.");
     $("#initial-prompt").focus();
     return false;

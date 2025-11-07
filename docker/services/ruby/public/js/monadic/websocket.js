@@ -2,6 +2,10 @@
 // set up the websocket
 //////////////////////////////
 
+// CRITICAL: Declare apps early to avoid TDZ errors in WebSocket handlers
+// WebSocket handlers set up by connect_websocket() need access to apps
+const apps = {};
+
 // Respect a cookie that suppresses noisy reconnects after intentional stop
 try {
   if (document.cookie && document.cookie.includes('silent_reconnect=true')) {
@@ -68,14 +72,12 @@ let failedSequences = new Set(); // Track sequences that failed to play
 const SEQUENCE_TIMEOUT_MS = 3000; // Check for missing segments every 3 seconds
 const MAX_SEQUENCE_RETRIES = 10; // Maximum number of retries before giving up on a segment (30s total)
 
+// Tab foreground tracking (deprecated - using document.visibilityState now)
+// Kept for backward compatibility but not actively used
 let tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
 function updateTabForegroundState() {
   tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
 }
-function isForegroundTab() {
-  return tabIsForeground;
-}
-window.isForegroundTab = isForegroundTab;
 
 // Auto Speech completion tracking
 let textResponseCompleted = false; // Track if text response finished
@@ -209,17 +211,56 @@ function removeStopButtonHighlight(cardId = null) {
 
 // Check if text response is completed AND TTS playback has started, then hide spinner
 function checkAndHideSpinner() {
-  // Only apply this logic when Auto Speech is enabled
-  const autoSpeechEnabled = $("#check-auto-speech").is(":checked");
-
-  if (!autoSpeechEnabled) {
-    // For non-Auto Speech mode, hide spinner immediately
+  // CRITICAL: Check foreground state first - background tabs should never show spinners
+  const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
+  if (!inForeground) {
+    console.log('[checkAndHideSpinner] Background tab - hiding spinner unconditionally');
     $("#monadic-spinner").hide();
     return;
   }
 
-  // For Auto Speech mode, hide spinner when text is completed AND TTS has started
+  // CRITICAL: On initial load (no messages), always hide spinner regardless of Auto Speech settings
+  // This prevents sticky "Processing audio" spinner from other tabs
+  // With sessionStorage, each tab is isolated, so we don't get cross-tab contamination
+  const messageCount = (window.messages && window.messages.length) || 0;
+  if (messageCount === 0) {
+    console.log('[checkAndHideSpinner] Initial load (no messages) - hiding spinner unconditionally');
+    $("#monadic-spinner").hide();
+    return;
+  }
+
+  // Check Auto Speech from multiple sources
+  // 1. params["auto_speech"] - the source of truth set when Start/Send clicked
+  // 2. UI checkbox state
+  // 3. window.autoSpeechActive - set when TTS is actively playing
+  const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
+  const checkboxEnabled = $("#check-auto-speech").is(":checked");
+  const autoSpeechActive = window.autoSpeechActive === true;
+  const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
+
+  console.log('[checkAndHideSpinner] Called with:', {
+    messageCount,
+    paramsEnabled,
+    checkboxEnabled,
+    autoSpeechActive,
+    autoSpeechEnabled,
+    textResponseCompleted,
+    ttsPlaybackStarted,
+    inForeground,
+    spinnerVisible: $("#monadic-spinner").is(":visible")
+  });
+
+  if (!autoSpeechEnabled) {
+    // For non-Auto Speech mode, hide spinner immediately
+    console.log('[checkAndHideSpinner] Hiding spinner (Auto Speech disabled)');
+    $("#monadic-spinner").hide();
+    return;
+  }
+
+  // For Auto Speech mode
   if (textResponseCompleted && ttsPlaybackStarted) {
+    // Both text and TTS completed - hide spinner
+    console.log('[checkAndHideSpinner] Hiding spinner (conditions met)');
     $("#monadic-spinner").hide();
 
     // Reset spinner to default state
@@ -230,6 +271,28 @@ function checkAndHideSpinner() {
     $("#monadic-spinner")
       .find("span")
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+  } else if (textResponseCompleted && !ttsPlaybackStarted) {
+    // Text completed but TTS not started yet - update spinner to show audio processing
+    // Note: Initial load (messageCount === 0) is already handled above, so this only runs for actual responses
+    console.log('[checkAndHideSpinner] Updating spinner for audio processing');
+    // Ensure spinner is visible BEFORE updating content
+    $("#monadic-spinner").show();
+
+    $("#monadic-spinner")
+      .find("span i")
+      .removeClass("fa-comment fa-brain fa-circle-nodes fa-cogs")
+      .addClass("fa-headphones");
+
+    const processingAudioText = typeof webUIi18n !== 'undefined' ?
+      webUIi18n.t('ui.messages.spinnerProcessingAudio') : 'Processing audio';
+    $("#monadic-spinner")
+      .find("span")
+      .html(`<i class="fas fa-headphones fa-pulse"></i> ${processingAudioText}`);
+  } else {
+    console.log('[checkAndHideSpinner] NOT hiding spinner - conditions not met:', {
+      textResponseCompleted,
+      ttsPlaybackStarted
+    });
   }
 }
 
@@ -270,7 +333,7 @@ document.addEventListener("keydown", function (event) {
       $("#voice").click();
     }
   }
-  
+
   // Enter key - submit message when focus is not in textarea
   if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "Enter" && message.dataset.ime !== "true") {
     // Only submit if message is not empty
@@ -306,12 +369,12 @@ function setCopyCodeButton(element) {
         // Add the copy button directly to the highlighter-rouge container
         const copyButton = $(`<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>`);
         highlighterElement.append(copyButton);
-        
+
         // Add click event to the button
         copyButton.click(function () {
           const text = codeElement.text();
           const icon = copyButton.find("i");
-          
+
           try {
             // Copy text to clipboard
             // Use document.execCommand directly
@@ -321,32 +384,32 @@ function setCopyCodeButton(element) {
             textarea.style.opacity = 0;
             document.body.appendChild(textarea);
             textarea.select();
-            
+
             const success = document.execCommand('copy');
             document.body.removeChild(textarea);
-            
+
             if (!success) {
               throw new Error('execCommand copy failed');
             }
-            
+
             // Show success indicator
             icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-            
+
             // Return to normal state after delay
             setTimeout(() => {
               icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
             }, 1000);
           } catch (err) {
             console.error("Failed to copy text: ", err);
-            
+
             // Try fallback methods if execCommand fails
             try {
               if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
                 window.electronAPI.writeClipboard(text);
-                
+
                 // Show success indicator
                 icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                
+
                 // Return to normal state after delay
                 setTimeout(() => {
                   icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
@@ -356,7 +419,7 @@ function setCopyCodeButton(element) {
                   .then(() => {
                     // Show success indicator
                     icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                    
+
                     // Return to normal state after delay
                     setTimeout(() => {
                       icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
@@ -365,7 +428,7 @@ function setCopyCodeButton(element) {
                   .catch(() => {
                     // Show error indicator
                     icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-                    
+
                     // Return to normal state after delay
                     setTimeout(() => {
                       icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
@@ -376,10 +439,10 @@ function setCopyCodeButton(element) {
               }
             } catch (fallbackErr) {
               console.error("All clipboard methods failed: ", fallbackErr);
-              
+
               // Show error indicator
               icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-              
+
               // Return to normal state after delay
               setTimeout(() => {
                 icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
@@ -403,10 +466,10 @@ function setCopyCodeButton(element) {
 // In browser environments, wsHandlers is defined globally in websocket-handlers.js
 let wsHandlers = window.wsHandlers;
 
-const apps = {}
+// apps is now declared at the top of the file to avoid TDZ errors
 // Use global variables which are proxied to SessionState
 // let messages = []; // Removed - using global messages instead
-// let originalParams = {}; // Removed - using global originalParams instead  
+// let originalParams = {}; // Removed - using global originalParams instead
 // let params = {} // Removed - using global params instead
 
 let reconnectDelay = 1000;
@@ -416,7 +479,7 @@ let pingInterval;
 function startPing() {
   // Clear any existing ping interval to avoid duplicates
   stopPing();
-  
+
   // Start new ping interval
   pingInterval = setInterval(() => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -440,6 +503,31 @@ let autoScroll = true;
 
 const mainPanel = $("#main-panel").get(0);
 
+function ensureMonadicTabId() {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      let tabId = sessionStorage.getItem('monadicTabId');
+      if (!tabId) {
+        tabId = (typeof crypto !== 'undefined' && crypto.randomUUID) ?
+          crypto.randomUUID() :
+          `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        sessionStorage.setItem('monadicTabId', tabId);
+      }
+      window.monadicTabId = tabId;
+      return tabId;
+    }
+  } catch (e) {
+    console.warn('[Session] Unable to access sessionStorage for tab ID:', e);
+  }
+  if (!window.monadicTabId) {
+    window.monadicTabId = `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+  return window.monadicTabId;
+}
+
+window.getMonadicTabId = ensureMonadicTabId;
+const MONADIC_TAB_ID = ensureMonadicTabId();
+
 // Handle fragment message from streaming response
 // This function will be used by the fragment_with_audio handler and all vendor helpers
 window.handleFragmentMessage = function(fragment) {
@@ -450,7 +538,7 @@ window.handleFragmentMessage = function(fragment) {
   }
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
-    
+
     // Debug logging for GPT-5 duplicate issue
     if (window.debugFragments) {
       console.log('[Fragment Debug]', {
@@ -473,12 +561,12 @@ window.handleFragmentMessage = function(fragment) {
       // Initialize tracking
       window._lastProcessedSequence = -1;
       window._lastProcessedIndex = -1;
-      
+
       // Only clear #chat if it exists and has content from old streaming approach
       if ($("#chat").length && $("#chat").html().trim() !== "") {
         $("#chat").empty();
       }
-      
+
       // Create a new temporary card for streaming text
       tempCard = $(`
         <div id="temp-card" class="card mt-3 streaming-card">
@@ -498,6 +586,11 @@ window.handleFragmentMessage = function(fragment) {
       $("#temp-card .card-text").empty();
       window._lastProcessedSequence = -1;
       window._lastProcessedIndex = -1;
+
+      // Move the temp card to the end of #discourse to ensure correct position
+      // This handles cases where the card was left in an old position from previous streaming
+      tempCard.detach();
+      $("#discourse").append(tempCard);
     }
 
     // Prefer sequence number over index for duplicate detection
@@ -526,7 +619,7 @@ window.handleFragmentMessage = function(fragment) {
       // This is a fallback for providers that don't send index
       const now = Date.now();
       const fragmentKey = `${text}_${fragment.timestamp || now}`;
-      
+
       // Check if we've seen this exact fragment (content + timestamp) recently
       if (window._recentFragments && window._recentFragments[fragmentKey]) {
         if (window.debugFragments) {
@@ -534,17 +627,17 @@ window.handleFragmentMessage = function(fragment) {
         }
         return;
       }
-      
+
       // Store this fragment temporarily
       window._recentFragments = window._recentFragments || {};
       window._recentFragments[fragmentKey] = now;
-      
+
       // Clean up old entries after 1 second
       setTimeout(() => {
         delete window._recentFragments[fragmentKey];
       }, 1000);
     }
-    
+
     // Add to streaming text display
     const tempText = $("#temp-card .card-text");
     if (tempText.length) {
@@ -553,11 +646,11 @@ window.handleFragmentMessage = function(fragment) {
         console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
         console.log('[Fragment Debug] Adding fragment:', text);
       }
-      
+
       // Use DocumentFragment for efficient DOM manipulation while preserving newlines
       const docFrag = document.createDocumentFragment();
       const lines = text.split('\n');
-      
+
       lines.forEach((line, index) => {
         // Add line break for all lines except the first
         if (index > 0) {
@@ -568,16 +661,16 @@ window.handleFragmentMessage = function(fragment) {
           docFrag.appendChild(document.createTextNode(line));
         }
       });
-      
+
       // Append all at once for better performance
       tempText[0].appendChild(docFrag);
-      
+
       // Debug: Log after append
       if (window.debugFragments) {
         console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
       }
     }
-    
+
     // If this is a final fragment, clean up
     if (fragment.final) {
       window._lastProcessedIndex = -1;
@@ -1011,7 +1104,7 @@ if (!hasMediaSourceSupport && hasAudioContextSupport && isIOS) {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     audioContext = new AudioContextClass();
-    
+
   } catch (e) {
     console.error("[Audio] Failed to create AudioContext:", e);
   }
@@ -1045,19 +1138,19 @@ function initializeMediaSourceForAudio() {
   if ('MediaSource' in window && !window.basicAudioMode) {
     try {
       mediaSource = new MediaSource();
-      
+
       mediaSource.addEventListener('sourceopen', function() {
-        
-        
+
+
         if (!sourceBuffer && mediaSource.readyState === 'open') {
           try {
             // Check browser and set appropriate codec
             if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-              
+
               window.firefoxAudioMode = true;
               window.firefoxAudioQueue = [];
             } else {
-              
+
               sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
               sourceBuffer.addEventListener('updateend', processAudioDataQueue);
             }
@@ -1067,14 +1160,14 @@ function initializeMediaSourceForAudio() {
           }
         }
       });
-      
+
       // Create audio element
       if (!audio) {
         audio = new Audio();
         audio.src = URL.createObjectURL(mediaSource);
         window.audio = audio; // Export to window for global access
-        
-        
+
+
         // Set up event listener for automatic playback
         audio.addEventListener('canplay', function() {
           // If auto-speech is active or play button was pressed, start playback automatically
@@ -1147,40 +1240,41 @@ function initializeMediaSourceForAudio() {
           }
         });
       }
-      
+
     } catch (e) {
       console.error("Error creating MediaSource: ", e);
       window.basicAudioMode = true;
     }
   } else {
-    
+
     window.basicAudioMode = true;
   }
 }
 
 // Reset audio elements when switching TTS modes
 function resetAudioElements() {
-  
-  
-  // Stop and clean up current audio completely
-  if (audio) {
-    if (!audio.paused) {
-      audio.pause();
+  // CRITICAL: Wrap entire function in try-catch to handle TDZ (Temporal Dead Zone)
+  // This can be called during page initialization before all variables are initialized
+  try {
+    // Stop and clean up current audio completely
+    if (audio) {
+      if (!audio.paused) {
+        audio.pause();
+      }
+      audio.currentTime = 0;
+      if (audio.src) {
+        // Don't revoke immediately, let the browser clean up
+        const srcToRevoke = audio.src;
+        setTimeout(() => URL.revokeObjectURL(srcToRevoke), 100);
+        audio.src = '';
+      }
+      audio.load(); // Force the audio element to release resources
+      audio = null;
     }
-    audio.currentTime = 0;
-    if (audio.src) {
-      // Don't revoke immediately, let the browser clean up
-      const srcToRevoke = audio.src;
-      setTimeout(() => URL.revokeObjectURL(srcToRevoke), 100);
-      audio.src = '';
-    }
-    audio.load(); // Force the audio element to release resources
-    audio = null;
-  }
-  
-  // Clean up MediaSource
-  if (mediaSource) {
-    if (sourceBuffer && mediaSource.readyState === 'open') {
+
+    // Clean up MediaSource
+    if (mediaSource) {
+      if (sourceBuffer && mediaSource.readyState === 'open') {
       try {
         sourceBuffer.abort();
         mediaSource.removeSourceBuffer(sourceBuffer);
@@ -1188,7 +1282,7 @@ function resetAudioElements() {
         // Debug log removed
       }
     }
-    
+
     // End the media source if still open
     if (mediaSource.readyState === 'open') {
       try {
@@ -1198,27 +1292,30 @@ function resetAudioElements() {
       }
     }
   }
-  
+
   // Reset all variables
   mediaSource = null;
   sourceBuffer = null;
   audioDataQueue = [];
-  
+
   // Reset browser-specific flags
   window.basicAudioMode = false;
   window.firefoxAudioMode = false;
   window.firefoxAudioQueue = [];
-  
-  // Clear any iOS-specific state
-  iosAudioBuffer = [];
-  isIOSAudioPlaying = false;
-  iosAudioQueue = [];
-  if (iosAudioElement) {
-    iosAudioElement.pause();
-    iosAudioElement = null;
+
+    // Clear any iOS-specific state
+    iosAudioBuffer = [];
+    isIOSAudioPlaying = false;
+    iosAudioQueue = [];
+    if (iosAudioElement) {
+      iosAudioElement.pause();
+      iosAudioElement = null;
+    }
+  } catch (e) {
+    // Variables not yet initialized (TDZ), skip cleanup
+    // This is normal during page initialization
+    console.log('[resetAudioElements] Skipping cleanup - variables not yet initialized:', e.message);
   }
-  
-  
 }
 
 // Direct audio playback for iOS devices or browsers without MediaSource support
@@ -1229,19 +1326,19 @@ function playAudioDirectly(audioData) {
       playWithAudioElement(audioData);
       return;
     }
-    
+
     // For other platforms with AudioContext support
     if (audioContext && hasAudioContextSupport) {
       if (audioContext.state === 'suspended') {
         audioContext.resume();
       }
-      
+
       // Make sure we're working with a Uint8Array
       const uint8Data = (audioData instanceof Uint8Array) ? audioData : new Uint8Array(audioData);
-      
+
       // Create ArrayBuffer from the data
       const arrayBuffer = uint8Data.buffer.slice(uint8Data.byteOffset, uint8Data.byteOffset + uint8Data.byteLength);
-      
+
       // Decode and play the audio
       audioContext.decodeAudioData(arrayBuffer)
         .then(buffer => {
@@ -1254,13 +1351,13 @@ function playAudioDirectly(audioData) {
           // Fall back to Audio element on decoding error
           playWithAudioElement(audioData);
         });
-        
+
       // Timeout failsafe
       setTimeout(() => {
         if (audioContext.state === 'running') {
           playWithAudioElement(audioData);
         }
-      }, 3000); 
+      }, 3000);
     } else {
       // No AudioContext support, use basic Audio element
       playWithAudioElement(audioData);
@@ -1278,13 +1375,13 @@ function playWithAudioElement(audioData) {
     playAudioForIOS(audioData);
     return;
   }
-  
+
   // For other browsers, use standard Audio API
   try {
     // Create a Blob from the audio data
     const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'];
     let blob = null;
-    
+
     // Try mime types until one works
     for (const mimeType of mimeTypes) {
       try {
@@ -1294,24 +1391,24 @@ function playWithAudioElement(audioData) {
         // Continue to next mime type
       }
     }
-    
+
     // Default fallback
     if (!blob) {
       blob = new Blob([audioData], { type: 'audio/mpeg' });
     }
-    
+
     const audioUrl = URL.createObjectURL(blob);
     const audioElement = new Audio();
-    
+
     // Clean up when finished
     audioElement.onended = function() {
       URL.revokeObjectURL(audioUrl);
     };
-    
+
     audioElement.onerror = function() {
       URL.revokeObjectURL(audioUrl);
     };
-    
+
     // Play audio
     audioElement.src = audioUrl;
     audioElement.play().catch(() => {
@@ -1568,19 +1665,19 @@ function processAudio(audioData) {
     if (!audioDataQueue) {
       audioDataQueue = [];
     }
-    
+
     // Ensure MediaSource is initialized if not already
     if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-      
+
       initializeMediaSourceForAudio();
     }
-    
+
     // Handle based on browser environment
     if (window.firefoxAudioMode) {
       if (!window.firefoxAudioQueue) {
         window.firefoxAudioQueue = [];
       }
-      
+
       // Firefox audio queue management
       window.firefoxAudioQueue.push(audioData);
       processAudioDataQueue();
@@ -1591,7 +1688,7 @@ function processAudio(audioData) {
       // Standard approach for modern browsers
       audioDataQueue.push(audioData);
       processAudioDataQueue();
-      
+
       // Ensure audio playback starts automatically
       if (audio && audio.paused) {
         audio.play().catch(err => {
@@ -1681,7 +1778,20 @@ function playAudioFromQueue(audioItem) {
     segmentAudio.onerror = function(e) {
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
-      handleAudioError(`Segment audio error for seq${sequenceNum}: ${e}`);
+
+      // If tab is hidden, audio playback may be interrupted by browser - this is expected behavior
+      if (document.hidden) {
+        console.log(`[AudioQueue] Audio playback interrupted for seq${sequenceNum} (tab is hidden)`);
+        // Clean up but don't report as error
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+        return;
+      }
+
+      // Get error details if available
+      const errorDetail = e.target?.error || e;
+      const errorMessage = errorDetail?.message || errorDetail?.code || 'Unknown error';
+      handleAudioError(`Segment audio error for seq${sequenceNum}: ${errorMessage}`);
     };
 
     // Set source and play
@@ -1704,6 +1814,16 @@ function playAudioFromQueue(audioItem) {
         window.autoTTSSpinnerTimeout = null;
       }
     }).catch(err => {
+      // If tab is hidden, audio playback may be interrupted by browser - this is expected behavior
+      if (document.hidden) {
+        console.log(`[AudioQueue] Audio playback interrupted for seq${sequenceNum} (tab is hidden)`);
+        URL.revokeObjectURL(audioUrl);
+        currentSegmentAudio = null;
+        isProcessingAudioQueue = false;
+        processGlobalAudioQueue();
+        return;
+      }
+
       console.error("[AudioQueue] Playback failed for seq" + sequenceNum + ":", err);
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
@@ -1723,7 +1843,7 @@ function playAudioForIOSFromQueue(audioData) {
   try {
     // Add to iOS buffer
     iosAudioBuffer.push(audioData);
-    
+
     // Process if not already playing
     if (!isIOSAudioPlaying) {
       processIOSAudioBufferWithQueue();
@@ -1742,46 +1862,46 @@ function processIOSAudioBufferWithQueue() {
     setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     return;
   }
-  
+
   isIOSAudioPlaying = true;
-  
+
   try {
     // Combine all buffered chunks
     let totalLength = 0;
     iosAudioBuffer.forEach(chunk => totalLength += chunk.length);
-    
+
     const combinedData = new Uint8Array(totalLength);
     let offset = 0;
-    
+
     iosAudioBuffer.forEach(chunk => {
       combinedData.set(chunk, offset);
       offset += chunk.length;
     });
-    
+
     iosAudioBuffer = [];
-    
+
     // Create and play audio
     const blob = new Blob([combinedData], { type: 'audio/mpeg' });
     const blobUrl = URL.createObjectURL(blob);
-    
+
     if (!iosAudioElement) {
       iosAudioElement = new Audio();
     }
-    
+
     iosAudioElement.onended = function() {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue
       setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     };
-    
+
     iosAudioElement.onerror = function() {
       isIOSAudioPlaying = false;
       URL.revokeObjectURL(blobUrl);
       // Process next item in global queue even on error
       setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     };
-    
+
     iosAudioElement.src = blobUrl;
     iosAudioElement.play().then(() => {
       console.log("[AudioQueue] iOS playback started successfully");
@@ -1799,7 +1919,7 @@ function processIOSAudioBufferWithQueue() {
       // Process next item in global queue
       setTimeout(() => processGlobalAudioQueue(), AUDIO_QUEUE_DELAY);
     });
-    
+
   } catch (e) {
     isIOSAudioPlaying = false;
     // Process next item in global queue
@@ -1812,12 +1932,12 @@ function playAudioForIOS(audioData) {
   try {
     // Add current chunk to our global buffer
     iosAudioBuffer.push(audioData);
-    
+
     // Don't start playback if we're already playing
     if (isIOSAudioPlaying) {
       return;
     }
-    
+
     // Process the buffer
     processIOSAudioBuffer();
   } catch (e) {
@@ -1832,30 +1952,30 @@ function processIOSAudioBuffer() {
     isIOSAudioPlaying = false;
     return;
   }
-  
+
   // Set playing flag
   isIOSAudioPlaying = true;
-  
+
   try {
     // Combine all buffered chunks into a single Uint8Array
     let totalLength = 0;
     iosAudioBuffer.forEach(chunk => totalLength += chunk.length);
-    
+
     const combinedData = new Uint8Array(totalLength);
     let offset = 0;
-    
+
     iosAudioBuffer.forEach(chunk => {
       combinedData.set(chunk, offset);
       offset += chunk.length;
     });
-    
+
     // Clear buffer now that we've combined the data
     iosAudioBuffer = [];
-    
+
     // Create blob with audio data
     const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/mp4'];
     let blob = null;
-    
+
     // Try each MIME type
     for (const type of mimeTypes) {
       try {
@@ -1865,41 +1985,41 @@ function processIOSAudioBuffer() {
         // Try next type
       }
     }
-    
+
     // Fallback if needed
     if (!blob) {
       blob = new Blob([combinedData], { type: 'audio/mpeg' });
     }
-    
+
     const blobUrl = URL.createObjectURL(blob);
-    
+
     // Create or reuse audio element
     if (!iosAudioElement) {
       iosAudioElement = new Audio();
-      
+
       // Set up handlers
       iosAudioElement.onended = function() {
         isIOSAudioPlaying = false;
-        
+
         // Process any new chunks that arrived during playback
         if (iosAudioBuffer.length > 0) {
           setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
         }
-        
+
         // Clean up URL
         if (iosAudioElement.src) {
           URL.revokeObjectURL(iosAudioElement.src);
         }
       };
-      
+
       iosAudioElement.onerror = function() {
         isIOSAudioPlaying = false;
-        
+
         // Clean up URL
         if (iosAudioElement.src) {
           URL.revokeObjectURL(iosAudioElement.src);
         }
-        
+
         // Check if we have more chunks to try
         if (iosAudioBuffer.length > 0) {
           setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
@@ -1909,38 +2029,38 @@ function processIOSAudioBuffer() {
       // Clean up previous URL if needed
       URL.revokeObjectURL(iosAudioElement.src);
     }
-    
+
     // Configure for iOS
     iosAudioElement.controls = false;
     iosAudioElement.playsinline = true;
     iosAudioElement.muted = false;
     iosAudioElement.autoplay = false;  // iOS requires user interaction
-    
+
     // Set new source and load
     iosAudioElement.src = blobUrl;
     iosAudioElement.load();
-    
+
     // Play with error handling - ensure autoplay for auto_speech
     iosAudioElement.play()
       .then(() => {
         // Playback started successfully
-        
+
       })
       .catch((err) => {
         // Debug log removed
         isIOSAudioPlaying = false;
         URL.revokeObjectURL(blobUrl);
-        
+
         // Show indicator if user interaction is required
         if (err.name === 'NotAllowedError') {
           const tapAudioText = getTranslation('ui.messages.tapToEnableIOSAudio', 'Tap to enable iOS audio');
           setAlert(`<i class="fas fa-volume-up"></i> ${tapAudioText}`, 'info');
         }
       });
-      
+
   } catch (e) {
     isIOSAudioPlaying = false;
-    
+
     // Try to process any remaining chunks
     if (iosAudioBuffer.length > 0) {
       setTimeout(processIOSAudioBuffer, AUDIO_QUEUE_DELAY);
@@ -2033,7 +2153,7 @@ function playPCMAudio(pcmData, sampleRate) {
       clearTimeout(window.autoTTSSpinnerTimeout);
       window.autoTTSSpinnerTimeout = null;
     }
-    
+
   } catch (error) {
     console.error("[AudioQueue] Error playing PCM audio:", error);
     // On error, set both flags to true to ensure spinner hides
@@ -2115,22 +2235,22 @@ function createWAVFromPCM(pcmData, sampleRate) {
   const byteRate = sampleRate * numChannels * bitsPerSample / 8;
   const blockAlign = numChannels * bitsPerSample / 8;
   const dataSize = pcmData.length;
-  
+
   // Create WAV header
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
-  
+
   // "RIFF" chunk descriptor
   const writeString = (offset, string) => {
     for (let i = 0; i < string.length; i++) {
       view.setUint8(offset + i, string.charCodeAt(i));
     }
   };
-  
+
   writeString(0, 'RIFF');
   view.setUint32(4, 36 + dataSize, true);
   writeString(8, 'WAVE');
-  
+
   // "fmt " sub-chunk
   writeString(12, 'fmt ');
   view.setUint32(16, 16, true); // Subchunk1Size
@@ -2140,15 +2260,15 @@ function createWAVFromPCM(pcmData, sampleRate) {
   view.setUint32(28, byteRate, true);
   view.setUint16(32, blockAlign, true);
   view.setUint16(34, bitsPerSample, true);
-  
+
   // "data" sub-chunk
   writeString(36, 'data');
   view.setUint32(40, dataSize, true);
-  
+
   // Copy PCM data
   const dataArray = new Uint8Array(buffer, 44);
   dataArray.set(pcmData);
-  
+
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
@@ -2157,16 +2277,16 @@ function processAudioDataQueue() {
     // In basic mode (iOS), audio is handled differently via playAudioDirectly
     return;
   }
-  
+
   if (!mediaSource || !sourceBuffer) {
     return;
   }
-  
+
   if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && !sourceBuffer.updating) {
     const audioData = audioDataQueue.shift();
     try {
       sourceBuffer.appendBuffer(audioData);
-      
+
       // For segmented playback, ensure continuous playback
       if (audio && audio.paused && audio.readyState >= 2) {
         audio.play().catch(err => {
@@ -2175,7 +2295,7 @@ function processAudioDataQueue() {
       }
     } catch (e) {
       console.error('Error appending buffer:', e);
-      
+
       if (e.name === 'QuotaExceededError') {
         if (sourceBuffer.buffered.length > 0) {
           sourceBuffer.remove(0, sourceBuffer.buffered.end(0));
@@ -2209,7 +2329,9 @@ window.isSystemBusy = isSystemBusy;
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
   let wsUrl = 'ws://localhost:4567';
-  
+  // Always use the function to get tab ID, never reference MONADIC_TAB_ID directly
+  const tabId = window.getMonadicTabId ? window.getMonadicTabId() : null;
+
   // If accessing from a non-localhost address, use that instead
   if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     const host = window.location.hostname;
@@ -2217,7 +2339,12 @@ function connect_websocket(callback) {
     wsUrl = `ws://${host}:${port}`;
     console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
   }
-  
+
+  if (tabId) {
+    const separator = wsUrl.includes('?') ? '&' : '?';
+    wsUrl = `${wsUrl}${separator}tab_id=${encodeURIComponent(tabId)}`;
+  }
+
   console.log(`[WebSocket] Connecting to: ${wsUrl}`);
   const ws = new WebSocket(wsUrl);
 
@@ -2242,7 +2369,7 @@ let loadedApp = "Chat";
       window.UIState.set('wsConnected', true);
       window.UIState.set('wsReconnecting', false);
     }
-    const verifyingText = typeof webUIi18n !== 'undefined' ? 
+    const verifyingText = typeof webUIi18n !== 'undefined' ?
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
     if (!isForegroundTab()) {
@@ -2250,23 +2377,23 @@ let loadedApp = "Chat";
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
-    ws.send(JSON.stringify({ 
-      message: "CHECK_TOKEN", 
-      initial: true, 
+    ws.send(JSON.stringify({
+      message: "CHECK_TOKEN",
+      initial: true,
       contents: $("#token").val(),
-      ui_language: uiLanguage 
+      ui_language: uiLanguage
     }));
 
     // Detect browser/device capabilities for audio handling
     const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
-    
+
     console.log(`[Device Detection] Details - hasMediaSourceSupport: ${hasMediaSourceSupport}, isIOS: ${isIOS}, isIPad: ${isIPad}, isMobileIOS: ${isMobileIOS}, Firefox: ${runningOnFirefox}`);
-    
+
     // Setup media handling based on browser capabilities
     if (hasMediaSourceSupport && !isMobileIOS) {
       // Full MediaSource support available (desktop browsers, iPad)
       if (!mediaSource) {
-        
+
         try {
           mediaSource = new MediaSource();
           mediaSource.addEventListener('sourceopen', function() {
@@ -2282,20 +2409,20 @@ let loadedApp = "Chat";
                 }
                 // Otherwise, continue - sourceopen event means it's transitioning to open
               }
-              
+
               if (runningOnFirefox) {
                 // Firefox needs special handling
-                
+
                 window.firefoxAudioMode = true;
                 window.firefoxAudioQueue = [];
-                
+
                 processAudioDataQueue = function() {
                   if (window.firefoxAudioQueue && window.firefoxAudioQueue.length > 0) {
                     const audioData = window.firefoxAudioQueue.shift();
                     try {
                       const blob = new Blob([audioData], { type: 'audio/mpeg' });
                       const url = URL.createObjectURL(blob);
-                      
+
                       const tempAudio = new Audio(url);
                       tempAudio.onended = function() {
                         URL.revokeObjectURL(url);
@@ -2303,7 +2430,7 @@ let loadedApp = "Chat";
                           processAudioDataQueue();
                         }
                       };
-                      
+
                       tempAudio.play().catch(e => console.error("Firefox audio playback error:", e));
                     } catch (e) {
                       console.error("Firefox audio processing error:", e);
@@ -2318,21 +2445,21 @@ let loadedApp = "Chat";
                   window.basicAudioMode = true;
                   return;
                 }
-                
+
                 sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
                 sourceBuffer.addEventListener('updateend', processAudioDataQueue);
               }
             } catch (e) {
               console.error("Error setting up MediaSource: ", e);
               // Fallback to basic audio mode if MediaSource setup fails
-              
+
               window.basicAudioMode = true;
             }
           });
         } catch (e) {
           console.error("Error creating MediaSource: ", e);
           // Fallback to basic audio mode if MediaSource creation fails
-          
+
           window.basicAudioMode = true;
         }
       }
@@ -2352,22 +2479,22 @@ let loadedApp = "Chat";
               }
             }
           }
-          
+
           audio = new Audio();
           audio.src = URL.createObjectURL(mediaSource);
           window.audio = audio; // Export to window for global access
         } catch (e) {
           console.error("Error creating audio element: ", e);
           // Fallback to basic audio mode
-          
+
           window.basicAudioMode = true;
         }
       }
     } else {
       // No MediaSource support (iOS Safari) - use basic audio mode
-      
+
       window.basicAudioMode = true;
-      
+
       // Add a CSS class to body for iOS-specific styling if needed
       if (isIOS) {
         $("body").addClass("ios-device");
@@ -2510,35 +2637,38 @@ let loadedApp = "Chat";
     const currentProvider = window.currentLLMProvider || '';
     const isSlowProvider = ['deepseek', 'perplexity'].includes(currentProvider.toLowerCase());
     const timeoutDuration = isSlowProvider ? 60000 : 30000; // 60s for slow providers, 30s for others
-    
+
     const messageTimeout = setTimeout(function() {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
-        
+
         $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user").prop("disabled", false);
         $("#message").prop("disabled", false);
         $("#select-role").prop("disabled", false);
         $("#monadic-spinner").hide();
         $("#cancel_query").hide();
-        
+
         // Reset state flags
         if (window.responseStarted !== undefined) window.responseStarted = false;
         if (window.callingFunction !== undefined) window.callingFunction = false;
         if (window.streamingResponse !== undefined) window.streamingResponse = false;
-        
+
         const providerInfo = isSlowProvider ? ` (${currentProvider} may have slower initial responses)` : '';
-        const timedOutText = typeof webUIi18n !== 'undefined' ? 
+        const timedOutText = typeof webUIi18n !== 'undefined' ?
           webUIi18n.t('ui.messages.operationTimedOut') : 'Operation timed out. UI reset.';
         setAlert(`<i class='fas fa-exclamation-triangle'></i> ${timedOutText}${providerInfo}`, "warning");
       }
     }, timeoutDuration);  // Dynamic timeout based on provider
-    
+
     let data;
     try {
       data = JSON.parse(event.data);
 
-      // Debug: Log all incoming WebSocket messages
+      // Debug: Log all incoming WebSocket messages with additional context
       if (data["type"]) {
         console.log(`[WS] Received message type: ${data["type"]}, content length: ${JSON.stringify(data).length}`);
+        if (data["type"] === "info") {
+          console.log(`[WS-INFO] Full info message:`, data);
+        }
       }
 
       // Clear the safety timeout for valid responses
@@ -2548,31 +2678,32 @@ let loadedApp = "Chat";
       clearTimeout(messageTimeout);
       return;
     }
+    console.log(`[WS-SWITCH] About to process message type: ${data["type"]}`);
     switch (data["type"]) {
       case "fragment_with_audio": {
         // Handle the optimized combined fragment and audio message
         let handled = false;
-        
+
         if (wsHandlers && typeof wsHandlers.handleFragmentWithAudio === 'function') {
           // Create audio processing function similar to the one in handleAudioMessage
           const processAudio = (audioData) => {
             try {
               // Ensure MediaSource is initialized if not already
               if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-                
+
                 initializeMediaSourceForAudio();
               }
-              
+
               // Handle based on browser environment
               if (window.firefoxAudioMode) {
                 if (!window.firefoxAudioQueue) {
                   window.firefoxAudioQueue = [];
                 }
-                
+
                 if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
                   window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
                 }
-                
+
                 window.firefoxAudioQueue.push(audioData);
                 processAudioDataQueue();
               } else if (window.basicAudioMode) {
@@ -2582,13 +2713,13 @@ let loadedApp = "Chat";
                 // Standard approach for modern browsers
                 audioDataQueue.push(audioData);
                 processAudioDataQueue();
-                
+
                 // Ensure audio playback starts automatically for auto_speech
               if (audio) {
                 // Always attempt to play, even if not paused (may be needed for some browsers)
                 audio.play().catch(err => {
                   // Debug log removed
-                  
+
                   // User interaction might be required, show indicator
                   if (err.name === 'NotAllowedError') {
                     const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
@@ -2601,18 +2732,18 @@ let loadedApp = "Chat";
               console.error("Error in audio processing:", e);
             }
           };
-          
+
           // Pass the message and processing function to the handler
           handled = wsHandlers.handleFragmentWithAudio(data, processAudio);
         }
-        
+
         if (!handled) {
           console.warn("Combined fragment_with_audio message was not handled properly");
         }
-        
+
         break;
       }
-      
+
       case "wait": {
         callingFunction = true;
 
@@ -2735,6 +2866,10 @@ let loadedApp = "Chat";
               </div>
             `);
             $("#discourse").append(tempCard);
+          } else {
+            // Move existing temp card to the end of #discourse to ensure correct position
+            tempCard.detach();
+            $("#discourse").append(tempCard);
           }
 
           // Update the temp card with the progress message using the card's standard text styling
@@ -2819,33 +2954,33 @@ let loadedApp = "Chat";
         // Handle Web Speech API text
         window.lastTTSMode = 'web_speech';
         $("#monadic-spinner").hide();
-        
+
         if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
           try {
             // Get text from data
             const text = data.content || '';
-            
+
             // Use the browser's Web Speech API directly
             const utterance = new SpeechSynthesisUtterance(text);
-            
+
             // Get voice settings from UI
             const voiceElement = document.getElementById('webspeech-voice');
             if (voiceElement && voiceElement.value) {
               // Find the matching voice object
-              const selectedVoice = window.speechSynthesis.getVoices().find(v => 
+              const selectedVoice = window.speechSynthesis.getVoices().find(v =>
                 v.name === voiceElement.value);
-              
+
               if (selectedVoice) {
                 utterance.voice = selectedVoice;
               }
             }
-            
+
             // Get speed setting
             const speedElement = document.getElementById('tts-speed');
             if (speedElement && speedElement.value) {
               utterance.rate = parseFloat(speedElement.value) || 1.0;
             }
-            
+
             // Speak the text
             window.speechSynthesis.speak(utterance);
           } catch (e) {
@@ -2854,13 +2989,13 @@ let loadedApp = "Chat";
           }
         } else {
           console.error("Web Speech API not available");
-          const notAvailableText = typeof webUIi18n !== 'undefined' ? 
+          const notAvailableText = typeof webUIi18n !== 'undefined' ?
             webUIi18n.t('ui.messages.webSpeechNotAvailable') : 'Web Speech API not available in this browser';
           setAlert(notAvailableText, "warning");
         }
         break;
       }
-        
+
       case "audio": {
         // Use the handler if available, otherwise use inline code
         let handled = false;
@@ -2869,10 +3004,10 @@ let loadedApp = "Chat";
           const processAudio = (audioData) => {
             // Ensure MediaSource is initialized if not already
             if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-              
+
               initializeMediaSourceForAudio();
             }
-            
+
             // Handle Firefox special case
             if (window.firefoxAudioMode) {
               // Add to the Firefox queue instead
@@ -2892,7 +3027,7 @@ let loadedApp = "Chat";
               // Regular MediaSource approach for other browsers
               audioDataQueue.push(audioData);
               processAudioDataQueue();
-              
+
               // Make sure audio is playing with error handling
               if (audio) {
                 const playPromise = audio.play();
@@ -2908,10 +3043,10 @@ let loadedApp = "Chat";
               }
             }
           };
-          
+
           handled = wsHandlers.handleAudioMessage(data, processAudio);
         }
-        
+
         if (!handled) {
           // Fallback to inline handling
           // For Auto TTS, keep spinner visible until audio actually starts playing
@@ -2953,22 +3088,22 @@ let loadedApp = "Chat";
             // Check if this is PCM audio from Gemini
             const provider = $("#tts-provider").val();
             const isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
-            
+
             if (isPCMFromGemini) {
               // Handle PCM audio from Gemini
               const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-              
+
               // Extract PCM parameters from MIME type (e.g., "audio/L16;codec=pcm;rate=24000")
               const mimeMatch = data.mime_type.match(/rate=(\d+)/);
               const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
-              
+
               // Convert PCM to playable audio using Web Audio API
               playPCMAudio(audioData, sampleRate);
               break;
             }
-            
+
             const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-            
+
             // Device/browser specific audio processing
             if (window.firefoxAudioMode) {
               // Firefox special case
@@ -2988,7 +3123,7 @@ let loadedApp = "Chat";
               // Standard MediaSource approach for modern browsers
               audioDataQueue.push(audioData);
               processAudioDataQueue();
-              
+
               // Make sure audio is playing with error handling
               if (audio) {
                 const playPromise = audio.play();
@@ -3003,7 +3138,7 @@ let loadedApp = "Chat";
                 }
               }
             }
-            
+
           } catch (e) {
             console.error("Error processing audio data:", e);
           }
@@ -3020,7 +3155,7 @@ let loadedApp = "Chat";
 
         break;
       }
-      
+
       case "tts_complete": {
         // For Auto TTS, keep spinner visible until audio actually starts playing
         // For manual TTS (Play button), hide immediately as before
@@ -3041,7 +3176,7 @@ let loadedApp = "Chat";
 
         break;
       }
-      
+
       case "tts_stopped": {
         // TTS was stopped, reset the UI state
         $("#monadic-spinner").hide();
@@ -3058,23 +3193,23 @@ let loadedApp = "Chat";
 
         break;
       }
-      
+
       case "pong": {
         break;
       }
-      
+
       case "language_updated": {
         // Show notification about language change
         const languageName = data.language_name || data.language;
-        const languageChangedText = typeof webUIi18n !== 'undefined' ? 
+        const languageChangedText = typeof webUIi18n !== 'undefined' ?
           webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
         setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
-        
+
         // Update the selector if needed (in case it was changed server-side)
         if (data.language && $("#conversation-language").val() !== data.language) {
           $("#conversation-language").val(data.language);
         }
-        
+
         // Update RTL/LTR for message areas based on text direction
         if (data.text_direction) {
           if (data.text_direction === "rtl") {
@@ -3091,28 +3226,28 @@ let loadedApp = "Chat";
       case "processing_status": {
         // Show processing status as alert, not in connection-status
         setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
-        
+
         // Ensure spinner remains visible
         if (!$("#monadic-spinner").is(":visible")) {
           $("#monadic-spinner").show();
         }
-        
+
         // Also show as system message
         const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
         // Handle case where content might be an object
         const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
         $systemDiv.append($('<span>').text(contentText));
-        
-        const systemElement = createCard("system", 
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
-          $systemDiv[0].outerHTML, 
-          "en", 
-          null, 
-          true, 
+
+        const systemElement = createCard("system",
+          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
+          $systemDiv[0].outerHTML,
+          "en",
+          null,
+          true,
           []
         );
         $("#discourse").append(systemElement);
-        
+
         // Auto-scroll if enabled
         if (autoScroll) {
           const chatBottom = document.getElementById('chat-bottom');
@@ -3130,17 +3265,17 @@ let loadedApp = "Chat";
         // Handle case where content might be an object
         const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
         $systemDiv.append($('<span>').text(contentText));
-        
-        const systemElement = createCard("system", 
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>", 
-          $systemDiv[0].outerHTML, 
-          "en", 
-          null, 
-          true, 
+
+        const systemElement = createCard("system",
+          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
+          $systemDiv[0].outerHTML,
+          "en",
+          null,
+          true,
           []
         );
         $("#discourse").append(systemElement);
-        
+
         // Auto-scroll if enabled
         if (autoScroll) {
           const chatBottom = document.getElementById('chat-bottom');
@@ -3157,7 +3292,7 @@ let loadedApp = "Chat";
           clearInterval(window.spinnerCheckInterval);
           window.spinnerCheckInterval = null;
         }
-        
+
         // Reset streaming flags
         streamingResponse = false;
         if (window.UIState) {
@@ -3169,7 +3304,7 @@ let loadedApp = "Chat";
 
         // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
-        
+
         // Handle various error message formats
         if (typeof errorContent === 'object' && errorContent.key) {
           // Handle structured error with key and details
@@ -3190,7 +3325,7 @@ let loadedApp = "Chat";
             'content_not_found': 'ui.messages.contentNotFound',
             'empty_response': 'ui.messages.emptyResponse'
           };
-          
+
           if (errorTranslations[errorContent]) {
             // Get the English fallback from the key
             const fallbacks = {
@@ -3208,10 +3343,10 @@ let loadedApp = "Chat";
             errorContent = getTranslation(errorTranslations[errorContent], fallbacks[errorContent] || errorContent);
           }
         }
-        
+
         // Check if error during AI User generation (message starts with AI User error)
         const isAIUserError = errorContent && errorContent.toString().includes(getTranslation('ui.messages.aiUserError', 'AI User error'));
-        
+
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleErrorMessage === 'function') {
@@ -3227,7 +3362,7 @@ let loadedApp = "Chat";
           setAlert(errorContent, 'error');
           handled = true;
         }
-        
+
         // Additional UI operations specific to our application context
         if (handled) {
           $("#select-role").prop("disabled", false);
@@ -3242,7 +3377,7 @@ let loadedApp = "Chat";
           $("#indicator").hide();
           $("#user-panel").show();
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-  
+
           // For AI User errors, don't delete messages but re-enable the AI User button
           if (isAIUserError) {
             // Explicitly re-enable the AI User button - critical fix for Perplexity
@@ -3255,11 +3390,11 @@ let loadedApp = "Chat";
             if (lastCard.find(".user-color").length !== 0) {
               deleteMessage(lastCard.attr('id'));
             }
-    
+
             // Restore the message content so user can edit and retry
             $("#message").val(params["message"]);
           }
-          
+
           // Reset response tracking flags to ensure clean state
           responseStarted = false;
           callingFunction = false;
@@ -3268,11 +3403,11 @@ let loadedApp = "Chat";
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
           }
-          
+
           // Set focus back to input field
           setInputFocus();
         }
-        
+
         break;
       }
 
@@ -3294,7 +3429,7 @@ let loadedApp = "Chat";
           // Don't show "Ready" here - wait until apps_list is fully loaded
           // This prevents "Ready" from appearing while apps are still being loaded
           // The status will be updated to "Ready" by the apps_list handler
-          
+
           // Enable OpenAI TTS options when token is verified
           $("#openai-tts-4o").prop("disabled", false);
           $("#openai-tts").prop("disabled", false);
@@ -3321,13 +3456,13 @@ let loadedApp = "Chat";
           $("#start").prop("disabled", false);
           $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
           // TTS speed is already enabled by default and should remain enabled
-          
+
           // Update the available AI User providers when token is verified
           // Check if the function exists before calling it
           if (typeof window.updateAvailableProviders === 'function') {
             window.updateAvailableProviders();
           } else {
-            
+
           }
         }
 
@@ -3382,26 +3517,30 @@ let loadedApp = "Chat";
         break;
       }
       case "apps": {
+        // Check if this message is from a parameter update (apps list refresh after settings change)
+        const fromParamUpdate = data["from_param_update"] === true;
+
         window.appsMessageCount = (window.appsMessageCount || 0) + 1;
         window.logTL('apps_received', {
           count: window.appsMessageCount,
           hasAppsKeys: Object.keys(apps).length,
-          currentSelect: $("#apps").val()
+          currentSelect: $("#apps").val(),
+          fromParamUpdate
         });
-        
+
         let version_string = data["version"]
         data["docker"] ? version_string += " (Docker)" : version_string += " (Local)"
         $("#monadic-version-number").html(version_string);
-        
+
         // Check if this is an update to existing apps (e.g., from language change)
         const isUpdate = Object.keys(apps).length > 0;
-        
+
         if (isUpdate) {
           // Update existing apps data with new content (for language updates or reset)
           for (const [key, value] of Object.entries(data["content"])) {
             apps[key] = value;  // Update or add the app data
           }
-          
+
           // Update the currently displayed app description if needed
           const currentApp = $("#apps").val();
           if (currentApp && apps[currentApp]) {
@@ -3414,7 +3553,7 @@ let loadedApp = "Chat";
             if (typeof window.updateAppBadges === 'function') {
               window.updateAppBadges(currentApp);
             }
-            
+
             // If this is after a reset, re-initialize the app
             // Check if parameters message hasn't been received yet
             if (!data["from_parameters"] && !fromParamUpdate) {
@@ -3444,7 +3583,7 @@ let loadedApp = "Chat";
           // Classify apps into regular and special groups
           for (const [key, value] of Object.entries(data["content"])) {
             const group = value["group"];
-            
+
             // Check if app belongs to OpenAI group (regular apps)
             if (group && group.trim().toLowerCase() === "openai") {
               regularApps.push([key, value]);
@@ -3492,10 +3631,10 @@ let loadedApp = "Chat";
           // Add apps to selector
           // First add the OpenAI Apps label and regular apps
           // Always show OpenAI apps, regardless of verification status
-          
+
           // Check if all OpenAI apps are disabled
           const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
-          
+
           // Add OpenAI separator to standard select
           $("#apps").append('<option disabled>──OpenAI──</option>');
           // Add OpenAI separator to custom dropdown with conditional styling
@@ -3507,21 +3646,21 @@ let loadedApp = "Chat";
           </div>`);
           // Create a container for the OpenAI apps
           $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
-          
+
           for (const [key, value] of regularApps) {
             apps[key] = value;
             // Use display_name if available, otherwise fall back to app_name
             const displayText = value["display_name"] || value["app_name"];
             const appIcon = value["icon"] || "";
             const isDisabled = value.disabled === "true";
-            
+
             // Add option to standard select
             if (isDisabled) {
                 $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
               } else {
                 $("#apps").append(`<option value="${key}">${displayText}</option>`);
               }
-              
+
               // Add the same option to custom dropdown with icon
               const disabledClass = isDisabled ? ' disabled' : '';
               const disabledTitle = isDisabled ? ' title="API key required"' : '';
@@ -3538,7 +3677,7 @@ let loadedApp = "Chat";
             const order = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
             return order.indexOf(a[0]) - order.indexOf(b[0]);
           }));
-          
+
           // Normalize group names to be HTML-id friendly
           const normalizeGroupId = (name) => name.replace(/\s+/g, '-');
 
@@ -3547,46 +3686,46 @@ let loadedApp = "Chat";
             if (specialApps[group].length > 0) {
               // Check if all apps in this group are disabled
               const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
-              
+
               // Always show groups even if all apps are disabled
               // This allows users to see what apps exist but are unavailable
               if (true) {
                 // Add group header to standard select
                 $("#apps").append(`<option disabled>──${group}──</option>`);
-                
+
                 // Add group header to custom dropdown with conditional styling
                 const groupClass = allAppsDisabled ? ' all-disabled' : '';
                 // Special handling for Ollama - it doesn't require an API key
                 const disabledMessage = group === "Ollama" ? "(Ollama container not available)" : "(API key required)";
-                const groupTitle = allAppsDisabled ? 
+                const groupTitle = allAppsDisabled ?
                   (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required for this provider"') : '';
                 $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
                   <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
                   <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
                 </div>`);
-                
+
                 // Create container for this group's apps
                 const normalizedGroupId = normalizeGroupId(group);
                 $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
-                
+
                 for (const [key, value] of specialApps[group]) {
                   apps[key] = value;
                   // Use display_name if available, otherwise fall back to app_name
                   const displayText = value["display_name"] || value["app_name"];
                   const appIcon = value["icon"] || "";
                   const isDisabled = value.disabled === "true";
-                  
+
                   // Add option to standard select
                   if (isDisabled) {
                     $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
                   } else {
                     $("#apps").append(`<option value="${key}">${displayText}</option>`);
                   }
-                  
+
                   // Add the same option to custom dropdown with icon
                   const disabledClass = isDisabled ? ' disabled' : '';
                   // Special handling for Ollama apps
-                  const disabledTitle = isDisabled ? 
+                  const disabledTitle = isDisabled ?
                     (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required"') : '';
                   const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                     <span style="margin-right: 8px;">${appIcon}</span>
@@ -3604,16 +3743,16 @@ let loadedApp = "Chat";
             const normalizedGroupId = normalizeGroupId(group);
             const container = $(`#group-${normalizedGroupId}`);
             const icon = $(this).find(".group-toggle-icon i");
-            
+
             container.toggleClass("collapsed");
-            
+
             if (container.hasClass("collapsed")) {
               icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
             } else {
               icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
             }
           });
-          
+
           // Find the currently selected app's group and ensure it's expanded
           const currentApp = $("#apps").val();
           if (currentApp) {
@@ -3635,7 +3774,7 @@ let loadedApp = "Chat";
               }
             }, 100);
           }
-          
+
           // If import payload specifies an app_name, or there is already a valid selection in #apps,
           // skip auto-selection to avoid overriding an existing choice (import or user selection).
           const importRequestedApp = data && data["content"] && data["content"]["app_name"];
@@ -3656,12 +3795,6 @@ let loadedApp = "Chat";
           });
           // Select the default app only when not importing and no valid selection exists
           let firstValidApp;
-
-          // PRIORITY 0: Check if server sent current_app_name (from other active tabs)
-          if (data["current_app_name"] && $("#apps option[value='" + data["current_app_name"] + "']").length && !$("#apps option[value='" + data["current_app_name"] + "']").prop('disabled')) {
-            firstValidApp = data["current_app_name"];
-            window.logTL('using_current_app_from_server', { currentApp: data["current_app_name"] });
-          }
 
           // PRIORITY 1: Check if window.lastApp exists (from session restoration)
           if (!firstValidApp && window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
@@ -3707,12 +3840,8 @@ let loadedApp = "Chat";
             $("#apps").val(firstValidApp);
 
             // Set lastApp to prevent confirmation dialog on initial load
-            lastApp = firstValidApp;
-
-            // Also set window.lastApp for session restoration
-            if (typeof window.lastApp !== 'undefined') {
-              window.lastApp = firstValidApp;
-            }
+            // Use window.lastApp to ensure it's accessible across all scopes
+            window.lastApp = firstValidApp;
 
             // Ensure stop_apps_trigger is false so change event will be processed
             stop_apps_trigger = false;
@@ -3722,7 +3851,7 @@ let loadedApp = "Chat";
             if (selectedApp) {
               const displayText = selectedApp["display_name"] || selectedApp["app_name"];
               $("#base-app-title").text(displayText);
-              
+
               // Update badges immediately
               if (selectedApp["monadic"]) {
                 $("#monadic-badge").show();
@@ -3763,7 +3892,7 @@ let loadedApp = "Chat";
               if (firstValidApp === "PDF") {
                 ws.send(JSON.stringify({ message: "PDF_TITLES" }));
               }
-              
+
               // Call proceedWithAppChange directly to ensure proper initialization
               // Use setTimeout to ensure DOM and all dependencies are ready
               if (!fromParamUpdate) {
@@ -3784,6 +3913,12 @@ let loadedApp = "Chat";
                   }
                   window.logTL('auto_select_app', { firstValidApp });
                   if (typeof window.proceedWithAppChange === 'function') {
+                    // Ensure flag is set before calling proceedWithAppChange
+                    // This guarantees confirmation dialog is skipped when syncing from server
+                    // Check if variable is defined before using it
+                    if (typeof hasCurrentAppFromServer !== 'undefined' && hasCurrentAppFromServer) {
+                      window.currentAppFromServer = firstValidApp;
+                    }
                     // Call proceedWithAppChange directly for reliable initialization
                     window.proceedWithAppChange(firstValidApp);
                     window.logTL('proceedWithAppChange_called_from_apps', { app: firstValidApp });
@@ -3831,7 +3966,11 @@ let loadedApp = "Chat";
               } else {
                 window.logTL('apps_second_timeout_skipped', {
                   importRequestedApp,
-                  selectedApp: $("#apps").val()
+                  selectedApp: $("#apps").val(),
+                  fromParamUpdate,
+                  appsMessageCount: window.appsMessageCount,
+                  initialAppLoaded: window.initialAppLoaded,
+                  isImportingNotRestoring
                 });
               }
             } catch (e) {
@@ -3844,17 +3983,17 @@ let loadedApp = "Chat";
           if (typeof window.updateAvailableProviders === 'function') {
             window.updateAvailableProviders();
           } else {
-            
+
           }
         }
         // Set originalParams to the first valid app or Chat if available
         originalParams = apps["Chat"] || apps[$("#apps").val()] || {};
-        
+
         // Process pending parameters if any
         if (window.pendingParameters) {
           const params = window.pendingParameters;
           window.pendingParameters = null;
-          
+
           // Process the stored parameters after a delay to ensure DOM is ready
           if (params.app_name) {
             loadedApp = params.app_name;
@@ -3871,9 +4010,9 @@ let loadedApp = "Chat";
           // AND if this is truly the first APPS message
           const currentApp = $("#apps").val();
           const isFirstAppsMessage = window.appsMessageCount === 1;
-          
+
           window.logTL('post_apps_maybe_reset', { currentApp, isFirstAppsMessage, loadedApp });
-          
+
           // Only reset if this is the first apps message and no app is selected
           // OR if there's no loaded app from import
           if (isFirstAppsMessage && (!currentApp || currentApp === "") && !loadedApp) {
@@ -3906,16 +4045,16 @@ let loadedApp = "Chat";
             window.skipAssistantInitiation = true;
           }
         }
-        
+
         // Store parameters for later processing if apps not loaded yet
         if (!apps || Object.keys(apps).length === 0) {
           window.pendingParameters = data["content"];
           break;
         }
-        
+
         // Only process if we have an app_name
         if (data["content"]["app_name"]) {
-          
+
           loadedApp = data["content"]["app_name"];
           // Note: Removed "Please wait" message as it's too brief to be useful
           // (parameters -> past_messages processing takes ~100ms)
@@ -3939,8 +4078,31 @@ let loadedApp = "Chat";
             if (typeof loadParams === 'function') {
               loadParams(data["content"], "loadParams");
               window.logTL('loadParams_called_from_parameters', { calledFor: 'loadParams' });
+
+              // Call proceedWithAppChange to ensure model list is populated
+              // This is necessary when parameters message arrives before apps message completes
+              if (data["content"]["app_name"] && typeof window.proceedWithAppChange === 'function') {
+                // Use requestAnimationFrame to ensure DOM is ready (double-call for rendering completion)
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    window.proceedWithAppChange(data["content"]["app_name"]);
+                    window.logTL('proceedWithAppChange_called_from_parameters', { app: data["content"]["app_name"] });
+                  });
+                });
+              }
             } else if (typeof window.loadParams === 'function') {
               window.loadParams(data["content"], "loadParams");
+
+              // Call proceedWithAppChange for window.loadParams as well
+              if (data["content"]["app_name"] && typeof window.proceedWithAppChange === 'function') {
+                // Use requestAnimationFrame to ensure DOM is ready (double-call for rendering completion)
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    window.proceedWithAppChange(data["content"]["app_name"]);
+                    window.logTL('proceedWithAppChange_called_from_parameters', { app: data["content"]["app_name"] });
+                  });
+                });
+              }
             } else {
               // Direct fallback approach
               const appName = data["content"]["app_name"];
@@ -3951,7 +4113,7 @@ let loadedApp = "Chat";
                 $("#apps").val(appName);
                 // Trigger change to update model list
                 $("#apps").trigger('change');
-                
+
                 // Set model after a delay
                 setTimeout(() => {
                   if (model) {
@@ -3977,7 +4139,7 @@ let loadedApp = "Chat";
               }, 600);
             }
           }
-          
+
           // Mark as initialized to prevent duplicate initialization from timeout blocks
           window.initialAppLoaded = true;
 
@@ -3985,12 +4147,12 @@ let loadedApp = "Chat";
           // The code below was causing the model selector to be reset
           break;
         }
-        
+
         // This code should only run if there's no app_name in parameters
         // (which means it's not a loaded session)
-        
+
         // All providers now support AI User functionality
-        
+
         const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
 
         // Use shared utility function to get models for the app
@@ -4001,7 +4163,7 @@ let loadedApp = "Chat";
           let modelList = listModels(models, openai);
           $("#model").html(modelList);
         }
-        
+
         // Select the appropriate model using shared utility function
         let model;
         if (currentApp) {
@@ -4012,7 +4174,7 @@ let loadedApp = "Chat";
             model = getDefaultModelForApp(currentApp, models);
           }
         }
-          
+
           // Extract provider name from current app group using shared function if available
           let provider;
           if (typeof getProviderFromGroup === 'function' && currentApp && currentApp["group"]) {
@@ -4041,7 +4203,7 @@ let loadedApp = "Chat";
             }
           }
           }
-          
+
           // Update model display with Provider (Model) format
           if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
             $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
@@ -4061,7 +4223,7 @@ let loadedApp = "Chat";
             } else {
               $("#monadic-badge").hide();
             }
-            
+
             if (currentApp["tools"]) {
               $("#tools-badge").show();
             } else {
@@ -4111,13 +4273,13 @@ let loadedApp = "Chat";
             $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
           }
         });
-        
+
         // Apply saved cookie value for voice if it exists
         const savedVoice = getCookie("elevenlabs-tts-voice");
         if (savedVoice && $(`#elevenlabs-tts-voice option[value="${savedVoice}"]`).length > 0) {
           $("#elevenlabs-tts-voice").val(savedVoice);
         }
-        
+
         // Apply saved cookie value for provider if it was elevenlabs
         const savedProvider = getCookie("tts-provider");
         if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
@@ -4145,7 +4307,7 @@ let loadedApp = "Chat";
               $("#gemini-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
             }
           });
-          
+
           // Apply saved cookie value for voice if it exists
           const savedVoice = getCookie("gemini-tts-voice");
           if (savedVoice && $(`#gemini-tts-voice option[value="${savedVoice}"]`).length > 0) {
@@ -4159,7 +4321,7 @@ let loadedApp = "Chat";
           // Disable Gemini STT model
           $("#gemini-stt-flash").prop("disabled", true);
         }
-        
+
         // Apply saved cookie value for provider if it was gemini
         const savedProvider = getCookie("tts-provider");
         if (savedProvider === "gemini-flash" || savedProvider === "gemini-pro") {
@@ -4173,21 +4335,21 @@ let loadedApp = "Chat";
         if (wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
           handled = wsHandlers.handleSTTMessage(data);
         }
-        
+
         if (!handled) {
           // Fallback to inline handling
           $("#message").val($("#message").val() + " " + data["content"]);
           let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
           $("#asr-p-value").text(logprob);
           $("#send, #clear, #voice").prop("disabled", false);
-          
+
           // Restore original placeholder
           const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
           $("#message").attr("placeholder", origPlaceholder);
-          
+
           // Ensure amplitude chart is hidden after processing
           $("#amplitude").hide();
-          
+
           if ($("#check-easy-submit").is(":checked")) {
             if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
           console.log('[Send] Ignoring auto-submit: tab is not foreground');
@@ -4202,37 +4364,82 @@ let loadedApp = "Chat";
         break;
       }
       case "info": {
+        console.log('[INFO-START] Entering info handler');
+        console.log('[INFO] Received info message:', {
+          callingFunction,
+          streamingResponse,
+          messagesLength: messages.length,
+          spinnerVisible: $('#monadic-spinner').is(':visible')
+        });
+
         infoHtml = formatInfo(data["content"]);
         if (infoHtml !== "") {
+          console.log('[INFO] Setting stats with HTML:', infoHtml.substring(0, 100));
           setStats(infoHtml);
         }
 
-        // Hide spinner first unless we're calling functions or streaming
-        // Note: We check callingFunction and streamingResponse directly here,
-        // not isSystemBusy(), to avoid circular dependency with spinner visibility
-        if (!callingFunction && !streamingResponse) {
+        // CRITICAL: For initial load (no messages), ALWAYS hide spinner immediately
+        // This prevents "Processing Audio" from appearing in new tabs
+        // New tabs should NEVER show processing spinner before any conversation starts
+        if (messages.length === 0) {
+          console.log('[INFO] Initial load (no messages) - force hiding spinner and resetting flags');
+
+          // Reset Auto Speech completion flags
+          if (typeof window.setTextResponseCompleted === 'function') {
+            window.setTextResponseCompleted(true);
+          }
+          if (typeof window.setTtsPlaybackStarted === 'function') {
+            window.setTtsPlaybackStarted(true);
+          }
+
+          // FORCE hide spinner unconditionally - new tabs should never show spinner
+          $("#monadic-spinner").hide();
+
+          // Reset to default spinner state
+          $("#monadic-spinner")
+            .find("span i")
+            .removeClass("fa-headphones fa-brain fa-circle-nodes fa-cogs")
+            .addClass("fa-comment");
+          $("#monadic-spinner")
+            .find("span")
+            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+
+          console.log('[INFO] Initial load handling complete - spinner hidden');
+        }
+        // For non-initial loads, follow standard logic
+        else if (!callingFunction && !streamingResponse) {
+          console.log('[INFO] Non-initial load - standard spinner handling');
+
           // Mark text response as completed
           window.setTextResponseCompleted(true);
+
           // Check if we can hide spinner (depends on Auto Speech mode)
           if (typeof window.checkAndHideSpinner === 'function') {
+            console.log('[INFO] Calling checkAndHideSpinner function');
             window.checkAndHideSpinner();
           } else {
+            console.log('[INFO] Directly hiding spinner');
             $("#monadic-spinner").hide();
           }
+        } else {
+          console.log('[INFO] NOT hiding spinner:', { callingFunction, streamingResponse });
         }
 
         // Then update status message after spinner is hidden
         if ($("#apps option").length === 0) {
           const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
+          console.log('[INFO] No apps available, showing warning');
           setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
         } else {
           // Show "Ready" unless we're calling functions or streaming
           // At this point (after token verification), we can safely update status
           if (!callingFunction && !streamingResponse) {
             const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
+            console.log('[INFO] Setting Ready alert');
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
           }
         }
+        console.log('[INFO-END] Exiting info handler');
         break;
       }
       case "pdf_titles": {
@@ -4249,9 +4456,9 @@ let loadedApp = "Chat";
         data["content"].forEach((title, index) => {
           $(`#pdf-del-${index}`).off('click').on('click', function () {
             // Detect iOS/iPadOS
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-            
+
             if (isIOS) {
               // Use standard confirm dialog on iOS
               const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
@@ -4500,16 +4707,16 @@ let loadedApp = "Chat";
       case "ai_user_started": {
         const generatingText = getTranslation('ui.messages.generatingAIUserResponse', 'Generating AI user response...');
         setAlert(`<i class='fas fa-spinner fa-spin'></i> ${generatingText}`, "warning");
-        
+
         // Show the cancel button
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-        
+
         // Show spinner and update its message with robot animation
         $("#monadic-spinner").css("display", "block");
-        const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ? 
+        const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
           webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
         $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
-        
+
         // Disable the input elements
         $("#message").prop("disabled", true);
         $("#send").prop("disabled", true);
@@ -4520,13 +4727,13 @@ let loadedApp = "Chat";
         $("#url").prop("disabled", true);
         $("#ai_user").prop("disabled", true);
         $("#select-role").prop("disabled", true);
-        
+
         break;
       }
       case "ai_user": {
         // Append AI user content to the message field
         $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
-        
+
         // Make sure the message panel is visible
         if (autoScroll && !isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
@@ -4534,14 +4741,14 @@ let loadedApp = "Chat";
         break;
       }
       case "ai_user_finished": {
-        
-        
+
+
         // Trim extra whitespace from the final message
         const trimmedContent = data["content"].trim();
-        
+
         // Set the message content
         $("#message").val(trimmedContent);
-        
+
         // Hide cancel button and spinner
         document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
         $("#monadic-spinner").css("display", "none");
@@ -4571,39 +4778,39 @@ let loadedApp = "Chat";
         setInputFocus();
         break;
       }
-      
+
       case "success": {
         // Handle success messages from the server
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
         break;
       }
-      
+
       case "edit_success": {
         // Handle successful message edit
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
-        
+
         // Get the message card by mid
         const $card = $(`#${data.mid}`);
         if (!$card.length) {
           return;
         }
-        
+
         const $cardText = $card.find(".card-text");
-        
+
         // Update the HTML content
         if (data.html) {
           // Update the card with the HTML from server
           $cardText.html(data.html);
-          
+
           // Check if we have preserved images from before editing
           const $preservedImages = $cardText.data('preservedImages');
-          
+
           // Add images if they exist
           if (data.images && Array.isArray(data.images) && data.images.length > 0) {
             // Group mask images with their original images
             const imageMap = new Map();
             const maskImages = [];
-            
+
             // First pass - identify all mask images and base images
             data.images.forEach(image => {
               if (image.is_mask || (image.title && image.title.startsWith("mask__"))) {
@@ -4614,18 +4821,18 @@ let loadedApp = "Chat";
                 imageMap.set(image.title, image);
               }
             });
-            
+
             // Second pass - create HTML for each base image, with its mask if available
             let image_data = "";
-            
+
             // Process regular images first
             imageMap.forEach((image, title) => {
               // Check if this image has a mask
-              const maskImage = maskImages.find(mask => 
-                mask.mask_for === title || 
+              const maskImage = maskImages.find(mask =>
+                mask.mask_for === title ||
                 (mask.title && mask.title.includes(title.replace(/\.[^.]+$/, "")))
               );
-              
+
               if (maskImage) {
                 // This image has a mask - render as overlay
                 image_data += `
@@ -4650,7 +4857,7 @@ let loadedApp = "Chat";
                 `;
               }
             });
-            
+
             // Finally, add any mask images that don't have a matching base image
             maskImages.forEach(mask => {
               if (!imageMap.has(mask.mask_for)) {
@@ -4659,22 +4866,22 @@ let loadedApp = "Chat";
                 `;
               }
             });
-            
+
             $cardText.append(image_data);
           } else if ($preservedImages && $preservedImages.length > 0) {
             // If no images from server but we have preserved images, restore them
             $cardText.append($preservedImages);
           }
-          
+
           // Clean up the preserved images data
           $cardText.removeData('preservedImages');
-          
+
           // Update the messages array with the new images
           const messageIndex = messages.findIndex((m) => m.mid === data.mid);
           if (messageIndex !== -1 && data.images) {
             messages[messageIndex].images = data.images;
           }
-          
+
           // Apply all the required processing for assistant messages
           const htmlContent = $card;
 
@@ -4726,7 +4933,7 @@ let loadedApp = "Chat";
         // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
         $("#temp-card").hide();
         $("#temp-reasoning-card").remove();
-        
+
         // Always add message to SessionState for persistence, regardless of which handler processes it
         window.SessionState.addMessage(data["content"]);
 
@@ -4751,7 +4958,7 @@ let loadedApp = "Chat";
           if (data["content"]["thinking"]) {
             // Use the unified thinking block renderer if available
             if (typeof renderThinkingBlock === 'function') {
-              const thinkingTitle = typeof webUIi18n !== 'undefined' ? 
+              const thinkingTitle = typeof webUIi18n !== 'undefined' ?
                 webUIi18n.t('ui.messages.thinkingProcess') : "Thinking Process";
               html = renderThinkingBlock(data["content"]["thinking"], thinkingTitle) + html;
             } else {
@@ -4761,7 +4968,7 @@ let loadedApp = "Chat";
           } else if(data["content"]["reasoning_content"]) {
             // Use the unified thinking block renderer if available
             if (typeof renderThinkingBlock === 'function') {
-              const reasoningTitle = typeof webUIi18n !== 'undefined' ? 
+              const reasoningTitle = typeof webUIi18n !== 'undefined' ?
                 webUIi18n.t('ui.messages.reasoningProcess') : "Reasoning Process";
               html = renderThinkingBlock(data["content"]["reasoning_content"], reasoningTitle) + html;
             } else {
@@ -4769,7 +4976,7 @@ let loadedApp = "Chat";
               html = "<div data-title='Thinking Block' class='toggle'><div class='toggle-open'>" + data["content"]["reasoning_content"] + "</div></div>" + html;
             }
           }
-          
+
           if (data["content"]["role"] === "assistant") {
             appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
 
@@ -4780,20 +4987,20 @@ let loadedApp = "Chat";
             // Re-enable all input controls
             $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
             $("#select-role").prop("disabled", false);
-            
+
             // Reset streaming flag as response is done
             streamingResponse = false;
             if (window.UIState) {
               window.UIState.set('streamingResponse', false);
               window.UIState.set('isStreaming', false);
             }
-            
+
             // Clear any pending spinner check interval
             if (spinnerCheckInterval) {
               clearInterval(spinnerCheckInterval);
               spinnerCheckInterval = null;
             }
-            
+
             // Hide spinner unless we're calling functions or streaming
             // Note: We check callingFunction and streamingResponse directly here,
             // not isSystemBusy(), to avoid circular dependency with spinner visibility
@@ -4803,21 +5010,21 @@ let loadedApp = "Chat";
               // Check if we can hide spinner (depends on Auto Speech mode)
               checkAndHideSpinner();
             }
-            
+
             // If this is the first assistant message (from initiate_from_assistant), show user panel
             if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
               $("#user-panel").show();
               setInputFocus();
             }
-            
+
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-            
+
             // For assistant messages, don't show "Ready to start" immediately
             // Wait for streaming to complete
-            const receivedText = typeof webUIi18n !== 'undefined' ? 
+            const receivedText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.responseReceived') : 'Response received';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
-            
+
             // Handle auto_speech for TTS auto-playback
             // Support both boolean and string values for backward compatibility
             const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
@@ -4925,13 +5132,13 @@ let loadedApp = "Chat";
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
           }
-          
+
           // Clear any pending spinner check interval
           if (spinnerCheckInterval) {
             clearInterval(spinnerCheckInterval);
             spinnerCheckInterval = null;
           }
-          
+
           // Hide spinner unless we're calling functions or streaming
           // Note: We check callingFunction and streamingResponse directly here,
           // not isSystemBusy(), to avoid circular dependency with spinner visibility
@@ -4959,13 +5166,13 @@ let loadedApp = "Chat";
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
           }
-          
+
           // Clear any pending spinner check interval
           if (spinnerCheckInterval) {
             clearInterval(spinnerCheckInterval);
             spinnerCheckInterval = null;
           }
-          
+
           // Hide spinner unless we're calling functions or streaming
           // Note: We check callingFunction and streamingResponse directly here,
           // not isSystemBusy(), to avoid circular dependency with spinner visibility
@@ -4988,7 +5195,7 @@ let loadedApp = "Chat";
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
-        
+
         // Make sure message input is enabled
         $("#message").prop("disabled", false);
 
@@ -5014,34 +5221,39 @@ let loadedApp = "Chat";
         if (tempMessageIndex !== -1) {
           window.SessionState.removeMessage(tempMessageIndex);
         }
-        
+
         // Create the proper message object
         let message_obj = { "role": "user", "text": data["content"]["text"], "html": data["content"]["html"], "mid": data["content"]["mid"] }
         if (data["content"]["images"] !== undefined) {
           message_obj.images = data["content"]["images"];
         }
         window.SessionState.addMessage(message_obj);
-        
+
         // Format content for display
         let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let images;
         if (data["content"]["images"] !== undefined) {
           images = data["content"]["images"];
         }
-        
+
         // Use the appendCard helper function to show the user message
         appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
-        
+
         // Scroll down immediately after showing user message to make it visible
         if (!isElementInViewport(mainPanel)) {
           mainPanel.scrollIntoView(false);
         }
-        
+
         // Show loading indicators and clear any previous card content
         if ($("#temp-card").length) {
           $("#temp-card .card-text").empty(); // Clear any existing content
           $("#temp-card").show();
           window._lastProcessedIndex = -1; // Reset index tracking
+
+          // Move existing temp card to the end of #discourse to ensure correct position
+          const tempCard = $("#temp-card");
+          tempCard.detach();
+          $("#discourse").append(tempCard);
         } else {
           // Create a new temp card if it doesn't exist
           const tempCard = $(`
@@ -5058,7 +5270,7 @@ let loadedApp = "Chat";
           `);
           $("#discourse").append(tempCard);
         }
-        
+
         $("#temp-card .status").hide();
         $("#indicator").show();
         // Keep the user panel visible but disable interactive elements
@@ -5066,13 +5278,13 @@ let loadedApp = "Chat";
         $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
         $("#select-role").prop("disabled", true);
         document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-        
+
         // Show informative spinner message with brain animation icon
-        const processingRequestText = typeof webUIi18n !== 'undefined' ? 
+        const processingRequestText = typeof webUIi18n !== 'undefined' ?
           webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
         $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
         $("#monadic-spinner").show(); // Ensure spinner is visible
-        
+
         // Mark that we're starting a response process
         streamingResponse = true;
         if (window.UIState) {
@@ -5086,29 +5298,29 @@ let loadedApp = "Chat";
           clearInterval(window.spinnerCheckInterval);
           window.spinnerCheckInterval = null;
         }
-        
+
         // Keep spinner visible during the initial gap between processing and receiving
         // Only check for a short period (3 seconds max) to prevent infinite loops
         let checkCount = 0;
         window.spinnerCheckInterval = setInterval(() => {
           checkCount++;
-          
+
           // Stop checking after 3 seconds or if response has started
           if (checkCount > 30 || responseStarted || !streamingResponse) {
             clearInterval(window.spinnerCheckInterval);
             window.spinnerCheckInterval = null;
             return;
           }
-          
+
           // Only re-show spinner if it's hidden and we're still waiting for first fragment
           if (streamingResponse && !responseStarted && !$("#monadic-spinner").is(":visible")) {
-            const processingRequestText = typeof webUIi18n !== 'undefined' ? 
+            const processingRequestText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
             $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
             $("#monadic-spinner").show();
           }
         }, 100); // Check every 100ms
-        
+
         break;
       }
 
@@ -5119,25 +5331,25 @@ let loadedApp = "Chat";
           console.error("Invalid display_sample message format:", data);
           break;
         }
-        
+
         // First check if this message already exists
         if ($("#" + content.mid).length > 0) {
           break;
         }
-        
+
         // Create appropriate element based on role
         const cardElement = createCard(
-          content.role, 
+          content.role,
           content.badge,
           content.html,
           "en", // Default language
           content.mid,
           true  // Always active
         );
-        
+
         // Append to discourse
         $("#discourse").append(cardElement);
-        
+
         // Add message to messages array to ensure edit functionality works correctly
         // This ensures sample messages are treated consistently with API-generated messages
         if (content.text) {
@@ -5146,16 +5358,16 @@ let loadedApp = "Chat";
             "text": content.text,
             "mid": content.mid
           };
-          
+
           // For assistant role, also include HTML content
           if (content.role === "assistant") {
             messageObj.html = content.html;
           }
-          
+
           // Add to messages array - this ensures last message detection works correctly
           window.SessionState.addMessage(messageObj);
         }
-        
+
         // Apply appropriate styling based on current settings
         const htmlContent = $("#discourse div.card:last");
 
@@ -5186,42 +5398,42 @@ let loadedApp = "Chat";
         cleanupListCodeBlocks(htmlContent);
 
         setCopyCodeButton(htmlContent);
-        
+
         // Scroll to bottom
         if (autoScroll && !isElementInViewport(chatBottom)) {
           chatBottom.scrollIntoView(false);
         }
-        
+
         break;
       }
-      
+
       case "sample_success": {
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleSampleSuccess === 'function') {
           handled = wsHandlers.handleSampleSuccess(data);
         }
-        
+
         if (!handled) {
           // Clear any pending timeout to prevent error message
           if (window.currentSampleTimeout) {
             clearTimeout(window.currentSampleTimeout);
             window.currentSampleTimeout = null;
           }
-          
+
           // Hide UI elements
           $("#monadic-spinner").hide();
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          
+
           // Show success alert
-          const roleText = data.role === "user" ? "User" : 
+          const roleText = data.role === "user" ? "User" :
                           data.role === "assistant" ? "Assistant" : "System";
           const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
           setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");
         }
         break;
       }
-      
+
       case "streaming_complete": {
         // Handle streaming completion
         streamingResponse = false;
@@ -5242,11 +5454,38 @@ let loadedApp = "Chat";
         if (!callingFunction && !streamingResponse) {
           // Mark text response as completed
           window.setTextResponseCompleted(true);
-          // Check if we can hide spinner (depends on Auto Speech mode)
-          if (typeof window.checkAndHideSpinner === 'function') {
-            window.checkAndHideSpinner();
+
+          // CRITICAL: Check foreground state - background tabs should not show spinners
+          const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
+
+          // Check Auto Speech from multiple sources
+          const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
+          const checkboxEnabled = $("#check-auto-speech").is(":checked");
+          const autoSpeechActive = window.autoSpeechActive === true;
+          const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
+
+          if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
+            // Auto Speech enabled, TTS not started yet, and tab is foreground - update spinner to "Processing audio"
+            console.log('[streaming_complete] Updating spinner for Audio Speech processing');
+            $("#monadic-spinner").show();
+            $("#monadic-spinner")
+              .find("span i")
+              .removeClass("fa-comment fa-brain fa-circle-nodes fa-cogs")
+              .addClass("fa-headphones");
+
+            const processingAudioText = typeof webUIi18n !== 'undefined' ?
+              webUIi18n.t('ui.messages.spinnerProcessingAudio') : 'Processing audio';
+
+            $("#monadic-spinner")
+              .find("span")
+              .html(`<i class="fas fa-headphones fa-pulse"></i> ${processingAudioText}`);
           } else {
-            $("#monadic-spinner").hide();
+            // Check if we can hide spinner (depends on Auto Speech mode)
+            if (typeof window.checkAndHideSpinner === 'function') {
+              window.checkAndHideSpinner();
+            } else {
+              $("#monadic-spinner").hide();
+            }
           }
         }
 
@@ -5275,7 +5514,7 @@ let loadedApp = "Chat";
               setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
             }, 10000); // Maximum wait of 10 seconds
           }
-          
+
           // Always ensure UI elements are enabled
           $("#message").prop("disabled", false);
           $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
@@ -5296,30 +5535,30 @@ let loadedApp = "Chat";
 
         break;
       }
-      
+
       case "cancel": {
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleCancelMessage === 'function') {
           handled = wsHandlers.handleCancelMessage(data);
         }
-        
+
         if (!handled) {
           // Remove temporary message if it exists
           const tempMessageIndex = messages.findIndex(msg => msg.temp === true);
           if (tempMessageIndex !== -1) {
             window.SessionState.removeMessage(tempMessageIndex);
           }
-          
+
           // Remove any UI cards that may have been created during this initial message
           if (messages.length === 0) {
             $("#discourse").empty();
           }
-          
+
           // Don't clear the message so users can edit and resubmit
           $("#message").attr("placeholder", typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message...");
           $("#message").prop("disabled", false);
-          
+
           // Re-enable all the UI elements individually
           $("#send").prop("disabled", false);
           $("#clear").prop("disabled", false);
@@ -5329,25 +5568,25 @@ let loadedApp = "Chat";
           $("#url").prop("disabled", false);
           $("#ai_user").prop("disabled", false);
           $("#select-role").prop("disabled", false);
-          
+
           $("#status-message").html(getTranslation('ui.messages.inputMessage', 'Input a message.'));
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-          
+
           // Hide loading indicators
           $("#temp-card").hide();
           $("#indicator").hide();
-          
+
           // Show message input and hide spinner
           $("#message").show();
           $("#monadic-spinner").css("display", "none");
-          
+
           // Update AI User button state
           updateAIUserButtonState(messages);
-          
+
           // Show canceled message
           const operationCanceledText = getTranslation('ui.messages.operationCanceled', 'Operation canceled');
           setAlert(`<i class='fa-solid fa-ban' style='color: #FF7F07;'></i> ${operationCanceledText}`, "warning");
-          
+
           setInputFocus();
         }
         break;
@@ -5358,13 +5597,13 @@ let loadedApp = "Chat";
         handleMCPStatus(data["content"]);
         break;
       }
-      
+
       default: {
         // Check if this is a fragment message
         if (data.type === "fragment") {
           // Handle fragment messages from all vendors
           if (!responseStarted) {
-            const respondingText = typeof webUIi18n !== 'undefined' ? 
+            const respondingText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.responding') : 'RESPONDING';
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             responseStarted = true;
@@ -5374,18 +5613,18 @@ let loadedApp = "Chat";
               window.UIState.set('isStreaming', true);
             }
           }
-          
+
           // Always update spinner for fragments to ensure continuity
           if (streamingResponse) {
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ? 
+            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
             $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
             $("#monadic-spinner").show(); // Ensure spinner is visible
           }
-          
+
           // Use the dedicated fragment handler
           window.handleFragmentMessage(data);
-          
+
           $("#indicator").show();
           if (autoScroll && !isElementInViewport(chatBottom)) {
             chatBottom.scrollIntoView(false);
@@ -5394,7 +5633,7 @@ let loadedApp = "Chat";
           // Handle other default messages (for backward compatibility)
           let content = data["content"];
           if (!responseStarted || callingFunction) {
-            const respondingText = typeof webUIi18n !== 'undefined' ? 
+            const respondingText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.responding') : 'RESPONDING';
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
             callingFunction = false;
@@ -5452,12 +5691,12 @@ let loadedApp = "Chat";
     if (window.UIState) {
       window.UIState.set('wsConnected', false);
     }
-    
+
     // Get connection details if not localhost
     if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
       const host = window.location.hostname;
       const port = window.location.port || "4567";
-      
+
       // Show helpful error message
       const connectionFailedText = getTranslation('ui.messages.connectionFailed', 'Connection failed');
       setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${connectionFailedText} - ${host}:${port}`, "danger");
@@ -5466,7 +5705,7 @@ let loadedApp = "Chat";
       const connectionFailedText = getTranslation('ui.messages.connectionFailed', 'Connection failed');
       setAlert(`<i class='fa-solid fa-circle-exclamation'></i> ${connectionFailedText}`, "danger");
     }
-    
+
     ws.close();
   }
   return ws;
@@ -5490,13 +5729,13 @@ function reconnect_websocket(ws, callback) {
     console.log("Already attempting to reconnect, skipping duplicate attempt");
     return;
   }
-  
+
   // Store reconnection attempts in the WebSocket object itself
   // This ensures each WebSocket manages its own reconnection state
   if (ws._reconnectAttempts === undefined) {
     ws._reconnectAttempts = 0;
   }
-  
+
   // Limit maximum reconnection attempts
   if (ws._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
@@ -5505,7 +5744,7 @@ function reconnect_websocket(ws, callback) {
       const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
       setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
     }
-    
+
     // Properly clean up any pending timers
     ws._isReconnecting = false;
     if (reconnectionTimer) {
@@ -5514,59 +5753,59 @@ function reconnect_websocket(ws, callback) {
     }
     return;
   }
-  
+
   // Mark as reconnecting
   ws._isReconnecting = true;
 
   // Calculate exponential backoff delay
   const delay = baseReconnectDelay * Math.pow(1.5, ws._reconnectAttempts);
-  
+
   // Clear any existing reconnection timer
   if (reconnectionTimer) {
     clearTimeout(reconnectionTimer);
     reconnectionTimer = null;
   }
-  
+
   try {
     // Check WebSocket state
     switch (ws.readyState) {
       case WebSocket.CLOSED:
         // Socket is closed, create a new one
         ws._reconnectAttempts++;
-        
+
         // Stop any active ping interval
         stopPing();
-        
+
         // After maximum attempts, just show final error and don't reconnect
         if (ws._reconnectAttempts >= maxReconnectAttempts) {
           const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
     setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
           return; // Exit without creating new connection
         }
-        
+
         // Get connection details
         let connectionDetails = "";
         let host = "localhost";
         let port = "4567";
-        
+
         // Get hostname from browser URL if not localhost
         if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
           host = window.location.hostname;
           port = window.location.port || "4567";
           connectionDetails = ` to ${host}:${port}`;
         }
-        
+
         // In silent mode, do not spam connection messages
         if (!window.silentReconnectMode) {
           const message = `<i class='fa-solid fa-sync fa-spin'></i> Connecting${connectionDetails}...`;
           setAlert(message, "warning");
         }
-        
+
         // Create new connection
         ws = connect_websocket(callback);
         window.ws = ws;  // Update global reference
         break;
-        
+
       case WebSocket.CLOSING:
         // Wait for socket to fully close before reconnecting
         console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
@@ -5575,7 +5814,7 @@ function reconnect_websocket(ws, callback) {
           reconnect_websocket(ws, callback);
         }, delay);
         break;
-        
+
       case WebSocket.CONNECTING:
         // Socket is still trying to connect, wait a bit before checking again
         console.log(`Socket is connecting. Checking again in ${delay}ms.`);
@@ -5584,15 +5823,15 @@ function reconnect_websocket(ws, callback) {
           reconnect_websocket(ws, callback);
         }, delay);
         break;
-        
+
       case WebSocket.OPEN:
         // Connection is successful, reset counters
         ws._reconnectAttempts = 0;
         ws._isReconnecting = false;
-        
+
         // Start ping to keep connection alive
         startPing();
-        
+
         // Update UI
         const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
         // Clear silent mode and cookie when successfully connected again
@@ -5601,7 +5840,7 @@ function reconnect_websocket(ws, callback) {
           document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         } catch(_) {}
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
-        
+
         // Execute callback if provided
         if (callback && typeof callback === 'function') {
           callback(ws);
@@ -5610,7 +5849,7 @@ function reconnect_websocket(ws, callback) {
     }
   } catch (error) {
     console.error("Error during WebSocket reconnection:", error);
-    
+
     // Schedule another attempt with backoff on error
     reconnectionTimer = setTimeout(() => {
       // Increment attempt counter on error
@@ -5630,17 +5869,17 @@ function handleVisibilityChange() {
         clearTimeout(reconnectionTimer);
         reconnectionTimer = null;
       }
-      
+
       // Handle different WebSocket states
       switch (ws.readyState) {
         case WebSocket.CLOSED:
         case WebSocket.CLOSING:
-          
+
           // Reset reconnection attempts for a fresh start when user returns to tab
           if (ws._reconnectAttempts !== undefined) {
             ws._reconnectAttempts = 0;
           }
-          
+
           // Get connection details if not using localhost
           let connectionMessage = "";
           if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -5648,7 +5887,7 @@ function handleVisibilityChange() {
             const port = window.location.port || "4567";
             connectionMessage = ` to ${host}:${port}`;
           }
-          
+
           // Show reconnection message unless in silent stopped mode
           if (!window.silentReconnectMode) {
             const alertMessage = `<i class='fa-solid fa-server'></i> ${getTranslation('ui.messages.connectionLost','Connection lost')}${connectionMessage}`;
@@ -5657,7 +5896,7 @@ function handleVisibilityChange() {
             const stoppedText = getTranslation('ui.messages.stopped', 'Stopped');
             setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
           }
-          
+
           // Establish a new connection with proper callback
           ws = connect_websocket((newWs) => {
             if (newWs && newWs.readyState === WebSocket.OPEN) {
@@ -5669,17 +5908,17 @@ function handleVisibilityChange() {
               const successMessage = connectionMessage
                 ? `<i class='fa-solid fa-circle-check'></i> Connected${connectionMessage}`
                 : "<i class='fa-solid fa-circle-check'></i> Connected";
-                
+
               setAlert(successMessage, "info");
               try { window.silentReconnectMode = false; } catch(_) {}
             }
           });
           break;
-          
+
         case WebSocket.CONNECTING:
           // Already attempting to connect, let the process continue
           break;
-          
+
         case WebSocket.OPEN:
           // Connection is already open, verify it's still active
           ws.send(JSON.stringify({ message: "PING" }));
@@ -5689,17 +5928,17 @@ function handleVisibilityChange() {
       }
     } catch (error) {
       console.error("Error handling visibility change:", error);
-      
+
       // Cleanup any pending timers
       if (reconnectionTimer) {
         clearTimeout(reconnectionTimer);
       }
-      
+
       // Reset reconnection counter and attempt to reconnect on error
       if (ws && ws._reconnectAttempts !== undefined) {
         ws._reconnectAttempts = 0;
       }
-      
+
       // Start a new reconnection attempt with a fresh counter
       reconnectionTimer = setTimeout(() => {
         reconnect_websocket(ws);
@@ -5714,19 +5953,19 @@ document.addEventListener('visibilitychange', handleVisibilityChange);
 window.addEventListener('beforeunload', function() {
   // Stop pinging
   stopPing();
-  
+
   // Clear any reconnection timers to prevent memory leaks
   if (reconnectionTimer) {
     clearTimeout(reconnectionTimer);
     reconnectionTimer = null;
   }
-  
+
   // Clear audio resources
   clearAudioQueue();
   if (window.firefoxAudioQueue) {
     window.firefoxAudioQueue = [];
   }
-  
+
   // Release MediaSource and SourceBuffer
   if (sourceBuffer) {
     try {
@@ -5737,7 +5976,7 @@ window.addEventListener('beforeunload', function() {
       console.error("Error aborting source buffer:", e);
     }
   }
-  
+
   if (mediaSource && mediaSource.readyState === 'open') {
     try {
       mediaSource.endOfStream();
@@ -5745,7 +5984,7 @@ window.addEventListener('beforeunload', function() {
       console.error("Error ending media source stream:", e);
     }
   }
-  
+
   // Release audio element
   if (audio) {
     audio.pause();
@@ -5753,7 +5992,7 @@ window.addEventListener('beforeunload', function() {
     audio.load();
     audio = null;
   }
-  
+
   // Close WebSocket connection if it's open
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
     ws.close();
@@ -5778,7 +6017,7 @@ window.stopPing = stopPing;
 // Function to handle MCP server status updates
 function handleMCPStatus(status) {
   if (!status) return;
-  
+
   // Create or update MCP status display
   let mcpStatusEl = $("#mcp-status");
   if (!mcpStatusEl.length) {
@@ -5791,18 +6030,18 @@ function handleMCPStatus(status) {
     `);
     mcpStatusEl = $("#mcp-status");
   }
-  
+
   if (status.enabled) {
     const apps = status.apps || [];
     const port = status.port || 3100;
     const statusText = status.status || (status.running ? "running" : "stopped");
-    
+
     let content = `
       <div><strong>Status:</strong> ${statusText}</div>
       <div><strong>Port:</strong> ${port}</div>
       <div><strong>Enabled Apps:</strong> ${apps.length > 0 ? apps.join(", ") : "none"}</div>
     `;
-    
+
     // Add Claude Desktop configuration example
     if (apps.includes("help")) {
       content += `
@@ -5814,7 +6053,7 @@ function handleMCPStatus(status) {
         </div>
       `;
     }
-    
+
     $("#mcp-status-content").html(content);
     mcpStatusEl.show();
   } else {
@@ -5826,15 +6065,15 @@ function handleMCPStatus(status) {
 function updateAIUserButtonState(messages) {
   const aiUserBtn = $("#ai_user");
   if (!aiUserBtn) return;
-  
+
   // AI User should only be enabled if there are at least 2 messages in the conversation
   // (meaning user and assistant have exchanged at least one message)
   const hasConversation = Array.isArray(messages) && messages.length >= 2;
-  
+
   // Get the current provider for proper handling
   const currentProvider = $("#ai-user-provider").val() || "";
   const isPerplexity = currentProvider.toLowerCase() === "perplexity";
-  
+
   // Set disabled state and add tooltip for better UX
   if (hasConversation) {
     // Enable AI User button and update its appearance
@@ -5849,13 +6088,13 @@ function updateAIUserButtonState(messages) {
       aiUserBtn.attr("title", "Generate AI user response based on conversation");
     }
     aiUserBtn.removeClass("disabled");
-    
+
     // Add special tooltip for Perplexity
     if (isPerplexity) {
       // Special case for Perplexity
       if (window.i18nReady) {
         window.i18nReady.then(() => {
-          const perplexityTitle = webUIi18n.t('ui.generateAIUserResponsePerplexity') || 
+          const perplexityTitle = webUIi18n.t('ui.generateAIUserResponsePerplexity') ||
             "Generate AI user response (Perplexity requires alternating user/assistant messages)";
           aiUserBtn.attr("title", perplexityTitle);
         });
@@ -5869,7 +6108,7 @@ function updateAIUserButtonState(messages) {
     aiUserBtn.attr("title", "Start a conversation first to enable AI User");
     aiUserBtn.addClass("disabled");
   }
-  
+
   // Button state updated
 }
 

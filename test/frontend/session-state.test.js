@@ -33,8 +33,10 @@ describe('SessionState Tests', () => {
     delete window.forceNewSession;
     delete window.justReset;
 
-    // Clear localStorage
+    // Clear both localStorage and sessionStorage
+    // SessionState now uses sessionStorage for tab isolation
     localStorage.clear();
+    sessionStorage.clear();
 
     // Load StorageHelper first (required dependency)
     loadStorageHelper();
@@ -42,10 +44,11 @@ describe('SessionState Tests', () => {
     // Load fresh SessionState
     loadSessionState();
   });
-  
+
   afterEach(() => {
     // Clean up after each test
     localStorage.clear();
+    sessionStorage.clear();
   });
   
   describe('Core Functionality', () => {
@@ -170,37 +173,37 @@ describe('SessionState Tests', () => {
   });
   
   describe('State Persistence', () => {
-    test('should save state to localStorage', () => {
+    test('should save state to sessionStorage', () => {
       // Add some data
       window.SessionState.session.id = 'test-session';
       window.SessionState.addMessage({ role: 'user', text: 'Test', mid: 'm1' });
       window.SessionState.app.current = 'TestApp';
-      
+
       // Save state
       window.SessionState.save();
-      
-      // Check localStorage - SessionState saves to 'monadicState' key
-      const saved = localStorage.getItem('monadicState');
+
+      // Check sessionStorage - SessionState now uses sessionStorage for tab isolation
+      const saved = sessionStorage.getItem('monadicState');
       expect(saved).toBeDefined();
-      
+
       const parsed = JSON.parse(saved);
       expect(parsed.session.id).toBe('test-session');
       expect(parsed.conversation.messages.length).toBe(1);
       expect(parsed.app.current).toBe('TestApp');
     });
     
-    test('should restore state from localStorage', () => {
-      // Set up saved state - SessionState uses 'monadicState' key
+    test('should restore state from sessionStorage', () => {
+      // Set up saved state - SessionState now uses sessionStorage for tab isolation
       const savedState = {
         session: { id: 'restored-session', started: true },
         conversation: { messages: [{ role: 'user', text: 'Restored', mid: 'r1' }] },
         app: { current: 'RestoredApp', params: {}, model: null }
       };
-      localStorage.setItem('monadicState', JSON.stringify(savedState));
-      
+      sessionStorage.setItem('monadicState', JSON.stringify(savedState));
+
       // Restore state
       window.SessionState.restore();
-      
+
       // Check restored values
       expect(window.SessionState.session.id).toBe('restored-session');
       expect(window.SessionState.conversation.messages.length).toBe(1);

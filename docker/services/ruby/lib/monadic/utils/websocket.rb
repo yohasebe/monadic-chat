@@ -619,16 +619,19 @@ module WebSocketHelper
     params = session[:parameters] || session["parameters"] || {}
     current_app_name = params["app_name"]
 
-    filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-
-    if filtered_messages.empty? && (!current_app_name || current_app_name.to_s.empty?)
-      filtered_messages = session[:messages].filter { |m| m["type"] != "search" }
+    # Only return messages for the current app
+    # If no app is selected (empty current_app_name), return empty array
+    # This ensures proper session isolation during page reloads
+    if current_app_name && !current_app_name.to_s.empty?
+      filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
+    else
+      filtered_messages = []
     end
 
     # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name})"
+      extra_log.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})"
       extra_log.close
     end
 
@@ -705,15 +708,13 @@ module WebSocketHelper
       extra_log.close
     end
 
-    # Send apps message first with current app name to prevent unnecessary app switching
-    current_app_name = session[:parameters]&.[]("app_name")
+    # Send apps message
     apps_message = {
       "type" => "apps",
       "content" => apps,
       "version" => session[:version],
       "docker" => session[:docker]
     }
-    apps_message["current_app_name"] = current_app_name if current_app_name
     unless apps.empty?
       if ws_session_id
         WebSocketHelper.send_to_session(apps_message.to_json, ws_session_id)
@@ -815,9 +816,27 @@ module WebSocketHelper
   def update_message_status(connection, filtered_messages)
     past_messages_data = check_past_messages(session[:parameters])
 
-    # Reuse filtered_messages for change_status
-    WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
+    # Send change_status if changed
+    if past_messages_data[:changed]
+      status_message = { "type" => "change_status", "content" => filtered_messages }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(status_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(status_message)
+      end
+    end
+
+    # Send info message
+    info_message = { "type" => "info", "content" => past_messages_data }.to_json
+    if ws_session_id
+      WebSocketHelper.send_to_session(info_message, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all(info_message)
+    end
+
     sync_session_state!
   end
 
@@ -830,6 +849,9 @@ module WebSocketHelper
   # @param response_format [String] Audio format (e.g., "mp3")
   # @param language [String] Language code
   def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     # Strip Markdown markers and HTML tags before processing
     text = StringUtils.strip_markdown_for_tts(text)
 
@@ -944,7 +966,11 @@ module WebSocketHelper
           prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
 
           # Send audio and progress
-          WebSocketHelper.broadcast_to_all(res_hash.to_json)
+          if ws_session_id
+            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(res_hash.to_json)
+          end
 
           progress_message = {
             "type" => "tts_progress",
@@ -952,7 +978,11 @@ module WebSocketHelper
             "total_segments" => valid_segments.length,
             "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
           }
-          WebSocketHelper.broadcast_to_all(progress_message.to_json)
+          if ws_session_id
+            WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(progress_message.to_json)
+          end
         end
       else
         # Prefetch mode for API-based TTS providers
@@ -1042,7 +1072,11 @@ module WebSocketHelper
 
           # Send audio and progress
           if res_hash && res_hash["type"] != "error"
-            WebSocketHelper.broadcast_to_all(res_hash.to_json)
+            if ws_session_id
+              WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(res_hash.to_json)
+            end
 
             progress_message = {
               "type" => "tts_progress",
@@ -1050,7 +1084,11 @@ module WebSocketHelper
               "total_segments" => valid_segments.length,
               "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
             }
-            WebSocketHelper.broadcast_to_all(progress_message.to_json)
+            if ws_session_id
+              WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(progress_message.to_json)
+            end
           else
             puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
           end
@@ -1062,10 +1100,15 @@ module WebSocketHelper
         puts "[TTS] All segments processed, sending tts_complete"
       end
 
-      WebSocketHelper.broadcast_to_all({
+      complete_message = {
         "type" => "tts_complete",
         "total_segments" => valid_segments.length
-      }.to_json)
+      }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(complete_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(complete_message)
+      end
 
       if CONFIG["EXTRA_LOGGING"]
         puts "[TTS] tts_complete sent successfully"
@@ -1192,13 +1235,31 @@ module WebSocketHelper
     params = get_session_params
     past_messages_data = check_past_messages(params)
 
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     # Filter messages by current app_name and exclude search messages
     current_app_name = params["app_name"]
     filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
-    
-    # Update status to reflect any changes
-    WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json) if past_messages_data[:changed]
-    WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+
+    # Update status to reflect any changes (session-targeted)
+    if past_messages_data[:changed]
+      change_status_message = { "type" => "change_status", "content" => filtered_messages }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(change_status_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(change_status_message)
+      end
+    end
+
+    # Send info message (session-targeted)
+    info_message = { "type" => "info", "content" => past_messages_data }.to_json
+    if ws_session_id
+      WebSocketHelper.send_to_session(info_message, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all(info_message)
+    end
+
     sync_session_state!
   end
   
@@ -1206,8 +1267,16 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param obj [Hash] Parsed message object
   def handle_audio_message(connection, obj)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     if obj["content"].nil?
-      WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "voice_input_empty" }.to_json)
+      error_message = { "type" => "error", "content" => "voice_input_empty" }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(error_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(error_message)
+      end
       return
     end
 
@@ -1223,38 +1292,54 @@ module WebSocketHelper
     session[:parameters]["stt_model"] = model
 
     # Process the transcription
-    process_transcription(connection, blob, format, obj["lang_code"], model)
+    process_transcription(connection, blob, format, obj["lang_code"], model, ws_session_id)
   end
-  
+
   # Process audio transcription
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param blob [String] The decoded audio data
   # @param format [String] The audio format
   # @param lang_code [String] The language code
   # @param model [String] The model to use
-  def process_transcription(connection, blob, format, lang_code, model)
+  # @param ws_session_id [String] WebSocket session ID for targeted broadcasting
+  def process_transcription(connection, blob, format, lang_code, model, ws_session_id = nil)
     begin
       # Request transcription
       res = stt_api_request(blob, format, lang_code, model)
       
       if res["text"] && res["text"] == ""
-        WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "text_input_empty" }.to_json)
+        empty_error = { "type" => "error", "content" => "text_input_empty" }.to_json
+        if ws_session_id
+          WebSocketHelper.send_to_session(empty_error, ws_session_id)
+        else
+          WebSocketHelper.broadcast_to_all(empty_error)
+        end
       elsif res["type"] && res["type"] == "error"
         # Include format information in error message for debugging
-        error_message = "#{res["content"]} (using format: #{format}, model: #{model})"
-        WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => error_message }.to_json)
+        error_content = "#{res["content"]} (using format: #{format}, model: #{model})"
+        api_error = { "type" => "error", "content" => error_content }.to_json
+        if ws_session_id
+          WebSocketHelper.send_to_session(api_error, ws_session_id)
+        else
+          WebSocketHelper.broadcast_to_all(api_error)
+        end
       else
         send_transcription_result(connection, res, model)
       end
     rescue StandardError => e
       # Log the error but don't crash the application
-      log_error("Error processing transcription", e) 
-      
+      log_error("Error processing transcription", e)
+
       # Send a generic error message to the client
-      WebSocketHelper.broadcast_to_all({ 
-        "type" => "error", 
+      rescue_error = {
+        "type" => "error",
         "content" => "An error occurred while processing your audio"
-      }.to_json)
+      }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(rescue_error, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(rescue_error)
+      end
     end
   end
   
@@ -1263,20 +1348,33 @@ module WebSocketHelper
   # @param res [Hash] The transcription result
   # @param model [String] The model used
   def send_transcription_result(connection, res, model)
+    # Get session ID for targeted broadcasting
+    ws_session_id = Thread.current[:websocket_session_id]
+
     begin
       logprob = calculate_logprob(res, model)
-      
-      WebSocketHelper.broadcast_to_all({
+
+      stt_message = {
         "type" => "stt",
         "content" => res["text"],
         "logprob" => logprob
-      }.to_json)
+      }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(stt_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(stt_message)
+      end
     rescue StandardError => e
       # Handle errors in logprob calculation
-      WebSocketHelper.broadcast_to_all({
+      stt_message_no_logprob = {
         "type" => "stt",
         "content" => res["text"]
-      }.to_json)
+      }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(stt_message_no_logprob, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(stt_message_no_logprob)
+      end
     end
   end
   
@@ -1307,15 +1405,28 @@ module WebSocketHelper
   end
 
   def handle_websocket_connection(env)
-    # Generate or retrieve session ID
+    # Generate or retrieve session ID with tab isolation
+    # Extract tab_id from query parameters for tab-specific session management
+    query_params = Rack::Utils.parse_query(env["QUERY_STRING"])
+    tab_id = query_params["tab_id"]
+
     ws_session_id = nil
 
-    if env["HTTP_COOKIE"]
-      cookies = Rack::Utils.parse_cookies(env)
-      ws_session_id = cookies["_monadic_session_id"]
-    end
+    # If we have a tab_id, use it as part of the session identifier
+    # This ensures each tab has its own isolated session
+    if tab_id && !tab_id.empty?
+      # Use tab_id as the session identifier directly
+      # This ensures complete isolation between tabs
+      ws_session_id = tab_id
+    else
+      # Fallback to cookie-based session for compatibility
+      if env["HTTP_COOKIE"]
+        cookies = Rack::Utils.parse_cookies(env)
+        ws_session_id = cookies["_monadic_session_id"]
+      end
 
-    ws_session_id ||= session[:websocket_session_id] if defined?(session) && session.is_a?(Hash)
+      ws_session_id ||= session[:websocket_session_id] if defined?(session) && session.is_a?(Hash)
+    end
 
     if ws_session_id.nil?
       ws_session_id = SecureRandom.uuid
@@ -1323,7 +1434,7 @@ module WebSocketHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocket] Using session ID: #{ws_session_id} for new connection"
+      puts "[WebSocket] Using session ID: #{ws_session_id} for new connection (tab_id from query: #{tab_id.inspect})"
     end
 
     # Use async-websocket to handle the connection
@@ -1382,6 +1493,9 @@ module WebSocketHelper
 
       case msg
       when "TTS"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           provider = obj["provider"]
           if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
             voice = obj["elevenlabs_voice"]
@@ -1395,7 +1509,7 @@ module WebSocketHelper
           speed = obj["speed"]
           response_format = obj["response_format"]
           language = obj["conversation_language"] || "auto"
-          
+
           # Special handling for Web Speech API
           if provider == "webspeech" || provider == "web-speech"
             # Create a special response for Web Speech API
@@ -1410,8 +1524,17 @@ module WebSocketHelper
                                       response_format: response_format,
                                       language: language)
           end
-          WebSocketHelper.broadcast_to_all(res_hash.to_json)
+
+          # Send TTS response to session only
+          if ws_session_id
+            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(res_hash.to_json)
+          end
         when "TTS_STREAM"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           thread&.join
           provider = obj["provider"]
           if provider == "elevenlabs" || provider == "elevenlabs-flash" || provider == "elevenlabs-multilingual" || provider == "elevenlabs-v3"
@@ -1427,29 +1550,46 @@ module WebSocketHelper
           response_format = obj["response_format"]
           language = obj["conversation_language"] || "auto"
           # model = obj["model"]
-          
-          
+
+
           # Special handling for Web Speech API
           if provider == "webspeech" || provider == "web-speech"
             # Create a special response for Web Speech API
             web_speech_response = { "type" => "web_speech", "content" => text }
-            WebSocketHelper.broadcast_to_all(web_speech_response.to_json)
+            if ws_session_id
+              WebSocketHelper.send_to_session(web_speech_response.to_json, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(web_speech_response.to_json)
+            end
           else
-            # Generate TTS content for other providers
+            # Generate TTS content for other providers (use captured ws_session_id in callback)
             tts_api_request(text,
                             provider: provider,
                             voice: voice,
                             speed: speed,
                             response_format: response_format,
                             language: language) do |fragment|
-              WebSocketHelper.broadcast_to_all(fragment.to_json)
+              if ws_session_id
+                WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(fragment.to_json)
+              end
           end
           end
         when "CANCEL"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           thread&.kill
           thread = nil
           queue.clear
-          WebSocketHelper.broadcast_to_all({ "type" => "cancel" }.to_json)
+
+          cancel_message = { "type" => "cancel" }.to_json
+          if ws_session_id
+            WebSocketHelper.send_to_session(cancel_message, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(cancel_message)
+          end
         when "PDF_TITLES"
           send_to_client(connection, {
             "type" => "pdf_titles",
@@ -1558,7 +1698,8 @@ module WebSocketHelper
             end
           end
         when "PING"
-          WebSocketHelper.broadcast_to_all({ "type" => "pong" }.to_json)
+          # Send PONG only to the connection that sent PING (connection-specific keepalive)
+          send_to_client(connection, { "type" => "pong" })
         when "RESET"
           session[:messages].clear
           session[:parameters].clear
@@ -1580,40 +1721,80 @@ module WebSocketHelper
         when "UPDATE_MCP_CONFIG"
           handle_mcp_config_update(connection, obj)
         when "AI_USER_QUERY"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           # Check if there are enough messages for AI User to work with
           if session[:messages].nil? || session[:messages].size < 2
-            WebSocketHelper.broadcast_to_all({ 
-              "type" => "error", 
+            error_msg = {
+              "type" => "error",
               "content" => "ai_user_requires_conversation"
-            }.to_json)
+            }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(error_msg, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(error_msg)
+            end
             next
           end
-          
+
           thread&.join
-          
+
           # Get parameters
           params = obj["contents"]["params"]
-          
+
           # UI feedback
-          WebSocketHelper.broadcast_to_all({ "type" => "wait", "content" => "generating_ai_user_response" }.to_json)
-          WebSocketHelper.broadcast_to_all({ "type" => "ai_user_started" }.to_json)
-          
+          wait_msg = { "type" => "wait", "content" => "generating_ai_user_response" }.to_json
+          if ws_session_id
+            WebSocketHelper.send_to_session(wait_msg, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(wait_msg)
+          end
+
+          started_msg = { "type" => "ai_user_started" }.to_json
+          if ws_session_id
+            WebSocketHelper.send_to_session(started_msg, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(started_msg)
+          end
+
           # Process the request
           begin
             # Get AI user response
             result = process_ai_user(session, params)
-            
+
             # Handle result
             if result["type"] == "error"
-              WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => result["content"] }.to_json)
+              error_result = { "type" => "error", "content" => result["content"] }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(error_result, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(error_result)
+              end
             else
               # Send response to client
-              WebSocketHelper.broadcast_to_all({ "type" => "ai_user", "content" => result["content"] }.to_json)
-              WebSocketHelper.broadcast_to_all({ "type" => "ai_user_finished", "content" => result["content"] }.to_json)
+              ai_user_msg = { "type" => "ai_user", "content" => result["content"] }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(ai_user_msg, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(ai_user_msg)
+              end
+
+              finished_msg = { "type" => "ai_user_finished", "content" => result["content"] }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(finished_msg, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(finished_msg)
+              end
             end
           rescue => e
             # Error handling
-            WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json)
+            rescue_error = { "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(rescue_error, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(rescue_error)
+            end
           end
         when "HTML"
           thread&.join
@@ -1661,7 +1842,13 @@ module WebSocketHelper
               end
 
               if content["finish_reason"] && content["finish_reason"] == "safety"
-                WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "api_stopped_safety" }.to_json)
+                ws_session_id = Thread.current[:websocket_session_id]
+                safety_error = { "type" => "error", "content" => "api_stopped_safety" }.to_json
+                if ws_session_id
+                  WebSocketHelper.send_to_session(safety_error, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(safety_error)
+                end
               end
 
               # Extract ABC blocks before markdown processing (they're already HTML)
@@ -1733,10 +1920,19 @@ module WebSocketHelper
                 end
               end
 
-              WebSocketHelper.broadcast_to_all({
+              # Get session ID for targeted broadcasting
+              ws_session_id = Thread.current[:websocket_session_id]
+
+              # Send HTML message (conversation content)
+              html_message = {
                 "type" => "html",
                 "content" => new_data
-              }.to_json)
+              }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(html_message, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(html_message)
+              end
 
               session[:messages] << new_data
               sync_session_state!
@@ -1746,11 +1942,31 @@ module WebSocketHelper
     messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
               past_messages_data = check_past_messages(params)
 
-              WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => messages }.to_json) if past_messages_data[:changed]
-              WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
+              # Send status updates
+              if past_messages_data[:changed]
+                status_message = { "type" => "change_status", "content" => messages }.to_json
+                if ws_session_id
+                  WebSocketHelper.send_to_session(status_message, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(status_message)
+                end
+              end
+
+              info_message = { "type" => "info", "content" => past_messages_data }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(info_message, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(info_message)
+              end
             rescue StandardError => e
               STDERR.puts "Error processing request: #{e.message}"
-              WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "something_went_wrong" }.to_json)
+              ws_session_id = Thread.current[:websocket_session_id]
+              error_message = { "type" => "error", "content" => "something_went_wrong" }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(error_message, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(error_message)
+              end
             end
           end
         when "UPDATE_PARAMS"
@@ -1830,6 +2046,9 @@ module WebSocketHelper
           sync_session_state!
 
         when "SAMPLE"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           begin
             text = obj["content"]
             images = obj["images"]
@@ -1875,36 +2094,59 @@ module WebSocketHelper
             end
             
             # Send a dedicated message for immediate display
-            WebSocketHelper.broadcast_to_all({ 
-              "type" => "display_sample", 
+            display_message = {
+              "type" => "display_sample",
               "content" => {
                 "mid" => message_id,
                 "role" => obj["role"],
                 "html" => html_content,
                 "badge" => badge
               }
-            }.to_json)
+            }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(display_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(display_message)
+            end
             
             # Also send HTML message for session history
-            WebSocketHelper.broadcast_to_all({ "type" => "html", "content" => new_data }.to_json)
+            html_message = { "type" => "html", "content" => new_data }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(html_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(html_message)
+            end
             
             # Add a success response to confirm message was processed
-            WebSocketHelper.broadcast_to_all({ "type" => "sample_success", "role" => obj["role"] }.to_json)
+            success_message = { "type" => "sample_success", "role" => obj["role"] }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(success_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(success_message)
+            end
           rescue => e
             # Log the error
             puts "Error processing SAMPLE message: #{e.message}"
             puts e.backtrace
-            
+
             # Inform the client
-            WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "error_processing_sample" }.to_json)
+            error_message = { "type" => "error", "content" => "error_processing_sample" }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(error_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(error_message)
+            end
           end
         when "AUDIO"
           handle_audio_message(connection, obj)
         when "UPDATE_LANGUAGE"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           # Handle language change during session
           old_language = session[:runtime_settings][:language] if session[:runtime_settings]
           new_language = obj["new_language"]
-          
+
           # Update UI language in parameters as well
           session[:parameters] ||= {}
           session[:parameters]["ui_language"] = new_language
@@ -1932,7 +2174,14 @@ module WebSocketHelper
             
             # Resend apps data with updated language descriptions
             apps_data = prepare_apps_data(new_language)
-            WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data }.to_json) unless apps_data.empty?
+            unless apps_data.empty?
+              apps_message = { "type" => "apps", "content" => apps_data }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(apps_message, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(apps_message)
+              end
+            end
             
             # Notify client of successful update
             language_name = if new_language == "auto"
@@ -1940,15 +2189,23 @@ module WebSocketHelper
                             else
                               Monadic::Utils::LanguageConfig::LANGUAGES[new_language][:english]
                             end
-            
-            WebSocketHelper.broadcast_to_all({
+
+            language_updated_message = {
               "type" => "language_updated",
               "language" => new_language,
               "language_name" => language_name,
               "text_direction" => Monadic::Utils::LanguageConfig.text_direction(new_language)
-            }.to_json)
+            }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(language_updated_message, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(language_updated_message)
+            end
           end
         when "STOP_TTS"
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           # Stop any running TTS thread and all prefetch threads
           if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
             # Kill all prefetch subthreads first
@@ -1973,9 +2230,12 @@ module WebSocketHelper
           end
 
           # Send confirmation
-          WebSocketHelper.broadcast_to_all({
-            "type" => "tts_stopped"
-          }.to_json)
+          tts_stopped_message = { "type" => "tts_stopped" }.to_json
+          if ws_session_id
+            WebSocketHelper.send_to_session(tts_stopped_message, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(tts_stopped_message)
+          end
         when "PLAY_TTS"
           # Handle play TTS message
           # This is similar to auto_speech processing but for card playback
@@ -2012,8 +2272,11 @@ module WebSocketHelper
             language: language
           )
         else # fragment
+          # Get session ID for targeted broadcasting throughout streaming
+          ws_session_id = Thread.current[:websocket_session_id]
+
           session[:parameters].merge! obj
-          
+
           # Start background token counting for the user message immediately
           message_text = obj["message"].to_s
           if !message_text.empty?
@@ -2103,7 +2366,12 @@ module WebSocketHelper
             unless app_obj
               error_msg = "App '#{app_name}' not found in APPS"
               puts "[ERROR] #{error_msg}"
-              WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => error_msg }.to_json)
+              error_message = { "type" => "error", "content" => error_msg }.to_json
+              if ws_session_id
+                WebSocketHelper.send_to_session(error_message, ws_session_id)
+              else
+                WebSocketHelper.broadcast_to_all(error_message)
+              end
               next
             end
 
@@ -2117,7 +2385,12 @@ module WebSocketHelper
               end
 
               if fragment["type"] == "error"
-                WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => fragment }.to_json)
+                fragment_error = { "type" => "error", "content" => fragment }.to_json
+                if ws_session_id
+                  WebSocketHelper.send_to_session(fragment_error, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(fragment_error)
+                end
                 break
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
@@ -2246,7 +2519,12 @@ module WebSocketHelper
                                         log.puts("[#{Time.now}] [DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
                                       end
                                     end
-                                    WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                                    # Use captured ws_session_id from outer scope
+                                    if ws_session_id
+                                      WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                                    else
+                                      WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                                    end
                                   else
                                     if CONFIG["EXTRA_LOGGING"]
                                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -2309,8 +2587,12 @@ module WebSocketHelper
                                     end
                                   end
 
-                                  # Send audio to client
-                                  WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                                  # Send audio to client (use captured ws_session_id)
+                                  if ws_session_id
+                                    WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                                  else
+                                    WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                                  end
                                 else
                                   # TTS failed, just log it (fragment already sent)
                                   if CONFIG["EXTRA_LOGGING"]
@@ -2330,18 +2612,34 @@ module WebSocketHelper
                     buffer = [segments.last]
 
                     # Send the fragment to display text (after TTS processing)
-                    WebSocketHelper.broadcast_to_all(fragment.to_json)
+                    if ws_session_id
+                      WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
+                    else
+                      WebSocketHelper.broadcast_to_all(fragment.to_json)
+                    end
                   else
                     # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
-                    WebSocketHelper.broadcast_to_all(fragment.to_json)
+                    if ws_session_id
+                      WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
+                    else
+                      WebSocketHelper.broadcast_to_all(fragment.to_json)
+                    end
                   end
                 else
                   # Just send the fragment without TTS processing
-                  WebSocketHelper.broadcast_to_all(fragment.to_json)
+                  if ws_session_id
+                    WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
+                  else
+                    WebSocketHelper.broadcast_to_all(fragment.to_json)
+                  end
                 end
               else
                 # Handle other fragment types
-                WebSocketHelper.broadcast_to_all(fragment.to_json)
+                if ws_session_id
+                  WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(fragment.to_json)
+                end
               end
               sleep 0.01
             end
@@ -2423,7 +2721,12 @@ module WebSocketHelper
                         log.puts("[#{Time.now}] [DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
                       end
                     end
-                    WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                    # Use captured ws_session_id from outer scope
+                    if ws_session_id
+                      WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                    else
+                      WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                    end
                   else
                     if CONFIG["EXTRA_LOGGING"]
                       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -2477,7 +2780,12 @@ module WebSocketHelper
                                else
                                  "API Error: " + response.to_s
                                end
-                WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => error_content }.to_json)
+                api_error_message = { "type" => "error", "content" => error_content }.to_json
+                if ws_session_id
+                  WebSocketHelper.send_to_session(api_error_message, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(api_error_message)
+                end
               else
                 # Debug logging for response structure (only with EXTRA_LOGGING)
                 if CONFIG["EXTRA_LOGGING"]
@@ -2530,7 +2838,12 @@ module WebSocketHelper
                 # If still no content found
                 if raw_content.nil?
                   puts "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." if CONFIG["EXTRA_LOGGING"]
-                  WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "content_not_found" }.to_json)
+                  content_error = { "type" => "error", "content" => "content_not_found" }.to_json
+                  if ws_session_id
+                    WebSocketHelper.send_to_session(content_error, ws_session_id)
+                  else
+                    WebSocketHelper.broadcast_to_all(content_error)
+                  end
                   break
                 end
                 if raw_content
@@ -2540,7 +2853,12 @@ module WebSocketHelper
                   content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
                 else
                   content = ""
-                  WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "empty_response" }.to_json)
+                  empty_response_error = { "type" => "error", "content" => "empty_response" }.to_json
+                  if ws_session_id
+                    WebSocketHelper.send_to_session(empty_response_error, ws_session_id)
+                  else
+                    WebSocketHelper.broadcast_to_all(empty_response_error)
+                  end
                 end
 
                 response.dig("choices", 0, "message")["content"] = content
@@ -2556,7 +2874,14 @@ module WebSocketHelper
                                                 voice: voice,
                                                 speed: speed,
                                                 response_format: response_format)
-                      WebSocketHelper.broadcast_to_all(res_hash.to_json) if res_hash
+                      # Use captured ws_session_id for session-targeted broadcasting
+                      if res_hash
+                        if ws_session_id
+                          WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                        else
+                          WebSocketHelper.broadcast_to_all(res_hash.to_json)
+                        end
+                      end
                     end
                   rescue JSON::ParserError => e
                     # Log the error but don't crash
@@ -2568,8 +2893,13 @@ module WebSocketHelper
               end
             end
             
-            # Send streaming complete message after all responses are processed
-            WebSocketHelper.broadcast_to_all({ "type" => "streaming_complete" }.to_json)
+            # Send streaming complete message after all responses are processed (session-targeted)
+            streaming_complete = { "type" => "streaming_complete" }.to_json
+            if ws_session_id
+              WebSocketHelper.send_to_session(streaming_complete, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(streaming_complete)
+            end
           end
         end
       end # end case

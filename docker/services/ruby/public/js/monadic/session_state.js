@@ -488,12 +488,13 @@
           }
         };
         
-        // Use environment-aware storage if available
-        if (window.EnvironmentDetector && window.EnvironmentDetector.storage) {
-          window.EnvironmentDetector.storage.setItem('monadicState', stateToSave);
-        } else {
-          // Fallback to localStorage with safe storage helper
-          StorageHelper.safeSetItem('monadicState', JSON.stringify(stateToSave));
+        // CRITICAL: Use sessionStorage instead of localStorage for tab isolation
+        // This prevents cross-tab state contamination (e.g., Voice Chat params leaking to new tabs)
+        // sessionStorage is per-tab, while localStorage is shared across all tabs
+        try {
+          sessionStorage.setItem('monadicState', JSON.stringify(stateToSave));
+        } catch (e) {
+          console.error('[SessionState] Failed to save to sessionStorage:', e);
         }
         
         this.notifyListeners('state:saved');
@@ -505,14 +506,15 @@
     restore: function() {
       try {
         let saved;
-        
-        // Use environment-aware storage if available
-        if (window.EnvironmentDetector && window.EnvironmentDetector.storage) {
-          saved = window.EnvironmentDetector.storage.getItem('monadicState');
-        } else {
-          // Fallback to localStorage
-          const item = localStorage.getItem('monadicState');
+
+        // CRITICAL: Use sessionStorage instead of localStorage for tab isolation
+        // This ensures each tab has independent state
+        try {
+          const item = sessionStorage.getItem('monadicState');
           saved = item ? JSON.parse(item) : null;
+        } catch (e) {
+          console.error('[SessionState] Failed to restore from sessionStorage:', e);
+          saved = null;
         }
         
         if (saved) {

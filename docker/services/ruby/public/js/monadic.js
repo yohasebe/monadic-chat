@@ -90,6 +90,28 @@ function getProviderFromGroup(group) {
 window.getProviderFromGroup = getProviderFromGroup;
 
 document.addEventListener("DOMContentLoaded", async function () {
+  // CRITICAL: Forcefully hide spinner and reset Auto Speech flags on page load
+  // This prevents "Processing Audio" from appearing in new tabs
+  // New tabs have empty sessionStorage, so should NEVER show processing spinner on load
+  try {
+    // Hide spinner immediately
+    if (typeof $ !== 'undefined' && $("#monadic-spinner").length) {
+      $("#monadic-spinner").hide();
+    }
+
+    // Reset Auto Speech completion flags to prevent sticky spinner
+    if (typeof window.setTextResponseCompleted === 'function') {
+      window.setTextResponseCompleted(true);
+    }
+    if (typeof window.setTtsPlaybackStarted === 'function') {
+      window.setTtsPlaybackStarted(true);
+    }
+
+    console.log('[DOMContentLoaded] Initialized new tab - spinner hidden, Auto Speech flags reset');
+  } catch (e) {
+    console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
+  }
+
   // Restore menu visibility state from localStorage on page load
   // This ensures the menu state persists across zoom operations and page reloads
   try {
@@ -142,6 +164,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   // Restore session state and render saved messages
+  // Note: Using sessionStorage (not localStorage) for tab isolation
+  // Each tab maintains its own independent state
   try {
     if (window.SessionState && typeof window.SessionState.restore === 'function') {
       // Load configuration from API before restoring state
@@ -149,20 +173,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         await window.SessionState.loadConfig();
       }
 
-      // Check localStorage content before restoration
-      try {
-        const rawState = localStorage.getItem('monadicState');
-        if (rawState) {
-          const parsed = JSON.parse(rawState);
-          if (parsed.conversation && parsed.conversation.messages) {
-            // Valid state found
-          }
-        }
-      } catch (e) {
-        console.error('[Session] Error reading localStorage:', e);
-      }
-
-      // Always restore SessionState first (for app name, model, etc.)
+      // Restore SessionState from sessionStorage (tab-specific)
       window.SessionState.restore();
 
       // Set flag to prevent app change confirmation during restoration
@@ -1529,13 +1540,17 @@ $(function () {
     // With customizable select, the selected item styling is handled natively by the browser
 
     // If there are messages and app is changing, show confirmation dialog
-    if (messages.length > 0 && selectedAppValue !== previousAppValue) {
+    // Skip if loading parameters from server (new tab initialization)
+    // Also skip if user hasn't actively sent messages in this tab (messages loaded from session)
+    if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.isLoadingParams && window.userHasInteractedInTab) {
       console.log('[App Change] Modal trigger:', {
         messagesLength: messages.length,
         selectedApp: selectedAppValue,
         previousApp: previousAppValue,
         isRestoring: window.isRestoringSession,
-        lastApp: window.lastApp
+        lastApp: window.lastApp,
+        isLoadingParams: window.isLoadingParams,
+        userHasInteractedInTab: window.userHasInteractedInTab
       });
 
       // Prevent the dropdown from changing yet
@@ -1551,6 +1566,33 @@ $(function () {
     }
 
     // No messages or same app, proceed with change
+    // However, if there are messages from session (not user interaction), clear them first
+    if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.userHasInteractedInTab) {
+      console.log('[App Change] Clearing session messages before app change in new tab');
+
+      // Clear messages via SessionState API
+      if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
+        window.SessionState.clearMessages();
+      } else {
+        try { window.messages = []; } catch (_) {}
+      }
+
+      // Clear the discourse area
+      $("#discourse").html("");
+
+      // Clear error cards
+      if (typeof clearErrorCards === 'function') {
+        clearErrorCards();
+      }
+
+      // Clear temp cards
+      $("#temp-card").remove();
+      $("#temp-reasoning-card").remove();
+
+      // Send server-side RESET to clear session
+      ws.send(JSON.stringify({ "message": "RESET" }));
+    }
+
     proceedWithAppChange(selectedAppValue);
   });
   
@@ -1584,6 +1626,9 @@ $(function () {
     } else {
       try { window.messages = []; } catch (_) {}
     }
+
+    // Clear user interaction flag (for app change confirmation)
+    window.userHasInteractedInTab = false;
 
     // Clear the discourse area
     $("#discourse").html("");
@@ -1677,6 +1722,8 @@ $(function () {
       }
     }
     lastApp = appValue;
+    // Also update window.lastApp to keep them in sync
+    window.lastApp = appValue;
     // Check if the app exists
     if (!apps[appValue]) {
       console.warn(`App '${appValue}' not found in apps object`);
@@ -2394,6 +2441,9 @@ $(function () {
     audioInit();
     $("#asr-p-value").text("").hide();
 
+    // Mark that user has interacted with this tab (for app change confirmation)
+    window.userHasInteractedInTab = true;
+
     // Clear import/initial load flag when user manually starts/continues session
     // This allows Auto TTS to work normally after user interaction
     if (window.isProcessingImport) {
@@ -2566,11 +2616,14 @@ $(function () {
     params = setParams();
     const userMessageText = $("#message").val();
     params["message"] = userMessageText;
-    
+
+    // Mark that user has interacted with this tab (for app change confirmation)
+    window.userHasInteractedInTab = true;
+
     // This is handled already in setParams(), no need to override here
 
     document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
-    
+
     $("#monadic-spinner").show();
 
     // Temporarily push a placeholder message to prevent double display
@@ -2580,7 +2633,7 @@ $(function () {
       const tempMid = "temp_" + Math.floor(Math.random() * 100000);
       // Use SessionState for centralized state management
       window.SessionState.addMessage({ role: "user", text: userMessageText, mid: tempMid, temp: true });
-      
+
       // Show loading indicators but don't create a card yet
       // The actual card will be created when server responds
       $("#temp-card").show();

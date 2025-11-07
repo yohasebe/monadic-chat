@@ -2769,25 +2769,25 @@ module WebSocketHelper
             end
 
             # Post-completion TTS processing when realtime mode is FALSE
+            # Use original_auto_speech (saved before fragment loop) because obj may be overwritten
             # Convert string "true" to boolean true for compatibility
-            obj["auto_speech"] = true if obj["auto_speech"] == "true"
+            auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
             # Check if monadic is nil or empty string (both should be treated as false/disabled)
-            monadic_disabled = obj["monadic"].nil? || obj["monadic"].to_s.strip.empty?
+            monadic_disabled = original_monadic.nil? || original_monadic.to_s.strip.empty?
 
             if CONFIG["EXTRA_LOGGING"]
               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                 log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION MODE conditions:")
-                log.puts("[#{Time.now}] [DEBUG]   obj['auto_speech']=#{obj["auto_speech"].inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}")
                 log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff.inspect}")
-                log.puts("[#{Time.now}] [DEBUG]   obj['monadic']=#{obj["monadic"].inspect}")
-                log.puts("[#{Time.now}] [DEBUG]   monadic_disabled=#{monadic_disabled.inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}")
                 log.puts("[#{Time.now}] [DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}")
-                log.puts("[#{Time.now}] [DEBUG]   Combined condition=#{(obj["auto_speech"] && !cutoff && monadic_disabled && !auto_tts_realtime_mode).inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   Combined condition=#{(auto_speech_enabled && !cutoff && monadic_disabled && !auto_tts_realtime_mode).inspect}")
               end
             end
 
-            if obj["auto_speech"] && !cutoff && monadic_disabled && !auto_tts_realtime_mode
+            if auto_speech_enabled && !cutoff && monadic_disabled && !auto_tts_realtime_mode
               # Stop any existing TTS thread first
               if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
                 @tts_thread.kill

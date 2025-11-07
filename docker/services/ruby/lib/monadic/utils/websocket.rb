@@ -2306,10 +2306,18 @@ module WebSocketHelper
           obj["auto_speech"] = true if obj["auto_speech"] == "true"
 
           # Get auto_tts_realtime_mode setting
-          auto_tts_realtime_mode = obj["auto_tts_realtime_mode"]
-          if auto_tts_realtime_mode.nil?
-            auto_tts_realtime_mode = defined?(CONFIG) && CONFIG["AUTO_TTS_REALTIME_MODE"].to_s == "true"
-          end
+          # TEMPORARILY DISABLED (2025-11-07): Realtime mode has a race condition where
+          # LLM streaming can split words mid-character (e.g., "チャット" → "チャ" + "ット"),
+          # causing PragmaticSegmenter to mark sentences as "complete" before all characters
+          # arrive. This results in truncated TTS audio (e.g., "チャット" → "チャ").
+          # The Async migration exposed this timing issue that was masked by EventMachine's
+          # synchronous processing. Need to add fragment stabilization (wait 50-100ms after
+          # sentence boundary) before re-enabling.
+          # auto_tts_realtime_mode = obj["auto_tts_realtime_mode"]
+          # if auto_tts_realtime_mode.nil?
+          #   auto_tts_realtime_mode = defined?(CONFIG) && CONFIG["AUTO_TTS_REALTIME_MODE"].to_s == "true"
+          # end
+          auto_tts_realtime_mode = false  # Force POST-COMPLETION mode until race condition is fixed
 
           if obj["auto_speech"]
             provider = obj["tts_provider"]

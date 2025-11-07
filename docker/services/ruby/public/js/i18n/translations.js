@@ -2360,15 +2360,23 @@ document.addEventListener('DOMContentLoaded', () => {
     conversationLanguageSelector.addEventListener('change', (event) => {
       const newLanguage = event.target.value;
       // Save to cookie for persistence (for AI conversation language only)
-      document.cookie = `conversation-language=${newLanguage}; path=/; max-age=31536000`;
-      
+      try {
+        document.cookie = `conversation-language=${newLanguage}; path=/; max-age=31536000`;
+      } catch (err) {
+        console.warn("Failed to set conversation-language cookie:", err.message);
+      }
+
       // Track if user manually changed the conversation language
       if (!isProgrammaticChange) {
         // User manually changed it, set flag
-        document.cookie = `user-changed-conversation-language=true; path=/; max-age=31536000`;
+        try {
+          document.cookie = `user-changed-conversation-language=true; path=/; max-age=31536000`;
+        } catch (err) {
+          console.warn("Failed to set user-changed-conversation-language cookie:", err.message);
+        }
       }
       isProgrammaticChange = false; // Reset flag
-      
+
       // DO NOT change UI language here
     });
     
@@ -2389,17 +2397,29 @@ if (window.electronAPI && typeof window.electronAPI.onUILanguageChanged === 'fun
     if (data.language) {
       webUIi18n.setLanguage(data.language);
       // Also save to cookie for external browser
-      document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
-      
+      try {
+        document.cookie = `ui-language=${data.language}; path=/; max-age=31536000`;
+      } catch (err) {
+        console.warn("Failed to set ui-language cookie:", err.message);
+      }
+
       // Sync conversation language with UI language
       const conversationLanguageSelector = document.getElementById('conversation-language');
       if (conversationLanguageSelector) {
         // Reset the user-changed flag since UI language is being changed
-        document.cookie = `user-changed-conversation-language=false; path=/; max-age=31536000`;
-        
+        try {
+          document.cookie = `user-changed-conversation-language=false; path=/; max-age=31536000`;
+        } catch (err) {
+          console.warn("Failed to set user-changed-conversation-language cookie:", err.message);
+        }
+
         // Update conversation language to match UI language
         conversationLanguageSelector.value = data.language;
-        document.cookie = `conversation-language=${data.language}; path=/; max-age=31536000`;
+        try {
+          document.cookie = `conversation-language=${data.language}; path=/; max-age=31536000`;
+        } catch (err) {
+          console.warn("Failed to set conversation-language cookie:", err.message);
+        }
         
         // Trigger change event to update the app
         const event = new Event('change', { bubbles: true });

@@ -102,21 +102,48 @@ function updateAppSelectIcon(appValue) {
 
 
 function setCookie(name, value, days) {
-  const date = new Date();
-  date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-  const expires = "; expires=" + date.toUTCString();
-  document.cookie = name + "=" + (value || "") + expires + "; path=/";
+  try {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = "; expires=" + date.toUTCString();
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+  } catch (err) {
+    // Cookie access may be restricted in some environments (e.g., file:// protocol, strict security policies)
+    console.warn(`Failed to set cookie "${name}":`, err.message);
+    // Fall back to sessionStorage if available
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        sessionStorage.setItem(`cookie_${name}`, value || "");
+      } catch (storageErr) {
+        console.warn(`Failed to set sessionStorage fallback for "${name}":`, storageErr.message);
+      }
+    }
+  }
 }
 
 function getCookie(name) {
-  const nameEQ = name + "=";
-  const ca = document.cookie.split(';');
-  for (let i = 0; i < ca.length; i++) {
-    let c = ca[i];
-    while (c.charAt(0) == ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+  try {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return null;
+  } catch (err) {
+    // Cookie access may be restricted in some environments (e.g., file:// protocol, strict security policies)
+    console.warn(`Failed to get cookie "${name}":`, err.message);
+    // Fall back to sessionStorage if available
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        return sessionStorage.getItem(`cookie_${name}`);
+      } catch (storageErr) {
+        console.warn(`Failed to get sessionStorage fallback for "${name}":`, storageErr.message);
+      }
+    }
+    return null;
   }
-  return null;
 }
 
 // load document.cookie and set the values to the form elements

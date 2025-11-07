@@ -156,6 +156,19 @@ window.MediaRecorder = OpusMediaRecorder;
 
 // Function to start audio capture
 function startAudioCapture() {
+  // Check if navigator.mediaDevices is available
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    const errorMsg = "Media devices API is not available in this environment";
+    console.error(errorMsg);
+    setAlert(`<i class='fas fa-exclamation-triangle'></i> ${errorMsg}`, "danger");
+    // Reset button state
+    $("#voice").toggleClass("btn-info btn-danger");
+    $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
+    $("#send, #clear, #voice").prop("disabled", false);
+    isListening = false;
+    return;
+  }
+
   // Enhanced audio constraints for better compatibility in Electron packaged app
   const constraints = {
     audio: {
@@ -166,9 +179,9 @@ function startAudioCapture() {
       deviceId: 'default'
     }
   };
-  
+
   console.log("Starting audio capture with constraints:", JSON.stringify(constraints));
-  
+
   navigator.mediaDevices.getUserMedia(constraints)
     .then(function (stream) {
       console.log("Audio stream obtained successfully");
@@ -273,33 +286,55 @@ voiceButton.on("click", function () {
     // For Electron environment, try to explicitly request permissions via bridge API
     if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
       console.log("Detected Electron environment, requesting permissions via bridge API");
-      // Try to enumerate devices first to trigger permission dialogs if needed
-      navigator.mediaDevices.enumerateDevices()
-        .then(devices => {
-          console.log("Available devices:", devices.length);
-          devices.forEach(device => {
-            if (device.kind === 'audioinput') {
-              console.log(`Audio input device: ${device.label || 'unlabeled device'} (${device.deviceId})`);
+
+      // Check if navigator.mediaDevices is available
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function') {
+        // Try to enumerate devices first to trigger permission dialogs if needed
+        navigator.mediaDevices.enumerateDevices()
+          .then(devices => {
+            console.log("Available devices:", devices.length);
+            devices.forEach(device => {
+              if (device.kind === 'audioinput') {
+                console.log(`Audio input device: ${device.label || 'unlabeled device'} (${device.deviceId})`);
+              }
+            });
+
+            // Now request permissions explicitly through the bridge
+            return window.electronAPI.requestMediaPermissions();
+          })
+          .then(success => {
+            if (success) {
+              console.log("Media permissions granted via Electron bridge");
+            } else {
+              console.error("Failed to get media permissions via Electron bridge");
             }
+            // Continue with getUserMedia regardless of bridge result
+            startAudioCapture();
+          })
+          .catch(err => {
+            console.error("Error in requestMediaPermissions:", err);
+            // Fall back to direct getUserMedia
+            startAudioCapture();
           });
-          
-          // Now request permissions explicitly through the bridge
-          return window.electronAPI.requestMediaPermissions();
-        })
-        .then(success => {
-          if (success) {
-            console.log("Media permissions granted via Electron bridge");
-          } else {
-            console.error("Failed to get media permissions via Electron bridge");
-          }
-          // Continue with getUserMedia regardless of bridge result
-          startAudioCapture();
-        })
-        .catch(err => {
-          console.error("Error in requestMediaPermissions:", err);
-          // Fall back to direct getUserMedia
-          startAudioCapture();
-        });
+      } else {
+        console.warn("navigator.mediaDevices is not available, requesting permissions via bridge only");
+        // Request permissions via bridge without enumerating devices
+        window.electronAPI.requestMediaPermissions()
+          .then(success => {
+            if (success) {
+              console.log("Media permissions granted via Electron bridge");
+            } else {
+              console.error("Failed to get media permissions via Electron bridge");
+            }
+            // Continue with getUserMedia regardless of bridge result
+            startAudioCapture();
+          })
+          .catch(err => {
+            console.error("Error in requestMediaPermissions:", err);
+            // Fall back to direct getUserMedia
+            startAudioCapture();
+          });
+      }
     } else {
       // Standard browser environment
       console.log("Using standard browser media API (non-Electron environment)");

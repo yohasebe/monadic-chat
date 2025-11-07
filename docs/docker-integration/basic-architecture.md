@@ -27,9 +27,13 @@ Monadic Chat can operate in two primary modes:
 - Network bindings use `0.0.0.0` (all network interfaces)
 - Network URLs use the server's external IP address
 - Enables sharing resources across multiple users
+- Session isolation ensures each user's data remains private
+- Multiple tabs in the same browser share session state
 - Jupyter-related features are disabled for security reasons
 
 >! **Security Warning**: When exposing Monadic Chat in Server Mode to external networks, especially the internet, implement appropriate security measures such as firewalls, reverse proxies, and authentication mechanisms. The default configuration has no built-in authentication, so it should only be used on trusted networks or with additional security layers.
+
+For details on multi-tab session management and session isolation, see [Advanced Configuration](../advanced-topics/advanced-configuration.md#server-mode).
 
 To switch between modes in the desktop application:
 

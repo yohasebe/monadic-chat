@@ -195,5 +195,112 @@ RSpec.describe WebSocketHelper do
         expect(described_class.connections_by_session.key?("session2")).to be false
       end
     end
+
+    describe "session isolation" do
+      describe "#send_to_session" do
+        it "sends message only to connections in specified session" do
+          session1_ws1 = double("Session1WS1", ready_state: Faye::WebSocket::OPEN)
+          session1_ws2 = double("Session1WS2", ready_state: Faye::WebSocket::OPEN)
+          session2_ws = double("Session2WS", ready_state: Faye::WebSocket::OPEN)
+
+          allow(session1_ws1).to receive(:send)
+          allow(session1_ws2).to receive(:send)
+          allow(session2_ws).to receive(:send)
+
+          described_class.add_connection_with_session(session1_ws1, "session1")
+          described_class.add_connection_with_session(session1_ws2, "session1")
+          described_class.add_connection_with_session(session2_ws, "session2")
+
+          message = { "type" => "test", "content" => "message" }.to_json
+
+          # Should send to session1 connections only
+          expect(session1_ws1).to receive(:send).with(message).once
+          expect(session1_ws2).to receive(:send).with(message).once
+          expect(session2_ws).not_to receive(:send)
+
+          described_class.send_to_session(message, "session1")
+        end
+
+        it "handles non-existent session gracefully" do
+          message = { "type" => "test", "content" => "message" }.to_json
+
+          expect {
+            described_class.send_to_session(message, "nonexistent_session")
+          }.not_to raise_error
+        end
+
+        it "cleans up closed connections during send" do
+          open_ws = double("OpenWS", ready_state: Faye::WebSocket::OPEN)
+          closed_ws = double("ClosedWS", ready_state: Faye::WebSocket::CLOSED)
+
+          allow(open_ws).to receive(:send)
+
+          described_class.add_connection_with_session(open_ws, "session1")
+          described_class.add_connection_with_session(closed_ws, "session1")
+
+          message = { "type" => "test", "content" => "message" }.to_json
+
+          expect(open_ws).to receive(:send).once
+
+          described_class.send_to_session(message, "session1")
+
+          # Closed connection should be removed
+          connections = described_class.connections_by_session["session1"]
+          expect(connections).to include(open_ws)
+          expect(connections).not_to include(closed_ws)
+        end
+
+        it "handles send errors without breaking iteration" do
+          error_ws = double("ErrorWS", ready_state: Faye::WebSocket::OPEN)
+          open_ws = double("OpenWS", ready_state: Faye::WebSocket::OPEN)
+
+          allow(error_ws).to receive(:send).and_raise("Network error")
+          allow(open_ws).to receive(:send)
+
+          described_class.add_connection_with_session(error_ws, "session1")
+          described_class.add_connection_with_session(open_ws, "session1")
+
+          message = { "type" => "test", "content" => "message" }.to_json
+
+          # Error should not prevent open_ws from receiving
+          expect(open_ws).to receive(:send).once
+
+          expect {
+            described_class.send_to_session(message, "session1")
+          }.not_to raise_error
+
+          # Error connection should be removed
+          connections = described_class.connections_by_session["session1"]
+          expect(connections).to include(open_ws)
+          expect(connections).not_to include(error_ws)
+        end
+      end
+
+      describe "multi-session isolation" do
+        it "ensures messages don't leak between sessions" do
+          user1_ws = double("User1WS", ready_state: Faye::WebSocket::OPEN)
+          user2_ws = double("User2WS", ready_state: Faye::WebSocket::OPEN)
+
+          allow(user1_ws).to receive(:send)
+          allow(user2_ws).to receive(:send)
+
+          described_class.add_connection_with_session(user1_ws, "user1_session")
+          described_class.add_connection_with_session(user2_ws, "user2_session")
+
+          user1_message = { "type" => "private", "content" => "user1 data" }.to_json
+          user2_message = { "type" => "private", "content" => "user2 data" }.to_json
+
+          # User1's message should only go to user1
+          expect(user1_ws).to receive(:send).with(user1_message).once
+          expect(user2_ws).not_to receive(:send)
+          described_class.send_to_session(user1_message, "user1_session")
+
+          # User2's message should only go to user2
+          expect(user2_ws).to receive(:send).with(user2_message).once
+          expect(user1_ws).not_to receive(:send)
+          described_class.send_to_session(user2_message, "user2_session")
+        end
+      end
+    end
   end
 end

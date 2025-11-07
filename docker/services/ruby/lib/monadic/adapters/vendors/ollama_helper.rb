@@ -217,6 +217,7 @@ module OllamaHelper
               "text" => obj["message"],
               "html" => html,
               "lang" => detect_language(obj["message"]),
+              "app_name" => obj["app_name"],
               "active" => true }
       if obj["images"] && obj["images"].is_a?(Array)
         res["images"] = obj["images"]

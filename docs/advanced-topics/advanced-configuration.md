@@ -149,6 +149,32 @@ In server mode:
 - Network URLs (like Jupyter notebooks) use the server's external IP address
 - Clients can access resources hosted on the server
 
+### Multi-Tab Session Management
+
+Monadic Chat supports opening multiple browser tabs simultaneously with intelligent session sharing:
+
+**Session Isolation:**
+- Each browser session (browser + profile + mode) has a unique session ID stored in cookies
+- All tabs within the same browser session share the same conversation state
+- Different browsers, browser profiles, or incognito/private modes create separate sessions
+- In server mode, each user's session is completely isolated from other users
+
+**Session Sharing Examples:**
+- ✅ Same browser, multiple tabs → **Shared session** (changes sync across tabs)
+- ✅ Same browser, multiple windows → **Shared session**
+- ❌ Chrome + Firefox on same device → **Separate sessions**
+- ❌ Normal mode + Incognito mode → **Separate sessions**
+- ❌ Different devices (PC + smartphone) → **Separate sessions**
+- ❌ Different browser profiles → **Separate sessions**
+
+**Synchronized Data:**
+- Active app selection (new tabs automatically select the current app)
+- Model and parameter settings (when sent via Start/Send buttons)
+- Conversation messages and edits
+- Message deletions and modifications
+
+**Note:** Parameter changes in the UI are local until you click Start or Send, at which point they sync to all tabs in the same session.
+
 See [Server Mode Architecture](../docker-integration/basic-architecture.md#server-mode) for more details.
 
 ## Environment Variables :id=environment-variables

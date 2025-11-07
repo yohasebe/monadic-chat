@@ -371,7 +371,8 @@ module PerplexityHelper
                   "text" => obj["message"],
                   "html" => html,
                   "role" => role,
-                  "lang" => detect_language(message)
+                  "lang" => detect_language(message),
+                  "app_name" => obj["app_name"]
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res

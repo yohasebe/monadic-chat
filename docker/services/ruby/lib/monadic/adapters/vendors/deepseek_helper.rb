@@ -429,7 +429,8 @@ module DeepSeekHelper
                   "role" => role,
                   "text" => obj["message"],
                   "html" => markdown_to_html(obj["message"]),
-                  "lang" => detect_language(obj["message"])
+                  "lang" => detect_language(obj["message"]),
+                  "app_name" => obj["app_name"]
                 } }
         block&.call res
         session[:messages] << res["content"]

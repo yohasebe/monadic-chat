@@ -529,6 +529,7 @@ module ClaudeHelper
                 "text" => obj["message"],
                 "html" => markdown_to_html(obj["message"]),
                 "lang" => detect_language(obj["message"]),
+                "app_name" => obj["app_name"],
                 "active" => true
               } }
 
@@ -714,8 +715,9 @@ module ClaudeHelper
     if budget_tokens
       body["max_tokens"] = max_tokens
       body["temperature"] = 1  # Required to be 1 when thinking is enabled
-      # Only add tool_choice if not processing tool results
-      body["tool_choice"] = { "type" => "any" } if role != "tool"
+      # IMPORTANT: Do NOT set tool_choice when thinking is enabled
+      # Claude API does not allow tool_choice with thinking mode
+      # The model will automatically decide whether to use tools
       body["thinking"] = {
         "type": "enabled",
         "budget_tokens": budget_tokens

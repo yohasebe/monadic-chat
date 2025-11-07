@@ -814,7 +814,8 @@ module CohereHelper
                   "role" => role,
                   "text" => obj["message"],
                   "html" => html,
-                  "lang" => detect_language(obj["message"])
+                  "lang" => detect_language(obj["message"]),
+                  "app_name" => obj["app_name"]
                 } }
         block&.call res
         session[:messages] << res["content"]

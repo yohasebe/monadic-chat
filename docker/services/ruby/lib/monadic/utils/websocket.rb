@@ -858,6 +858,12 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}")
+      end
+    end
+
     # Strip Markdown markers and HTML tags before processing
     text = StringUtils.strip_markdown_for_tts(text)
 
@@ -2766,7 +2772,22 @@ module WebSocketHelper
             # Convert string "true" to boolean true for compatibility
             obj["auto_speech"] = true if obj["auto_speech"] == "true"
 
-            if obj["auto_speech"] && !cutoff && !obj["monadic"] && !auto_tts_realtime_mode
+            # Check if monadic is nil or empty string (both should be treated as false/disabled)
+            monadic_disabled = obj["monadic"].nil? || obj["monadic"].to_s.strip.empty?
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION MODE conditions:")
+                log.puts("[#{Time.now}] [DEBUG]   obj['auto_speech']=#{obj["auto_speech"].inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff.inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   obj['monadic']=#{obj["monadic"].inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   monadic_disabled=#{monadic_disabled.inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   Combined condition=#{(obj["auto_speech"] && !cutoff && monadic_disabled && !auto_tts_realtime_mode).inspect}")
+              end
+            end
+
+            if obj["auto_speech"] && !cutoff && monadic_disabled && !auto_tts_realtime_mode
               # Stop any existing TTS thread first
               if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
                 @tts_thread.kill

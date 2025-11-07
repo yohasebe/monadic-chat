@@ -701,10 +701,14 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
+    # Get session from thread context (set in handle_websocket_connection)
+    rack_session = Thread.current[:rack_session] || {}
+
     # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{!session[:parameters].empty?}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
+      params_present = rack_session[:parameters] && !rack_session[:parameters].empty?
+      extra_log.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
       extra_log.close
     end
 
@@ -712,8 +716,8 @@ module WebSocketHelper
     apps_message = {
       "type" => "apps",
       "content" => apps,
-      "version" => session[:version],
-      "docker" => session[:docker]
+      "version" => rack_session[:version],
+      "docker" => rack_session[:docker]
     }
     unless apps.empty?
       if ws_session_id
@@ -726,11 +730,11 @@ module WebSocketHelper
     # Use sleep to delay subsequent messages, giving browser time to process large apps message
     # This prevents message loss when apps message is very large (>1MB)
     sleep(0.05)
-    unless session[:parameters].empty?
+    unless rack_session[:parameters].nil? || rack_session[:parameters].empty?
       if ws_session_id
-        WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters] }.to_json, ws_session_id)
+        WebSocketHelper.send_to_session({ "type" => "parameters", "content" => rack_session[:parameters] }.to_json, ws_session_id)
       else
-        WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters] }.to_json)
+        WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => rack_session[:parameters] }.to_json)
       end
     end
 
@@ -814,7 +818,9 @@ module WebSocketHelper
   # @param connection [Async::WebSocket::Connection] WebSocket connection
   # @param filtered_messages [Array] Filtered messages
   def update_message_status(connection, filtered_messages)
-    past_messages_data = check_past_messages(session[:parameters])
+    # Get session from thread context (set in handle_websocket_connection)
+    rack_session = Thread.current[:rack_session] || {}
+    past_messages_data = check_past_messages(rack_session[:parameters])
 
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
@@ -1123,11 +1129,14 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
+    # Get session from thread context (set in handle_websocket_connection)
+    rack_session = Thread.current[:rack_session] || {}
+
     # Delete the message
-    session[:messages].delete_if { |m| m["mid"] == obj["mid"] }
+    rack_session[:messages]&.delete_if { |m| m["mid"] == obj["mid"] }
 
     # Check message status
-    past_messages_data = check_past_messages(session[:parameters])
+    past_messages_data = check_past_messages(rack_session[:parameters])
 
     # Filter messages
     filtered_messages = prepare_filtered_messages
@@ -1155,20 +1164,24 @@ module WebSocketHelper
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
+    # Get session from thread context (set in handle_websocket_connection)
+    rack_session = Thread.current[:rack_session] || {}
+
     # Find the message index to edit
-    message_index = session[:messages].find_index { |m| m["mid"] == obj["mid"] }
+    messages = rack_session[:messages] || []
+    message_index = messages.find_index { |m| m["mid"] == obj["mid"] }
 
     if message_index
       # Update the message directly in the array to ensure it's persisted
-      session[:messages][message_index]["text"] = obj["content"]
+      messages[message_index]["text"] = obj["content"]
 
       # Update images if provided in the edit request
       if obj["images"] && obj["images"].is_a?(Array)
-        session[:messages][message_index]["images"] = obj["images"]
+        messages[message_index]["images"] = obj["images"]
       end
 
       # Get the updated message for response
-      message_to_edit = session[:messages][message_index]
+      message_to_edit = messages[message_index]
 
       # Generate HTML content if needed
       html_content = generate_html_for_message(message_to_edit, obj["content"])
@@ -1405,6 +1418,9 @@ module WebSocketHelper
   end
 
   def handle_websocket_connection(env)
+    # Get Rack session from environment (or create empty hash if not available)
+    session = env['rack.session'] || {}
+
     # Generate or retrieve session ID with tab isolation
     # Extract tab_id from query parameters for tab-specific session management
     query_params = Rack::Utils.parse_query(env["QUERY_STRING"])
@@ -1425,12 +1441,12 @@ module WebSocketHelper
         ws_session_id = cookies["_monadic_session_id"]
       end
 
-      ws_session_id ||= session[:websocket_session_id] if defined?(session) && session.is_a?(Hash)
+      ws_session_id ||= session[:websocket_session_id] if session.is_a?(Hash)
     end
 
     if ws_session_id.nil?
       ws_session_id = SecureRandom.uuid
-      session[:websocket_session_id] = ws_session_id if defined?(session) && session.is_a?(Hash)
+      session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -1446,7 +1462,7 @@ module WebSocketHelper
       end
 
       Thread.current[:websocket_session_id] = ws_session_id
-      Thread.current[:rack_session] = session if defined?(session) && session.is_a?(Hash)
+      Thread.current[:rack_session] = session
 
       if (saved_state = WebSocketHelper.fetch_session_state(ws_session_id))
         session[:messages] = saved_state[:messages] if saved_state[:messages]

@@ -63,10 +63,22 @@ function renderMessage(msg) {
     return '';
   }
 
+  console.log('[renderMessage] Processing message:', {
+    mid: msg.mid,
+    app_name: msg.app_name,
+    has_text: !!msg.text,
+    has_html: !!msg.html,
+    text_preview: msg.text ? msg.text.substring(0, 100) : null,
+    has_MarkdownRenderer: !!window.MarkdownRenderer
+  });
+
   // Priority 1: Client-side rendering with MarkdownRenderer
   if (msg.text && window.MarkdownRenderer) {
     try {
-      return window.MarkdownRenderer.render(msg.text, { appName: msg.app_name });
+      console.log('[renderMessage] Calling MarkdownRenderer.render()...');
+      const result = window.MarkdownRenderer.render(msg.text, { appName: msg.app_name });
+      console.log('[renderMessage] MarkdownRenderer.render() completed, result length:', result.length);
+      return result;
     } catch (err) {
       console.error('MarkdownRenderer failed:', err);
       // Fall through to fallback

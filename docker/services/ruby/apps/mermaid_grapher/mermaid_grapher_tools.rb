@@ -461,6 +461,11 @@ finally:
     # Clean up HTML file
     File.delete(html_path) if html_path && File.exist?(html_path)
 
+    # Check for Selenium connection errors (raise to trigger fallback)
+    if result.is_a?(String) && result.include?("Failed to resolve 'monadic-chat-selenium-container'")
+      raise StandardError, "Selenium container not accessible (running outside Docker network)"
+    end
+
     # run_bash_command returns a string, not a hash
     if result.is_a?(String)
       puts "[DEBUG validate_with_mermaid_cli] Result is String, checking for SUCCESS..."

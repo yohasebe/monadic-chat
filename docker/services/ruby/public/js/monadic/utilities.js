@@ -748,13 +748,34 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
     
     // Set the app selector WITHOUT triggering change event yet
+    const previousAppSelection = $("#apps").val();
+    const needsAppChange = previousAppSelection !== targetApp;
     $("#apps").val(targetApp);
     $(`#apps option[value="${targetApp}"]`).attr('selected', 'selected');
+
+    // Helper to ensure a model option exists when we skip app change triggers
+    const ensureModelOptionVisible = (modelValue) => {
+      if (!modelValue || !apps || !apps[targetApp]) return;
+      const $modelSelect = $("#model");
+      if ($modelSelect.find(`option[value="${modelValue}"]`).length > 0) {
+        return;
+      }
+      try {
+        const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp]) : [];
+        if (modelsForApp.length === 0) return;
+        const isOpenAIGroup = (apps[targetApp]["group"] || "").toLowerCase() === "openai";
+        const markup = typeof listModels === 'function' ? listModels(modelsForApp, isOpenAIGroup) : "";
+        if (markup) {
+          $modelSelect.html(markup);
+        }
+      } catch (error) {
+        console.error('Failed to rebuild model list while loading params:', error);
+      }
+    };
     
     // Check if apps object is available and app exists before triggering change
     if (typeof apps !== 'undefined' && apps && apps[targetApp]) {
       // Store the model in params before triggering app change
-      // This will be preserved by proceedWithAppChange
       if (modelToSet) {
         params["model"] = modelToSet;
       }
@@ -762,37 +783,50 @@ window.loadParams = function(params, calledFor = "loadParams") {
       // Ensure stop_apps_trigger is false so the change event will be processed
       stop_apps_trigger = false;
       
-      // Set a flag to indicate we're in the middle of loading params
-      window.isLoadingParams = true;
-      
-      // Now trigger the change event after value is set
-      $("#apps").trigger('change');
-      
-      // Clear the flag after a longer delay to ensure model setting completes
-      setTimeout(() => {
-        window.isLoadingParams = false;
-      }, 500);
-      
-      // Wait a moment for app change to complete, then set model
-      setTimeout(() => {
-        if (modelToSet) {
-          
-          // Force set the model value even if the dropdown was rebuilt
-          $("#model").val(modelToSet);
-          
-          if ($("#model").val() !== modelToSet) {
-            // Try once more with a longer delay
-            setTimeout(() => {
-              $("#model").val(modelToSet);
-              if ($("#model").val() === modelToSet) {
-                $("#model").trigger('change');
-              }
-            }, 300);
-          } else {
-            $("#model").trigger('change');
+      if (needsAppChange) {
+        // Set a flag to indicate we're in the middle of loading params
+        window.isLoadingParams = true;
+        
+        // Now trigger the change event after value is set
+        $("#apps").trigger('change');
+        
+        // Clear the flag after a longer delay to ensure model setting completes
+        setTimeout(() => {
+          window.isLoadingParams = false;
+        }, 500);
+        
+        // Wait a moment for app change to complete, then set model
+        setTimeout(() => {
+          if (modelToSet) {
+            
+            // Force set the model value even if the dropdown was rebuilt
+            $("#model").val(modelToSet);
+            
+            if ($("#model").val() !== modelToSet) {
+              // Try once more with a longer delay
+              setTimeout(() => {
+                $("#model").val(modelToSet);
+                if ($("#model").val() === modelToSet) {
+                  $("#model").trigger('change');
+                }
+              }, 300);
+            } else {
+              $("#model").trigger('change');
+            }
           }
+        }, 300); // Increased timeout
+      } else if (modelToSet) {
+        // Same app: ensure the requested model is present without retriggering app change
+        ensureModelOptionVisible(modelToSet);
+        if ($("#model").val() !== modelToSet) {
+          $("#model").val(modelToSet);
         }
-      }, 300); // Increased timeout
+        if ($("#model").val() === modelToSet) {
+          $("#model").trigger('change');
+        } else {
+          console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
+        }
+      }
     }
   } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];

@@ -41,7 +41,7 @@ Monadic機能は複数のモジュールを通じて実装されています：
 - `monadic_unit`: メッセージをJSON形式でコンテキストとともにラップ
 - `monadic_unwrap`: JSONレスポンスから安全にデータを抽出
 - `monadic_map`: オプションの処理でコンテキストを変換
-- `monadic_html`: UIでJSONコンテキストを折りたたみ可能なHTMLとしてレンダリング
+- クライアント側の `MarkdownRenderer` が JSON を解析し、折りたたみ可能なHTMLビューに変換します
 
 ## 実用的な例
 

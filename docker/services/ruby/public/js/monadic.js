@@ -2099,62 +2099,7 @@ $(function () {
   
   // Function to ensure navbar elements are perfectly centered
   function centerNavbarElements() {
-    // Only run on mobile
     if ($(window).width() >= 600) return;
-    
-    // Set logo with fixed positioning left-aligned, aligning with toggle menu button
-    $(".navbar-brand").css({
-      "position": "fixed",
-      "top": "0",
-      "left": "15px",
-      "height": "52px", // Updated to match navbar height
-      "display": "flex",
-      "align-items": "center",
-      "justify-content": "flex-start",
-      "margin": "0",
-      "width": "auto",
-      "transform": "none"
-    });
-    
-    // Completely override the first div inside navbar-brand to precisely control positioning
-    $(".navbar-brand > div:first-child").css({
-      "margin": "0", // Reset all margins
-      "margin-left": "6px", // Maintain the 6px left margin
-      "margin-top": "0", // Remove the negative top margin 
-      "padding-top": "0", // Reset padding
-      "font-weight": "500",
-      "font-family": "'Montserrat', sans-serif",
-      "letter-spacing": "0.12em",
-      "display": "flex",
-      "align-items": "center",
-      "position": "relative",
-      "top": "1px" // Fine-tuned for vertical alignment with toggle button
-    });
-    
-    // Fine tune the image and text elements for perfect vertical alignment
-    $(".navbar-brand img").css({
-      "width": "1.6em", // Slightly smaller logo to match toggle button
-      "vertical-align": "middle",
-      "margin-top": "0",
-      "margin-right": "8px" // More space between icon and text
-    });
-    
-    // Apply consistent vertical alignment to text spans
-    $(".navbar-brand .reset-area").css({
-      "vertical-align": "middle",
-      "position": "relative",
-      "top": "0px"
-    });
-    
-    // Ensure the content inside navbar-brand is aligned
-    $(".navbar-brand div").css({
-      "display": "flex",
-      "align-items": "center"
-    });
-    
-      // Removed inline CSS injection for toggle-menu in centerNavbarElements
-    
-    // Optimize scrollable areas for mobile
     optimizeMobileScrolling();
   }
   
@@ -2278,11 +2223,11 @@ $(function () {
           console.warn('Failed to save menu state to localStorage');
         }
 
-        if (isMobile) {
-          // On mobile: show menu and hide main completely
-          $menu.show();
-          $main.hide();
-          $("body").addClass("menu-visible");
+      if (isMobile) {
+        // On mobile: show menu and hide main completely
+        $menu.show();
+        $main.hide();
+        $("body").addClass("menu-visible");
         } else {
           // On desktop: normal column behavior
           $main.removeClass("col-md-12").addClass("col-md-8");
@@ -2321,26 +2266,6 @@ $(function () {
       
       // On mobile, force elements to maintain their positions
       if (isMobile) {
-        // Fix logo position using fixed positioning - left aligned
-        $(".navbar-brand").css({
-          "position": "fixed",
-          "top": "0",
-          "left": "15px",
-          "height": "54px", 
-          "display": "flex",
-          "align-items": "center",
-          "justify-content": "flex-start",
-          "margin": "0",
-          "width": "auto",
-          "transform": "none"
-        });
-        
-        // Ensure the content inside navbar-brand is left aligned
-        $(".navbar-brand div").css({
-          "display": "flex",
-          "align-items": "center"
-        });
-        
         // Fix toggle button position with exact coordinates
         $("#toggle-menu").css({
           "position": "fixed",

@@ -27,7 +27,7 @@ RSpec.describe 'Chat Export/Import Functionality' do
       @errors << msg
     end
     
-    def process_import(json_data, monadic_app = nil)
+    def process_import(json_data)
       # Validate required fields
       unless json_data["parameters"] && json_data["messages"]
         handle_error("Invalid format: missing parameters or messages")
@@ -51,26 +51,12 @@ RSpec.describe 'Chat Export/Import Functionality' do
         
         text = msg["text"]
         
-        # Handle HTML conversion based on role and settings
-        html = if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant" && monadic_app
-          begin
-            monadic_app.monadic_html(text)
-          rescue => e
-            # Fallback to standard markdown if monadic_html fails
-            markdown_to_html(text)
-          end
-        elsif msg["role"] == "assistant"
-          markdown_to_html(text)
-        else
-          text
-        end
-        
         # Create message object with required fields
         mid = msg["mid"] || SecureRandom.hex(4)
         message_obj = { 
           "role" => msg["role"], 
           "text" => text, 
-          "html" => html, 
+          "html" => text, 
           "lang" => detect_language(text), 
           "mid" => mid, 
           "active" => true 
@@ -88,8 +74,6 @@ RSpec.describe 'Chat Export/Import Functionality' do
   
   describe 'Import functionality' do
     let(:handler) { ImportHandler.new }
-    let(:mock_app) { double('app', monadic_html: '<div>Monadic HTML</div>') }
-    
     context 'with valid JSON data' do
       let(:valid_json) do
         {
@@ -172,21 +156,12 @@ RSpec.describe 'Chat Export/Import Functionality' do
         }
       end
       
-      it 'uses monadic_html for assistant messages' do
-        handler.process_import(monadic_json, mock_app)
+      it 'stores raw monadic JSON text for assistant messages' do
+        handler.process_import(monadic_json)
         
         assistant_msg = handler.session[:messages].first
-        expect(assistant_msg['html']).to eq('<div>Monadic HTML</div>')
-      end
-      
-      it 'falls back to markdown when monadic_html fails' do
-        failing_app = double('app')
-        allow(failing_app).to receive(:monadic_html).and_raise('Error')
-        
-        handler.process_import(monadic_json, failing_app)
-        
-        assistant_msg = handler.session[:messages].first
-        expect(assistant_msg['html']).to eq('<p>Monadic response</p>')
+        expect(assistant_msg['html']).to eq('Monadic response')
+        expect(assistant_msg['monadic']).to eq('true')
       end
     end
     

@@ -2,15 +2,12 @@
 
 require_relative 'core'
 require_relative 'json_handler'
-require_relative 'html_renderer'
-
 module MonadicChat
   # Extensions for MonadicApp to maintain backward compatibility
   # while providing clean, modular implementation
   module AppExtensions
     include Core
     include JsonHandler
-    include HtmlRenderer
     
     # Initialize monadic functionality
     def self.included(base)
@@ -35,19 +32,6 @@ module MonadicChat
     end
     
     # Convert a monad to HTML (maintains exact original behavior)
-    def monadic_html(monad)
-      render_as_html(monad, {})
-    end
-    
-    # Alias for backward compatibility - maintain original signature
-    def json2html(hash, iteration: 0, exclude_empty: true, mathjax: false)
-      settings = {
-        iteration: iteration,
-        exclude_empty: exclude_empty,
-        mathjax: mathjax
-      }
-      json_to_html(hash, settings)
-    end
     
     # == Enhanced Methods (New Functionality) ==
     

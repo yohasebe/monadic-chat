@@ -59,27 +59,55 @@ let iosAudioElement = null;
  * @param {object} msg - Message object with text/html and app_name
  * @returns {string} Rendered HTML
  */
+function getMessageAppName(msg) {
+  if (msg && msg.app_name) {
+    return msg.app_name;
+  }
+
+  if (window.SessionState && typeof window.SessionState.getCurrentApp === 'function') {
+    const current = window.SessionState.getCurrentApp();
+    if (current) return current;
+  }
+
+  if (typeof params !== 'undefined' && params && params["app_name"]) {
+    return params["app_name"];
+  }
+
+  return null;
+}
+
+function getMessageMonadicFlag(msg) {
+  if (msg && typeof msg.monadic !== 'undefined') {
+    return msg.monadic;
+  }
+
+  if (typeof params !== 'undefined' && params && typeof params["monadic"] !== 'undefined') {
+    return params["monadic"];
+  }
+
+  if (window.SessionState && window.SessionState.app && window.SessionState.app.params) {
+    const appParams = window.SessionState.app.params;
+    if (typeof appParams["monadic"] !== 'undefined') {
+      return appParams["monadic"];
+    }
+  }
+
+  return false;
+}
+
 function renderMessage(msg) {
   if (!msg) {
     console.error('renderMessage: msg is null or undefined');
     return '';
   }
 
-  console.log('[renderMessage] Processing message:', {
-    mid: msg.mid,
-    app_name: msg.app_name,
-    has_text: !!msg.text,
-    has_html: !!msg.html,
-    text_preview: msg.text ? msg.text.substring(0, 100) : null,
-    has_MarkdownRenderer: !!window.MarkdownRenderer
-  });
+  const appName = getMessageAppName(msg);
+  const monadicFlag = getMessageMonadicFlag(msg);
 
   // Priority 1: Client-side rendering with MarkdownRenderer
   if (msg.text && window.MarkdownRenderer) {
     try {
-      console.log('[renderMessage] Calling MarkdownRenderer.render()...');
-      const result = window.MarkdownRenderer.render(msg.text, { appName: msg.app_name });
-      console.log('[renderMessage] MarkdownRenderer.render() completed, result length:', result.length);
+      const result = window.MarkdownRenderer.render(msg.text, { appName, isMonadic: monadicFlag });
       return result;
     } catch (err) {
       console.error('MarkdownRenderer failed:', err);
@@ -290,6 +318,8 @@ function checkAndHideSpinner() {
   const checkboxEnabled = $("#check-auto-speech").is(":checked");
   const autoSpeechActive = window.autoSpeechActive === true;
   const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
+  const reasoningActive = typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive();
+  const streamingActive = streamingResponse === true;
 
   console.log('[checkAndHideSpinner] Called with:', {
     messageCount,
@@ -300,8 +330,16 @@ function checkAndHideSpinner() {
     textResponseCompleted,
     ttsPlaybackStarted,
     inForeground,
+    reasoningActive,
+    streamingActive,
     spinnerVisible: $("#monadic-spinner").is(":visible")
   });
+
+  if (reasoningActive || streamingActive) {
+    console.log('[checkAndHideSpinner] Deferring hide while reasoning/streaming active');
+    ensureThinkingSpinnerVisible();
+    return;
+  }
 
   if (!autoSpeechEnabled) {
     // For non-Auto Speech mode, hide spinner immediately
@@ -783,61 +821,17 @@ function sanitizeMermaidSource(text) {
   }
 
   return text
-    .replace(/\\"/g, '"')
+    .replace(/\r\n/g, '\n')
     .replace(/\\n/g, '\n')
-    .replace(/[\u2028\u2029]/g, '\n')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
     .replace(/[\u2010-\u2015\u2212\u30FC\uFF0D]/g, '-')
     .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
     .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
-    .replace(/[\u300C\u300D]/g, '"')
-    .replace(/\uFF0F/g, '/')
-    .replace(/\[(.*?)\]/gs, (match, inner) => {
-  const normalized = inner
-    .replace(/\n\s*\n+/g, '\n')
-    .trim()
-    .replace(/\n\s*/g, '\\n');
-  return `[${normalized}]`;
-})
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .reduce((acc, line) => {
-      if (line.includes('->') || line.includes('→') || line.includes('←')) {
-        acc.push(`% ${line}`);
-        return acc;
-      }
-      if (line.startsWith('V:')) {
-        const pipeIndex = line.indexOf('|');
-        if (pipeIndex > -1) {
-          const header = line.slice(0, pipeIndex).trim();
-          const rest = line.slice(pipeIndex + 1).trim();
-          if (header.length > 0) {
-            acc.push(header);
-          }
-          if (rest.length > 0) {
-            acc.push(rest.startsWith('|') ? rest : `| ${rest}`);
-          }
-        } else {
-          acc.push(line);
-        }
-        return acc;
-      }
-      if (/^(%|%%|X:|T:|M:|L:|Q:|K:|w:)/.test(line)) {
-        acc.push(line);
-        return acc;
-      }
-      const noteLike = /^(?:z|\[[A-Ga-g]|[A-Ga-g][,']?)/;
-      if (noteLike.test(line)) {
-        acc.push(line.startsWith('|') ? line : `| ${line}`);
-      } else {
-        acc.push(`% ${line}`);
-      }
-      return acc;
-    }, [])
-    .join('\n');
+    .replace(/[\u300C\u300D]/g, '"');
 }
 
 $(document).on("click", ".copy-button", function () {
@@ -2363,6 +2357,8 @@ let responseStarted = false;
 let callingFunction = false;
 // Track if we're currently streaming a response
 let streamingResponse = false; // Keep local variable for backward compatibility
+// Track whether reasoning/thinking fragments are currently streaming
+let reasoningStreamActive = false;
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
@@ -2378,6 +2374,51 @@ function isSystemBusy() {
 
 // Make isSystemBusy globally accessible
 window.isSystemBusy = isSystemBusy;
+window.setReasoningStreamActive = function(value) {
+  reasoningStreamActive = !!value;
+};
+window.isReasoningStreamActive = function() {
+  return reasoningStreamActive;
+};
+
+function ensureThinkingSpinnerVisible() {
+  const thinkingText = typeof webUIi18n !== 'undefined'
+    ? webUIi18n.t('ui.messages.spinnerThinking')
+    : 'Thinking...';
+  $("#monadic-spinner")
+    .find("span")
+    .html(`<i class="fas fa-brain fa-pulse"></i> ${thinkingText}`);
+  if (!$("#monadic-spinner").is(":visible")) {
+    $("#monadic-spinner").show();
+  }
+}
+
+function scheduleAutoTtsSpinnerTimeout() {
+  if (window.autoTTSSpinnerTimeout) {
+    clearTimeout(window.autoTTSSpinnerTimeout);
+  }
+  const evaluateTimeout = () => {
+    if ((window.isReasoningStreamActive && window.isReasoningStreamActive()) || streamingResponse) {
+      window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, 5000);
+      return;
+    }
+    if ($("#monadic-spinner").is(":visible")) {
+      console.warn("[Auto TTS] Spinner timeout - forcing hide after delay");
+      $("#monadic-spinner").hide();
+      $("#monadic-spinner")
+        .find("span i")
+        .removeClass("fa-headphones")
+        .addClass("fa-comment");
+      $("#monadic-spinner")
+        .find("span")
+        .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+      window.autoSpeechActive = false;
+      window.autoPlayAudio = false;
+    }
+    window.autoTTSSpinnerTimeout = null;
+  };
+  window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, 12000);
+}
 
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
@@ -2628,8 +2669,12 @@ let loadedApp = "Chat";
   function appendCard(role, badge, html, lang, mid, status, images) {
     const htmlElement = createCard(role, badge, html, lang, mid, status, images);
     $("#discourse").append(htmlElement);
+
+    // Defer applyRenderers to ensure DOM is fully ready
     if (window.MarkdownRenderer) {
-      window.MarkdownRenderer.applyRenderers(htmlElement[0]);
+      setTimeout(() => {
+        window.MarkdownRenderer.applyRenderers(htmlElement[0]);
+      }, 0);
     }
     updateItemStates();
 
@@ -2646,17 +2691,18 @@ let loadedApp = "Chat";
       applyToggle(htmlContent);
     }
 
-    if (toBool(params["mermaid"])) {
-      applyMermaid(htmlContent);
-    }
+    // Phase 2: Disabled old applyMermaid/MathJax/ABC - now handled by MarkdownRenderer.applyRenderers()
+    // if (toBool(params["mermaid"])) {
+    //   applyMermaid(htmlContent);
+    // }
 
-    if (toBool(params["mathjax"])) {
-      applyMathJax(htmlContent);
-    }
+    // if (toBool(params["mathjax"])) {
+    //   applyMathJax(htmlContent);
+    // }
 
-    if (toBool(params["abc"])) {
-      applyAbc(htmlContent);
-    }
+    // if (toBool(params["abc"])) {
+    //   applyAbc(htmlContent);
+    // }
 
     formatSourceCode(htmlContent);
     cleanupListCodeBlocks(htmlContent);
@@ -2961,6 +3007,10 @@ let loadedApp = "Chat";
         // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
         const content = data.content || '';
         if (!content) break;
+        if (typeof window.setReasoningStreamActive === 'function') {
+          window.setReasoningStreamActive(true);
+        }
+        ensureThinkingSpinnerVisible();
 
         // Create or get temporary reasoning card
         let tempReasoningCard = $("#temp-reasoning-card");
@@ -4143,12 +4193,20 @@ let loadedApp = "Chat";
 
               // Call proceedWithAppChange to ensure model list is populated
               // This is necessary when parameters message arrives before apps message completes
-              if (data["content"]["app_name"] && typeof window.proceedWithAppChange === 'function') {
+              const requestedApp = data["content"]["app_name"];
+              const currentAppSelection = (typeof $ === "function" && $("#apps").length) ? $("#apps").val() : null;
+              const needsAppSync =
+                !window.initialAppLoaded ||
+                window.isProcessingImport ||
+                !currentAppSelection ||
+                currentAppSelection !== requestedApp;
+
+              if (requestedApp && typeof window.proceedWithAppChange === 'function' && needsAppSync) {
                 // Use requestAnimationFrame to ensure DOM is ready (double-call for rendering completion)
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
-                    window.proceedWithAppChange(data["content"]["app_name"]);
-                    window.logTL('proceedWithAppChange_called_from_parameters', { app: data["content"]["app_name"] });
+                    window.proceedWithAppChange(requestedApp);
+                    window.logTL('proceedWithAppChange_called_from_parameters', { app: requestedApp });
                   });
                 });
               }
@@ -5009,6 +5067,9 @@ let loadedApp = "Chat";
         // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
         $("#temp-card").hide();
         $("#temp-reasoning-card").remove();
+        if (typeof window.setReasoningStreamActive === 'function') {
+          window.setReasoningStreamActive(false);
+        }
 
         // Always add message to SessionState for persistence, regardless of which handler processes it
         window.SessionState.addMessage(data["content"]);
@@ -5029,7 +5090,19 @@ let loadedApp = "Chat";
           // Fallback to inline handling
           // Note: SessionState.addMessage already called above
 
-          let html = data["content"]["html"];
+          // Phase 2: Use MarkdownRenderer if html field is missing
+          let html;
+          if (data["content"]["html"]) {
+            html = data["content"]["html"];
+          } else if (data["content"]["text"]) {
+            // Client-side rendering with MarkdownRenderer
+            html = window.MarkdownRenderer ?
+              window.MarkdownRenderer.render(data["content"]["text"], { appName: data["content"]["app_name"] }) :
+              data["content"]["text"];
+          } else {
+            console.error("Message has neither html nor text field:", data["content"]);
+            html = "";
+          }
 
           if (data["content"]["thinking"]) {
             // Use the unified thinking block renderer if available
@@ -5150,34 +5223,10 @@ let loadedApp = "Chat";
                     playButton.click();
                   }
 
-                  // Set timeout to force hide spinner if audio doesn't start playing
-                  // This prevents spinner from being stuck indefinitely
-                  // (applies to both realtime and post-completion modes)
-                  if (window.autoTTSSpinnerTimeout) {
-                    clearTimeout(window.autoTTSSpinnerTimeout);
-                  }
-
-                  window.autoTTSSpinnerTimeout = setTimeout(() => {
-                    // Force hide spinner after 10 seconds if still visible
-                    if ($("#monadic-spinner").is(":visible")) {
-                      console.warn("[Auto TTS] Spinner timeout - forcing hide after 10 seconds");
-                      $("#monadic-spinner").hide();
-
-                      // Reset spinner to default state
-                      $("#monadic-spinner")
-                        .find("span i")
-                        .removeClass("fa-headphones")
-                        .addClass("fa-comment");
-                      $("#monadic-spinner")
-                        .find("span")
-                        .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-
-                      // Reset Auto TTS flags on timeout
-                      window.autoSpeechActive = false;
-                      window.autoPlayAudio = false;
-                    }
-                    window.autoTTSSpinnerTimeout = null;
-                  }, 10000);
+                  // Set timeout to force hide spinner if audio doesn't start playing.
+                  // This is deferred when reasoning/streaming is still active so users
+                  // don't lose visual feedback during long reasoning phases.
+                  scheduleAutoTtsSpinnerTimeout();
                 }
                 // Note: window.autoSpeechActive will be reset when audio starts playing
                 // See audio.play() promise handler where spinner is hidden
@@ -5403,7 +5452,7 @@ let loadedApp = "Chat";
       case "display_sample": {
         // Immediately display the sample message
         const content = data.content;
-        if (!content || !content.mid || !content.role || !content.html || !content.badge) {
+        if (!content || !content.mid || !content.role || !content.text || !content.badge) {
           console.error("Invalid display_sample message format:", data);
           break;
         }
@@ -5413,11 +5462,21 @@ let loadedApp = "Chat";
           break;
         }
 
+        // Phase 2: Render text client-side using MarkdownRenderer
+        let renderedHtml;
+        if (content.role === "user") {
+          // User messages: simple HTML escaping and line breaks
+          renderedHtml = "<p>" + content.text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ") + "</p>";
+        } else {
+          // Assistant and system messages: use MarkdownRenderer
+          renderedHtml = window.MarkdownRenderer ? window.MarkdownRenderer.render(content.text) : content.text;
+        }
+
         // Create appropriate element based on role
         const cardElement = createCard(
           content.role,
           content.badge,
-          content.html,
+          renderedHtml,
           "en", // Default language
           content.mid,
           true  // Always active
@@ -5425,7 +5484,9 @@ let loadedApp = "Chat";
 
         // Append to discourse
         $("#discourse").append(cardElement);
-        if (window.MarkdownRenderer) {
+        // applyRenderers is called within MarkdownRenderer.render(), so no need to call again
+        // But for safety, call it anyway in case render() wasn't used
+        if (window.MarkdownRenderer && content.role !== "assistant" && content.role !== "system") {
           window.MarkdownRenderer.applyRenderers(cardElement[0]);
         }
 
@@ -5437,11 +5498,6 @@ let loadedApp = "Chat";
             "text": content.text,
             "mid": content.mid
           };
-
-          // For assistant role, also include HTML content
-          if (content.role === "assistant") {
-            messageObj.html = content.html;
-          }
 
           // Add to messages array - this ensures last message detection works correctly
           window.SessionState.addMessage(messageObj);

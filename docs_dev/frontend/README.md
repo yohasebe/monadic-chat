@@ -16,6 +16,7 @@ This section contains internal documentation for Monadic Chat's frontend archite
   - Model selection badge update timing issues
   - Event propagation conflicts between `loadParams()` and reasoning UI
   - Best practices for explicit state updates and event handling
+- [Client-Side Rendering Pipeline](client_side_rendering.md) - Unified Markdown/Monadic/ABC/Mermaid/MathJax rendering design
 
 ## Overview
 

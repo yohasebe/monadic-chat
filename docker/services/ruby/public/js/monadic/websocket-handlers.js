@@ -470,8 +470,20 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     if (Array.isArray(messages)) {
       messages.push(data.content);
     }
-    
-    const html = data.content.html || '';
+
+    // Phase 2: Use MarkdownRenderer if html field is missing
+    let html;
+    if (data.content.html) {
+      html = data.content.html;
+    } else if (data.content.text) {
+      // Client-side rendering with MarkdownRenderer
+      html = window.MarkdownRenderer ?
+        window.MarkdownRenderer.render(data.content.text, { appName: data.content.app_name }) :
+        data.content.text;
+    } else {
+      console.error("Message has neither html nor text field:", data.content);
+      html = "";
+    }
     let finalHtml = html;
     
     // Handle thinking content if present with unified design

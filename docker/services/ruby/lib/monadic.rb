@@ -1609,35 +1609,20 @@ post "/load" do
           
           text = msg["text"]
           
-          # Handle HTML conversion based on role and settings
-          # Check if mathjax is enabled for this app
-          mathjax_enabled = json_data["parameters"]["mathjax"].to_s == "true"
-          
-          if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant" && APPS[app_name]
-            begin
-              html = APPS[app_name].monadic_html(text)
-            rescue => e
-              # Log monadic HTML error and fallback to standard markdown
-              logger.warn "Monadic HTML rendering error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-              html = markdown_to_html(text, mathjax: mathjax_enabled)
-            end
-          elsif msg["role"] == "assistant"
-            html = markdown_to_html(text, mathjax: mathjax_enabled)
-          else
-            html = text
-          end
-          
           # Create message object with required fields
           mid = msg["mid"] || SecureRandom.hex(4)
           message_obj = { 
             "role" => msg["role"], 
             "text" => text, 
-            "html" => html, 
+            "html" => text, 
             "lang" => detect_language(text), 
             "mid" => mid, 
             "active" => true 
           }
           message_obj["app_name"] = app_name if app_name
+          if json_data["parameters"].key?("monadic")
+            message_obj["monadic"] = json_data["parameters"]["monadic"]
+          end
           # Preserve token count if present in import (for accurate stats without recomputation)
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           
@@ -1714,15 +1699,12 @@ post "/load" do
         end
 
         session[:messages] = json_data["messages"].uniq.map do |msg|
-          if json_data["parameters"]["monadic"].to_s == "true" && msg["role"] == "assistant"
-            text = msg["text"]
-            html = APPS[json_data["parameters"]["app_name"]].monadic_html(msg["text"])
-          else
-            text = msg["text"]
-            html = text
-          end
-          message_obj = { "role" => msg["role"], "text" => text, "html" => html, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
+          text = msg["text"]
+          message_obj = { "role" => msg["role"], "text" => text, "html" => text, "lang" => detect_language(text), "mid" => msg["mid"], "active" => true }
           message_obj["app_name"] = json_data["parameters"]["app_name"] if json_data["parameters"]["app_name"]
+          if json_data["parameters"].key?("monadic")
+            message_obj["monadic"] = json_data["parameters"]["monadic"]
+          end
           message_obj["tokens"] = msg["tokens"].to_i if msg.key?("tokens")
           message_obj["thinking"] = msg["thinking"] if msg["thinking"]
           message_obj["images"] = msg["images"] if msg["images"]

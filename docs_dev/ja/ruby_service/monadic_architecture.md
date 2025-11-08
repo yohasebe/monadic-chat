@@ -17,7 +17,7 @@ class MyApp < MonadicApp
       ctx["processed"] = true
       ctx
     }
-    monadic_html(result)                    # HTMLとしてレンダリング
+    result                                   # JSON文字列を返す（HTML化はフロント側で実施）
   end
 end
 ```
@@ -28,7 +28,6 @@ end
 lib/monadic/
 ├── core.rb           # コア関数型プログラミング概念
 ├── json_handler.rb   # JSONシリアライゼーション/デシリアライゼーション
-├── html_renderer.rb  # Web UI用HTMLレンダリング
 ├── app_extensions.rb # MonadicApp統合レイヤー
 └── README.md         # このドキュメント
 ```
@@ -39,8 +38,6 @@ lib/monadic/
 Monadic::Core
     ↑
 Monadic::JsonHandler
-    ↑
-Monadic::HtmlRenderer
     ↑
 Monadic::AppExtensions → MonadicApp
 ```
@@ -66,16 +63,7 @@ JSON固有の操作：
 - **`transform_json(json, &block)`** - `monadic_map`と互換
 - **`validate_json_structure(data, expected)`** - 構造検証
 
-### 3. Monadic::HtmlRenderer
-
-HTMLレンダリング機能：
-
-- **`render_as_html(monad, settings)`** - `monadic_html`と互換
-- **`json_to_html(hash, settings)`** - コアレンダリングロジック
-- 折りたたみ可能なコンテキストセクションを処理
-- MathJaxレンダリングをサポート
-
-### 4. Monadic::AppExtensions
+### 3. Monadic::AppExtensions
 
 次を提供する統合レイヤー：
 
@@ -85,31 +73,6 @@ HTMLレンダリング機能：
 - 検証ユーティリティ
 
 ## 使用例
-
-### 基本的な使用方法（後方互換）
-
-```ruby
-class MyApp < MonadicApp
-  include Monadic::AppExtensions
-
-  def process_message(message)
-    # コンテキスト付きでメッセージをラップ
-    monad = monadic_unit(message)
-
-    # コンテキストを変換
-    result = monadic_map(monad) do |context|
-      context["timestamp"] = Time.now
-      context["processed"] = true
-      context
-    end
-
-    # HTMLとしてレンダリング
-    monadic_html(result)
-  end
-end
-```
-
-### 高度な使用方法（新機能）
 
 ```ruby
 # 純粋な関数型スタイル

@@ -46,7 +46,7 @@ The monadic functionality is implemented through several modules:
 - `monadic_unit`: Wraps messages with context in JSON format
 - `monadic_unwrap`: Safely extracts data from JSON responses
 - `monadic_map`: Transforms context with optional processing
-- `monadic_html`: Renders JSON context as collapsible HTML in the UI
+- Client-side rendering (`MarkdownRenderer`) converts the JSON into collapsible HTML blocks in the browser
 
 ## Practical Examples
 

@@ -10,13 +10,27 @@
 (function(window) {
   'use strict';
 
-  console.log('[MarkdownRenderer] Module loading... Version: 2025-11-08-v2');
-
   // markdown-it instance (will be initialized when markdown-it is loaded)
   let md = null;
 
   // Track if Mermaid has been initialized
   let mermaidInitialized = false;
+
+  const escapeHtml = (text) => String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  const scheduleTask = (fn) => {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(fn, { timeout: 500 });
+    } else if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(fn);
+    } else {
+      setTimeout(fn, 0);
+    }
+  };
 
   const MarkdownRenderer = {
     /**
@@ -83,7 +97,7 @@
       this._initMarkdownIt();
 
       // 1. Check if this is Monadic JSON
-      if (this.isMonadicJson(text, options.appName)) {
+      if (this.isMonadicJson(text, options)) {
         return this.renderMonadicJson(text, options);
       }
 
@@ -100,7 +114,14 @@
      * @param {string} appName - Application name
      * @returns {boolean}
      */
-    isMonadicJson: function(text, appName) {
+    isMonadicJson: function(text, options = {}) {
+      if (!text) return false;
+
+      // Forced flag takes precedence
+      if (options.isMonadic) {
+        return this._looksLikeMonadicJson(text);
+      }
+
       // Apps that use Monadic structure
       const monadicApps = [
         'auto_forge_openai',
@@ -108,12 +129,27 @@
         'auto_forge_grok',
         'concept_visualizer_openai',
         'concept_visualizer_claude',
+        'chat_plus_openai',
+        'chat_plus_claude',
+        'chat_plus_gemini',
+        'chat_plus_grok',
+        'chat_plus_mistral',
+        'chat_plus_deepseek',
+        'chat_plus_cohere',
+        'chat_plus_perplexity',
+        'chat_plus_ollama'
       ];
 
-      if (!appName || !monadicApps.includes(appName.toLowerCase())) {
-        return false;
+      const appName = options.appName;
+      if (appName && monadicApps.includes(appName.toLowerCase())) {
+        return this._looksLikeMonadicJson(text);
       }
 
+      // Fallback auto-detection
+      return this._looksLikeMonadicJson(text);
+    },
+
+    _looksLikeMonadicJson: function(text) {
       // Check if valid JSON with Monadic structure
       try {
         const obj = JSON.parse(text);
@@ -384,7 +420,6 @@
       text = text.replace(/```mermaid\n([\s\S]+?)```/g, (match, content) => {
         const index = mermaidBlocks.length;
         mermaidBlocks.push(content);
-        console.log(`[MarkdownRenderer] Mermaid block ${index} detected:`, content.substring(0, 50) + '...');
         return `MERMAID_BLOCK_PLACEHOLDER_${index}`;
       });
 
@@ -407,19 +442,19 @@
       });
 
       abcBlocks.forEach((content, index) => {
-        const escaped = encodeURIComponent(content);
+        const escaped = escapeHtml(content);
         html = html.replace(
           new RegExp(`ABC_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `<div class="abc-notation" data-abc="${escaped}"></div>`
+          `<div class="abc-code"><pre>${escaped}</pre></div>`
         );
       });
 
       mermaidBlocks.forEach((content, index) => {
+        const escaped = escapeHtml(content);
         html = html.replace(
           new RegExp(`MERMAID_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `<div class="mermaid">${content}</div>`
+          `<div class="mermaid-code"><pre>${escaped}</pre></div>`
         );
-        console.log(`[MarkdownRenderer] Mermaid block ${index} restored to HTML`);
       });
 
       return html;
@@ -443,64 +478,82 @@
 
       // 1. highlight.js
       if (window.SyntaxHighlight) {
-        try {
-          window.SyntaxHighlight.apply(container);
-        } catch (err) {
-          console.error('Failed to apply syntax highlighting:', err);
-        }
+        scheduleTask(() => {
+          try {
+            window.SyntaxHighlight.apply(container);
+          } catch (err) {
+            console.error('Failed to apply syntax highlighting:', err);
+          }
+        });
       }
 
       // 2. MathJax
       if (window.MathJax?.typesetPromise) {
-        try {
-          window.MathJax.typesetPromise([container]).catch(err => {
-            console.error('MathJax rendering failed:', err);
-          });
-        } catch (err) {
-          console.error('Failed to initialize MathJax:', err);
-        }
-      }
-
-      // 3. ABCJS
-      if (window.ABCJS) {
-        try {
-          const abcElements = container.querySelectorAll('.abc-notation');
-          abcElements.forEach(el => {
-            const abc = decodeURIComponent(el.dataset.abc || '');
-            if (abc) {
-              window.ABCJS.renderAbc(el, abc);
-            }
-          });
-        } catch (err) {
-          console.error('ABC notation rendering failed:', err);
-        }
-      }
-
-      // 4. Mermaid
-      if (window.mermaid) {
-        try {
-          const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed])');
-          console.log(`[MarkdownRenderer] Found ${mermaidElements.length} mermaid elements to render`);
-          if (mermaidElements.length > 0) {
-            // Mermaid v11+ uses run() API instead of init()
-            mermaidElements.forEach((el, idx) => {
-              el.setAttribute('data-processed', 'true');
-              console.log(`[MarkdownRenderer] Mermaid element ${idx}:`, el.textContent.substring(0, 50) + '...');
+        scheduleTask(() => {
+          try {
+            window.MathJax.typesetPromise([container]).catch(err => {
+              console.error('MathJax rendering failed:', err);
             });
-            console.log('[MarkdownRenderer] Calling mermaid.run()...');
-            window.mermaid.run({ nodes: Array.from(mermaidElements) })
-              .then(() => {
-                console.log('[MarkdownRenderer] Mermaid rendering completed successfully');
-              })
-              .catch(err => {
+          } catch (err) {
+            console.error('Failed to initialize MathJax:', err);
+          }
+        });
+      }
+
+      // 3. ABCJS / applyAbc
+      if (typeof window.applyAbc === 'function' && window.jQuery) {
+        scheduleTask(() => {
+          try {
+            window.applyAbc(window.jQuery(container));
+          } catch (err) {
+            console.error('applyAbc failed:', err);
+          }
+        });
+      } else if (window.ABCJS) {
+        scheduleTask(() => {
+          try {
+            const abcElements = container.querySelectorAll('.abc-notation, .abc-code');
+            abcElements.forEach(el => {
+              let abc = '';
+              if (el.dataset.abc) {
+                abc = decodeURIComponent(el.dataset.abc);
+              } else {
+                const pre = el.querySelector('pre');
+                abc = pre ? pre.textContent : el.textContent;
+              }
+              if (abc) {
+                window.ABCJS.renderAbc(el, abc);
+              }
+            });
+          } catch (err) {
+            console.error('ABC notation rendering failed:', err);
+          }
+        });
+      }
+
+      // 4. Mermaid / applyMermaid
+      if (typeof window.applyMermaid === 'function' && window.jQuery) {
+        scheduleTask(() => {
+          try {
+            window.applyMermaid(window.jQuery(container));
+          } catch (err) {
+            console.error('applyMermaid failed:', err);
+          }
+        });
+      } else if (window.mermaid) {
+        scheduleTask(() => {
+          try {
+            const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
+            if (mermaidElements.length > 0) {
+              mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
+              window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
                 console.error('[MarkdownRenderer] Mermaid run() failed:', err);
               });
+            }
+          } catch (err) {
+            console.error('Mermaid rendering failed:', err);
           }
-        } catch (err) {
-          console.error('Mermaid rendering failed:', err);
-        }
-      } else {
-        console.warn('[MarkdownRenderer] window.mermaid is not available');
+        });
       }
     },
 

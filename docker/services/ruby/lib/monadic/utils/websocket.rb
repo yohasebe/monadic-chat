@@ -641,36 +641,6 @@ module WebSocketHelper
     # Client-side MarkdownRenderer now handles all rendering
     # No longer generating m["html"] field to avoid Rouge SIGSEGV bug
 
-    # Convert markdown to HTML for assistant messages when needed
-    # filtered_messages.each do |m|
-    #   next unless m["role"] == "assistant"
-    #
-    #   needs_render = m["html"].nil? || m["html"].to_s.include?("```")
-    #   next unless needs_render
-    #
-    #   app_name = params_for_render["app_name"]
-    #   if CONFIG["EXTRA_LOGGING"] && params_for_render["monadic"] && app_name
-    #     extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-    #     extra_log.puts "[#{Time.now}] Rendering with monadic_html for app=#{app_name}"
-    #   end
-    #   if params_for_render["monadic"] && defined?(APPS) && app_name &&
-    #      APPS[app_name]&.respond_to?(:monadic_html)
-    #     m["html"] = APPS[app_name].monadic_html(m["text"])
-    #   else
-    #     html_raw = markdown_to_html(m["text"], mathjax: mathjax_enabled)
-    #     if CONFIG["EXTRA_LOGGING"]
-    #       begin
-    #         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-    #         extra_log.puts "[#{Time.now}] Markdown raw HTML for mid=#{m["mid"]}"
-    #         extra_log.puts html_raw
-    #       ensure
-    #         extra_log.close if extra_log
-    #       end
-    #     end
-    #     m["html"] = html_raw
-    #   end
-    # end
-    
     filtered_messages
   end
   
@@ -1236,25 +1206,8 @@ module WebSocketHelper
   # @param content [String] The text content
   # @return [String, nil] The HTML content or nil
   def generate_html_for_message(message, content)
-    # Phase 2: Server-side HTML rendering disabled
-    # Client-side MarkdownRenderer now handles all rendering
+    # Server-side HTML rendering disabled; client handles Markdown/Monadic rendering
     return nil
-
-    # return nil unless message["role"] == "assistant"
-    #
-    # params = get_session_params
-    # html_content = if params["monadic"] &&
-    #                  defined?(APPS) &&
-    #                  params["app_name"] &&
-    #                  APPS[params["app_name"]]&.respond_to?(:monadic_html)
-    #                APPS[params["app_name"]].monadic_html(content)
-    #              else
-    #                mathjax_enabled = params["mathjax"].to_s == "true"
-    #                markdown_to_html(content, mathjax: mathjax_enabled)
-    #              end
-    #
-    # message["html"] = html_content
-    # html_content
   end
   
   # Update message status after edit
@@ -1889,39 +1842,37 @@ module WebSocketHelper
               end
 
               params = get_session_params
-              html = if params["monadic"]
-                       APPS[params["app_name"]].monadic_html(text_for_markdown)
-                     else
-                       mathjax_enabled = params["mathjax"].to_s == "true"
-                       markdown_to_html(text_for_markdown, mathjax: mathjax_enabled)
-                     end
 
-              # Restore ABC blocks after markdown processing
+              # Phase 2: Server-side HTML generation disabled
+              # Client-side MarkdownRenderer handles all rendering
+              # Keep text in original form with ABC blocks and citations intact
+
+              # For ABC notation, keep the HTML blocks in the text
+              # MarkdownRenderer will handle them properly
+              final_text = text_for_markdown
               abc_blocks.each_with_index do |block, index|
-                # Remove <p> wrapper if present
-                html.gsub!(/<p>\s*ABC_PLACEHOLDER_#{index}\s*<\/p>/, block)
-                # Direct replacement as fallback
-                html.gsub!("ABC_PLACEHOLDER_#{index}", block)
+                final_text = final_text.gsub("ABC_PLACEHOLDER_#{index}", block)
               end
 
+              # Add response suffix if present
               if params["response_suffix"]
-                html += "\n\n" + params["response_suffix"]
+                final_text += "\n\n" + params["response_suffix"]
               end
-              
-              # Add citation HTML back after markdown processing
+
+              # Add citation HTML back to text
               if citation_html
-                html += citation_html
+                final_text += citation_html
                 if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("WebSocket: Added citation HTML to final output", category: :api, level: :info)
+                  DebugHelper.debug("WebSocket: Added citation HTML to final text", category: :api, level: :info)
                 end
               end
 
              new_data = { "mid" => SecureRandom.hex(4),
                           "role" => "assistant",
-                          "text" => text,
-                          "html" => html,
-                          "lang" => detect_language(text),
+                          "text" => final_text,
+                          "lang" => detect_language(final_text),
                           "app_name" => params["app_name"],
+                          "monadic" => params["monadic"],
                           "active" => true } # detect_language is called only once here
 
               if thinking && !thinking.to_s.strip.empty?
@@ -2112,25 +2063,23 @@ module WebSocketHelper
             session[:messages] << new_data
             sync_session_state!
             
-            # Force the system to send a properly formatted message that will be displayed
+            # Phase 2: Send text content, client handles rendering
+            # The display_sample message includes both text and role info
             if obj["role"] == "user"
               badge = "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>"
-              html_content = "<p>" + text.gsub("<", "&lt;").gsub(">", "&gt;").gsub("\n", "<br>").gsub(/\s/, " ") + "</p>"
             elsif obj["role"] == "assistant"
               badge = "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>"
-              html_content = new_data["html"]
             else # system
               badge = "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>"
-              html_content = new_data["html"]
             end
-            
+
             # Send a dedicated message for immediate display
             display_message = {
               "type" => "display_sample",
               "content" => {
                 "mid" => message_id,
                 "role" => obj["role"],
-                "html" => html_content,
+                "text" => text,
                 "badge" => badge
               }
             }.to_json

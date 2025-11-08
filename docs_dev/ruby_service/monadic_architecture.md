@@ -1,4 +1,4 @@
-# Monadic Architecture Documentation
+# Monadic Architecture Documentation (Server-side Concepts)
 
 ## Overview
 
@@ -17,7 +17,7 @@ class MyApp < MonadicApp
       ctx["processed"] = true
       ctx
     }
-    monadic_html(result)                    # Render as HTML
+    result                                   # return JSON string (client renders HTML)
   end
 end
 ```
@@ -28,7 +28,6 @@ end
 lib/monadic/
 ├── core.rb           # Core functional programming concepts
 ├── json_handler.rb   # JSON serialization/deserialization
-├── html_renderer.rb  # HTML rendering for web UI
 ├── app_extensions.rb # MonadicApp integration layer
 └── README.md         # This documentation
 ```
@@ -39,8 +38,6 @@ lib/monadic/
 Monadic::Core
     ↑
 Monadic::JsonHandler
-    ↑
-Monadic::HtmlRenderer
     ↑
 Monadic::AppExtensions → MonadicApp
 ```
@@ -66,16 +63,7 @@ JSON-specific operations:
 - **`transform_json(json, &block)`** - Compatible with `monadic_map`
 - **`validate_json_structure(data, expected)`** - Structure validation
 
-### 3. Monadic::HtmlRenderer
-
-HTML rendering functionality:
-
-- **`render_as_html(monad, settings)`** - Compatible with `monadic_html`
-- **`json_to_html(hash, settings)`** - Core rendering logic
-- Handles collapsible context sections
-- Supports MathJax rendering
-
-### 4. Monadic::AppExtensions
+### 3. Monadic::AppExtensions
 
 Integration layer providing:
 
@@ -84,32 +72,7 @@ Integration layer providing:
 - Context management
 - Validation utilities
 
-## Usage Examples
-
-### Basic Usage (Backward Compatible)
-
-```ruby
-class MyApp < MonadicApp
-  include Monadic::AppExtensions
-  
-  def process_message(message)
-    # Wrap message with context
-    monad = monadic_unit(message)
-    
-    # Transform context
-    result = monadic_map(monad) do |context|
-      context["timestamp"] = Time.now
-      context["processed"] = true
-      context
-    end
-    
-    # Render as HTML
-    monadic_html(result)
-  end
-end
-```
-
-### Advanced Usage (New Features)
+## Usage Example
 
 ```ruby
 # Pure functional style

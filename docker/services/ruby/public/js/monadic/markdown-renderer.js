@@ -10,6 +10,8 @@
 (function(window) {
   'use strict';
 
+  console.log('[MarkdownRenderer] Module loading... Version: 2025-11-08-v2');
+
   // markdown-it instance (will be initialized when markdown-it is loaded)
   let md = null;
 
@@ -521,5 +523,6 @@
 
   // Export to global scope
   window.MarkdownRenderer = MarkdownRenderer;
+  console.log('[MarkdownRenderer] Module exported to window.MarkdownRenderer');
 
 })(window);

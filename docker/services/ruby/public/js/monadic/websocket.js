@@ -2,6 +2,8 @@
 // set up the websocket
 //////////////////////////////
 
+console.log('[WebSocket] Module loading... Version: 2025-11-08-v2 (with MarkdownRenderer integration)');
+
 // CRITICAL: Declare apps early to avoid TDZ errors in WebSocket handlers
 // WebSocket handlers set up by connect_websocket() need access to apps
 const apps = {};

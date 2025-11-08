@@ -228,21 +228,8 @@ app "MermaidGrapherOpenAI" do
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
 
-    define_tool "validate_mermaid_syntax", "Validate Mermaid diagram syntax before showing to user - ALWAYS use this" do
-      parameter :code, "string", "Mermaid diagram code to validate", required: true
-    end
-    
-    define_tool "analyze_mermaid_error", "Analyze Mermaid validation errors and get fix suggestions" do
-      parameter :code, "string", "Mermaid diagram code that has errors", required: true
-      parameter :error, "string", "Error message from validation", required: true
-    end
-    
-    define_tool "preview_mermaid", "Save a preview image of validated Mermaid diagram to shared folder" do
-      parameter :code, "string", "Validated Mermaid diagram code", required: true
-    end
-    
-    define_tool "fetch_mermaid_docs", "Get documentation URL for specific Mermaid diagram type" do
-      parameter :diagram_type, "string", "Type of diagram (e.g., flowchart, sequence, class)", required: true
+    define_tool "preview_mermaid", "Validate and save a preview image of Mermaid diagram to shared folder" do
+      parameter :code, "string", "Mermaid diagram code to validate and preview", required: true
     end
   end
 end

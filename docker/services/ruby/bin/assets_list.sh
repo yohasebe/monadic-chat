@@ -14,6 +14,7 @@ ASSETS=(
   "css,https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.1/themes/base/jquery-ui.min.css,jquery-ui.min.css"
   "css,https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css,all.min.css"
   "css,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.min.css,abcjs-audio.min.css"
+  "css,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css,github.min.css"
   
   # Example of how to add a new library
   # "css,https://cdn.example.com/newlib.min.css,newlib.min.css"
@@ -29,6 +30,8 @@ ASSETS=(
   "js,https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js,tex-mml-chtml.min.js"
   "js,https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js,mermaid.min.js"
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
+  "js,https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js,markdown-it.min.js"
+  "js,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js,highlight.min.js"
   
   # Font Awesome Webfonts
   "webfont,https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2,fa-solid-900.woff2"

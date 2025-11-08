@@ -48,6 +48,45 @@ let iosAudioQueue = [];
 let iosAudioElement = null;
 
 // Global audio queue for managing TTS playback order
+
+/**
+ * Unified message rendering helper
+ * Uses MarkdownRenderer for client-side rendering (Markdown + Monadic JSON)
+ * Falls back to msg.html for backward compatibility
+ *
+ * @param {object} msg - Message object with text/html and app_name
+ * @returns {string} Rendered HTML
+ */
+function renderMessage(msg) {
+  if (!msg) {
+    console.error('renderMessage: msg is null or undefined');
+    return '';
+  }
+
+  // Priority 1: Client-side rendering with MarkdownRenderer
+  if (msg.text && window.MarkdownRenderer) {
+    try {
+      return window.MarkdownRenderer.render(msg.text, { appName: msg.app_name });
+    } catch (err) {
+      console.error('MarkdownRenderer failed:', err);
+      // Fall through to fallback
+    }
+  }
+
+  // Priority 2: Server-rendered HTML (backward compatibility)
+  if (msg.html) {
+    return msg.html;
+  }
+
+  // Priority 3: Plain text fallback
+  if (msg.text) {
+    return msg.text;
+  }
+
+  // Last resort: empty string
+  console.warn(`Message ${msg.mid} has no renderable content`);
+  return '';
+}
 let globalAudioQueue = [];
 let isProcessingAudioQueue = false;
 let currentAudioSequenceId = null;
@@ -2575,6 +2614,9 @@ let loadedApp = "Chat";
   function appendCard(role, badge, html, lang, mid, status, images) {
     const htmlElement = createCard(role, badge, html, lang, mid, status, images);
     $("#discourse").append(htmlElement);
+    if (window.MarkdownRenderer) {
+      window.MarkdownRenderer.applyRenderers(htmlElement[0]);
+    }
     updateItemStates();
 
     const htmlContent = $("#discourse div.card:last");
@@ -3247,6 +3289,9 @@ let loadedApp = "Chat";
           []
         );
         $("#discourse").append(systemElement);
+        if (window.MarkdownRenderer) {
+          window.MarkdownRenderer.applyRenderers(systemElement[0]);
+        }
 
         // Auto-scroll if enabled
         if (autoScroll) {
@@ -3275,6 +3320,9 @@ let loadedApp = "Chat";
           []
         );
         $("#discourse").append(systemElement);
+        if (window.MarkdownRenderer) {
+          window.MarkdownRenderer.applyRenderers(systemElement[0]);
+        }
 
         // Auto-scroll if enabled
         if (autoScroll) {
@@ -4596,37 +4644,46 @@ let loadedApp = "Chat";
               const assistantCard = createCard(
                 "assistant",
                 badge,
-                msg.html || msg.text || "",
+                renderMessage(msg),
                 msg.lang,
                 msg.mid,
                 msg.active,
                 Array.isArray(msg.images) ? msg.images : []
               );
               $("#discourse").append(assistantCard);
+              if (window.MarkdownRenderer) {
+                window.MarkdownRenderer.applyRenderers(assistantCard[0]);
+              }
               break;
             }
             case "info": {
               const infoCard = createCard(
                 "info",
                 "<span class='text-secondary'><i class='fas fa-info-circle'></i></span> <span class='fw-bold fs-6 text-info'>Info</span>",
-                msg.html || msg.text || "",
+                renderMessage(msg),
                 msg.lang,
                 msg.mid,
                 msg.active
               );
               $("#discourse").append(infoCard);
+              if (window.MarkdownRenderer) {
+                window.MarkdownRenderer.applyRenderers(infoCard[0]);
+              }
               break;
             }
             case "system": {
               const systemCard = createCard(
                 "system",
                 "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-                msg.html || msg.text || "",
+                renderMessage(msg),
                 msg.lang,
                 msg.mid,
                 msg.active
               );
               $("#discourse").append(systemCard);
+              if (window.MarkdownRenderer) {
+                window.MarkdownRenderer.applyRenderers(systemCard[0]);
+              }
               break;
             }
             default:
@@ -4801,6 +4858,11 @@ let loadedApp = "Chat";
         if (data.html) {
           // Update the card with the HTML from server
           $cardText.html(data.html);
+
+          // Apply renderers to the updated content
+          if (window.MarkdownRenderer) {
+            window.MarkdownRenderer.applyRenderers($cardText[0]);
+          }
 
           // Check if we have preserved images from before editing
           const $preservedImages = $cardText.data('preservedImages');
@@ -5349,6 +5411,9 @@ let loadedApp = "Chat";
 
         // Append to discourse
         $("#discourse").append(cardElement);
+        if (window.MarkdownRenderer) {
+          window.MarkdownRenderer.applyRenderers(cardElement[0]);
+        }
 
         // Add message to messages array to ensure edit functionality works correctly
         // This ensures sample messages are treated consistently with API-generated messages

@@ -232,7 +232,10 @@
 
     <!-- ABC.js CSS (local or CDN) -->
     <link rel="stylesheet" href="vendor/css/abcjs-audio.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.min.css'">
-    
+
+    <!-- highlight.js CSS (local or CDN) -->
+    <link id="hljs-theme" rel="stylesheet" href="vendor/css/github.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
+
     <!-- Example of how to add a new library
     <link rel="stylesheet" href="vendor/css/newlib.min.css" onerror="this.onerror=null;this.href='https://cdn.example.com/newlib.min.css'">
     -->
@@ -1459,7 +1462,13 @@
 
     <!-- ABC.js (local or CDN) -->
     <script src="vendor/js/abcjs-basic-min.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js';"></script>
-    
+
+    <!-- markdown-it (local or CDN) -->
+    <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+
+    <!-- highlight.js (local or CDN) -->
+    <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+
     <!-- Debug configuration - must be loaded before all other scripts -->
     <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
 
@@ -1468,6 +1477,10 @@
       // Set AUTO_TTS_REALTIME_MODE from server CONFIG
       window.AUTO_TTS_REALTIME_MODE = <%= CONFIG["AUTO_TTS_REALTIME_MODE"] || false %>;
     </script>
+
+    <!-- Client-side rendering utilities (must be loaded before websocket.js) -->
+    <script src="js/monadic/syntax-highlight.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/markdown-renderer.js?timestamp=<%= @timestamp %>"></script>
 
     <script src="js/monadic/storage-helper.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/theme-manager.js?timestamp=<%= @timestamp %>"></script>

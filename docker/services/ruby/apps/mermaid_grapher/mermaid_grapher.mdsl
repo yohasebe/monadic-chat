@@ -215,21 +215,17 @@ app "MermaidGrapherOpenAI" do
     DO NOT repeatedly validate the same or similar code more than 3 times.
 
     ## Final Output Format
-    
+
     After validation and preview generation, respond with:
-    
+
     1. Status message:
        ✓ Diagram validated successfully
        📸 Preview saved as: [actual_filename.png] in your shared folder
-    
-    2. The mermaid diagram code in the following HTML format:
-       <div class="mermaid-code" label="Show/Hide Mermaid code">
-         <pre>
-           <code>
-Mermaid code goes here (without "mermaid" tags and Markdown code block)
-           </code>
-         </pre>
-       </div>
+
+    2. The mermaid diagram code in Markdown format:
+       ```mermaid
+       Mermaid code goes here
+       ```
 
     Important notes:
     - Keep diagram dimensions within 1800x600 pixels.

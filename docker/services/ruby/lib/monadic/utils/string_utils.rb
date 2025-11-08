@@ -701,97 +701,13 @@ module StringUtils
     end
   end
 
-  # Helper method to highlight code blocks with Rouge
+  # Phase 3: Rouge removed due to SIGSEGV bug on Ruby 3.4
+  # Client-side highlight.js now handles all syntax highlighting
   def self.highlight_code_blocks(html, theme_name: nil, theme_mode: nil)
-    return "" if html.nil?
-    
-    require 'cgi'
-    
-    # Ensure HTML is UTF-8 encoded
-    html = html.dup.force_encoding('UTF-8') if html.encoding != Encoding::UTF_8
+    return html if html.nil?
 
-    # Resolve theme settings once per call
-    theme_info = theme_name || CONFIG["ROUGE_THEME"] || "pastie:light"
-    base_theme, base_mode = theme_info.to_s.split(":")
-    mode = theme_mode || base_mode || "light"
-    theme = base_theme
-    
-    theme_mapping = {
-      "base16" => "Base16",
-      "bw" => "BlackWhiteTheme",
-      "monokai_sublime" => "MonokaiSublime",
-      "igor_pro" => "IgorPro",
-      "thankful_eyes" => "ThankfulEyes"
-    }
-    theme_class = theme_mapping[theme] || theme.capitalize
-
-    adjust_theme = lambda do
-      return unless ["base16", "github", "gruvbox"].include?(theme)
-      begin
-        theme_klass = Rouge::Themes.const_get(theme_class)
-        if mode == "dark"
-          theme_klass.dark! if theme_klass.respond_to?(:dark!)
-        else
-          theme_klass.light! if theme_klass.respond_to?(:light!)
-        end
-      rescue NameError
-        # Ignore missing theme class and continue with defaults
-      end
-    end
-
-    highlight_fragment = lambda do |language, code_content|
-      lang = language.to_s.strip
-      lang = "plaintext" if lang.empty?
-      
-      # Remove leftover spans and decode entities
-      plain_code = CGI.unescapeHTML(code_content.to_s.gsub(/<\/?span[^>]*>/m, ''))
-      
-      adjust_theme.call
-      
-      begin
-        lexer = Rouge::Lexer.find_fancy(lang) || Rouge::Lexers::PlainText.new
-      rescue StandardError
-        lexer = Rouge::Lexers::PlainText.new
-      end
-      
-      formatter = Rouge::Formatters::HTML.new
-      
-      begin
-        highlighted_code = formatter.format(lexer.lex(plain_code))
-      rescue StandardError
-        highlighted_code = plain_code
-      end
-      
-      "<div class=\"highlight language-#{lang} highlighter-rouge\"><pre class=\"highlight\"><code>#{highlighted_code}</code></pre></div>"
-    end
-
-    processed = html.gsub(/<pre lang="([^"]+)" style="[^"]*"><code>(.+?)<\/code><\/pre>/m) do
-      language = Regexp.last_match(1)
-      code_content = Regexp.last_match(2)
-      highlight_fragment.call(language, code_content)
-    end
-
-    processed.gsub(%r{<pre([^>]*)>\s*<code([^>]*)>([\s\S]*?)</code>\s*</pre>}m) do
-      pre_attrs = Regexp.last_match(1)
-      code_attrs = Regexp.last_match(2)
-      code_content = Regexp.last_match(3)
-      original = Regexp.last_match(0)
-      
-      # Skip if already highlighted
-      if pre_attrs.to_s.include?("highlight") || code_attrs.to_s.include?("highlight")
-        original
-      else
-        language = nil
-        class_attr = code_attrs.to_s[/class="([^"]*)"/, 1]
-        if class_attr
-          lang_match = class_attr.split.find { |cls| cls.start_with?("language-") }
-          language = lang_match[/language-([\w+\-]+)/, 1] if lang_match
-        end
-        language ||= code_attrs.to_s[/lang="([^"]+)"/, 1]
-        language ||= "plaintext"
-        highlight_fragment.call(language, code_content)
-      end
-    end
+    # No-op: just return HTML as-is, highlighting handled client-side
+    return html
   end
   
   # CommonMarker doesn't support options directly in to_html in this version

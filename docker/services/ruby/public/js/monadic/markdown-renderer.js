@@ -28,7 +28,13 @@
         linkify: true,
         typographer: true,
         highlight: function (code, lang) {
-          const escaped = md.utils.escapeHtml(code);
+          // Escape HTML manually (md is not yet available in this context)
+          const escaped = code
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
           const langClass = lang ? ` class="language-${lang}"` : '';
           return `<pre><code${langClass}>${escaped}</code></pre>`;
         }

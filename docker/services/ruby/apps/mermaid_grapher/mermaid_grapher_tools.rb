@@ -150,7 +150,7 @@ finally:
     )
   ensure
     # Clean up HTML file
-    File.delete(html_path) if defined?(html_path) && File.exist?(html_path)
+    File.delete(html_path) if html_path && File.exist?(html_path)
   end
   
   def analyze_mermaid_error(code:, error:)
@@ -451,9 +451,9 @@ finally:
     CMD
     
     result = run_bash_command(command: command)
-    
+
     # Clean up HTML file
-    File.delete(html_path) if File.exist?(html_path)
+    File.delete(html_path) if html_path && File.exist?(html_path)
     
     # run_bash_command returns a string, not a hash
     if result.is_a?(String)

@@ -93,10 +93,22 @@ options.add_argument(\\"--no-sandbox\\")
 options.add_argument(\\"--disable-dev-shm-usage\\")
 options.add_argument(\\"--window-size=1920,1080\\")
 
-driver = webdriver.Remote(
-    command_executor=\\"http://monadic-chat-selenium-container:4444/wd/hub\\",
-    options=options
-)
+# Try Docker network hostname first, fallback to localhost
+selenium_urls = [
+    \\"http://monadic-chat-selenium-container:4444/wd/hub\\",
+    \\"http://localhost:4444/wd/hub\\"
+]
+
+driver = None
+for url in selenium_urls:
+    try:
+        driver = webdriver.Remote(command_executor=url, options=options)
+        break
+    except Exception:
+        continue
+
+if not driver:
+    raise Exception(\\"Failed to connect to Selenium\\")
 
 try:
     driver.get(\\"file:///monadic/data/#{html_filename}\\")
@@ -426,10 +438,22 @@ options.add_argument(\\"--headless\\")
 options.add_argument(\\"--no-sandbox\\")
 options.add_argument(\\"--disable-dev-shm-usage\\")
 
-driver = webdriver.Remote(
-    command_executor=\\"http://monadic-chat-selenium-container:4444/wd/hub\\",
-    options=options
-)
+# Try Docker network hostname first, fallback to localhost
+selenium_urls = [
+    \\"http://monadic-chat-selenium-container:4444/wd/hub\\",
+    \\"http://localhost:4444/wd/hub\\"
+]
+
+driver = None
+for url in selenium_urls:
+    try:
+        driver = webdriver.Remote(command_executor=url, options=options)
+        break
+    except Exception:
+        continue
+
+if not driver:
+    raise Exception(\\"Failed to connect to Selenium\\")
 
 try:
     driver.get(\\"file:///monadic/data/#{html_filename}\\")

@@ -957,64 +957,15 @@ module StringUtils
       html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
     end
 
-    theme_mapping = {
-      "base16" => "Base16",
-      "bw" => "BlackWhiteTheme",
-      "monokai_sublime" => "MonokaiSublime",
-      "igor_pro" => "IgorPro",
-      "thankful_eyes" => "ThankfulEyes"
-    }
-
-    theme_mode = CONFIG["ROUGE_THEME"] || "pastie:light"
-
-    theme, mode = theme_mode.split(":")
-    mode = mode || "dark"
-
-    theme_class = theme_mapping[theme] || theme.capitalize
-
-    case theme
-    when "base16", "github", "gruvbox"
-      if mode == "dark"
-        Rouge::Themes.const_get(theme_class).dark!
-      else
-        Rouge::Themes.const_get(theme_class).light!
-      end
-    end
-
-
-    # Determine if this is a dark theme
-    is_dark_theme = mode == "dark"
-    
-    # Get theme object and apply fixes for dark themes if needed
-    theme_obj = Rouge::Themes.const_get(theme_class)
-    if is_dark_theme
-      # Use our custom theme fixer for dark themes
-      wrapped_theme = StringUtils::DarkThemeFixer.new(theme_obj, theme)
-      css = wrapped_theme.render(scope: ".highlight")
-    else
-      # Normal theme rendering for light themes
-      css = theme_obj.render(scope: ".highlight")
-    end
+    # Phase 3: Rouge theme CSS generation removed
+    # Client-side highlight.js now handles all syntax highlighting and theming
 
     # Restore bold placeholders
     all_bold_items.each_with_index do |content, index|
       html.gsub!("BOLD_PLACEHOLDER_#{index}", "<strong>#{CGI.escapeHTML(content)}</strong>")
     end
 
-    # Always include the necessary CSS for syntax highlighting
-    # But avoid duplicating it in each message by using a minimal inline style
-    html_with_css = <<~HTML
-    <style>
-    /* Minimal placeholder to reference the theme's CSS */
-    .highlight {
-      position: relative;  /* Ensure proper positioning of content */
-      overflow: auto;      /* Handle overflow properly */
-      border-radius: 4px;  /* Consistent styling */
-    }
-    </style>
-    #{html}
-    HTML
-    html_with_css
+    html
   end
 
   def convert_fenced_code_html(html)

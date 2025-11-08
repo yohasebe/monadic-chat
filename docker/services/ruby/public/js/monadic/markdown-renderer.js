@@ -13,6 +13,9 @@
   // markdown-it instance (will be initialized when markdown-it is loaded)
   let md = null;
 
+  // Track if Mermaid has been initialized
+  let mermaidInitialized = false;
+
   const MarkdownRenderer = {
     /**
      * Initialize markdown-it instance
@@ -39,6 +42,27 @@
           return `<pre><code${langClass}>${escaped}</code></pre>`;
         }
       });
+    },
+
+    /**
+     * Initialize Mermaid with configuration
+     * @private
+     */
+    _initMermaid: function() {
+      if (mermaidInitialized || typeof window.mermaid === 'undefined') {
+        return;
+      }
+
+      try {
+        window.mermaid.initialize({
+          startOnLoad: false,  // We manually control rendering
+          securityLevel: 'strict',
+          theme: 'default'
+        });
+        mermaidInitialized = true;
+      } catch (err) {
+        console.error('Failed to initialize Mermaid:', err);
+      }
     },
 
     // ===== Main Entry Point =====
@@ -409,6 +433,9 @@
         console.warn('MarkdownRenderer.applyRenderers: container is null');
         return;
       }
+
+      // Initialize Mermaid once
+      this._initMermaid();
 
       // 1. highlight.js
       if (window.SyntaxHighlight) {

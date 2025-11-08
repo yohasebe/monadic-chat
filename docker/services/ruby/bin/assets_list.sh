@@ -30,7 +30,7 @@ ASSETS=(
   "js,https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js,tex-mml-chtml.min.js"
   "js,https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js,mermaid.min.js"
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
-  "js,https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js,markdown-it.min.js"
+  "js,https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js,markdown-it.min.js"
   "js,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js,highlight.min.js"
   
   # Font Awesome Webfonts

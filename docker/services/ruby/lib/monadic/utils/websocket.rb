@@ -637,35 +637,39 @@ module WebSocketHelper
 
     params_for_render = params
     mathjax_enabled = params_for_render["mathjax"].to_s == "true"
+    # Phase 2: Server-side HTML rendering disabled
+    # Client-side MarkdownRenderer now handles all rendering
+    # No longer generating m["html"] field to avoid Rouge SIGSEGV bug
+
     # Convert markdown to HTML for assistant messages when needed
-    filtered_messages.each do |m|
-      next unless m["role"] == "assistant"
-
-      needs_render = m["html"].nil? || m["html"].to_s.include?("```")
-      next unless needs_render
-
-      app_name = params_for_render["app_name"]
-      if CONFIG["EXTRA_LOGGING"] && params_for_render["monadic"] && app_name
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Rendering with monadic_html for app=#{app_name}"
-      end
-      if params_for_render["monadic"] && defined?(APPS) && app_name &&
-         APPS[app_name]&.respond_to?(:monadic_html)
-        m["html"] = APPS[app_name].monadic_html(m["text"])
-      else
-        html_raw = markdown_to_html(m["text"], mathjax: mathjax_enabled)
-        if CONFIG["EXTRA_LOGGING"]
-          begin
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Markdown raw HTML for mid=#{m["mid"]}"
-            extra_log.puts html_raw
-          ensure
-            extra_log.close if extra_log
-          end
-        end
-        m["html"] = html_raw
-      end
-    end
+    # filtered_messages.each do |m|
+    #   next unless m["role"] == "assistant"
+    #
+    #   needs_render = m["html"].nil? || m["html"].to_s.include?("```")
+    #   next unless needs_render
+    #
+    #   app_name = params_for_render["app_name"]
+    #   if CONFIG["EXTRA_LOGGING"] && params_for_render["monadic"] && app_name
+    #     extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+    #     extra_log.puts "[#{Time.now}] Rendering with monadic_html for app=#{app_name}"
+    #   end
+    #   if params_for_render["monadic"] && defined?(APPS) && app_name &&
+    #      APPS[app_name]&.respond_to?(:monadic_html)
+    #     m["html"] = APPS[app_name].monadic_html(m["text"])
+    #   else
+    #     html_raw = markdown_to_html(m["text"], mathjax: mathjax_enabled)
+    #     if CONFIG["EXTRA_LOGGING"]
+    #       begin
+    #         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+    #         extra_log.puts "[#{Time.now}] Markdown raw HTML for mid=#{m["mid"]}"
+    #         extra_log.puts html_raw
+    #       ensure
+    #         extra_log.close if extra_log
+    #       end
+    #     end
+    #     m["html"] = html_raw
+    #   end
+    # end
     
     filtered_messages
   end
@@ -1232,21 +1236,25 @@ module WebSocketHelper
   # @param content [String] The text content
   # @return [String, nil] The HTML content or nil
   def generate_html_for_message(message, content)
-    return nil unless message["role"] == "assistant"
+    # Phase 2: Server-side HTML rendering disabled
+    # Client-side MarkdownRenderer now handles all rendering
+    return nil
 
-    params = get_session_params
-    html_content = if params["monadic"] &&
-                     defined?(APPS) &&
-                     params["app_name"] &&
-                     APPS[params["app_name"]]&.respond_to?(:monadic_html)
-                   APPS[params["app_name"]].monadic_html(content)
-                 else
-                   mathjax_enabled = params["mathjax"].to_s == "true"
-                   markdown_to_html(content, mathjax: mathjax_enabled)
-                 end
-    
-    message["html"] = html_content
-    html_content
+    # return nil unless message["role"] == "assistant"
+    #
+    # params = get_session_params
+    # html_content = if params["monadic"] &&
+    #                  defined?(APPS) &&
+    #                  params["app_name"] &&
+    #                  APPS[params["app_name"]]&.respond_to?(:monadic_html)
+    #                APPS[params["app_name"]].monadic_html(content)
+    #              else
+    #                mathjax_enabled = params["mathjax"].to_s == "true"
+    #                markdown_to_html(content, mathjax: mathjax_enabled)
+    #              end
+    #
+    # message["html"] = html_content
+    # html_content
   end
   
   # Update message status after edit
@@ -2090,15 +2098,16 @@ module WebSocketHelper
             # Add images if present
             new_data["images"] = images if images
 
-            # Format HTML content based on role
-            if obj["role"] == "assistant"
-              mathjax_enabled = params["mathjax"].to_s == "true"
-              new_data["html"] = markdown_to_html(text, mathjax: mathjax_enabled)
-            else
-              # For user and system roles, preserve line breaks
-              new_data["html"] = text
-            end
-            
+            # Phase 2: Server-side HTML rendering disabled
+            # Client-side MarkdownRenderer now handles all rendering
+            # if obj["role"] == "assistant"
+            #   mathjax_enabled = params["mathjax"].to_s == "true"
+            #   new_data["html"] = markdown_to_html(text, mathjax: mathjax_enabled)
+            # else
+            #   # For user and system roles, preserve line breaks
+            #   new_data["html"] = text
+            # end
+
             # First add to session
             session[:messages] << new_data
             sync_session_state!

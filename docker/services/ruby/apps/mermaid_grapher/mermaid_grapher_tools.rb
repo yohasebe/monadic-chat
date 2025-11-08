@@ -312,11 +312,14 @@ finally:
   end
 
   def run_full_validation(code, source: nil)
+    puts "[DEBUG run_full_validation] Starting validation, source: #{source}"
     result = begin
+      puts "[DEBUG run_full_validation] Attempting Selenium validation..."
       actual_validation = validate_with_mermaid_cli(code)
+      puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}"
       build_validation_payload(actual_validation)
     rescue => e
-      puts "Selenium validation failed: #{e.message}, falling back to static validation"
+      puts "[DEBUG run_full_validation] Selenium validation failed: #{e.message}, falling back to static validation"
       build_validation_payload(static_validation(code))
     end
 
@@ -331,6 +334,7 @@ finally:
       result[:next_action] = 'revise_code' if result[:next_action] == 'request_preview'
     end
 
+    puts "[DEBUG run_full_validation] Final result: success=#{result[:success]}, workflow_status=#{result[:workflow_status]}"
     result
   end
 
@@ -452,11 +456,14 @@ finally:
     
     result = run_bash_command(command: command)
 
+    puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}"
+
     # Clean up HTML file
     File.delete(html_path) if html_path && File.exist?(html_path)
-    
+
     # run_bash_command returns a string, not a hash
     if result.is_a?(String)
+      puts "[DEBUG validate_with_mermaid_cli] Result is String, checking for SUCCESS..."
       if result.include?("SUCCESS")
         { 
           valid: true, 
@@ -465,14 +472,17 @@ finally:
       else
         error_match = result.match(/ERROR: (.+)/)
         error_msg = error_match ? error_match[1] : "Unknown validation error"
-        { 
-          valid: false, 
+        puts "[DEBUG validate_with_mermaid_cli] No SUCCESS or ERROR found. Returning validation failed."
+        puts "[DEBUG validate_with_mermaid_cli] Result preview: #{result[0..200]}"
+        {
+          valid: false,
           errors: [error_msg]
         }
       end
     else
-      { 
-        valid: false, 
+      puts "[DEBUG validate_with_mermaid_cli] Result is NOT a String: #{result.class}"
+      {
+        valid: false,
         errors: ["Selenium validation failed: #{result}"]
       }
     end

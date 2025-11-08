@@ -450,7 +450,11 @@
         try {
           const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed])');
           if (mermaidElements.length > 0) {
-            window.mermaid.init(undefined, mermaidElements);
+            // Mermaid v11+ uses run() API instead of init()
+            mermaidElements.forEach(el => {
+              el.setAttribute('data-processed', 'true');
+            });
+            window.mermaid.run({ nodes: Array.from(mermaidElements) });
           }
         } catch (err) {
           console.error('Mermaid rendering failed:', err);

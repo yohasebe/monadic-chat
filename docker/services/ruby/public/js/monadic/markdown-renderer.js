@@ -382,6 +382,7 @@
       text = text.replace(/```mermaid\n([\s\S]+?)```/g, (match, content) => {
         const index = mermaidBlocks.length;
         mermaidBlocks.push(content);
+        console.log(`[MarkdownRenderer] Mermaid block ${index} detected:`, content.substring(0, 50) + '...');
         return `MERMAID_BLOCK_PLACEHOLDER_${index}`;
       });
 
@@ -416,6 +417,7 @@
           new RegExp(`MERMAID_BLOCK_PLACEHOLDER_${index}`, 'g'),
           `<div class="mermaid">${content}</div>`
         );
+        console.log(`[MarkdownRenderer] Mermaid block ${index} restored to HTML`);
       });
 
       return html;
@@ -476,16 +478,27 @@
       if (window.mermaid) {
         try {
           const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed])');
+          console.log(`[MarkdownRenderer] Found ${mermaidElements.length} mermaid elements to render`);
           if (mermaidElements.length > 0) {
             // Mermaid v11+ uses run() API instead of init()
-            mermaidElements.forEach(el => {
+            mermaidElements.forEach((el, idx) => {
               el.setAttribute('data-processed', 'true');
+              console.log(`[MarkdownRenderer] Mermaid element ${idx}:`, el.textContent.substring(0, 50) + '...');
             });
-            window.mermaid.run({ nodes: Array.from(mermaidElements) });
+            console.log('[MarkdownRenderer] Calling mermaid.run()...');
+            window.mermaid.run({ nodes: Array.from(mermaidElements) })
+              .then(() => {
+                console.log('[MarkdownRenderer] Mermaid rendering completed successfully');
+              })
+              .catch(err => {
+                console.error('[MarkdownRenderer] Mermaid run() failed:', err);
+              });
           }
         } catch (err) {
           console.error('Mermaid rendering failed:', err);
         }
+      } else {
+        console.warn('[MarkdownRenderer] window.mermaid is not available');
       }
     },
 

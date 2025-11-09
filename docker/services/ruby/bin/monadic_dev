@@ -89,27 +89,56 @@ def start_server(opts)
     puts "\n" + "="*80
     puts "⚠️  Docker Desktop daemon is not running"
     puts "="*80
-    puts "\nAttempting to restart Docker Desktop..."
+    puts "\nAttempting to start Docker Desktop..."
 
-    # Try to restart Docker Desktop based on platform
+    # First, try using Docker Desktop CLI (available in recent versions)
+    if system("docker desktop version > /dev/null 2>&1")
+      puts "Using Docker Desktop CLI to restart..."
+
+      # Use 'docker desktop restart' for a clean restart
+      unless system("docker desktop restart")
+        puts "\n⚠️  Failed to restart Docker Desktop via CLI."
+        puts "Trying alternative method..."
+      else
+        puts "Docker Desktop restart command executed. Waiting for daemon..."
+
+        # Wait for Docker daemon to be ready (max 60 seconds)
+        60.times do |i|
+          sleep 1
+          if system("docker info > /dev/null 2>&1")
+            puts "\n✅ Docker daemon is now running\n"
+            break
+          end
+          print "." if i % 5 == 0
+
+          if i == 59
+            puts "\n\n⚠️  Docker daemon did not start within 60 seconds."
+            puts "Please check Docker Desktop manually and try again.\n"
+            exit 1
+          end
+        end
+
+        # Successfully started, skip the fallback methods
+        return
+      end
+    end
+
+    # Fallback to platform-specific methods if Docker Desktop CLI is not available
     case RUBY_PLATFORM
     when /darwin/
-      # On macOS, quit Docker Desktop first if it's running, then start it
-      puts "Quitting Docker Desktop if running..."
-      system("osascript -e 'quit app \"Docker\"' 2>/dev/null")
-      sleep 2
+      puts "Using macOS application launch method..."
 
-      puts "Starting Docker Desktop..."
+      # Try to start Docker Desktop using 'open' command
       unless system("open -a Docker")
         puts "\n⚠️  Failed to start Docker Desktop."
         puts "Please start Docker Desktop manually and try again.\n"
         exit 1
       end
 
-      puts "Waiting for Docker daemon to start (this may take up to 2 minutes)..."
+      puts "Waiting for Docker daemon to start..."
 
-      # Wait for Docker daemon to be ready (max 120 seconds for full restart)
-      120.times do |i|
+      # Wait for Docker daemon to be ready (max 60 seconds)
+      60.times do |i|
         sleep 1
         if system("docker info > /dev/null 2>&1")
           puts "\n✅ Docker daemon is now running\n"
@@ -117,16 +146,17 @@ def start_server(opts)
         end
         print "." if i % 5 == 0
 
-        if i == 119
-          puts "\n\n⚠️  Docker daemon did not start within 2 minutes."
+        if i == 59
+          puts "\n\n⚠️  Docker daemon did not start within 60 seconds."
           puts "Please check Docker Desktop manually and try again.\n"
           exit 1
         end
       end
 
     when /linux/
+      puts "Using Linux service management..."
+
       # On Linux, restart docker service
-      puts "Restarting Docker service..."
       if system("systemctl --user restart docker-desktop 2>/dev/null") || system("sudo systemctl restart docker")
         puts "Waiting for Docker daemon..."
 

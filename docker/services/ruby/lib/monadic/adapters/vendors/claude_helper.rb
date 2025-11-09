@@ -664,26 +664,39 @@ module ClaudeHelper
           body["context_management"] = app_context_management
         else
           # Use default context management configuration
-          # Trigger at 100K tokens, keep 5 recent tool uses, clear at least 10K tokens
-          body["context_management"] = {
-            "edits" => [
-              {
-                "type" => "clear_tool_uses_20250919",
-                "trigger" => {
-                  "type" => "input_tokens",
-                  "value" => 100000
-                },
-                "keep" => {
-                  "type" => "tool_uses",
-                  "value" => 5
-                },
-                "clear_at_least" => {
-                  "type" => "input_tokens",
-                  "value" => 10000
-                }
+          edits = []
+
+          # Add thinking block clearing if thinking is enabled
+          # IMPORTANT: clear_thinking must come FIRST in the edits array
+          if budget_tokens
+            edits << {
+              "type" => "clear_thinking_20251015",
+              "keep" => {
+                "type" => "thinking_turns",
+                "value" => 1  # Keep thinking blocks from last assistant turn
               }
-            ]
+            }
+          end
+
+          # Add tool result clearing
+          # Trigger at 100K tokens, keep 5 recent tool uses, clear at least 10K tokens
+          edits << {
+            "type" => "clear_tool_uses_20250919",
+            "trigger" => {
+              "type" => "input_tokens",
+              "value" => 100000
+            },
+            "keep" => {
+              "type" => "tool_uses",
+              "value" => 5
+            },
+            "clear_at_least" => {
+              "type" => "input_tokens",
+              "value" => 10000
+            }
           }
+
+          body["context_management"] = { "edits" => edits }
         end
 
         # Add beta header for context management

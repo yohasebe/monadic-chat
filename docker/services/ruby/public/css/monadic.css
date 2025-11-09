@@ -476,6 +476,10 @@ a:focus-visible {
   font-size: 1.7rem;
   text-shadow: 0 1px 3px rgba(255, 193, 7, 0.25);
 }
+#main-nav .nav-actions {
+  display: flex !important;
+  align-items: center !important;
+}
 #main-nav .nav-actions .btn {
   padding: var(--spacing-sm);
   background: transparent;
@@ -498,6 +502,8 @@ a:focus-visible {
   }
   #main-nav .nav-actions {
     gap: 0.5rem;
+    display: flex !important;
+    align-items: center !important;
   }
 }
 /* Toggle Menu Button Border for Visibility */
@@ -507,9 +513,9 @@ a:focus-visible {
   background-color: transparent !important;
   border: 1px solid rgba(0, 0, 0, 0.15) !important; /* Visible but subtle border */
   border-radius: 4px;
-  /* Fixed size for toggle menu button */
-  width: 28px;
-  height: 28px;
+  /* Fixed size for toggle menu button (matches logo height in mobile view) */
+  width: 2rem;
+  height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3094,16 +3100,19 @@ h1 {
 @media (max-width: 767px) {
   #toggle-menu {
     position: fixed !important;
-    margin-top: 0 !important;
-    top: 18px !important; /* Center vertically in navbar (65px height) - adjusted for perfect centering */
+    margin: 0 !important;
+    /* Center vertically by aligning button center with navbar center */
+    /* Navbar height: 65px, button height: 2rem (32px) */
+    /* Vertical center: (65px - 32px) / 2 = 16.5px from top */
+    top: 16.5px !important;
     right: 15px !important;
     z-index: 1100 !important;
   }
-  
+
   /* Adjust cancel button in mobile view */
   #cancel_query {
     position: fixed !important;
-    top: 18px !important; /* Center vertically in navbar (65px height) - adjusted for perfect centering */
+    top: 16.5px !important; /* Match toggle button vertical position */
     right: 65px !important;
     z-index: 1100 !important;
   }
@@ -3715,6 +3724,11 @@ i.fas.fa-bolt,
   border-top: none !important;
   border-bottom: 1px solid var(--border-light) !important;
   box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 65px !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 .dark-theme #main-nav,
@@ -3729,6 +3743,7 @@ i.fas.fa-bolt,
   align-items: center !important;
   justify-content: space-between !important;
   height: 65px !important;
+  margin: 0 !important;
   padding: 0 1rem !important;
   border: 0 !important;
 }
@@ -3737,7 +3752,7 @@ i.fas.fa-bolt,
   display: inline-flex !important;
   align-items: center !important;
   gap: 0.5rem;
-  height: 100% !important;
+  height: auto !important;
   margin: 0 !important;
   padding: 0 !important;
   flex: 0 0 auto !important;
@@ -3747,7 +3762,7 @@ i.fas.fa-bolt,
 #main-nav .navbar-brand.reset-area .nav-text {
   display: inline-flex !important;
   align-items: center !important;
-  height: 100% !important;
+  height: auto !important;
   margin: 0 !important;
   padding: 0 !important;
 }
@@ -3755,6 +3770,8 @@ i.fas.fa-bolt,
 #main-nav .navbar-brand.reset-area .nav-text {
   gap: 0.15rem;
   line-height: 1;
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
 #main-nav .navbar-brand.reset-area .nav-logo,
@@ -3763,6 +3780,7 @@ i.fas.fa-bolt,
   height: 2rem !important;
   width: auto !important;
   margin: 0 0.5rem 0 0 !important;
+  vertical-align: middle !important;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
@@ -3781,5 +3799,6 @@ i.fas.fa-bolt,
   #main-nav .navbar-brand.reset-area .nav-text .text-main,
   #main-nav .navbar-brand.reset-area .nav-text .text-highlight {
     font-size: 1.2rem !important;
+    line-height: 1.75rem !important;
   }
 }

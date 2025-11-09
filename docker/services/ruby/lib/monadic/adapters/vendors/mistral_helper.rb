@@ -22,9 +22,17 @@ module MistralHelper
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
-  OPEN_TIMEOUT   = (CONFIG["MISTRAL_OPEN_TIMEOUT"]&.to_i || 5)
-  READ_TIMEOUT   = (CONFIG["MISTRAL_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT  = (CONFIG["MISTRAL_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["MISTRAL_OPEN_TIMEOUT"]&.to_i || 5) : 5
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["MISTRAL_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["MISTRAL_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
   MAX_RETRIES    = 5
   RETRY_DELAY    = 1
   # ENV key for emergency override
@@ -255,9 +263,9 @@ module MistralHelper
     MAX_RETRIES.times do
       begin
         response = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         break if response && response.status && response.status.success?
@@ -786,9 +794,9 @@ module MistralHelper
     end
 
     begin
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                        write: WRITE_TIMEOUT,
-                        read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                        write: write_timeout,
+                        read: read_timeout).post(target_uri, json: body)
 
       unless res.status.success?
         begin

@@ -17,9 +17,17 @@ module GrokHelper
   # ENV key for emergency override
   GROK_LEGACY_MODE_ENV = "GROK_LEGACY_MODE"
 
-  OPEN_TIMEOUT = (CONFIG["GROK_OPEN_TIMEOUT"]&.to_i || 20)
-  READ_TIMEOUT = (CONFIG["GROK_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["GROK_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["GROK_OPEN_TIMEOUT"]&.to_i || 20) : 20
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["GROK_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["GROK_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -211,9 +219,9 @@ module GrokHelper
     
     res = nil
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                       write: WRITE_TIMEOUT,
-                       read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                       write: write_timeout,
+                       read: read_timeout).post(target_uri, json: body)
       break if res && res.status && res.status.success?
       sleep RETRY_DELAY
     end
@@ -892,9 +900,9 @@ module GrokHelper
     end
 
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       break if res.status.success?
 
       sleep RETRY_DELAY

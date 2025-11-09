@@ -55,9 +55,18 @@ module GeminiHelper
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
-  OPEN_TIMEOUT = (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10)
-  READ_TIMEOUT = (CONFIG["GEMINI_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10) : 10
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["GEMINI_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    120
+  end
+
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
   IMAGE_GENERATION_MODELS = {
@@ -67,7 +76,6 @@ module GeminiHelper
     "imagen4-fast" => "imagen-4.0-fast-generate-001"
   }.freeze
   IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
-  WRITE_TIMEOUT = 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   
@@ -318,9 +326,9 @@ module GeminiHelper
     begin
       MAX_RETRIES.times do |attempt|
         response = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         # Break if successful
@@ -1346,9 +1354,9 @@ module GeminiHelper
     http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       if res.status.success?
         break
       end

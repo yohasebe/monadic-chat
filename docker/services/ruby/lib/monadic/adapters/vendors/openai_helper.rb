@@ -29,9 +29,17 @@ module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
-  OPEN_TIMEOUT = (CONFIG["OPENAI_OPEN_TIMEOUT"]&.to_i || 20)
-  READ_TIMEOUT = (CONFIG["OPENAI_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["OPENAI_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["OPENAI_OPEN_TIMEOUT"]&.to_i || 20) : 20
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["OPENAI_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["OPENAI_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -427,9 +435,9 @@ module OpenAIHelper
    
     res = nil
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       break if res && res.status && res.status.success?
       sleep RETRY_DELAY
     end
@@ -1583,21 +1591,21 @@ module OpenAIHelper
     # Also extend timeout for reasoning models with medium/high effort
     timeout_settings = if use_responses_api
                         {
-                          connect: OPEN_TIMEOUT,
-                          write: WRITE_TIMEOUT,
+                          connect: open_timeout,
+                          write: write_timeout,
                           read: 1200  # 20 minutes for GPT-5-Codex and o3-pro
                         }
                       elsif reasoning_model && reasoning_effort && %w[medium high].include?(reasoning_effort.to_s.downcase)
                         {
-                          connect: OPEN_TIMEOUT,
-                          write: WRITE_TIMEOUT,
+                          connect: open_timeout,
+                          write: write_timeout,
                           read: 600  # 10 minutes for reasoning models with medium/high effort
                         }
                       else
                         {
-                          connect: OPEN_TIMEOUT,
-                          write: WRITE_TIMEOUT,
-                          read: READ_TIMEOUT  # 2 minutes for standard models
+                          connect: open_timeout,
+                          write: write_timeout,
+                          read: read_timeout  # 2 minutes for standard models
                         }
                       end
 

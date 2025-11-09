@@ -18,9 +18,17 @@ module PerplexityHelper
   # ENV key for emergency override (optional)
   PERPLEXITY_LEGACY_MODE_ENV = "PERPLEXITY_LEGACY_MODE"
 
-  OPEN_TIMEOUT = (CONFIG["PERPLEXITY_OPEN_TIMEOUT"]&.to_i || 5)
-  READ_TIMEOUT = (CONFIG["PERPLEXITY_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["PERPLEXITY_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["PERPLEXITY_OPEN_TIMEOUT"]&.to_i || 5) : 5
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["PERPLEXITY_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["PERPLEXITY_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -103,9 +111,9 @@ module PerplexityHelper
       MAX_RETRIES.times do
         begin
           response = http.timeout(
-            connect: OPEN_TIMEOUT,
-            write: WRITE_TIMEOUT,
-            read: READ_TIMEOUT
+            connect: open_timeout,
+            write: write_timeout,
+            read: read_timeout
           ).post(target_uri, json: body)
           
           break if response && response.status && response.status.success?
@@ -241,9 +249,9 @@ module PerplexityHelper
     MAX_RETRIES.times do
       begin
         response = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         break if response && response.status && response.status.success?
@@ -818,9 +826,9 @@ module PerplexityHelper
 
     
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       break if res.status.success?
 
       sleep RETRY_DELAY

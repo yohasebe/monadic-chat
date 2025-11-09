@@ -21,9 +21,17 @@ module CohereHelper
   MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
-  OPEN_TIMEOUT = (CONFIG["COHERE_OPEN_TIMEOUT"]&.to_i || 10)
-  READ_TIMEOUT = (CONFIG["COHERE_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["COHERE_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["COHERE_OPEN_TIMEOUT"]&.to_i || 10) : 10
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["COHERE_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["COHERE_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   VALID_ROLES = %w[user assistant system tool].freeze
@@ -347,9 +355,9 @@ module CohereHelper
     # Simple retry logic
     MAX_RETRIES.times do |attempt|
       response = http.timeout(
-        connect: OPEN_TIMEOUT,
-        write: WRITE_TIMEOUT,
-        read: READ_TIMEOUT
+        connect: open_timeout,
+        write: write_timeout,
+        read: read_timeout
       ).post(target_uri, json: body)
       
       break if response&.status&.success?
@@ -1466,9 +1474,9 @@ module CohereHelper
     MAX_RETRIES.times do |i|
       begin
         res = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         break if res.status.success?

@@ -18,9 +18,17 @@ module DeepSeekHelper
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
-  OPEN_TIMEOUT = (CONFIG["DEEPSEEK_OPEN_TIMEOUT"]&.to_i || 10)
-  READ_TIMEOUT = (CONFIG["DEEPSEEK_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["DEEPSEEK_WRITE_TIMEOUT"]&.to_i || 120)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["DEEPSEEK_OPEN_TIMEOUT"]&.to_i || 10) : 10
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["DEEPSEEK_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["DEEPSEEK_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   # ENV key for emergency override
@@ -323,9 +331,9 @@ module DeepSeekHelper
     MAX_RETRIES.times do
       begin
         response = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         break if response && response.status && response.status.success?
@@ -715,9 +723,9 @@ module DeepSeekHelper
     http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       if res.status.success?
         break
       end

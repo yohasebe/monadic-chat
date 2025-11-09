@@ -23,11 +23,21 @@ module ClaudeHelper
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.anthropic.com/v1"
-  OPEN_TIMEOUT = (CONFIG["CLAUDE_OPEN_TIMEOUT"]&.to_i || 10)
-  READ_TIMEOUT = (CONFIG["CLAUDE_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
-  WRITE_TIMEOUT = (CONFIG["CLAUDE_WRITE_TIMEOUT"]&.to_i || 120)
   MAX_RETRIES = 5
   RETRY_DELAY = 2
+
+  # Timeout configuration (as methods to allow CONFIG access)
+  def self.open_timeout
+    defined?(CONFIG) ? (CONFIG["CLAUDE_OPEN_TIMEOUT"]&.to_i || 10) : 10
+  end
+
+  def self.read_timeout
+    defined?(CONFIG) ? (CONFIG["CLAUDE_READ_TIMEOUT"]&.to_i || 600) : 600
+  end
+
+  def self.write_timeout
+    defined?(CONFIG) ? (CONFIG["CLAUDE_WRITE_TIMEOUT"]&.to_i || 120) : 120
+  end
 
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4
@@ -283,9 +293,9 @@ module ClaudeHelper
     
     res = nil
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                       write: WRITE_TIMEOUT,
-                       read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                       write: write_timeout,
+                       read: read_timeout).post(target_uri, json: body)
       break if res && res.status && res.status.success?
       sleep RETRY_DELAY
     end
@@ -1162,9 +1172,9 @@ module ClaudeHelper
           # Retry attempt #{retry_count + 1}/#{MAX_RETRIES}
         end
         
-        res = http.timeout(connect: OPEN_TIMEOUT,
-                           write: WRITE_TIMEOUT,
-                           read: READ_TIMEOUT).post(target_uri, json: body)
+        res = http.timeout(connect: open_timeout,
+                           write: write_timeout,
+                           read: read_timeout).post(target_uri, json: body)
         
         if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
           # Response status: #{res.status}

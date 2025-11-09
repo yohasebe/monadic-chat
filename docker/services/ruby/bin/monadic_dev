@@ -84,12 +84,12 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Check if Docker is running, and start it if not
+  # Check if Docker is running, and start it if not (same as Electron app)
   unless system("docker info > /dev/null 2>&1")
     puts "\n" + "="*80
     puts "⚠️  Docker Desktop is not running"
     puts "="*80
-    puts "\nStarting Docker Desktop..."
+    puts "\nStarting Docker Desktop...\n"
 
     case RUBY_PLATFORM
     when /darwin/
@@ -99,50 +99,16 @@ def start_server(opts)
         puts "Please start Docker Desktop manually and try again.\n"
         exit 1
       end
-
-      # Wait for Docker daemon to start (same as Electron app: up to 120 seconds)
-      puts "Waiting for Docker daemon to start (this may take up to 2 minutes)..."
-
-      120.times do |i|
-        sleep 1
-        if system("docker info > /dev/null 2>&1")
-          puts "\n✅ Docker Desktop is now running\n"
-          break
-        end
-        # Show progress every 10 seconds
-        print "." if i > 0 && i % 10 == 0
-
-        if i == 119
-          puts "\n\n⚠️  Docker daemon did not start within 2 minutes."
-          puts "Please check Docker Desktop manually and try again.\n"
-          exit 1
-        end
-      end
+      puts "Docker Desktop startup initiated. Waiting for daemon will be handled by Docker Compose.\n"
 
     when /linux/
-      # On Linux, restart docker service
-      if system("systemctl --user restart docker-desktop 2>/dev/null") || system("sudo systemctl restart docker")
-        puts "Waiting for Docker daemon..."
-
-        60.times do |i|
-          sleep 1
-          if system("docker info > /dev/null 2>&1")
-            puts "\n✅ Docker daemon is now running\n"
-            break
-          end
-          print "." if i % 10 == 0
-
-          if i == 59
-            puts "\n\n⚠️  Docker daemon did not start within 60 seconds."
-            puts "Please check Docker service manually and try again.\n"
-            exit 1
-          end
-        end
-      else
-        puts "\n⚠️  Failed to restart Docker service."
-        puts "Please restart Docker manually and try again.\n"
+      # On Linux, start docker service
+      unless system("systemctl --user start docker-desktop 2>/dev/null") || system("sudo systemctl start docker")
+        puts "\n⚠️  Failed to start Docker service."
+        puts "Please start Docker service manually and try again.\n"
         exit 1
       end
+      puts "Docker service startup initiated. Waiting for daemon will be handled by Docker Compose.\n"
 
     else
       puts "\nUnsupported platform: #{RUBY_PLATFORM}"

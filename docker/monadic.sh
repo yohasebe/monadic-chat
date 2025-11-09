@@ -899,28 +899,9 @@ check_docker_disk_space() {
     # Output the complete table as one HTML message
     echo "[HTML]: ${html_table}"
 
-    # Extract total reclaimable space (sum of all types)
-    local total_reclaimable=$(${DOCKER} system df --format "{{.Size}}\t{{.Reclaimable}}" 2>/dev/null | awk '{
-      # Parse size (e.g., "10.5GB" or "500MB")
-      if ($2 ~ /GB/) {
-        gsub(/GB/, "", $2)
-        print $2
-      } else if ($2 ~ /MB/) {
-        gsub(/MB/, "", $2)
-        print $2 / 1024
-      }
-    }' | awk '{s+=$1} END {print s}')
-
-    # Check if we have enough space (need at least 15GB for safe build with LaTeX)
-    if [ -n "$total_reclaimable" ]; then
-      local reclaimable_int=$(echo "$total_reclaimable" | awk '{printf "%.0f", $1}')
-
-      if [ "$reclaimable_int" -lt 15 ]; then
-        echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #FFA500;'></i><b>Warning:</b> Docker may be running low on disk space.</p>"
-        echo "[HTML]: <p>Building containers with LaTeX requires approximately 15-20GB of free space.</p>"
-        echo "[HTML]: <p>Consider running: <code>docker system prune -a</code> to free up space, or increase Docker Desktop's disk limit in Settings → Resources → Disk image size.</p>"
-      fi
-    fi
+    # Note: We no longer warn based on reclaimable space, as it's not a reliable
+    # indicator of available disk space. Docker will fail with clear error messages
+    # if it actually runs out of space during builds.
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color:#61b0ff;'></i>Unable to check Docker disk usage. Proceeding with build...</p>"
   fi

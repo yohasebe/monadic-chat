@@ -91,48 +91,22 @@ def start_server(opts)
     puts "="*80
     puts "\nAttempting to start Docker Desktop..."
 
-    # First, try using Docker Desktop CLI (available in recent versions)
-    if system("docker desktop version > /dev/null 2>&1")
-      puts "Using Docker Desktop CLI to restart..."
-
-      # Use 'docker desktop restart' for a clean restart
-      unless system("docker desktop restart")
-        puts "\n⚠️  Failed to restart Docker Desktop via CLI."
-        puts "Trying alternative method..."
-      else
-        puts "Docker Desktop restart command executed. Waiting for daemon..."
-
-        # Wait for Docker daemon to be ready (max 60 seconds)
-        60.times do |i|
-          sleep 1
-          if system("docker info > /dev/null 2>&1")
-            puts "\n✅ Docker daemon is now running\n"
-            break
-          end
-          print "." if i % 5 == 0
-
-          if i == 59
-            puts "\n\n⚠️  Docker daemon did not start within 60 seconds."
-            puts "Please check Docker Desktop manually and try again.\n"
-            exit 1
-          end
-        end
-
-        # Successfully started, skip the fallback methods
-        return
-      end
-    end
-
-    # Fallback to platform-specific methods if Docker Desktop CLI is not available
     case RUBY_PLATFORM
     when /darwin/
-      puts "Using macOS application launch method..."
+      # On macOS, ensure Docker Desktop app is running first
+      puts "Ensuring Docker Desktop application is running..."
+      system("open -a Docker")
 
-      # Try to start Docker Desktop using 'open' command
-      unless system("open -a Docker")
-        puts "\n⚠️  Failed to start Docker Desktop."
-        puts "Please start Docker Desktop manually and try again.\n"
-        exit 1
+      # Give Docker Desktop app a moment to start
+      sleep 3
+
+      # Check if Docker Desktop CLI is available and try to use it for a reliable restart
+      if system("docker desktop version > /dev/null 2>&1")
+        puts "Using Docker Desktop CLI to restart daemon..."
+        system("docker desktop restart")
+        sleep 2
+      else
+        puts "Docker Desktop CLI not available, waiting for daemon to start..."
       end
 
       puts "Waiting for Docker daemon to start..."

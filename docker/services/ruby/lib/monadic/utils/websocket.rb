@@ -37,7 +37,7 @@ module WebSocketHelper
     params = get_session_params || {}
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] [sync_session_state!] Saving session=#{session_id}: messages=#{session[:messages]&.size || 0}, app_name=#{params['app_name'] || 'nil'}, reasoning_effort=#{params['reasoning_effort'] || 'nil'}"
+      extra_log.puts "[#{Time.now}] [sync_session_state!] Session synced: #{session_id}"
       extra_log.close
     end
 
@@ -1418,30 +1418,16 @@ module WebSocketHelper
         # Generate new UUID only if no session exists
         ws_session_id = SecureRandom.uuid
         session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
-
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] [WebSocket] Generated new session ID for tab_id=nil: #{ws_session_id}"
-          extra_log.close
-        end
-      elsif CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] [WebSocket] Reusing existing session ID for tab_id=nil: #{ws_session_id}"
-        extra_log.close
       end
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocket] Using session ID: #{ws_session_id} for new connection (tab_id from query: #{tab_id.inspect})"
+      puts "[WebSocket] Session initialized: #{ws_session_id} (tab_id: #{tab_id || 'none'})"
     end
 
     # Use async-websocket to handle the connection
     Async::WebSocket::Adapters::Rack.open(env) do |connection|
       WebSocketHelper.add_connection_with_session(connection, ws_session_id)
-
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocket] Connection opened for session #{ws_session_id}"
-      end
 
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
@@ -1451,19 +1437,9 @@ module WebSocketHelper
       session[:messages] = []
       session[:parameters] = {}
 
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] [WebSocket] Initialized empty session for tab_id=#{tab_id.inspect}, ws_session_id=#{ws_session_id}"
-        extra_log.close
-      end
-
       # Then restore saved state if it exists (for page refresh/reconnection)
-      if (saved_state = WebSocketHelper.fetch_session_state(ws_session_id))
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] [WebSocket] FOUND saved_state for #{ws_session_id}: messages=#{saved_state[:messages]&.size || 0}, app_name=#{saved_state[:parameters]&.[]('app_name') || 'nil'}, reasoning_effort=#{saved_state[:parameters]&.[]('reasoning_effort') || 'nil'}"
-          extra_log.close
-        end
+      saved_state = WebSocketHelper.fetch_session_state(ws_session_id)
+      if saved_state
         session[:messages] = saved_state[:messages] if saved_state[:messages]
         if saved_state[:parameters]
           session[:parameters] ||= {}
@@ -1471,9 +1447,11 @@ module WebSocketHelper
             session[:parameters][key] = value
           end
         end
-      elsif CONFIG["EXTRA_LOGGING"]
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] [WebSocket] NO saved_state for #{ws_session_id} (new tab or first connection)"
+        extra_log.puts "[#{Time.now}] [WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})"
         extra_log.close
       end
 

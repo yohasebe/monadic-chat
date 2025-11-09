@@ -73,6 +73,25 @@ To keep client rendering deterministic, the server must send:
 
 `renderMessage()` on the client fills gaps by looking at SessionState/params, but the goal is to always send accurate metadata from Ruby so the browser does not need to guess.
 
+## Tab isolation
+
+Each browser tab maintains completely independent session state:
+
+- **Tab Identifier**: Unique `tab_id` (UUID) generated per tab, stored in `sessionStorage`
+- **WebSocket Connection**: Each tab connects with `ws://localhost:4567/?tab_id={UUID}`
+- **Server-Side Storage**: Ruby maintains `@@session_state` hash keyed by `tab_id`
+- **Session Persistence**: Page refresh within same tab preserves session via `tab_id`
+- **Independence**: Messages, parameters, and app selection are tab-specific
+
+**Key Implementation Details**:
+
+1. `sessionStorage` (not `localStorage`) ensures tab-specific data
+2. WebSocket initialization occurs after `ensureMonadicTabId()` is defined
+3. Server always clears Rack session on connect, then restores from `@@session_state[tab_id]`
+4. Parameters are always broadcast (even if empty) to prevent localStorage pollution
+
+See `docs_dev/frontend/tab_isolation.md` for complete architecture details.
+
 ## When adding new stylized content
 
 1. Update the server to send raw source text + metadata.

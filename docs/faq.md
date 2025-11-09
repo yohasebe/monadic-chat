@@ -237,6 +237,16 @@ Useful for testing, examples, or conversation templates.
 - Data stays on your machine
 - Warning can be safely ignored
 
+### Q: Can I use multiple browser tabs with different conversations? :id=multiple-tabs
+
+**A**: Yes! Each browser tab maintains completely independent state:
+- Different conversations in different tabs
+- Different apps and parameters per tab
+- Refreshing a tab preserves that tab's session
+- Closing a tab clears only that tab's session
+
+This allows you to work on multiple tasks simultaneously, such as using Chat in one tab while running Code Interpreter in another.
+
 ---
 
 ## Configuration & Advanced Usage
@@ -424,13 +434,6 @@ SQL,sequel
   - Memory limits
   - Code syntax errors
 
-### Q: Can I have multiple conversations in parallel? :id=multiple-conversations
-
-**A**: Monadic Chat supports one conversation at a time. However, you can:
-- Save and export conversations
-- Switch between different apps
-- Use server mode for multi-user access
-- Open multiple browser tabs
 
 ---
 

@@ -84,15 +84,48 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Check if Docker is running
+  # Check if Docker is running, and start it if not
   unless system("docker info > /dev/null 2>&1")
     puts "\n" + "="*80
     puts "⚠️  Docker Desktop is not running"
     puts "="*80
-    puts "\nPlease start Docker Desktop before running this command."
-    puts "You can use 'electron .' to start the Electron app which will"
-    puts "automatically start Docker Desktop, or start it manually.\n"
-    exit 1
+    puts "\nAttempting to start Docker Desktop..."
+
+    # Try to start Docker Desktop based on platform
+    start_command = case RUBY_PLATFORM
+    when /darwin/
+      "open -a Docker"
+    when /linux/
+      "systemctl --user start docker-desktop 2>/dev/null || sudo systemctl start docker"
+    else
+      nil
+    end
+
+    if start_command && system(start_command)
+      puts "Docker Desktop start command executed. Waiting for Docker daemon..."
+
+      # Wait for Docker daemon to be ready (max 60 seconds)
+      60.times do |i|
+        sleep 1
+        if system("docker info > /dev/null 2>&1")
+          puts "✅ Docker daemon is now running\n"
+          break
+        end
+        print "." if i % 5 == 0
+
+        if i == 59
+          puts "\n\n⚠️  Docker daemon did not start within 60 seconds."
+          puts "Please check Docker Desktop manually and try again.\n"
+          exit 1
+        end
+      end
+    else
+      puts "\nFailed to start Docker Desktop automatically."
+      puts "Please start Docker Desktop manually and try again."
+      puts "You can also use 'electron .' to start the Electron app which will"
+      puts "automatically start Docker Desktop.\n"
+      exit 1
+    end
   end
 
   # Stop existing Ruby container if running

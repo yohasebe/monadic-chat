@@ -84,38 +84,38 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Use monadic.sh to start (same as Electron app)
+  # Use support scripts to start Docker (same as Electron app)
   # This ensures consistent behavior between Electron app and CLI
 
-  # Check if Docker is running, and start it if not (same as Electron app)
-  unless system("docker info > /dev/null 2>&1")
-    puts "\n" + "="*80
-    puts "⚠️  Docker Desktop is not running"
-    puts "="*80
-    puts "\nStarting Docker Desktop...\n"
+  # Use platform-specific Docker startup script
+  support_scripts_dir = File.expand_path(File.join(DOCKER_HOME, "support_scripts"))
 
-    case RUBY_PLATFORM
-    when /darwin/
-      # On macOS, start Docker Desktop (same as Electron app)
-      unless system("open -a Docker")
-        puts "\n⚠️  Failed to start Docker Desktop."
-        puts "Please start Docker Desktop manually and try again.\n"
-        exit 1
-      end
-
-    when /linux/
-      # On Linux, start docker service
-      unless system("systemctl --user start docker-desktop 2>/dev/null") || system("sudo systemctl start docker")
-        puts "\n⚠️  Failed to start Docker service."
-        puts "Please start Docker service manually and try again.\n"
-        exit 1
-      end
-
+  case RUBY_PLATFORM
+  when /darwin/
+    start_docker_script = File.join(support_scripts_dir, "mac-start-docker.sh")
+  when /linux/
+    # Check if running in WSL2
+    if File.exist?("/proc/version") && File.read("/proc/version").include?("microsoft")
+      start_docker_script = File.join(support_scripts_dir, "wsl2-start-docker.sh")
     else
-      puts "\nUnsupported platform: #{RUBY_PLATFORM}"
+      start_docker_script = File.join(support_scripts_dir, "linux-start-docker.sh")
+    end
+  else
+    puts "\nUnsupported platform: #{RUBY_PLATFORM}"
+    puts "Please start Docker Desktop manually and try again.\n"
+    exit 1
+  end
+
+  # Run the Docker startup script if it exists
+  if File.exist?(start_docker_script)
+    unless system("bash #{start_docker_script}")
+      puts "\n⚠️  Failed to start Docker Desktop."
       puts "Please start Docker Desktop manually and try again.\n"
       exit 1
     end
+  else
+    puts "Warning: Docker startup script not found: #{start_docker_script}"
+    puts "Assuming Docker is already running..."
   end
 
   # Call monadic.sh start (same as Electron app)

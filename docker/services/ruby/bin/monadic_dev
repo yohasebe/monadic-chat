@@ -108,11 +108,29 @@ def start_server(opts)
 
   # Run the Docker startup script if it exists
   if File.exist?(start_docker_script)
-    unless system("bash #{start_docker_script}")
-      puts "\n⚠️  Failed to start Docker Desktop."
+    puts "Running Docker startup script: #{start_docker_script}"
+    result = system("bash #{start_docker_script}")
+    exit_code = $?.exitstatus
+    puts "Docker startup script finished with exit code: #{exit_code}"
+
+    unless result
+      puts "\n⚠️  Failed to start Docker Desktop (exit code: #{exit_code})."
       puts "Please start Docker Desktop manually and try again.\n"
       exit 1
     end
+
+    # Verify Docker is actually running after script execution
+    puts "Verifying Docker is running..."
+    unless system("docker info > /dev/null 2>&1")
+      puts "\n⚠️  Docker startup script succeeded but Docker daemon is not responding."
+      puts "Waiting a few more seconds..."
+      sleep 3
+      unless system("docker info > /dev/null 2>&1")
+        puts "Docker daemon still not responding. Please check Docker Desktop manually.\n"
+        exit 1
+      end
+    end
+    puts "✅ Docker is confirmed running"
   else
     puts "Warning: Docker startup script not found: #{start_docker_script}"
     puts "Assuming Docker is already running..."

@@ -41,6 +41,19 @@ module OpenAIHelper
     defined?(CONFIG) ? (CONFIG["OPENAI_WRITE_TIMEOUT"]&.to_i || 120) : 120
   end
 
+  # Instance methods that delegate to class methods
+  def open_timeout
+    self.class.open_timeout
+  end
+
+  def read_timeout
+    self.class.read_timeout
+  end
+
+  def write_timeout
+    self.class.write_timeout
+  end
+
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 

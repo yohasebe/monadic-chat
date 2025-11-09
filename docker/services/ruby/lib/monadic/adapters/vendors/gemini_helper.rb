@@ -67,6 +67,19 @@ module GeminiHelper
     120
   end
 
+  # Instance methods that delegate to class methods
+  def open_timeout
+    self.class.open_timeout
+  end
+
+  def read_timeout
+    self.class.read_timeout
+  end
+
+  def write_timeout
+    self.class.write_timeout
+  end
+
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
   IMAGE_GENERATION_MODELS = {

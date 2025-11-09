@@ -106,34 +106,26 @@ def start_server(opts)
     exit 1
   end
 
-  # Run the Docker startup script if it exists
-  if File.exist?(start_docker_script)
-    puts "Running Docker startup script: #{start_docker_script}"
-    result = system("bash #{start_docker_script}")
-    exit_code = $?.exitstatus
-    puts "Docker startup script finished with exit code: #{exit_code}"
+  # Start Docker Desktop if not running (same as Electron app)
+  # Don't wait - let monadic.sh handle the waiting
+  unless system("docker info > /dev/null 2>&1")
+    puts "Docker Desktop is not running. Starting it..."
 
-    unless result
-      puts "\n⚠️  Failed to start Docker Desktop (exit code: #{exit_code})."
-      puts "Please start Docker Desktop manually and try again.\n"
-      exit 1
-    end
-
-    # Verify Docker is actually running after script execution
-    puts "Verifying Docker is running..."
-    unless system("docker info > /dev/null 2>&1")
-      puts "\n⚠️  Docker startup script succeeded but Docker daemon is not responding."
-      puts "Waiting a few more seconds..."
-      sleep 3
-      unless system("docker info > /dev/null 2>&1")
-        puts "Docker daemon still not responding. Please check Docker Desktop manually.\n"
-        exit 1
+    case RUBY_PLATFORM
+    when /darwin/
+      system("open -a Docker")
+    when /linux/
+      if File.exist?("/proc/version") && File.read("/proc/version").include?("microsoft")
+        # WSL2
+        system("wsl.exe -d docker-desktop -e sh -c 'exit 0'")
+      else
+        system("systemctl --user start docker-desktop 2>/dev/null") || system("sudo systemctl start docker")
       end
     end
-    puts "✅ Docker is confirmed running"
+
+    puts "Docker Desktop startup initiated. Docker Compose will wait for it to be ready."
   else
-    puts "Warning: Docker startup script not found: #{start_docker_script}"
-    puts "Assuming Docker is already running..."
+    puts "Docker Desktop is already running."
   end
 
   # Call monadic.sh start (same as Electron app)

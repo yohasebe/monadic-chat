@@ -34,10 +34,17 @@ module WebSocketHelper
     session_id = Thread.current[:websocket_session_id]
     return unless session_id
 
+    params = get_session_params || {}
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] [sync_session_state!] Saving session=#{session_id}: messages=#{session[:messages]&.size || 0}, app_name=#{params['app_name'] || 'nil'}, reasoning_effort=#{params['reasoning_effort'] || 'nil'}"
+      extra_log.close
+    end
+
     WebSocketHelper.update_session_state(
       session_id,
       messages: session[:messages] || [],
-      parameters: get_session_params || {}
+      parameters: params
     )
   end
 
@@ -704,12 +711,12 @@ module WebSocketHelper
     # Use sleep to delay subsequent messages, giving browser time to process large apps message
     # This prevents message loss when apps message is very large (>1MB)
     sleep(0.05)
-    unless rack_session[:parameters].nil? || rack_session[:parameters].empty?
-      if ws_session_id
-        WebSocketHelper.send_to_session({ "type" => "parameters", "content" => rack_session[:parameters] }.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => rack_session[:parameters] }.to_json)
-      end
+    # Always send parameters message, even if empty, to ensure new tabs start with clean state
+    # This prevents tabs from inheriting old parameters from localStorage
+    if ws_session_id
+      WebSocketHelper.send_to_session({ "type" => "parameters", "content" => rack_session[:parameters] || {} }.to_json, ws_session_id)
+    else
+      WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => rack_session[:parameters] || {} }.to_json)
     end
 
     # Debug logging
@@ -1402,18 +1409,26 @@ module WebSocketHelper
       # This ensures complete isolation between tabs
       ws_session_id = tab_id
     else
-      # Fallback to cookie-based session for compatibility
-      if env["HTTP_COOKIE"]
-        cookies = Rack::Utils.parse_cookies(env)
-        ws_session_id = cookies["_monadic_session_id"]
+      # Fallback: For connections without tab_id (e.g., background connections),
+      # use a consistent session ID stored in Rack session
+      # This ensures page reload preserves the session
+      ws_session_id = session[:websocket_session_id] if session.is_a?(Hash)
+
+      if ws_session_id.nil?
+        # Generate new UUID only if no session exists
+        ws_session_id = SecureRandom.uuid
+        session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] [WebSocket] Generated new session ID for tab_id=nil: #{ws_session_id}"
+          extra_log.close
+        end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] [WebSocket] Reusing existing session ID for tab_id=nil: #{ws_session_id}"
+        extra_log.close
       end
-
-      ws_session_id ||= session[:websocket_session_id] if session.is_a?(Hash)
-    end
-
-    if ws_session_id.nil?
-      ws_session_id = SecureRandom.uuid
-      session[:websocket_session_id] = ws_session_id if session.is_a?(Hash)
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -1431,7 +1446,24 @@ module WebSocketHelper
       Thread.current[:websocket_session_id] = ws_session_id
       Thread.current[:rack_session] = session
 
+      # Tab isolation: Each tab must have completely independent session state
+      # Always initialize with empty session first to clear any Rack session data from other tabs
+      session[:messages] = []
+      session[:parameters] = {}
+
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] [WebSocket] Initialized empty session for tab_id=#{tab_id.inspect}, ws_session_id=#{ws_session_id}"
+        extra_log.close
+      end
+
+      # Then restore saved state if it exists (for page refresh/reconnection)
       if (saved_state = WebSocketHelper.fetch_session_state(ws_session_id))
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] [WebSocket] FOUND saved_state for #{ws_session_id}: messages=#{saved_state[:messages]&.size || 0}, app_name=#{saved_state[:parameters]&.[]('app_name') || 'nil'}, reasoning_effort=#{saved_state[:parameters]&.[]('reasoning_effort') || 'nil'}"
+          extra_log.close
+        end
         session[:messages] = saved_state[:messages] if saved_state[:messages]
         if saved_state[:parameters]
           session[:parameters] ||= {}
@@ -1439,6 +1471,10 @@ module WebSocketHelper
             session[:parameters][key] = value
           end
         end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] [WebSocket] NO saved_state for #{ws_session_id} (new tab or first connection)"
+        extra_log.close
       end
 
       queue = Queue.new

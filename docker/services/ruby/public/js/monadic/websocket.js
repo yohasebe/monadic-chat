@@ -15,8 +15,9 @@ try {
   }
 } catch (_) {}
 
-let ws = connect_websocket();
-window.ws = ws;  // Make ws globally accessible
+// Note: WebSocket connection will be established after ensureMonadicTabId() is defined
+// See bottom of this file for actual connection initialization
+let ws;  // Will be set after tab ID is ready
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 if (typeof window.skipAssistantInitiation === 'undefined') {
@@ -6279,3 +6280,8 @@ if (typeof module !== 'undefined' && module.exports) {
     addToAudioQueue
   };
 }
+
+// Initialize WebSocket connection AFTER ensureMonadicTabId is defined
+// This ensures tab_id is available when connecting
+ws = connect_websocket();
+window.ws = ws;  // Make ws globally accessible

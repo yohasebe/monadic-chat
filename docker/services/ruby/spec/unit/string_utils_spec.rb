@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "dotenv/load"
-require "rouge"
+# Phase 3: Rouge removed due to SIGSEGV bug on Ruby 3.4
+# require "rouge"
 require "cld"
 require "csv"
 require_relative '../spec_helper'
@@ -12,13 +13,14 @@ RSpec.describe StringUtils do
   before do
     unless defined?(CONFIG)
       # Define CONFIG directly if it doesn't exist
+      # Note: ROUGE_THEME is kept for backward compatibility but rouge gem is no longer used
       Object.const_set(:CONFIG, {
         "ROUGE_THEME" => "github:light"
       })
       @config_defined = true
     end
   end
-  
+
   after do
     # Clean up CONFIG if we defined it
     if @config_defined && Object.const_defined?(:CONFIG)
@@ -306,8 +308,10 @@ RSpec.describe StringUtils do
     it "handles code blocks with syntax highlighting" do
       text = "```ruby\nputs 'Hello'\n```"
       result = StringUtils.markdown_to_html(text)
-      expect(result).to include("<div class=\"highlight language-ruby highlighter-rouge\">")
-      expect(result).to include("<pre class=\"highlight\">")
+      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      expect(result).to include("<pre><code class=\"language-ruby\">")
+      # Single quotes are HTML-encoded for security
+      expect(result).to include("puts &#39;Hello&#39;")
     end
     
     it "handles non-string inputs" do
@@ -347,10 +351,11 @@ RSpec.describe StringUtils do
       # Malformed markdown with indented code block without blank lines
       text = "Some text\n    ```ruby\n    puts 'Hello'\n    ```\nMore text"
       result = StringUtils.markdown_to_html(text)
-      
-      # Should be properly formatted in HTML
-      expect(result).to include("<div class=\"highlight language-ruby highlighter-rouge\">")
-      expect(result).to include("<pre class=\"highlight\">")
+
+      # Phase 3: Client-side rendering - HTML structure is simpler, highlighting added by client
+      expect(result).to include("<pre><code class=\"language-ruby\">")
+      # Single quotes are HTML-encoded for security
+      expect(result).to include("puts &#39;Hello&#39;")
     end
     
     it "renders table content" do
@@ -408,19 +413,19 @@ RSpec.describe StringUtils do
       it "preserves MathJax code in code blocks" do
         text = "```python\nx = 1 + 2 # Compute $E = mc^2$ result\n```"
         result = StringUtils.markdown_to_html(text, mathjax: true)
-        # Markdown converts to HTML with syntax highlighting
-        expect(result).to include("<code>")
-        expect(result).to match(/<span class="n">x<\/span>/)
+        # Phase 3: Client-side rendering - syntax highlighting added by client
+        expect(result).to include("<code class=\"language-python\">")
+        expect(result).to include("x = 1 + 2")
         expect(result).to include("$E = mc^2$")
       end
 
       it "does not convert MathJax notation inside code blocks" do
         text = "```python\nExample: \\[E = mc^2\\] or \\(a + b = c\\)\n```"
         result = StringUtils.markdown_to_html(text, mathjax: true)
-        # MathJax notation in code blocks should be preserved with HTML syntax highlighting
-        expect(result).to include("<code>")
-        expect(result).to match(/<span class="n">Example<\/span>/)
-        # The backslashes may be escaped differently in HTML
+        # Phase 3: Client-side rendering - syntax highlighting added by client
+        expect(result).to include("<code class=\"language-python\">")
+        expect(result).to include("Example")
+        # The MathJax notation should be preserved in the code block
         expect(result).to match(/E.*=.*mc.*2/)
       end
     end

@@ -29,9 +29,9 @@ module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
-  OPEN_TIMEOUT = 20
-  READ_TIMEOUT = 120
-  WRITE_TIMEOUT = 120
+  OPEN_TIMEOUT = (CONFIG["OPENAI_OPEN_TIMEOUT"]&.to_i || 20)
+  READ_TIMEOUT = (CONFIG["OPENAI_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT = (CONFIG["OPENAI_WRITE_TIMEOUT"]&.to_i || 120)
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1
@@ -1580,17 +1580,24 @@ module OpenAIHelper
     DebugHelper.debug("Using Responses API: #{use_responses_api}", category: :api, level: :debug)
 
     # Use longer timeout for responses API as o3-pro and GPT-5-Codex can take many minutes
+    # Also extend timeout for reasoning models with medium/high effort
     timeout_settings = if use_responses_api
                         {
                           connect: OPEN_TIMEOUT,
                           write: WRITE_TIMEOUT,
                           read: 1200  # 20 minutes for GPT-5-Codex and o3-pro
                         }
+                      elsif reasoning_model && reasoning_effort && %w[medium high].include?(reasoning_effort.to_s.downcase)
+                        {
+                          connect: OPEN_TIMEOUT,
+                          write: WRITE_TIMEOUT,
+                          read: 600  # 10 minutes for reasoning models with medium/high effort
+                        }
                       else
                         {
                           connect: OPEN_TIMEOUT,
                           write: WRITE_TIMEOUT,
-                          read: READ_TIMEOUT
+                          read: READ_TIMEOUT  # 2 minutes for standard models
                         }
                       end
 

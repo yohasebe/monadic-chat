@@ -114,7 +114,14 @@ module ProviderMatrixHelper
 
     # Thin wrappers over vendor helpers
     def chat(prompt, **opts)
-      Timeout.timeout(@timeout) do
+      # Apps that require database/embedding operations need longer timeouts
+      timeout = if ['Vector Search', 'PDF Navigator', 'User Docs'].include?(opts[:app])
+                  @timeout * 2  # Double timeout for vector/database apps
+                else
+                  @timeout
+                end
+
+      Timeout.timeout(timeout) do
         helper = helper_for(@provider)
         options = build_options(prompt: prompt, messages: opts[:messages])
         throttle!

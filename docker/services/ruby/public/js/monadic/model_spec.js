@@ -536,48 +536,10 @@ const modelSpec = {
     "vision_capability": false
   },
   // Anthropic models
-  "claude-opus-4-1-20250805": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 32000], 32000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "supports_context_management": true
-  },
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 32000], 32000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "supports_context_management": true,
-    "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
-    ]
-  },
-  "claude-sonnet-4-20250514": {
-    "context_window" : [1, 1000000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": true,
@@ -670,27 +632,6 @@ const modelSpec = {
       "pdfs-2024-09-25"
     ],
     "deprecated": true
-  },
-  "claude-haiku-4-5-20251001": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 64000], 64000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "supports_context_management": true,
-    "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
-    ]
   },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
@@ -814,16 +755,6 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
   },
   "command-r-08-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
-    "deprecated": false
-  },
-  "command-r-plus-08-2024": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -979,16 +910,6 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf": true
   },
-  "gemini-2.0-flash-thinking-exp": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "supports_web_search": true
-  },
   // Flash models
   "gemini-2.0-flash-001": {
     "context_window" : [1, 1048576],
@@ -1007,15 +928,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-2.0-flash-lite-preview": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
     "supports_pdf": true
   },
   "gemini-2.0-flash-lite": {
@@ -1180,15 +1092,6 @@ const modelSpec = {
   // Non-latest pixtral and mistral models
   "pixtral-12b": {
     "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
-  "mistral-small": {
-    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],

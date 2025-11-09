@@ -22,9 +22,9 @@ module MistralHelper
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   API_ENDPOINT   = "https://api.mistral.ai/v1"
-  OPEN_TIMEOUT   = 5
-  READ_TIMEOUT   = 60
-  WRITE_TIMEOUT  = 60
+  OPEN_TIMEOUT   = (CONFIG["MISTRAL_OPEN_TIMEOUT"]&.to_i || 5)
+  READ_TIMEOUT   = (CONFIG["MISTRAL_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT  = (CONFIG["MISTRAL_WRITE_TIMEOUT"]&.to_i || 120)
   MAX_RETRIES    = 5
   RETRY_DELAY    = 1
   # ENV key for emergency override

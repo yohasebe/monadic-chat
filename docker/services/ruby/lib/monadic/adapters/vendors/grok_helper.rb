@@ -17,9 +17,9 @@ module GrokHelper
   # ENV key for emergency override
   GROK_LEGACY_MODE_ENV = "GROK_LEGACY_MODE"
 
-  OPEN_TIMEOUT = 60
-  READ_TIMEOUT = 300
-  WRITE_TIMEOUT = 300
+  OPEN_TIMEOUT = (CONFIG["GROK_OPEN_TIMEOUT"]&.to_i || 20)
+  READ_TIMEOUT = (CONFIG["GROK_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT = (CONFIG["GROK_WRITE_TIMEOUT"]&.to_i || 120)
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

@@ -26,7 +26,7 @@ describe('Model Specification', () => {
   it('should contain major AI models', () => {
     // Test for some key model categories
     expect(modelSpec['gpt-4.1']).toBeDefined();
-    expect(modelSpec['claude-sonnet-4-20250514']).toBeDefined();
+    expect(modelSpec['claude-sonnet-4-5-20250929']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash']).toBeDefined();
     expect(modelSpec['command-a-03-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
@@ -56,8 +56,8 @@ describe('Model Specification', () => {
   
   describe('Anthropic Models', () => {
     it('should have correct parameters for Claude models', () => {
-      const model = modelSpec['claude-sonnet-4-20250514'];
-      
+      const model = modelSpec['claude-sonnet-4-5-20250929'];
+
       // Check essential parameters
       expect(model.context_window).toEqual([1, 1000000]);
       expect(model.max_output_tokens).toEqual([[1, 64000], 64000]);

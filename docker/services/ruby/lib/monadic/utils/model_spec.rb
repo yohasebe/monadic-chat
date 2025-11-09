@@ -111,7 +111,7 @@ module Monadic
         #   gpt-5-2025-08-07 -> gpt-5
         #   claude-3-5-sonnet-20241022 -> claude-3-5-sonnet
         #   gemini-2.0-flash-001 -> gemini-2.0-flash
-        #   gemini-2.0-flash-thinking-exp-1219 -> gemini-2.0-flash-thinking
+        #   gemini-2.5-flash-002 -> gemini-2.5-flash
         #   command-a-vision-07-2025 -> command-a-vision
         def normalize_model_name(model_name)
           return model_name unless model_name.is_a?(String)

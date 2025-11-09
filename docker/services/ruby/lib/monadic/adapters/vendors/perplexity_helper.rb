@@ -18,9 +18,9 @@ module PerplexityHelper
   # ENV key for emergency override (optional)
   PERPLEXITY_LEGACY_MODE_ENV = "PERPLEXITY_LEGACY_MODE"
 
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60 * 10
-  WRITE_TIMEOUT = 60 * 10
+  OPEN_TIMEOUT = (CONFIG["PERPLEXITY_OPEN_TIMEOUT"]&.to_i || 5)
+  READ_TIMEOUT = (CONFIG["PERPLEXITY_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT = (CONFIG["PERPLEXITY_WRITE_TIMEOUT"]&.to_i || 120)
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

@@ -23,9 +23,9 @@ module ClaudeHelper
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.anthropic.com/v1"
-  OPEN_TIMEOUT = 5 * 2
-  READ_TIMEOUT = 60 * 5
-  WRITE_TIMEOUT = 60 * 5
+  OPEN_TIMEOUT = (CONFIG["CLAUDE_OPEN_TIMEOUT"]&.to_i || 10)
+  READ_TIMEOUT = (CONFIG["CLAUDE_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT = (CONFIG["CLAUDE_WRITE_TIMEOUT"]&.to_i || 120)
   MAX_RETRIES = 5
   RETRY_DELAY = 2
 

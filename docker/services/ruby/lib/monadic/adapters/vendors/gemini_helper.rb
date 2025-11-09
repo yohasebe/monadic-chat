@@ -55,8 +55,8 @@ module GeminiHelper
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
-  OPEN_TIMEOUT = 10
-  READ_TIMEOUT = 120
+  OPEN_TIMEOUT = (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10)
+  READ_TIMEOUT = (CONFIG["GEMINI_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
   
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list

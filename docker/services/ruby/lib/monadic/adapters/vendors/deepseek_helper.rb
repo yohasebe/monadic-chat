@@ -18,9 +18,9 @@ module DeepSeekHelper
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.deepseek.com"
   BETA_API_ENDPOINT = "https://api.deepseek.com/beta"
-  OPEN_TIMEOUT = 10
-  READ_TIMEOUT = 120
-  WRITE_TIMEOUT = 120
+  OPEN_TIMEOUT = (CONFIG["DEEPSEEK_OPEN_TIMEOUT"]&.to_i || 10)
+  READ_TIMEOUT = (CONFIG["DEEPSEEK_READ_TIMEOUT"]&.to_i || 600)  # 10 minutes - configurable via env
+  WRITE_TIMEOUT = (CONFIG["DEEPSEEK_WRITE_TIMEOUT"]&.to_i || 120)
   MAX_RETRIES = 5
   RETRY_DELAY = 1
   # ENV key for emergency override

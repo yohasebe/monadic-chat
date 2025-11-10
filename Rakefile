@@ -65,9 +65,11 @@ namespace :server do
     sh "./bin/monadic_server.sh start"
   end
   
-  desc "Start the Monadic server in debug mode (non-daemonized)"
+  desc "Start development server (requires Docker Desktop running)"
   task :debug do
-    puts "Starting Monadic server in debug mode..."
+    puts "Starting Monadic development server..."
+    puts "NOTE: Docker Desktop must be running before executing this command."
+    puts "RECOMMENDED: Run 'electron .' first to manage Docker automatically.\n\n"
 
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'
@@ -183,7 +185,7 @@ namespace :server do
 
     puts "="*80 + "\n"
 
-    sh "./bin/monadic_server.sh debug"
+    sh "./bin/dev_server.sh"
   end
   
   desc "Stop the Monadic server"

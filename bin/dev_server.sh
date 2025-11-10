@@ -21,20 +21,25 @@ RUBY_DIR="$PROJECT_ROOT/docker/services/ruby"
 echo "Starting Monadic Chat development server..."
 echo
 
-# Check if Docker daemon is responding
-if ! docker info > /dev/null 2>&1; then
-  echo "========================================================================"
-  echo "⚠️  Docker daemon is not responding"
-  echo "========================================================================"
-  echo
-  echo "RECOMMENDED: Run 'electron .' in another terminal to manage Docker."
-  echo "Then run this script again."
-  echo
-  exit 1
-fi
+# Check if Docker daemon is responding (unless SKIP_DOCKER_CHECK is set)
+if [ -z "$SKIP_DOCKER_CHECK" ]; then
+  if ! docker info > /dev/null 2>&1; then
+    echo "========================================================================"
+    echo "⚠️  Docker daemon is not responding"
+    echo "========================================================================"
+    echo
+    echo "RECOMMENDED: Run 'electron .' in another terminal to manage Docker."
+    echo "Then run this script again."
+    echo
+    exit 1
+  fi
 
-echo "✅ Docker daemon is responding"
-echo
+  echo "✅ Docker daemon is responding"
+  echo
+else
+  echo "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"
+  echo
+fi
 
 # Stop Ruby container if running (we'll run it locally)
 if docker ps -a --format '{{.Names}}' | grep -q '^monadic-chat-ruby-container$'; then

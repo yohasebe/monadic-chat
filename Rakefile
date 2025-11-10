@@ -239,6 +239,8 @@ namespace :server do
 
     puts "="*80 + "\n"
 
+    # Skip Docker check in dev_server.sh since we already verified it
+    ENV['SKIP_DOCKER_CHECK'] = 'true'
     sh "./bin/dev_server.sh"
   end
   

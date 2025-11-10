@@ -65,11 +65,65 @@ namespace :server do
     sh "./bin/monadic_server.sh start"
   end
   
-  desc "Start development server (requires Docker Desktop running)"
+  desc "Start development server (auto-starts Electron if needed)"
   task :debug do
     puts "Starting Monadic development server..."
-    puts "NOTE: Docker Desktop must be running before executing this command."
-    puts "RECOMMENDED: Run 'electron .' first to manage Docker automatically.\n\n"
+
+    # Check if Electron app is already running
+    electron_running = system("pgrep -qf 'Electron.*[Mm]onadic'")
+
+    unless electron_running
+      puts "\n" + "="*80
+      puts "🚀 Electron app not running. Starting Electron to manage Docker..."
+      puts "="*80 + "\n"
+
+      # Start Electron in background
+      electron_pid = spawn("electron .", out: "/dev/null", err: "/dev/null")
+      Process.detach(electron_pid)
+
+      puts "Waiting for Docker daemon to be ready (max 60 seconds)..."
+
+      # Wait for Docker daemon to be ready
+      max_tries = 60
+      tries = 0
+      docker_ready = false
+
+      while tries < max_tries
+        if system("docker info > /dev/null 2>&1")
+          puts "✅ Docker daemon is ready"
+          docker_ready = true
+          break
+        end
+
+        # Show progress every 5 seconds
+        if tries % 5 == 0 && tries > 0
+          puts "  Still waiting... (#{tries}s elapsed)"
+        end
+
+        sleep 1
+        tries += 1
+      end
+
+      unless docker_ready
+        puts "\n" + "="*80
+        puts "⚠️  WARNING: Docker daemon did not respond within 60 seconds"
+        puts "="*80
+        puts "\nThe Electron app was started, but Docker may not be ready yet."
+        puts "You can:"
+        puts "  1. Wait a bit longer and try again"
+        puts "  2. Check Docker Desktop status manually"
+        puts "  3. Restart Docker Desktop from the Electron app"
+        puts "="*80 + "\n"
+        exit 1
+      end
+
+      # Wait a bit more for Docker to fully stabilize
+      puts "Waiting 3 more seconds for Docker to stabilize..."
+      sleep 3
+      puts "\n"
+    else
+      puts "✅ Electron app is already running"
+    end
 
     # Force EXTRA_LOGGING to true in debug mode
     ENV['EXTRA_LOGGING'] = 'true'

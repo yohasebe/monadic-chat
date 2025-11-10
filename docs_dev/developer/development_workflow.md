@@ -238,18 +238,90 @@ This pre-commit hook will automatically detect and reset any changes to the setu
 
 ### Running Monadic Chat for Development :id=running-for-development
 
-For development purposes, you can run Monadic Chat without the Electron app:
+For development purposes, you can run Monadic Chat without the Electron app using one of three methods:
+
+#### Method 1: Rake with Auto-start (Recommended for Initial Setup)
 
 ```bash
 rake server:debug
 ```
 
 This command:
+- **Automatically starts Electron app** if not running (which manages Docker Desktop)
+- Waits for Docker daemon to be ready (max 60 seconds)
+- Performs comprehensive setup: API key checks, vendor asset downloads, process cleanup
 - Starts the server in debug mode with `EXTRA_LOGGING=true`
 - Does NOT start the Ruby container - uses host Ruby runtime instead
-- Starts all other containers (Python, PostgreSQL, pgvector, Ollama if available)
+- Starts all other containers (Python, PostgreSQL, pgvector, Selenium)
 - Uses files from `docker/services/ruby/` directly on the host
 - Makes the web UI accessible via browser at [http://localhost:4567](http://localhost:4567)
+
+**Best for:**
+- First time starting the development server
+- Starting from a clean state
+- When you want everything automated
+
+#### Method 2: Shell Script (Recommended for Development)
+
+```bash
+./bin/dev_server.sh
+```
+
+This is the **recommended method for day-to-day development**:
+- Simple and fast startup
+- Includes Docker daemon check for safety
+- No extra setup steps (assumes Docker Desktop is already running)
+- Direct execution without Rake overhead
+
+**Best for:**
+- Regular development workflow
+- When Electron app is already running
+- Quick server restarts during development
+
+**Prerequisites:**
+- Docker Desktop must be running (either via Electron app or manually)
+- Run `electron .` in another terminal first, or ensure Docker Desktop is started manually
+
+#### Method 3: Skip Docker Check (Advanced)
+
+```bash
+SKIP_DOCKER_CHECK=true ./bin/dev_server.sh
+```
+
+Fastest startup by skipping Docker daemon verification.
+
+**Best for:**
+- Repeated restarts during debugging
+- When you're certain Docker is running
+- High-frequency development iterations
+
+**Warning:** Only use when Docker Desktop is definitely running.
+
+### Recommended Development Workflow
+
+**Initial Setup:**
+```bash
+# Terminal 1: Start Electron (leave running)
+electron .
+
+# Terminal 2: Start development server
+./bin/dev_server.sh
+```
+
+**During Development:**
+```bash
+# Terminal 2: Restart server as needed
+Ctrl+C                    # Stop server
+./bin/dev_server.sh       # Restart quickly
+```
+
+**Or use the all-in-one approach:**
+```bash
+# Single terminal (Electron auto-starts in background)
+rake server:debug
+```
+
+### What This Setup Provides
 
 This setup allows you to:
 - Edit Ruby code and see changes immediately without rebuilding containers

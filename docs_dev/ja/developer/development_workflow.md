@@ -228,22 +228,94 @@ exit 0
 
 ### 開発用にMonadic Chatを実行する :id=running-for-development
 
-開発目的では、ElectronアプリなしでMonadic Chatを実行できます：
+開発目的では、Electronアプリなしで Monadic Chat を実行できます。以下の3つの方法があります：
+
+#### 方法1: Rake による自動起動（初期セットアップ推奨）
 
 ```bash
 rake server:debug
 ```
 
 このコマンドは：
-- `EXTRA_LOGGING=true`でデバッグモードでサーバーを起動（rake server:debugコマンドにより自動設定）
-- Rubyコンテナは起動せず、ホストのRubyランタイムを使用
-- 他のすべてのコンテナを起動（Python、PostgreSQL、pgvector、利用可能な場合はOllama）
-- ホスト上の`/docker/services/ruby/`のファイルを直接使用
-- ブラウザで[http://localhost:4567](http://localhost:4567)からWeb UIにアクセス可能
+- **Electronアプリを自動起動**（未起動の場合、Docker Desktopを管理）
+- Docker daemon の準備完了を待機（最大60秒）
+- 包括的なセットアップを実行：APIキーチェック、ベンダーアセットダウンロード、プロセスクリーンアップ
+- `EXTRA_LOGGING=true` でデバッグモードでサーバーを起動
+- Ruby コンテナは起動せず、ホストの Ruby ランタイムを使用
+- 他のすべてのコンテナを起動（Python、PostgreSQL、pgvector、Selenium）
+- ホスト上の `docker/services/ruby/` のファイルを直接使用
+- ブラウザで [http://localhost:4567](http://localhost:4567) から Web UI にアクセス可能
+
+**最適な用途：**
+- 初めて開発サーバーを起動する時
+- クリーンな状態から開始する時
+- すべてを自動化したい時
+
+#### 方法2: Shell スクリプト（日常開発推奨）
+
+```bash
+./bin/dev_server.sh
+```
+
+これが**日常的な開発には推奨される方法**です：
+- シンプルで高速な起動
+- 安全のため Docker daemon チェックを含む
+- 追加のセットアップ手順なし（Docker Desktop が既に起動していることを前提）
+- Rake のオーバーヘッドなしで直接実行
+
+**最適な用途：**
+- 通常の開発ワークフロー
+- Electron アプリが既に起動している時
+- 開発中の素早いサーバー再起動
+
+**前提条件：**
+- Docker Desktop が起動している必要があります（Electron アプリ経由または手動起動）
+- 別のターミナルで `electron .` を実行するか、Docker Desktop を手動で起動してください
+
+#### 方法3: Docker チェックをスキップ（上級者向け）
+
+```bash
+SKIP_DOCKER_CHECK=true ./bin/dev_server.sh
+```
+
+Docker daemon の確認をスキップして最速で起動します。
+
+**最適な用途：**
+- デバッグ中の繰り返し再起動
+- Docker が確実に起動していることが分かっている時
+- 高頻度の開発イテレーション
+
+**警告：** Docker Desktop が確実に起動している場合のみ使用してください。
+
+### 推奨される開発ワークフロー
+
+**初期セットアップ：**
+```bash
+# ターミナル1: Electron を起動（起動したまま）
+electron .
+
+# ターミナル2: 開発サーバーを起動
+./bin/dev_server.sh
+```
+
+**開発中：**
+```bash
+# ターミナル2: 必要に応じてサーバーを再起動
+Ctrl+C                    # サーバー停止
+./bin/dev_server.sh       # すぐに再起動
+```
+
+**または、オールインワン方式：**
+```bash
+# 単一ターミナル（Electron がバックグラウンドで自動起動）
+rake server:debug
+```
+
+### このセットアップで可能になること
 
 このセットアップにより以下が可能になります：
-- コンテナを再ビルドせずにRubyコードを編集して即座に変更を確認
-- ローカルのRuby開発ツール（デバッガ、リンターなど）を使用
+- コンテナを再ビルドせずに Ruby コードを編集して即座に変更を確認
+- ローカルの Ruby 開発ツール（デバッガ、リンターなど）を使用
 - ブラウザインターフェースで変更を素早くテスト
 - 必要な他のサービスはコンテナで実行を維持
 

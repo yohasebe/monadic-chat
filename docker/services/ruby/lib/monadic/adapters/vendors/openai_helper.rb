@@ -43,15 +43,15 @@ module OpenAIHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    OpenAIHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    OpenAIHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    OpenAIHelper.write_timeout
   end
 
   MAX_RETRIES = 5

@@ -717,7 +717,19 @@ require_relative "monadic/utils/selenium_helper"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
+
+# Load all vendor helpers before processing app files
+# This ensures MDSL files can successfully include them via DSL's "if defined?" check
 require_relative "monadic/adapters/vendors/tavily_helper"
+require_relative "monadic/adapters/vendors/openai_helper"
+require_relative "monadic/adapters/vendors/claude_helper"
+require_relative "monadic/adapters/vendors/gemini_helper"
+require_relative "monadic/adapters/vendors/cohere_helper"
+require_relative "monadic/adapters/vendors/deepseek_helper"
+require_relative "monadic/adapters/vendors/mistral_helper"
+require_relative "monadic/adapters/vendors/perplexity_helper"
+require_relative "monadic/adapters/vendors/grok_helper"
+require_relative "monadic/adapters/vendors/ollama_helper"
 
 envpath = File.expand_path Paths::ENV_PATH
 Dotenv.load(envpath)

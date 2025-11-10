@@ -14,6 +14,23 @@ PID_FILE = __dir__ + "/falcon.pid"
 DATA_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "data"))
 LOG_DIR = File.expand_path(File.join(ENV["HOME"], "monadic", "log"))
 
+# Find docker command (system() doesn't use login shell PATH)
+DOCKER_CMD = `which docker 2>/dev/null`.strip
+DOCKER_CMD = "/usr/local/bin/docker" if DOCKER_CMD.empty?
+
+# Verify docker command exists
+unless File.executable?(DOCKER_CMD)
+  STDERR.puts "ERROR: Docker command not found at: #{DOCKER_CMD}"
+  STDERR.puts "Please ensure Docker is installed and in PATH"
+  exit 1
+end
+
+# Set Docker context to desktop-linux (required for Docker Desktop on Mac)
+ENV['DOCKER_CONTEXT'] = 'desktop-linux' unless ENV['DOCKER_CONTEXT']
+
+STDERR.puts "[DEBUG] Using docker command: #{DOCKER_CMD}" if ENV['EXTRA_LOGGING']
+STDERR.puts "[DEBUG] DOCKER_CONTEXT: #{ENV['DOCKER_CONTEXT']}" if ENV['EXTRA_LOGGING']
+
 Dir.mkdir(DATA_DIR) unless Dir.exist?(DATA_DIR)
 Dir.mkdir(LOG_DIR) unless Dir.exist?(LOG_DIR)
 
@@ -75,70 +92,101 @@ DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
 # Helper methods for container management
 def container_exists?(container_name)
-  system("docker container inspect #{container_name} > /dev/null 2>&1")
+  system("#{DOCKER_CMD} container inspect #{container_name} > /dev/null 2>&1")
 end
 
 def container_running?(container_name)
   return false unless container_exists?(container_name)
-  `docker container inspect #{container_name} --format '{{.State.Status}}'`.chomp == "running"
+  `#{DOCKER_CMD} container inspect #{container_name} --format '{{.State.Status}}'`.chomp == "running"
 end
 
 def start_server(opts)
-  # Use support scripts to start Docker (same as Electron app)
-  # This ensures consistent behavior between Electron app and CLI
+  # Check if Docker daemon is running (not just the app)
+  STDERR.puts "[DEBUG] Checking Docker daemon with: #{DOCKER_CMD} info" if ENV['EXTRA_LOGGING']
 
-  # Use platform-specific Docker startup script
-  support_scripts_dir = File.expand_path(File.join(DOCKER_HOME, "support_scripts"))
+  # Run docker info and capture actual output for debugging
+  docker_output = `#{DOCKER_CMD} info 2>&1`
+  docker_check = $?.success?
 
-  case RUBY_PLATFORM
-  when /darwin/
-    start_docker_script = File.join(support_scripts_dir, "mac-start-docker.sh")
-  when /linux/
-    # Check if running in WSL2
-    if File.exist?("/proc/version") && File.read("/proc/version").include?("microsoft")
-      start_docker_script = File.join(support_scripts_dir, "wsl2-start-docker.sh")
-    else
-      start_docker_script = File.join(support_scripts_dir, "linux-start-docker.sh")
-    end
-  else
-    puts "\nUnsupported platform: #{RUBY_PLATFORM}"
-    puts "Please start Docker Desktop manually and try again.\n"
-    exit 1
+  STDERR.puts "[DEBUG] Docker daemon check result: #{docker_check}" if ENV['EXTRA_LOGGING']
+  if ENV['EXTRA_LOGGING'] && !docker_check
+    STDERR.puts "[DEBUG] Docker info full output:"
+    STDERR.puts docker_output
+    STDERR.puts "[DEBUG] Exit status: #{$?.exitstatus}"
   end
 
-  # Start Docker Desktop if not running (same as Electron app)
-  # Don't wait - let monadic.sh handle the waiting
-  unless system("docker info > /dev/null 2>&1")
-    puts "Docker Desktop is not running. Starting it..."
+  unless docker_check
+    puts "\n" + "=" * 70
+    puts "⚠️  Docker daemon is not responding"
+    puts "=" * 70
+    puts "\nDocker Desktop appears to be running but the daemon hasn't started."
+    puts "\nTO FIX THIS ISSUE:"
+    puts "  1. Quit Docker Desktop completely:"
+    puts "     - Click Docker whale icon in menu bar → Quit Docker Desktop"
+    puts "     - Or run: killall 'Docker Desktop'"
+    puts "  2. Wait 5 seconds"
+    puts "  3. Start Docker Desktop from Applications"
+    puts "  4. Wait for full initialization (whale icon stops animating)"
+    puts "  5. Run: rake server:debug\n"
+    puts "\nALTERNATIVE: Use 'electron .' which manages Docker automatically.\n"
+    puts "=" * 70 + "\n"
+    exit 1
+  else
+    puts "✅ Docker daemon is responding"
+  end
 
-    case RUBY_PLATFORM
-    when /darwin/
-      system("open -a Docker")
-    when /linux/
-      if File.exist?("/proc/version") && File.read("/proc/version").include?("microsoft")
-        # WSL2
-        system("wsl.exe -d docker-desktop -e sh -c 'exit 0'")
-      else
-        system("systemctl --user start docker-desktop 2>/dev/null") || system("sudo systemctl start docker")
+  # Stop Ruby container if it's running (development server runs locally)
+  if container_running?("monadic-chat-ruby-container")
+    puts "Stopping Ruby container (will run locally instead)..."
+    system("#{DOCKER_CMD} container stop monadic-chat-ruby-container > /dev/null 2>&1")
+  end
+
+  # Start required support containers (NOT Ruby container)
+  REQUIRED_CONTAINERS.each do |container_name|
+    next unless container_exists?(container_name)
+    unless container_running?(container_name)
+      puts "Starting #{container_name}..."
+      system("#{DOCKER_CMD} container start #{container_name}")
+      # Wait for container to start
+      30.times do  # Try for 15 seconds (30 * 0.5)
+        break if container_running?(container_name)
+        sleep 0.5
       end
     end
-
-    puts "Docker Desktop startup initiated. Docker Compose will wait for it to be ready."
-  else
-    puts "Docker Desktop is already running."
   end
 
-  # Call monadic.sh start (same as Electron app)
-  monadic_sh = File.expand_path(File.join(DOCKER_HOME, "..", "monadic.sh"))
+  # Check if server is already running locally
+  if File.exist?(PID_FILE)
+    begin
+      pid = File.read(PID_FILE).to_i
+      if pid > 0
+        Process.kill(0, pid)
+        puts "Server is already running"
+        return
+      end
+    rescue Errno::ESRCH, Errno::EPERM
+      # Remove PID file if process doesn't exist or we don't have permission
+      File.delete(PID_FILE)
+    end
+  end
+
+  # Start local Falcon server
+  cmd = "bundle exec falcon serve -b http://0.0.0.0:#{opts[:port] || DEFAULT_PORT} -c config.ru"
 
   if opts[:daemonize]
+    # Daemon mode: run in background
     puts "Starting Monadic Chat in daemon mode..."
-    system("#{monadic_sh} start > #{File.join(LOG_DIR, 'monadic.log')} 2>&1")
-    puts "Monadic Chat started"
-    puts "System available at: http://localhost:#{DEFAULT_PORT}"
+    pid = spawn(cmd, out: File.join(LOG_DIR, "server.log"), err: File.join(LOG_DIR, "server.log"))
+    Process.detach(pid)
+    File.write(PID_FILE, pid.to_s)
+    puts "Server started on port #{opts[:port] || DEFAULT_PORT}"
+    puts "System available at: http://localhost:#{opts[:port] || DEFAULT_PORT}"
   else
+    # Debug mode: run in foreground with output
     puts "Starting Monadic Chat in debug mode..."
-    exec("#{monadic_sh} start")
+    puts "Access the application at: http://localhost:#{opts[:port] || DEFAULT_PORT}"
+    puts "Press Ctrl+C to stop\n\n"
+    exec(cmd)
   end
 end
 
@@ -167,7 +215,7 @@ def stop_server
   # Stop all required containers
   REQUIRED_CONTAINERS.each do |container_name|
     if container_exists?(container_name)
-      system("docker container stop #{container_name}")
+      system("#{DOCKER_CMD} container stop #{container_name}")
 
       # Wait for container to stop
       30.times do  # Try for 15 seconds (30 * 0.5)

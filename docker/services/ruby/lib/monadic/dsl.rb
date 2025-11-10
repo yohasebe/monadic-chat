@@ -1633,7 +1633,7 @@ module MonadicDSL
     end
 
     class_def << "      end\n"
-    
+
     eval(class_def, TOPLEVEL_BINDING, state.name)
   end
 

@@ -191,6 +191,33 @@ docker_start_log() {
     fi
 }
 
+wait_for_ruby_ready() {
+  local max_tries=${1:-20}
+  local sleep_sec=${2:-2}
+  # Allow overrides via ~/monadic/config/env
+  local env_file="${HOME_DIR}/monadic/config/env"
+  if [ -f "$env_file" ]; then
+    local t=$(grep -E '^START_HEALTH_TRIES=' "$env_file" | cut -d= -f2 | tr -d '\r')
+    local s=$(grep -E '^START_HEALTH_INTERVAL=' "$env_file" | cut -d= -f2 | tr -d '\r')
+    if echo "$t" | grep -Eq '^[0-9]+$'; then max_tries="$t"; fi
+    if echo "$s" | grep -Eq '^[0-9]+$'; then sleep_sec="$s"; fi
+  fi
+  local tries=0
+  while [ $tries -lt $max_tries ]; do
+    local state=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)
+    if [ "$state" = "healthy" ]; then
+      return 0
+    fi
+    # As a fallback, try an HTTP probe if running locally
+    if curl -fsS http://localhost:4567/ >/dev/null 2>&1; then
+      return 0
+    fi
+    tries=$((tries+1))
+    sleep "$sleep_sec"
+  done
+  return 1
+}
+
 set_docker_compose() {
   local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
 
@@ -1934,30 +1961,3 @@ esac
 
 exit 0
 
-# Wait for Ruby container to be healthy/ready
-wait_for_ruby_ready() {
-  local max_tries=${1:-20}
-  local sleep_sec=${2:-2}
-  # Allow overrides via ~/monadic/config/env
-  local env_file="${HOME_DIR}/monadic/config/env"
-  if [ -f "$env_file" ]; then
-    local t=$(grep -E '^START_HEALTH_TRIES=' "$env_file" | cut -d= -f2 | tr -d '\r')
-    local s=$(grep -E '^START_HEALTH_INTERVAL=' "$env_file" | cut -d= -f2 | tr -d '\r')
-    if echo "$t" | grep -Eq '^[0-9]+$'; then max_tries="$t"; fi
-    if echo "$s" | grep -Eq '^[0-9]+$'; then sleep_sec="$s"; fi
-  fi
-  local tries=0
-  while [ $tries -lt $max_tries ]; do
-    local state=$(${DOCKER} inspect --format='{{.State.Health.Status}}' monadic-chat-ruby-container 2>/dev/null)
-    if [ "$state" = "healthy" ]; then
-      return 0
-    fi
-    # As a fallback, try an HTTP probe if running locally
-    if curl -fsS http://localhost:4567/ >/dev/null 2>&1; then
-      return 0
-    fi
-    tries=$((tries+1))
-    sleep "$sleep_sec"
-  done
-  return 1
-}

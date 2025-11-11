@@ -626,7 +626,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
   if (Object.keys(params).length === 0) {
     return;
   }
-  
+
   // Set flag to prevent model change handler from resetting reasoning_effort
   window.isLoadingParams = true;
   if (window.logTL) window.logTL('loadParams_enter', {
@@ -827,6 +827,41 @@ window.loadParams = function(params, calledFor = "loadParams") {
           console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
         }
       }
+
+      // IMPORTANT: Always update app icon/display even when needsAppChange is false
+      // This ensures UI consistency when importing into tabs with the same app already selected
+      if (typeof updateAppSelectIcon === 'function') {
+        updateAppSelectIcon(targetApp);
+      }
+
+      // Verify that the select element actually shows the correct app
+      // Sometimes browser rendering doesn't update immediately after val() is set
+      const currentAppVal = $("#apps").val();
+      if (currentAppVal !== targetApp) {
+        console.warn(`[loadParams] #apps value mismatch: expected ${targetApp}, got ${currentAppVal}. Re-setting...`);
+        // Re-set the value to force browser to update display
+        $("#apps").val(targetApp);
+        // Verify again
+        if ($("#apps").val() !== targetApp) {
+          console.error(`[loadParams] Failed to set #apps to ${targetApp}. Option may not exist.`);
+        }
+      }
+
+      // Also ensure model display is updated even if change event wasn't triggered
+      if (modelToSet && apps[targetApp]) {
+        const provider = (typeof getProviderFromGroup === 'function' && apps[targetApp]["group"])
+          ? getProviderFromGroup(apps[targetApp]["group"])
+          : "OpenAI";
+        const selectedModel = $("#model").val();
+        const reasoning_effort = params["reasoning_effort"] || $("#reasoning-effort").val();
+
+        // Update model display badge
+        if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort") && reasoning_effort) {
+          $("#model-selected").text(`${provider} (${selectedModel} - ${reasoning_effort})`);
+        } else {
+          $("#model-selected").text(`${provider} (${selectedModel})`);
+        }
+      }
     }
   } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];
@@ -851,12 +886,20 @@ window.loadParams = function(params, calledFor = "loadParams") {
   } else {
     $("#check-easy-submit").prop('checked', false);;
   }
-  if (toBool(params["auto_speech"])) {
+
+  // Force Auto TTS OFF during import (regardless of app settings)
+  if (window.isProcessingImport) {
+    $("#check-auto-speech").prop('checked', false);
+  } else if (toBool(params["auto_speech"])) {
     $("#check-auto-speech").prop('checked', true);
   } else {
-    $("#check-auto-speech").prop('checked', false);;
+    $("#check-auto-speech").prop('checked', false);
   }
-  if (toBool(params["initiate_from_assistant"])) {
+
+  // Force initiate_from_assistant OFF during import (regardless of app settings)
+  if (window.isProcessingImport) {
+    $("#initiate-from-assistant").prop('checked', false);
+  } else if (toBool(params["initiate_from_assistant"])) {
     $("#initiate-from-assistant").prop('checked', true);
   } else {
     $("#initiate-from-assistant").prop('checked', false);
@@ -1047,6 +1090,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Update toggle button text to reflect checkbox states
   if (typeof window.updateToggleButtonText === 'function') {
     window.updateToggleButtonText();
+  }
+
+  // Final enforcement of import-mode checkbox states
+  if (window.isProcessingImport) {
+    $("#check-auto-speech").prop('checked', false);
+    $("#initiate-from-assistant").prop('checked', false);
   }
 
   // (reverted) no deferred update here; proceedWithAppChange triggers model change as needed

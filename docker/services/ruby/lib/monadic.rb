@@ -1314,9 +1314,15 @@ configure do
 
   # Configure headers for Electron WebView compatibility
   set :protection, :except => [:frame_options]
-  
+
   # Add MIME type for WebAssembly files
   mime_type :wasm, 'application/wasm'
+
+  # Disable static file caching in debug mode for development
+  if ENV['DEBUG_MODE'] == 'true'
+    set :static_cache_control, [:public, :no_cache, :no_store, :must_revalidate]
+    puts "🔧 [DEBUG MODE] Static file caching disabled"
+  end
 end
 
 # API endpoint to check environment settings
@@ -1598,15 +1604,26 @@ post "/load" do
         file = params[:file][:tempfile]
         content = file.read
         json_data = JSON.parse(content)
-        
+
         # Validate required fields
         unless json_data["parameters"] && json_data["messages"]
           return { success: false, error: "Invalid format: missing parameters or messages" }.to_json
         end
-        
+
         # Set session data
         session[:status] = "loaded"
-        session[:parameters] = json_data["parameters"]
+        # Force initiate_from_assistant and auto_speech to false to prevent unwanted auto-behaviors on import
+        # (deletion is not enough because app defaults will override missing keys)
+        imported_params = json_data["parameters"].dup
+        imported_params["initiate_from_assistant"] = false
+        imported_params["auto_speech"] = false
+        session[:parameters] = imported_params
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] [Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}"
+          extra_log.close
+        end
 
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"
@@ -1668,13 +1685,26 @@ post "/load" do
           current_app_name = session[:parameters]["app_name"]
           filtered_messages = session[:messages].filter { |m| m["type"] != "search" && m["app_name"] == current_app_name }
 
-          # Broadcast data to all connected clients
-          # Mark apps message as from_import to ensure parameters waits for apps processing
-          WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
-          sleep(0.2) # Increased delay to ensure apps message is fully processed before parameters
-          WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
-          sleep(0.05)
-          WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
+          # Get the WebSocket session ID for targeted sending (prevents cross-tab contamination)
+          # Try to get tab_id from params first (sent by form-handlers.js)
+          ws_session_id = params[:tab_id] || session[:websocket_session_id]
+
+          if ws_session_id
+            # Send to specific tab/session only (prevents other tabs from receiving import data)
+            # Mark messages as from_import to ensure parameters waits for apps processing
+            WebSocketHelper.send_to_session({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json, ws_session_id) unless apps_data.empty?
+            sleep(0.2) # Increased delay to ensure apps message is fully processed before parameters
+            WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json, ws_session_id) unless session[:parameters].empty?
+            sleep(0.05)
+            WebSocketHelper.send_to_session({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json, ws_session_id)
+          else
+            # Fallback to broadcast if no session ID (shouldn't happen in normal operation)
+            WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
+            sleep(0.2)
+            WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
+            sleep(0.05)
+            WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
+          end
 
           if CONFIG["EXTRA_LOGGING"]
             extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")

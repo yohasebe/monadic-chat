@@ -142,11 +142,16 @@ function importSession(file) {
   if (!file) {
     throw new Error("Please select a file to import");
   }
-  
+
   // Prepare form data
   const formData = new FormData();
   formData.append('file', file);
-  
+
+  // Include tab_id for WebSocket session routing
+  if (typeof window.tabId !== 'undefined' && window.tabId) {
+    formData.append('tab_id', window.tabId);
+  }
+
   // Use Promise for better async handling
   return new Promise((resolve, reject) => {
     $.ajax({

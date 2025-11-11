@@ -360,41 +360,49 @@ describe('Form Handlers', () => {
   });
   
   describe('importSession', () => {
-    it('should process session import', async () => {
+    it('should process session import with tab_id', async () => {
       // Override FormData implementation for this test
       const origFormData = global.FormData;
       const formAppendMock = jest.fn();
-      
+
       class MockFormData {
         constructor() {
           this.append = formAppendMock;
         }
       }
-      
+
       global.FormData = MockFormData;
-      
+
+      // Mock window.tabId
+      const origTabId = window.tabId;
+      window.tabId = 'test-tab-id-12345';
+
       // Mock jQuery ajax to resolve immediately
       const ajaxSpy = jest.spyOn($, 'ajax').mockImplementation((options) => {
         setTimeout(() => options.success({ success: true }), 10);
         return { promise: jest.fn().mockReturnThis() };
       });
-      
+
       // Create a mock JSON file
       const jsonFile = { name: 'session.json', type: 'application/json' };
-      
+
       // Call the function
       await formHandlers.importSession(jsonFile);
-      
-      // Verify FormData was created and append was called
+
+      // Verify FormData was created and append was called with file
       expect(formAppendMock).toHaveBeenCalledWith('file', jsonFile);
-      
+
+      // Verify tab_id was appended for WebSocket session routing
+      expect(formAppendMock).toHaveBeenCalledWith('tab_id', 'test-tab-id-12345');
+
       // Verify Ajax call was made with correct parameters
       expect(ajaxSpy).toHaveBeenCalled();
       expect(ajaxSpy.mock.calls[0][0].url).toBe('/load');
       expect(ajaxSpy.mock.calls[0][0].type).toBe('POST');
-      
-      // Restore original FormData
+
+      // Restore originals
       global.FormData = origFormData;
+      window.tabId = origTabId;
       ajaxSpy.mockRestore();
     });
     

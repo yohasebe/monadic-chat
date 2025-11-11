@@ -196,8 +196,11 @@
       // Generate header
       const headerHTML = generateHeaderHTML(appInfo);
 
-      // Generate message cards HTML
-      const messagesHTML = messagesToExport.map(msg => createMessageHTML(msg)).join('\n');
+      // Generate message cards HTML (exclude system messages)
+      const messagesHTML = messagesToExport
+        .filter(msg => msg.role !== 'system')
+        .map(msg => createMessageHTML(msg))
+        .join('\n');
 
       // Get minimal print styles (no external CSS)
       const stylesHTML = getPrintStyles();

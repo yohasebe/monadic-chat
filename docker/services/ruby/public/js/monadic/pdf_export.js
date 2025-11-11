@@ -36,7 +36,20 @@
   function createMessageHTML(message) {
     const roleStyle = getRoleStyle(message.role);
     // Use the HTML property if available (already rendered), otherwise fall back to text or content
-    const messageText = message.html || message.text || message.content || '';
+    let messageText = message.html || message.text || message.content || '';
+
+    // If messageText is plain text (no HTML tags), convert newlines to <br> tags
+    // and wrap paragraphs in <p> tags for proper spacing
+    if (messageText && messageText.indexOf('<') === -1 && messageText.indexOf('>') === -1) {
+      // Plain text - convert newlines to proper HTML
+      // Split by double newlines for paragraphs, single newlines for line breaks
+      const paragraphs = messageText.split(/\n\n+/).filter(p => p.trim());
+      messageText = paragraphs.map(para => {
+        // Within each paragraph, convert single newlines to <br>
+        const lines = para.split('\n').filter(l => l.trim());
+        return `<p>${lines.join('<br>')}</p>`;
+      }).join('');
+    }
 
     // Handle images if present
     let imageHTML = '';
@@ -238,7 +251,7 @@
               body {
                 margin: 0;
                 padding: 0;
-                background: white;
+                background: white !important;
                 overflow: visible;
               }
 
@@ -252,18 +265,58 @@
                 overflow: visible;
               }
 
+              /* Override background colors for all card bodies - force white background */
+              .card-body,
+              .card-body.role-assistant,
+              .card-body.role-user,
+              .card-body.role-system,
+              .card-body.role-info,
+              div.card-body,
+              div.card-body.role-assistant,
+              div.card-body.role-user,
+              div.card-body.role-system,
+              div.card-body.role-info {
+                background-color: white !important;
+                color: #000 !important;
+              }
+
+              /* Ensure proper line breaks and paragraph spacing */
+              .card-text p {
+                margin-top: 0.5em !important;
+                margin-bottom: 0.5em !important;
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
+              }
+
+              .card-text p:first-of-type {
+                margin-top: 0 !important;
+              }
+
+              .card-text p:last-of-type {
+                margin-bottom: 0 !important;
+              }
+
+              /* Preserve line breaks */
+              .card-text br {
+                display: block !important;
+                content: "" !important;
+                margin: 0.5em 0 !important;
+              }
+
               /* Prevent page breaks inside message cards when possible */
               .card {
                 page-break-inside: avoid;
                 break-inside: avoid;
                 margin-bottom: 1rem;
                 overflow: visible;
+                background: white !important;
               }
 
               /* If card is too long, allow breaking but keep header/body together */
               .card-header {
                 page-break-after: avoid;
                 break-after: avoid;
+                background: white !important;
               }
 
               .card-body {

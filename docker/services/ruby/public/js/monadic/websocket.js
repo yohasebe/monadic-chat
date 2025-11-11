@@ -4803,10 +4803,12 @@ let loadedApp = "Chat";
         if (window.SessionState && typeof window.SessionState.clearResetFlags === "function") {
           window.SessionState.clearResetFlags();
         }
+        // Clear isProcessingImport flag after import completes
         if (window.isProcessingImport) {
           window.isProcessingImport = false;
         }
-        if (window.skipAssistantInitiation) {
+        // Clear skipAssistantInitiation for non-import cases
+        if (window.skipAssistantInitiation && !data["from_import"]) {
           window.skipAssistantInitiation = false;
         }
         // After loading past messages, set initialLoadComplete to true

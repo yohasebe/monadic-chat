@@ -5,14 +5,15 @@ require "rack/session/pool"
 require "async/websocket/adapters/rack"
 
 require_relative "lib/monadic"
+require_relative "lib/monadic/utils/unlimited_session_store"
 
 set :logging, true
 set :bind, "0.0.0.0"
 
-# Use in-memory sessions (Pool) for normal operation
-# For import functionality, we'll save/load session data to/from files
-use Rack::Session::Pool, key: 'monadic.session',
-                         expire_after: 86400  # 24 hours
+# Use unlimited in-memory sessions to handle large message imports
+# Rack::Session::Pool has size limits that cause "Content dropped" warnings
+use Rack::Session::UnlimitedPool, key: 'monadic.session',
+                                   expire_after: 86400  # 24 hours
 
 # Middleware to start MCP server once Async reactor is running
 class MCPServerStarter

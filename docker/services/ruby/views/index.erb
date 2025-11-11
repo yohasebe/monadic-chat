@@ -1295,7 +1295,7 @@
             <h5 class="modal-title" id="loadModalLabel"><i class="fas fa-file-export"></i> <span data-i18n="ui.modals.loadFile">Load File</span></h5>
             <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
-          <form action="/load" method="post" enctype="multipart/form-data" type="hidden">
+          <form action="/load" method="post" enctype="multipart/form-data" type="hidden" id="load-form">
             <div class="modal-body">
               <label for="file-load" class="form-label" data-i18n="ui.modals.selectFileToLoad">Select file to load</label>
               <input id="file-load" class="form-control form-control-sm" type="file" name="file" accept=".json">

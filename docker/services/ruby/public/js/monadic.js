@@ -3,6 +3,15 @@
 let uiUtils;
 let formHandlers;
 
+// CRITICAL: Initialize import flags EARLY (before any app change handlers are defined)
+// These flags control whether app defaults override imported values during loadParams/proceedWithAppChange
+if (typeof window.isProcessingImport === 'undefined') {
+  window.isProcessingImport = false;
+}
+if (typeof window.skipAssistantInitiation === 'undefined') {
+  window.skipAssistantInitiation = false;
+}
+
 // Shared flag counters to suppress parameter synchronization during server-driven updates
 if (typeof window.suppressParamBroadcastCount === 'undefined') {
   window.suppressParamBroadcastCount = 0;
@@ -1567,7 +1576,8 @@ $(function () {
 
     // No messages or same app, proceed with change
     // However, if there are messages from session (not user interaction), clear them first
-    if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.userHasInteractedInTab) {
+    // IMPORTANT: Don't clear during import process
+    if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.userHasInteractedInTab && !window.isProcessingImport) {
       console.log('[App Change] Clearing session messages before app change in new tab');
 
       // Clear messages via SessionState API
@@ -1732,12 +1742,17 @@ $(function () {
     // Preserve important values before Object.assign overwrites them
     const currentMathjax = $("#mathjax").prop('checked');
     // Preserve previous values only during import flows
-    const preservedModel = (typeof window !== 'undefined' && window.isImporting) ? params["model"] : null;  // Preserve the model that was set by loadParams
-    const preservedAppName = (typeof window !== 'undefined' && window.isImporting) ? params["app_name"] : null; // Preserve the app_name
+    const importingFlow = (typeof window !== 'undefined') && (window.isImporting || window.isProcessingImport);
+
+    const preservedModel = importingFlow ? params["model"] : null;  // Preserve the model that was set by loadParams
+    const preservedAppName = importingFlow ? params["app_name"] : null; // Preserve the app_name
+    // CRITICAL: Preserve initiate_from_assistant and auto_speech during import to prevent app defaults from overriding
+    const preservedInitiateFromAssistant = importingFlow ? params["initiate_from_assistant"] : null;
+    const preservedAutoSpeech = importingFlow ? params["auto_speech"] : null;
     // Do not carry over previous group's provider across app changes.
     // If importing, we handle app selection earlier based on provider.
     const preservedGroup = null;
-    
+
     Object.assign(params, apps[appValue]);
     params["app_name"] = appValue;
     
@@ -1747,7 +1762,7 @@ $(function () {
     }
 
     // Restore the preserved values if they were set (during import)
-    if (preservedModel && (typeof window !== 'undefined' && window.isImporting)) {
+    if (preservedModel && importingFlow) {
       params["model"] = preservedModel;
     } else {
       // NOT importing: Explicitly reset model to new app's default
@@ -1757,19 +1772,30 @@ $(function () {
         $("#model").val(apps[appValue]["model"]);
       }
     }
-    if (preservedAppName && (typeof window !== 'undefined' && window.isImporting)) {
+    if (preservedAppName && importingFlow) {
       params["app_name"] = preservedAppName;
     }
     // Always align params.group to the selected app's group to avoid stale provider labels
     params["group"] = apps[appValue]["group"];
-    
-    // Align initiate_from_assistant with the newly selected app.
-    const importingFlow = (typeof window !== 'undefined' && window.isImporting);
-    if (apps[appValue] && Object.prototype.hasOwnProperty.call(apps[appValue], 'initiate_from_assistant')) {
-      params['initiate_from_assistant'] = !!apps[appValue]['initiate_from_assistant'];
-    } else if (!importingFlow) {
-      // Default back to user-first conversations when the app does not specify the flag.
-      params['initiate_from_assistant'] = false;
+
+    // CRITICAL: Restore initiate_from_assistant and auto_speech during import
+    // This prevents app defaults from overriding the imported (forced-false) values
+    if (importingFlow) {
+      // During import: restore preserved values (which were set to false by import handler)
+      if (preservedInitiateFromAssistant !== null) {
+        params['initiate_from_assistant'] = preservedInitiateFromAssistant;
+      }
+      if (preservedAutoSpeech !== null) {
+        params['auto_speech'] = preservedAutoSpeech;
+      }
+    } else {
+      // NOT importing: Use app defaults
+      if (apps[appValue] && Object.prototype.hasOwnProperty.call(apps[appValue], 'initiate_from_assistant')) {
+        params['initiate_from_assistant'] = !!apps[appValue]['initiate_from_assistant'];
+      } else {
+        // Default back to user-first conversations when the app does not specify the flag.
+        params['initiate_from_assistant'] = false;
+      }
     }
     // Restore mathjax state if not explicitly set in app parameters
     if (apps[appValue] && !apps[appValue].hasOwnProperty('mathjax')) {
@@ -1782,12 +1808,23 @@ $(function () {
       if (!window.isLoadingParams) {
         loadParams(params, "changeApp");
         if (window.logTL) window.logTL('loadParams_called_from_proceed', { app: appValue, calledFor: 'changeApp' });
+
+        // DON'T clear isProcessingImport here - it must stay active through the entire import flow
+        // It will be cleared in the past_messages WebSocket handler after all import processing is complete
+        if (importingFlow) {
+          console.log('[Import] Keeping isProcessingImport=true through proceedWithAppChange → loadParams');
+        }
         return;
       }
       if (retries >= 10) {
         // As a last resort, proceed anyway to avoid missing initial prompt
         loadParams(params, "changeApp");
         if (window.logTL) window.logTL('loadParams_called_from_proceed_force', { app: appValue, calledFor: 'changeApp' });
+
+        // DON'T clear isProcessingImport even on forced execution
+        if (importingFlow) {
+          console.log('[Import] Keeping isProcessingImport=true through forced proceedWithAppChange → loadParams');
+        }
         return;
       }
       setTimeout(() => ensureLoadParams(retries + 1), 100);
@@ -1974,6 +2011,12 @@ $(function () {
 
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('app_change');
+    }
+
+    // Final enforcement: keep checkboxes OFF during import to prevent auto-behaviors
+    if (importingFlow) {
+      $("#check-auto-speech").prop('checked', false);
+      $("#initiate-from-assistant").prop('checked', false);
     }
 
     $("#apps").focus();
@@ -2466,6 +2509,13 @@ $(function () {
         setInputFocus();
       }
     }
+
+    // Clear skipAssistantInitiation after processing (important for imports)
+    // This ensures the flag only affects the FIRST session start after import
+    if (window.skipAssistantInitiation) {
+      console.log('[StartButton] Clearing skipAssistantInitiation flag after session start');
+      window.skipAssistantInitiation = false;
+    }
   });
 
   // if $ai-user-toggle is enabled, $ai-user-initial-prompt will be automatically disabled
@@ -2730,8 +2780,13 @@ $(function () {
       allMessages.push(message_obj);
     });
 
+    // Get parameters but exclude initiate_from_assistant
+    // (prevents automatic assistant message on import)
+    const exportParams = setParams();
+    delete exportParams.initiate_from_assistant;
+
     obj = {
-      "parameters": setParams(),
+      "parameters": exportParams,
       "messages": allMessages
     };
     saveObjToJson(obj, "monadic.json");
@@ -3562,10 +3617,14 @@ $(function () {
     }
     
     try {
+      // Set import flags before processing to prevent auto-assistant and auto-speech
+      window.isProcessingImport = true;
+      window.skipAssistantInitiation = true;
+
       $("#monadic-spinner").show();
       $("#loadModal button").prop("disabled", true);
       $("#load-spinner").show();
-      
+
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
 
@@ -3578,17 +3637,21 @@ $(function () {
         $("#loadModal").modal("hide");
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.sessionImported') : 'Session imported successfully'}`, "success");
 
-        // Clear local messages to prepare for incoming import data
-        window.SessionState.clearMessages();
+        // Don't clear messages here - let WebSocket 'past_messages' handler do it
+        // This prevents race condition where user clicks "Continue Session" before messages arrive
 
         // Server will push data via WebSocket - no reload needed
         // The WebSocket 'parameters' handler will set the app name via loadParams
-        console.log('[Import] Import successful - cleared local messages, waiting for WebSocket data push');
+        console.log('[Import] Import successful, waiting for WebSocket data push');
       } else {
+        // Clear import flags on server error
+        window.isProcessingImport = false;
+        window.skipAssistantInitiation = false;
+
         // Show error message from API
         const errorMessage = response && response.error ? response.error : "Unknown error occurred";
         setAlert(`${errorMessage}`, "error");
-        
+
         // Keep modal open to allow another attempt
         $("#loadModal button").prop("disabled", false);
         $("#load-spinner").hide();
@@ -3596,15 +3659,19 @@ $(function () {
       
     } catch (error) {
       console.error("Error importing session:", error);
-      
+
+      // Clear import flags on error
+      window.isProcessingImport = false;
+      window.skipAssistantInitiation = false;
+
       // Show error message
       const errorMessage = error.statusText || error.message || "Unknown error";
       const importErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.importError') : 'Error importing session';
       setAlert(`${importErrorMsg}: ${errorMessage}`, "error");
-      
+
       // Hide modal since there was an AJAX error
       $("#loadModal").modal("hide");
-      
+
     } finally {
       // Always clean up UI elements
       $("#monadic-spinner").hide();

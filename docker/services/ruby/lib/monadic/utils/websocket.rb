@@ -110,6 +110,10 @@ module WebSocketHelper
   def self.broadcast_to_all(message)
     connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
 
+    if CONFIG["EXTRA_LOGGING"]
+      puts "[WebSocketHelper] Broadcasting to #{connections_copy.size} connection(s)"
+    end
+
     connections_copy.each do |ws|
       begin
         # Synchronous send - removed Async do block for thread compatibility

@@ -1561,6 +1561,61 @@ function initializeApp() {
       }
     });
 
+    // Handle custom URL protocol (monadic://)
+    app.on('open-url', (event, url) => {
+      event.preventDefault();
+
+      // Parse the URL
+      const urlParts = url.replace('monadic://', '').split('/');
+      const command = urlParts[0];
+
+      console.log(`Custom URL protocol received: ${url}, command: ${command}`);
+
+      // Check if server mode is active - internal browser control is disabled in server mode
+      if (dockerManager.isServerMode()) {
+        console.log('Internal browser control is disabled in Server Mode');
+        return;
+      }
+
+      switch (command) {
+        case 'show-browser':
+          // Show internal browser window (start server if not running)
+          if (currentStatus === 'Running' || currentStatus === 'Ready') {
+            // Server already running - just show the browser
+            if (browserMode === 'internal') {
+              openWebViewWindow('http://localhost:4567');
+            }
+          } else {
+            // Server not running - start it (will auto-open browser)
+            dockerManager.checkRequirements()
+              .then(() => {
+                dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
+              })
+              .catch((error) => {
+                console.log(`Docker requirements check failed: ${error}`);
+              });
+          }
+          break;
+
+        case 'minimize-browser':
+          // Minimize internal browser window
+          if (webviewWindow && !webviewWindow.isDestroyed()) {
+            webviewWindow.minimize();
+          }
+          break;
+
+        case 'hide-browser':
+          // Hide (background) internal browser window
+          if (webviewWindow && !webviewWindow.isDestroyed()) {
+            webviewWindow.hide();
+          }
+          break;
+
+        default:
+          console.log(`Unknown monadic:// command: ${command}`);
+      }
+    });
+
     // Show main window if it exists
     if (mainWindow) {
       mainWindow.show();
@@ -3339,6 +3394,12 @@ ipcMain.on('save-settings', (_event, data) => {
 
 // This is the main entry point for app initialization
 app.whenReady().then(() => {
+  // Register custom protocol handler for monadic:// URLs
+  // This enables AppleScript and other tools to control the internal browser
+  if (!app.isDefaultProtocolClient('monadic')) {
+    app.setAsDefaultProtocolClient('monadic');
+  }
+
   // Initialize i18n with saved UI language
   const envPath = getEnvPath();
   if (envPath) {
@@ -3352,7 +3413,7 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('Error migrating env file:', error);
     }
-    
+
     // Load and set UI language
     const envConfig = readEnvFile(envPath);
     if (envConfig.UI_LANGUAGE) {
@@ -3361,7 +3422,7 @@ app.whenReady().then(() => {
     // Initialize Selenium enabled state (default: true if not explicitly set to 'false')
     seleniumEnabled = envConfig.SELENIUM_ENABLED !== 'false';
   }
-  
+
   // Setup update-related error handlers first
   process.on('uncaughtException', (error) => {
     console.error('Uncaught exception during update process:', error);

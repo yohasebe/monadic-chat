@@ -101,7 +101,7 @@ module E2ERetryHelper
     # Mark this example as potentially retried
     RSpec.current_example.metadata[:retried] = true
     RSpec.current_example.metadata[:retry_attempts] = 0
-    
+
     with_retry(
       max_attempts: max_attempts,
       wait: wait,
@@ -121,5 +121,74 @@ module E2ERetryHelper
   rescue CustomRetry::RetryError => e
     # Re-raise the original error for RSpec
     raise e.original_error
+  end
+end
+
+# Helper for API Integration tests
+# Handles API rate limits, transient errors, and content variability
+module IntegrationRetryHelper
+  def with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential, &block)
+    # Mark this example as potentially retried
+    RSpec.current_example.metadata[:retried] = true
+    RSpec.current_example.metadata[:retry_attempts] = 0
+
+    attempt = 0
+    exceptions = [
+      RuntimeError,
+      Net::ReadTimeout,
+      Net::OpenTimeout,
+      Errno::ECONNREFUSED,
+      Errno::ETIMEDOUT,
+      JSON::ParserError,
+      RSpec::Expectations::ExpectationNotMetError
+    ]
+
+    begin
+      attempt += 1
+      RSpec.current_example.metadata[:retry_attempts] = attempt
+      block.call
+    rescue *exceptions => e
+      if attempt < max_attempts
+        # Check if error is retriable (rate limit, timeout, empty response, etc.)
+        is_retriable = e.message.match?(
+          /rate limit|timeout|empty|network|connection|temporary|timed out/i
+        ) || e.is_a?(Net::ReadTimeout) ||
+           e.is_a?(Net::OpenTimeout) ||
+           e.is_a?(Errno::ECONNREFUSED) ||
+           e.is_a?(Errno::ETIMEDOUT)
+
+        if is_retriable
+          # Calculate wait time with exponential or linear backoff
+          wait_time = backoff == :exponential ? (wait * (2 ** (attempt - 1))) : wait
+
+          puts "\n" + "─" * 80
+          puts "🔄 API Retry #{attempt}/#{max_attempts}"
+          puts "   Error: #{e.class.name} - #{e.message.lines.first&.strip}"
+          puts "   Waiting #{wait_time} seconds before retry..."
+          puts "─" * 80
+
+          sleep wait_time
+          retry
+        else
+          # Non-retriable error, raise immediately
+          raise
+        end
+      else
+        # Final failure
+        puts "\n" + "─" * 80
+        puts "❌ API test failed after #{max_attempts} attempts"
+        puts "   Final error: #{e.class.name} - #{e.message}"
+        puts "─" * 80
+
+        raise e
+      end
+    end
+
+    # Success after retry
+    if attempt > 1
+      puts "\n" + "─" * 80
+      puts "✅ API test passed after #{attempt} attempts"
+      puts "─" * 80
+    end
   end
 end

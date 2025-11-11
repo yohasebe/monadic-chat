@@ -6,6 +6,7 @@ require "json"
 # Integration tests for native web search features
 # Tests real API calls without mocks to ensure functionality
 RSpec.describe "Native Web Search Integration", :integration do
+  include IntegrationRetryHelper
   # Skip these tests in CI or when API keys are not available
   before(:all) do
     @skip_openai = !CONFIG["OPENAI_API_KEY"]
@@ -21,68 +22,70 @@ RSpec.describe "Native Web Search Integration", :integration do
     end
 
     it "performs web search with gpt-4.1-mini model" do
-      require_relative "../../lib/monadic/adapters/vendors/openai_helper"
-      require_relative "../../lib/monadic/utils/string_utils"
-      
-      class TestOpenAI
-        include OpenAIHelper
-        include StringUtils
-        
-        def self.name
-          "OpenAI"
+      with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
+        require_relative "../../lib/monadic/adapters/vendors/openai_helper"
+        require_relative "../../lib/monadic/utils/string_utils"
+
+        class TestOpenAI
+          include OpenAIHelper
+          include StringUtils
+
+          def self.name
+            "OpenAI"
+          end
+
+          # Add missing helper methods
+          def markdown_to_html(text, mathjax: false)
+            text # Simple passthrough for testing
+          end
+
+          def detect_language(text)
+            "en" # Simple stub for testing
+          end
         end
-        
-        # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
-          text # Simple passthrough for testing
-        end
-        
-        def detect_language(text)
-          "en" # Simple stub for testing
-        end
-      end
-      
-      helper = TestOpenAI.new
-      
-      # Create a test session
-      session = {
-        messages: [],
-        parameters: {
-          "model" => "gpt-4.1-mini",
-          "websearch" => true,
-          "temperature" => 0.0,
-          "max_tokens" => 1000,
-          "context_size" => 5,
-          "app_name" => "test"
+
+        helper = TestOpenAI.new
+
+        # Create a test session
+        session = {
+          messages: [],
+          parameters: {
+            "model" => "gpt-4.1-mini",
+            "websearch" => true,
+            "temperature" => 0.0,
+            "max_tokens" => 1000,
+            "context_size" => 5,
+            "app_name" => "test"
+          }
         }
-      }
-      
-      # Test message requesting current information
-      session[:parameters]["message"] = "What is the current weather in Tokyo? Please provide a brief answer."
-      
-      responses = []
-      helper.api_request("user", session) do |response|
-        responses << response
+
+        # Test message requesting current information
+        session[:parameters]["message"] = "What is the current weather in Tokyo? Please provide a brief answer."
+
+        responses = []
+        helper.api_request("user", session) do |response|
+          responses << response
+        end
+
+        # Verify we got responses
+        expect(responses).not_to be_empty
+
+        # Check for web search indicators
+        web_search_performed = responses.any? do |r|
+          r["type"] == "wait" && r["content"]&.include?("SEARCHING WEB")
+        end
+
+        expect(web_search_performed).to eq(true), "Expected web search to be performed"
+
+        # Verify final response contains content
+        # Collect all fragments to build the complete response
+        fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
+
+        # Check if we have content (might be about Tokyo or include date/time)
+        expect(fragments).not_to be_empty
+        # OpenAI might return just date/time or weather info
+        expect(fragments.downcase).to match(/tokyo|weather|temperature|cloudy|sunny|rain|pm|am|\d{4}/)
       end
-      
-      # Verify we got responses
-      expect(responses).not_to be_empty
-      
-      # Check for web search indicators
-      web_search_performed = responses.any? do |r|
-        r["type"] == "wait" && r["content"]&.include?("SEARCHING WEB")
-      end
-      
-      expect(web_search_performed).to eq(true), "Expected web search to be performed"
-      
-      # Verify final response contains content
-      # Collect all fragments to build the complete response
-      fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
-      
-      # Check if we have content (might be about Tokyo or include date/time)
-      expect(fragments).not_to be_empty
-      # OpenAI might return just date/time or weather info
-      expect(fragments.downcase).to match(/tokyo|weather|temperature|cloudy|sunny|rain|pm|am|\d{4}/)
     end
   end
 
@@ -92,66 +95,68 @@ RSpec.describe "Native Web Search Integration", :integration do
     end
 
     it "performs web search with Claude 3.5 Sonnet" do
-      require_relative "../../lib/monadic/adapters/vendors/claude_helper"
-      require_relative "../../lib/monadic/utils/string_utils"
-      
-      class TestClaude
-        include ClaudeHelper
-        include StringUtils
-        
-        def self.name
-          "Claude"
-        end
-        
-        # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
-          text # Simple passthrough for testing
-        end
-        
-        def detect_language(text)
-          "en" # Simple stub for testing
-        end
-      end
+      with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
+        require_relative "../../lib/monadic/adapters/vendors/claude_helper"
+        require_relative "../../lib/monadic/utils/string_utils"
 
-      helper = TestClaude.new
-      # Ensure api_request is public for the test harness, regardless of module visibility changes
-      begin
-        TestClaude.send(:public, :api_request)
-      rescue StandardError
-        # ignore if already public or method missing
-      end
-      
-      # Create a test session
-      session = {
-        messages: [],
-        parameters: {
-          "model" => "claude-sonnet-4-5-20250929",
-          "websearch" => true,
-          "temperature" => 0.0,
-          "max_tokens" => 1000,
-          "context_size" => 5,
-          "app_name" => "test"
+        class TestClaude
+          include ClaudeHelper
+          include StringUtils
+
+          def self.name
+            "Claude"
+          end
+
+          # Add missing helper methods
+          def markdown_to_html(text, mathjax: false)
+            text # Simple passthrough for testing
+          end
+
+          def detect_language(text)
+            "en" # Simple stub for testing
+          end
+        end
+
+        helper = TestClaude.new
+        # Ensure api_request is public for the test harness, regardless of module visibility changes
+        begin
+          TestClaude.send(:public, :api_request)
+        rescue StandardError
+          # ignore if already public or method missing
+        end
+
+        # Create a test session
+        session = {
+          messages: [],
+          parameters: {
+            "model" => "claude-sonnet-4-5-20250929",
+            "websearch" => true,
+            "temperature" => 0.0,
+            "max_tokens" => 1000,
+            "context_size" => 5,
+            "app_name" => "test"
+          }
         }
-      }
-      
-      # Test message requesting current information
-      session[:parameters]["message"] = "What are the latest AI developments in 2025? Brief answer please."
-      
-      responses = []
-      helper.api_request("user", session) do |response|
-        responses << response
+
+        # Test message requesting current information
+        session[:parameters]["message"] = "What are the latest AI developments in 2025? Brief answer please."
+
+        responses = []
+        helper.api_request("user", session) do |response|
+          responses << response
+        end
+
+        # Verify we got responses
+        expect(responses).not_to be_empty
+
+        # Check for content about AI developments
+        # Collect all fragments to build the complete response
+        fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
+
+        # Check if we have content about AI or 2025
+        expect(fragments).not_to be_empty
+        expect(fragments.downcase).to match(/ai|artificial intelligence|2025/)
       end
-      
-      # Verify we got responses
-      expect(responses).not_to be_empty
-      
-      # Check for content about AI developments
-      # Collect all fragments to build the complete response
-      fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
-      
-      # Check if we have content about AI or 2025
-      expect(fragments).not_to be_empty
-      expect(fragments.downcase).to match(/ai|artificial intelligence|2025/)
     end
   end
 
@@ -282,69 +287,71 @@ RSpec.describe "Native Web Search Integration", :integration do
     end
 
     it "uses URL context for web search" do
-      require_relative "../../lib/monadic/adapters/vendors/gemini_helper"
-      require_relative "../../lib/monadic/utils/string_utils"
-      
-      class TestGemini
-        include GeminiHelper
-        include StringUtils
-        
-        def self.name
-          "Gemini"
+      with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
+        require_relative "../../lib/monadic/adapters/vendors/gemini_helper"
+        require_relative "../../lib/monadic/utils/string_utils"
+
+        class TestGemini
+          include GeminiHelper
+          include StringUtils
+
+          def self.name
+            "Gemini"
+          end
+
+          # Add missing helper methods
+          def markdown_to_html(text, mathjax: false)
+            text # Simple passthrough for testing
+          end
+
+          def detect_language(text)
+            "en" # Simple stub for testing
+          end
+
+          def translate_role(role)
+            role == "assistant" ? "model" : "user"
+          end
         end
-        
-        # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
-          text # Simple passthrough for testing
-        end
-        
-        def detect_language(text)
-          "en" # Simple stub for testing
-        end
-        
-        def translate_role(role)
-          role == "assistant" ? "model" : "user"
-        end
-      end
-      
-      helper = TestGemini.new
-      
-      # Create a test session
-      session = {
-        messages: [],
-        parameters: {
-          "model" => "gemini-2.5-flash",
-          "websearch" => true,
-          "temperature" => 0.0,
-          "max_tokens" => 1000,
-          "context_size" => 5,
-          "app_name" => "test"
-          # Note: reasoning_effort must NOT be set for function calling to work
+
+        helper = TestGemini.new
+
+        # Create a test session
+        session = {
+          messages: [],
+          parameters: {
+            "model" => "gemini-2.5-flash",
+            "websearch" => true,
+            "temperature" => 0.0,
+            "max_tokens" => 1000,
+            "context_size" => 5,
+            "app_name" => "test"
+            # Note: reasoning_effort must NOT be set for function calling to work
+          }
         }
-      }
-      
-      # Test message with URL to trigger URL context feature
-      session[:parameters]["message"] = "Summarize the main content of https://www.nasa.gov/ in 2-3 sentences."
 
-      responses = []
-      helper.api_request("user", session) do |response|
-        responses << response
+        # Test message with URL to trigger URL context feature
+        session[:parameters]["message"] = "Summarize the main content of https://www.nasa.gov/ in 2-3 sentences."
+
+        responses = []
+        helper.api_request("user", session) do |response|
+          responses << response
+        end
+
+        # Verify we got responses
+        expect(responses).not_to be_empty
+
+        # Gemini URL Context handling - expects fragments from URL content
+
+        # Check for content about NASA website - handle both fragment and assistant response types
+        fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
+        assistant_response = responses.find { |r| r["type"] == "assistant" }
+
+        content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
+
+        expect(content).not_to be_empty
+        # URL Context should return content about NASA's mission, space exploration, or related topics
+        expect(content.downcase).to match(/nasa|space|exploration|mission|science|aeronautics/)
       end
-
-      # Verify we got responses
-      expect(responses).not_to be_empty
-
-      # Gemini URL Context handling - expects fragments from URL content
-
-      # Check for content about NASA website - handle both fragment and assistant response types
-      fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
-      assistant_response = responses.find { |r| r["type"] == "assistant" }
-
-      content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
-
-      expect(content).not_to be_empty
-      # URL Context should return content about NASA's mission, space exploration, or related topics
-      expect(content.downcase).to match(/nasa|space|exploration|mission|science|aeronautics/)
     end
   end
 
@@ -354,62 +361,64 @@ RSpec.describe "Native Web Search Integration", :integration do
     end
 
     it "uses built-in web search capabilities" do
-      require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
-      require_relative "../../lib/monadic/utils/string_utils"
-      
-      class TestPerplexity
-        include PerplexityHelper
-        include StringUtils
-        
-        def self.name
-          "Perplexity"
+      with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
+        require_relative "../../lib/monadic/adapters/vendors/perplexity_helper"
+        require_relative "../../lib/monadic/utils/string_utils"
+
+        class TestPerplexity
+          include PerplexityHelper
+          include StringUtils
+
+          def self.name
+            "Perplexity"
+          end
+
+          # Add missing helper methods
+          def markdown_to_html(text, mathjax: false)
+            text # Simple passthrough for testing
+          end
+
+          def detect_language(text)
+            "en" # Simple stub for testing
+          end
         end
-        
-        # Add missing helper methods
-        def markdown_to_html(text, mathjax: false)
-          text # Simple passthrough for testing
-        end
-        
-        def detect_language(text)
-          "en" # Simple stub for testing
-        end
-      end
-      
-      helper = TestPerplexity.new
-      
-      # Create a test session
-      session = {
-        messages: [],
-        parameters: {
-          "model" => "sonar",  # Use a valid Perplexity model
-          "temperature" => 0.0,
-          "max_tokens" => 1000,
-          "context_size" => 5,
-          "app_name" => "test"
+
+        helper = TestPerplexity.new
+
+        # Create a test session
+        session = {
+          messages: [],
+          parameters: {
+            "model" => "sonar",  # Use a valid Perplexity model
+            "temperature" => 0.0,
+            "max_tokens" => 1000,
+            "context_size" => 5,
+            "app_name" => "test"
+          }
         }
-      }
-      
-      # Test message - Perplexity always searches
-      session[:parameters]["message"] = "What are the current stock market trends?"
-      
-      responses = []
-      helper.api_request("user", session) do |response|
-        responses << response
+
+        # Test message - Perplexity always searches
+        session[:parameters]["message"] = "What are the current stock market trends?"
+
+        responses = []
+        helper.api_request("user", session) do |response|
+          responses << response
+        end
+
+        # Verify we got responses
+        expect(responses).not_to be_empty
+
+        # Perplexity always searches
+
+        # Check for financial content - handle both fragment and assistant response types
+        fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
+        assistant_response = responses.find { |r| r["type"] == "assistant" }
+
+        content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
+
+        expect(content).not_to be_empty
+        expect(content.downcase).to match(/market|stock|trading|finance/)
       end
-      
-      # Verify we got responses
-      expect(responses).not_to be_empty
-      
-      # Perplexity always searches
-      
-      # Check for financial content - handle both fragment and assistant response types
-      fragments = responses.select { |r| r["type"] == "fragment" }.map { |r| r["content"] }.join
-      assistant_response = responses.find { |r| r["type"] == "assistant" }
-      
-      content = fragments.empty? && assistant_response ? assistant_response["content"]["text"] : fragments
-      
-      expect(content).not_to be_empty
-      expect(content.downcase).to match(/market|stock|trading|finance/)
     end
   end
 

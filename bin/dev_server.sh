@@ -69,9 +69,14 @@ done
 
 echo
 echo "========================================================================"
-echo "Starting local Falcon server..."
+echo "Starting local Falcon server in DEBUG mode..."
+echo "🔧 Debug features enabled:"
+echo "   - Static file caching disabled (changes reflect immediately)"
+echo "   - Extra logging enabled"
+echo "   - Local documentation available"
+echo
 echo "Access the application at: http://localhost:4567"
-echo "Press Ctrl+C to stop"
+echo "Press Ctrl+C to stop the server"
 echo "========================================================================"
 echo
 
@@ -81,4 +86,8 @@ cd "$RUBY_DIR"
 # Set macOS fork safety environment variable for Falcon
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
-exec bundle exec falcon serve -b http://0.0.0.0:4567 -c config.ru
+# Enable debug mode for static file cache control
+export DEBUG_MODE=true
+
+# Start Falcon in foreground with single worker for debugging (allows Ctrl+C to stop gracefully)
+exec bundle exec falcon serve -b http://0.0.0.0:4567 -c config.ru --count 1

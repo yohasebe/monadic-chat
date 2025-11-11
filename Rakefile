@@ -201,46 +201,65 @@ namespace :server do
       puts "="*80 + "\n"
     end
 
-    # Clean up any existing Monadic Chat processes before starting
+    # Clean up any existing processes using port 4567
     puts "\n" + "="*80
-    puts "🧹 Checking for existing Monadic Chat processes..."
+    puts "🧹 Checking for existing server processes on port 4567..."
     puts "="*80 + "\n"
 
-    # Check for processes using port 4567
-    port_check = `lsof -ti :4567 2>/dev/null`.strip
-    unless port_check.empty?
-      puts "Found processes using port 4567. Stopping them..."
-      system("lsof -ti :4567 | xargs kill -9 2>/dev/null")
-    end
+    # Find all processes using port 4567 (more reliable than pgrep)
+    port_pids = `lsof -ti :4567 2>/dev/null`.strip
+    unless port_pids.empty?
+      pid_list = port_pids.split("\n")
+      puts "Found processes using port 4567 (PIDs: #{pid_list.join(', ')})"
+      puts "Stopping them gracefully..."
 
-    # Check for Monadic Chat related processes
-    processes_to_check = [
-      "monadic_server",
-      "falcon serve",
-      "mcp_server.rb"
-    ]
-
-    processes_found = false
-    processes_to_check.each do |process_name|
-      pids = `pgrep -f "#{process_name}" 2>/dev/null`.strip
-      unless pids.empty?
-        processes_found = true
-        puts "Found #{process_name} processes (PIDs: #{pids.split("\n").join(', ')}). Stopping them..."
-        system("pkill -9 -f '#{process_name}' 2>/dev/null")
+      # Try graceful shutdown first (SIGTERM)
+      pid_list.each do |pid|
+        system("kill -TERM #{pid} 2>/dev/null")
       end
-    end
-
-    if port_check.empty? && !processes_found
-      puts "No existing processes found. Ready to start."
-    else
-      puts "Cleanup complete. Waiting 2 seconds before starting server..."
       sleep 2
+
+      # Check if still running, then force kill
+      still_running = `lsof -ti :4567 2>/dev/null`.strip
+      unless still_running.empty?
+        puts "Some processes still running, forcing shutdown..."
+        still_running.split("\n").each do |pid|
+          system("kill -9 #{pid} 2>/dev/null")
+        end
+        sleep 1
+      end
+
+      # Final verification
+      final_check = `lsof -ti :4567 2>/dev/null`.strip
+      unless final_check.empty?
+        puts "\n" + "="*80
+        puts "⚠️  WARNING: Failed to stop all processes on port 4567"
+        puts "="*80
+        puts "\nStill running PIDs: #{final_check.split("\n").join(', ')}"
+        puts "Please manually stop these processes or use a different port."
+        puts "="*80 + "\n"
+        exit 1
+      end
+
+      puts "✅ All processes stopped successfully"
+    else
+      puts "No existing processes found on port 4567."
     end
 
     puts "="*80 + "\n"
 
-    # Skip Docker check in dev_server.sh since we already verified it
-    ENV['SKIP_DOCKER_CHECK'] = 'true'
+    # Verify Docker is still responding after cleanup
+    unless system("docker info > /dev/null 2>&1")
+      puts "\n" + "="*80
+      puts "⚠️  WARNING: Docker daemon stopped responding after cleanup"
+      puts "="*80
+      puts "\nPlease restart Docker Desktop and try again."
+      puts "Or run: electron . (in another terminal)"
+      puts "="*80 + "\n"
+      exit 1
+    end
+
+    # Start the development server
     sh "./bin/dev_server.sh"
   end
   

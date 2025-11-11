@@ -8,6 +8,8 @@ This mode enables:
 - **Extra logging** for debugging provider requests/responses
 - **Local documentation access** for both internal and external docs
 - **Direct Ruby execution** without container overhead
+- **Single worker mode** (`--count 1`) for simplified debugging
+- **Automatic process cleanup** of existing server instances on port 4567
 
 ## Quick Start
 
@@ -56,9 +58,11 @@ In debug mode, both internal and external documentation are served locally:
 ### Benefits
 
 - **No container overhead** - Ruby runs directly on your machine
-- **Fast iteration** - Changes to Ruby code reflect immediately
+- **Fast iteration** - Changes to Ruby code reflect immediately (no static file caching)
 - **Rich logging** - See full provider requests/responses
 - **Local docs** - Preview documentation changes without pushing to GitHub
+- **Single worker** - Simplified WebSocket session routing for debugging
+- **Clean startup** - Automatic cleanup of stale server processes
 
 ## When to Use
 

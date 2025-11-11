@@ -45,23 +45,37 @@ RSpec.describe 'Chat Export/Import Functionality' do
       
       # Process messages
       app_name = json_data["parameters"]["app_name"]
+      monadic_mode = json_data["parameters"]["monadic"] == "true"
+
       @session[:messages] = json_data["messages"].uniq.map do |msg|
         # Skip invalid messages
         next unless msg["role"] && msg["text"]
-        
+
         text = msg["text"]
-        
+
         # Create message object with required fields
         mid = msg["mid"] || SecureRandom.hex(4)
-        message_obj = { 
-          "role" => msg["role"], 
-          "text" => text, 
-          "html" => text, 
-          "lang" => detect_language(text), 
-          "mid" => mid, 
-          "active" => true 
+
+        # For assistant messages in non-monadic mode, convert markdown to HTML
+        # For monadic mode or user messages, keep raw text
+        html_content = if msg["role"] == "assistant" && !monadic_mode
+                        markdown_to_html(text)
+                      else
+                        text
+                      end
+
+        message_obj = {
+          "role" => msg["role"],
+          "text" => text,
+          "html" => html_content,
+          "lang" => detect_language(text),
+          "mid" => mid,
+          "active" => true
         }
-        
+
+        # Add monadic flag for assistant messages in monadic mode
+        message_obj["monadic"] = "true" if msg["role"] == "assistant" && monadic_mode
+
         # Add optional fields if present
         message_obj["thinking"] = msg["thinking"] if msg["thinking"]
         message_obj["images"] = msg["images"] if msg["images"]

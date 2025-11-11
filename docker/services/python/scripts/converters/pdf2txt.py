@@ -131,7 +131,7 @@ def export_as_json(pdf_path: str, output_format: str, all_pages: bool, show_prog
         print(json_data)
 
     except Exception as e:
-        print(f"Error processing PDF: {str(e)}")
+        print(f"Error processing PDF: {str(e)}", file=sys.stderr)
         raise
 
 def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_progress: bool = False) -> None:
@@ -156,7 +156,7 @@ def export_as_text(pdf_path: str, output_format: str, all_pages: bool, show_prog
         print('\n\n'.join(pages))
 
     except Exception as e:
-        print(f"Error processing PDF: {str(e)}")
+        print(f"Error processing PDF: {str(e)}", file=sys.stderr)
         raise
 
 def main() -> None:
@@ -213,7 +213,7 @@ def main() -> None:
                 show_progress=args.show_progress
             )
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error: {str(e)}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == '__main__':

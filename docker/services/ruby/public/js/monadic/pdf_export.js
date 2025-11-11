@@ -31,24 +31,34 @@
   }
 
   /**
+   * Escape HTML special characters
+   */
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
    * Create HTML for a single message
    */
   function createMessageHTML(message) {
     const roleStyle = getRoleStyle(message.role);
-    // Use the HTML property if available (already rendered), otherwise fall back to text or content
-    let messageText = message.html || message.text || message.content || '';
 
-    // If messageText is plain text (no HTML tags), convert newlines to <br> tags
-    // and wrap paragraphs in <p> tags for proper spacing
-    if (messageText && messageText.indexOf('<') === -1 && messageText.indexOf('>') === -1) {
-      // Plain text - convert newlines to proper HTML
-      // Split by double newlines for paragraphs, single newlines for line breaks
-      const paragraphs = messageText.split(/\n\n+/).filter(p => p.trim());
-      messageText = paragraphs.map(para => {
-        // Within each paragraph, convert single newlines to <br>
-        const lines = para.split('\n').filter(l => l.trim());
-        return `<p>${lines.join('<br>')}</p>`;
-      }).join('');
+    // Always use the plain text property to preserve line breaks
+    // Prefer text over html to avoid pre-rendered formatting issues
+    let rawText = message.text || message.content || '';
+
+    // Escape HTML characters
+    let messageText = escapeHtml(rawText);
+
+    // Convert newlines to proper HTML
+    // Replace double newlines with paragraph breaks, single newlines with <br>
+    messageText = messageText.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
+
+    // Wrap in paragraph tags if not empty
+    if (messageText.trim()) {
+      messageText = `<p>${messageText}</p>`;
     }
 
     // Handle images if present
@@ -57,38 +67,36 @@
       if (Array.isArray(message.image)) {
         imageHTML = message.image.map(img => {
           if (img.type === 'application/pdf') {
-            return `<div class="pdf-preview mb-3">
-              <i class="fas fa-file-pdf text-danger"></i>
-              <span class="ms-2">${img.title || 'PDF Document'}</span>
+            return `<div style="margin: 1em 0; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+              📄 ${img.title || 'PDF Document'}
             </div>`;
           } else {
-            return `<img class="base64-image mb-3" src="${img.data}" alt="${img.title || 'Image'}" style="max-width: 100%; height: auto;" />`;
+            return `<img src="${img.data}" alt="${img.title || 'Image'}" style="max-width: 100%; height: auto; margin: 1em 0;" />`;
           }
         }).join('');
       } else if (typeof message.image === 'string') {
-        imageHTML = `<img class="base64-image mb-3" src="${message.image}" alt="Image" style="max-width: 100%; height: auto;" />`;
+        imageHTML = `<img src="${message.image}" alt="Image" style="max-width: 100%; height: auto; margin: 1em 0;" />`;
       }
     }
 
     // Handle thinking block if present
     let thinkingHTML = '';
     if (message.thinking && message.thinking.trim()) {
+      const thinkingText = escapeHtml(message.thinking).replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br>');
       thinkingHTML = `
-        <div class="thinking-block">
-          <div class="thinking-block-header">
-            <strong>Thinking Process</strong>
-          </div>
-          <div>${message.thinking}</div>
+        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-left: 3px solid #999; border-radius: 2px;">
+          <div style="font-weight: bold; margin-bottom: 0.5rem; color: #666;">Thinking Process</div>
+          <div style="color: #555;"><p>${thinkingText}</p></div>
         </div>
       `;
     }
 
     return `
-      <div class="pdf-message" data-role="${message.role}">
-        <div class="pdf-message-header">
-          <strong>${roleStyle.label}</strong>
+      <div style="margin-bottom: 1.5rem; page-break-inside: avoid;">
+        <div style="font-weight: bold; margin-bottom: 0.5rem; color: #333;">
+          ${roleStyle.label}
         </div>
-        <div class="pdf-message-content">
+        <div style="background: white; padding: 1rem; border: 1px solid #ddd; border-radius: 4px;">
           ${thinkingHTML}
           ${messageText}
           ${imageHTML}
@@ -145,24 +153,17 @@
   }
 
   /**
-   * Collect all CSS needed for printing
+   * Get minimal CSS for printing (no external stylesheets)
    */
-  function collectStyles() {
-    const styles = [];
-
-    // Collect all style tags
-    $('style').each(function() {
-      styles.push(this.outerHTML);
-    });
-
-    // Collect all link tags for stylesheets
-    $('link[rel="stylesheet"]').each(function() {
-      const href = $(this).attr('href');
-      // Create a new link tag for the print window
-      styles.push(`<link rel="stylesheet" href="${href}">`);
-    });
-
-    return styles.join('\n');
+  function getPrintStyles() {
+    return `
+      <style>
+        /* Font Awesome icons - minimal subset */
+        .fa-face-smile:before { content: "\\1F642"; }
+        .fa-robot:before { content: "\\1F916"; }
+        .fa-bars:before { content: "\\2630"; }
+      </style>
+    `;
   }
 
   /**
@@ -198,8 +199,8 @@
       // Generate message cards HTML
       const messagesHTML = messagesToExport.map(msg => createMessageHTML(msg)).join('\n');
 
-      // Collect all styles
-      const stylesHTML = collectStyles();
+      // Get minimal print styles (no external CSS)
+      const stylesHTML = getPrintStyles();
 
       // Create the complete HTML document
       const printHTML = `
@@ -210,30 +211,40 @@
           <title>Monadic Chat - ${appInfo.appName} - ${new Date().toLocaleDateString()}</title>
           ${stylesHTML}
           <style>
-            /* Additional print-specific styles */
+            /* Simple print-specific styles */
             * {
               box-sizing: border-box;
+              margin: 0;
+              padding: 0;
             }
 
             body {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               line-height: 1.6;
               color: #333;
-              max-width: 100%;
-              margin: 0;
+              background: white !important;
               padding: 20px;
-              background: white;
             }
 
-            .print-content {
-              width: 100%;
-              max-width: 100%;
-              overflow: visible;
+            p {
+              margin: 0.5em 0;
+              white-space: pre-wrap;
+              word-wrap: break-word;
             }
 
-            .messages-container {
-              width: 100%;
+            p:first-of-type {
+              margin-top: 0;
+            }
+
+            p:last-of-type {
+              margin-bottom: 0;
+            }
+
+            img {
               max-width: 100%;
+              height: auto;
+              display: block;
+              margin: 1em 0;
             }
 
             @page {
@@ -242,138 +253,21 @@
             }
 
             @media print {
+              body {
+                background: white !important;
+              }
+
               * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                color-adjust: exact !important;
-              }
-
-              body {
-                margin: 0;
-                padding: 0;
                 background: white !important;
-                overflow: visible;
-              }
-
-              .print-content {
-                width: 100%;
-                overflow: visible;
-              }
-
-              .messages-container {
-                width: 100%;
-                overflow: visible;
-              }
-
-              /* Override background colors for all card bodies - force white background */
-              .card-body,
-              .card-body.role-assistant,
-              .card-body.role-user,
-              .card-body.role-system,
-              .card-body.role-info,
-              div.card-body,
-              div.card-body.role-assistant,
-              div.card-body.role-user,
-              div.card-body.role-system,
-              div.card-body.role-info {
-                background-color: white !important;
-                color: #000 !important;
-              }
-
-              /* Ensure proper line breaks and paragraph spacing */
-              .card-text p {
-                margin-top: 0.5em !important;
-                margin-bottom: 0.5em !important;
-                white-space: pre-wrap !important;
-                word-wrap: break-word !important;
-              }
-
-              .card-text p:first-of-type {
-                margin-top: 0 !important;
-              }
-
-              .card-text p:last-of-type {
-                margin-bottom: 0 !important;
-              }
-
-              /* Preserve line breaks */
-              .card-text br {
-                display: block !important;
-                content: "" !important;
-                margin: 0.5em 0 !important;
-              }
-
-              /* Prevent page breaks inside message cards when possible */
-              .card {
-                page-break-inside: avoid;
-                break-inside: avoid;
-                margin-bottom: 1rem;
-                overflow: visible;
-                background: white !important;
-              }
-
-              /* If card is too long, allow breaking but keep header/body together */
-              .card-header {
-                page-break-after: avoid;
-                break-after: avoid;
-                background: white !important;
-              }
-
-              .card-body {
-                page-break-before: avoid;
-                break-before: avoid;
-              }
-
-              /* Keep header on first page */
-              .print-content > div:first-child {
-                page-break-after: avoid;
-                break-after: avoid;
-              }
-
-              /* Handle images properly across pages */
-              img {
-                max-width: 100%;
-                height: auto;
-                page-break-inside: avoid;
-                break-inside: avoid;
-              }
-
-              /* Ensure code blocks don't break badly */
-              pre {
-                page-break-inside: avoid;
-                break-inside: avoid;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                overflow: visible;
-              }
-
-              code {
-                white-space: pre-wrap;
-                word-wrap: break-word;
-              }
-
-              /* Ensure tables render properly */
-              table {
-                page-break-inside: avoid;
-                break-inside: avoid;
-                width: 100%;
-              }
-
-              /* Remove any fixed positioning or transforms */
-              * {
-                position: static !important;
-                transform: none !important;
               }
             }
           </style>
         </head>
         <body>
-          <div class="print-content">
-            ${headerHTML}
-            <div class="messages-container">
-              ${messagesHTML}
-            </div>
-          </div>
+          ${headerHTML}
+          ${messagesHTML}
         </body>
         </html>
       `;

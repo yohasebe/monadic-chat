@@ -209,8 +209,8 @@ module ProviderMatrixHelper
       when 'gemini'
         api_key = ENV['GEMINI_API_KEY']
         raise 'GEMINI_API_KEY not set' unless api_key && !api_key.empty?
-        # Use Imagen 3 direct endpoint as in GeminiHelper
-        model = 'imagen-3.0-generate-002'
+        # Use Imagen 4 fast model as default in GeminiHelper
+        model = 'imagen-4.0-fast-generate-001'
         uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model}:predict?key=#{api_key}")
         body = {
           instances: [{ prompt: prompt }],

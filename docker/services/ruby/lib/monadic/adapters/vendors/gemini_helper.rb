@@ -83,7 +83,6 @@ module GeminiHelper
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list
   IMAGE_GENERATION_MODELS = {
-    "imagen3" => "imagen-3.0-generate-002",
     "imagen4" => "imagen-4.0-generate-001",
     "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
     "imagen4-fast" => "imagen-4.0-fast-generate-001"

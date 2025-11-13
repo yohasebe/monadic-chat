@@ -34,6 +34,12 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
     const averageAmplitude = totalAmplitude / bufferLength;
     const isSilent = averageAmplitude < silenceThreshold;
 
+    // Debug: Log amplitude every 500ms to help diagnose microphone issues
+    if (!window._lastAmplitudeLog || Date.now() - window._lastAmplitudeLog > 500) {
+      console.log(`[Mic Debug] Average amplitude: ${averageAmplitude.toFixed(2)} (threshold: ${silenceThreshold}, silent: ${isSilent})`);
+      window._lastAmplitudeLog = Date.now();
+    }
+
     if (isSilent) {
       const now = performance.now();
       if (!triggered && now - silenceStart > silenceDuration) {
@@ -223,12 +229,13 @@ function startAudioCapture() {
 
       // Detect silence and stop recording if silence lasts more than the specified duration
       const silenceDuration = 5000; // 5000 milliseconds (5 seconds)
+      const silenceThreshold = 5; // Lower threshold for more sensitive detection (was 16 by default)
       const closeAudioContext = detectSilence(stream, function () {
         if (isListening) {
           silenceDetected = true;
           voiceButton.trigger("click");
         }
-      }, silenceDuration);
+      }, silenceDuration, silenceThreshold);
 
       // Add this line to store the closeAudioContext function in the localStream object
       localStream.closeAudioContext = closeAudioContext;

@@ -149,6 +149,8 @@
     "stoppingAllProcesses": "すべてのプロセスを停止しています。",
     "systemStopped": "システムが{{time}}に停止しました",
     "serverStopped": "サーバーが{{time}}に停止しました",
+    "serverNotRunning": "サーバーが起動していません。先にサーバーを起動してください。",
+    "serverStoppedAfterSleep": "スリープ/復帰後にサーバーが停止しました。サーバーを再起動してください。",
     "quittingMonadicChat": "Monadic Chatを終了しています...",
     "monadicChatPreparing": "Monadic Chatを準備しています...",
     "monadicChatStopping": "Monadic Chatを停止しています...",

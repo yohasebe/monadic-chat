@@ -149,6 +149,8 @@
     "stoppingAllProcesses": "Stopping all processes.",
     "systemStopped": "System stopped at {{time}}",
     "serverStopped": "Server stopped at {{time}}",
+    "serverNotRunning": "Server is not running. Please start the server first.",
+    "serverStoppedAfterSleep": "Server stopped after system sleep/resume. Please restart the server.",
     "quittingMonadicChat": "Quitting Monadic Chat . . .",
     "monadicChatPreparing": "Monadic Chat preparing . . .",
     "monadicChatStopping": "Monadic Chat is stopping . . .",

@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const extendedContextMenu = require('electron-context-menu');
 const i18n = require('./i18n');
@@ -1506,11 +1506,29 @@ function initializeApp() {
             break;
           case 'browser': {
             const url = 'http://localhost:4567';
-            if (browserMode === 'internal') {
-              openWebViewWindow(url);
-            } else {
-              openBrowser(url);
-            }
+            // Verify server is actually running before opening browser
+            fetch(url)
+              .then(response => {
+                if (response.ok) {
+                  // Server is running, open browser
+                  if (browserMode === 'internal') {
+                    openWebViewWindow(url);
+                  } else {
+                    openBrowser(url);
+                  }
+                } else {
+                  throw new Error('Server not responding');
+                }
+              })
+              .catch(error => {
+                console.error('Server verification failed:', error);
+                // Update UI to reflect actual server state
+                currentStatus = 'Stopped';
+                updateStatusIndicator('Stopped');
+                updateTrayImage('Stopped');
+                updateContextMenu(false);
+                writeToScreen(formatMessage('error', 'messages.serverNotRunning'));
+              });
             break;
           }
           case 'sharedfolder':
@@ -1581,10 +1599,30 @@ function initializeApp() {
         case 'show-browser':
           // Show internal browser window (start server if not running)
           if (currentStatus === 'Running' || currentStatus === 'Ready') {
-            // Server already running - just show the browser
-            if (browserMode === 'internal') {
-              openWebViewWindow('http://localhost:4567');
-            }
+            // Verify server is actually running before opening browser
+            fetch('http://localhost:4567')
+              .then(response => {
+                if (response.ok && browserMode === 'internal') {
+                  openWebViewWindow('http://localhost:4567');
+                } else if (!response.ok) {
+                  throw new Error('Server not responding');
+                }
+              })
+              .catch(error => {
+                console.error('Server verification failed, restarting:', error);
+                // Server not responding, need to start it
+                currentStatus = 'Stopped';
+                updateStatusIndicator('Stopped');
+                updateTrayImage('Stopped');
+                updateContextMenu(false);
+                dockerManager.checkRequirements()
+                  .then(() => {
+                    dockerManager.runCommand('start', formatMessage(null, 'messages.monadicChatPreparing'), 'Starting', 'Running');
+                  })
+                  .catch((error) => {
+                    console.log(`Docker requirements check failed: ${error}`);
+                  });
+              });
           } else {
             // Server not running - start it (will auto-open browser)
             dockerManager.checkRequirements()
@@ -3422,6 +3460,35 @@ app.whenReady().then(() => {
     // Initialize Selenium enabled state (default: true if not explicitly set to 'false')
     seleniumEnabled = envConfig.SELENIUM_ENABLED !== 'false';
   }
+
+  // Setup power management handlers for sleep/resume events
+  powerMonitor.on('suspend', () => {
+    console.log('System is going to sleep');
+  });
+
+  powerMonitor.on('resume', () => {
+    console.log('System resumed from sleep');
+    // Verify server state after resume
+    if (currentStatus === 'Running' || currentStatus === 'Ready') {
+      // Check if server is actually still running
+      fetch('http://localhost:4567')
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Server not responding');
+          }
+          console.log('Server verified after resume');
+        })
+        .catch(error => {
+          console.error('Server not responding after resume:', error);
+          // Reset status to reflect actual state
+          currentStatus = 'Stopped';
+          updateStatusIndicator('Stopped');
+          updateTrayImage('Stopped');
+          updateContextMenu(false);
+          writeToScreen(formatMessage('warning', 'messages.serverStoppedAfterSleep'));
+        });
+    }
+  });
 
   // Setup update-related error handlers first
   process.on('uncaughtException', (error) => {

@@ -3,7 +3,7 @@ const modelSpec = {
   "gpt-5": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,

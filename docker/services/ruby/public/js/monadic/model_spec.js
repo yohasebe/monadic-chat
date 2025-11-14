@@ -125,7 +125,7 @@ const modelSpec = {
   "gpt-5.1-chat-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
+    "reasoning_effort": [["medium"], "medium"],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],

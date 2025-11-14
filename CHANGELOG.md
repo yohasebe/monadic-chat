@@ -1,3 +1,14 @@
+- [November 14, 2024] Recent Updates
+  - **Monadic Response Processing Fix**: Resolved double JSON encoding issue
+    - Fixed `process_monadic_response` to return Hash instead of JSON string
+    - Fixed `ensure_valid_monadic_json` to return Hash instead of JSON string
+    - Fixed `validate_monadic_response` to return Hash for consistency
+    - Removed String branch in OpenAI helper that caused double encoding
+    - Fixed JavaScript `_looksLikeMonadicJson` to return proper boolean
+    - Resolves Chat Plus structured output display issues
+    - Ensures consistent data flow: single JSON serialization at output stage
+    - Updated tests to reflect implementation changes
+
 - [October 22, 2024] **v1.0.0 - First Stable Release** 🎉
   - **Production Ready**: Comprehensive testing with 317 passing tests
   - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security

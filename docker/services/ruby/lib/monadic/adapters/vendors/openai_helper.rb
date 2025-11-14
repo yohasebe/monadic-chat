@@ -1944,15 +1944,13 @@ module OpenAIHelper
           end
           
           # Update the choice with processed content
+          # process_monadic_response now always returns a Hash, never a JSON string
           if processed.is_a?(Hash)
             # For monadic responses, we need to preserve the entire JSON structure
             # not just the "message" field, so the UI can display the "context" properly
             choice["message"]["content"] = JSON.generate(processed)
-          elsif processed.is_a?(String)
-            # If it's already a JSON string, use it as-is
-            choice["message"]["content"] = processed
           else
-            # Fallback: convert to string
+            # Fallback: convert to string (should rarely happen)
             choice["message"]["content"] = processed.to_s
           end
         end
@@ -2987,15 +2985,13 @@ module OpenAIHelper
         # Update the choice with processed content
         # IMPORTANT: Preserve full JSON structure for monadic apps (message + context)
         # This ensures UI cards display context information correctly
+        # process_monadic_response now always returns a Hash, never a JSON string
         if processed.is_a?(Hash)
           # For monadic responses, we need to preserve the entire JSON structure
           # not just the "message" field, so the UI can display the "context" properly
           choice["message"]["content"] = JSON.generate(processed)
-        elsif processed.is_a?(String)
-          # If it's already a JSON string, use it as-is
-          choice["message"]["content"] = processed
         else
-          # Fallback: convert to string
+          # Fallback: convert to string (should rarely happen)
           choice["message"]["content"] = processed.to_s
         end
       end

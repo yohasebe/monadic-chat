@@ -120,8 +120,8 @@ module MonadicProviderInterface
       begin
         parsed = JSON.parse(content)
         if parsed.is_a?(Hash) && parsed.key?("message")
-          # It's already valid monadic JSON
-          return content
+          # It's already valid monadic JSON - return the parsed Hash, not the string
+          return parsed
         end
       rescue JSON::ParserError
         # Not a single valid JSON, continue with multiple JSON handling
@@ -164,9 +164,10 @@ module MonadicProviderInterface
           main_response = json_matches.find { |obj| obj.key?("message") }
           # If none have "message", use the last one
           main_response ||= json_matches.last
-          
+
           if main_response
-            content = JSON.generate(main_response)
+            # Return the Hash directly instead of generating JSON string
+            return main_response
           end
         end
       end
@@ -181,12 +182,14 @@ module MonadicProviderInterface
   end
 
   # Validate and ensure response follows monadic schema
+  # Note: validate_monadic_response! (with bang) is the preferred implementation
+  # with more robust schema validation. This method is kept for backward compatibility.
   def validate_monadic_response(response)
     return response unless monadic_mode?
-    
+
     begin
       parsed = response.is_a?(String) ? JSON.parse(response) : response
-      
+
       # Ensure required fields exist
       unless parsed.is_a?(Hash) && parsed.key?("message")
         parsed = {
@@ -194,20 +197,20 @@ module MonadicProviderInterface
           "context" => {}
         }
       end
-      
+
       # Ensure context exists
       parsed["context"] ||= {}
-      
-      JSON.generate(parsed)
+
+      parsed
     rescue JSON::ParserError => e
       # Return safe fallback
-      JSON.generate({
+      {
         "message" => response.to_s,
         "context" => {
           "error" => "Failed to parse response as JSON",
           "original_error" => e.message
         }
-      })
+      }
     end
   end
 
@@ -306,18 +309,21 @@ module MonadicProviderInterface
     begin
       parsed = JSON.parse(content)
       if parsed.is_a?(Hash) && parsed.key?("message")
-        content
+        # Return the parsed Hash, not the JSON string
+        parsed
       else
-        JSON.generate({
+        # Return a Hash, not a JSON string
+        {
           "message" => content,
           "context" => {}
-        })
+        }
       end
     rescue JSON::ParserError
-      JSON.generate({
+      # Return a Hash, not a JSON string
+      {
         "message" => content,
         "context" => {}
-      })
+      }
     end
   end
 end

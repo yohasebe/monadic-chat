@@ -153,7 +153,7 @@
       // Check if valid JSON with Monadic structure
       try {
         const obj = JSON.parse(text);
-        return typeof obj === 'object' && (obj.message || obj.context);
+        return typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj);
       } catch {
         return false;
       }

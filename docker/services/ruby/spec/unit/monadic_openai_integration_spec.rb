@@ -21,7 +21,8 @@ RSpec.describe "OpenAI Monadic Response Integration" do
   
   describe "Chat Completions API monadic response handling" do
     it "preserves full JSON structure when processing Hash response" do
-      # Simulate the response processing section around line 1429
+      # Simulate the response processing section around line 1946
+      # After fix: process_monadic_response returns Hash, not JSON string
       processed = {
         "message" => "This is the response",
         "context" => {
@@ -29,50 +30,28 @@ RSpec.describe "OpenAI Monadic Response Integration" do
           "key2" => ["item1", "item2"]
         }
       }
-      
+
       choice = { "message" => { "content" => "" } }
-      
-      # Simulate the actual code logic
+
+      # Current implementation (String branch removed to prevent double encoding)
       if processed.is_a?(Hash)
         choice["message"]["content"] = JSON.generate(processed)
-      elsif processed.is_a?(String)
-        choice["message"]["content"] = processed
       else
         choice["message"]["content"] = processed.to_s
       end
-      
+
       # Verify the full JSON is preserved
       result = JSON.parse(choice["message"]["content"])
       expect(result).to have_key("message")
       expect(result).to have_key("context")
       expect(result["context"]).to eq(processed["context"])
     end
-    
-    it "handles String responses correctly" do
-      processed = '{"message": "test", "context": {"data": "value"}}'
-      choice = { "message" => { "content" => "" } }
-      
-      if processed.is_a?(Hash)
-        choice["message"]["content"] = JSON.generate(processed)
-      elsif processed.is_a?(String)
-        choice["message"]["content"] = processed
-      else
-        choice["message"]["content"] = processed.to_s
-      end
-      
-      # String should be passed through as-is
-      expect(choice["message"]["content"]).to eq(processed)
-      
-      # And should be valid JSON
-      result = JSON.parse(choice["message"]["content"])
-      expect(result).to have_key("message")
-      expect(result).to have_key("context")
-    end
   end
   
   describe "Responses API monadic response handling" do
     it "preserves full JSON structure when processing Hash response" do
-      # Simulate the response processing section around line 2067
+      # Simulate the response processing section around line 2987
+      # After fix: process_monadic_response returns Hash, not JSON string
       processed = {
         "message" => "Response from GPT-5",
         "context" => {
@@ -83,18 +62,16 @@ RSpec.describe "OpenAI Monadic Response Integration" do
           ]
         }
       }
-      
+
       choice = { "message" => { "content" => "" } }
-      
-      # Simulate the actual code logic for Responses API
+
+      # Current implementation (String branch removed to prevent double encoding)
       if processed.is_a?(Hash)
         choice["message"]["content"] = JSON.generate(processed)
-      elsif processed.is_a?(String)
-        choice["message"]["content"] = processed
       else
         choice["message"]["content"] = processed.to_s
       end
-      
+
       # Verify the full JSON is preserved
       result = JSON.parse(choice["message"]["content"])
       expect(result).to have_key("message")
@@ -181,31 +158,30 @@ RSpec.describe "OpenAI Monadic Response Integration" do
     it "handles nil processed response" do
       processed = nil
       choice = { "message" => { "content" => "" } }
-      
+
       if processed.is_a?(Hash)
         choice["message"]["content"] = JSON.generate(processed)
-      elsif processed.is_a?(String)
-        choice["message"]["content"] = processed
       else
         choice["message"]["content"] = processed.to_s
       end
-      
+
       expect(choice["message"]["content"]).to eq("")
     end
-    
-    it "handles malformed JSON string" do
-      processed = "not a valid json {broken"
+
+    it "handles non-Hash fallback via to_s" do
+      # After fix: String responses are converted to string via to_s
+      # This prevents double encoding - process_monadic_response should
+      # already return Hash, not String
+      processed = "fallback string"
       choice = { "message" => { "content" => "" } }
-      
+
       if processed.is_a?(Hash)
         choice["message"]["content"] = JSON.generate(processed)
-      elsif processed.is_a?(String)
-        choice["message"]["content"] = processed
       else
         choice["message"]["content"] = processed.to_s
       end
-      
-      # Should pass through as-is even if invalid
+
+      # Should pass through as-is
       expect(choice["message"]["content"]).to eq(processed)
     end
     

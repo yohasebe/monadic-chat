@@ -3,7 +3,7 @@ const modelSpec = {
   "gpt-5": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
@@ -112,7 +112,7 @@ const modelSpec = {
   "gpt-5.1": {
     "context_window" : [1, 400000],
     "max_output_tokens" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_verbosity": true,
@@ -125,7 +125,7 @@ const modelSpec = {
   "gpt-5.1-chat-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -143,7 +143,7 @@ const modelSpec = {
   "gpt-5.1-codex": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "api_type": "responses",
@@ -163,7 +163,7 @@ const modelSpec = {
   "gpt-5.1-codex-mini": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium"], "minimal"],
+    "reasoning_effort": [["none", "low", "medium"], "none"],
     "tool_capability": true,
     "vision_capability": true,
     "api_type": "responses",
@@ -353,7 +353,7 @@ const modelSpec = {
   "o4-mini": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "api_type": "responses",
@@ -362,7 +362,7 @@ const modelSpec = {
   "o4-mini-2025-04-16": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "api_type": "responses",
@@ -377,7 +377,7 @@ const modelSpec = {
   "o1-2024-12-17": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": false,
     "vision_capability": false
   },
@@ -390,14 +390,14 @@ const modelSpec = {
   "o1-mini-2024-09-12": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": false,
     "vision_capability": false
   },
   "o1-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_streaming": false
@@ -405,7 +405,7 @@ const modelSpec = {
   "o1-pro-2025-03-19": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_streaming": false
@@ -450,7 +450,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "supports_streaming": false,
     "api_type": "responses",
     "supports_web_search": true,
@@ -466,7 +466,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
     "api_type": "responses",
     "supports_web_search": true,
     "latency_tier": "slow",
@@ -507,7 +507,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
     "is_reasoning_model": true
   },
   "o3-deep-research-2025-06-26": {
@@ -519,7 +519,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
     "is_reasoning_model": true
   },
   // O4 series models
@@ -554,7 +554,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
+    "reasoning_effort": [["none", "low", "medium", "high"], "high"]
   },
   "o4-mini-deep-research-2025-06-26": {
     "context_window": [1, 200000],
@@ -565,7 +565,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "high"]
+    "reasoning_effort": [["none", "low", "medium", "high"], "high"]
   },
   // Other OpenAI models
   "codex-mini-latest": {
@@ -867,7 +867,6 @@ const modelSpec = {
       "default_disabled": true,
       "presets": {
         "none": 0,
-        "minimal": 0,
         "low": 512,
         "medium": 8000,
         "high": 20000
@@ -889,7 +888,6 @@ const modelSpec = {
       "default_disabled": true,
       "presets": {
         "none": 0,
-        "minimal": 0,
         "low": 512,
         "medium": 8000,
         "high": 20000
@@ -911,7 +909,6 @@ const modelSpec = {
       "default_disabled": true,
       "presets": {
         "none": 0,
-        "minimal": 0,
         "low": 512,
         "medium": 8000,
         "high": 20000
@@ -931,7 +928,7 @@ const modelSpec = {
       "max": 32768,
       "can_disable": false,
       "presets": {
-        "minimal": 128,
+        "none": 128,
         "low": 5000,
         "medium": 20000,
         "high": 28000
@@ -952,7 +949,7 @@ const modelSpec = {
       "max": 32768,
       "can_disable": false,
       "presets": {
-        "minimal": 128,
+        "none": 128,
         "low": 5000,
         "medium": 20000,
         "high": 28000
@@ -1225,7 +1222,7 @@ const modelSpec = {
     "websearch_capability": true,
     "supports_web_search": true,
     "supports_parallel_function_calling": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "is_reasoning_model": true
   },
   "grok-4-fast-non-reasoning": {
@@ -1307,7 +1304,7 @@ const modelSpec = {
   // Perplexity models
   "sonar-deep-research": {
     "context_window" : [1, 128000],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "low"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_pdf_upload": false
@@ -1321,7 +1318,7 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 2.0], 1.0],
     "vision_capability": true,
     "is_reasoning_model": true,
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_pdf_upload": false
@@ -1330,7 +1327,7 @@ const modelSpec = {
     "context_window" : [1, 128000],
     "temperature": [[0.0, 1.99], 0.9],
     "top_p": [[0.0, 1.0], 0.9],
-    "reasoning_effort": [["minimal", "low", "medium", "high"], "medium"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[0.0, 2.0], 1.0],
     "vision_capability": true,

@@ -108,6 +108,78 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
+  // gpt-5.1 models
+  "gpt-5.1": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.1-chat-latest": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_image_generation": true,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.1-codex": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["minimal", "low", "medium", "high"], "minimal"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": false,
+    "supports_pdf": false,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.1-codex-mini": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["minimal", "low", "medium"], "minimal"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": false,
+    "supports_pdf": false,
+    "skip_in_progress_events": true
+  },
   // gpt-4o models
   "gpt-4o": {
     "context_window" : [1, 128000],
@@ -950,6 +1022,14 @@ const modelSpec = {
     "tool_capability": true
   },
   "mistral-large-latest": {
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true
+  },
+  "mistral-vibe-cli-latest": {
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],

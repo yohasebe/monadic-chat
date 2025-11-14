@@ -10,7 +10,14 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
-    "skip_in_progress_events": true
+    "skip_in_progress_events": true,
+    "feature_constraints": {
+      "reasoning_effort": {
+        "incompatible_with": {
+          "web_search": ["minimal"]
+        }
+      }
+    }
   },
   "gpt-5-mini": {
     "context_window" : [1, 400000],

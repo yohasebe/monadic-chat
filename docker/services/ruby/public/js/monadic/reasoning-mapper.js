@@ -77,63 +77,101 @@ class ReasoningMapper {
    * Gets available options for UI dropdown for given provider/model
    * @param {string} provider - Provider name
    * @param {string} model - Model name
+   * @param {Object} currentSettings - Current UI settings (e.g., {web_search: true})
    * @returns {Array} Array of available options or null
    */
-  static getAvailableOptions(provider, model) {
+  static getAvailableOptions(provider, model, currentSettings = {}) {
     try {
       const spec = window.modelSpec ? window.modelSpec[model] : null;
       if (!spec) {
         console.warn(`ReasoningMapper: Model spec not found for '${model}'`);
         return null;
       }
-      
+
+      let options = null;
+
       switch (provider) {
         case 'OpenAI':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-            return spec.reasoning_effort[0]; // ["minimal", "low", "medium", "high"]
+            options = spec.reasoning_effort[0]; // ["minimal", "low", "medium", "high"]
           }
-          return null;
+          break;
           
         case 'Anthropic':
           if (spec.supports_thinking === true && spec.thinking_budget) {
-            return ['minimal', 'low', 'medium', 'high']; // UI options mapped to budget values
+            options = ['minimal', 'low', 'medium', 'high']; // UI options mapped to budget values
           }
-          return null;
-          
+          break;
+
         case 'Google':
           if (spec.thinking_budget) {
-            return spec.thinking_budget.can_disable 
+            options = spec.thinking_budget.can_disable
               ? ['minimal', 'low', 'medium', 'high']
               : ['low', 'medium', 'high']; // No minimal if can't disable
           }
-          return null;
-          
+          break;
+
         case 'xAI':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-            return spec.reasoning_effort[0];
+            options = spec.reasoning_effort[0];
           }
-          return null;
-          
+          break;
+
         case 'DeepSeek':
           if (spec.reasoning_content) {
-            return ['minimal', 'medium']; // Only these two options
+            options = ['minimal', 'medium']; // Only these two options
           }
-          return null;
-          
+          break;
+
         case 'Perplexity':
           if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
-            return spec.reasoning_effort[0]; // ["minimal", "low", "medium", "high"]
+            options = spec.reasoning_effort[0]; // ["minimal", "low", "medium", "high"]
           }
-          return null;
-          
+          break;
+
         default:
           console.warn(`ReasoningMapper: Unknown provider '${provider}'`);
           return null;
       }
+
+      // Apply feature constraints if they exist
+      if (options && spec.feature_constraints && spec.feature_constraints.reasoning_effort) {
+        options = this._applyFeatureConstraints(
+          options,
+          spec.feature_constraints.reasoning_effort,
+          currentSettings
+        );
+      }
+
+      return options;
     } catch (error) {
       console.error('ReasoningMapper: Error getting available options:', error);
       return null;
     }
+  }
+
+  /**
+   * Apply feature constraints to filter incompatible options
+   * @param {Array} options - Available options
+   * @param {Object} constraints - Feature constraints from model_spec
+   * @param {Object} currentSettings - Current UI settings
+   * @returns {Array} Filtered options
+   */
+  static _applyFeatureConstraints(options, constraints, currentSettings) {
+    if (!constraints.incompatible_with) return options;
+
+    let filteredOptions = [...options];
+
+    // Check each feature in incompatible_with
+    for (const [feature, incompatibleValues] of Object.entries(constraints.incompatible_with)) {
+      // If the feature is currently enabled
+      if (currentSettings[feature] === true) {
+        // Remove incompatible values from options
+        filteredOptions = filteredOptions.filter(opt => !incompatibleValues.includes(opt));
+      }
+    }
+
+    return filteredOptions;
   }
   
   // Provider-specific mapping functions

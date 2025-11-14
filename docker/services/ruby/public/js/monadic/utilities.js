@@ -946,8 +946,13 @@ window.loadParams = function(params, calledFor = "loadParams") {
     
     // Use ReasoningMapper to check if provider/model supports reasoning
     if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, model)) {
+      // Get current UI settings for feature constraint checking
+      const currentSettings = {
+        web_search: $('#websearch').prop('checked') || false
+      };
+
       // Get available options for this provider/model
-      const availableOptions = ReasoningMapper.getAvailableOptions(provider, model);
+      const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
       
       // Update dropdown options
       if (availableOptions) {
@@ -1935,6 +1940,44 @@ $(document).ready(function() {
     const selectedApp = $("#apps").val();
     if (selectedApp) {
       updateAppBadges(selectedApp);
+    }
+
+    // Update reasoning_effort options when websearch changes
+    if ($(this).attr('id') === 'websearch' && window.ReasoningMapper) {
+      const model = $("#models").val();
+      const group = $("#models").find(":selected").parent().attr("label");
+      const provider = getProviderFromGroup(group);
+
+      if (model && provider && ReasoningMapper.isSupported(provider, model)) {
+        const currentSettings = {
+          web_search: $('#websearch').prop('checked') || false
+        };
+
+        const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
+
+        if (availableOptions) {
+          const $dropdown = $("#reasoning-effort");
+          const currentValue = $dropdown.val();
+
+          // Rebuild options
+          $dropdown.empty();
+          availableOptions.forEach(option => {
+            const label = window.ReasoningLabels ?
+              window.ReasoningLabels.getOptionLabel(provider, option) :
+              option;
+            $dropdown.append(`<option value="${option}">${label}</option>`);
+          });
+
+          // Restore value if still valid, otherwise use first available
+          if (availableOptions.includes(currentValue)) {
+            $dropdown.val(currentValue);
+          } else {
+            const suggested = ReasoningMapper.getDefaultValue(provider, model);
+            const newValue = (suggested && availableOptions.includes(suggested)) ? suggested : availableOptions[0];
+            $dropdown.val(newValue);
+          }
+        }
+      }
     }
   });
 });

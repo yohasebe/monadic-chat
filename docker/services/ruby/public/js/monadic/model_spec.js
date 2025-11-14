@@ -1030,7 +1030,8 @@ const modelSpec = {
     "tool_capability": true
   },
   "mistral-vibe-cli-latest": {
-    "max_output_tokens" : [1, 131000],
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 128000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],

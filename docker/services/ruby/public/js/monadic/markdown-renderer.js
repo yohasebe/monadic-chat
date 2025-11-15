@@ -137,12 +137,22 @@
         'chat_plus_deepseek',
         'chat_plus_cohere',
         'chat_plus_perplexity',
-        'chat_plus_ollama'
+        'chat_plus_ollama',
+        'language_practice_plus_claude'
       ];
 
       const appName = options.appName;
-      if (appName && monadicApps.includes(appName.toLowerCase())) {
-        return this._looksLikeMonadicJson(text);
+      if (appName) {
+        // Convert CamelCase to snake_case for comparison
+        // e.g., "ChatPlusClaude" -> "chat_plus_claude"
+        const snakeCaseAppName = appName
+          .replace(/([A-Z])/g, '_$1')  // Insert _ before capitals
+          .toLowerCase()
+          .replace(/^_/, '');           // Remove leading _
+
+        if (monadicApps.includes(snakeCaseAppName)) {
+          return this._looksLikeMonadicJson(text);
+        }
       }
 
       // Fallback auto-detection

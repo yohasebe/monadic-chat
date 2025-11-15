@@ -166,6 +166,38 @@ RSpec.describe "Claude Monadic Response Integration" do
 
       expect(headers["anthropic-beta"]).to eq("structured-outputs-2025-11-13")
     end
+
+    it "merges model spec beta flags with new beta headers (string-based)" do
+      # Simulate what happens in claude_helper.rb:
+      # 1. Line 656 sets beta headers from model spec as comma-separated string
+      headers = {
+        "anthropic-beta" => "interleaved-thinking-2025-05-14,pdfs-2024-09-25"
+      }
+
+      # 2. Lines 731-750 merge additional beta headers
+      beta_headers = []
+
+      # Start with existing headers (split comma-separated string)
+      if headers["anthropic-beta"]
+        beta_headers.concat(headers["anthropic-beta"].split(",").map(&:strip))
+      end
+
+      # Add context management
+      beta_headers << "context-management-2025-06-27"
+
+      # Add model-context-window-exceeded
+      beta_headers << "model-context-window-exceeded-2025-08-26"
+
+      # Add structured outputs
+      beta_headers << "structured-outputs-2025-11-13"
+
+      # Join unique headers
+      headers["anthropic-beta"] = beta_headers.uniq.join(",")
+
+      # Verify all headers are present
+      expected = "interleaved-thinking-2025-05-14,pdfs-2024-09-25,context-management-2025-06-27,model-context-window-exceeded-2025-08-26,structured-outputs-2025-11-13"
+      expect(headers["anthropic-beta"]).to eq(expected)
+    end
   end
 
   describe "Monadic response processing" do

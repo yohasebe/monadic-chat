@@ -1203,6 +1203,12 @@ module ClaudeHelper
         extra_log.puts("  Model: #{body["model"]}")
         extra_log.puts("  Monadic mode: #{monadic_mode?}")
         extra_log.puts("  Thinking mode: #{body["thinking"] ? "enabled" : "disabled"}")
+        extra_log.puts("  Output format present: #{body["output_format"] ? "yes" : "no"}")
+        if body["output_format"]
+          extra_log.puts("    Type: #{body["output_format"]["type"]}")
+          extra_log.puts("    Schema keys: #{body["output_format"]["schema"]&.keys&.join(", ")}")
+        end
+        extra_log.puts("  Body keys: #{body.keys.join(", ")}")
         extra_log.close
       end
 

@@ -724,8 +724,13 @@ module ClaudeHelper
 
       end
 
-      # Collect all beta headers in an array
+      # Collect beta headers to add (start with existing ones if present)
       beta_headers = []
+
+      # Add existing beta headers from model spec (set earlier in the method)
+      if headers["anthropic-beta"]
+        beta_headers.concat(headers["anthropic-beta"].split(",").map(&:strip))
+      end
 
       # Add beta header for context management if enabled
       if supports_context_management && role != "tool"
@@ -741,7 +746,7 @@ module ClaudeHelper
         beta_headers << beta_header if beta_header
       end
 
-      # Join all unique beta headers into comma-separated string
+      # Merge all unique beta headers into comma-separated string
       headers["anthropic-beta"] = beta_headers.uniq.join(",") unless beta_headers.empty?
     rescue StandardError => e
       # Log error but continue without context management
@@ -1187,7 +1192,16 @@ module ClaudeHelper
         extra_log.puts("\n[#{Time.now}] Claude API Headers:")
         extra_log.puts("  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...")
         extra_log.puts("  anthropic-beta: #{headers["anthropic-beta"]}")
+        if headers["anthropic-beta"]
+          extra_log.puts("    Beta headers breakdown:")
+          headers["anthropic-beta"].split(",").each do |beta|
+            extra_log.puts("      - #{beta.strip}")
+          end
+        end
         extra_log.puts("  anthropic-version: #{headers["anthropic-version"]}")
+        extra_log.puts("  Model: #{body["model"]}")
+        extra_log.puts("  Monadic mode: #{monadic_mode?}")
+        extra_log.puts("  Thinking mode: #{body["thinking"] ? "enabled" : "disabled"}")
         extra_log.close
       end
 

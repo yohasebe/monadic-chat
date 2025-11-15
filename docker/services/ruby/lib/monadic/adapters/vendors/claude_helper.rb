@@ -739,6 +739,19 @@ module ClaudeHelper
         headers["anthropic-beta"] << "model-context-window-exceeded-2025-08-26"
       end
       headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
+
+      # Add beta header for structured outputs if enabled and model supports it
+      if monadic_mode? && Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
+        beta_header = Monadic::Utils::ModelSpec.get_structured_output_beta(obj["model"])
+        if beta_header
+          headers["anthropic-beta"] ||= []
+          headers["anthropic-beta"] = Array(headers["anthropic-beta"])
+          unless headers["anthropic-beta"].include?(beta_header)
+            headers["anthropic-beta"] << beta_header
+          end
+          headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
+        end
+      end
     rescue StandardError => e
       # Log error but continue without context management
       if CONFIG["EXTRA_LOGGING"]
@@ -1167,6 +1180,9 @@ module ClaudeHelper
         extra_log.close
       end
     end
+
+    # Configure monadic response format if enabled
+    configure_monadic_response(body, :claude, app, false)
 
     # Call the API
     begin

@@ -1,3 +1,14 @@
+- [November 15, 2024] Recent Updates
+  - **Claude Structured Outputs Support**: Added monadic mechanism for Claude models
+    - Implemented structured outputs using beta header `structured-outputs-2025-11-13`
+    - Added support for Claude Sonnet 4.5 and Claude Opus 4.1 models
+    - Created monadic versions of Chat Plus and Language Practice Plus apps for Claude
+    - Model capability detection via `ModelSpec.supports_structured_outputs?`
+    - Automatic `output_format` configuration with JSON schema validation
+    - Incompatible with thinking mode - automatic fallback to regular JSON mode
+    - Beta header management supports multiple beta features in single request
+    - Comprehensive test coverage for structured output configuration and response processing
+
 - [November 14, 2024] Recent Updates
   - **Monadic Response Processing Fix**: Resolved double JSON encoding issue
     - Fixed `process_monadic_response` to return Hash instead of JSON string

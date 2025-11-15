@@ -1,91 +1,70 @@
 app "ChatPlusClaude" do
   description do
     en <<~TEXT
-    Conversational AI with integrated web search capabilities. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with structured context tracking using Claude's structured outputs. Maintains conversation history with reasoning traces, topic tracking, and memory persistence. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
-    ウェブ検索機能を統合した会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Claude構造化出力を使用した文脈追跡機能付き会話AI。推論過程の記録、トピック追跡、記憶の永続化により、自然で一貫性のある対話を実現します。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
-    集成网络搜索功能的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用Claude结构化输出的具有结构化上下文跟踪的对话AI。维护带有推理痕迹、主题跟踪和记忆持久化的对话历史。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
-    웹 검색 기능이 통합된 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Claude 구조화 출력을 사용한 구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 추론 추적, 주제 추적 및 메모리 지속성으로 대화 기록을 유지합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
-    IA conversacional con capacidades de búsqueda web integradas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con seguimiento de contexto estructurado usando salidas estructuradas de Claude. Mantiene el historial de conversación con trazas de razonamiento, seguimiento de temas y persistencia de memoria. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
-    IA conversationnelle avec recherche web intégrée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec suivi de contexte structuré utilisant les sorties structurées de Claude. Maintient l'historique des conversations avec des traces de raisonnement, le suivi des sujets et la persistance de la mémoire. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
-    Konversations-KI mit integrierten Websuchfunktionen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit strukturiertem Kontextverfolgung unter Verwendung strukturierter Claude-Ausgaben. Verwaltet Konversationshistorie mit Begründungsspuren, Themenverfolgung und Speicherbeständigkeit. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"
   
   system_prompt <<~TEXT
-    You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
+    You are a friendly and professional consultant with deep knowledge across various domains. You provide thoughtful, well-reasoned responses while maintaining a warm and approachable tone. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    You have access to a shared folder at /monadic/data where you can read and write files. Use the available tools to:
-    - List files in the shared folder to see what's available
-    - Read files from the shared folder to access their contents
-    - Write or append text content to files in the shared folder
+    While keeping the conversation going, you take structured notes on various aspects of the conversation:
+    - **reasoning**: Your thought process and reasoning behind responses
+    - **topics**: Key subjects and themes discussed
+    - **people**: Individuals mentioned and their relationships
+    - **notes**: Important information and insights to remember
 
-    File operations:
-    - When listing files, you can optionally specify a subdirectory within the shared folder
-    - When reading files, provide the relative path from the shared folder
-    - When writing files, provide the file path (supports subdirectories and Unicode characters, e.g., 'プロジェクト/2025年/レポート.md')
-    - You can choose to either overwrite (mode: "write") or append to existing files (mode: "append")
+    You should update these notes as the conversation progresses, maintaining context awareness and continuity across multiple exchanges.
 
-    ## Context Tracking and Response Format (CRITICAL)
-    
-    Every response MUST include two parts:
-    
-    1. **Main Response**: Your regular response to the user with an appropriate emoji at the beginning.
-    
-    2. **Context Summary**: At the end of EVERY response, include a summary in this EXACT format:
-    
-    ---
-    📝 **Context Summary:**
-    - **Topics**: [List ALL topics discussed in the entire conversation so far]
-    - **People**: [List ALL people mentioned and their relationships]
-    - **Notes**: [List ALL user preferences, important dates, locations, events, and key information]
-    - **Reasoning**: [Brief explanation of your thought process for this response]
-    ---
-    
-    This context summary is MANDATORY and helps maintain continuity across the conversation. Each response should accumulate information - never remove items from previous summaries unless explicitly asked.
-    
-    When starting a new conversation, if you see previous context summaries in the history, incorporate ALL that information into your current summary.
-
-    You can also save important conversation context to files in the shared folder for long-term reference.
+    ## Guidelines
+    - Be concise yet comprehensive in your responses
+    - Ask clarifying questions when needed
+    - Provide examples and analogies to illustrate complex concepts
+    - Acknowledge uncertainties and limitations honestly
+    - Build upon previous conversation context naturally
 TEXT
   
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-5-20250929"
+    model ["claude-sonnet-4-5-20250929", "claude-opus-4-20250514"]
+    temperature 0.7
     context_size 100
+    monadic true
   end
-  
+
   display_name "Chat Plus"
-  
+
   features do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
-    easy_submit false
+    easy_submit true
     auto_speech false
     initiate_from_assistant false
-    monadic false  # Required for tool execution
-  end
-  
-  tools do
-    # Import shared file operations tools (always visible - Phase 1)
-    # Phase 2 will evaluate if PTD (visibility: "conditional") provides value
-    import_shared_tools :file_operations, visibility: "always"
+    image_generation "disabled"
+    group "Anthropic"
   end
 end

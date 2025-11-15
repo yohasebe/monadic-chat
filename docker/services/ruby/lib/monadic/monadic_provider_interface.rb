@@ -273,7 +273,8 @@ module MonadicProviderInterface
     return if is_thinking_model
 
     # Build JSON schema based on app type
-    schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
+    # App names use CamelCase (e.g., "ChatPlusClaude"), so check case-insensitively
+    schema = app_type&.to_s&.downcase&.include?("chat_plus") || app_type&.to_s&.downcase&.include?("chatplus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
 
     body["output_format"] = {
       "type" => "json_schema",

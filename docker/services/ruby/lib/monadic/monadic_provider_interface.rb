@@ -83,7 +83,7 @@ module MonadicProviderInterface
     when :perplexity
       body["response_format"] = build_perplexity_schema(app_type)
     when :claude
-      # Claude uses system prompts, no body modification needed
+      configure_claude_response(body, app_type)
     when :gemini
       configure_gemini_response(body, app_type)
     when :mistral, :cohere
@@ -248,15 +248,34 @@ module MonadicProviderInterface
     # Skip structured output for thinking models as they don't support it properly with function calling
     # Thinking models are identified by having thinkingConfig in generationConfig
     is_thinking_model = body.dig("generationConfig", "thinkingConfig").is_a?(Hash)
-    
+
     # Only apply structured output for non-thinking models
     unless is_thinking_model
       schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
-      
+
       body["generationConfig"] ||= {}
       body["generationConfig"]["responseMimeType"] = "application/json"
       body["generationConfig"]["responseSchema"] = schema
     end
+  end
+
+  def configure_claude_response(body, app_type)
+    # Check if model supports structured outputs
+    model = body["model"]
+    return unless Monadic::Utils::ModelSpec.supports_structured_outputs?(model)
+
+    # Skip structured output for thinking models (thinking mode incompatible with structured outputs)
+    # Thinking models are identified by having thinking configuration
+    is_thinking_model = body["thinking"].is_a?(Hash)
+    return if is_thinking_model
+
+    # Build JSON schema based on app type
+    schema = app_type&.to_s&.include?("chat_plus") ? CHAT_PLUS_SCHEMA : MONADIC_JSON_SCHEMA
+
+    body["output_format"] = {
+      "type" => "json_schema",
+      "schema" => schema
+    }
   end
 
   def configure_ollama_response(body, app_type)

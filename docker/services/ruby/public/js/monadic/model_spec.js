@@ -631,6 +631,9 @@ const modelSpec = {
     "supports_pdf": true,
     "supports_streaming": true,
     "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "structured_output_beta": "structured-outputs-2025-11-13",
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
       "pdfs-2024-09-25"
@@ -653,6 +656,9 @@ const modelSpec = {
     "supports_streaming": true,
     "supports_context_management": true,
     "context_awareness": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "structured_output_beta": "structured-outputs-2025-11-13",
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
       "pdfs-2024-09-25"

@@ -311,7 +311,19 @@ module Monadic
         def get_thinking_constraints(model_name)
           get_model_property(model_name, "thinking_constraints")
         end
-        
+
+        def supports_structured_outputs?(model_name)
+          get_model_property(model_name, "structured_output") == true
+        end
+
+        def get_structured_output_mode(model_name)
+          get_model_property(model_name, "structured_output_mode")
+        end
+
+        def get_structured_output_beta(model_name)
+          get_model_property(model_name, "structured_output_beta")
+        end
+
         def get_thinking_budget(model_name)
           get_model_property(model_name, "thinking_budget")
         end

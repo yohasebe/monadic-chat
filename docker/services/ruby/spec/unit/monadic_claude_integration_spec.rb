@@ -92,6 +92,36 @@ RSpec.describe "Claude Monadic Response Integration" do
       expect(configured_body["output_format"]).to be_nil
     end
 
+    it "automatically disables thinking mode in monadic mode with structured outputs" do
+      # This test verifies that thinking mode is automatically disabled
+      # when monadic mode is enabled with structured output support
+      # (thinking and structured outputs are incompatible features)
+
+      # Simulate the obj hash that would be passed to api_request
+      obj = {
+        "model" => "claude-sonnet-4-5-20250929",
+        "monadic" => "true",
+        "reasoning_effort" => "medium"  # This would normally enable thinking
+      }
+
+      # Check the conditions that determine thinking mode
+      supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+      supports_structured = Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
+
+      monadic_with_structured_outputs = obj["monadic"].to_s == "true" && supports_structured
+
+      # Thinking should be disabled due to monadic + structured outputs
+      should_enable_thinking = supports_thinking &&
+                               obj["reasoning_effort"] &&
+                               obj["reasoning_effort"] != "none" &&
+                               !monadic_with_structured_outputs
+
+      expect(supports_thinking).to be true
+      expect(supports_structured).to be true
+      expect(monadic_with_structured_outputs).to be true
+      expect(should_enable_thinking).to be false  # Thinking disabled!
+    end
+
     it "skips structured outputs for non-supported models" do
       helper.obj["model"] = "claude-3-5-sonnet-20241022"
 

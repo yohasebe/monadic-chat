@@ -583,9 +583,18 @@ module ClaudeHelper
     
     # Check if the model supports thinking via ModelSpec
     supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
-    
-    # Only enable thinking if the model supports it AND reasoning_effort is not "none"
-    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none"
+
+    # Check if monadic mode + structured outputs are enabled
+    # Thinking is incompatible with structured outputs, so disable thinking in monadic mode
+    # when the model supports structured outputs
+    monadic_with_structured_outputs = obj["monadic"].to_s == "true" &&
+                                      Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
+
+    # Only enable thinking if:
+    # 1. Model supports it
+    # 2. reasoning_effort is not "none"
+    # 3. NOT in monadic mode with structured outputs (incompatible)
+    if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none" && !monadic_with_structured_outputs
       case obj["reasoning_effort"]
       when "minimal"
         # Use half of low effort for minimal, ensuring minimum of 1024
@@ -607,9 +616,18 @@ module ClaudeHelper
         max_tokens = user_max_tokens
       end
     else
-      # Disable thinking for models that don't support it or when reasoning_effort is "none"
+      # Disable thinking for models that don't support it, when reasoning_effort is "none",
+      # or when using monadic mode with structured outputs (incompatible features)
       budget_tokens = nil
       max_tokens = user_max_tokens
+
+      if CONFIG["EXTRA_LOGGING"] && monadic_with_structured_outputs
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("[#{Time.now}] Claude: Thinking mode disabled for monadic app with structured outputs")
+        extra_log.puts("  Model: #{obj["model"]}")
+        extra_log.puts("  App: #{app}")
+        extra_log.close
+      end
     end
     
     # Ensure budget_tokens is less than max_tokens (only if budget_tokens is set)

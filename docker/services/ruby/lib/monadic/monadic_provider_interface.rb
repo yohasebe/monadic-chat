@@ -14,10 +14,11 @@ module MonadicProviderInterface
         "type" => "object",
         "description" => "Additional context and metadata",
         "properties" => {},
-        "additionalProperties" => true
+        "additionalProperties" => false
       }
     },
-    "required" => ["message", "context"]
+    "required" => ["message", "context"],
+    "additionalProperties" => false
   }.freeze
 
   # Chat Plus specific schema extension
@@ -51,10 +52,12 @@ module MonadicProviderInterface
             "description" => "Important information to remember"
           }
         },
-        "required" => ["reasoning", "topics", "people", "notes"]
+        "required" => ["reasoning", "topics", "people", "notes"],
+        "additionalProperties" => false
       }
     },
-    "required" => ["message", "context"]
+    "required" => ["message", "context"],
+    "additionalProperties" => false
   }.freeze
 
   # Configure provider-specific JSON response format

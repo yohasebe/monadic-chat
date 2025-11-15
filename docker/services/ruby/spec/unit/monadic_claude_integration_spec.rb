@@ -74,8 +74,9 @@ RSpec.describe "Claude Monadic Response Integration" do
       schema = configured_body["output_format"]["schema"]
       context_props = schema["properties"]["context"]["properties"]
 
-      # MONADIC_JSON_SCHEMA has flexible context with additionalProperties: true
-      expect(schema["properties"]["context"]["additionalProperties"]).to eq(true)
+      # Claude requires additionalProperties: false for all objects
+      expect(schema["properties"]["context"]["additionalProperties"]).to eq(false)
+      expect(schema["additionalProperties"]).to eq(false)
     end
 
     it "skips structured outputs for thinking models" do

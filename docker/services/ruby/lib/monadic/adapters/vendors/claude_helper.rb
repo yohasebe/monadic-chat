@@ -1183,7 +1183,12 @@ module ClaudeHelper
 
       # Debug logging before API call
       if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
-        # API call details available with CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Claude API Headers:")
+        extra_log.puts("  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...")
+        extra_log.puts("  anthropic-beta: #{headers["anthropic-beta"]}")
+        extra_log.puts("  anthropic-version: #{headers["anthropic-version"]}")
+        extra_log.close
       end
 
       res = nil

@@ -54,7 +54,6 @@ TEXT
     model ["claude-sonnet-4-5-20250929", "claude-opus-4-20250514"]
     temperature 0.7
     context_size 100
-    monadic true
   end
 
   display_name "Chat Plus"
@@ -64,6 +63,7 @@ TEXT
     easy_submit true
     auto_speech false
     initiate_from_assistant false
+    monadic true
     image_generation "disabled"
     group "Anthropic"
   end

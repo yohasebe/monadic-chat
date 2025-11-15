@@ -57,7 +57,6 @@ app "LanguagePracticePlusClaude" do
     model ["claude-sonnet-4-5-20250929", "claude-opus-4-20250514"]
     temperature 0.4
     context_size 100
-    monadic true
   end
 
   display_name "Language Practice Plus"
@@ -67,6 +66,7 @@ app "LanguagePracticePlusClaude" do
     easy_submit true
     auto_speech true
     initiate_from_assistant true
+    monadic true
     image_generation "disabled"
     group "Anthropic"
   end

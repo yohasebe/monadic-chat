@@ -426,6 +426,7 @@ module ClaudeHelper
 
     # Get the parameters from the session
     obj = session[:parameters]
+    @obj = obj  # Set instance variable for monadic_mode? check
     app = obj["app_name"]
     model = obj["model"]
     

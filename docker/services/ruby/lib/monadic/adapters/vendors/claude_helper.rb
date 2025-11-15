@@ -722,36 +722,27 @@ module ClaudeHelper
           body["context_management"] = { "edits" => edits }
         end
 
-        # Add beta header for context management
-        headers["anthropic-beta"] ||= []
-        headers["anthropic-beta"] = Array(headers["anthropic-beta"])
-        unless headers["anthropic-beta"].include?("context-management-2025-06-27")
-          headers["anthropic-beta"] << "context-management-2025-06-27"
-        end
-        headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
       end
 
-      # Add beta header for model_context_window_exceeded stop reason
-      # Required for models before Sonnet 4.5 (safe to include for all models)
-      headers["anthropic-beta"] ||= []
-      headers["anthropic-beta"] = Array(headers["anthropic-beta"])
-      unless headers["anthropic-beta"].include?("model-context-window-exceeded-2025-08-26")
-        headers["anthropic-beta"] << "model-context-window-exceeded-2025-08-26"
+      # Collect all beta headers in an array
+      beta_headers = []
+
+      # Add beta header for context management if enabled
+      if supports_context_management && role != "tool"
+        beta_headers << "context-management-2025-06-27"
       end
-      headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
+
+      # Required for models before Sonnet 4.5 (safe to include for all models)
+      beta_headers << "model-context-window-exceeded-2025-08-26"
 
       # Add beta header for structured outputs if enabled and model supports it
       if monadic_mode? && Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
         beta_header = Monadic::Utils::ModelSpec.get_structured_output_beta(obj["model"])
-        if beta_header
-          headers["anthropic-beta"] ||= []
-          headers["anthropic-beta"] = Array(headers["anthropic-beta"])
-          unless headers["anthropic-beta"].include?(beta_header)
-            headers["anthropic-beta"] << beta_header
-          end
-          headers["anthropic-beta"] = headers["anthropic-beta"].join(",") if headers["anthropic-beta"].is_a?(Array)
-        end
+        beta_headers << beta_header if beta_header
       end
+
+      # Join all unique beta headers into comma-separated string
+      headers["anthropic-beta"] = beta_headers.uniq.join(",") unless beta_headers.empty?
     rescue StandardError => e
       # Log error but continue without context management
       if CONFIG["EXTRA_LOGGING"]

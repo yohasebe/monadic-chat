@@ -39,17 +39,17 @@ module ClaudeHelper
     defined?(CONFIG) ? (CONFIG["CLAUDE_WRITE_TIMEOUT"]&.to_i || 120) : 120
   end
 
-  # Instance methods that delegate to class methods
+  # Instance methods that delegate to module methods
   def open_timeout
-    self.class.open_timeout
+    ClaudeHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    ClaudeHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    ClaudeHelper.write_timeout
   end
 
   MIN_PROMPT_CACHING = 1024

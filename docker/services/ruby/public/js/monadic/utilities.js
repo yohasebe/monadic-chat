@@ -1155,7 +1155,7 @@ function setParams() {
     params["mathjax"] = false;
   }
 
-  if ($("#websearch").is(":checked") && modelSpec[params["model"]]["tool_capability"]) {
+  if ($("#websearch").is(":checked") && modelSpec[params["model"]]?.["tool_capability"]) {
     params["websearch"] = true;
   } else {
     params["websearch"] = false;

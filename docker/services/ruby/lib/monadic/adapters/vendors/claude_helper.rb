@@ -1747,7 +1747,10 @@ module ClaudeHelper
         processed = process_monadic_response(text_result, app)
         # Validate the response
         validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-        text_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
+        # Extract message field from monadic response
+        text_result = validated.is_a?(Hash) ? validated["message"] : validated
+        # Store context in session for future use
+        session[:monadic_context] = validated["context"] if validated.is_a?(Hash) && validated["context"]
       end
 
       # Send completion message

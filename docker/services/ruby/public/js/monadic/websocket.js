@@ -4,9 +4,15 @@
 
 console.log('[WebSocket] Module loading... Version: 2025-11-08-v2 (with MarkdownRenderer integration)');
 
-// CRITICAL: Declare apps early to avoid TDZ errors in WebSocket handlers
-// WebSocket handlers set up by connect_websocket() need access to apps
-const apps = {};
+// CRITICAL: Initialize window.apps if not already defined (by utilities.js)
+// WebSocket handlers need to write to the global apps object
+// Don't create a local variable - always use window.apps directly
+if (typeof window.apps === 'undefined') {
+  window.apps = {};
+}
+// Create a reference to window.apps for backward compatibility
+// This ensures any writes to 'apps' actually modify window.apps
+const apps = window.apps;
 
 // Respect a cookie that suppresses noisy reconnects after intentional stop
 try {
@@ -1366,6 +1372,50 @@ function resetAudioElements() {
   }
 }
 
+// Reset all session-specific state when switching apps or resetting
+function resetSessionState() {
+  console.log('[resetSessionState] Resetting all session-specific state');
+
+  // Reset audio-related state
+  resetAudioElements();
+
+  // Reset auto speech/TTS state
+  window.autoSpeechActive = false;
+  window.autoPlayAudio = false;
+  window.ttsPlaybackStarted = false;
+
+  // Clear timeouts
+  if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
+    clearTimeout(window.autoTTSSpinnerTimeout);
+    window.autoTTSSpinnerTimeout = null;
+  }
+
+  if (typeof window.spinnerCheckInterval !== 'undefined' && window.spinnerCheckInterval) {
+    clearInterval(window.spinnerCheckInterval);
+    window.spinnerCheckInterval = null;
+  }
+
+  // Reset streaming state
+  if (typeof window.streamingResponse !== 'undefined') {
+    window.streamingResponse = false;
+  }
+
+  // Clear callbacks
+  if (typeof window.ttsPlaybackCallback !== 'undefined') {
+    window.ttsPlaybackCallback = null;
+  }
+
+  // Reset auto speech suppression
+  if (typeof setAutoSpeechSuppressed === 'function') {
+    setAutoSpeechSuppressed(false, { reason: 'clear' });
+  }
+
+  console.log('[resetSessionState] State reset complete');
+}
+
+// Export for use in other modules
+window.resetSessionState = resetSessionState;
+
 // Direct audio playback for iOS devices or browsers without MediaSource support
 function playAudioDirectly(audioData) {
   try {
@@ -1622,7 +1672,6 @@ function processGlobalAudioQueue() {
       return;
     }
 
-    console.log("[AudioQueue] Queue empty and no pending segments - playback finished");
     isProcessingAudioQueue = false;
     currentAudioSequenceId = null;
 
@@ -1631,8 +1680,18 @@ function processGlobalAudioQueue() {
       removeStopButtonHighlight();
     }
 
-    // Note: No need to mark TTS playback as "completed" since spinner is hidden when playback STARTS
-    // The spinner hiding logic now depends on ttsPlaybackStarted, not ttsPlaybackCompleted
+    // Hide spinner when audio playback completes (for Auto Speech mode)
+    if (typeof window.checkAndHideSpinner === 'function') {
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      window.checkAndHideSpinner();
+    } else {
+      $("#monadic-spinner").hide();
+    }
 
     return;
   }
@@ -4547,7 +4606,14 @@ let loadedApp = "Chat";
         }
 
         // Then update status message after spinner is hidden
-        if ($("#apps option").length === 0) {
+        // Check both window.apps object AND DOM options to avoid race condition
+        // During initial load, apps data may be in window.apps but DOM not yet populated
+        const hasAppsData = window.apps && Object.keys(window.apps).length > 0;
+        const hasDOMOptions = $("#apps option").length > 0;
+
+        console.log('[INFO] Apps availability check:', { hasAppsData, hasDOMOptions, appsKeys: hasAppsData ? Object.keys(window.apps).length : 0, domOptions: hasDOMOptions ? $("#apps option").length : 0 });
+
+        if (!hasAppsData && !hasDOMOptions) {
           const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
           console.log('[INFO] No apps available, showing warning');
           setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
@@ -5179,8 +5245,8 @@ let loadedApp = "Chat";
 
             // Handle auto_speech for TTS auto-playback
             // Support both boolean and string values for backward compatibility
-            const autoSpeechEnabled = params && (params["auto_speech"] === true || params["auto_speech"] === "true");
-            const realtimeMode = params && params["auto_tts_realtime_mode"] === true;
+            const autoSpeechEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
+            const realtimeMode = window.params && window.params["auto_tts_realtime_mode"] === true;
             const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
             const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
 
@@ -5206,10 +5272,17 @@ let loadedApp = "Chat";
               }
               console.log('[Auto TTS] Auto playback skipped because suppression is active');
             } else if (window.autoSpeechActive || autoSpeechEnabled) {
+              console.log('[Auto TTS] Auto speech enabled, triggering playback');
               // Use setTimeout to ensure the card is fully rendered before triggering TTS
               setTimeout(() => {
                 const lastCard = $("#discourse div.card:last");
                 const playButton = lastCard.find(".func-play");
+                console.log('[Auto TTS] Card check:', {
+                  lastCardExists: lastCard.length > 0,
+                  playButtonExists: playButton.length > 0,
+                  cardId: lastCard.attr('id'),
+                  realtimeMode: realtimeMode
+                });
                 if (playButton.length > 0) {
                   // Early highlight for Auto TTS: provides immediate visual feedback
                   // Note: This will be re-highlighted by Play button handler and again
@@ -5222,14 +5295,22 @@ let loadedApp = "Chat";
                   // In realtime mode, audio is already generated and queued
                   // Only click Play button for post-completion mode to trigger TTS
                   if (!realtimeMode) {
+                    console.log('[Auto TTS] Triggering play button click');
                     // Simulate a click on the play button to trigger TTS
                     playButton.click();
+                  } else {
+                    console.log('[Auto TTS] Skipping click (realtime mode)');
                   }
 
                   // Set timeout to force hide spinner if audio doesn't start playing.
                   // This is deferred when reasoning/streaming is still active so users
                   // don't lose visual feedback during long reasoning phases.
                   scheduleAutoTtsSpinnerTimeout();
+                } else {
+                  console.log('[Auto TTS] Play button not found, hiding spinner');
+                  if (typeof checkAndHideSpinner === 'function') {
+                    checkAndHideSpinner();
+                  }
                 }
                 // Note: window.autoSpeechActive will be reset when audio starts playing
                 // See audio.play() promise handler where spinner is hidden
@@ -5605,6 +5686,11 @@ let loadedApp = "Chat";
           if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
             // Auto Speech enabled, TTS not started yet, and tab is foreground - update spinner to "Processing audio"
             console.log('[streaming_complete] Updating spinner for Audio Speech processing');
+
+            // CRITICAL: Set autoSpeechActive flag so that html message handler knows to trigger TTS
+            window.autoSpeechActive = true;
+            console.log('[streaming_complete] Set window.autoSpeechActive = true');
+
             $("#monadic-spinner").show();
             $("#monadic-spinner")
               .find("span i")
@@ -6278,6 +6364,7 @@ if (typeof module !== 'undefined' && module.exports) {
     processIOSAudioBuffer,
     clearAudioQueue,
     resetAudioElements,
+    resetSessionState,
     initializeMediaSourceForAudio,
     addToAudioQueue
   };

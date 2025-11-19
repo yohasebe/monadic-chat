@@ -33,17 +33,17 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "has correct model configuration" do
         model = app_instance.settings[:model]
-        # Now uses 2.5 flash as primary with 2.0 as fallback
+        # Updated to Gemini 3 Pro Preview
         if model.is_a?(Array)
-          expect(model.first).to eq("gemini-2.5-flash")
-          expect(model).to include("gemini-2.0-flash")
+          expect(model.first).to eq("gemini-3-pro-preview")
         else
-          expect(model).to eq("gemini-2.5-flash")
+          expect(model).to eq("gemini-3-pro-preview")
         end
       end
 
       it "has deterministic temperature setting" do
-        expect(app_instance.settings[:temperature]).to eq(0.0)
+        # Gemini 3 uses temperature 1.0 (not 0.0) for optimal performance
+        expect(app_instance.settings[:temperature]).to eq(1.0)
       end
 
       it "has adequate max_tokens setting" do

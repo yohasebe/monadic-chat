@@ -347,26 +347,28 @@ RSpec.describe AIUserAgent do
 
     it 'returns default fallback when config not available' do
       stub_const('CONFIG', {})
-      
+
       model = agent.send(:default_model_for_provider, "openai")
-      expect(model).to eq("gpt-4.1")
-      
+      expect(model).to eq("gpt-5.1")
+
       model = agent.send(:default_model_for_provider, "anthropic")
       expect(model).to eq("claude-sonnet-4-5-20250929")
     end
 
     it 'handles various provider names' do
+      # These values should match system_defaults.json provider_defaults
+      # Note: perplexity uses "sonar" for AI User (non-thinking model) instead of system_defaults value
       providers_and_defaults = {
         "gemini" => "gemini-2.5-flash",
         "mistral" => "mistral-large-latest",
-        "grok" => "grok-4-fast-reasoning",
-        "perplexity" => "sonar-reasoning-pro",
+        "grok" => "grok-4-fast-non-reasoning",  # Updated from grok-4-fast-reasoning
+        "perplexity" => "sonar",  # AI User uses non-thinking model (not sonar-reasoning-pro)
         "deepseek" => "deepseek-chat",
         "cohere" => "command-a-03-2025"
       }
-      
+
       stub_const('CONFIG', {})
-      
+
       providers_and_defaults.each do |provider, expected_model|
         model = agent.send(:default_model_for_provider, provider)
         expect(model).to eq(expected_model)

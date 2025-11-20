@@ -825,6 +825,11 @@ window.loadParams = function(params, calledFor = "loadParams") {
           $("#model").trigger('change');
         } else {
           console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
+          // Fallback to first available model to avoid stale/invalid state
+          const fallbackModel = $("#model option:first").val();
+          if (fallbackModel) {
+            $("#model").val(fallbackModel).trigger('change');
+          }
         }
       }
 

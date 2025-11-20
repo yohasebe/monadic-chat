@@ -774,6 +774,14 @@ module GeminiHelper
       safety_settings: SAFETY_SETTINGS
     }
 
+    # Allow tool calling when tools are available
+    if tool_capable && obj["tools"] && obj["tools"].any?
+      body["tools"] = obj["tools"]
+      body["tool_config"] = {
+        "function_calling_config" => { "mode" => "AUTO" }
+      }
+    end
+
     if temperature || max_tokens || is_thinking_model
       body["generationConfig"] = {}
       body["generationConfig"]["temperature"] = temperature if temperature

@@ -829,6 +829,11 @@ window.loadParams = function(params, calledFor = "loadParams") {
           const fallbackModel = $("#model option:first").val();
           if (fallbackModel) {
             $("#model").val(fallbackModel).trigger('change');
+            params["model"] = fallbackModel;
+            // Clear stale reasoning_effort when model fallback happens
+            if (params["reasoning_effort"]) {
+              delete params["reasoning_effort"];
+            }
           }
         }
       }

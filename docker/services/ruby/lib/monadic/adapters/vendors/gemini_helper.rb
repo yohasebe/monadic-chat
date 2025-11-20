@@ -54,7 +54,8 @@ module GeminiHelper
   include MonadicSchemaValidator
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
-  API_ENDPOINT = "https://generativelanguage.googleapis.com/v1alpha"
+  # Use v1beta to support newer Gemini 3 models
+  API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
   def self.open_timeout
     defined?(CONFIG) ? (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10) : 10
   end

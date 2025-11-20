@@ -870,7 +870,7 @@ const modelSpec = {
     "deprecated": false
   },
   // Gemini models
-  "gemini-3.0-pro-preview": {
+  "gemini-3.0-pro": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "reasoning_effort": [["low", "high"], "low"],

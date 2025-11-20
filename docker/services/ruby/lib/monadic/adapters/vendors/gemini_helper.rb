@@ -208,11 +208,22 @@ module GeminiHelper
       env_var: "GEMINI_API_KEY"
     ) if api_key.nil?
 
-    # Check if this is a thinking model (Gemini 2.5) - moved before body creation
+    # Check if this is a thinking model
     is_thinking_model = false
+    thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model)
+    thinking_level = nil
     
-    # Check if model supports thinking via ModelSpec or has reasoning_effort
-    if options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i
+    # New Gemini 3 thinking level parameter
+    if thinking_level_config
+      thinking_level = options["reasoning_effort"] || options["thinking_level"] || thinking_level_config[:default]
+      is_thinking_model = true
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        puts "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}"
+      end
+    end
+    
+    # Gemini 2.5 thinking budget (reasoning_effort)
+    if !is_thinking_model && (options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
       is_thinking_model = true
       if CONFIG && CONFIG["EXTRA_LOGGING"]
         puts "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
@@ -235,10 +246,17 @@ module GeminiHelper
     }
     
     # Only add temperature for non-thinking models
-    if !is_thinking_model
+    if !is_thinking_model || thinking_level
       body["generationConfig"]["temperature"] = options["temperature"] || 0.7
-    else
-      # For thinking models, configure thinking budget
+    end
+
+    # For thinking models, configure appropriate parameter
+    if thinking_level
+      body["generationConfig"]["thinking"] = {
+        "level" => thinking_level
+      }
+    elsif is_thinking_model
+      # For thinking models with budget (Gemini 2.5)
       reasoning_effort = options["reasoning_effort"] || "low"
       user_max_tokens = options["max_tokens"] || 800
       

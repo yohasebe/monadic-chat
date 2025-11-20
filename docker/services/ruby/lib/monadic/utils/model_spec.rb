@@ -292,6 +292,18 @@ module Monadic
           get_model_property(model_name, "supports_thinking") == true
         end
 
+        def supports_thinking_level?(model_name)
+          get_model_property(model_name, "supports_thinking_level") == true
+        end
+
+        def get_thinking_level_options(model_name)
+          levels = get_model_property(model_name, "thinking_level")
+          return nil unless levels.is_a?(Array) && levels.length == 2
+          options = levels[0]
+          default = levels[1]
+          { options: options, default: default }
+        end
+
         def supports_context_management?(model_name)
           get_model_property(model_name, "supports_context_management") == true
         end

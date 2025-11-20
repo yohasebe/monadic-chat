@@ -781,7 +781,7 @@ module GeminiHelper
       
       # Thinking level (Gemini 3)
       if thinking_level
-        body["generationConfig"]["thinking"] = {
+        body["generationConfig"]["thinkingConfig"] = {
           "level" => thinking_level
         }
       # Thinking budget (Gemini 2.5)

@@ -1155,8 +1155,8 @@ module GeminiHelper
         end
         
         # Use AUTO mode for function calling
-        body["tool_config"] = {
-          "function_calling_config" => {
+        body["toolConfig"] = {
+          "functionCallingConfig" => {
             "mode" => "AUTO"
           }
         }
@@ -1171,8 +1171,8 @@ module GeminiHelper
         
         # Use AUTO mode to let model decide when to call tools
         # ANY mode can cause issues with Gemini
-        body["tool_config"] = {
-          "function_calling_config" => {
+        body["toolConfig"] = {
+          "functionCallingConfig" => {
             "mode" => "AUTO"
           }
         }
@@ -1181,17 +1181,17 @@ module GeminiHelper
         DebugHelper.debug("Gemini: Google Search enabled for web search", category: :api, level: :debug)
         
         # Set up google_search tool (recommended for current models)
-        # Note: google_search doesn't need function_calling_config
+        # Note: google_search doesn't need functionCallingConfig
         body["tools"] = [{
           "google_search" => {}
         }]
         
-        # Remove tool_config for google_search as it's not a function declaration
-        body.delete("tool_config")
+        # Remove toolConfig for google_search as it's not a function declaration
+        body.delete("toolConfig")
       else
         DebugHelper.debug("Gemini: No tools or websearch (google_search_allowed=#{google_search_allowed})", category: :api, level: :debug)
         body.delete("tools")
-        body.delete("tool_config")
+        body.delete("toolConfig")
       end
       
       # Check if user message contains URLs and add URL Context tool if needed
@@ -1216,7 +1216,7 @@ module GeminiHelper
       body["tools"].select! do |tool|
         tool.is_a?(Hash) && (tool.key?("google_search") || tool.key?("url_context"))
       end
-      body.delete("tool_config")
+      body.delete("toolConfig")
     end
 
     if role == "tool"
@@ -1298,8 +1298,8 @@ module GeminiHelper
         
         if should_stop
           # Disable tools completely to force text response
-          body["tool_config"] = {
-            "function_calling_config" => {
+          body["toolConfig"] = {
+            "functionCallingConfig" => {
               "mode" => "NONE"
             }
           }
@@ -1315,8 +1315,8 @@ module GeminiHelper
             
             # Always use AUTO mode for Jupyter apps
             # Let the model decide when to call tools
-            body["tool_config"] = {
-              "function_calling_config" => {
+            body["toolConfig"] = {
+              "functionCallingConfig" => {
                 "mode" => "AUTO"
               }
             }
@@ -1324,8 +1324,8 @@ module GeminiHelper
         end
       else
         # For non-Jupyter apps, disable tools after any tool execution to prevent loops
-        body["tool_config"] = {
-          "function_calling_config" => {
+        body["toolConfig"] = {
+          "functionCallingConfig" => {
             "mode" => "NONE"
           }
         }
@@ -1338,7 +1338,7 @@ module GeminiHelper
       body["tools"].each do |tool|
         if tool["function_declarations"] && tool["function_declarations"].empty?
           body.delete("tools")
-          body.delete("tool_config")
+          body.delete("toolConfig")
           break
         end
       end

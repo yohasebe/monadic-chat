@@ -1225,7 +1225,7 @@ const modelSpec = {
     "tool_capability": true
   },
   // xAI models
-  "grok-4-fast-reasoning": {
+  "grok-4-1-fast-reasoning": {
     "context_window" : [1, 2000000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1238,7 +1238,7 @@ const modelSpec = {
     "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "is_reasoning_model": true
   },
-  "grok-4-fast-non-reasoning": {
+  "grok-4-1-fast-non-reasoning": {
     "context_window" : [1, 2000000],
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1257,7 +1257,7 @@ const modelSpec = {
     "tool_capability": true,
     "reasoning_effort": [["low", "high"], "low"],
     "websearch_capability": false,
-    "fallback_for_websearch": "grok-4-fast-reasoning",
+    "fallback_for_websearch": "grok-4-1-fast-reasoning",
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },

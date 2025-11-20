@@ -3,6 +3,7 @@
 # frozen_string_literal: false
 
 require "optimist"
+require "open3"
 require_relative "../lib/monadic/version"
 
 # Change current directory to the parent directory of the directory containing this file
@@ -24,9 +25,6 @@ unless File.executable?(DOCKER_CMD)
   STDERR.puts "Please ensure Docker is installed and in PATH"
   exit 1
 end
-
-# Set Docker context to desktop-linux (required for Docker Desktop on Mac)
-ENV['DOCKER_CONTEXT'] = 'desktop-linux' unless ENV['DOCKER_CONTEXT']
 
 STDERR.puts "[DEBUG] Using docker command: #{DOCKER_CMD}" if ENV['EXTRA_LOGGING']
 STDERR.puts "[DEBUG] DOCKER_CONTEXT: #{ENV['DOCKER_CONTEXT']}" if ENV['EXTRA_LOGGING']
@@ -90,6 +88,67 @@ end
 
 DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
+# Docker checks with context/host fallback
+def probe_docker(context:, host:)
+  env = {}
+  env['DOCKER_CONTEXT'] = context if context
+  env.delete('DOCKER_CONTEXT') unless context
+  env['DOCKER_HOST'] = host if host
+  env.delete('DOCKER_HOST') unless host
+  output, status = Open3.capture2e(env, "#{DOCKER_CMD} info")
+  [status.success?, output]
+end
+
+def ensure_docker_ready
+  # First try with current environment untouched
+  output, status = Open3.capture2e("#{DOCKER_CMD} info")
+  return [true, output] if status.success?
+
+  contexts = []
+  contexts << ENV['DOCKER_CONTEXT'] if ENV['DOCKER_CONTEXT']
+  contexts += ['desktop-linux', 'default', nil]
+  contexts.uniq!
+
+  hosts = []
+  hosts << ENV['DOCKER_HOST'] if ENV['DOCKER_HOST']
+  hosts << "unix:///var/run/docker.sock"
+  hosts << "unix://#{ENV['HOME']}/.docker/run/docker.sock" if ENV['HOME']
+  hosts << "unix://#{ENV['HOME']}/.colima/default/docker.sock" if ENV['HOME']
+  hosts << "unix://#{ENV['HOME']}/Library/Containers/com.docker.docker/Data/docker-cli.sock" if ENV['HOME']
+  if ENV['HOME'] && Dir.exist?(File.join(ENV['HOME'], ".docker", "run"))
+    Dir.glob(File.join(ENV['HOME'], ".docker", "run", "*.sock")).each do |sock|
+      hosts << "unix://#{sock}"
+    end
+  end
+  hosts << nil
+  hosts.uniq!
+
+  last_output = ""
+
+  contexts.each do |ctx|
+    hosts.each do |host|
+      ok, output = probe_docker(context: ctx, host: host)
+      if ok
+        ctx ? ENV['DOCKER_CONTEXT'] = ctx : ENV.delete('DOCKER_CONTEXT')
+        host ? ENV['DOCKER_HOST'] = host : ENV.delete('DOCKER_HOST')
+        return [true, output]
+      else
+        last_output = output
+      end
+    end
+  end
+
+  [false, last_output]
+end
+
+def try_start_docker
+  return false unless is_mac?
+  script = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
+  return false unless File.executable?(script)
+  STDERR.puts "[DEBUG] Attempting to start Docker Desktop via #{script}" if ENV['EXTRA_LOGGING']
+  system(script)
+end
+
 # Helper methods for container management
 def container_exists?(container_name)
   system("#{DOCKER_CMD} container inspect #{container_name} > /dev/null 2>&1")
@@ -101,21 +160,24 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Check if Docker daemon is running (not just the app)
-  STDERR.puts "[DEBUG] Checking Docker daemon with: #{DOCKER_CMD} info" if ENV['EXTRA_LOGGING']
+  # Check if Docker daemon is running (not just the app), with context fallback and auto-start
+  docker_ok = false
+  docker_output = ""
+  started = false
 
-  # Run docker info and capture actual output for debugging
-  docker_output = `#{DOCKER_CMD} info 2>&1`
-  docker_check = $?.success?
+  60.times do
+    docker_ok, docker_output = ensure_docker_ready
+    break if docker_ok
 
-  STDERR.puts "[DEBUG] Docker daemon check result: #{docker_check}" if ENV['EXTRA_LOGGING']
-  if ENV['EXTRA_LOGGING'] && !docker_check
-    STDERR.puts "[DEBUG] Docker info full output:"
-    STDERR.puts docker_output
-    STDERR.puts "[DEBUG] Exit status: #{$?.exitstatus}"
+    unless started
+      started = try_start_docker
+    end
+
+    sleep 1
   end
 
-  unless docker_check
+  unless docker_ok
+    STDERR.puts "[DEBUG] Docker info full output:\n#{docker_output}" if ENV['EXTRA_LOGGING']
     puts "\n" + "=" * 70
     puts "⚠️  Docker daemon is not responding"
     puts "=" * 70
@@ -170,8 +232,11 @@ def start_server(opts)
     end
   end
 
+  # macOS fork safety for Falcon
+  ENV["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
+
   # Start local Falcon server
-  cmd = "bundle exec falcon serve -b http://0.0.0.0:#{opts[:port] || DEFAULT_PORT} -c config.ru"
+  cmd = "bundle exec falcon serve -b http://0.0.0.0:#{opts[:port] || DEFAULT_PORT} -c config.ru --count 1"
 
   if opts[:daemonize]
     # Daemon mode: run in background

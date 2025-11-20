@@ -82,6 +82,7 @@ let webviewWindow = null;
 // State for in-page search to filter invisible matches
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
+const allowedLocalHosts = new Set(['localhost:4567', '127.0.0.1:4567']);
 function openWebViewWindow(url, forceReload = false) {
   if (webviewWindow && !webviewWindow.isDestroyed()) {
     if (forceReload) {
@@ -102,8 +103,15 @@ function openWebViewWindow(url, forceReload = false) {
   customSession.webRequest.onBeforeSendHeaders(
     { urls: ['http://localhost:4567/*', 'http://127.0.0.1:4567/*'] },
     (details, callback) => {
-      // Add necessary headers for localhost requests
-      details.requestHeaders['Origin'] = 'http://localhost:4567';
+      try {
+        const targetUrl = new URL(details.url);
+        const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
+        if (allowedLocalHosts.has(host)) {
+          details.requestHeaders['Origin'] = `http://${host}`;
+        }
+      } catch (e) {
+        console.warn('Failed to evaluate request host', e);
+      }
       callback({ requestHeaders: details.requestHeaders });
     }
   );
@@ -114,14 +122,30 @@ function openWebViewWindow(url, forceReload = false) {
     (details, callback) => {
       const responseHeaders = { ...details.responseHeaders };
 
-      // Remove restrictive CSP if present
-      delete responseHeaders['content-security-policy'];
-      delete responseHeaders['Content-Security-Policy'];
+      try {
+        const targetUrl = new URL(details.url);
+        const host = `${targetUrl.hostname}:${targetUrl.port || '80'}`;
+        if (allowedLocalHosts.has(host)) {
+          // Remove restrictive CSP if present and replace with a locked-down localhost policy
+          delete responseHeaders['content-security-policy'];
+          delete responseHeaders['Content-Security-Policy'];
 
-      // Add permissive CSP for localhost
-      responseHeaders['Content-Security-Policy'] = [
-        "default-src * 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: about: ws: wss: 'self' http://localhost:* http://127.0.0.1:*;"
-      ];
+          const csp = [
+            "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
+            "script-src 'self' http://localhost:4567 http://127.0.0.1:4567",
+            "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567",
+            "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+            "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567",
+            "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
+            "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567",
+            "object-src 'none'"
+          ].join('; ');
+
+          responseHeaders['Content-Security-Policy'] = [csp];
+        }
+      } catch (e) {
+        console.warn('Failed to apply CSP for response', e);
+      }
 
       callback({ responseHeaders });
     }
@@ -152,15 +176,24 @@ function openWebViewWindow(url, forceReload = false) {
   // Set permission request handler to auto-approve media access requests
   webviewWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
     const allowedPermissions = ['media', 'microphone', 'audioCapture'];
-    if (allowedPermissions.includes(permission)) {
-      // Auto-approve media permission requests and log for debugging
-      console.log(`Approving permission request for: ${permission}`, details);
-      // Always approve media permissions
-      callback(true);
-    } else {
-      // Deny other permission requests
-      callback(false);
+
+    try {
+      const requestingUrl = details.requestingUrl || details.embedder;
+      const origin = requestingUrl ? new URL(requestingUrl) : null;
+      const host = origin ? `${origin.hostname}:${origin.port || (origin.protocol === 'https:' ? '443' : '80')}` : '';
+      const isLocalAllowed = origin && allowedLocalHosts.has(host);
+
+      if (allowedPermissions.includes(permission) && isLocalAllowed) {
+        console.log(`Approving permission request for: ${permission} from ${host}`);
+        callback(true);
+        return;
+      }
+    } catch (e) {
+      console.warn('Permission handler error', e);
     }
+
+    // Deny other permission requests
+    callback(false);
   });
   
   // Clear cache to ensure fresh CSS load
@@ -1407,13 +1440,17 @@ function initializeApp() {
   // Continue with the rest of the initialization
   (async () => {
     
-    // Check internet connection
+    // Check internet connection with an explicit timeout
     try {
-      const response = await fetch('https://api.github.com', { timeout: 5000 });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch('https://api.github.com', { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         throw new Error('Internet connection test failed');
       }
-      
+
       // Note: We no longer perform a separate version check here
       // The autoUpdater will handle checking for updates and updating the message
       // This avoids displaying potentially conflicting information

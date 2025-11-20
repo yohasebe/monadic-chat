@@ -12,8 +12,11 @@ set :bind, "0.0.0.0"
 
 # Use unlimited in-memory sessions to handle large message imports
 # Rack::Session::Pool has size limits that cause "Content dropped" warnings
-use Rack::Session::UnlimitedPool, key: 'monadic.session',
-                                   expire_after: 86400  # 24 hours
+# Use a capped pool to avoid unbounded memory growth while allowing larger payloads
+use Rack::Session::CappedPool, key: 'monadic.session',
+                               expire_after: 86400,  # 24 hours
+                               max_sessions: (ENV['SESSION_MAX_COUNT'] || 50).to_i,
+                               max_session_bytes: (ENV['SESSION_MAX_BYTES'] || 16 * 1024 * 1024).to_i
 
 # Middleware to start MCP server once Async reactor is running
 class MCPServerStarter

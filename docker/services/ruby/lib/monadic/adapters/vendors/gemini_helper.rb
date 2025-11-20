@@ -792,9 +792,12 @@ module GeminiHelper
                     []
     end
 
-    if tool_capable && tools_array.respond_to?(:any?) && tools_array.any?
-      body["tools"] = tools_array
-      # Enable function calling for Gemini when tools are supplied (camelCase per API)
+    if tool_capable
+      # Always allow tool calling; attach tools if supplied
+      if tools_array.respond_to?(:any?) && tools_array.any?
+        body["tools"] = tools_array
+      end
+
       body["toolConfig"] = {
         "functionCallingConfig" => { "mode" => "AUTO" }
       }

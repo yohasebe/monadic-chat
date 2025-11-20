@@ -775,8 +775,25 @@ module GeminiHelper
     }
 
     # Allow tool calling when tools are available
-    if tool_capable && obj["tools"] && obj["tools"].any?
-      body["tools"] = obj["tools"]
+    tools_param = obj["tools"]
+    tools_array = case tools_param
+                  when Array
+                    tools_param
+                  when Hash
+                    [tools_param]
+                  when String
+                    begin
+                      parsed = JSON.parse(tools_param)
+                      parsed.is_a?(Array) ? parsed : [parsed]
+                    rescue JSON::ParserError
+                      []
+                    end
+                  else
+                    []
+                  end
+
+    if tool_capable && tools_array.respond_to?(:any?) && tools_array.any?
+      body["tools"] = tools_array
       body["tool_config"] = {
         "function_calling_config" => { "mode" => "AUTO" }
       }

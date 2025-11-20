@@ -790,17 +790,15 @@ module GeminiHelper
                     end
                   else
                     []
-    end
+                  end
 
-    if tool_capable
-      # Always allow tool calling; attach tools if supplied
-      if tools_array.respond_to?(:any?) && tools_array.any?
-        body["tools"] = tools_array
-      end
+    # Set default toolConfig mode to AUTO unless we later disable it
+    body["toolConfig"] = {
+      "functionCallingConfig" => { "mode" => "AUTO" }
+    }
 
-      body["toolConfig"] = {
-        "functionCallingConfig" => { "mode" => "AUTO" }
-      }
+    if tool_capable && tools_array.respond_to?(:any?) && tools_array.any?
+      body["tools"] = tools_array
     end
 
     if temperature || max_tokens || is_thinking_model
@@ -1154,13 +1152,7 @@ module GeminiHelper
           ]
         end
         
-        # Use AUTO mode for function calling
-        body["toolConfig"] = {
-          "functionCallingConfig" => {
-            "mode" => "AUTO"
-          }
-        }
-      elsif has_function_declarations
+        elsif has_function_declarations
         # Only function declarations (no web search)
         # Convert the tools format if it's an array (initialize_from_assistant apps)
         if app_tools.is_a?(Array)

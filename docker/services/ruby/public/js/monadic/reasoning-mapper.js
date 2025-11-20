@@ -59,9 +59,9 @@ class ReasoningMapper {
       case 'OpenAI':
         return spec.hasOwnProperty('reasoning_effort');
       case 'Anthropic':
-        return spec.supports_thinking === true && spec.thinking_budget !== undefined;
+        return spec.supports_thinking === true && (spec.thinking_budget !== undefined || spec.supports_thinking_level === true);
       case 'Google':
-        return spec.thinking_budget !== undefined;
+        return spec.hasOwnProperty('reasoning_effort') || spec.supports_thinking_level === true || spec.thinking_budget !== undefined;
       case 'xAI':
         return spec.hasOwnProperty('reasoning_effort');
       case 'DeepSeek':
@@ -98,13 +98,17 @@ class ReasoningMapper {
           break;
           
         case 'Anthropic':
-          if (spec.supports_thinking === true && spec.thinking_budget) {
-            options = ['minimal', 'low', 'medium', 'high']; // UI options mapped to budget values
+          if (spec.supports_thinking === true && (spec.thinking_budget || spec.supports_thinking_level)) {
+            options = spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) ? spec.reasoning_effort[0] : ['low', 'high'];
           }
           break;
 
         case 'Google':
-          if (spec.thinking_budget) {
+          if (spec.supports_thinking_level || spec.reasoning_effort) {
+            if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0])) {
+              options = spec.reasoning_effort[0];
+            }
+          } else if (spec.thinking_budget) {
             options = spec.thinking_budget.can_disable
               ? ['minimal', 'low', 'medium', 'high']
               : ['low', 'medium', 'high']; // No minimal if can't disable
@@ -218,6 +222,15 @@ class ReasoningMapper {
   }
   
   static _mapGemini(spec, uiValue) {
+    // Gemini 3: thinking level
+    if (spec.supports_thinking_level) {
+      if (spec.reasoning_effort && Array.isArray(spec.reasoning_effort[0]) && spec.reasoning_effort[0].includes(uiValue)) {
+        return { thinking_level: uiValue };
+      }
+      return null;
+    }
+
+    // Gemini 2.5: thinking budget
     if (!spec.thinking_budget) return null;
     
     // Check if minimal is supported (can_disable = true)
@@ -225,7 +238,7 @@ class ReasoningMapper {
       return null; // Not supported
     }
     
-    return { reasoning_effort: uiValue }; // Gemini helper handles the mapping
+    return { reasoning_effort: uiValue }; // Gemini helper handles the mapping for budget
   }
   
   static _mapGrok(spec, uiValue) {

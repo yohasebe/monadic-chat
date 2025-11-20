@@ -31,15 +31,15 @@ module GrokHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    GrokHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    GrokHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    GrokHelper.write_timeout
   end
 
   MAX_RETRIES = 5
@@ -47,7 +47,7 @@ module GrokHelper
   
   # Get default model
   def self.get_default_model
-    SystemDefaults.get_default_model('xai') || 'grok-4-fast-reasoning'
+    SystemDefaults.get_default_model('xai') || 'grok-4-1-fast-reasoning'
   end
 
 

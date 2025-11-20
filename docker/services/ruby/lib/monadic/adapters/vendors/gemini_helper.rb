@@ -792,7 +792,7 @@ module GeminiHelper
                     []
                   end
 
-    # Set default toolConfig mode to AUTO unless we later disable it
+    # Set default toolConfig mode to AUTO; keep unless explicitly disabled for non-tool-capable models
     body["toolConfig"] = {
       "functionCallingConfig" => { "mode" => "AUTO" }
     }
@@ -1178,12 +1178,9 @@ module GeminiHelper
           "google_search" => {}
         }]
         
-        # Remove toolConfig for google_search as it's not a function declaration
-        body.delete("toolConfig")
       else
         DebugHelper.debug("Gemini: No tools or websearch (google_search_allowed=#{google_search_allowed})", category: :api, level: :debug)
         body.delete("tools")
-        body.delete("toolConfig")
       end
       
       # Check if user message contains URLs and add URL Context tool if needed
@@ -1315,13 +1312,7 @@ module GeminiHelper
           end
         end
       else
-        # For non-Jupyter apps, disable tools after any tool execution to prevent loops
-        body["toolConfig"] = {
-          "functionCallingConfig" => {
-            "mode" => "NONE"
-          }
-        }
-        body.delete("tools")
+        # For non-Jupyter apps, keep AUTO to allow follow-up tool calls
       end
     end
 

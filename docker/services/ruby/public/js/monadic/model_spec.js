@@ -877,6 +877,15 @@ const modelSpec = {
     "supports_thinking": true,
     "supports_thinking_level": true,
     "thinking_level": [["low", "high"], "low"],
+    "thinking_budget": {
+      "min": 1024,
+      "max": 32768,
+      "can_disable": false,
+      "presets": {
+        "low": 8000,
+        "high": 20000
+      }
+    },
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,

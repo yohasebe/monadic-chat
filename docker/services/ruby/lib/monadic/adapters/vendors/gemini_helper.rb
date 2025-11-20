@@ -781,8 +781,19 @@ module GeminiHelper
       
       # Thinking level (Gemini 3)
       if thinking_level
+        # Map thinking level to budget tokens using ModelSpec presets
+        thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+        budget_tokens = nil
+        if thinking_budget && thinking_budget["presets"] && thinking_budget["presets"][thinking_level]
+          budget_tokens = thinking_budget["presets"][thinking_level]
+        else
+          # Fallback budget values
+          budget_tokens = thinking_level == "high" ? 20000 : 8000
+        end
+
         body["generationConfig"]["thinkingConfig"] = {
-          "level" => thinking_level
+          "thinkingBudget" => budget_tokens,
+          "includeThoughts" => false
         }
       # Thinking budget (Gemini 2.5)
       elsif is_thinking_model && reasoning_effort

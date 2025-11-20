@@ -870,25 +870,13 @@ const modelSpec = {
     "deprecated": false
   },
   // Gemini models
-  "gemini-3.0-flash-thinking-low": {
+  "gemini-3.0-pro-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],
     "reasoning_effort": [["low", "high"], "low"],
     "supports_thinking": true,
     "supports_thinking_level": true,
     "thinking_level": [["low", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-3.0-flash-thinking-high": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "high"], "high"],
-    "supports_thinking": true,
-    "supports_thinking_level": true,
-    "thinking_level": [["low", "high"], "high"],
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,

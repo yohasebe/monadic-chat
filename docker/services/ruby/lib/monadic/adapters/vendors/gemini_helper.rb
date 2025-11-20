@@ -688,9 +688,15 @@ module GeminiHelper
     
     DebugHelper.debug("Gemini websearch requested: #{requested_websearch}, supports_web_search(spec): #{spec_supports_websearch}, enabled: #{use_native_websearch}", category: :api, level: :debug)
     
-    # Handle thinking models based on reasoning_effort parameter presence
+    # Handle thinking models based on reasoning_effort or thinking_level
+    thinking_level_config = Monadic::Utils::ModelSpec.get_thinking_level_options(model_name)
+    thinking_level = nil
     reasoning_effort = obj["reasoning_effort"]
-    is_thinking_model = !reasoning_effort.nil? && !reasoning_effort.empty?
+    if thinking_level_config
+      thinking_level = reasoning_effort || obj["thinking_level"] || thinking_level_config[:default]
+      reasoning_effort = nil  # Avoid mixing thinking_budget and thinking_level
+    end
+    is_thinking_model = thinking_level_config ? true : (!reasoning_effort.nil? && !reasoning_effort.empty?)
 
     # Resolve tool capability (SSOT + optional legacy override)
     spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model_name, "tool_capability")
@@ -773,8 +779,13 @@ module GeminiHelper
       body["generationConfig"]["temperature"] = temperature if temperature
       body["generationConfig"]["maxOutputTokens"] = max_tokens if max_tokens
       
-      # Configure thinking for Gemini 2.5 models with reasoning_effort
-      if is_thinking_model && reasoning_effort
+      # Thinking level (Gemini 3)
+      if thinking_level
+        body["generationConfig"]["thinking"] = {
+          "level" => thinking_level
+        }
+      # Thinking budget (Gemini 2.5)
+      elsif is_thinking_model && reasoning_effort
         model = obj["model"]
         
         if CONFIG && CONFIG["EXTRA_LOGGING"]

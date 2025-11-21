@@ -84,13 +84,22 @@ module GeminiHelper
       }
     }
 
-    uri = URI("https://generativelanguage.googleapis.com/v1/models/#{model_id}:generateContent?key=#{api_key}")
-    request = Net::HTTP::Post.new(uri)
-    request['Content-Type'] = 'application/json'
-    request.body = body.to_json
+    endpoints = [
+      "https://generativelanguage.googleapis.com/v1/models/#{model_id}:generateContent?key=#{api_key}",
+      "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
+    ]
+    response = nil
 
-    response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
-      http.request(request)
+    endpoints.each do |endpoint|
+      uri = URI(endpoint)
+      request = Net::HTTP::Post.new(uri)
+      request['Content-Type'] = 'application/json'
+      request.body = body.to_json
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+        http.request(request)
+      end
+      break if response.code == '200'
     end
 
     if response.code == '200'

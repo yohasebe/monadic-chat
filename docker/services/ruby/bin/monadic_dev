@@ -88,7 +88,7 @@ end
 
 DOCKER_HOME = File.expand_path(File.join(__dir__, "..", ".."))
 
-# Docker checks with context/host fallback
+# Docker checks (prefer existing sockets; avoid probing non-existent sockets that can crash Desktop)
 def probe_docker(context:, host:)
   env = {}
   env['DOCKER_CONTEXT'] = context if context
@@ -99,34 +99,55 @@ def probe_docker(context:, host:)
   [status.success?, output]
 end
 
+def candidate_docker_hosts
+  hosts = []
+
+  # Respect explicit DOCKER_HOST first
+  hosts << ENV['DOCKER_HOST'] if ENV['DOCKER_HOST']
+
+  # macOS Desktop socket (preferred)
+  cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+  hosts << "unix://#{cli_sock}" if File.socket?(cli_sock)
+
+  # CLI-run sockets
+  run_sock = File.expand_path("~/.docker/run/docker.sock")
+  hosts << "unix://#{run_sock}" if File.socket?(run_sock)
+
+  # Colima (if present)
+  colima_sock = File.expand_path("~/.colima/default/docker.sock")
+  hosts << "unix://#{colima_sock}" if File.socket?(colima_sock)
+
+  # System default (only if present)
+  default_sock = "/var/run/docker.sock"
+  hosts << "unix://#{default_sock}" if File.socket?(default_sock)
+
+  hosts << nil # let Docker decide if nothing else works (remote/tcp scenarios)
+  hosts.uniq
+end
+
 def ensure_docker_ready
   # First try with current environment untouched
   output, status = Open3.capture2e("#{DOCKER_CMD} info")
   return [true, output] if status.success?
 
-  contexts = []
-  contexts << ENV['DOCKER_CONTEXT'] if ENV['DOCKER_CONTEXT']
-  contexts += ['desktop-linux', 'default', nil]
-  contexts.uniq!
-
-  hosts = []
-  hosts << ENV['DOCKER_HOST'] if ENV['DOCKER_HOST']
-  hosts << "unix:///var/run/docker.sock"
-  hosts << "unix://#{ENV['HOME']}/.docker/run/docker.sock" if ENV['HOME']
-  hosts << "unix://#{ENV['HOME']}/.colima/default/docker.sock" if ENV['HOME']
-  hosts << "unix://#{ENV['HOME']}/Library/Containers/com.docker.docker/Data/docker-cli.sock" if ENV['HOME']
-  if ENV['HOME'] && Dir.exist?(File.join(ENV['HOME'], ".docker", "run"))
-    Dir.glob(File.join(ENV['HOME'], ".docker", "run", "*.sock")).each do |sock|
-      hosts << "unix://#{sock}"
-    end
-  end
-  hosts << nil
-  hosts.uniq!
+  hosts = candidate_docker_hosts
+  contexts = [ENV['DOCKER_CONTEXT']].compact
+  contexts = [nil] if contexts.empty?
 
   last_output = ""
 
   contexts.each do |ctx|
     hosts.each do |host|
+      # Avoid hammering non-existent unix sockets (can crash Docker Desktop)
+      if host && host.start_with?("unix://")
+        socket_path = host.sub("unix://", "")
+        next unless File.socket?(socket_path)
+      end
+      if host.nil? && !ENV['DOCKER_HOST'] && !File.socket?("/var/run/docker.sock")
+        last_output = "Docker socket not available yet"
+        next
+      end
+
       ok, output = probe_docker(context: ctx, host: host)
       if ok
         ctx ? ENV['DOCKER_CONTEXT'] = ctx : ENV.delete('DOCKER_CONTEXT')

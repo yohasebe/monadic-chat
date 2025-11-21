@@ -1085,6 +1085,16 @@ module GeminiHelper
         []
       end
 
+    # Ensure Jupyter apps have basic tool declarations even if missing
+    if app.to_s.include?("jupyter") && raw_function_tools.empty?
+      raw_function_tools = [
+        { "name" => "run_jupyter" },
+        { "name" => "create_jupyter_notebook" },
+        { "name" => "add_jupyter_cells" },
+        { "name" => "get_jupyter_cells_with_results" }
+      ]
+    end
+
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
     progressive_enabled = !!progressive_settings
 

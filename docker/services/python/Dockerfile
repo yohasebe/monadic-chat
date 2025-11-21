@@ -53,7 +53,7 @@ RUN uv pip install --no-cache \
       setuptools wheel \
       jupyterlab ipywidgets plotly \
       numpy pandas statsmodels \
-      matplotlib seaborn \
+      matplotlib seaborn sympy \
       gunicorn tiktoken flask \
       pymupdf pymupdf4llm \
       selenium html2text \

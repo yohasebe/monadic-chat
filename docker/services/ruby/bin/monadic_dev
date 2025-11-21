@@ -117,6 +117,16 @@ def preferred_docker_host
   nil
 end
 
+def wait_for_socket(host, seconds = 90)
+  return true unless host && host.start_with?("unix://")
+  socket_path = host.sub("unix://", "")
+  seconds.times do
+    return true if File.socket?(socket_path)
+    sleep 1
+  end
+  File.socket?(socket_path)
+end
+
 def ensure_docker_ready
   desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
 
@@ -178,9 +188,20 @@ def start_server(opts)
   docker_ok = false
   docker_output = ""
   started = false
+  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+  # Default DOCKER_HOST to Desktop socket on mac if not set and socket exists
+  if is_mac? && !ENV['DOCKER_HOST'] && File.socket?(desktop_sock)
+    ENV['DOCKER_HOST'] = "unix://#{desktop_sock}"
+    STDERR.puts "[DEBUG] Setting DOCKER_HOST to Desktop socket #{ENV['DOCKER_HOST']}" if ENV['EXTRA_LOGGING']
+  end
 
   if ENV["SKIP_DOCKER_CHECK"]
     puts "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"
+    host = preferred_docker_host || "unix://#{desktop_sock}"
+    unless wait_for_socket(host)
+      puts "⚠️  Docker socket not available yet (host=#{host || 'default'})"
+      exit 1
+    end
     docker_ok = true
   else
     60.times do

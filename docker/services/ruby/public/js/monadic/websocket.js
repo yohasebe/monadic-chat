@@ -1376,6 +1376,14 @@ function resetAudioElements() {
 function resetSessionState() {
   console.log('[resetSessionState] Resetting all session-specific state');
 
+  // Clear SessionState conversation and flags (client-side)
+  if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
+    window.SessionState.clearMessages();
+  }
+  if (window.SessionState && typeof window.SessionState.resetAllFlags === 'function') {
+    window.SessionState.resetAllFlags();
+  }
+
   // Reset audio-related state
   resetAudioElements();
 

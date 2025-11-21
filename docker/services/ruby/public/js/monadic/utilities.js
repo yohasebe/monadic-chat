@@ -1488,9 +1488,18 @@ function doResetActions(resetToDefaultApp = false) {
   const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
   
-  // Set flags to indicate reset happened using centralized state management
-  window.SessionState.setResetFlags();
-  
+  // Clear session state (messages + flags) to avoid stale history
+  if (window.SessionState) {
+    if (typeof window.SessionState.clearMessages === 'function') {
+      window.SessionState.clearMessages();
+    }
+    if (typeof window.SessionState.resetAllFlags === 'function') {
+      window.SessionState.resetAllFlags();
+    } else if (typeof window.SessionState.setResetFlags === 'function') {
+      window.SessionState.setResetFlags();
+    }
+  }
+
   // Set app selection back to current app instead of default
   $("#apps").val(currentApp);
   

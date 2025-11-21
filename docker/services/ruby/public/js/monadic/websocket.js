@@ -3749,6 +3749,11 @@ let loadedApp = "Chat";
           // Persist full app data to the global map so downstream code can read system_prompt, etc.
           try {
             for (const [key, value] of Object.entries(data["content"])) {
+              // Skip invalid entries
+              if (!key || key === 'undefined' || key.trim() === '') {
+                console.warn('[WebSocket] Skipping invalid app in global cache with key:', key);
+                continue;
+              }
               apps[key] = value;
             }
             window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
@@ -3762,6 +3767,12 @@ let loadedApp = "Chat";
 
           // Classify apps into regular and special groups
           for (const [key, value] of Object.entries(data["content"])) {
+            // Skip invalid entries (undefined, null, or empty key)
+            if (!key || key === 'undefined' || key.trim() === '') {
+              console.warn('[WebSocket] Skipping invalid app entry with key:', key);
+              continue;
+            }
+
             const group = value["group"];
 
             // Check if app belongs to OpenAI group (regular apps)

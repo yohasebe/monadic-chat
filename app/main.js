@@ -138,6 +138,8 @@ function openWebViewWindow(url, forceReload = false) {
             "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567",
             "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
             "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567",
+            "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
+            "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
             "object-src 'none'"
           ].join('; ');
 

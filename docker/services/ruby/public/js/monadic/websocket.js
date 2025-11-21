@@ -3851,11 +3851,9 @@ let loadedApp = "Chat";
           }));
 
           // Normalize group names to be HTML-id friendly
-          const normalizeGroupId = (name) => name.replace(/\s+/g, '-');
-
-          // Add special groups with their labels
-          for (const group of Object.keys(specialApps)) {
-            if (specialApps[group].length > 0) {
+            // Add special groups with their labels
+            for (const group of Object.keys(specialApps)) {
+              if (specialApps[group].length > 0) {
               // Check if all apps in this group are disabled
               const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
 
@@ -4624,6 +4622,134 @@ let loadedApp = "Chat";
             const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
             console.log('[INFO] Setting Ready alert');
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
+          }
+        }
+
+        // Fallback: if DOM options are empty but apps data exists (race on Electron startup), rebuild using normal path
+        if (hasAppsData && $("#apps option").length === 0) {
+          console.warn('[WARN] Apps data present but DOM options empty. Rebuilding selectors with standard builder.');
+          // Reuse normal rendering logic by simulating initial (non-update) path
+          const rebuildData = { content: apps };
+          try {
+            // Clear dropdowns then re-render using existing logic
+            $("#apps").empty();
+            $("#custom-apps-dropdown").empty();
+            // Re-run the classification/rendering block (extracted from main branch)
+            let regularApps = [];
+            let specialApps = {};
+            for (const [key, value] of Object.entries(rebuildData.content)) {
+              const group = value["group"];
+              if (group && group.trim().toLowerCase() === "openai") {
+                regularApps.push([key, value]);
+              } else if (group && group.trim() !== "") {
+                if (!specialApps[group]) {
+                  specialApps[group] = [];
+                }
+                specialApps[group].push([key, value]);
+              } else {
+                if (!specialApps["Extra"]) {
+                  specialApps["Extra"] = [];
+                }
+                specialApps["Extra"].push([key, value]);
+              }
+            }
+            regularApps.sort((a, b) => {
+              const textA = a[1]["display_name"] || a[1]["app_name"];
+              const textB = b[1]["display_name"] || b[1]["app_name"];
+              if (textA === "Chat") return -1;
+              if (textB === "Chat") return 1;
+              return textA.localeCompare(textB);
+            });
+            const groupOrder = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
+            specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => groupOrder.indexOf(a[0]) - groupOrder.indexOf(b[0])));
+            const normalizeGroupId = (name) => name.replace(/\\s+/g, '-');
+
+            // OpenAI group
+            const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
+            $("#apps").append('<option disabled>──OpenAI──</option>');
+            const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
+            const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
+            $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
+              <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
+              <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+            </div>`);
+            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
+            for (const [key, value] of regularApps) {
+              apps[key] = value;
+              const displayText = value["display_name"] || value["app_name"];
+              const appIcon = value["icon"] || "";
+              const isDisabled = value.disabled === "true";
+              if (isDisabled) {
+                $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
+              } else {
+                $("#apps").append(`<option value="${key}">${displayText}</option>`);
+              }
+              const disabledClass = isDisabled ? ' disabled' : '';
+              const disabledTitle = isDisabled ? ' title="API key required"' : '';
+              const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
+                <span style="margin-right: 8px;">${appIcon}</span>
+                <span>${displayText}</span></div>`);
+              $("#group-OpenAI").append($option);
+            }
+
+            // Special groups
+            for (const group of Object.keys(specialApps)) {
+              if (specialApps[group].length > 0) {
+                const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
+                $("#apps").append(`<option disabled>──${group}──</option>`);
+                const groupClass = allAppsDisabled ? ' all-disabled' : '';
+                const disabledMessage = group === "Ollama" ? "(Ollama container not available)" : "(API key required)";
+                const groupTitle = allAppsDisabled ?
+                  (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required for this provider"') : '';
+                $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
+                  <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
+                  <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+                </div>`);
+                const normalizedGroupId = normalizeGroupId(group);
+                $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
+                for (const [key, value] of specialApps[group]) {
+                  apps[key] = value;
+                  const displayText = value["display_name"] || value["app_name"];
+                  const appIcon = value["icon"] || "";
+                  const isDisabled = value.disabled === "true";
+                  if (isDisabled) {
+                    $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
+                  } else {
+                    $("#apps").append(`<option value="${key}">${displayText}</option>`);
+                  }
+                  const disabledClass = isDisabled ? ' disabled' : '';
+                  const disabledTitle = isDisabled ?
+                    (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required"') : '';
+                  const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
+                    <span style="margin-right: 8px;">${appIcon}</span>
+                    <span>${displayText}</span></div>`);
+                  const normalizedId = normalizeGroupId(group);
+                  $(`#group-${normalizedId}`).append($option);
+                }
+              }
+            }
+
+            // Collapse/expand handlers
+            $(".custom-dropdown-group").on("click", function() {
+              const group = $(this).data("group");
+              const normalizedGroupId = normalizeGroupId(group);
+              const container = $(`#group-${normalizedGroupId}`);
+              const icon = $(this).find(".group-toggle-icon i");
+              container.toggleClass("collapsed");
+              if (container.hasClass("collapsed")) {
+                icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
+              } else {
+                icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
+              }
+            });
+
+            // Select first available app and trigger change
+            const firstApp = $("#apps option:not(:disabled)").first().val();
+            if (firstApp) {
+              $("#apps").val(firstApp).trigger('change');
+            }
+          } catch (e) {
+            console.error('Failed to rebuild selectors from apps data:', e);
           }
         }
         console.log('[INFO-END] Exiting info handler');

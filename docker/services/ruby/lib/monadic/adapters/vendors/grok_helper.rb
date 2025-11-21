@@ -163,8 +163,15 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
-    # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
-    if options["reasoning_effort"] && !model.start_with?("grok-4")
+    # Handle reasoning_effort for models that support it
+    # Supported: grok-3, grok-4-0709, grok-4-fast-reasoning, grok-code-fast-1
+    # NOT supported: grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning
+    reasoning_supported = model.start_with?("grok-3") ||
+                         model == "grok-4-0709" ||
+                         model == "grok-4-fast-reasoning" ||
+                         model == "grok-code-fast-1"
+
+    if options["reasoning_effort"] && reasoning_supported
       case options["reasoning_effort"]
       when "low", "minimal"
         body["reasoning_effort"] = "low"
@@ -427,8 +434,15 @@ module GrokHelper
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_tokens"] = max_tokens if max_tokens
 
-    # Handle reasoning_effort for Grok-3 models (not supported by Grok-4)
-    if reasoning_effort && !model.start_with?("grok-4")
+    # Handle reasoning_effort for models that support it
+    # Supported: grok-3, grok-4-0709, grok-4-fast-reasoning, grok-code-fast-1
+    # NOT supported: grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning
+    reasoning_supported = model.start_with?("grok-3") ||
+                         model == "grok-4-0709" ||
+                         model == "grok-4-fast-reasoning" ||
+                         model == "grok-code-fast-1"
+
+    if reasoning_effort && reasoning_supported
       case reasoning_effort
       when "low", "minimal"
         body["reasoning_effort"] = "low"

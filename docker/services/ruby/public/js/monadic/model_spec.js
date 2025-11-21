@@ -1265,9 +1265,7 @@ const modelSpec = {
     "vision_capability": true,
     "websearch_capability": true,
     "supports_web_search": true,
-    "supports_parallel_function_calling": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "is_reasoning_model": true
+    "supports_parallel_function_calling": true
   },
   "grok-4-1-fast-non-reasoning": {
     "context_window" : [1, 2000000],
@@ -1321,6 +1319,7 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
@@ -1342,6 +1341,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "websearch_capability": true,
+    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": true,
     "supports_parallel_function_calling": true
   },

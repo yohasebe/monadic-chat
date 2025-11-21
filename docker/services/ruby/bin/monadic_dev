@@ -118,18 +118,27 @@ def preferred_docker_host
 end
 
 def ensure_docker_ready
-  # Try current environment first
-  output, status = Open3.capture2e("#{DOCKER_CMD} info")
-  return [true, output] if status.success?
-
   host = preferred_docker_host
 
-  # If we have a preferred unix socket, wait for it to become a socket before probing
-  if host && host.start_with?("unix://")
+  # If no host detected yet, assume Desktop socket and wait for it
+  if host.nil?
+    cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+    host = "unix://#{cli_sock}"
+  end
+
+  # Wait for socket to exist before any docker info calls; optionally try to start Desktop once
+  tried_start = false
+  wait_seconds = 90
+  if host.start_with?("unix://")
     socket_path = host.sub("unix://", "")
-    60.times do
+    wait_seconds.times do |i|
       break if File.socket?(socket_path)
+      unless tried_start
+        tried_start = try_start_docker
+      end
       sleep 1
+      # After 30s still no socket, avoid hammering: keep waiting quietly
+      next
     end
     unless File.socket?(socket_path)
       return [false, "Docker socket #{socket_path} not available"]

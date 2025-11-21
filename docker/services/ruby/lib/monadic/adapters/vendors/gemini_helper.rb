@@ -61,7 +61,10 @@ module GeminiHelper
   end
 
   # Gemini 3 Pro Image Preview via v1 generateContent
-  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview", aspect_ratio: nil, image_size: nil)
+  # Supports optional image inputs (up to 14) for editing/conditioning:
+  # images: array of { mime_type: "image/png", data: "<base64>" }
+  # If images is nil, will fall back to images attached to the latest user message in session (if provided)
+  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview", aspect_ratio: nil, image_size: nil, images: nil, session: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -81,15 +84,112 @@ module GeminiHelper
     }
     generation_config[:imageConfig] = image_config unless image_config.empty?
 
+    parts = [{ text: prompt }]
+
+    # Normalize image inputs: prefer explicit images param; fallback to session attachments
+    inline_images = []
+    if images && images.is_a?(Array)
+      inline_images = images
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))"
+        extra_log.close
+      end
+    elsif session && session[:messages]
+      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
+
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Gemini3Preview: Session check"
+        extra_log.puts "  Total messages: #{session[:messages].size}"
+        extra_log.puts "  User messages with images: #{user_messages_with_images.size}"
+
+        # Debug: Show structure of messages
+        session[:messages].each_with_index do |msg, idx|
+          extra_log.puts "  Message #{idx}: role=#{msg["role"]}, has_images=#{!!(msg["images"])}, images_count=#{msg["images"]&.size || 0}"
+        end
+      end
+
+      if user_messages_with_images.any?
+        inline_images = user_messages_with_images.last["images"]
+
+        # Debug logging
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log.puts "  Latest message images type: #{inline_images.class}"
+          extra_log.puts "  Latest message images value: #{inline_images.inspect[0..200]}"
+          if inline_images && inline_images.respond_to?(:size)
+            extra_log.puts "  Found #{inline_images.size} image(s) in latest message"
+            inline_images.each_with_index do |img, idx|
+              img_name = img["name"] || img[:name] || "unnamed"
+              data_preview = (img["data"] || img[:data] || "")[0..50]
+              extra_log.puts "  Image #{idx + 1}: #{img_name} (data: #{data_preview}...)"
+            end
+          else
+            extra_log.puts "  inline_images is nil or not an array!"
+          end
+        end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log.puts "  No user messages with images found"
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log.close
+      end
+    end
+
+    # Limit to max 14 images as per API spec
+    inline_images.first(14).each do |img|
+      next unless img
+
+      # Extract data (may be data URL or raw base64)
+      data = img["data"] || img[:data]
+      next unless data
+
+      # If data is a data URL (data:image/png;base64,...), extract base64 part
+      if data.start_with?("data:image/")
+        base64_data = data.split(',').last
+        # Extract mime type from data URL if not explicitly provided
+        mime = data.split(';').first.split(':').last if data.include?('image/')
+      else
+        base64_data = data
+      end
+
+      # Fallback mime type detection
+      mime ||= img["mime_type"] || img[:mime_type] || img["mimeType"] || "image/png"
+
+      parts << {
+        inline_data: {
+          mime_type: mime,
+          data: base64_data
+        }
+      }
+    end
+
     body = {
       contents: [
         {
           role: "user",
-          parts: [{ text: prompt }]
+          parts: parts
         }
       ],
       generationConfig: generation_config
     }
+
+    # Debug: Log request details
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] Gemini3Preview API Request:"
+      extra_log.puts "  Model: #{model_id}"
+      extra_log.puts "  Parts count: #{parts.size}"
+      parts.each_with_index do |part, idx|
+        if part[:text]
+          extra_log.puts "  Part #{idx + 1}: text (length: #{part[:text].length})"
+        elsif part[:inline_data]
+          extra_log.puts "  Part #{idx + 1}: image (mime: #{part[:inline_data][:mime_type]}, data length: #{part[:inline_data][:data].length})"
+        end
+      end
+      extra_log.close
+    end
 
     endpoints = [
       "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
@@ -285,10 +385,49 @@ module GeminiHelper
     model = model.to_s.strip
     model = nil if model.empty?
     model ||= SystemDefaults.get_default_model('gemini')
-    
+
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
-    
+
+    # Check if this is an image generation request with attached images
+    image_generation = options["image_generation"] == "true" || options["image_generation"] == true
+
+    if image_generation
+      # Check if user has uploaded images (for editing)
+      session = options["session"]
+      has_images = false
+
+      if session && session[:messages]
+        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+        has_images = user_messages_with_images.any?
+      end
+
+      # If images are attached, call generate_image_with_gemini3_preview directly
+      if has_images
+        # Extract the user's prompt from the last message
+        last_message = session[:messages].select { |msg| msg["role"] == "user" }.last
+        prompt = last_message["text"] if last_message
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] Gemini: Image generation with attached images detected"
+          extra_log.puts "  Calling generate_image_with_gemini3_preview directly"
+          extra_log.puts "  Prompt: #{prompt}"
+          extra_log.close
+        end
+
+        # Call the image generation method directly
+        result = generate_image_with_gemini3_preview(
+          prompt: prompt,
+          model: model,
+          session: session
+        )
+
+        # Return the result in the expected format
+        return [{ "type" => "text", "content" => result }]
+      end
+    end
+
     # Get API key
     api_key = CONFIG["GEMINI_API_KEY"]
     return Monadic::Utils::ErrorFormatter.api_key_error(
@@ -2489,7 +2628,7 @@ module GeminiHelper
         end
 
         # Add session parameter for functions that need access to uploaded images
-        if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini"
+        if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini" || function_name == "generate_image_with_gemini3_preview"
           argument_hash[:session] = session
         end
         
@@ -3049,10 +3188,8 @@ module GeminiHelper
 
       # Gemini 3 Pro Image Preview uses generateContent on v1 endpoint
       if model == "gemini-3-pro-image-preview"
-        if operation != "generate"
-          return { success: false, error: "gemini-3-pro-image-preview does not support edit operations" }.to_json
-        end
-        return generate_image_with_gemini3_preview(prompt: prompt, model: model)
+        # Pass session to support image editing
+        return generate_image_with_gemini3_preview(prompt: prompt, model: model, session: session)
       end
       
       # Set up shared folder path

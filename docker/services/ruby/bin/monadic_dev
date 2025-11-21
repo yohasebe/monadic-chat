@@ -74,12 +74,10 @@ REQUIRED_CONTAINER_ALIASES = [
   ["monadic-chat-python-container", "python-container"],
   ["monadic-chat-syntree-container", "syntree-container"],
   ["monadic-chat-ollama-container", "ollama-container"],
-  ["monadic-chat-pgvector-container", "pgvector-container"]
+  ["monadic-chat-pgvector-container", "pgvector-container"],
+  # Selenium should be up for browser automation by default; keep legacy name for compatibility
+  ["monadic-chat-selenium-container", "selenium-container"]
 ]
-
-if ENV["SELENIUM_ENABLED"]&.downcase == "true"
-  REQUIRED_CONTAINER_ALIASES << ["monadic-chat-selenium-container", "selenium-container"]
-end
 
 # Parse command line options
 opts = Optimist.options do

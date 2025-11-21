@@ -191,7 +191,7 @@ module GeminiHelper
   def clear_models_cache
     $MODELS[:gemini] = nil
   end
-
+  
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Resolve model via SSOT only (no hardcoded fallback)

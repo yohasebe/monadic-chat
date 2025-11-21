@@ -118,31 +118,30 @@ def preferred_docker_host
 end
 
 def ensure_docker_ready
-  host = preferred_docker_host
-
-  # If no host detected yet, assume Desktop socket and wait for it
-  if host.nil?
-    cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-    host = "unix://#{cli_sock}"
+  # On macOS, rely on Desktop helper script to avoid crashing Docker during init
+  if is_mac?
+    script = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
+    if File.executable?(script)
+      ok = system(script)
+      return [false, "Docker Desktop not ready"] unless ok
+      # Prefer Desktop socket after script success
+      desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+      ENV['DOCKER_HOST'] ||= "unix://#{desktop_sock}"
+    end
   end
 
-  # Wait for socket to exist before any docker info calls; optionally try to start Desktop once
-  tried_start = false
-  wait_seconds = 90
+  host = preferred_docker_host
+  # If still no host detected, fall back to Desktop socket to check once
+  host ||= "unix://#{File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")}"
+
+  # Wait up to 90s for the socket to exist (no repeated docker info calls)
   if host.start_with?("unix://")
     socket_path = host.sub("unix://", "")
-    wait_seconds.times do |i|
+    90.times do
       break if File.socket?(socket_path)
-      unless tried_start
-        tried_start = try_start_docker
-      end
       sleep 1
-      # After 30s still no socket, avoid hammering: keep waiting quietly
-      next
     end
-    unless File.socket?(socket_path)
-      return [false, "Docker socket #{socket_path} not available"]
-    end
+    return [false, "Docker socket #{socket_path} not available"] unless File.socket?(socket_path)
   end
 
   ctx = ENV['DOCKER_CONTEXT']

@@ -1002,21 +1002,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
       $("#max-tokens").prop("disabled", false);
     }
     
-    // Update labels and description after options are set
+    // Update labels after options are set
     if (window.ReasoningLabels) {
       window.ReasoningLabels.updateUILabels(provider, model);
-      
-      // Update description text
-      const description = window.ReasoningLabels.getDescription(provider, model);
-      const descElement = document.getElementById('reasoning-description');
-      if (descElement) {
-        if (description && !$("#reasoning-effort").prop("disabled")) {
-          descElement.textContent = description;
-          descElement.style.display = 'inline';
-        } else {
-          descElement.style.display = 'none';
-        }
-      }
     }
 
     let temperature = params["temperature"];

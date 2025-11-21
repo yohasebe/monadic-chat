@@ -2096,18 +2096,6 @@ class WebUIi18n {
           if (provider) {
             window.ReasoningLabels.updateUILabels(provider, selectedModel);
 
-            // Update description text
-            const description = window.ReasoningLabels.getDescription(provider, selectedModel);
-            const descElement = document.getElementById('reasoning-description');
-            if (descElement) {
-              if (description && !$("#reasoning-effort").prop("disabled")) {
-                descElement.textContent = description;
-                descElement.style.display = 'inline';
-              } else {
-                descElement.style.display = 'none';
-              }
-            }
-
             // Update option labels
             const select = document.getElementById('reasoning-effort');
             if (select && !select.disabled) {

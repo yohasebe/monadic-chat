@@ -1400,21 +1400,9 @@ $(function () {
       $("#reasoning-effort").val('medium');
     }
 
-    // Update labels and description after options are generated
+    // Update labels after options are generated
     if (window.ReasoningLabels) {
       window.ReasoningLabels.updateUILabels(provider, selectedModel);
-      
-      // Update description text
-      const description = window.ReasoningLabels.getDescription(provider, selectedModel);
-      const descElement = document.getElementById('reasoning-description');
-      if (descElement) {
-        if (description && !$("#reasoning-effort").prop("disabled")) {
-          descElement.textContent = description;
-          descElement.style.display = 'inline';
-        } else {
-          descElement.style.display = 'none';
-        }
-      }
     }
 
     if (modelSpec[selectedModel]) {

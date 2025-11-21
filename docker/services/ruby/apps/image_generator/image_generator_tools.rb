@@ -85,7 +85,27 @@ class ImageGeneratorGemini < MonadicApp
   def generate_image_with_gemini(prompt:, operation: "generate", model: "gemini", session: nil)
     # Input validation
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
-    
+
+    # The actual implementation is in GeminiHelper module
+    # which is included in MonadicApp via MonadicHelper
+    super
+  rescue StandardError => e
+    { success: false, error: "Image generation failed: #{e.message}" }.to_json
+  end
+end
+
+class ImageGeneratorGemini3Preview < MonadicApp
+  include GeminiHelper if defined?(GeminiHelper)
+  # Generate or edit images using Gemini 3 Pro Image Preview
+  # @param prompt [String] Text description of the desired image or editing instructions
+  # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)
+  # @param image_size [String] Optional resolution (1K, 2K, 4K)
+  # @param session [Object] Session object (automatically provided, contains uploaded images)
+  # @return [String] JSON response with success status and filename
+  def generate_image_with_gemini3_preview(prompt:, aspect_ratio: nil, image_size: nil, session: nil)
+    # Input validation
+    raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
+
     # The actual implementation is in GeminiHelper module
     # which is included in MonadicApp via MonadicHelper
     super

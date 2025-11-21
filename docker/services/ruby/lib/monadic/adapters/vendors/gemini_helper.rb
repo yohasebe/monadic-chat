@@ -96,17 +96,22 @@ module GeminiHelper
         extra_log.close
       end
     elsif session && session[:messages]
-      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
+      # Select user messages that have non-empty images array
+      user_messages_with_images = session[:messages].select { |msg|
+        msg["role"] == "user" && msg["images"] && msg["images"].any?
+      }
 
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts "[#{Time.now}] Gemini3Preview: Session check"
         extra_log.puts "  Total messages: #{session[:messages].size}"
-        extra_log.puts "  User messages with images: #{user_messages_with_images.size}"
+        extra_log.puts "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"
 
         # Debug: Show structure of messages
         session[:messages].each_with_index do |msg, idx|
-          extra_log.puts "  Message #{idx}: role=#{msg["role"]}, has_images=#{!!(msg["images"])}, images_count=#{msg["images"]&.size || 0}"
+          img_count = msg["images"]&.size || 0
+          has_actual_images = msg["images"]&.any? || false
+          extra_log.puts "  Message #{idx}: role=#{msg["role"]}, images_count=#{img_count}, has_actual_images=#{has_actual_images}"
         end
       end
 
@@ -228,6 +233,31 @@ module GeminiHelper
         filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
         filepath = File.join(shared_folder, filename)
         File.open(filepath, 'wb') { |f| f.write(Base64.decode64(b64)) }
+
+        # Add generated image to session for iterative editing
+        if session && session[:messages]
+          data_url = "data:#{mime};base64,#{b64}"
+          image_data = {
+            "title" => filename,
+            "data" => data_url
+          }
+
+          # Add as a new user message with the generated image
+          session[:messages] << {
+            "role" => "user",
+            "text" => "[Generated image: #{filename}]",
+            "images" => [image_data]
+          }
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] Gemini3Preview: Added generated image to session"
+            extra_log.puts "  Filename: #{filename}"
+            extra_log.puts "  Session now has #{session[:messages].size} messages"
+            extra_log.close
+          end
+        end
+
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
@@ -388,45 +418,6 @@ module GeminiHelper
 
     # Convert symbol keys to string keys to support both formats
     options = options.transform_keys(&:to_s) if options.is_a?(Hash)
-
-    # Check if this is an image generation request with attached images
-    image_generation = options["image_generation"] == "true" || options["image_generation"] == true
-
-    if image_generation
-      # Check if user has uploaded images (for editing)
-      session = options["session"]
-      has_images = false
-
-      if session && session[:messages]
-        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
-        has_images = user_messages_with_images.any?
-      end
-
-      # If images are attached, call generate_image_with_gemini3_preview directly
-      if has_images
-        # Extract the user's prompt from the last message
-        last_message = session[:messages].select { |msg| msg["role"] == "user" }.last
-        prompt = last_message["text"] if last_message
-
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] Gemini: Image generation with attached images detected"
-          extra_log.puts "  Calling generate_image_with_gemini3_preview directly"
-          extra_log.puts "  Prompt: #{prompt}"
-          extra_log.close
-        end
-
-        # Call the image generation method directly
-        result = generate_image_with_gemini3_preview(
-          prompt: prompt,
-          model: model,
-          session: session
-        )
-
-        # Return the result in the expected format
-        return [{ "type" => "text", "content" => result }]
-      end
-    end
 
     # Get API key
     api_key = CONFIG["GEMINI_API_KEY"]
@@ -2585,10 +2576,74 @@ module GeminiHelper
 
     # Get parameters from the session
     session_params = session[:parameters]
-    
+
     # Initialize tool_results array in session parameters if it doesn't exist
     session_params["tool_results"] ||= []
-    
+
+    # CRITICAL: Prevent duplicate image generation for Gemini 3 Pro Image Preview
+    # Check if we already successfully generated an image in this conversation turn
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] Gemini3Preview: Duplicate detection check"
+      extra_log.puts "  tool_results count: #{session_params["tool_results"]&.size || 0}"
+      extra_log.puts "  tool_results: #{session_params["tool_results"].inspect}"
+      extra_log.close
+    end
+
+    if session_params["tool_results"].any?
+      tool_calls.each do |tc|
+        if tc["name"] == "generate_image_with_gemini3_preview"
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] Gemini3Preview: Found image generation tool call"
+            extra_log.puts "  Checking #{session_params["tool_results"].size} previous results"
+            extra_log.close
+          end
+
+          # Check all previous tool results for successful image generation
+          session_params["tool_results"].each_with_index do |result, idx|
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts "[#{Time.now}] Gemini3Preview: Checking result[#{idx}]: #{result.class} - #{result.inspect[0..200]}"
+              extra_log.close
+            end
+
+            # Handle both Hash and String formats
+            content_json = nil
+            if result.is_a?(Hash)
+              # Extract content from functionResponse structure
+              content_json = result.dig("functionResponse", "response", "content")
+            elsif result.is_a?(String)
+              content_json = result
+            end
+
+            next unless content_json
+
+            begin
+              parsed = JSON.parse(content_json)
+              if parsed["success"] && parsed["filename"]
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] Gemini3Preview: ⚠️  SKIPPING DUPLICATE TOOL CALL"
+                  extra_log.puts "  Already generated: #{parsed["filename"]}"
+                  extra_log.puts "  Preventing additional generation to avoid duplicates"
+                  extra_log.close
+                end
+                # Return false to stop processing this turn entirely
+                return false
+              end
+            rescue JSON::ParserError => e
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts "[#{Time.now}] Gemini3Preview: JSON parse error: #{e.message}"
+                extra_log.close
+              end
+            end
+          end
+        end
+      end
+    end
+
     # Log tool calls for debugging
     if CONFIG["EXTRA_LOGGING"]
       puts "[DEBUG Tools] Processing #{tool_calls.length} tool calls:"
@@ -2906,12 +2961,12 @@ module GeminiHelper
     temp_file_path = nil
     
     if session && session[:messages]
-      # Look for the most recent user message with images
-      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
-      
+      # Look for the most recent user message with non-empty images
+      user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+
       if user_messages_with_images.any?
         latest_message = user_messages_with_images.last
-        
+
         if latest_message["images"] && latest_message["images"].first
           # Extract image data from the first image
           first_image = latest_message["images"].first
@@ -3210,9 +3265,9 @@ module GeminiHelper
       
       # For edit operation, add the uploaded image to the request (natural language editing)
       if operation == "edit" && session && session[:messages]
-        # Look for the most recent user message with images
-        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] }
-        
+        # Look for the most recent user message with non-empty images
+        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+
         if user_messages_with_images.empty?
           return { success: false, error: "No image found for editing. Please upload an image first." }.to_json
         end

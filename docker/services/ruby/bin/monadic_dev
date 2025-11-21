@@ -102,11 +102,11 @@ end
 def preferred_docker_host
   return ENV['DOCKER_HOST'] if ENV['DOCKER_HOST'] && !ENV['DOCKER_HOST'].empty?
 
-  cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-  return "unix://#{cli_sock}" if File.exist?(cli_sock) || File.socket?(cli_sock)
-
   run_sock = File.expand_path("~/.docker/run/docker.sock")
   return "unix://#{run_sock}" if File.exist?(run_sock) || File.socket?(run_sock)
+
+  cli_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+  return "unix://#{cli_sock}" if File.exist?(cli_sock) || File.socket?(cli_sock)
 
   colima_sock = File.expand_path("~/.colima/default/docker.sock")
   return "unix://#{colima_sock}" if File.exist?(colima_sock) || File.socket?(colima_sock)
@@ -188,12 +188,6 @@ def start_server(opts)
   docker_ok = false
   docker_output = ""
   started = false
-  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-  # Default DOCKER_HOST to Desktop socket on mac if not set and socket exists
-  if is_mac? && !ENV['DOCKER_HOST'] && File.socket?(desktop_sock)
-    ENV['DOCKER_HOST'] = "unix://#{desktop_sock}"
-    STDERR.puts "[DEBUG] Setting DOCKER_HOST to Desktop socket #{ENV['DOCKER_HOST']}" if ENV['EXTRA_LOGGING']
-  end
 
   if ENV["SKIP_DOCKER_CHECK"]
     puts "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"

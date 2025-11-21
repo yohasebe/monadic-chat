@@ -3820,12 +3820,13 @@ let loadedApp = "Chat";
           // Add OpenAI separator to custom dropdown with conditional styling
           const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
           const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
+          const openAIGroupId = normalizeGroupId("OpenAI");
           $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
             <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
             <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
           </div>`);
-          // Create a container for the OpenAI apps
-          $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
+          // Create a container for the OpenAI apps (normalized id for toggle)
+          $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
 
           for (const [key, value] of regularApps) {
             apps[key] = value;
@@ -3847,7 +3848,7 @@ let loadedApp = "Chat";
               const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                 <span style="margin-right: 8px;">${appIcon}</span>
                 <span>${displayText}</span></div>`);
-              $("#group-OpenAI").append($option);
+              $(`#group-${openAIGroupId}`).append($option);
             }
 
           // sort specialApps by group name in the order:
@@ -4673,18 +4674,19 @@ let loadedApp = "Chat";
             });
             const groupOrder = ["Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"];
             specialApps = Object.fromEntries(Object.entries(specialApps).sort((a, b) => groupOrder.indexOf(a[0]) - groupOrder.indexOf(b[0])));
-            const normalizeGroupId = (name) => name.replace(/\\s+/g, '-');
+            const normalizeGroupId = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
             // OpenAI group
             const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
             $("#apps").append('<option disabled>──OpenAI──</option>');
             const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
             const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
+            const openAIGroupId = normalizeGroupId("OpenAI");
             $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
               <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
               <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
             </div>`);
-            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-OpenAI"></div>`);
+            $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
             for (const [key, value] of regularApps) {
               apps[key] = value;
               const displayText = value["display_name"] || value["app_name"];
@@ -4700,7 +4702,7 @@ let loadedApp = "Chat";
               const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                 <span style="margin-right: 8px;">${appIcon}</span>
                 <span>${displayText}</span></div>`);
-              $("#group-OpenAI").append($option);
+              $(`#group-${openAIGroupId}`).append($option);
             }
 
             // Special groups

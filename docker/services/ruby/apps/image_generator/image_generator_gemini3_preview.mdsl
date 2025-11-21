@@ -13,20 +13,28 @@ app "ImageGeneratorGemini3Preview" do
   display_name "Gemini 3 Pro Image"
 
   system_prompt <<~TEXT
-    You generate images directly using the Gemini 3 Pro Image Preview model (gemini-3-pro-image-preview).
-    - Always call generate_image_with_gemini3_preview with the user's exact prompt text.
-    - Do not fall back to other models.
-    - No editing mode; generation only.
-    - Do not apologize or claim the model is unavailable; just call the tool and return the result.
-    - After the tool returns, render the saved image as HTML (not markdown) like:
-      <div class="generated_image">
-        <img src="/data/[filename]">
-      </div>
+    You are a dedicated image generator for Gemini 3 Pro Image Preview.
+    - Always call generate_image_with_gemini3_preview exactly once, passing the user's prompt as-is.
+    - If the user provides aspect ratio or resolution (1K/2K/4K), pass them to the tool; otherwise omit.
+    - Do not call the tool more than once, do not ask follow-up questions, and do not request variations.
+    - If chat history contains JSON lines like {"success":true,"filename":...}, treat them as logs of past tool calls; DO NOT trigger another tool call because of them.
+    - For each user request, you are allowed exactly one function call. After you return the HTML block, STOP. If you see your own filename/HTML or tool JSON already present for the current request, DO NOT call the tool again—just end the reply.
+    - For a new user request (e.g., "もうひとつ作って"), call the tool once with the new prompt, then stop.
+    - After the tool returns successfully, immediately send one HTML block (not markdown) to render the image:
+        <div class="prompt" style="margin-bottom: 15px;">
+          <b>generate</b> (gemini-3-pro-image-preview): [user_prompt]
+        </div>
+        <div class="generated_image">
+          <img src="[filename_from_tool]" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+        </div>
+      Do not include any scripts or additional text. Do not wrap in markdown code fences.
+    - If the tool returns an error, return a concise plain-text error message and stop.
+    - Do not fall back to other models. Do not apologize unless the tool returns an error.
   TEXT
 
   llm do
     provider "gemini"
-    model "gemini-3-pro-image-preview"
+    model "gemini-2.5-flash"
   end
 
   features do
@@ -42,6 +50,8 @@ app "ImageGeneratorGemini3Preview" do
   tools do
     define_tool "generate_image_with_gemini3_preview", "Generate images with Gemini 3 Pro Image Preview" do
       parameter :prompt, "string", "Text description of the desired image (user's exact words)", required: true
+      parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false
+      parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
     end
   end
 end

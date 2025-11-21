@@ -88,7 +88,7 @@ describe('ReasoningMapper', () => {
 
     test('Claude returns mapped options', () => {
       const options = ReasoningMapper.getAvailableOptions('Anthropic', 'claude-sonnet-4-20250514');
-      expect(options).toEqual(['minimal', 'low', 'medium', 'high']);
+      expect(options).toEqual(['low', 'high']);
     });
 
     test('Gemini with can_disable returns all options', () => {
@@ -97,8 +97,8 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok returns options without minimal', () => {
-      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-4-fast-reasoning');
-      expect(options).toEqual(['minimal', 'low', 'medium', 'high']);
+      const options = ReasoningMapper.getAvailableOptions('xAI', 'grok-4-1-fast-reasoning');
+      expect(options).toEqual(['none', 'low', 'medium', 'high']);
     });
 
     test('DeepSeek returns limited options', () => {
@@ -124,8 +124,8 @@ describe('ReasoningMapper', () => {
     });
 
     test('Grok maps minimal to low', () => {
-      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4-fast-reasoning', 'minimal');
-      expect(result).toEqual({ reasoning_effort: 'minimal' });
+      const result = ReasoningMapper.mapToProviderParameter('xAI', 'grok-4-1-fast-reasoning', 'none');
+      expect(result).toEqual({ reasoning_effort: 'none' });
     });
 
     test('DeepSeek maps to enabled/disabled', () => {

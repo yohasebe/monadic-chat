@@ -42,8 +42,8 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
       end
 
       it "has deterministic temperature setting" do
-        # Gemini 3 uses temperature 1.0 (not 0.0) for optimal performance
-        expect(app_instance.settings[:temperature]).to eq(1.0)
+        # Gemini Notebook app uses deterministic temperature
+        expect(app_instance.settings[:temperature]).to eq(0.0)
       end
 
       it "has adequate max_tokens setting" do

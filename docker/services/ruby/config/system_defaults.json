@@ -1,7 +1,7 @@
 {
   "provider_defaults": {
     "openai": {
-      "model": "gpt-4.1"
+      "model": "gpt-5.1"
     },
     "anthropic": {
       "model": "claude-sonnet-4-5-20250929"
@@ -16,7 +16,7 @@
       "model": "mistral-large-latest"
     },
     "xai": {
-      "model": "grok-4-fast-reasoning"
+      "model": "grok-4-1-fast-non-reasoning"
     },
     "perplexity": {
       "model": "sonar-reasoning-pro"

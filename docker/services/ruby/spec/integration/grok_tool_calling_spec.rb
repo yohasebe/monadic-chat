@@ -176,7 +176,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       app_instance.settings = class_settings if class_settings
       
       # Check MDSL configuration
-      expect(app_instance.settings[:model]).to eq("grok-4-fast-reasoning")
+      expect(app_instance.settings[:model]).to eq("grok-4-1-fast-reasoning")
       # Agent model is configured separately in the agents block
       if app_instance.settings[:agents]
         expect(app_instance.settings[:agents][:code_generator][:model]).to eq("grok-code-fast-1")

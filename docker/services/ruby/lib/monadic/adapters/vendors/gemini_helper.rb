@@ -61,7 +61,7 @@ module GeminiHelper
   end
 
   # Gemini 3 Pro Image Preview via v1 generateContent
-  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview")
+  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview", aspect_ratio: nil, image_size: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -72,17 +72,26 @@ module GeminiHelper
     shared_folder = Monadic::Utils::Environment.shared_volume
     model_id = IMAGE_GENERATION_MODELS[model] || model
 
+    image_config = {}
+    image_config[:aspectRatio] = aspect_ratio if aspect_ratio && !aspect_ratio.empty?
+    image_config[:imageSize] = image_size if image_size && !image_size.empty?
+
+    generation_config = {
+      responseModalities: ["TEXT", "IMAGE"]
+    }
+    generation_config[:imageConfig] = image_config unless image_config.empty?
+
     body = {
       contents: [
         {
           role: "user",
           parts: [{ text: prompt }]
         }
-      ]
+      ],
+      generationConfig: generation_config
     }
 
     endpoints = [
-      "https://generativelanguage.googleapis.com/v1/models/#{model_id}:generateContent?key=#{api_key}",
       "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
     ]
     response = nil
@@ -163,8 +172,8 @@ module GeminiHelper
     "imagen4" => "imagen-4.0-generate-001",
     "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
     "imagen4-fast" => "imagen-4.0-fast-generate-001",
-    # Gemini 3 Pro Image Preview (Vertex image generation, per docs)
-    "gemini-3-pro-image-preview" => "gemini-3.0-pro-image-preview"
+    # Gemini 3 Pro Image Preview (v1beta generateContent)
+    "gemini-3-pro-image-preview" => "gemini-3-pro-image-preview"
   }.freeze
   IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5

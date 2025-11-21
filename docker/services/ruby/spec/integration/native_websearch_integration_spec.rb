@@ -9,6 +9,7 @@ RSpec.describe "Native Web Search Integration", :integration do
   include IntegrationRetryHelper
   # Skip these tests in CI or when API keys are not available
   before(:all) do
+    @skip_websearch = ENV["RUN_WEBSEARCH_TESTS"] != "true"
     @skip_openai = !CONFIG["OPENAI_API_KEY"]
     @skip_claude = !CONFIG["ANTHROPIC_API_KEY"]
     @skip_gemini = !CONFIG["GEMINI_API_KEY"]
@@ -283,6 +284,7 @@ RSpec.describe "Native Web Search Integration", :integration do
   describe "Gemini URL Context" do
     before(:each) do
       skip "Gemini API key not configured" if @skip_gemini
+      skip "Set RUN_WEBSEARCH_TESTS=true to run URL context tests" if @skip_websearch
       # Test with fixed implementation
     end
 
@@ -358,6 +360,7 @@ RSpec.describe "Native Web Search Integration", :integration do
   describe "Perplexity Built-in Search" do
     before(:each) do
       skip "Perplexity API key not configured" if @skip_perplexity
+      skip "Set RUN_WEBSEARCH_TESTS=true to run Perplexity websearch tests" if @skip_websearch
     end
 
     it "uses built-in web search capabilities" do

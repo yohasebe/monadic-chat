@@ -187,7 +187,7 @@ const modelSpec = {
     "supports_pdf": false,
     "skip_in_progress_events": true
   },
-  // Gemini 3 image preview (generation only)
+  // Gemini 3 image preview (image generation only)
   "gemini-3-pro-image-preview": {
     "context_window": [1, 32000],
     "max_output_tokens": [1, 8192],

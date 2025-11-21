@@ -361,7 +361,7 @@ RSpec.describe AIUserAgent do
       providers_and_defaults = {
         "gemini" => "gemini-2.5-flash",
         "mistral" => "mistral-large-latest",
-        "grok" => "grok-4-fast-non-reasoning",  # Updated from grok-4-fast-reasoning
+        "grok" => "grok-4-1-fast-non-reasoning",  # Updated to current default
         "perplexity" => "sonar",  # AI User uses non-thinking model (not sonar-reasoning-pro)
         "deepseek" => "deepseek-chat",
         "cohere" => "command-a-03-2025"

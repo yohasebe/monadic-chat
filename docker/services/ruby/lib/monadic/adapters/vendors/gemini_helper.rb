@@ -60,6 +60,76 @@ module GeminiHelper
     defined?(CONFIG) ? (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10) : 10
   end
 
+  # Gemini 3 Pro Image Preview via v1 generateContent
+  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview")
+    require 'net/http'
+    require 'json'
+    require 'base64'
+
+    api_key = CONFIG["GEMINI_API_KEY"]
+    return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
+
+    shared_folder = Monadic::Utils::Environment.shared_volume
+    model_id = IMAGE_GENERATION_MODELS[model] || model
+
+    body = {
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        responseMimeType: "image/png"
+      }
+    }
+
+    uri = URI("https://generativelanguage.googleapis.com/v1/models/#{model_id}:generateContent?key=#{api_key}")
+    request = Net::HTTP::Post.new(uri)
+    request['Content-Type'] = 'application/json'
+    request.body = body.to_json
+
+    response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 300) do |http|
+      http.request(request)
+    end
+
+    if response.code == '200'
+      data = JSON.parse(response.body)
+      candidate = data.dig("candidates", 0, "content", "parts")&.find do |p|
+        (p["inlineData"] && p["inlineData"]["mimeType"]&.start_with?("image/")) ||
+        (p["inline_data"] && p["inline_data"]["mime_type"]&.start_with?("image/"))
+      end
+
+      if candidate
+        inline = candidate["inlineData"] || candidate["inline_data"]
+        mime = inline["mimeType"] || inline["mime_type"] || "image/png"
+        b64  = inline["data"]
+        ext = case mime
+              when "image/png" then "png"
+              when "image/jpeg", "image/jpg" then "jpg"
+              when "image/webp" then "webp"
+              else "png"
+              end
+        filename = "gemini3_image_#{Time.now.to_i}.#{ext}"
+        filepath = File.join(shared_folder, filename)
+        File.open(filepath, 'wb') { |f| f.write(Base64.decode64(b64)) }
+        return { success: true, filename: filename, model: model, prompt: prompt }.to_json
+      end
+
+      return { success: false, error: "No image returned from gemini-3-pro-image-preview" }.to_json
+    else
+      error_data = JSON.parse(response.body) rescue {}
+      error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
+      return { success: false, error: error_message }.to_json
+    end
+  rescue StandardError => e
+    return { success: false, error: Monadic::Utils::ErrorFormatter.tool_error(
+      provider: "Gemini",
+      tool_name: "generate_image_with_gemini3_preview",
+      message: e.message
+    ) }.to_json
+  end
+
   def self.read_timeout
     defined?(CONFIG) ? (CONFIG["GEMINI_READ_TIMEOUT"]&.to_i || 600) : 600
   end
@@ -2960,6 +3030,14 @@ module GeminiHelper
       # Supports: imagen3, imagen4, imagen4-ultra, imagen4-fast
       if IMAGE_GENERATION_MODELS.key?(model) && operation == "generate"
         return generate_image_with_imagen_direct(prompt: prompt, model: model)
+      end
+
+      # Gemini 3 Pro Image Preview uses generateContent on v1 endpoint
+      if model == "gemini-3-pro-image-preview"
+        if operation != "generate"
+          return { success: false, error: "gemini-3-pro-image-preview does not support edit operations" }.to_json
+        end
+        return generate_image_with_gemini3_preview(prompt: prompt, model: model)
       end
       
       # Set up shared folder path

@@ -34,7 +34,8 @@ app "JupyterNotebookGrok" do
   
   llm do
     provider "xai"
-    model "grok-4-1-fast-reasoning"
+    model "grok-4-1-fast-non-reasoning"
+    reasoning_effort "minimal"
     temperature 0.0
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools

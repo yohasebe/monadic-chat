@@ -78,10 +78,7 @@ module GeminiHelper
           role: "user",
           parts: [{ text: prompt }]
         }
-      ],
-      generationConfig: {
-        responseMimeType: "image/png"
-      }
+      ]
     }
 
     endpoints = [

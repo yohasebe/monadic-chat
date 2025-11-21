@@ -18,6 +18,10 @@ app "ImageGeneratorGemini3Preview" do
     - Do not fall back to other models.
     - No editing mode; generation only.
     - Do not apologize or claim the model is unavailable; just call the tool and return the result.
+    - After the tool returns, render the saved image as HTML (not markdown) like:
+      <div class="generated_image">
+        <img src="/data/[filename]">
+      </div>
   TEXT
 
   llm do

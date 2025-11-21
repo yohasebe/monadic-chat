@@ -190,6 +190,33 @@
         return;
       }
 
+      // Deduplicate messages by mid (keep last) or identical role+text to avoid double assistant entries
+      const dedupedMessages = (() => {
+        const result = [];
+        const seen = new Map(); // mid -> index
+
+        messagesToExport.forEach((msg) => {
+          const mid = msg.mid || msg.id;
+          if (mid) {
+            if (seen.has(mid)) {
+              // Replace existing entry with newer one
+              result[seen.get(mid)] = msg;
+            } else {
+              seen.set(mid, result.length);
+              result.push(msg);
+            }
+          } else {
+            const prev = result[result.length - 1];
+            if (prev && prev.role === msg.role && (prev.text || prev.content) === (msg.text || msg.content)) {
+              // Skip exact duplicate
+              return;
+            }
+            result.push(msg);
+          }
+        });
+        return result;
+      })();
+
       // Get app information
       const appInfo = getAppInfo();
 
@@ -197,7 +224,7 @@
       const headerHTML = generateHeaderHTML(appInfo);
 
       // Generate message cards HTML (exclude system messages)
-      const messagesHTML = messagesToExport
+      const messagesHTML = dedupedMessages
         .filter(msg => msg.role !== 'system')
         .map(msg => createMessageHTML(msg))
         .join('\n');

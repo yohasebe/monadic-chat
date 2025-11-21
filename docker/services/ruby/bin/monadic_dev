@@ -179,15 +179,20 @@ def start_server(opts)
   docker_output = ""
   started = false
 
-  60.times do
-    docker_ok, docker_output = ensure_docker_ready
-    break if docker_ok
+  if ENV["SKIP_DOCKER_CHECK"]
+    puts "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"
+    docker_ok = true
+  else
+    60.times do
+      docker_ok, docker_output = ensure_docker_ready
+      break if docker_ok
 
-    unless started
-      started = try_start_docker
+      unless started
+        started = try_start_docker
+      end
+
+      sleep 1
     end
-
-    sleep 1
   end
 
   unless docker_ok

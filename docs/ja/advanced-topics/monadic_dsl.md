@@ -359,7 +359,6 @@ app "MermaidGrapherOpenAI" do
   llm do
     provider "openai"
     model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
-    reasoning_effort "minimal"
     temperature 0.0
   end
 
@@ -435,7 +434,6 @@ app "WikipediaOpenAI" do
   llm do
     provider "openai"
     model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
-    reasoning_effort "minimal"
     temperature 0.0
   end
 

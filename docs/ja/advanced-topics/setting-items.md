@@ -95,7 +95,7 @@ end
 
 ### 高度な設定
 - `response_format` - 構造化出力形式を指定（OpenAI）
-- `reasoning_effort` - 推論モデル用："low"（デフォルト）、"medium"、"high"
+- `reasoning_effort` - サポートされているモデルの推論強度を制御。利用可能な値はモデルによって異なります（例：一部のモデルでは "low", "high"）
 - `models` - 利用可能なモデルリストを上書き
 - `jupyter` - Jupyterノートブックアクセスを有効化（Serverモードでは`ALLOW_JUPYTER_IN_SERVER_MODE=true`を設定しない限り無効）
 
@@ -123,7 +123,6 @@ app "ChatOpenAI" do
   llm do
     provider "openai"
     model ["<model-1>", "<model-2>"]  # ユーザー選択用のモデルIDの配列
-    reasoning_effort "minimal"
     temperature 0.7
     max_tokens 4000
   end

@@ -98,7 +98,7 @@ end
 
 ### Advanced Settings
 - `response_format` - Specify structured output format (OpenAI)
-- `reasoning_effort` - For reasoning models: "low" (default), "medium", "high"
+- `reasoning_effort` - Control reasoning intensity for supported models. Available values depend on the model (e.g., "low", "high" for some models)
 - `models` - Override available model list
 - `jupyter` - Enable Jupyter notebook access (disabled in Server Mode unless `ALLOW_JUPYTER_IN_SERVER_MODE=true`)
 
@@ -125,7 +125,6 @@ app "ChatOpenAI" do
   llm do
     provider "openai"
     model ["<model-1>", "<model-2>"]  # Array of model IDs for user selection
-    reasoning_effort "minimal"
     temperature 0.7
     max_tokens 4000
   end

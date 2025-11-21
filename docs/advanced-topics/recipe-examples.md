@@ -180,7 +180,6 @@ app "MathTutorOpenAI" do
   llm do
     provider "OpenAI"
     model ["<model-1>", "<model-2>"]  # Array of model IDs for user selection
-    reasoning_effort "minimal"
     temperature 0.0
     presence_penalty 0.2
   end

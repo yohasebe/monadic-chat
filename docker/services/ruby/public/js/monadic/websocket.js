@@ -3851,6 +3851,9 @@ let loadedApp = "Chat";
           }));
 
           // Normalize group names to be HTML-id friendly
+          function normalizeGroupId(group) {
+            return group.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+          }
             // Add special groups with their labels
             for (const group of Object.keys(specialApps)) {
               if (specialApps[group].length > 0) {

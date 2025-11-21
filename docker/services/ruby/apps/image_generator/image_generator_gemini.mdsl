@@ -47,7 +47,7 @@ app "ImageGeneratorGemini" do
     - **imagen4-fast**: Fastest generation (default)
     - **imagen4**: Balanced quality/speed
     - **imagen4-ultra**: Highest quality
-    - **gemini-3-pro-image-preview**: Gemini 3 Pro image preview generation
+    - **gemini-3-pro-image-preview**: Gemini 3 Pro image preview generation (model ID: gemini-3.0-pro-image-preview)
     - **gemini**: Semantic editing (understands natural language)
 
     Simply describe the image you want, or upload an image to edit it!"

@@ -91,7 +91,7 @@
     - Prevents unnecessary Ruby rebuilds after Python/User container updates
     - Added FORCE_REBUILD support for explicit no-cache rebuilds from menu
   - **Selenium Container Management**: Enhanced usability and configuration
-    - Changed default to enabled (SELENIUM_ENABLED=true)
+    - Selenium now always enabled (config flag removed)
     - Added start-selenium and stop-selenium commands for immediate control
     - Removed automatic container deletion when disabled
     - Removed profiles requirement - Selenium always available

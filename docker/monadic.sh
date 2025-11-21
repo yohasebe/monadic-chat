@@ -1247,8 +1247,7 @@ start_docker_compose() {
   local needs_user_containers=false
 
   # Define the list of required containers - these names must match container_name in compose.yml files
-  # Note: Selenium is optional and controlled by SELENIUM_ENABLED
-  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container")
+  local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
   local missing_containers=()
   
   # Check if main image exists or needs update
@@ -1431,45 +1430,22 @@ start_docker_compose() {
     echo "Final Health Summary: ${state} (tries=${tries}, interval=${interval}s)" >> "${startup_log}"
   }
 
-  # Helper function to read boolean config values
-  read_config_bool() {
-    local key="$1"
-    local default_val="${2:-false}"
-    if [ -f "${env_file}" ]; then
-      local val=$(grep "^${key}=" "${env_file}" 2>/dev/null | cut -d= -f2 | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-      case "$val" in
-        true|1|yes|on) echo "true";;
-        false|0|no|off|"") echo "false";;
-        *) echo "$default_val";;
-      esac
-    else
-      echo "$default_val"
-    fi
-  }
+  # Ensure Selenium container is running if the image exists
+  if ${DOCKER} images | grep -q "yohasebe/selenium"; then
+    if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+      echo "[HTML]: <p>Starting Selenium container...</p>"
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
 
-  # Check SELENIUM_ENABLED and manage Selenium container accordingly
-  local selenium_enabled=$(read_config_bool "SELENIUM_ENABLED" "true")
-  if [ "$selenium_enabled" = "true" ]; then
-    # Start Selenium container if enabled, image exists, and container is not already running
-    if ${DOCKER} images | grep -q "yohasebe/selenium"; then
-      # Check if Selenium container is already running
-      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
-        echo "[HTML]: <p>Starting Selenium container...</p>"
-        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
-
-        # Restart Ruby container to update SELENIUM_AVAILABLE environment variable
-        # Wait a moment for Selenium to start
-        sleep 2
-        echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-        ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-      fi
-    else
-      echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium is enabled but container image not found.</strong></p>"
-      echo "[HTML]: <p>Please build the Selenium container from the menu: <strong>Actions → Build Selenium Container</strong></p>"
-      echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
+      # Restart Ruby container to reflect availability
+      sleep 2
+      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
+      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
     fi
+  else
+    echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium container image not found.</strong></p>"
+    echo "[HTML]: <p>Please build the Selenium container from the menu: <strong>Actions → Build Selenium Container</strong></p>"
+    echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
   fi
-  # Note: If SELENIUM_ENABLED=false, we simply don't start it. No need to stop/remove existing containers.
 
   # Start Ollama container if the image exists and container is not already running (it uses a profile so needs explicit start)
   if ${DOCKER} images | grep -q "yohasebe/ollama"; then
@@ -1847,8 +1823,7 @@ stop-jupyter)
   run_jupyter stop
   ;;
 start-selenium)
-  # Start Selenium container and set SELENIUM_ENABLED=true
-  # If image doesn't exist, build it first
+  # Start Selenium container (build if missing)
   if ! ${DOCKER} images | grep -q "yohasebe/selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container image not found. Building automatically...</p>"
 
@@ -1867,19 +1842,6 @@ start-selenium)
     echo "[HTML]: <p>Starting Selenium container...</p>"
     eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
 
-    # Update config
-    config_env="${HOME_DIR}/monadic/config/env"
-    if [ -f "$config_env" ]; then
-      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
-        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=true/' "$config_env"
-      else
-        echo "SELENIUM_ENABLED=true" >> "$config_env"
-      fi
-    else
-      mkdir -p "$(dirname "$config_env")"
-      echo "SELENIUM_ENABLED=true" > "$config_env"
-    fi
-
     # Restart Ruby container to update SELENIUM_AVAILABLE
     if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
       sleep 2
@@ -1893,43 +1855,14 @@ start-selenium)
   fi
   ;;
 stop-selenium)
-  # Stop Selenium container and set SELENIUM_ENABLED=false
+  # Stop Selenium container
   if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
     echo "[HTML]: <p>Stopping Selenium container...</p>"
     ${DOCKER} stop monadic-chat-selenium-container > /dev/null 2>&1
 
-    # Update config
-    config_env="${HOME_DIR}/monadic/config/env"
-    if [ -f "$config_env" ]; then
-      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
-        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=false/' "$config_env"
-      else
-        echo "SELENIUM_ENABLED=false" >> "$config_env"
-      fi
-    else
-      mkdir -p "$(dirname "$config_env")"
-      echo "SELENIUM_ENABLED=false" > "$config_env"
-    fi
-
-    # Restart Ruby container to update SELENIUM_AVAILABLE
-    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
-      echo "[HTML]: <p>Updating Ruby container after Selenium stop...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-    fi
-
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Selenium container stopped successfully.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-info' style='color: #61b0ff;'></i>Selenium container is not running.</p><hr />"
-
-    # Still update config
-    config_env="${HOME_DIR}/monadic/config/env"
-    if [ -f "$config_env" ]; then
-      if grep -q "^SELENIUM_ENABLED=" "$config_env"; then
-        sed -i.bak 's/^SELENIUM_ENABLED=.*/SELENIUM_ENABLED=false/' "$config_env"
-      else
-        echo "SELENIUM_ENABLED=false" >> "$config_env"
-      fi
-    fi
   fi
   ;;
 export)
@@ -1960,4 +1893,3 @@ import-db)
 esac
 
 exit 0
-

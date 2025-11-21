@@ -380,13 +380,11 @@ get "/api/capabilities" do
       tavily: !!(CONFIG && CONFIG['TAVILY_API_KEY'] && !CONFIG['TAVILY_API_KEY'].to_s.strip.empty?)
     }
 
-    selenium_enabled = !!(CONFIG && CONFIG['SELENIUM_ENABLED'])
-
     resp = {
       success: true,
       latex: { enabled: latex_enabled, available: latex_available },
       providers: providers,
-      selenium: { enabled: selenium_enabled }
+      selenium: { enabled: true }
     }
     resp.to_json
   rescue StandardError => e
@@ -396,7 +394,7 @@ get "/api/capabilities" do
       error: e.message,
       latex: { enabled: false, available: false },
       providers: { openai: false, anthropic: false, tavily: false },
-      selenium: { enabled: false }
+      selenium: { enabled: true }
     }.to_json
   end
 end

@@ -72,7 +72,6 @@ let isQuitting = false;
 let contextMenu = null;
 let initialLaunch = true;
 let lastUpdateCheckResult = null; // Store the last update check result
-let seleniumEnabled = true; // Selenium container start/stop state (default: enabled)
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
@@ -2181,29 +2180,6 @@ function updateApplicationMenu() {
             type: 'separator'
           },
           {
-            label: i18n.t('menu.startSeleniumContainer'),
-            click: () => {
-              openMainWindow();
-              seleniumEnabled = true;
-              dockerManager.runCommand('start-selenium', formatMessage(null, 'messages.startingSeleniumContainer'), 'Starting', 'Stopped');
-            },
-            enabled: currentStatus === 'Stopped',
-            visible: !seleniumEnabled
-          },
-          {
-            label: i18n.t('menu.stopSeleniumContainer'),
-            click: () => {
-              openMainWindow();
-              seleniumEnabled = false;
-              dockerManager.runCommand('stop-selenium', formatMessage(null, 'messages.stoppingSeleniumContainer'), 'Stopping', 'Stopped');
-            },
-            enabled: currentStatus === 'Stopped',
-            visible: seleniumEnabled
-          },
-          {
-            type: 'separator'
-          },
-          {
             label: i18n.t('menu.importDocumentDB'),
             click: () => {
               openMainWindow();
@@ -2996,42 +2972,6 @@ function writeEnvFile(envPath, envConfig) {
     }
 }
 
-// Toggle Selenium enabled state and persist to env file
-function toggleSeleniumEnabled() {
-  try {
-    const envPath = getEnvPath();
-    if (!envPath) {
-      console.error('Failed to get env path');
-      return false;
-    }
-
-    // Toggle the state
-    seleniumEnabled = !seleniumEnabled;
-
-    // Save to env file
-    let envConfig = readEnvFile(envPath);
-    envConfig.SELENIUM_ENABLED = seleniumEnabled ? 'true' : 'false';
-    writeEnvFile(envPath, envConfig);
-
-    // Show dialog to inform user
-    const messageKey = seleniumEnabled
-      ? 'dialogs.seleniumWillStartOnNextLaunch'
-      : 'dialogs.seleniumWillNotStartOnNextLaunch';
-
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: i18n.t('dialogs.info'),
-      message: i18n.t(messageKey),
-      buttons: [i18n.t('dialogs.ok')]
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Failed to toggle Selenium enabled state:', error);
-    return false;
-  }
-}
-
 // Functions to manage update state persistence using the existing env file
 // Save update state to the env file
 function saveUpdateState(state) {
@@ -3497,8 +3437,6 @@ app.whenReady().then(() => {
     if (envConfig.UI_LANGUAGE) {
       i18n.setLanguage(envConfig.UI_LANGUAGE);
     }
-    // Initialize Selenium enabled state (default: true if not explicitly set to 'false')
-    seleniumEnabled = envConfig.SELENIUM_ENABLED !== 'false';
   }
 
   // Setup power management handlers for sleep/resume events

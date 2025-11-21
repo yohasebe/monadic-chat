@@ -118,21 +118,20 @@ def preferred_docker_host
 end
 
 def ensure_docker_ready
-  # On macOS, rely on Desktop helper script to avoid crashing Docker during init
+  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
+
+  # On macOS, only attempt to start Desktop if the Desktop socket is missing
   if is_mac?
     script = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
-    if File.executable?(script)
+    if File.executable?(script) && !File.socket?(desktop_sock)
       ok = system(script)
       return [false, "Docker Desktop not ready"] unless ok
-      # Prefer Desktop socket after script success
-      desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-      ENV['DOCKER_HOST'] ||= "unix://#{desktop_sock}"
     end
   end
 
   host = preferred_docker_host
   # If still no host detected, fall back to Desktop socket to check once
-  host ||= "unix://#{File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")}"
+  host ||= "unix://#{desktop_sock}"
 
   # Wait up to 90s for the socket to exist (no repeated docker info calls)
   if host.start_with?("unix://")

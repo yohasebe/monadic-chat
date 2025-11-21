@@ -1,0 +1,43 @@
+app "ImageGeneratorGemini3Preview" do
+  description do
+    en <<~TEXT
+    Generate images directly with Gemini 3 Pro Image Preview (gemini-3-pro-image-preview).
+    TEXT
+
+    ja <<~TEXT
+    Gemini 3 Pro Image Preview (gemini-3-pro-image-preview) を使って直接画像生成します。
+    TEXT
+  end
+
+  icon "fa-regular fa-image"
+  display_name "Gemini 3 Pro Image"
+
+  system_prompt <<~TEXT
+    You generate images directly using the Gemini 3 Pro Image Preview model (gemini-3-pro-image-preview).
+    - Always call generate_image_with_gemini3_preview with the user's exact prompt text.
+    - Do not fall back to other models.
+    - No editing mode; generation only.
+    - Do not apologize or claim the model is unavailable; just call the tool and return the result.
+  TEXT
+
+  llm do
+    provider "gemini"
+    model "gemini-3-pro-image-preview"
+  end
+
+  features do
+    disabled !CONFIG["GEMINI_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant false
+    image_generation true
+    monadic false
+    group "Google"
+  end
+
+  tools do
+    define_tool "generate_image_with_gemini3_preview", "Generate images with Gemini 3 Pro Image Preview" do
+      parameter :prompt, "string", "Text description of the desired image (user's exact words)", required: true
+    end
+  end
+end

@@ -187,6 +187,16 @@ const modelSpec = {
     "supports_pdf": false,
     "skip_in_progress_events": true
   },
+  // Gemini 3 image preview (generation only)
+  "gemini-3-pro-image-preview": {
+    "context_window": [1, 32000],
+    "max_output_tokens": [1, 8192],
+    "vision_capability": true,
+    "image_generation": true,
+    "api_type": "responses",
+    "supports_web_search": false,
+    "skip_in_progress_events": true
+  },
   // gpt-4o models
   "gpt-4o": {
     "context_window" : [1, 128000],

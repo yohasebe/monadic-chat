@@ -132,12 +132,13 @@ function openWebViewWindow(url, forceReload = false) {
 
           const csp = [
             "default-src 'self' http://localhost:4567 http://127.0.0.1:4567",
-            "script-src 'self' http://localhost:4567 http://127.0.0.1:4567",
-            "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://localhost:4567 http://127.0.0.1:4567",
+            "style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
+            "style-src-elem 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com",
+            "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com",
             "img-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
             "connect-src 'self' ws://localhost:4567 ws://127.0.0.1:4567 http://localhost:4567 http://127.0.0.1:4567",
             "media-src 'self' data: blob: http://localhost:4567 http://127.0.0.1:4567",
-            "font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567",
             "worker-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
             "child-src 'self' blob: http://localhost:4567 http://127.0.0.1:4567",
             "object-src 'none'"

@@ -44,7 +44,6 @@ app "CodingAssistantGrok" do
   llm do
     provider "xai"
     model "grok-4-1-fast-non-reasoning"
-    reasoning_effort "minimal"
     temperature 0.0
 
     agents do

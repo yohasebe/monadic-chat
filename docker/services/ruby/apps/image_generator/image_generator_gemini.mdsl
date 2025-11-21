@@ -47,6 +47,7 @@ app "ImageGeneratorGemini" do
     - **imagen4-fast**: Fastest generation (default)
     - **imagen4**: Balanced quality/speed
     - **imagen4-ultra**: Highest quality
+    - **gemini-3-pro-image-preview**: Gemini 3 Pro image preview generation
     - **gemini**: Semantic editing (understands natural language)
 
     Simply describe the image you want, or upload an image to edit it!"
@@ -68,6 +69,7 @@ app "ImageGeneratorGemini" do
        - User says "high quality", "best", "professional" → imagen4-ultra
        - User says "fast", "quick" → imagen4-fast
        - User says "balanced" → imagen4
+       - User says "use gemini 3 pro image preview" or similar → gemini-3-pro-image-preview
        - For editing → MUST use "gemini" (semantic masking)
 
     3. Semantic Editing:
@@ -111,7 +113,7 @@ app "ImageGeneratorGemini" do
     define_tool "generate_image_with_gemini", "Generate or edit images using Google's AI models." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
       parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: false
-      parameter :model, "string", "Model to use: 'imagen4-fast' (default), 'imagen4', 'imagen4-ultra', 'gemini' (for editing)", required: false
+      parameter :model, "string", "Model to use: 'imagen4-fast' (default), 'imagen4', 'imagen4-ultra', 'gemini-3-pro-image-preview', 'gemini' (for editing)", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
   end

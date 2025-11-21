@@ -86,7 +86,9 @@ module GeminiHelper
   IMAGE_GENERATION_MODELS = {
     "imagen4" => "imagen-4.0-generate-001",
     "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
-    "imagen4-fast" => "imagen-4.0-fast-generate-001"
+    "imagen4-fast" => "imagen-4.0-fast-generate-001",
+    # Gemini 3 Pro Image Preview (Vertex image generation)
+    "gemini-3-pro-image-preview" => "gemini-3.0-pro-image-preview-001"
   }.freeze
   IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5

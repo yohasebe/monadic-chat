@@ -68,17 +68,17 @@ if File.exist?(env_file_path)
   end
 end
 
-# Define required containers for the application
-# Selenium is optional and controlled by SELENIUM_ENABLED in env file
-REQUIRED_CONTAINERS = [
-  "monadic-chat-python-container",
-  "monadic-chat-syntree-container",
-  "monadic-chat-ollama-container",
-  "monadic-chat-pgvector-container"
+# Define required containers for the application (support legacy names)
+# Each entry is an array of possible names; first existing one will be used.
+REQUIRED_CONTAINER_ALIASES = [
+  ["monadic-chat-python-container", "python-container"],
+  ["monadic-chat-syntree-container", "syntree-container"],
+  ["monadic-chat-ollama-container", "ollama-container"],
+  ["monadic-chat-pgvector-container", "pgvector-container"]
 ]
 
 if ENV["SELENIUM_ENABLED"]&.downcase == "true"
-  REQUIRED_CONTAINERS << "monadic-chat-selenium-container"
+  REQUIRED_CONTAINER_ALIASES << ["monadic-chat-selenium-container", "selenium-container"]
 end
 
 # Parse command line options
@@ -242,14 +242,15 @@ def start_server(opts)
   end
 
   # Start required support containers (NOT Ruby container)
-  REQUIRED_CONTAINERS.each do |container_name|
-    next unless container_exists?(container_name)
-    unless container_running?(container_name)
-      puts "Starting #{container_name}..."
-      system("#{DOCKER_CMD} container start #{container_name}")
+  REQUIRED_CONTAINER_ALIASES.each do |aliases|
+    name = aliases.find { |n| container_exists?(n) }
+    next unless name
+    unless container_running?(name)
+      puts "Starting #{name}..."
+      system("#{DOCKER_CMD} container start #{name}")
       # Wait for container to start
       30.times do  # Try for 15 seconds (30 * 0.5)
-        break if container_running?(container_name)
+        break if container_running?(name)
         sleep 0.5
       end
     end

@@ -2670,8 +2670,13 @@ module WebSocketHelper
             end
 
             if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !original_monadic
-              # Get final text from buffer
-              final_text = buffer.join.strip
+              # Prefer the provider-returned full text when available to avoid token loss
+              final_text = responses.last && responses.last["text"] ? responses.last["text"].to_s.strip : ""
+
+              # Fallback to buffered join if full text is not present
+              if final_text.empty?
+                final_text = buffer.join.strip
+              end
 
               if CONFIG["EXTRA_LOGGING"]
                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|

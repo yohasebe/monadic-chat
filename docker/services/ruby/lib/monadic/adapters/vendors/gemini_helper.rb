@@ -1218,6 +1218,13 @@ module GeminiHelper
       body.delete("toolConfig")
     end
 
+    # Force toolConfig AUTO for tool-capable models on user turns (prevents NONE leakage from stale session)
+    if role != "tool" && tool_capable
+      body["toolConfig"] ||= {}
+      body["toolConfig"]["functionCallingConfig"] ||= {}
+      body["toolConfig"]["functionCallingConfig"]["mode"] ||= "AUTO"
+    end
+
     if role == "tool"
       # Add tool results as a user message to continue the conversation
       parts = obj["tool_results"].map { |result|

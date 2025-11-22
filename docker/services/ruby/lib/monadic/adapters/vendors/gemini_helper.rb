@@ -3035,11 +3035,30 @@ module GeminiHelper
   
   # Helper function to generate video with Veo model
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: "16:9", number_of_videos: nil, person_generation: nil, negative_prompt: nil, duration_seconds: nil, veo_model: nil, session: nil)
-    
+
     # Try to get image data from session and create temporary file
     actual_image_path = nil
     temp_file_path = nil
-    
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] generate_video_with_veo called:"
+      extra_log.puts "  image_path param: #{image_path.inspect}"
+      extra_log.puts "  session present: #{!session.nil?}"
+      extra_log.puts "  session[:messages] present: #{session && session[:messages] ? 'yes' : 'no'}"
+      if session && session[:messages]
+        extra_log.puts "  session[:messages] count: #{session[:messages].size}"
+        user_msgs_with_imgs = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+        extra_log.puts "  user messages with images: #{user_msgs_with_imgs.size}"
+        if user_msgs_with_imgs.any?
+          latest = user_msgs_with_imgs.last
+          extra_log.puts "  latest image data present: #{latest["images"].first["data"] ? 'yes' : 'no'}"
+          extra_log.puts "  latest image title: #{latest["images"].first["title"]}"
+        end
+      end
+      extra_log.close
+    end
+
     if session && session[:messages]
       # Look for the most recent user message with non-empty images
       user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
@@ -3147,9 +3166,24 @@ module GeminiHelper
                 end
                 
                 actual_image_path = temp_filename  # Use just the filename, not full path
+
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] Temp file created successfully:"
+                  extra_log.puts "  temp_file_path: #{temp_file_path}"
+                  extra_log.puts "  actual_image_path: #{actual_image_path}"
+                  extra_log.close
+                end
               rescue StandardError => e
                 STDERR.puts "ERROR: Failed to process image: #{e.message}"
                 actual_image_path = nil
+
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] ERROR creating temp file: #{e.message}"
+                  extra_log.puts "  #{e.backtrace.first(3).join("\n  ")}"
+                  extra_log.close
+                end
               end
             else
               STDERR.puts "ERROR: Could not create temporary file - no accessible data directory"
@@ -3174,7 +3208,16 @@ module GeminiHelper
       final_image_path = image_path
     else
     end
-    
+
+    if CONFIG["EXTRA_LOGGING"]
+      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+      extra_log.puts "[#{Time.now}] Final image path decision:"
+      extra_log.puts "  actual_image_path (from session): #{actual_image_path.inspect}"
+      extra_log.puts "  image_path (from LLM param): #{image_path.inspect}"
+      extra_log.puts "  final_image_path (used): #{final_image_path.inspect}"
+      extra_log.close
+    end
+
     # Construct the command
     # Use shellwords to properly escape all parameters
     require 'shellwords'

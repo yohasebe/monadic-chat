@@ -62,11 +62,11 @@ The table below shows which apps are available for which AI model providers.
 
 ![Chat app icon](../assets/icons/chat.png ':size=40')
 
-This is a standard chat application. The AI responds to the text input by the user with appropriate emojis. Web search functionality is available for models that support tool/function calling:
-- **Native Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default)
-- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use Tavily API when configured (requires `TAVILY_API_KEY` in configuration)
+Start a standard conversation with the AI, which will respond to your text with appropriate emojis. For complex questions, web search is available for models that support tool/function calling:
+- **Native Search**: OpenAI, Claude, Gemini, Grok, and Perplexity use their built-in web search capabilities (enabled by default).
+- **Tavily Search**: Mistral, Cohere, DeepSeek, and Ollama use the Tavily API when configured (requires a `TAVILY_API_KEY`).
 
-Additionally, the `From URL` feature in the message input area uses Selenium-based web scraping to extract content from any URL, regardless of the provider.
+You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
 
 <!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
 
@@ -76,19 +76,19 @@ Availability for this app follows the provider table at the top of this page.
 
 ![Chat app icon](../assets/icons/chat-plus.png ':size=40')
 
-This is a chat application that is "monadic" and has additional features compared to the standard chat application. The AI responds to the user's text input and while doing so, it also provides additional information as follows:
+Engage in a "monadic" chat that reveals the AI's thought process. As the AI responds, it also provides structured metadata to add context to the conversation:
 
-- reasoning: The reasoning and thought process behind its response.
-- topics: The list of topics discussed in the conversation so far.
-- people: The list of people mentioned in the conversation so far.
-- notes: The list of notes that should be remembered during the conversation.
+- **Reasoning**: The thought process behind the response.
+- **Topics**: A list of topics discussed so far.
+- **People**: A list of people mentioned in the conversation.
+- **Notes**: Key points to remember during the conversation.
 
 
 ### Voice Chat :id=voice-chat
 
 ![Voice Chat app icon](../assets/icons/voice-chat.png ':size=40')
 
-This application allows you to chat using voice, utilizing the configured provider's speech recognition API together with the browser's speech synthesis API. The initial prompt is basically the same as the Chat app. The app can use different AI models to generate responses. A web browser that supports the Text to Speech API, such as Google Chrome or Microsoft Edge, is required.
+Chat with the AI using your voice. This app uses your provider's speech recognition API and your browser's speech synthesis API to create a voice-based conversation. The initial prompt is the same as the standard Chat app, and you can use different AI models for responses. A modern web browser that supports the Text to Speech API (like Google Chrome or Microsoft Edge) is required.
 
 ![Voice input](../assets/images/voice-input-stop.png ':size=400')
 
@@ -103,13 +103,13 @@ Voice Chat supports the same providers indicated in the availability table. For 
 
 ![Wikipedia app icon](../assets/icons/wikipedia.png ':size=40')
 
-This is basically the same as Chat, but for questions about events that occurred after the language model's cutoff date, which the AI model cannot answer, it searches Wikipedia for answers. If the query is in a language other than English, the Wikipedia search is conducted in English, and the results are translated back into the original language.
+Ask questions about recent events or topics outside the AI's knowledge cutoff. This app functions like the standard Chat but automatically searches Wikipedia for answers when needed. If your query is in a language other than English, the app searches the English Wikipedia and translates the results back to your language.
 
 ### Math Tutor
 
 ![Math Tutor app icon](../assets/icons/math-tutor.png ':size=40')
 
-This application responds using mathematical notation with [MathJax](https://www.mathjax.org/). It is suitable for math-related questions and answers.
+Explore math-related questions and answers. The app uses [MathJax](https://www.mathjax.org/) to render beautiful mathematical notation in its responses.
 
 !> **Caution:** LLMs are known to struggle with calculations requiring multiple steps or complex logic and can produce incorrect results.  Double-check any mathematical output from this app, and if accuracy is critical, it is recommended to use the Code Interpreter app to perform the calculations.
 
@@ -117,7 +117,7 @@ This application responds using mathematical notation with [MathJax](https://www
 
 ![Second Opinion app icon](../assets/icons/second-opinion.png ':size=40')
 
-This app provides a two-step consultation process. **Step 1**: Ask your question and receive an initial answer from the AI. **Step 2**: Request verification by saying phrases like "Get a second opinion" or "Double-check this answer." The app will then consult another AI provider to review and comment on the initial response. This helps ensure accuracy and provides diverse viewpoints on complex topics.
+Get a second opinion on any answer to ensure accuracy and gain diverse perspectives. First, ask your question to get an initial response. Then, ask the app to "double-check this answer," and it will consult a different AI provider to review and comment on the first response.
 
 Second Opinion is available wherever the provider table lists support.
 
@@ -125,7 +125,7 @@ Second Opinion is available wherever the provider table lists support.
 
 ![Research Assistant app icon](../assets/icons/research-assistant.png ':size=40')
 
-This app is designed to support academic and scientific research by serving as an intelligent research assistant with powerful web search capabilities. It retrieves and analyzes information from online sources, helping you find current information, verify facts, and research topics comprehensively. The research assistant provides reliable and detailed insights, summaries, and explanations to advance your inquiries.
+Accelerate your academic and scientific research with an intelligent assistant. This app uses powerful web search capabilities to retrieve and analyze information from online sources. Use it to find current information, verify facts, and research topics comprehensively, receiving reliable insights, summaries, and explanations to advance your work.
 
 Research Assistant availability matches the provider table above. Web search capabilities:
 - **Native Search**: OpenAI, Claude, Gemini, Grok, Perplexity (always available)
@@ -140,7 +140,7 @@ For more details, see the Chat app description above or [Reading Text from URLs]
 
 ![Language Practice app icon](../assets/icons/language-practice.png ':size=40')
 
-This is a language learning application where the conversation starts with the assistant's speech. The assistant's speech is played back using speech synthesis. The user starts speech input by pressing the Enter key and ends it by pressing the Enter key again.
+Practice a new language in a conversation that starts with the assistant speaking to you. The assistant's speech is played via speech synthesis. To respond, press the Enter key to start your speech input and press it again to end.
 
 
 Language Practice supports the providers indicated in the availability table. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
@@ -149,7 +149,7 @@ Language Practice supports the providers indicated in the availability table. Fo
 
 ![Language Practice Plus app icon](../assets/icons/language-practice-plus.png ':size=40')
 
-This is a language learning application where the conversation starts with the assistant's speech, played back using speech synthesis.  The user starts and ends speech input by pressing the Enter key. In addition to the usual response, the assistant includes linguistic advice, presented as text, not speech.
+Take your language learning a step further. This app functions like the standard Language Practice app, but adds linguistic advice (as text) to each of the assistant's responses, helping you improve your skills as you converse.
 
 
 
@@ -157,7 +157,7 @@ This is a language learning application where the conversation starts with the a
 
 ![Translate app icon](../assets/icons/translate.png ':size=40')
 
-This app translates the user's input text into another language. First, the assistant asks for the target language. Then, it translates the input text into the specified language. If you want to specify how a particular phrase should be translated, enclose the relevant part of the input text in parentheses and provide the desired translation within the parentheses.
+Translate text into another language. The assistant will first ask for the target language. You can also guide the translation of specific phrases by enclosing the original text in parentheses and providing your desired translation right after it, like `(original text)desired translation`.
 
 Translate is available for the providers marked in the availability table. Specific language coverage depends on each provider's multilingual support.
 
@@ -166,7 +166,7 @@ Translate is available for the providers marked in the availability table. Speci
 
 ![Voice Interpreter app icon](../assets/icons/voice-chat.png ':size=40')
 
-This app translates the user's voice input into another language and speaks the translation using speech synthesis. First, the assistant asks for the target language. Then, it translates the input text into the specified language.
+Translate your voice input into another language and hear the translation spoken aloud. The assistant will first ask for the target language, then translate what you say and speak the result using speech synthesis.
 
 Voice Interpreter follows the provider availability shown in the table above. For speech synthesis settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
 
@@ -177,18 +177,18 @@ Voice Interpreter follows the provider availability shown in the table above. Fo
 
 ![Novel Writer app icon](../assets/icons/novel-writer.png ':size=40')
 
-This application is for co-writing novels with the assistant. The story unfolds based on the user's prompts, maintaining consistency and flow.  The AI agent first asks for the story's setting, characters, and genre.  The user can then provide prompts, and the AI agent will continue the story based on those prompts.
+Co-write a novel with the assistant. The story unfolds based on your prompts, maintaining consistency and flow. The AI will first ask for the story's setting, characters, and genre. You can then provide prompts to guide the AI as it continues the story.
 
 
 ### Image Generator
 
 ![Image Generator app icon](../assets/icons/image-generator.png ':size=40')
 
-This application generates images based on descriptions. When the selected provider supports advanced image workflows, the app can perform three main operations:
+Generate images from text descriptions. With providers that support advanced image workflows, you can perform three main operations:
 
-1. **Image Generation**: Create new images from text descriptions
-2. **Image Editing**: Modify existing images using text prompts and optional masks
-3. **Image Variation**: Generate alternative versions of an existing image
+1. **Image Generation**: Create new images from text.
+2. **Image Editing**: Modify existing images using text prompts and masks.
+3. **Image Variation**: Generate alternative versions of an existing image.
 
 With supported models, the image editing feature allows you to:
 - Select an existing image as a base
@@ -248,7 +248,7 @@ Image Generator is available with the providers indicated in the availability ta
 
 ![Video Generator app icon](../assets/icons/video-generator.png ':size=40')
 
-This application generates videos using state-of-the-art AI models. It supports both text-to-video and image-to-video generation with different aspect ratios and durations.
+Create videos using state-of-the-art AI models. This app supports both text-to-video and image-to-video generation with different aspect ratios and durations.
 
 Some providers offer both fast and high-quality models. If you prefer higher quality, use keywords like "high quality" or "production" in your request.
 
@@ -279,7 +279,7 @@ Video Generator is available with the providers indicated in the availability ta
 
 ![Mail Composer app icon](../assets/icons/mail-composer.png ':size=40')
 
-This application is for drafting emails in collaboration with the assistant. The assistant drafts emails based on the user's requests and specifications.
+Draft emails in collaboration with the assistant. The AI will draft emails based on your requests and specifications.
 
 
 Mail Composer supports each provider shown in the availability table.
@@ -288,7 +288,7 @@ Mail Composer supports each provider shown in the availability table.
 
 ![Mermaid Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-This application visualizes data using [mermaid.js](https://mermaid.js.org/). When you input any data or instructions, the agent generates Mermaid code for the appropriate diagram type and renders it.
+Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply provide your data or instructions, and the AI will generate and render the appropriate Mermaid code for the diagram.
 
 **Key Features:**
 - **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
@@ -306,7 +306,7 @@ This application visualizes data using [mermaid.js](https://mermaid.js.org/). Wh
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-This application helps you create Draw.io diagrams. Provide your requirements and the agent will generate a Draw.io XML file that you can download and import into Draw.io for further editing. It can create various diagram types including flowcharts, UML diagrams, entity-relationship diagrams, network diagrams, org charts, mind maps, BPMN diagrams, Venn diagrams, and wireframes. The generated .drawio file will be saved to the shared folder.
+Create Draw.io diagrams by describing your requirements. The agent will generate a Draw.io XML file that you can download, import into Draw.io, and edit further. It supports various diagram types, including flowcharts, UML, ER diagrams, and more. The generated `.drawio` file is saved to your shared folder.
 
 
 DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
@@ -315,11 +315,11 @@ DrawIO Grapher is available for the providers marked in the availability table. 
 
 ![Syntax Tree app icon](../assets/icons/syntax-tree.png ':size=40')
 
-This application generates linguistic syntax trees from sentences in multiple languages. It analyzes the grammatical structure of sentences and creates visual tree diagrams using LaTeX and tikz-qtree. The app supports:
+Generate linguistic syntax trees from sentences in multiple languages. The app analyzes grammatical structure and creates visual tree diagrams using LaTeX and tikz-qtree. Key features include:
 
-- Multiple languages including English, Japanese, Chinese, and other languages
-- Editable SVG output that can be modified in vector graphics editors
-- Professional linguistic notation following syntactic theory standards
+- Support for multiple languages, including English, Japanese, and Chinese.
+- Editable SVG output for further modification in vector graphics editors.
+- Professional linguistic notation that follows syntactic theory standards.
 
 The generated syntax trees are displayed as SVG images with transparent backgrounds.
 
@@ -330,17 +330,16 @@ Syntax Tree availability matches the provider table.
 
 ![Concept Visualizer app icon](../assets/icons/diagram-draft.png ':size=40')
 
-This application visualizes various concepts and relationships through diagrams using LaTeX/TikZ. It can create mind maps, flowcharts, organizational charts, network diagrams, and many other types of visual representations based on natural language descriptions. The app supports:
+Visualize concepts and relationships by describing them in natural language. The app uses LaTeX/TikZ to create a wide variety of diagrams, including mind maps, flowcharts, network diagrams, and even 3D plots. Key features include:
 
-- **Wide variety of diagram types**: Mind maps, flowcharts, organizational charts, network diagrams, timelines, Venn diagrams, 3D visualizations, and more
-- **Natural language input**: Simply describe what you want to visualize in plain language
-- **Multiple domains**: Business diagrams (SWOT, business models), educational diagrams (concept maps, learning paths), scientific diagrams (molecular structures, food webs, 3D plots), and technical diagrams (system architecture, UML)
-- **Multi-language support**: Handles text in various languages including CJK (Chinese, Japanese, Korean)
-- **Professional output**: Generates high-quality SVG diagrams suitable for presentations and publications
-- **Customizable styling**: Appropriate colors, layouts, and visual elements for each diagram type
-- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations
+- **Wide variety of diagram types**: Create mind maps, flowcharts, org charts, network diagrams, timelines, Venn diagrams, 3D visualizations, and more.
+- **Natural language input**: Simply describe what you want to visualize.
+- **Multiple domains**: Suitable for business, educational, scientific, and technical diagrams.
+- **Multi-language support**: Handles text in various languages, including CJK (Chinese, Japanese, Korean).
+- **Professional output**: Generates high-quality, editable SVG diagrams suitable for presentations and publications.
+- **3D capabilities**: Supports 3D scatter plots, surfaces, and other three-dimensional visualizations.
 
-The generated diagrams are displayed as editable SVG images saved to the shared folder, which can be further modified in vector graphics editors.
+The generated diagrams are saved to your shared folder and can be modified in any vector graphics editor.
 
 Concept Visualizer supports the providers listed in the availability table.
 
@@ -348,14 +347,14 @@ Concept Visualizer supports the providers listed in the availability table.
 
 ![Speech Draft Helper app icon](../assets/icons/speech-draft-helper.png ':size=40')
 
-This application helps you draft speeches. You can ask the assistant to draft a speech based on a specific topic or provide a speech draft (plain text, Word, PDF) and ask the assistant to improve it. Audio export is available in the formats supported by the configured text-to-speech provider (for example, MP3 or WAV).
+Draft speeches with the help of an AI assistant. You can ask the assistant to write a speech on a specific topic, or provide an existing draft (as plain text, a Word document, or a PDF) for it to improve. The final speech can be exported as an audio file in a format supported by your text-to-speech provider (e.g., MP3 or WAV).
 
 
 ## Content Analysis :id=content-analysis
 
 ### Visual Web Explorer :id=visual-web-explorer
 
-This application captures web pages as screenshots or extracts their text content in Markdown format. It's perfect for creating documentation, archiving web content, or analyzing page content.
+Capture web pages as screenshots or extract their text content into Markdown. This app is perfect for creating documentation, archiving web content, or analyzing a page's structure and text.
 
 **Key Features:**
 - **Screenshot Mode**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
@@ -377,16 +376,16 @@ Visual Web Explorer is available with the providers marked in the availability t
 
 ![Video Describer app icon](../assets/icons/video-describer.png ':size=40')
 
-This application analyzes video content and describes what is happening. The app extracts frames from the video, converts them into base64 PNG images, and extracts audio data, saving it as an MP3 file. Based on this information, the AI provides a description of the visual and audio content.
+Get a detailed description of any video's content. The app analyzes a video by extracting keyframes and audio, then uses the AI to describe the visual and auditory information.
 
-To use this app, store the video file in the `Shared Folder` and provide the file name.  Specify the frames per second (fps) for frame extraction.
+To use this app, place a video file in the `Shared Folder`, provide its name, and specify the frames per second (fps) for the analysis.
 
 
 ### PDF Navigator
 
 ![PDF Navigator app icon](../assets/icons/pdf-navigator.png ':size=40')
 
-This application reads PDF files and allows the assistant to answer user questions based on the content. Click the `Upload PDF` button to specify the file. The content of the file is divided into segments of the length specified by `max_tokens`, and text embeddings are calculated for each segment. Upon receiving input from the user, the text segment closest to the input sentence's text embedding value is passed to the AI along with the user's input, and a response is generated based on that content.
+Ask questions about the content of your PDF files. After you upload a PDF, the app divides the content into smaller segments and creates text embeddings for each. When you ask a question, the app finds the most relevant segment and provides it to the AI to generate a well-informed answer.
 
 **Key Features:**
 - **Vector database integration**: Properly connects to PGVector database through the `@embeddings_db` instance variable
@@ -422,7 +421,7 @@ PDF Navigator behavior can be customized via environment variables in `~/monadic
 
 ![Content Reader app icon](../assets/icons/content-reader.png ':size=40')
 
-This application features an AI chatbot that examines and explains the content of provided files or web URLs in a clear, beginner-friendly manner.  Users can upload files or URLs containing various text data, including programming code. If a URL is mentioned in the prompt message, the app automatically retrieves and integrates the content into the conversation with the AI.
+Have an AI chatbot explain the content of files or web URLs in a clear, beginner-friendly way. You can upload files (like PDFs, Word documents, or code) or simply mention a URL in your prompt, and the app will automatically retrieve the content for the AI to discuss.
 
 To specify a file for the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file, verify the file name and ensure it's accessible from the current code execution environment.
 
@@ -444,7 +443,7 @@ The app can also recognize and describe image files (PNG, JPEG, etc.). Image rec
 
 ![Code Interpreter app icon](../assets/icons/code-interpreter.png ':size=40')
 
-This application allows the AI to create and execute program code. The execution of the program uses a Python environment within a Docker container. Text data and images obtained as execution results are saved in the `Shared Folder` and also displayed in the chat.  If you have a file (such as Python code or CSV data) that you want the AI to read, save the file in the `Shared Folder` and specify the file name in the User message. If the AI cannot find the file location, please verify the file name and inform the message that it is accessible from the current code execution environment.
+Let the AI create and execute Python code in a sandboxed Docker environment. Any text data or images generated by the code are saved to your `Shared Folder` and displayed in the chat. You can also provide files (like scripts or data) for the AI to use by placing them in the `Shared Folder` and referencing them by name in your messages.
 
 ?> **Note:** For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc.
 
@@ -456,7 +455,7 @@ Code Interpreter availability matches the provider table. Provider tool-calling 
 
 ![Coding Assistant app icon](../assets/icons/coding-assistant.png ':size=40')
 
-An AI assistant that functions as a professional software engineer. Supports code creation, file reading/writing, project management, and other development tasks.
+Work with an AI assistant that functions as a professional software engineer. It supports code creation, file reading/writing, project management, and other development tasks.
 
 **Key Features:**
 - Code generation and editing
@@ -472,7 +471,7 @@ Coding Assistant supports the providers indicated in the availability table.
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-This application allows the AI to create Jupyter Notebooks, add cells, and execute code within the cells based on user requests. The execution of the code uses a Python environment within a Docker container. The created Notebook is saved in the `Shared Folder`.
+Let the AI create Jupyter Notebooks, add cells, and execute code based on your requests. The code runs in a sandboxed Python environment inside a Docker container, and the created notebook is saved to your `Shared Folder`.
 
 ?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
@@ -487,6 +486,6 @@ Jupyter Notebook is available for the providers shown in the availability table.
 
 ![Help app icon](../assets/icons/help.png ':size=40')
 
-This is an AI-powered help assistant for Monadic Chat. It provides contextual assistance based on the project's documentation, answering questions about features, usage, and troubleshooting in any language.
+Get help with Monadic Chat from this AI-powered assistant. It provides contextual assistance based on the project's official documentation, answering questions about features, usage, and troubleshooting in any language.
 
-The help system uses a pre-built knowledge base created from the English documentation. When you ask questions, it searches for relevant information and provides accurate answers based on the official documentation. For more details about the help system architecture, see [Help System](../advanced-topics/help-system.md).
+The help system uses a pre-built knowledge base created from the English documentation. When you ask a question, it searches this knowledge base to provide an accurate, relevant answer. For more details on the architecture, see the [Help System](../advanced-topics/help-system.md) documentation.

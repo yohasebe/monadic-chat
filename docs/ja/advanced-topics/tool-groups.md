@@ -147,5 +147,5 @@ end
 ## 関連ドキュメント
 
 - [Monadic DSL](monadic_dsl.md) - カスタムアプリの作成
-- [Docker統合](../docker-integration/docker-architecture.md) - コンテナ管理
+- [Docker統合](../docker-integration/basic-architecture.md) - コンテナ管理
 - [共有フォルダ](../docker-integration/shared-folder.md) - ファイル操作

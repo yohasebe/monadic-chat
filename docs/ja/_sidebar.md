@@ -26,6 +26,7 @@
 
     - [高度な設定](/ja/advanced-topics/advanced-configuration.md)
     - [アプリの開発](/ja/advanced-topics/develop_apps.md)
+    - [アプリ開発者のためのファイル構成](/ja/advanced-topics/code_structure.md)
     - [Monadic DSLリファレンス](/ja/advanced-topics/monadic_dsl.md)
     - [アプリの設定項目](/ja/advanced-topics/setting-items.md)
     - [レシピ・ファイルの例](/ja/advanced-topics/recipe-examples.md)

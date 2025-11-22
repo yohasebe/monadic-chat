@@ -147,5 +147,5 @@ If tools are available but not working correctly:
 ## Related Documentation
 
 - [Monadic DSL](monadic_dsl.md) - Creating custom apps
-- [Docker Integration](../docker-integration/docker-architecture.md) - Container management
+- [Docker Integration](../docker-integration/basic-architecture.md) - Container management
 - [Shared Folder](../docker-integration/shared-folder.md) - File operations

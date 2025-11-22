@@ -183,5 +183,5 @@ end
 ## 関連ドキュメント
 
 - [MDSL言語リファレンス](./mdsl/mdsl_type_reference.md) - カスタムアプリの作成
-- [Model Spec Vocabulary](/docs_dev/developer/model_spec_vocabulary.md) - SSOT実装の詳細（英語のみ）
-- [設定リファレンス](/docs/ja/reference/configuration.md) - すべての設定オプション
+- [Model Spec Vocabulary](../developer/model_spec_vocabulary.md) - SSOT実装の詳細（英語のみ）
+- [設定リファレンス](../../docs/ja/reference/configuration.md) - すべての設定オプション

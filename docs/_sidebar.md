@@ -26,6 +26,7 @@
 
     - [Advanced Configuration](/advanced-topics/advanced-configuration.md)
     - [Development of Extra Apps](/advanced-topics/develop_apps.md)
+    - [File Organization for App Developers](/advanced-topics/code_structure.md)
     - [Monadic DSL Reference](/advanced-topics/monadic_dsl.md)
     - [Application Setting Items](/advanced-topics/setting-items.md)
     - [Recipe Examples](/advanced-topics/recipe-examples.md)

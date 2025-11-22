@@ -342,7 +342,7 @@ jq '.[].is_internal' docker/services/pgvector/help_data/help_docs.json | sort -u
 
 ## 参照
 
-- [ヘルプシステムドキュメント](../../docs/advanced-topics/help-system.md) - 公開ドキュメント
-- [ProcessDocumentationソース](../../docker/services/ruby/scripts/utilities/process_documentation.rb)
-- [HelpEmbeddingsソース](../../docker/services/ruby/lib/monadic/utils/help_embeddings.rb)
-- [エクスポートスクリプトソース](../../docker/services/ruby/scripts/utilities/export_help_database_docker.rb)
+- [ヘルプシステムドキュメント](../../../docs/ja/advanced-topics/help-system.md) - 公開ドキュメント
+- [ProcessDocumentationソース](../../../docker/services/ruby/scripts/utilities/process_documentation.rb)
+- [HelpEmbeddingsソース](../../../docker/services/ruby/lib/monadic/utils/help_embeddings.rb)
+- [エクスポートスクリプトソース](../../../docker/services/ruby/scripts/utilities/export_help_database_docker.rb)

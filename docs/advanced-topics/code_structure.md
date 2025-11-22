@@ -92,6 +92,6 @@ You can use these as examples for your own apps.
 
 ## Next Steps
 
-- See [Developing Apps](../../docs/advanced-topics/develop_apps.md) for a complete tutorial
-- Check [Monadic DSL](../../docs/advanced-topics/monadic_dsl.md) for syntax reference
+- See [Developing Apps](develop_apps.md) for a complete tutorial
+- Check [Monadic DSL](monadic_dsl.md) for syntax reference
 - Use existing apps as templates for your own

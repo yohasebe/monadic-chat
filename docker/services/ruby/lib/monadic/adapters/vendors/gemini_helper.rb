@@ -86,6 +86,61 @@ module GeminiHelper
 
     parts = [{ text: prompt }]
 
+    # Check if user has uploaded new images in session
+    has_uploaded_images = false
+    if session && session[:messages]
+      has_uploaded_images = session[:messages].any? { |msg|
+        msg["role"] == "user" && msg["images"] && msg["images"].any?
+      }
+
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Gemini3Preview: Checking for user-uploaded images"
+        extra_log.puts "  has_uploaded_images: #{has_uploaded_images}"
+        extra_log.close
+      end
+    end
+
+    # Auto-attach last generated image (for iterative editing)
+    # ONLY if user hasn't uploaded new images (check both images param and session)
+    if session && session[:gemini3_last_image] && (images.nil? || images.empty?) && !has_uploaded_images
+      image_path = File.join(shared_folder, session[:gemini3_last_image])
+      if File.exist?(image_path)
+        # Load and encode the last generated image
+        image_data = File.read(image_path)
+        image_b64 = Base64.strict_encode64(image_data)
+
+        # Add to images parameter for processing
+        # Use format compatible with existing image processing (data URL format)
+        images ||= []
+        images = [images] unless images.is_a?(Array)
+        data_url = "data:image/jpeg;base64,#{image_b64}"
+        images << {
+          "data" => data_url,
+          "name" => session[:gemini3_last_image]
+        }
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}"
+          extra_log.puts "  This makes iterative editing work like 'editing uploaded image'"
+          extra_log.close
+        end
+
+        # Clear after attaching (one-time use)
+        session[:gemini3_last_image] = nil
+        # Don't clear duplicate flag here - it's managed by process_functions
+      else
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts "[#{Time.now}] Gemini3Preview: Last generated image file not found: #{image_path}"
+          extra_log.close
+        end
+        # Clear the reference since file doesn't exist
+        session[:gemini3_last_image] = nil
+      end
+    end
+
     # Normalize image inputs: prefer explicit images param; fallback to session attachments
     inline_images = []
     if images && images.is_a?(Array)
@@ -519,27 +574,28 @@ module GeminiHelper
     
     # Format messages for Gemini API
     formatted_messages = []
-    
+
     # Process messages
     if options["messages"]
-      # Look for system message
-      system_msg = options["messages"].find { |m| m["role"] == "system" }
-      if system_msg
-        # Add system as user message (Gemini has no system role)
-        formatted_messages << {
-          "role" => "user",
-          "parts" => [{ "text" => system_msg["content"].to_s }]
-        }
-      end
-      
+        # Normal processing: include full conversation history
+        # Look for system message
+        system_msg = options["messages"].find { |m| m["role"] == "system" }
+        if system_msg
+          # Add system as user message (Gemini has no system role)
+          formatted_messages << {
+            "role" => "user",
+            "parts" => [{ "text" => system_msg["content"].to_s }]
+          }
+        end
+
       # Process conversation messages
       options["messages"].each do |msg|
         next if msg["role"] == "system" # Skip system (already handled)
-        
+
         # Map roles to Gemini format
         gemini_role = msg["role"] == "assistant" ? "model" : "user"
         content = msg["content"] || msg["text"] || ""
-        
+
         # Add to formatted messages
         formatted_messages << {
           "role" => gemini_role,
@@ -981,6 +1037,38 @@ module GeminiHelper
       context += session[:messages][1..].last(context_size)
     end
     context.each { |msg| msg["active"] = true }
+
+    # Special handling for Gemini 3 Pro Image Preview: clear tool call history
+    # to prevent orchestration model from seeing previous results and making duplicate calls
+    if @clear_orchestration_history
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Gemini3Preview: Clearing orchestration history in api_request"
+        extra_log.puts "  Original context size: #{context.size}"
+        extra_log.puts "  self.class: #{self.class.name}"
+      end
+
+      # Keep only: first message (system) + last user message
+      # This prevents orchestration model from seeing tool results that trigger duplicates
+      first_msg = context.first
+      last_user_msg = context.reverse.find { |msg| msg["role"] == "user" }
+
+      if first_msg && last_user_msg
+        context = [first_msg]
+        context << last_user_msg unless first_msg == last_user_msg
+        context.each { |msg| msg["active"] = true }
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log.puts "  Filtered context size: #{context.size}"
+          extra_log.puts "  First message role: #{first_msg["role"]}"
+          extra_log.puts "  Last user message role: #{last_user_msg["role"]}"
+          extra_log.close
+        end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log.puts "  WARNING: Could not filter context (missing first or last user message)"
+        extra_log.close
+      end
+    end
 
     # Set the headers for the API request
     headers = {
@@ -2580,69 +2668,9 @@ module GeminiHelper
     # Initialize tool_results array in session parameters if it doesn't exist
     session_params["tool_results"] ||= []
 
-    # CRITICAL: Prevent duplicate image generation for Gemini 3 Pro Image Preview
-    # Check if we already successfully generated an image in this conversation turn
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] Gemini3Preview: Duplicate detection check"
-      extra_log.puts "  tool_results count: #{session_params["tool_results"]&.size || 0}"
-      extra_log.puts "  tool_results: #{session_params["tool_results"].inspect}"
-      extra_log.close
-    end
-
-    if session_params["tool_results"].any?
-      tool_calls.each do |tc|
-        if tc["name"] == "generate_image_with_gemini3_preview"
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Gemini3Preview: Found image generation tool call"
-            extra_log.puts "  Checking #{session_params["tool_results"].size} previous results"
-            extra_log.close
-          end
-
-          # Check all previous tool results for successful image generation
-          session_params["tool_results"].each_with_index do |result, idx|
-            if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts "[#{Time.now}] Gemini3Preview: Checking result[#{idx}]: #{result.class} - #{result.inspect[0..200]}"
-              extra_log.close
-            end
-
-            # Handle both Hash and String formats
-            content_json = nil
-            if result.is_a?(Hash)
-              # Extract content from functionResponse structure
-              content_json = result.dig("functionResponse", "response", "content")
-            elsif result.is_a?(String)
-              content_json = result
-            end
-
-            next unless content_json
-
-            begin
-              parsed = JSON.parse(content_json)
-              if parsed["success"] && parsed["filename"]
-                if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] Gemini3Preview: ⚠️  SKIPPING DUPLICATE TOOL CALL"
-                  extra_log.puts "  Already generated: #{parsed["filename"]}"
-                  extra_log.puts "  Preventing additional generation to avoid duplicates"
-                  extra_log.close
-                end
-                # Return false to stop processing this turn entirely
-                return false
-              end
-            rescue JSON::ParserError => e
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts "[#{Time.now}] Gemini3Preview: JSON parse error: #{e.message}"
-                extra_log.close
-              end
-            end
-          end
-        end
-      end
-    end
+    # Note: Duplicate prevention is now handled by clearing orchestration history
+    # The @clear_orchestration_history flag in ImageGeneratorGemini3Preview
+    # ensures the orchestration model doesn't see previous tool calls
 
     # Log tool calls for debugging
     if CONFIG["EXTRA_LOGGING"]
@@ -2793,6 +2821,57 @@ module GeminiHelper
               # Fallback to the raw response
               content = function_return.is_a?(String) ? function_return : function_return.to_json
             end
+          elsif function_name == "generate_image_with_gemini3_preview"
+            # Special handling for Gemini 3 Pro Image Preview
+            image_success = false
+            error_message = nil
+            generated_filename = nil
+
+            # Check if there were any errors in the JSON
+            begin
+              if function_return.is_a?(String)
+                parsed_json = JSON.parse(function_return)
+
+                # Check if we have success indicator
+                if parsed_json["success"] && parsed_json["filename"]
+                  image_success = true
+                  generated_filename = parsed_json["filename"]
+
+                  # Save the generated image filename for auto-attach on next message
+                  session[:gemini3_last_image] = generated_filename
+                  # Set duplicate check flag to prevent immediate re-calls
+                  session[:gemini3_duplicate_check] = true
+
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts "[#{Time.now}] Gemini3Preview: Saved last generated image: #{generated_filename}"
+                    extra_log.puts "  Set duplicate check flag"
+                    extra_log.close
+                  end
+                else
+                  # Extract error message if available
+                  error_message = parsed_json["error"]
+                  image_success = false
+                end
+              end
+            rescue JSON::ParserError => e
+              # If JSON parsing fails, check for text indicators
+              if function_return.to_s.include?("success") && function_return.to_s.include?("filename")
+                image_success = true
+              end
+            end
+
+            # Prepare final content for response
+            if image_success
+              # Simply pass the raw response to LLM for processing
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            elsif error_message
+              # If we have a specific error message, use it
+              content = "Image generation failed: #{error_message}"
+            else
+              # Fallback to the raw response
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            end
           else
             # Standard handling for other functions
             content = function_return.is_a?(String) ? function_return : function_return.to_json
@@ -2806,7 +2885,8 @@ module GeminiHelper
                 "name" => function_name,
                 "content" => content
               }
-            }
+            },
+            "call_depth" => call_depth  # Track call_depth to prevent duplicates within same turn
           }
           
           # Tool result added (debug logging removed)

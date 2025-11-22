@@ -96,6 +96,16 @@ end
 
 class ImageGeneratorGemini3Preview < MonadicApp
   include GeminiHelper if defined?(GeminiHelper)
+
+  # Initialize with special flag for conversation history management
+  def initialize(*args)
+    super
+    # Flag to clear tool call history from orchestration model context
+    # This prevents the model from seeing previous tool calls and results
+    # which would cause it to repeatedly call the same tool
+    @clear_orchestration_history = true
+  end
+
   # Generate or edit images using Gemini 3 Pro Image Preview
   # @param prompt [String] Text description of the desired image or editing instructions
   # @param aspect_ratio [String] Optional aspect ratio (e.g., 16:9, 1:1, 4:5)

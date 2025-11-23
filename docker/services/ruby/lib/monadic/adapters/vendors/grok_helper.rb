@@ -353,6 +353,55 @@ module GrokHelper
     message = nil
     data = nil
 
+    # Grok image API supports generation only (no image upload/edit).
+    # If user provided images, return an explicit error to avoid confusing 400s.
+    if obj["images"] && obj["images"].is_a?(Array) && !obj["images"].empty?
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "xAI",
+        message: "Image upload/edit is not supported for Grok image generation. Please provide a text prompt only, or use the OpenAI Image Generator for edits/masks.",
+        code: 400
+      )
+      error_res = { "type" => "error", "content" => formatted_error }
+      block&.call error_res
+      return [error_res]
+    end
+    
+    # ---- Auto-attach last generated Grok image when user didn't upload a new one ----
+    begin
+      shared_folder = Monadic::Utils::Environment.shared_volume
+      has_uploaded_images = false
+      
+      # 1) Current request payload
+      has_uploaded_images ||= obj["images"].is_a?(Array) && !obj["images"].empty?
+      
+      # 2) Session messages (user uploads in previous turns)
+      if session && session[:messages].is_a?(Array)
+        has_uploaded_images ||= session[:messages].any? { |m| m["role"] == "user" && m["images"] && m["images"].any? }
+      end
+      
+      if session && session[:grok_last_image] && !has_uploaded_images
+        filename = session[:grok_last_image].to_s
+        path = File.join(shared_folder, filename)
+        
+        if File.exist?(path)
+          obj["images"] ||= []
+          obj["images"] = [obj["images"]] unless obj["images"].is_a?(Array)
+          obj["images"] << { "data" => "/data/#{filename}", "title" => filename }
+          
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts("\n[#{Time.now}] Grok: Auto-attached last generated image #{filename}")
+            extra_log.puts("  has_uploaded_images=#{has_uploaded_images}")
+            extra_log.close
+          end
+        else
+          session[:grok_last_image] = nil
+        end
+      end
+    rescue StandardError
+      # Conservative: ignore fallback issues
+    end
+
     # Skip message processing for tool role (but still process context)
     if role != "tool"
       message = obj["message"].to_s
@@ -1597,12 +1646,14 @@ module GrokHelper
             image_result = JSON.parse(function_return)
             if image_result["success"] && image_result["filename"]
               actual_image_filename = image_result["filename"]
-              # Store in session for post-processing
+              # Store in session for post-processing and future edits
               obj["current_image_filename"] = actual_image_filename
+              session[:grok_last_image] = actual_image_filename if session
               
               if CONFIG["EXTRA_LOGGING"]
                 extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                 extra_log.puts("\n[#{Time.now}] Stored image filename: #{actual_image_filename}")
+                extra_log.puts("Session persisted grok_last_image") if session
                 extra_log.close
               end
             end

@@ -183,6 +183,7 @@ function adjustImageUploadButton(selectedModel) {
 
   // Check if current app is an image generation app using the common function
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
+  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
   // Show button if model has vision capability OR if it's an image generation app
   if ((modelData && modelData.vision_capability) || isImageGenerationApp) {
@@ -196,8 +197,10 @@ function adjustImageUploadButton(selectedModel) {
     const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
     const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
     
-    if (isImageGenerationApp) {
+    if (isImageGenerationApp && !allowPdfInImageApp) {
       imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
+    } else if (isImageGenerationApp && allowPdfInImageApp) {
+      imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
     } else if (isPdfEnabled) {
       imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
     } else {
@@ -207,7 +210,7 @@ function adjustImageUploadButton(selectedModel) {
     // Also update the file input's accept attribute
     const imageFileInput = $('#imageFile');
     if (imageFileInput.length) {
-      if (isImageGenerationApp || !isPdfEnabled) {
+      if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
         imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
       } else {
         imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');

@@ -3040,26 +3040,8 @@ module GeminiHelper
     actual_image_path = nil
     temp_file_path = nil
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] generate_video_with_veo called:"
-      extra_log.puts "  image_path param: #{image_path.inspect}"
-      extra_log.puts "  session present: #{!session.nil?}"
-      extra_log.puts "  session[:messages] present: #{session && session[:messages] ? 'yes' : 'no'}"
-      if session && session[:messages]
-        extra_log.puts "  session[:messages] count: #{session[:messages].size}"
-        user_msgs_with_imgs = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
-        extra_log.puts "  user messages with images: #{user_msgs_with_imgs.size}"
-        if user_msgs_with_imgs.any?
-          latest = user_msgs_with_imgs.last
-          extra_log.puts "  latest image data present: #{latest["images"].first["data"] ? 'yes' : 'no'}"
-          extra_log.puts "  latest image title: #{latest["images"].first["title"]}"
-        end
-      end
-      extra_log.close
-    end
-
-    if session && session[:messages]
+    # Use uploaded image from session if image_path is not explicitly provided
+    if image_path.nil? && session && session[:messages]
       # Look for the most recent user message with non-empty images
       user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
 
@@ -3206,7 +3188,11 @@ module GeminiHelper
     final_image_path = actual_image_path
     if !final_image_path && image_path && image_path != "image_path"
       final_image_path = image_path
-    else
+    end
+    
+    # If still nil, fall back to last video image stored in session
+    if !final_image_path && session && session[:gemini_last_video_image]
+      final_image_path = session[:gemini_last_video_image]
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -3251,6 +3237,9 @@ module GeminiHelper
     if final_image_path && !final_image_path.empty?
       parts << "-i"
       parts << final_image_path
+      
+      # Persist for follow-up runs (only store filename portion)
+      session[:gemini_last_video_image] = File.basename(final_image_path) if session
     else
     end
     
@@ -3269,8 +3258,20 @@ module GeminiHelper
     
     begin
       # Send command and get raw output
-      result = send_command(command: cmd, container: "ruby")
+      result_json = send_command(command: cmd, container: "ruby")
       
+      # Store video filename in session if successful
+      if session && result_json.is_a?(String)
+        begin
+          parsed_result = JSON.parse(result_json)
+          if parsed_result["success"] && parsed_result["filename"]
+            session[:gemini_last_video_filename] = parsed_result["filename"]
+          end
+        rescue JSON::ParserError
+          # Ignore parsing error
+        end
+      end
+
       # Clean up temporary files if we created them
       if temp_file_path && File.exist?(temp_file_path)
         File.unlink(temp_file_path)
@@ -3281,7 +3282,7 @@ module GeminiHelper
         end
       end
       
-      return result
+      return result_json
     rescue => e
       STDERR.puts "Error executing command: #{e.message}"
       
@@ -3387,16 +3388,48 @@ module GeminiHelper
       }
       
       # For edit operation, add the uploaded image to the request (natural language editing)
-      if operation == "edit" && session && session[:messages]
+      if operation == "edit" && session
         # Look for the most recent user message with non-empty images
-        user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+        user_messages_with_images = []
+        if session[:messages]
+          user_messages_with_images = session[:messages].select { |msg| msg["role"] == "user" && msg["images"] && msg["images"].any? }
+        end
 
         if user_messages_with_images.empty?
-          return { success: false, error: "No image found for editing. Please upload an image first." }.to_json
+          # Check for last generated image if no uploaded image found
+          if session[:gemini_last_image]
+             filename = session[:gemini_last_image]
+             filepath = File.join(shared_folder, filename)
+             
+             if File.exist?(filepath)
+               image_data_binary = File.binread(filepath)
+               base64_data = Base64.strict_encode64(image_data_binary)
+               
+               # Determine mime type from extension
+               extension = File.extname(filename).downcase
+               mime_type = case extension
+                           when ".png" then "image/png"
+                           when ".jpg", ".jpeg" then "image/jpeg"
+                           when ".webp" then "image/webp"
+                           else "image/png"
+                           end
+               
+               images = [{
+                 "name" => filename,
+                 "data" => "data:#{mime_type};base64,#{base64_data}"
+               }]
+             else
+               # Clear stale reference
+               session[:gemini_last_image] = nil
+               return { success: false, error: "Previous generated image file not found: #{filename}" }.to_json
+             end
+          else
+            return { success: false, error: "No image found for editing. Please upload an image first or generate one." }.to_json
+          end
+        else
+          latest_message = user_messages_with_images.last
+          images = latest_message["images"]
         end
-        
-        latest_message = user_messages_with_images.last
-        images = latest_message["images"]
         
         # Find the first non-mask image (ignore mask__ prefixed files)
         original_image = images.find { |img| img["name"] && !img["name"].start_with?("mask__") }

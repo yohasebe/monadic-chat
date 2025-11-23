@@ -60,9 +60,10 @@ selectFileButton.on("click", function () {
   const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
+  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
   // Update modal UI based on model capabilities and app settings
-  if (isPdfEnabled && !isImageGenerationApp) {
+  if (isPdfEnabled && (!isImageGenerationApp || allowPdfInImageApp)) {
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
     const pdfLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportPdf') : 'File to import (.jpg, .jpeg, .png, .gif, .webp, .pdf)';
@@ -88,6 +89,7 @@ $("#uploadImage").on("click", function () {
   const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
+  const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
   if (file) {
     // Check file size for PDF files (35MB limit)
@@ -105,13 +107,13 @@ $("#uploadImage").on("click", function () {
 
     // Validate PDF compatibility with selected model and app settings
     if (file.type === 'application/pdf') {
-      if (isImageGenerationApp) {
+      if (isImageGenerationApp && !allowPdfInImageApp) {
         const pdfErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.pdfUploadError') : 'PDF files cannot be uploaded in image generation apps';
         setAlert(pdfErrorMsg, "error");
         $("#imageModal").modal("hide");
         return;
       }
-      if (!isPdfEnabled) {
+      if (!isPdfEnabled && !allowPdfInImageApp) {
         const pdfRestrictionMsg = getTranslation('ui.messages.pdfModelRestriction', 'PDF files can only be uploaded when using a model that supports PDF input');
         setAlert(pdfRestrictionMsg, "error");
         $("#imageModal").modal("hide");

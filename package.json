@@ -147,6 +147,8 @@
   },
   "overrides": {
     "semver": "^7.5.3",
-    "minimatch": "^9.0.3"
+    "minimatch": "^9.0.3",
+    "js-yaml": "^4.1.1",
+    "glob": "^10.5.0"
   }
 }

@@ -1599,15 +1599,36 @@ get "/monadic_state" do
   if session[:monadic_state]
     # Convert symbol keys to strings for JSON serialization
     serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
-      result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
-        app_result[state_key.to_s] = {
-          "data" => state_entry[:data],
-          "version" => state_entry[:version],
-          "updated_at" => state_entry[:updated_at]
-        }
+      # Skip special keys that don't follow the standard structure
+      next if [:conversation_context, :context_schema, "conversation_context", "context_schema"].include?(app_key)
+
+      if app_data.is_a?(Hash)
+        result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
+          next unless state_entry.is_a?(Hash) && state_entry.key?(:data)
+          app_result[state_key.to_s] = {
+            "data" => state_entry[:data],
+            "version" => state_entry[:version],
+            "updated_at" => state_entry[:updated_at]
+          }
+        end
       end
     end
-    { success: true, monadic_state: serializable_state }.to_json
+
+    response_data = { success: true, monadic_state: serializable_state }
+
+    # Include conversation_context (Session Context) if present
+    conversation_context = session[:monadic_state][:conversation_context] || session[:monadic_state]["conversation_context"]
+    if conversation_context
+      response_data[:session_context] = conversation_context
+    end
+
+    # Include context_schema if present
+    context_schema = session[:monadic_state][:context_schema] || session[:monadic_state]["context_schema"]
+    if context_schema
+      response_data[:context_schema] = context_schema
+    end
+
+    response_data.to_json
   else
     { success: true, monadic_state: nil }.to_json
   end

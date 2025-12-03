@@ -2775,13 +2775,25 @@ $(function () {
     const exportParams = setParams();
     delete exportParams.initiate_from_assistant;
 
-    // Fetch monadic_state from server for Session State mechanism
+    // Fetch monadic_state and session_context from server
     let monadicState = null;
+    let serverSessionContext = null;
+    let serverContextSchema = null;
     try {
       const response = await fetch('/monadic_state');
       const data = await response.json();
-      if (data.success && data.monadic_state) {
-        monadicState = data.monadic_state;
+      if (data.success) {
+        if (data.monadic_state) {
+          monadicState = data.monadic_state;
+        }
+        // Get session_context from server (more reliable than frontend state)
+        if (data.session_context) {
+          serverSessionContext = data.session_context;
+          console.log('[Export] Got session_context from server:', serverSessionContext);
+        }
+        if (data.context_schema) {
+          serverContextSchema = data.context_schema;
+        }
       }
     } catch (e) {
       console.warn('Failed to fetch monadic_state:', e);
@@ -2797,12 +2809,19 @@ $(function () {
       obj.monadic_state = monadicState;
     }
 
-    // Include session_context from ContextPanel if available
-    if (typeof ContextPanel !== 'undefined' && ContextPanel.currentContext) {
-      obj.session_context = ContextPanel.currentContext;
-      if (ContextPanel.currentSchema) {
-        obj.context_schema = ContextPanel.currentSchema;
-      }
+    // Include session_context - prefer server-side, fallback to frontend ContextPanel
+    const sessionContext = serverSessionContext ||
+      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentContext : null);
+    const contextSchema = serverContextSchema ||
+      (typeof ContextPanel !== 'undefined' ? ContextPanel.currentSchema : null);
+
+    if (sessionContext) {
+      obj.session_context = sessionContext;
+      console.log('[Export] Including session_context:', sessionContext);
+    }
+    if (contextSchema) {
+      obj.context_schema = contextSchema;
+      console.log('[Export] Including context_schema:', contextSchema);
     }
 
     saveObjToJson(obj, "monadic.json");

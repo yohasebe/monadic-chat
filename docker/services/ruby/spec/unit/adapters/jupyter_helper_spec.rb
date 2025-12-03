@@ -1,3 +1,23 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require_relative "../../../lib/monadic/adapters/jupyter_helper"
+
+RSpec.describe "JupyterHelper" do
+  let(:test_class) do
+    Class.new do
+      include MonadicHelper
+
+      def send_command(command:, container:)
+        @last_command = command
+        @last_container = container
+        "Mock response"
+      end
+
+      attr_reader :last_command, :last_container
+    end
+  end
+
   let(:app) { test_class.new }
   let(:session) { { parameters: {} } }
 
@@ -12,7 +32,7 @@
       notebook_name = "new_test_notebook.ipynb"
       result_json = app.create_jupyter_notebook(filename: notebook_name, session: session)
       result = JSON.parse(result_json)
-      
+
       expect(result["success"]).to be true
       expect(session[:current_notebook_filename]).to eq(notebook_name)
       expect(app).to have_received(:send_command).with(hash_including(command: include("create_jupyter_notebook"), command: include(notebook_name)))
@@ -92,6 +112,7 @@
     context "when filename is empty but current notebook in session" do
       it "uses the filename from session" do
         session[:current_notebook_filename] = "session_notebook.ipynb"
+        valid_cells = [{ "cell_type" => "code", "source" => "print('hello')" }]
         app.add_jupyter_cells(filename: nil, cells: valid_cells, session: session)
         expect(app).to have_received(:send_command).with(
           hash_including(command: include("session_notebook.ipynb"))

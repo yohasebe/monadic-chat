@@ -132,16 +132,16 @@ RSpec.describe NetworkErrorHandler do
       it 'applies exponential backoff with sleep' do
         allow(handler).to receive(:sleep)
         attempts = 0
-        
+
         begin
           handler.with_network_retry(max_retries: 3) do
             attempts += 1
             raise HTTP::TimeoutError, "Always fails"
           end
-        rescue HTTP::TimeoutError
-          # Expected to fail
+        rescue RuntimeError
+          # Expected to fail - wrapped in RuntimeError after retries exhausted
         end
-        
+
         # Verify sleep was called with increasing delays
         expect(handler).to have_received(:sleep).exactly(3).times
       end
@@ -398,30 +398,30 @@ RSpec.describe NetworkErrorHandler do
     
     it 'logs retry attempts' do
       allow(handler).to receive(:sleep) # Speed up test
-      
+
       begin
         handler.with_network_retry(max_retries: 1) do
           raise HTTP::TimeoutError, "Timeout"
         end
-      rescue HTTP::TimeoutError
-        # Expected to fail
+      rescue RuntimeError
+        # Expected to fail - wrapped in RuntimeError after retries exhausted
       end
-      
+
       # Should log the retry attempt
       expect(DebugHelper).to have_received(:debug).at_least(:once)
     end
-    
+
     it 'logs when retries are exhausted' do
       allow(handler).to receive(:sleep)
-      
+
       begin
         handler.with_network_retry(max_retries: 0) do
           raise HTTP::TimeoutError, "Always fails"
         end
-      rescue HTTP::TimeoutError
-        # Expected
+      rescue RuntimeError
+        # Expected - wrapped in RuntimeError after retries exhausted
       end
-      
+
       # Should log exhaustion
       expect(DebugHelper).to have_received(:debug).with(
         anything,

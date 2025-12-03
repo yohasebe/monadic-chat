@@ -299,10 +299,20 @@ function removeStopButtonHighlight(cardId = null) {
 
 // Check if text response is completed AND TTS playback has started, then hide spinner
 function checkAndHideSpinner() {
-  // CRITICAL: Check foreground state first - background tabs should never show spinners
+  // Check foreground state - but don't unconditionally hide if processing is in progress
   const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
+
+  // Check if we're still processing (streaming response or calling functions)
+  const stillProcessing = streamingResponse === true || callingFunction === true ||
+    (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
+
   if (!inForeground) {
-    console.log('[checkAndHideSpinner] Background tab - hiding spinner unconditionally');
+    // Background tab - only hide spinner if NOT actively processing
+    if (stillProcessing) {
+      console.log('[checkAndHideSpinner] Background tab but still processing - keeping spinner state');
+      return; // Don't hide spinner, don't modify state
+    }
+    console.log('[checkAndHideSpinner] Background tab and not processing - hiding spinner');
     $("#monadic-spinner").hide();
     return;
   }
@@ -6260,6 +6270,15 @@ function handleVisibilityChange() {
   // Only take action when tab becomes visible again
   if (!document.hidden) {
     try {
+      // Restore spinner if processing is still in progress
+      const stillProcessing = streamingResponse === true || callingFunction === true ||
+        (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
+
+      if (stillProcessing && !$("#monadic-spinner").is(":visible")) {
+        console.log('[handleVisibilityChange] Tab visible, restoring spinner (processing still active)');
+        $("#monadic-spinner").show();
+      }
+
       // Clear any existing reconnection timer to prevent duplicate reconnection attempts
       if (reconnectionTimer) {
         clearTimeout(reconnectionTimer);

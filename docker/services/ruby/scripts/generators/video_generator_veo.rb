@@ -79,18 +79,18 @@ def get_save_path
       begin
         FileUtils.mkdir_p(path)
         return path
-      rescue
+      rescue StandardError
         next
       end
     end
   end
-  
+
   # If none of the standard paths work, use current directory
 
   begin
     FileUtils.mkdir_p("./veo_output")
     return "./veo_output/"
-  rescue
+  rescue StandardError
     return "./"  # Last resort, use current directory
   end
 end

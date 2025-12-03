@@ -550,7 +550,7 @@ module Monadic
         else
           "#{minutes} minutes"
         end
-      rescue
+      rescue StandardError
         "several minutes"
       end
     end

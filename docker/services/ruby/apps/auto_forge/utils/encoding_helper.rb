@@ -68,7 +68,7 @@ module AutoForge
           begin
             decoded = text.dup.force_encoding(enc)
             return enc if decoded.valid_encoding?
-          rescue
+          rescue StandardError
             next
           end
         end
@@ -95,7 +95,7 @@ module AutoForge
         return true if text.nil?
 
         text.encoding == Encoding::UTF_8 && text.valid_encoding?
-      rescue
+      rescue StandardError
         false
       end
 

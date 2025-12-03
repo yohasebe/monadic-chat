@@ -640,12 +640,12 @@ module MistralHelper
           psrc = pprop.nil? ? "fallback" : "spec"
           audit << "vision:#{!!vprop}(#{vsrc})"
           audit << "pdf:#{!!pprop}(#{psrc})"
-        rescue
+        rescue StandardError
         end
         File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
           f.puts "[#{Time.now}] Mistral SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
         end
-      rescue
+      rescue StandardError
       end
     end
 

@@ -132,7 +132,7 @@ module MonadicChat
         valid_json: monadic?(monad),
         structure: begin
           unwrap_from_json(monad)
-        rescue
+        rescue StandardError
           "Invalid structure"
         end,
         context: @context

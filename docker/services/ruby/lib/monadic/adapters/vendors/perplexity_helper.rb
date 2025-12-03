@@ -580,7 +580,7 @@ module PerplexityHelper
                   extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
                   extra_log.puts("[#{Time.now}] WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment.")
                   extra_log.close
-                rescue
+                rescue StandardError
                 end
               end
               next
@@ -731,12 +731,12 @@ module PerplexityHelper
           vprop = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
           vsrc = vprop.nil? ? "fallback" : "spec"
           audit << "vision:#{!!vprop}(#{vsrc})"
-        rescue
+        rescue StandardError
         end
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}")
         extra_log.close
-      rescue
+      rescue StandardError
       end
     end
 

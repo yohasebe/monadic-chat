@@ -1459,7 +1459,7 @@ module OpenAIHelper
         resolved_mode = resolve_pdf_storage_mode(session)
         app_has_docstore = begin
           APPS[current_app]&.settings&.[]("pdf_vector_storage")
-        rescue
+        rescue StandardError
           false
         end
 
@@ -1887,7 +1887,7 @@ module OpenAIHelper
 
       begin
         break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue
+      rescue StandardError
         next
       end
 
@@ -1998,7 +1998,7 @@ module OpenAIHelper
     if CONFIG["EXTRA_LOGGING"]
       begin
         extra_log.close unless extra_log.closed?
-      rescue
+      rescue StandardError
         # Already closed, ignore
       end
     end
@@ -2366,7 +2366,7 @@ module OpenAIHelper
         if /\Rdata: \[DONE\]\R/ =~ buffer || /\Revent: done\R/ =~ buffer
           break
         end
-      rescue
+      rescue StandardError
         next
       end
 
@@ -2825,7 +2825,7 @@ module OpenAIHelper
               if CONFIG["EXTRA_LOGGING"]
                 begin
                   extra_log.close unless extra_log.closed?
-                rescue
+                rescue StandardError
                   # Already closed, ignore
                 end
               end
@@ -2857,7 +2857,7 @@ module OpenAIHelper
     if CONFIG["EXTRA_LOGGING"]
       begin
         extra_log.close unless extra_log.closed?
-      rescue
+      rescue StandardError
         # Already closed, ignore
       end
     end

@@ -668,12 +668,12 @@ module DeepSeekHelper
           psrc = pprop.nil? ? "fallback" : "spec"
           audit << "vision:#{!!vprop}(#{vsrc})"
           audit << "pdf:#{!!pprop}(#{psrc})"
-        rescue
+        rescue StandardError
         end
         File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
           f.puts "[#{Time.now}] DeepSeek SSOT capabilities for #{model}: #{audit.join(', ')}"
         end
-      rescue
+      rescue StandardError
       end
     end
 
@@ -820,7 +820,7 @@ module DeepSeekHelper
         # Check for [DONE] message
         begin
           break if /\Rdata: \[DONE\]\R/ =~ buffer
-        rescue
+        rescue StandardError
           next
         end
 

@@ -1489,7 +1489,7 @@ module InteractionUtils
         # Parse the response body only once
         error_report = begin
           JSON.parse(res.body)
-        rescue
+        rescue StandardError
           res.body.to_s
         end
         error_message = error_report.is_a?(Hash) ? (error_report["error"] || error_report["message"] || "Unknown error") : error_report.to_s

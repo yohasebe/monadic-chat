@@ -138,7 +138,7 @@ module RealAudioTestHelper
           # If not JSON, just clean up the output
           output.lines.select { |l| !l.include?("Using audio format:") }.join.strip
         end
-      rescue
+      rescue JSON::ParserError
         output.strip
       end
     else

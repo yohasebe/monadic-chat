@@ -66,7 +66,7 @@ module AudioTestHelperReal
     # Parse the response
     begin
       JSON.parse(output.lines.last)
-    rescue
+    rescue JSON::ParserError
       { "text" => output.strip }
     end
   end

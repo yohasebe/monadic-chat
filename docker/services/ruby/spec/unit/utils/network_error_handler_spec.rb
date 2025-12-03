@@ -138,7 +138,7 @@ RSpec.describe NetworkErrorHandler do
             attempts += 1
             raise HTTP::TimeoutError, "Always fails"
           end
-        rescue
+        rescue HTTP::TimeoutError
           # Expected to fail
         end
         
@@ -403,7 +403,7 @@ RSpec.describe NetworkErrorHandler do
         handler.with_network_retry(max_retries: 1) do
           raise HTTP::TimeoutError, "Timeout"
         end
-      rescue
+      rescue HTTP::TimeoutError
         # Expected to fail
       end
       
@@ -418,7 +418,7 @@ RSpec.describe NetworkErrorHandler do
         handler.with_network_retry(max_retries: 0) do
           raise HTTP::TimeoutError, "Always fails"
         end
-      rescue
+      rescue HTTP::TimeoutError
         # Expected
       end
       

@@ -232,7 +232,7 @@ namespace :test do
         json_output = `bundle exec rspec #{spec_file} --format json 2>/dev/null`
         begin
           results[test_type] = JSON.parse(json_output)
-        rescue
+        rescue JSON::ParserError
           results[test_type] = { "summary" => { "example_count" => 0, "failure_count" => 0 } }
         end
       end

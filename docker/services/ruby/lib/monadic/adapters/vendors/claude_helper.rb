@@ -1212,7 +1212,7 @@ module ClaudeHelper
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Claude SSOT capabilities for #{obj["model"]}: #{audit.join(", ")}")
         extra_log.close
-      rescue
+      rescue StandardError
         # ignore logging errors
       end
     end
@@ -1377,7 +1377,7 @@ module ClaudeHelper
 
       begin
         break if /\Rdata: \[DONE\]\R/ =~ buffer
-      rescue
+      rescue StandardError
         next
       end
 

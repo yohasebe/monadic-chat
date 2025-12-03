@@ -156,7 +156,7 @@ module WebSocketHelper
     Marshal.load(Marshal.dump(obj))
   rescue TypeError
     obj.respond_to?(:dup) ? obj.dup : obj
-  rescue
+  rescue StandardError
     obj
   end
 
@@ -1914,7 +1914,7 @@ module WebSocketHelper
               begin
                 source = (defined?(CONFIG) && CONFIG && CONFIG["TOKEN_COUNT_SOURCE"]) ? CONFIG["TOKEN_COUNT_SOURCE"].to_s.downcase : ""
                 provider_usage_enabled = %w[provider_only hybrid].include?(source)
-              rescue
+              rescue StandardError
                 provider_usage_enabled = false
               end
 
@@ -1988,6 +1988,12 @@ module WebSocketHelper
 
                   # Only extract context if we have both user message and assistant response
                   if !user_text.empty? && !final_text.to_s.empty?
+                    # Notify client that context extraction is starting
+                    start_message = { type: "context_extraction_started" }.to_json
+                    if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
+                      WebSocketHelper.send_to_session(start_message, thread_ws_session_id)
+                    end
+
                     # Run context extraction in a separate thread to avoid blocking
                     Thread.new do
                       begin

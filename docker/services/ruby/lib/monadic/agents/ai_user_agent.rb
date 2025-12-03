@@ -199,7 +199,7 @@ module AIUserAgent
           File.open(File.join(log_dir, 'ai_user_debug.log'), 'a') do |f|
             f.puts("[#{Time.now}] provider=#{provider} model=#{model.inspect}")
           end
-        rescue
+        rescue StandardError
           # ignore logging failures
         end
       end

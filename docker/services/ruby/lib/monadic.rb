@@ -621,7 +621,7 @@ delete "/openai/pdf" do
         if vs_id
           HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{file_id}")
         end
-      rescue
+      rescue StandardError
         # ignore
       end
       del_res = HTTP.headers(headers).delete("#{api_base}/files/#{file_id}")

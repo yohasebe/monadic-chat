@@ -7,6 +7,9 @@ eslint.config.*
 *.gem
 *.rbc
 *.bak
+*~
+*.old
+*.orig
 
 /.config
 /coverage/

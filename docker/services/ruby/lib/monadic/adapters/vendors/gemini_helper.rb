@@ -1764,7 +1764,7 @@ module GeminiHelper
           audit << "pdf:#{pdf_capable}(#{pdf_capable_source})"
         end
         puts "[Gemini SSOT] capabilities for #{model_name}: #{audit.join(", ") }"
-      rescue
+      rescue StandardError
         # ignore logging errors
       end
     end
@@ -1901,7 +1901,7 @@ module GeminiHelper
 
       begin
         break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue
+      rescue StandardError
         next
       end
 
@@ -3109,7 +3109,7 @@ module GeminiHelper
             original_prompt = ""
             begin
               original_prompt = argument_hash[:prompt].to_s if argument_hash && argument_hash[:prompt]
-            rescue
+            rescue StandardError
               original_prompt = "Video generation"
             end
             
@@ -3296,7 +3296,7 @@ module GeminiHelper
                   FileUtils.mkdir_p(path)
                   temp_dir = path
                   break
-                rescue
+                rescue StandardError
                   next
                 end
               end

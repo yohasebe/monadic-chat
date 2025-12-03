@@ -23,7 +23,7 @@ def get_save_path
       begin
         FileUtils.mkdir_p(path)
         return path
-      rescue
+      rescue StandardError
         next
       end
     end

@@ -54,7 +54,7 @@ RSpec.describe "Code Interpreter Integration Tests", type: :integration do
       
       FileUtils.mkdir_p(data_dir) unless Dir.exist?(data_dir)
       true
-    rescue
+    rescue StandardError
       false
     end
   end

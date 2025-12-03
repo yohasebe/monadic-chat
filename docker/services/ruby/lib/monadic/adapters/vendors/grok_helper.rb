@@ -901,13 +901,13 @@ module GrokHelper
           vision_capable = vision_prop == true
           vision_source = vision_prop.nil? ? 'fallback' : 'spec'
           audit << "vision:#{vision_capable}(#{vision_source})"
-        rescue
+        rescue StandardError
           # ignore
         end
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Grok SSOT capabilities for #{body['model']}: #{audit.join(', ')}")
         extra_log.close
-      rescue
+      rescue StandardError
         # ignore logging errors
       end
     end
@@ -1075,7 +1075,7 @@ module GrokHelper
 
       begin
         break if /\Rdata: [DONE]\R/ =~ buffer
-      rescue
+      rescue StandardError
         next
       end
 

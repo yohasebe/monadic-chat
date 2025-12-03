@@ -1402,12 +1402,12 @@ module CohereHelper
           pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
           psrc = pprop.nil? ? "fallback" : "spec"
           audit << "pdf:#{!!pprop}(#{psrc})"
-        rescue
+        rescue StandardError
         end
         File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
           f.puts "[#{Time.now}] Cohere SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
         end
-      rescue
+      rescue StandardError
       end
     end
 

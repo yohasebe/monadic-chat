@@ -187,7 +187,7 @@ def get_mime_type(file_path)
         puts "WARNING: Unable to determine MIME type for #{file_path}. Defaulting to image/jpeg"
         'image/jpeg' # Default to JPEG as fallback
       end
-    rescue
+    rescue StandardError
       puts "WARNING: Unable to read file #{file_path}. Defaulting to image/jpeg"
       'image/jpeg' # Default to JPEG as fallback
     end

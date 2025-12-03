@@ -343,7 +343,7 @@ class TextEmbeddings
           error_msg = if error_body && !error_body.empty?
                         begin
                           JSON.parse(error_body)["error"]["message"] rescue error_body
-                        rescue
+                        rescue StandardError
                           error_body
                         end
                       else
@@ -431,7 +431,7 @@ class TextEmbeddings
             error_msg = if error_body && !error_body.empty?
                           begin
                             JSON.parse(error_body)["error"]["message"] rescue error_body
-                          rescue
+                          rescue StandardError
                             error_body
                           end
                         else

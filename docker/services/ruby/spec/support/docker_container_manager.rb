@@ -113,15 +113,15 @@ class DockerContainerManager
       uri = URI("http://localhost:4444/wd/hub/status")
       response = Net::HTTP.get_response(uri)
       response.is_a?(Net::HTTPSuccess)
-    rescue
+    rescue StandardError
       false
     end
-    
+
     def python_healthy?
       uri = URI("http://localhost:5070/health")
       response = Net::HTTP.get_response(uri)
       response.is_a?(Net::HTTPSuccess)
-    rescue
+    rescue StandardError
       false
     end
     

@@ -157,6 +157,9 @@ module OpenAIHelper
     "＇" => "'"
   }.freeze
 
+  # Pre-compiled regex for single-pass replacement (performance optimization)
+  SMART_QUOTE_REGEX = Regexp.union(SMART_QUOTE_REPLACEMENTS.keys).freeze
+
   # --- PDF storage routing helpers (DocumentStore switching) ---
   def get_current_app_key(session)
     raw = (defined?(session) ? (session.dig(:parameters, "app_name") || session[:current_app]) : nil)
@@ -2242,9 +2245,8 @@ module OpenAIHelper
 
     normalized = raw_arguments.dup
 
-    SMART_QUOTE_REPLACEMENTS.each do |original, replacement|
-      normalized.gsub!(original, replacement)
-    end
+    # Single-pass replacement using pre-compiled regex (21x fewer string scans)
+    normalized.gsub!(SMART_QUOTE_REGEX) { |match| SMART_QUOTE_REPLACEMENTS[match] }
 
     if normalized.respond_to?(:tr!)
       normalized.tr!("｛｝［］【】〖〗｟｠", "{}[]{}{}()")

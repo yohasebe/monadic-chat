@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "uri"
+require "cgi"
 require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/error_pattern_detector"
@@ -2033,7 +2034,7 @@ module GeminiHelper
                 search_info += "<details style='cursor: pointer;'>"
                 # Escape search queries for HTML
                 escaped_queries = grounding_data["webSearchQueries"].map do |q|
-                  q.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                  CGI.escapeHTML(q)
                 end
                 search_info += "<summary style='font-weight: bold; color: #666;'>🔍 Web Search: #{escaped_queries.join(", ")}</summary>"
                 
@@ -2046,7 +2047,7 @@ module GeminiHelper
                     if chunk["web"]
                       url = chunk["web"]["uri"]
                       title = chunk["web"]["title"] || "Source #{idx + 1}"
-                      title = title.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                      title = CGI.escapeHTML(title)
                       search_info += "<li style='margin: 3px 0;'><a href='#{url}' target='_blank' rel='noopener noreferrer' style='color: #0066cc;'>#{title}</a></li>"
                     end
                   end
@@ -2210,7 +2211,7 @@ module GeminiHelper
                   search_info += "<details style='cursor: pointer;'>"
                   # Escape search queries for HTML
                 escaped_queries = grounding_data["webSearchQueries"].map do |q|
-                  q.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                  CGI.escapeHTML(q)
                 end
                 search_info += "<summary style='font-weight: bold; color: #666;'>🔍 Web Search: #{escaped_queries.join(", ")}</summary>"
                   
@@ -2225,7 +2226,7 @@ module GeminiHelper
                         url = chunk["web"]["uri"]
                         title = chunk["web"]["title"] || "Source #{idx + 1}"
                         # Escape HTML in title to prevent XSS
-                        title = title.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub('"', "&quot;")
+                        title = CGI.escapeHTML(title)
                         search_info += "<li style='margin: 3px 0;'><a href='#{url}' target='_blank' rel='noopener noreferrer' style='color: #0066cc;'>#{title}</a></li>"
                       end
                     end

@@ -707,6 +707,7 @@ helpers WebSocketHelper
 require_relative "monadic/utils/pdf_text_extractor"
 require_relative "monadic/utils/text_embeddings"
 require_relative "monadic/utils/debug_helper"
+require_relative "monadic/utils/extra_logger"
 require_relative "monadic/utils/json_repair"
 require_relative "monadic/utils/error_pattern_detector"
 require_relative "monadic/utils/model_spec_loader"

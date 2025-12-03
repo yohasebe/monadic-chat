@@ -186,13 +186,18 @@ def container_running?(container_name)
 end
 
 def start_server(opts)
-  # Check if Docker daemon is running (not just the app), with context fallback and auto-start
   docker_ok = false
   docker_output = ""
   started = false
 
+  # Note: Ruby container is now stopped by shell script (monadic_server.sh) BEFORE this runs.
+  # This prevents Docker Desktop crashes that occur when running Docker commands
+  # while the Ruby container is in certain states.
+
+  # Check if Docker daemon is running, with auto-start capability
   if ENV["SKIP_DOCKER_CHECK"]
     puts "⏭️  Skipping Docker daemon check (SKIP_DOCKER_CHECK is set)"
+    desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
     host = preferred_docker_host || "unix://#{desktop_sock}"
     unless wait_for_socket(host)
       puts "⚠️  Docker socket not available yet (host=#{host || 'default'})"
@@ -233,13 +238,7 @@ def start_server(opts)
     puts "✅ Docker daemon is responding"
   end
 
-  # Stop Ruby container if it's running (development server runs locally)
-  if container_running?("monadic-chat-ruby-container")
-    puts "Stopping Ruby container (will run locally instead)..."
-    system("#{DOCKER_CMD} container stop monadic-chat-ruby-container > /dev/null 2>&1")
-  end
-
-  # Start required support containers (NOT Ruby container)
+  # STEP 3: Start required support containers (NOT Ruby container)
   REQUIRED_CONTAINER_ALIASES.each do |aliases|
     name = aliases.find { |n| container_exists?(n) }
     next unless name

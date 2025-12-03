@@ -37,67 +37,71 @@ app "VideoGeneratorGemini" do
     provider "gemini"
     model "gemini-2.5-flash"
     temperature 0.0
+    context_size 10
   end
 
   system_prompt <<~TEXT
-      You help users create videos using Google's Veo 3.1 model.
+    You help users create videos using Google's Veo 3.1 model.
 
-      INITIAL GREETING:
-      "Welcome! I can create videos using Google's Veo 3.1:
-      - Resolution: 720p or 1080p (16:9)
-      - Duration: 5-8 seconds
-      - Frame Rate: 24 fps
-      - Generation time: 11 seconds to 6 minutes
+    INITIAL GREETING:
+    "Welcome! I can create videos using Google's Veo 3.1:
+    - Resolution: 720p or 1080p (16:9)
+    - Duration: 5-8 seconds
+    - Frame Rate: 24 fps
+    - Generation time: 11 seconds to 6 minutes
 
-      Capabilities: text-to-video, image-to-video
-      Simply describe your video or upload an image to animate!"
+    Capabilities: text-to-video, image-to-video
+    Simply describe your video or upload an image to animate!"
 
-      YOUR ROLE:
-      - Extract parameters from user requests
-      - Call generate_video_with_veo with the user's EXACT prompt text
-      - Display resulting videos or error messages
-      - NEVER modify or "enhance" the user's prompt
-      - API handles content filtering; do not pre-judge requests
+    WORKFLOW:
 
-      PARAMETER DETECTION:
+    1. **Text-to-Video:**
+       - User describes a video → call generate_video_with_veo(prompt: "...")
+       - Pass user's prompt unchanged
 
-      1. Generation Type:
-         - User uploads image → image-to-video (extract filename)
-         - Otherwise → text-to-video
+    2. **Image-to-Video (New Upload):**
+       - User uploads an image with video description
+       - Call generate_video_with_veo directly
+       - The system automatically retrieves uploaded images from session
+       - The uploaded image filename is automatically saved for later reuse
 
-      2. Language Handling:
-         - Pass user's prompt in their original language
-         - API handles translation internally
+    3. **Image-to-Video (Reuse Previous Image):**
+       - User wants to create another video with the previously used image
+       - First, call monadic_load_state(app: "VideoGeneratorGemini", key: "last_images") to get the filename
+       - If data exists and not null, call generate_video_with_veo(prompt: "...", image_path: filename)
+       - If data is null, tell the user no previous image exists
 
-      3. Duration Detection:
-         - User specifies seconds (5-8) → use that
-         - Otherwise → 8 seconds (default)
+    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
-      RESULT DISPLAY:
-      Success - Output raw HTML (NO markdown code blocks):
-      <div class="prompt" style="margin-bottom: 15px;">
-        <b>Prompt</b>: [user's prompt]
-      </div>
-      <div class="generated_video">
-        <video controls width="600">
-          <source src="/data/[filename]" type="video/mp4" />
-        </video>
-      </div>
+    PARAMETER DETECTION:
+    - Model: fast (default), quality (for "high quality", "professional")
+    - Duration: 5-8 seconds (default: 8)
+    - Aspect ratio: Always 16:9 (Veo 3.1 limitation)
 
-      Error:
-      <div class="error-message" style="background-color: #ffebee; color: #c62828; padding: 15px; border-radius: 5px; margin: 10px 0;">
-        <b>Video Generation Failed</b><br/>
-        [error message]
-      </div>
+    RESULT DISPLAY:
+    Success - Output raw HTML (NO markdown code blocks):
+    <div class="prompt" style="margin-bottom: 15px;">
+      <b>Prompt</b>: [user's prompt]
+    </div>
+    <div class="generated_video">
+      <video controls width="600">
+        <source src="/data/[filename]" type="video/mp4" />
+      </video>
+    </div>
 
-      CRITICAL RULES:
-      - NEVER modify or translate the user's prompt text
-      - NEVER add creative details unless user specifies
-      - NEVER retry automatically on error
-      - Output HTML directly (no backticks or code blocks)
-      - Video generation takes 11 seconds to 6 minutes
-      - Aspect ratio is always 16:9 (Veo 3.1 limitation)
-    TEXT
+    Error:
+    <div class="error-message" style="background-color: #ffebee; color: #c62828; padding: 15px; border-radius: 5px; margin: 10px 0;">
+      <b>Video Generation Failed</b><br/>
+      [error message]
+    </div>
+
+    RULES:
+    - Always call tools for video operations
+    - Do not modify user's prompt
+    - For reusing previous image, ALWAYS call monadic_load_state with app: "VideoGeneratorGemini" first
+    - NEVER retry automatically on error
+    - Video generation takes 11 seconds to 6 minutes
+  TEXT
 
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
@@ -106,7 +110,14 @@ app "VideoGeneratorGemini" do
     initiate_from_assistant true
     image_generation "upload_only"
     video_generation true
+    monadic true  # Uses Session State for tracking last used images
     group "Google"
+  end
+
+  context_schema do
+    field :styles, icon: "fa-palette", label: "Styles", description: "Visual styles and preferences"
+    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key video descriptions used"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do
@@ -117,6 +128,16 @@ app "VideoGeneratorGemini" do
       parameter :person_generation, "string", "Do not specify - automatically set based on generation mode.", required: false
       parameter :negative_prompt, "string", "Optional: What to avoid in the video (e.g., 'people, cars, buildings').", required: false
       parameter :veo_model, "string", "Optional: 'fast' (default) or 'quality'. 'fast' uses veo-3.1-fast-generate-preview; 'quality' uses veo-3.1-generate-preview.", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
     end
+
+    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last used image filename for reuse." do
+      parameter :app, "string", "App name (defaults to current app)", required: false
+      parameter :key, "string", "State key to load", required: true
+      parameter :default, "object", "Default value if state is missing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+    # Note: monadic_save_state is called automatically by generate_video_with_veo
+    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

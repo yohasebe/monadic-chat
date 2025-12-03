@@ -96,8 +96,14 @@
       // Initialize markdown-it if needed
       this._initMarkdownIt();
 
+      // Debug: Log render call
+      console.log('[MarkdownRenderer.render] Called with options:', options, 'Text starts with:', text.substring(0, 80));
+
       // 1. Check if this is Monadic JSON
-      if (this.isMonadicJson(text, options)) {
+      const isMonadic = this.isMonadicJson(text, options);
+      console.log('[MarkdownRenderer.render] isMonadicJson result:', isMonadic);
+
+      if (isMonadic) {
         return this.renderMonadicJson(text, options);
       }
 
@@ -161,12 +167,216 @@
 
     _looksLikeMonadicJson: function(text) {
       // Check if valid JSON with Monadic structure
-      try {
-        const obj = JSON.parse(text);
-        return typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj);
-      } catch {
-        return false;
+      const extracted = this._extractMonadicJson(text);
+      return extracted !== null;
+    },
+
+    /**
+     * Sanitize JSON string by escaping raw newlines and other control characters
+     * within string literals. This handles LLMs that output JSON with actual
+     * newlines inside strings instead of properly escaped \n sequences.
+     *
+     * @param {string} jsonStr - Raw JSON string that may have unescaped newlines
+     * @returns {string} Sanitized JSON string ready for JSON.parse()
+     */
+    _sanitizeJsonString: function(jsonStr) {
+      if (!jsonStr || typeof jsonStr !== 'string') return jsonStr;
+
+      // We need to replace raw newlines/tabs/etc. inside string values only
+      // Strategy: Process character by character, tracking if we're inside a string
+      let result = '';
+      let inString = false;
+      let escapeNext = false;
+
+      for (let i = 0; i < jsonStr.length; i++) {
+        const char = jsonStr[i];
+        const charCode = jsonStr.charCodeAt(i);
+
+        if (escapeNext) {
+          // Previous char was backslash, this is an escape sequence
+          result += char;
+          escapeNext = false;
+          continue;
+        }
+
+        if (char === '\\' && inString) {
+          // Escape character inside string
+          result += char;
+          escapeNext = true;
+          continue;
+        }
+
+        if (char === '"') {
+          // Toggle string state
+          inString = !inString;
+          result += char;
+          continue;
+        }
+
+        if (inString) {
+          // Inside a string - escape control characters
+          if (charCode === 0x0A) {
+            // Newline -> \n
+            result += '\\n';
+          } else if (charCode === 0x0D) {
+            // Carriage return -> \r
+            result += '\\r';
+          } else if (charCode === 0x09) {
+            // Tab -> \t
+            result += '\\t';
+          } else if (charCode < 0x20) {
+            // Other control characters -> \uXXXX
+            result += '\\u' + charCode.toString(16).padStart(4, '0');
+          } else {
+            result += char;
+          }
+        } else {
+          // Outside string - keep as-is (whitespace between JSON elements is valid)
+          result += char;
+        }
       }
+
+      return result;
+    },
+
+    /**
+     * Extract Monadic JSON from text, handling various formats:
+     * 1. Pure JSON string
+     * 2. JSON wrapped in markdown code blocks (```json ... ``` or ``` ... ```)
+     * 3. Text with embedded JSON (extracts the JSON portion)
+     *
+     * @param {string} text - Text that may contain Monadic JSON
+     * @returns {object|null} Parsed JSON object or null if not found
+     */
+    _extractMonadicJson: function(text) {
+      if (!text || typeof text !== 'string') return null;
+
+      // Normalize the text: trim and remove potential BOM or invisible characters
+      const normalizedText = text.trim().replace(/^\uFEFF/, '');
+
+      // Try 1: Direct parse (pure JSON)
+      try {
+        const obj = JSON.parse(normalizedText);
+        if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+          console.log('[MonadicJSON] Successfully parsed as pure JSON');
+          return obj;
+        }
+      } catch (e) {
+        // Try with sanitization (handles raw newlines in strings)
+        try {
+          const sanitized = this._sanitizeJsonString(normalizedText);
+          const obj = JSON.parse(sanitized);
+          if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+            console.log('[MonadicJSON] Successfully parsed as pure JSON (after sanitization)');
+            return obj;
+          }
+        } catch (e2) {
+          // Not pure JSON, continue to other methods
+          console.log('[MonadicJSON] Direct parse failed:', e.message, 'First 100 chars:', normalizedText.substring(0, 100));
+        }
+      }
+
+      // Try 2: Extract from markdown code block (```json ... ``` or ``` ... ```)
+      // Use a more flexible regex to handle various whitespace patterns
+      const codeBlockPatterns = [
+        /```json\s*([\s\S]*?)```/,     // ```json ... ```
+        /```\s*([\s\S]*?)```/,          // ``` ... ```
+        /`{3,}json\s*([\s\S]*?)`{3,}/,  // Handle multiple backticks
+      ];
+
+      for (const pattern of codeBlockPatterns) {
+        const codeBlockMatch = normalizedText.match(pattern);
+        if (codeBlockMatch) {
+          const extractedContent = codeBlockMatch[1].trim();
+          console.log('[MonadicJSON] Code block found, content starts with:', extractedContent.substring(0, 50));
+          try {
+            const obj = JSON.parse(extractedContent);
+            if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+              console.log('[MonadicJSON] Successfully extracted from code block');
+              return obj;
+            }
+          } catch (e) {
+            // Try with sanitization (handles raw newlines in strings from Mistral, etc.)
+            try {
+              const sanitized = this._sanitizeJsonString(extractedContent);
+              const obj = JSON.parse(sanitized);
+              if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+                console.log('[MonadicJSON] Successfully extracted from code block (after sanitization)');
+                return obj;
+              }
+            } catch (e2) {
+              console.log('[MonadicJSON] Code block parse failed:', e.message);
+            }
+          }
+        }
+      }
+
+      // Try 3: Find JSON object pattern in text
+      // Use a more careful regex that finds balanced braces
+      const jsonStartIndex = normalizedText.indexOf('{');
+      if (jsonStartIndex !== -1) {
+        // Find the matching closing brace by counting brace depth
+        let depth = 0;
+        let jsonEndIndex = -1;
+        let inString = false;
+        let escapeNext = false;
+
+        for (let i = jsonStartIndex; i < normalizedText.length; i++) {
+          const char = normalizedText[i];
+
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+
+          if (char === '\\') {
+            escapeNext = true;
+            continue;
+          }
+
+          if (char === '"' && !escapeNext) {
+            inString = !inString;
+            continue;
+          }
+
+          if (!inString) {
+            if (char === '{') depth++;
+            if (char === '}') {
+              depth--;
+              if (depth === 0) {
+                jsonEndIndex = i;
+                break;
+              }
+            }
+          }
+        }
+
+        if (jsonEndIndex !== -1) {
+          const potentialJson = normalizedText.substring(jsonStartIndex, jsonEndIndex + 1);
+          try {
+            const obj = JSON.parse(potentialJson);
+            if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+              console.log('[MonadicJSON] Successfully extracted JSON from text');
+              return obj;
+            }
+          } catch (e) {
+            // Try with sanitization (handles raw newlines in strings)
+            try {
+              const sanitized = this._sanitizeJsonString(potentialJson);
+              const obj = JSON.parse(sanitized);
+              if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
+                console.log('[MonadicJSON] Successfully extracted JSON from text (after sanitization)');
+                return obj;
+              }
+            } catch (e2) {
+              console.log('[MonadicJSON] Embedded JSON parse failed:', e.message, 'Attempted JSON:', potentialJson.substring(0, 200));
+            }
+          }
+        }
+      }
+
+      console.log('[MonadicJSON] All extraction methods failed');
+      return null;
     },
 
     // ===== Monadic JSON Rendering =====
@@ -180,9 +390,15 @@
      */
     renderMonadicJson: function(monadicJson, options) {
       try {
+        // Use extraction function to handle various formats
         const obj = typeof monadicJson === 'string'
-          ? JSON.parse(monadicJson)
+          ? this._extractMonadicJson(monadicJson)
           : monadicJson;
+
+        if (!obj) {
+          // Extraction failed, fallback to markdown
+          return this.renderMarkdown(monadicJson, options);
+        }
 
         return this.jsonToHtml(obj, { iteration: 0 });
       } catch (err) {

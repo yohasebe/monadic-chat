@@ -79,10 +79,10 @@ Unlike web-based AI services or IDE-integrated assistants, Monadic Chat is a **l
 ### Key Highlights
 
 - **🤖 Multi-Provider Support**: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek, and Ollama
-- **🐧 Real Linux Environment**: AI agents can execute code, install packages, and use tools in actual Docker containers
+- **🐧 Real Linux Environment**: AI agents can execute code, install packages, persist files, and maintain continuous context across turns in actual Docker containers.
 - **💬 Advanced Conversation Management**: Edit, export/import, and track conversation history with structured context
 - **🎙️ Voice Interaction**: Text-to-speech and speech-to-text with multiple providers and speaker diarization
-- **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models
+- **🖼️ Image & Video**: Generate, edit, and analyze images and videos using latest AI models, with intelligent session-based continuity for effortless iterative editing and remixing of generated content.
 - **📄 PDF Knowledge Base**: Store and query documents locally (PGVector) or in cloud (OpenAI Vector Store)
 - **🌐 Web Search Integration**: Native search in OpenAI, Claude, Gemini, Grok, and Perplexity
 - **🔄 Automatic Updates**: In-app notifications and seamless update downloads

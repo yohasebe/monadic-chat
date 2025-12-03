@@ -2183,13 +2183,15 @@ $(function () {
   $(window).on("resize", function() {
     const wasMenuVisible = $("#menu").is(":visible");
     const windowWidth = $(window).width();
-    
+    // Check if user explicitly hid the menu (respect user preference)
+    const userHidMenu = StorageHelper.safeGetItem('monadic-menu-hidden') === 'true';
+
     // Only reposition on mobile
     if (windowWidth < 600) {
       centerNavbarElements();
-    } else if (windowWidth >= 600 && !wasMenuVisible) {
+    } else if (windowWidth >= 600 && !wasMenuVisible && !userHidMenu) {
       // We've changed from mobile to desktop view with hidden menu
-      // Restore proper column layout and show menu
+      // Restore proper column layout and show menu ONLY if user didn't explicitly hide it
       $("#main").removeClass("col-md-12").addClass("col-md-8");
       $("#menu").show();
       $("#toggle-menu").removeClass("menu-hidden");
@@ -2734,7 +2736,7 @@ $(function () {
     $("#model").prop("disabled", false);
   });
 
-  $("#save").on("click", function () {
+  $("#save").on("click", async function () {
     const allMessages = [];
     const initial_prompt = $("#initial-prompt").val();
     const sysid = Math.floor(1000 + Math.random() * 9000);
@@ -2773,10 +2775,28 @@ $(function () {
     const exportParams = setParams();
     delete exportParams.initiate_from_assistant;
 
+    // Fetch monadic_state from server for Session State mechanism
+    let monadicState = null;
+    try {
+      const response = await fetch('/monadic_state');
+      const data = await response.json();
+      if (data.success && data.monadic_state) {
+        monadicState = data.monadic_state;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch monadic_state:', e);
+    }
+
     obj = {
       "parameters": exportParams,
       "messages": allMessages
     };
+
+    // Include monadic_state in export if available
+    if (monadicState) {
+      obj.monadic_state = monadicState;
+    }
+
     saveObjToJson(obj, "monadic.json");
   });
 

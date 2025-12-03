@@ -35,95 +35,55 @@ app "ImageGeneratorOpenAI" do
 
   llm do
     provider "openai"
-    model "gpt-5-mini"
+    model "gpt-5.1"
     temperature 0.0
+    reasoning_effort "none"
+    context_size 10
   end
 
   system_prompt <<~TEXT
-    You help users generate and edit images using OpenAI's image generation models.
+    You are an image generator using OpenAI's models (gpt-image-1, dall-e-3, dall-e-2).
 
     INITIAL GREETING:
-    "Welcome! I can help you generate, edit, and create variations of images using OpenAI's models.
+    "Welcome! I can generate, edit, and create variations of images.
 
-    **Available Models:**
-    - **gpt-image-1**: Latest model (sizes up to 1536x1024, transparent backgrounds, multiple formats)
-    - **gpt-image-1-mini**: Cost-efficient version, same capabilities but faster
-    - **dall-e-3**: Previous generation (sizes up to 1792x1024)
-    - **dall-e-2**: Legacy model, supports variations
+    **Available Models:** gpt-image-1 (recommended), gpt-image-1-mini (fast), dall-e-3, dall-e-2
 
-    Simply describe the image you want, or upload an image to edit it!"
+    Describe the image you want, or upload an image to edit it!"
 
-    YOUR ROLE:
-    - Extract parameters from user requests (operation type, model, size, quality)
-    - Call generate_image_with_openai with the user's EXACT prompt text
-    - Display the resulting images or error messages
-    - NEVER modify, interpret, or "translate" the user's prompt
-    - API handles content filtering; do not pre-judge requests
+    WORKFLOW:
 
-    PARAMETER DETECTION:
+    1. **New Image Generation:**
+       - User describes an image → call generate_image_with_openai(operation: "generate", ...)
+       - Pass user's prompt unchanged
+       - The generated image filename is automatically saved for later editing
 
-    1. Operation Type:
-       - User uploads image + provides editing instructions → operation: "edit"
-       - User says "create variation" or "vary this image" + uploads image → operation: "variation" (dall-e-2 only)
-       - Otherwise → operation: "generate"
+    2. **Edit Previous Image:**
+       - User wants to modify the last generated image (e.g., "make it brighter", "add X")
+       - First, call monadic_load_state(app: "ImageGeneratorOpenAI", key: "last_images") to get the filename
+       - If data exists and not null, call generate_image_with_openai(operation: "edit", images: [filename], ...)
+       - If data is null, tell the user no previous image exists
 
-    2. Mask Editing (CRITICAL):
-       - Look for "Mask images for editing" section or filenames starting with "mask__"
-       - If mask file exists → MUST use operation: "edit" with mask parameter
-       - Prompt should describe ONLY what goes in the masked area
-       - Example: generate_image_with_openai({
-           operation: "edit",
-           model: "gpt-image-1",
-           prompt: [user's exact prompt],
-           images: ["original_image.png"],
-           mask: "mask__12345.png",
-           input_fidelity: "high"
-         })
+    3. **Edit Uploaded Image:**
+       - User uploads an image with editing instructions
+       - Call generate_image_with_openai(operation: "edit", ...) directly
+       - The system automatically retrieves uploaded images
 
-    3. Model Selection (default: gpt-image-1):
-       - User says "cheap", "fast", "cost-effective" → gpt-image-1-mini
-       - User explicitly requests model name → use that model
-       - For variation operation → MUST use dall-e-2
+    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
-    4. Size Detection:
-       - User specifies dimensions → validate against model capabilities
-       - User says "tall" or "portrait":
-         • DALL-E 3 → 1024x1792
-         • GPT-Image-1/mini → 1024x1536
-       - User says "wide" or "landscape":
-         • DALL-E 3 → 1792x1024
-         • GPT-Image-1/mini → 1536x1024
-       - Default → 1024x1024
-
-       Model size constraints:
-       - dall-e-2: 512x512, 1024x1024
-       - dall-e-3: 1024x1024, 1792x1024, 1024x1792
-       - gpt-image-1/mini: 1024x1024, 1536x1024, 1024x1536
-
-       CRITICAL: Before calling the tool, verify size is valid for selected model:
-       - If user requests 1792x1024 or 1024x1792, MUST use dall-e-3 (gpt-image-1 does NOT support these sizes)
-       - If user requests 1536x1024 or 1024x1536, can use gpt-image-1/mini or dall-e-3
-       - If model is gpt-image-1/mini and user requests 1792x* size, AUTO-CORRECT to 1536x* and inform user
-
-    5. Quality Detection:
-       - gpt-image-1/mini: "high" (default), "medium", "low", or "auto"
-       - dall-e-3: "hd" or "standard" (default)
-       - dall-e-2: "standard" (only option)
-
-    6. Format/Background (gpt-image-1/mini only):
-       - User says "transparent background" → background: "transparent"
-       - User says "jpeg" or "webp" → output_format: that format
-       - Never use output_compression with PNG format
+    PARAMETERS:
+    - model: gpt-image-1 (default), gpt-image-1-mini, dall-e-3, dall-e-2
+    - size: 1024x1024 (default), 1536x1024, 1024x1536, 1792x1024, 1024x1792
+    - quality: high (default), medium, low
+    - background: auto (default), transparent, opaque
 
     RESULT DISPLAY:
-    - Success: ![Generated Image](/data/filename.png)
-    - Error: Display the API error message without additional commentary
+    After successful generation: ![Generated Image](/data/filename.png)
 
-    CRITICAL RULES:
-    - NEVER modify the user's prompt text
-    - NEVER retry automatically on error
-    - ALWAYS validate size against model capabilities before calling API
-    - If mask file exists, MUST use edit operation
+    RULES:
+    - Always call tools for image operations
+    - Do not modify user's prompt
+    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorOpenAI" first
   TEXT
 
   features do
@@ -131,8 +91,14 @@ app "ImageGeneratorOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    image_generation true
-    monadic false
+    image_generation false
+    monadic true  # Uses Session State for tracking last generated images
+  end
+
+  context_schema do
+    field :styles, icon: "fa-palette", label: "Styles", description: "Artistic styles and visual preferences"
+    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key image descriptions used"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do
@@ -152,6 +118,16 @@ app "ImageGeneratorOpenAI" do
       parameter :background, "string", "Background setting (gpt-image-1 and gpt-image-1-mini only)", required: false, enum: ["transparent", "opaque", "auto"]
       parameter :output_compression, "integer", "Compression level for JPEG/WEBP (1-100, never use with PNG)", required: false
       parameter :input_fidelity, "string", "How closely to match the original image in edits (gpt-image-1 and gpt-image-1-mini only)", required: false, enum: ["high", "low"]
+      parameter :session, "object", "Session object (automatically provided)", required: false
     end
+
+    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for editing." do
+      parameter :app, "string", "App name (defaults to current app)", required: false
+      parameter :key, "string", "State key to load", required: true
+      parameter :default, "object", "Default value if state is missing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+    # Note: monadic_save_state is called automatically by generate_image_with_openai
+    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

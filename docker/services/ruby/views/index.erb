@@ -840,6 +840,30 @@
             </div>
           </div>
 
+          <div id="context-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
+            <h5 class="d-flex align-items-center">
+              <span class="text flex-grow-1" data-i18n="ui.sessionContext"><i class="fas fa-brain"></i> Session Context</span>
+              <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections">
+                <i class="fas fa-chevron-down"></i>
+              </button>
+            </h5>
+            <div class="text-muted small mb-2 d-flex align-items-center gap-2" id="context-legend" style="display: none;">
+              <span data-i18n="ui.contextTurnLegend">T = Turn</span>
+              <span class="badge bg-secondary" id="context-turn-badge" title="Total turns">0</span>
+            </div>
+            <div id="context-sections">
+              <!-- Context sections will be dynamically populated -->
+            </div>
+            <div class="mt-2 d-flex gap-2">
+              <button class="btn btn-sm btn-primary" id="context-save" style="display: none;" data-i18n="ui.saveChanges">
+                <i class="fas fa-save"></i> Save
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" id="context-cancel" style="display: none;" data-i18n="ui.cancel">
+                Cancel
+              </button>
+            </div>
+          </div>
+
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
             <h5 class=""><span class="text" data-i18n="ui.sessionLabel"><i class="fas fa-file"></i> Session</span></h5>
             <div class="session-buttons d-flex align-items-center flex-wrap">
@@ -1502,6 +1526,7 @@
     <script src="js/monadic/dom-cache.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/performance-monitor.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/context-panel.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket-handlers.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>

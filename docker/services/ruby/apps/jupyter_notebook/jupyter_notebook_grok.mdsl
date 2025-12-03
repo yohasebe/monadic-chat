@@ -39,6 +39,7 @@ app "JupyterNotebookGrok" do
     max_tokens 4096
     tool_choice "auto"  # Let Grok decide when to use tools
     parallel_function_calling true  # Explicitly enable parallel function calling (default)
+    context_size 20
 
     agents do
       code_generator model: "grok-code-fast-1"
@@ -47,6 +48,31 @@ app "JupyterNotebookGrok" do
 
   system_prompt <<~TEXT
     You are a Jupyter Notebook assistant. When users ask you to create notebooks or add cells, use the available tools.
+
+    ## STATE MANAGEMENT
+
+    Notebook context (jupyter_running, notebook_filename, etc.) is **automatically saved** by the jupyter tools.
+    You only need to use `monadic_load_state` when you need to reference the current notebook state.
+
+    **When to use monadic_load_state:**
+    - When user asks to continue work on an existing notebook (to get the filename)
+    - When you're unsure if Jupyter is already running
+
+    **Example:**
+    ```
+    monadic_load_state(app: "JupyterNotebookGrok", key: "context")
+    ```
+    Returns: {"jupyter_running": true, "notebook_created": true, "notebook_filename": "example.ipynb", "link": "<a href='...'>...</a>"}
+
+    **To check variables/functions/modules defined in the notebook:**
+    Use `get_jupyter_cells_with_results(filename:)` to retrieve all cells with their execution results.
+    The Jupyter kernel maintains the actual state of variables and functions.
+
+    **IMPORTANT RULES:**
+    - Do NOT call monadic_load_state on every turn - only when needed
+    - State saving is AUTOMATIC - do NOT call monadic_save_state
+    - Call each tool exactly ONCE per request
+    - Do NOT call the same tool again if you see a successful result in history
 
     ## CRITICAL: Workflow for New Notebooks
 
@@ -127,10 +153,16 @@ app "JupyterNotebookGrok" do
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
-    monadic false
+    monadic true  # Uses Session State for notebook context tracking
     jupyter true
     mathjax true
     initiate_from_assistant true
+  end
+
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects and analysis goals"
+    field :code, icon: "fa-code", label: "Code", description: "Key libraries and techniques used"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important findings and results"
   end
 
   tools do
@@ -160,5 +192,15 @@ app "JupyterNotebookGrok" do
       parameter :notebook_context, "string", "Context about the current notebook state", required: false
       parameter :cell_content, "string", "Existing cell content to modify or reference", required: false
     end
+
+    # Monadic state management tool (read-only - saving is automatic)
+    define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do
+      parameter :app, "string", "App name (defaults to current app)", required: false
+      parameter :key, "string", "State key to load (use 'context' for notebook context)", required: true
+      parameter :default, "object", "Default value if state is missing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+    # Note: monadic_save_state is called automatically by jupyter tools
+    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

@@ -10,32 +10,47 @@ app "ImageGeneratorGemini3Preview" do
   end
 
   icon "fa-regular fa-image"
-  display_name "Gemini 3 Pro Image"
+  display_name "Image Generator"
 
   system_prompt <<~TEXT
-    You are a dedicated image generator/editor for Gemini 3 Pro Image Preview.
+    You are an image generator/editor using Gemini 3 Pro Image Preview.
 
-    CAPABILITIES:
+    INITIAL GREETING:
+    "Welcome! I can generate and edit images using Gemini 3 Pro Image Preview.
+
+    **Features:**
     - Generate new images from text descriptions
-    - Edit uploaded images using natural language instructions
+    - Edit uploaded images or previously generated images
     - Support up to 14 images for editing/conditioning
+    - Aspect ratio: 16:9, 1:1, 4:5
+    - Resolution: 1K, 2K, 4K
 
-    YOUR ROLE:
-    - Call generate_image_with_gemini3_preview exactly once per user request
-    - Pass the user's prompt unchanged
-    - Detect if user uploaded images (for editing) and pass session parameter
-    - Extract aspect_ratio (16:9, 1:1, 4:5) and image_size (1K, 2K, 4K) if mentioned
+    Describe the image you want, or upload an image to edit it!"
 
-    OPERATION DETECTION:
-    - User uploads image(s) + describes changes → Image editing mode
-    - Otherwise → Image generation mode
-    - Both modes use the same tool with session parameter
+    WORKFLOW:
+
+    1. **New Image Generation:**
+       - User describes an image → call generate_image_with_gemini3_preview(prompt: "...")
+       - Pass user's prompt unchanged
+       - The generated image filename is automatically saved for later editing
+
+    2. **Edit Previous Image:**
+       - User wants to modify the last generated image (e.g., "make it brighter", "add X")
+       - First, call monadic_load_state(app: "ImageGeneratorGemini3Preview", key: "last_images") to get the filename
+       - If data exists and not null, mention the reference and call generate_image_with_gemini3_preview with editing instructions
+       - If data is null, tell the user no previous image exists
+
+    3. **Edit Uploaded Image:**
+       - User uploads an image with editing instructions
+       - Call generate_image_with_gemini3_preview directly
+       - The system automatically retrieves uploaded images from session
+
+    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETER HANDLING:
     - prompt: User's exact words (required)
     - aspect_ratio: Extract if mentioned (e.g., "16:9", "square" → "1:1")
     - image_size: Extract if mentioned (e.g., "high quality" → "4K", "fast" → "1K")
-    - session: Always pass (system provides automatically)
 
     IMAGE DISPLAY:
     After successful generation, return HTML (not markdown):
@@ -46,28 +61,34 @@ app "ImageGeneratorGemini3Preview" do
       <img src="/data/[filename]" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
     </div>
 
-    CRITICAL RULES:
+    RULES:
+    - Always call tools for image operations
+    - Do not modify user's prompt
+    - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGemini3Preview" first
     - Call tool exactly ONCE per request
     - Do NOT call again if you see JSON result {"success":true,...} in history
-    - Do NOT modify user's prompt
-    - Do NOT ask follow-up questions
-    - For errors, show concise error message
-    - Never fall back to other models
   TEXT
 
   llm do
     provider "gemini"
     model "gemini-2.5-flash"
+    context_size 10
   end
 
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
     easy_submit false
     auto_speech false
-    initiate_from_assistant false
-    image_generation true
-    monadic false
+    initiate_from_assistant true
+    image_generation false
+    monadic true  # Uses Session State for tracking last generated images
     group "Google"
+  end
+
+  context_schema do
+    field :styles, icon: "fa-palette", label: "Styles", description: "Artistic styles and visual preferences"
+    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key image descriptions used"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
   end
 
   tools do
@@ -77,5 +98,14 @@ app "ImageGeneratorGemini3Preview" do
       parameter :image_size, "string", "Optional resolution (1K, 2K, 4K)", required: false
       parameter :session, "object", "Session object (automatically provided, contains uploaded images)", required: false
     end
+
+    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for editing." do
+      parameter :app, "string", "App name (defaults to current app)", required: false
+      parameter :key, "string", "State key to load", required: true
+      parameter :default, "object", "Default value if state is missing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+    # Note: monadic_save_state is called automatically by generate_image_with_gemini3_preview
+    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

@@ -187,12 +187,12 @@ end
 # Features that require specific implementation in the app:
 features do
   # The following features are tied to specific system components:
-  
+
   pdf_vector_storage true # Enable PDF file upload and vector storage for RAG (Retrieval-Augmented Generation)
   toggle true             # Enable collapsible sections for meta information and tool usage (primarily for Claude apps)
   jupyter true            # Enable access to Jupyter notebook interface
   image_generation true   # Enable AI image generation tools in conversation
-  monadic true            # Process responses as structured JSON for enhanced display (see Monadic Mode documentation)
+  monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation
 end
 ```
@@ -499,6 +499,57 @@ class WikipediaOpenAI < MonadicApp
 end
 ```
 
+
+### Session State Apps
+
+Session State allows apps to persist context across conversation turns using explicit tool calls. This is useful for apps that need to track progress, accumulate information, or maintain structured state.
+
+#### Requirements for Session State Apps
+
+Apps using Session State **must** set `monadic true` in the features block:
+
+```ruby
+app "MySessionStateApp" do
+  features do
+    monadic true  # REQUIRED - enables Session State functionality
+  end
+
+  tools do
+    # Define load/save tools for state management
+    define_tool "load_context", "Load current context from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_context", "Save response and context to session state" do
+      parameter :message, "string", "Your response message", required: true
+      parameter :topics, "array", "Topics discussed (accumulated)", required: false
+      parameter :notes, "array", "Important notes (accumulated)", required: false
+    end
+  end
+end
+```
+
+#### Why is `monadic true` required?
+
+The `monadic true` flag cannot be automatically inferred from tool definitions because it controls several UI and backend behaviors:
+
+- **UI Badge**: Shows a visual indicator for Session State apps
+- **Rendering**: Different markdown rendering logic for structured responses
+- **TTS Processing**: Post-completion text-to-speech behavior differs
+- **Provider Features**: Affects Claude's thinking mode and other provider-specific features
+
+#### Built-in Session State Apps
+
+The following apps use Session State for context management:
+
+| App | Description |
+|-----|-------------|
+| Chat Plus | Conversation context (topics, people, notes) |
+| Research Assistant | Research progress (findings, sources, search history) |
+| Math Tutor | Learning progress (problems solved, concepts, weak areas) |
+| Novel Writer | Writing progress (plot, characters, chapters) |
+| Voice Interpreter | Translation context |
+| Language Practice Plus | Language learning feedback |
 
 ### Provider-Specific Adapters
 

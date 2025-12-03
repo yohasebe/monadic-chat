@@ -411,14 +411,6 @@ module GrokHelper
         session.delete(:model_switch_notified)
       end
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
-
       html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
@@ -502,12 +494,6 @@ module GrokHelper
 
     if obj["response_format"]
       body["response_format"] = APPS[app].settings["response_format"]
-    end
-
-    # Grok cannot execute tools with structured output enabled
-    # Keep simple json_object format for compatibility
-    if obj["monadic"] || obj["json"]
-      body["response_format"] ||= { "type" => "json_object" }
     end
 
     # Get tools from app settings
@@ -1293,22 +1279,6 @@ module GrokHelper
         result["choices"][0]["message"]["thinking"] = reasoning_content.join("\n\n")
       end
 
-      if obj["monadic"]
-        choice = result["choices"][0]
-        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-          message = choice["message"]["content"]
-          # monadic_map returns JSON string, but we need the actual content
-          modified = APPS[app].monadic_map(message)
-          # Parse the JSON and extract the message field
-          begin
-            parsed = JSON.parse(modified)
-            choice["message"]["content"] = parsed["message"] || modified
-          rescue JSON::ParserError
-            # If parsing fails, use the original modified value
-            choice["message"]["content"] = modified
-          end
-        end
-      end
     end
 
     if tools.any?
@@ -1563,6 +1533,13 @@ module GrokHelper
         memo
       end
 
+      # Inject session for tools that need it (e.g., monadic state tools, image generators)
+      # Check if the method accepts a :session parameter and inject it if so
+      method_obj = APPS[app].method(function_name.to_sym) rescue nil
+      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+        argument_hash[:session] = session
+      end
+
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
         
@@ -1675,6 +1652,14 @@ module GrokHelper
           extra_log.puts("Result: #{function_return.to_s[0..500]}...")
           extra_log.close
         end
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: function_name,
+          argument_hash: argument_hash,
+          session: session
+        )
       rescue StandardError => e
         DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
         DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)

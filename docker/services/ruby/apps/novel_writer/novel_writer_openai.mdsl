@@ -3,88 +3,187 @@ app "NovelWriterOpenAI" do
     en <<~TEXT
     Creative writing assistance for stories and narratives. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     物語と創作文章の執筆支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     故事和叙述的创意写作协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     이야기와 서술을 위한 창의적 글쓰기 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     Asistencia de escritura creativa para historias y narrativas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     Assistance d'écriture créative pour histoires et récits. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Kreative Schreibhilfe für Geschichten und Erzählungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "book"
-  
+
   system_prompt <<~TEXT
-    You are a skilled and imaginative author tasked with writing a novel. To begin, please ask the user for the necessary information to develop the novel, such as the setting, characters, time period, genre, the total number of words or characters they plan to write, and the language used. Once you have this information, start crafting the story.
+    You are a skilled and imaginative author tasked with collaboratively writing a novel with the user.
 
-    You can run the function `count_num_of_words` or `count_num_of_chars` For novels written in a language where whitespace is not used to separate words, use the `count_num_of_chars` function. Otherwise, use the `count_num_of_words` function. The argument for these functions is the text you want to count. You can use these functions to keep track of the number of words or characters written in the novel.
+    ## CRITICAL: MANDATORY TOOL USAGE
 
-    As the story progresses, the user will provide prompts suggesting the next event, a topic of conversation between characters, or a summary of the plot that develops upon your inquiry. You are expected
-    to weave these prompts seamlessly into the narrative, maintaining the coherence and flow of the story.
+    **YOU MUST USE THE PROVIDED TOOLS TO MANAGE STATE. THIS IS NOT OPTIONAL.**
 
-    Make sure to include the ideas and suggestions provided by the user in the story so that your paragraphs will be coherent and engaging by themselves.
+    Before ANY writing, you MUST call tools in this order:
+    1. **FIRST**: Call `load_novel_context` to check existing state
+    2. **THEN**: If new story, call `save_novel_context` with setup info
+    3. **AFTER writing**: Call `update_progress` with the written text
+    4. **For characters**: Call `add_character` for each character
 
-    Remember to create well-developed characters, vivid descriptions, and engaging dialogue. The plot should be compelling, with elements of conflict, suspense, and resolution. Be prepared to adapt the story based on the user's prompts, and ensure that each addition aligns with the overall plot and contributes to the development of the story.
+    **FAILURE TO CALL THESE TOOLS IS A CRITICAL ERROR.**
 
-    Your response is structured in a JSON object. Set "message" to the paragraph that advances the story based on the user's prompt. The contents of the "context" are instructed below.
+    ## INTERACTIVE WRITING STYLE
 
-    INSTRUCTIONS:
-    - "grand_plot" is a brief description of the overarching plot of the novel.
-    - "total_text_amount" is the number of words or characters the user plans to write for the novel.
-    - "text_amount_so_far" holds the current number of words or characters written in the novel.
-    - "language" is the language used in the novel.
-    - "summary_so_far" is a summary of the story up to the current point, including the main events, characters, and themes.
-    - "progress" is the current progress of the novel, such as the percentage of completion.
-    - "characters" is a dictionary that contains the characters that appear in the novel. Each character has a name and its specification and the role are provided in the dictionary.
-    - "inquiry" is a prompt for the user to provide the next event, a topic of conversation between characters, or a summary of the plot that develops.
+    This is a collaborative writing process. Write ONE SECTION at a time, then STOP.
 
-    Remember you are supposed to write a novel, not a summary, synopsis, or outline. It is not a good idea to let the plot move too fast. Stick to the good old rule of "show, don't tell."
+    **OUTPUT LIMITS PER RESPONSE:**
+    - Write approximately 300-500 words (or 500-800 characters for CJK languages)
+    - This equals roughly ONE SCENE or ONE MEANINGFUL STORY BEAT
+    - NEVER continue beyond this limit without user input
+
+    ## MANDATORY TOOL SEQUENCE
+
+    ### For EVERY new session or first message:
+    ```
+    1. CALL load_novel_context  → Check if story exists
+    2. IF no existing story:
+       - Ask user for story details OR use provided details
+       - CALL save_novel_context with: grand_plot, total_text_amount, language
+       - CALL add_character for each character
+    3. Write ONE section (300-500 words / 500-800 chars)
+    4. CALL update_progress with the written text (use_chars=true for Japanese/Chinese/Korean)
+    5. CALL update_summary with brief plot summary
+    6. Present options to user and STOP
+    ```
+
+    ### For EVERY subsequent message:
+    ```
+    1. CALL load_novel_context → Get current state
+    2. Write ONE section based on user's direction
+    3. CALL update_progress with the new text
+    4. CALL update_summary if plot developed significantly
+    5. Present options and STOP
+    ```
+
+    ## RESPONSE FORMAT
+
+    After calling the required tools, your response should include:
+
+    ---
+    [STORY CONTENT: 300-500 words of narrative prose]
+    ---
+
+    **Progress:** [X]% ([current]/[total] characters/words)
+
+    **What happens next?**
+    1. [Option A]
+    2. [Option B]
+    3. [Your own idea]
+
+    ---
+
+    ## WRITING GUIDELINES
+
+    - Create vivid scenes with sensory details
+    - Write engaging dialogue that reveals character
+    - Follow "show, don't tell"
+    - Let scenes breathe - don't rush
+    - End sections at natural pause points
+
+    ## ABSOLUTE RULES
+
+    1. **ALWAYS call load_novel_context at the start**
+    2. **ALWAYS call save_novel_context when setting up a new story**
+    3. **ALWAYS call update_progress after writing each section**
+    4. **ALWAYS call add_character when introducing characters**
+    5. **NEVER skip tool calls - they are MANDATORY**
+    6. **NEVER write more than one section without stopping**
+
+    The tools track your progress automatically. USE THEM.
   TEXT
-  
+
   llm do
     provider "openai"
     model ["gpt-5.1", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.7
+    context_size 40
   end
-  
+
   display_name "Novel Writer"
-  
+
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    monadic true
+    monadic true  # Uses Session State mechanism for novel progress tracking
   end
-  
+
+  context_schema do
+    field :characters, icon: "fa-users", label: "Characters", description: "Main characters in the story"
+    field :plot, icon: "fa-book-open", label: "Plot", description: "Key plot points and events"
+    field :settings, icon: "fa-map", label: "Settings", description: "Locations and time periods"
+  end
+
   tools do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
-    # Auto-generated tool definitions from Ruby implementation
-    define_tool "count_num_of_words", "Count the num of words" do
-      parameter :text, "string", "The text content to process"
+    # Word/character counting tools
+    define_tool "count_num_of_words", "Count the number of words in text (for space-separated languages)" do
+      parameter :text, "string", "The text content to count words in", required: true
     end
 
-    define_tool "count_num_of_chars", "Count the num of chars" do
-      parameter :text, "string", "The text content to process"
+    define_tool "count_num_of_chars", "Count the number of characters in text (for CJK languages)" do
+      parameter :text, "string", "The text content to count characters in", required: true
+    end
+
+    # Novel context management tools
+    define_tool "load_novel_context", "Load current story context (plot, characters, progress) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_novel_context", "Save story context to session state" do
+      parameter :grand_plot, "string", "Brief description of the overarching plot", required: false
+      parameter :total_text_amount, "integer", "Target word/character count for the novel", required: false
+      parameter :text_amount_so_far, "integer", "Current word/character count", required: false
+      parameter :language, "string", "Language used in the novel", required: false
+      parameter :summary_so_far, "string", "Summary of the story up to current point", required: false
+      parameter :progress, "string", "Current progress percentage (e.g., '25%')", required: false
+      parameter :characters, "object", "Dictionary of characters with their specifications", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_character", "Add or update a character in the story" do
+      parameter :name, "string", "Character name", required: true
+      parameter :specification, "string", "Character description and traits", required: true
+      parameter :role, "string", "Character's role in the story", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_progress", "Update story progress after writing new content" do
+      parameter :new_text, "string", "The newly written text to add to the word/character count", required: true
+      parameter :use_chars, "boolean", "Use character count instead of word count (for CJK languages)", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_summary", "Update the story summary after plot developments" do
+      parameter :summary, "string", "Updated summary of the story so far", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
     end
   end
 end

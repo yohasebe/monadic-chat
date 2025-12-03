@@ -298,11 +298,19 @@ end
 
 #### Best Practices Summary
 
-1. **Design stateless tools**: Each tool invocation should be independent
-2. **Pass data through parameters**: All inputs as function arguments
-3. **Return all outputs**: No side effects or state mutation
-4. **Use filesystem for persistence**: Write to files instead of instance variables
-5. **Read-only instance vars only**: Configuration that's the same for all users
+
+
+1.  **Design stateless tools**: Each tool invocation should be independent, processing inputs and returning outputs without relying on hidden state.
+
+2.  **Pass data through parameters**: All inputs and necessary context should be passed as explicit function arguments.
+
+3.  **Return all outputs**: Tools should return all relevant results, not rely on side effects or hidden state mutations.
+
+4.  **Use `session` parameter for transient state**: For conversation-specific, non-persistent data (e.g., last generated image filename, current notebook context), use the `session` parameter. The system ensures this state is isolated per user.
+
+5.  **Use filesystem for persistence**: For persistent data (e.g., long-term logs, user files), write to the shared filesystem instead of in-memory instance variables.
+
+6.  **Read-only instance vars only**: Instance variables (`@variable`) should only be used for read-only configuration that is the same for all users and across all sessions.
 
 ## Troubleshooting Common Issues
 
@@ -382,9 +390,14 @@ You can define functions and tools that the AI agent can use in the app. With th
 
 To define Ruby methods that the AI agent can use:
 
-1. Define tools explicitly in the MDSL file's `tools do` block
-2. Implement corresponding methods in the `*_tools.rb` file
-3. Ensure the method signatures match the tool definitions
+1.  Define tools explicitly in the MDSL file's `tools do` block, including a `session` parameter (type `"object"`, `required: false`) if the tool needs to interact with conversation state.
+2.  Implement corresponding methods in the `*_tools.rb` file, ensuring the method signature accepts the `session` keyword argument.
+3.  Ensure the method signatures match the tool definitions.
+
+**Using the `session` parameter:**
+-   The `session` parameter is a Hash-like object that is automatically passed to your tool methods.
+-   Use it to store and retrieve conversation-specific, non-persistent state (e.g., `session[:last_image_filename] = "image.png"`).
+-   The system ensures `session` data is isolated for each user and conversation.
 
 The tool definition format varies slightly among providers:
 - All providers: Support up to 20 function calls
@@ -418,7 +431,7 @@ send_code(code: "print('Hello, world!')", command: "python", extension: "py", su
 
 As an example, the above code runs the `print('Hello, world!')` code in the Python container and returns the result.  If the `success` argument is omitted, the message "The code has been executed successfully." is displayed.
 
-The `send_code` method detects if new files have been created as a result of the code execution. If new files are present, it returns the file names as part of the response along with the success message.
+The `send_code` method automatically detects if new files (like images or HTML reports) have been created as a result of the code execution. If new files are present, it returns the file names as part of the response, and also saves the primary generated filename to the session for continuous context. This allows subsequent tool calls to implicitly reference these files for further operations.
 
 **Without new files created:**
 

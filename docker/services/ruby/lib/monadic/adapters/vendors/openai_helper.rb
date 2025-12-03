@@ -13,17 +13,13 @@ require_relative "../../utils/model_spec"
 require_relative "../../utils/pdf_storage_config"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
-require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 module OpenAIHelper
   include BaseVendorHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
@@ -531,7 +527,7 @@ module OpenAIHelper
     end
 
     # Get image generation flag
-    image_generation = obj["image_generation"] == "true"
+    image_generation = obj["image_generation"] == true || obj["image_generation"].to_s == "true"
 
     # Define shared folder path based on environment
     shared_folder = Monadic::Utils::Environment.shared_volume
@@ -701,9 +697,6 @@ module OpenAIHelper
       if obj["response_format"]
         body["response_format"] = APPS[app].settings["response_format"]
       end
-
-      # Use the new unified interface for monadic mode
-      body = configure_monadic_response(body, :openai, app, use_responses_api)
     end
 
     if non_stream_model
@@ -850,53 +843,140 @@ module OpenAIHelper
     
     # Process images if this is an image generation request
     if image_generation && role == "user"
-      context.compact.each do |msg|
-        if msg["images"]
-          msg["images"].each do |img|
-            begin
-              # Skip if already a reference to shared folder
-              next if img["data"].to_s.start_with?("/data/")
-              
-              # Generate a unique filename
-              timestamp = Time.now.to_i
-              random_suffix = SecureRandom.hex(4)
-              ext = File.extname(img["data"].to_s).empty? ? ".png" : File.extname(img["data"].to_s)
-              
-              # Check if this is a mask image by looking at the title or is_mask flag
-              is_mask = img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
-              
-              # Use appropriate prefix based on image type
-              prefix = is_mask ? "mask__" : "img_"
-              new_filename = "#{prefix}#{timestamp}_#{random_suffix}#{ext}"
-              target_path = File.join(shared_folder, new_filename)
-              
-              # Copy the file to shared folder if it exists locally
-              if File.exist?(img["data"].to_s)
-                FileUtils.cp(img["data"].to_s, target_path)
-                # Store the full path for internal use
-                image_file_references << "/data/#{new_filename}"
-              # Handle data URIs
-              elsif img["data"].to_s.start_with?("data:")
-                # Extract and save base64 data
-                data_uri = img["data"].to_s
-                content_type, encoded_data = data_uri.match(/^data:([^;]+);base64,(.+)$/)[1..2]
-                decoded_data = Base64.decode64(encoded_data)
-                
-                # Write to file
-                File.open(target_path, 'wb') do |f|
-                  f.write(decoded_data)
-                end
-                
-                # Store the full path for internal use
-                image_file_references << "/data/#{new_filename}"
-              end
-            rescue StandardError => e
-              puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-            end
+      image_name_map = {}
+      pending_masks = []
+      
+      ext_for_image = lambda do |img|
+        ext = File.extname(img["data"].to_s)
+        ext = File.extname(img["title"].to_s) if ext.to_s.empty?
+        ext = ".png" if ext.to_s.empty?
+        ext
+      end
+
+      save_image_to_shared = lambda do |img, target_path|
+        begin
+          if File.exist?(img["data"].to_s)
+            FileUtils.cp(img["data"].to_s, target_path)
+            true
+          elsif img["data"].to_s.start_with?("data:")
+            data_uri = img["data"].to_s
+            _content_type, encoded_data = data_uri.match(/^data:([^;]+);base64,(.+)$/)[1..2]
+            decoded_data = Base64.decode64(encoded_data)
+            File.open(target_path, 'wb') { |f| f.write(decoded_data) }
+            true
+          else
+            false
           end
-          
-          # Remove images from message to prevent them being sent to vision API
-          msg.delete("images")
+        rescue StandardError => e
+          puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          false
+        end
+      end
+
+      find_mapped_image = lambda do |name|
+        return nil if name.to_s.strip.empty?
+        key = name.to_s.strip.downcase
+        return image_name_map[key] if image_name_map[key]
+        base_key = File.basename(key, File.extname(key))
+        image_name_map[base_key]
+      end
+
+      context.compact.each do |msg|
+        next unless msg["images"]
+
+        msg["images"].each do |img|
+          begin
+            is_mask = img["is_mask"] == true || img["title"].to_s.start_with?("mask__")
+            # If the file is already in shared storage, record it and continue
+            if img["data"].to_s.start_with?("/data/")
+              stored_filename = File.basename(img["data"].to_s)
+              image_file_references << img["data"].to_s
+              unless is_mask
+                raw_title = img["title"].to_s
+                unless raw_title.strip.empty?
+                  key = raw_title.strip.downcase
+                  image_name_map[key] = stored_filename
+                  base_key = File.basename(key, File.extname(key))
+                  image_name_map[base_key] ||= stored_filename if base_key && !base_key.empty?
+                end
+              else
+                pending_masks << img.merge("stored_name" => stored_filename)
+              end
+              next
+            end
+
+            if is_mask
+              pending_masks << img
+              next
+            end
+
+            timestamp = Time.now.to_i
+            random_suffix = SecureRandom.hex(4)
+            ext = ext_for_image.call(img)
+
+            raw_title = img["title"].to_s
+            sanitized_title = raw_title.strip.empty? ? nil : raw_title.gsub(/[^a-zA-Z0-9_.-]/, "_")
+            base_name = sanitized_title ? "img_#{sanitized_title}" : "img_#{timestamp}_#{random_suffix}"
+            base_name += ext unless base_name.downcase.end_with?(ext.downcase)
+            new_filename = base_name
+            target_path = File.join(shared_folder, new_filename)
+
+            if save_image_to_shared.call(img, target_path)
+              image_file_references << "/data/#{new_filename}"
+
+              # Track mapping from original titles to new filenames for mask lookup
+              unless raw_title.to_s.strip.empty?
+                key = raw_title.strip.downcase
+                image_name_map[key] = new_filename
+                base_key = File.basename(key, File.extname(key))
+                image_name_map[base_key] ||= new_filename if base_key && !base_key.empty?
+              end
+            end
+          rescue StandardError => e
+            puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          end
+        end
+
+        # Remove images from message to prevent them being sent to vision API
+        msg.delete("images")
+      end
+
+      # Process masks after regular images so we can maintain the mask -> original mapping
+      pending_masks.each do |img|
+        begin
+          timestamp = Time.now.to_i
+          random_suffix = SecureRandom.hex(4)
+          ext = ext_for_image.call(img)
+
+          raw_title = img["title"].to_s
+          associated_title = img["mask_for"].to_s
+          associated_title = raw_title.sub(/^mask__/, "") if associated_title.to_s.strip.empty?
+          mapped_original = find_mapped_image.call(associated_title)
+
+          # If mask already stored, reuse filename to keep pairing
+          if img["stored_name"]
+            new_filename = img["stored_name"]
+            image_file_references << "/data/#{new_filename}"
+            next
+          end
+
+          base_name = if mapped_original
+                        "mask__#{mapped_original}"
+                      elsif !associated_title.to_s.strip.empty?
+                        safe_mask_base = associated_title.gsub(/[^a-zA-Z0-9_.-]/, "_")
+                        "mask__#{safe_mask_base}"
+                      else
+                        "mask__#{timestamp}_#{random_suffix}"
+                      end
+          base_name += ext unless base_name.downcase.end_with?(ext.downcase)
+          new_filename = base_name
+          target_path = File.join(shared_folder, new_filename)
+
+          if save_image_to_shared.call(img, target_path)
+            image_file_references << "/data/#{new_filename}"
+          end
+        rescue StandardError => e
+          puts "Error processing mask for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
         end
       end
     end
@@ -1036,6 +1116,16 @@ module OpenAIHelper
         end
         img_references_text += "\nIMPORTANT: You have mask files attached. You MUST use the 'edit' operation with these masks, NOT 'generate'.\n"
       end
+
+      # Persist last-used images for follow-up edits (e.g., \"edit previous image\")
+      begin
+        session[:openai_last_image_generation] = {
+          images: regular_images,
+          masks: mask_images
+        }
+      rescue StandardError
+        # Ignore session storage issues
+      end
       
       if last_text.to_s != ""
         last_text += img_references_text
@@ -1077,20 +1167,6 @@ module OpenAIHelper
       }
     end
     
-    # Apply monadic transformation to the last user message for API
-    if obj["monadic"].to_s == "true" && body["messages"].any? && 
-       body["messages"].last["role"] == "user" && role == "user"
-      last_msg = body["messages"].last
-      if last_msg["content"].is_a?(Array)
-        text_content = last_msg["content"].find { |c| c["type"] == "text" }
-        if text_content
-          original_text = text_content["text"]
-          monadic_text = apply_monadic_transformation(original_text, app, "user")
-          text_content["text"] = monadic_text
-        end
-      end
-    end
-
     # Use unified system prompt injector for dynamic prompt augmentation
     if initial_prompt.to_s != ""
       augmented_prompt = Monadic::Utils::SystemPromptInjector.augment(
@@ -1230,7 +1306,11 @@ module OpenAIHelper
 
             # Add text content (REQUIRED after reasoning, even if empty)
             # OpenAI Responses API requires a message item to follow reasoning items
-            if content || has_reasoning
+            # CRITICAL: Always add message after reasoning, even if content is empty,
+            # because OpenAI's own API returns reasoning→function_call without a message,
+            # but then rejects that same format when sent back as input!
+            # Also add message if there are tool_calls (to separate reasoning from function_call)
+            if has_reasoning || content || !tool_calls.empty?
               output_items << {
                 "type" => "message",
                 "role" => "assistant",
@@ -1525,7 +1605,6 @@ module OpenAIHelper
       end
       
       # Support for structured outputs and verbosity
-      # Check if text.format was already set by configure_monadic_response
       if body["text"] && body["text"]["format"]
         responses_body["text"] = body["text"]
         # Add verbosity to existing text object if model supports it (spec-driven)
@@ -1924,40 +2003,6 @@ module OpenAIHelper
       end
     end
 
-    if result
-      if obj["monadic"]
-        choice = result["choices"][0]
-        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-          message = choice["message"]["content"]
-          
-          
-          # Use performance-optimized processing with caching
-          cache_key = MonadicPerformance.generate_cache_key("openai", obj["model"], body["messages"])
-          
-          # Process and validate the monadic response
-          processed = MonadicPerformance.performance_monitor.measure("monadic_processing") do
-            # First, apply monadic transformation
-            transformed = process_monadic_response(message, app)
-            # Then validate the response
-            validated = validate_monadic_response!(transformed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-            validated
-          end
-          
-          # Update the choice with processed content
-          # process_monadic_response now always returns a Hash, never a JSON string
-          if processed.is_a?(Hash)
-            # For monadic responses, we need to preserve the entire JSON structure
-            # not just the "message" field, so the UI can display the "context" properly
-            choice["message"]["content"] = JSON.generate(processed)
-          else
-            # Fallback: convert to string (should rarely happen)
-            choice["message"]["content"] = processed.to_s
-          end
-        end
-      end
-    end
-
-
     if tools.any?
       session[:call_depth_per_turn] += 1
 
@@ -2123,16 +2168,30 @@ module OpenAIHelper
 
       unless skip_function_execution
         begin
+          # Inject session for tools that need it (e.g., monadic state tools, image generators)
+          method_obj = APPS[app].method(function_name.to_sym) rescue nil
+          if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+            argument_hash[:session] = session
+          end
+
           if argument_hash.empty?
             function_return = APPS[app].send(function_name.to_sym)
           else
             function_return = APPS[app].send(function_name.to_sym, **argument_hash)
           end
-          
+
           # Log the result for debugging
           if CONFIG["EXTRA_LOGGING"]
             puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
           end
+
+          # Extract TTS text from tool parameters if tts_target is configured
+          Monadic::Utils::TtsTextExtractor.extract_tts_text(
+            app: app,
+            function_name: function_name,
+            argument_hash: argument_hash,
+            session: session
+          )
         rescue StandardError => e
           pp e.message
           pp e.backtrace
@@ -2962,38 +3021,6 @@ module OpenAIHelper
         end.last(REASONING_CONTEXT_MAX)))
       else
         obj.delete("reasoning_context") if obj.key?("reasoning_context")
-      end
-      
-      # Apply monadic transformation if needed
-      if obj["monadic"] && (finish_reason == "stop" || finish_reason == "length")
-        choice = response["choices"][0]
-        message = choice["message"]["content"]
-        
-        # Process and validate the monadic response
-        processed = begin
-          # First, apply monadic transformation
-          transformed = process_monadic_response(message, app)
-          # Then validate the response
-          validated = validate_monadic_response!(transformed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-          validated
-        rescue => e
-          DebugHelper.debug("Monadic processing error in Responses API: #{e.message}", category: :api, level: :error)
-          # Fall back to original content if processing fails
-          message
-        end
-        
-        # Update the choice with processed content
-        # IMPORTANT: Preserve full JSON structure for monadic apps (message + context)
-        # This ensures UI cards display context information correctly
-        # process_monadic_response now always returns a Hash, never a JSON string
-        if processed.is_a?(Hash)
-          # For monadic responses, we need to preserve the entire JSON structure
-          # not just the "message" field, so the UI can display the "context" properly
-          choice["message"]["content"] = JSON.generate(processed)
-        else
-          # Fallback: convert to string (should rarely happen)
-          choice["message"]["content"] = processed.to_s
-        end
       end
       
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" })

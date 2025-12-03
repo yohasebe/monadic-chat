@@ -5,8 +5,6 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
-require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
@@ -16,8 +14,6 @@ require_relative "../../utils/function_call_error_handler"
 module MistralHelper
   include BaseVendorHelper
   include InteractionUtils
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
@@ -36,15 +32,15 @@ module MistralHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    MistralHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    MistralHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    MistralHelper.write_timeout
   end
 
   MAX_RETRIES    = 5
@@ -478,9 +474,6 @@ module MistralHelper
     # Set the max tokens
     body["max_tokens"] = max_tokens || 4096
 
-    # Configure monadic response format using unified interface
-    body = configure_monadic_response(body, :mistral, app)
-
     # Progressive tool handling (applies to all request phases)
     app_settings = APPS[app]&.settings
     app_tools = app_settings&.[]("tools")
@@ -758,24 +751,6 @@ module MistralHelper
       }
     end
     
-    # Apply monadic transformation to the last user message if in monadic mode
-    if obj["monadic"].to_s == "true" && body["messages"].any? && 
-       body["messages"].last["role"] == "user" && role == "user"
-      last_msg = body["messages"].last
-      if last_msg["content"].is_a?(Array)
-        # Handle structured content with images
-        text_part = last_msg["content"].find { |part| part["type"] == "text" }
-        if text_part
-          monadic_message = apply_monadic_transformation(text_part["text"], app, "user")
-          text_part["text"] = monadic_message
-        end
-      else
-        # Handle simple text content
-        monadic_message = apply_monadic_transformation(last_msg["content"], app, "user")
-        last_msg["content"] = monadic_message
-      end
-    end
-
     if role == "tool"
       # For Mistral, we need to include the assistant message with tool calls
       # before adding tool responses
@@ -1270,15 +1245,6 @@ module MistralHelper
       if CONFIG["EXTRA_LOGGING"]
         DebugHelper.debug("Mistral: Collected #{thinking.length} thinking block(s) for #{obj["model"]}", category: :api, level: :info)
       end
-    end
-
-    # Apply monadic transformation if enabled
-    if obj["monadic"] && final_content
-      # Process through unified interface
-      processed = process_monadic_response(final_content, app)
-      # Validate the response
-      validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-      response["choices"][0]["message"]["content"] = validated.is_a?(Hash) ? JSON.generate(validated) : validated
     end
 
     stored_content = response.dig("choices", 0, "message", "content")

@@ -9,9 +9,7 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/language_config"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
 require_relative "../base_vendor_helper"
-require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/ssl_configuration"
@@ -50,8 +48,6 @@ module GeminiHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   # Use v1beta to support newer Gemini 3 models
@@ -1181,9 +1177,6 @@ module GeminiHelper
       end
     end
 
-    # Configure monadic response format using unified interface
-    body = configure_monadic_response(body, :gemini, app)
-
     # Extract system message for systemInstruction
     system_message = context.find { |msg| msg["role"] == "system" }
     non_system_messages = context.select { |msg| msg["role"] != "system" }
@@ -1224,19 +1217,6 @@ module GeminiHelper
     has_pdf_part = false
     
     if body["contents"].last && body["contents"].last["role"] == "user"
-      # Apply monadic transformation if in monadic mode
-      if obj["monadic"].to_s == "true" && role == "user"
-        body["contents"].last["parts"].each do |part|
-          if part["text"]
-            # Extract the base message without prompt suffix
-            base_message = part["text"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
-            # Apply monadic transformation using unified interface
-            monadic_message = apply_monadic_transformation(base_message, app, "user")
-            part["text"] = monadic_message
-          end
-        end
-      end
-      
       # Use unified system prompt injector for user message augmentation
       body["contents"].last["parts"].each do |part|
         if part["text"]
@@ -1523,6 +1503,24 @@ module GeminiHelper
       body.delete("toolConfig")
     end
 
+    # Debug: Log tools status to extra.log for Jupyter apps
+    if defined?(MonadicApp::EXTRA_LOG_FILE) && app.to_s.include?("Jupyter")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts "[#{Time.now}] [Gemini Jupyter Debug] role=#{role}, tool_capable=#{tool_capable}"
+        log.puts "[#{Time.now}] [Gemini Jupyter Debug] app_tools count: #{app_tools.is_a?(Array) ? app_tools.length : (app_tools.is_a?(Hash) ? app_tools.dig('function_declarations')&.length : 'N/A')}"
+        log.puts "[#{Time.now}] [Gemini Jupyter Debug] body has tools: #{body.key?('tools')}, tools count: #{body['tools']&.length || 0}"
+        if body["tools"]
+          body["tools"].each_with_index do |tool, idx|
+            if tool.is_a?(Hash) && tool["function_declarations"]
+              log.puts "[#{Time.now}] [Gemini Jupyter Debug] tool[#{idx}] has #{tool['function_declarations'].length} function declarations"
+            else
+              log.puts "[#{Time.now}] [Gemini Jupyter Debug] tool[#{idx}] keys: #{tool.keys rescue 'N/A'}"
+            end
+          end
+        end
+      end
+    end
+
     # Force toolConfig AUTO for tool-capable models on user turns (prevents NONE leakage from stale session)
     if role != "tool" && tool_capable
       body["toolConfig"] ||= {}
@@ -1556,7 +1554,14 @@ module GeminiHelper
       
       # Check what tools have been called so far
       tool_names = obj["tool_results"].map { |r| r.dig("functionResponse", "name") }.compact
-      
+
+      # Debug logging for tool_names extraction
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[DEBUG Gemini Jupyter] tool_names extracted: #{tool_names.inspect}"
+        puts "[DEBUG Gemini Jupyter] is_jupyter_app: #{is_jupyter_app}"
+        puts "[DEBUG Gemini Jupyter] tool_results count: #{obj["tool_results"]&.length || 0}"
+      end
+
       # For Gemini 2.5 thinking models, we now know they support function calling
       # according to the official documentation
       if is_jupyter_app
@@ -1589,13 +1594,31 @@ module GeminiHelper
         # Determine whether to allow more tool calls based on operation flow
         should_stop = false
 
-        # If create_and_populate was used, it's a complete operation - stop immediately
-        if action_tool_names.include?("create_and_populate_jupyter_notebook")
-          should_stop = true
+        # Debug logging for action_tool_names
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Gemini Jupyter] action_tool_names: #{action_tool_names.inspect}"
+          puts "[DEBUG Gemini Jupyter] action_tool_count: #{action_tool_count}"
+          puts "[DEBUG Gemini Jupyter] has_notebook_creation: #{has_notebook_creation}"
+          puts "[DEBUG Gemini Jupyter] has_cell_operations: #{has_cell_operations}"
+          puts "[DEBUG Gemini Jupyter] has_execution: #{has_execution}"
         end
 
-        # Don't stop immediately after first cell operation
-        # Allow multiple add_jupyter_cells calls
+        # If create_and_populate was used, it's a complete operation - stop immediately
+        # This combined tool handles everything in one call, so we're done
+        if action_tool_names.include?("create_and_populate_jupyter_notebook")
+          should_stop = true
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[DEBUG Gemini Jupyter] should_stop=true: create_and_populate_jupyter_notebook detected"
+          end
+        end
+
+        # For add_jupyter_cells alone (not combined with create_and_populate),
+        # allow the operation to complete and return to user
+        # This is the expected case when user asks to add cells to existing notebook
+        if action_tool_names == ["add_jupyter_cells"]
+          # Single add_jupyter_cells call - stop after this to show results
+          should_stop = true
+        end
 
         # If we've done any execution, stop to show results
         if has_execution
@@ -1606,15 +1629,28 @@ module GeminiHelper
         if action_tool_count >= 5  # Allow enough calls for create + add cells + potential fixes
           should_stop = true
         end
-        
+
+        # Final debug log before applying should_stop decision
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[DEBUG Gemini Jupyter] FINAL should_stop=#{should_stop}"
+        end
+
         if should_stop
           # Disable tools completely to force text response
-          body["toolConfig"] = {
-            "functionCallingConfig" => {
-              "mode" => "NONE"
-            }
-          }
+          # Remove both tools and toolConfig to prevent the model from attempting
+          # function calls (Gemini 3 Pro may still try with mode: "NONE")
           body.delete("tools")
+          body.delete("toolConfig")
+
+          # Disable thinking completely for tool result processing
+          # Gemini 3 Pro ignores thinkingBudget reductions, so we must remove it entirely
+          # to ensure tokens are available for text output
+          if body["generationConfig"] && body["generationConfig"]["thinkingConfig"]
+            body["generationConfig"].delete("thinkingConfig")
+            if CONFIG["EXTRA_LOGGING"]
+              puts "[DEBUG Gemini] Removed thinkingConfig for tool result processing (should_stop=true)"
+            end
+          end
         else
           # Still need to call more tools
           if app_tools
@@ -2037,6 +2073,21 @@ module GeminiHelper
             finish_reason = candidate["finishReason"]
             case finish_reason
             when "MAX_TOKENS"
+              # Check if content is empty or contains only thinking signature
+              content_check = candidate["content"]
+              text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
+
+              if text_parts.empty?
+                # Thinking consumed all tokens, no actual text output
+                if CONFIG["EXTRA_LOGGING"]
+                  thoughts_tokens = json_obj.dig("usageMetadata", "thoughtsTokenCount") || 0
+                  puts "[DEBUG Gemini] MAX_TOKENS with empty content - thinking used #{thoughts_tokens} tokens"
+                end
+                # Return a helpful error message
+                res = { "type" => "error", "content" => "The model's thinking process used all available tokens. The notebook was created successfully, but no summary could be generated. Please check the notebook directly." }
+                block&.call res
+                return [res]
+              end
               finish_reason = "length"
             when "STOP"
               finish_reason = "stop"
@@ -2046,6 +2097,60 @@ module GeminiHelper
               finish_reason = "safety"
             when "CITATION"
               finish_reason = "recitation"
+            when "MALFORMED_FUNCTION_CALL"
+              # Gemini returned a malformed function call - this can happen when:
+              # 1. toolConfig mode is NONE but model still tries to call a function
+              # 2. Model generates invalid function call syntax
+              # 3. Tools were removed for should_stop but model still tries to call functions
+              finish_message = candidate["finishMessage"] || "Model generated malformed function call"
+              if CONFIG["EXTRA_LOGGING"]
+                puts "[DEBUG Gemini] MALFORMED_FUNCTION_CALL: #{finish_message}"
+              end
+
+              # Check if this is a Jupyter app where tools were successfully completed
+              # In this case, the malformed call is likely because we disabled tools after success
+              tool_results = session[:parameters]["tool_results"] || []
+              has_successful_jupyter_result = tool_results.any? do |r|
+                content = r.dig("functionResponse", "response", "content")
+                content.is_a?(String) && (
+                  content.include?("executed successfully") ||
+                  content.include?("Notebook") && content.include?("created successfully") ||
+                  content.include?("Cells added to notebook")
+                )
+              end
+
+              if has_successful_jupyter_result
+                # The notebook was created/updated successfully, just return a success message
+                if CONFIG["EXTRA_LOGGING"]
+                  puts "[DEBUG Gemini] MALFORMED_FUNCTION_CALL ignored: Jupyter tools already completed successfully"
+                end
+                # Extract notebook info from tool results for a helpful message
+                notebook_info = tool_results.find do |r|
+                  content = r.dig("functionResponse", "response", "content")
+                  content.is_a?(String) && content.include?(".ipynb")
+                end
+                notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
+
+                # Generate a success message
+                success_msg = "ノートブックの作成と実行が完了しました。"
+                if notebook_content.include?("http://")
+                  # Extract the link from the content
+                  if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
+                    link = $1
+                    filename = link.split("/").last
+                    success_msg += "\n\n<a href='#{link}' target='_blank'>#{filename}</a> でアクセスできます。"
+                  end
+                end
+
+                res = { "type" => "message", "content" => success_msg, "finish_reason" => "stop" }
+                block&.call res
+                return [res]
+              end
+
+              # Send an error response to inform the user/system
+              res = { "type" => "error", "content" => "The model attempted an invalid function call. This may be a temporary issue. Please try again." }
+              block&.call res
+              return [res]
             else
               finish_reason = nil
             end
@@ -2583,10 +2688,10 @@ module GeminiHelper
         # Return error type instead of a regular message when no response
         [{ "type" => "error", "content" => "No response was received from the model." }]
       end
-    elsif result
+    elsif result && result.any? && result.join("").strip.length > 0
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
-      
+
       # Join the result and check if it needs unwrapping
       final_content = result.join("")
       
@@ -2645,17 +2750,89 @@ module GeminiHelper
       #   response_data["choices"][0]["message"]["thinking"] = thinking_parts.join("\n")
       # end
       
-      # Apply monadic transformation if enabled
-      obj = session[:parameters]
-      if obj["monadic"] && final_content
-        # Process through unified interface
-        processed = process_monadic_response(final_content, app)
-        # Validate the response
-        validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-        response_data["choices"][0]["message"]["content"] = validated.is_a?(Hash) ? JSON.generate(validated) : validated
-      end
-      
       [response_data]
+    else
+      # Empty result case - check if Jupyter tools completed successfully
+      # This happens when Gemini returns an empty response after tool execution
+      is_jupyter_app = app.to_s.include?("jupyter") ||
+                       (session[:parameters]["app_name"] && session[:parameters]["app_name"].to_s.include?("Jupyter"))
+
+      # Debug logging for empty result handling
+      if defined?(MonadicApp::EXTRA_LOG_FILE)
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts "[#{Time.now}] [Gemini Empty Result] app=#{app}, is_jupyter_app=#{is_jupyter_app}"
+          log.puts "[#{Time.now}] [Gemini Empty Result] tool_results count: #{session[:parameters]['tool_results']&.length || 0}"
+        end
+      end
+
+      if is_jupyter_app
+        tool_results = session[:parameters]["tool_results"] || []
+        has_successful_jupyter_result = tool_results.any? do |r|
+          content = r.dig("functionResponse", "response", "content")
+          content.is_a?(String) && (
+            content.include?("executed successfully") ||
+            content.include?("Notebook") && content.include?("created successfully") ||
+            content.include?("Cells added to notebook")
+          )
+        end
+
+        # Debug logging
+        if defined?(MonadicApp::EXTRA_LOG_FILE)
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[#{Time.now}] [Gemini Empty Result] has_successful_jupyter_result=#{has_successful_jupyter_result}"
+            tool_results.each_with_index do |r, idx|
+              content = r.dig("functionResponse", "response", "content")
+              log.puts "[#{Time.now}] [Gemini Empty Result] tool_result[#{idx}] content preview: #{content.to_s[0..100]}..."
+            end
+          end
+        end
+
+        if has_successful_jupyter_result
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[DEBUG Gemini Jupyter] Empty response but tools succeeded - generating success message"
+          end
+
+          # Extract notebook info from tool results
+          notebook_info = tool_results.find do |r|
+            content = r.dig("functionResponse", "response", "content")
+            content.is_a?(String) && content.include?(".ipynb")
+          end
+          notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
+
+          # Generate a success message in Japanese
+          success_msg = "セルの追加と実行が完了しました。"
+          if notebook_content.include?("http://")
+            if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
+              link = $1
+              filename = link.split("/").last
+              success_msg += "\n\n<a href='#{link}' target='_blank'>#{filename}</a> でアクセスできます。"
+            end
+          end
+
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+
+          return [{
+            "choices" => [
+              {
+                "finish_reason" => "stop",
+                "message" => { "content" => success_msg }
+              }
+            ]
+          }]
+        end
+      end
+
+      # Default: return empty result for truly empty responses
+      # This ensures the caller receives a valid response structure
+      [{
+        "choices" => [
+          {
+            "finish_reason" => "stop",
+            "message" => { "content" => "" }
+          }
+        ]
+      }]
     end
   end
 
@@ -2710,8 +2887,10 @@ module GeminiHelper
           end
         end
 
-        # Add session parameter for functions that need access to uploaded images
-        if function_name == "generate_video_with_veo" || function_name == "generate_image_with_gemini" || function_name == "generate_image_with_gemini3_preview"
+        # Inject session for tools that need it (e.g., monadic state tools, image generators)
+        # Check if the method accepts a :session parameter and inject it if so
+        method_obj = APPS[app]&.method(function_name.to_sym) rescue nil
+        if method_obj && method_obj.parameters.any? { |type, name| name == :session }
           argument_hash[:session] = session
         end
         
@@ -2727,9 +2906,9 @@ module GeminiHelper
         end
         
         # Call the function with the provided arguments
-        # First try to call the function on the app object (for Jupyter and other app-specific functions)
-        function_return = if app.respond_to?(function_name.to_sym)
-          app.send(function_name.to_sym, **argument_hash)
+        # First try to call the function on the app instance (for app-specific functions)
+        function_return = if APPS[app] && APPS[app].respond_to?(function_name.to_sym)
+          APPS[app].send(function_name.to_sym, **argument_hash)
         elsif respond_to?(function_name.to_sym)
           # Fallback to calling on self (GeminiHelper) if app doesn't have the method
           send(function_name.to_sym, **argument_hash)
@@ -2741,7 +2920,15 @@ module GeminiHelper
         if CONFIG["EXTRA_LOGGING"]
           puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
         end
-        
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: function_name,
+          argument_hash: argument_hash,
+          session: session
+        )
+
         # Process the returned content
         if function_return
           # Special handling for video generator and image generator

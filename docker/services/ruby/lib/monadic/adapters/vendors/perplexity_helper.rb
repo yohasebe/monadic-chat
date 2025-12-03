@@ -32,15 +32,15 @@ module PerplexityHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    PerplexityHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    PerplexityHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    PerplexityHelper.write_timeout
   end
 
   MAX_RETRIES = 5
@@ -374,14 +374,6 @@ module PerplexityHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
-
       html = markdown_to_html(obj["message"], mathjax: obj["mathjax"])
 
       if message != "" && role == "user"
@@ -476,58 +468,6 @@ module PerplexityHelper
     # Perplexity supports json_schema format for structured outputs
     if obj["response_format"]
       body["response_format"] = APPS[app].settings["response_format"]
-    end
-
-    # For monadic apps, we need to provide a proper JSON schema
-    if obj["monadic"] || obj["json"]
-      # Define the JSON schema for Chat Plus response
-      chat_plus_schema = {
-        "type" => "json_schema",
-        "json_schema" => {
-          "schema" => {
-            "type" => "object",
-            "properties" => {
-              "message" => {
-                "type" => "string",
-                "description" => "Your response to the user"
-              },
-              "context" => {
-                "type" => "object",
-                "properties" => {
-                  "reasoning" => {
-                    "type" => "string",
-                    "description" => "The reasoning and thought process behind your response"
-                  },
-                  "topics" => {
-                    "type" => "array",
-                    "items" => {
-                      "type" => "string"
-                    },
-                    "description" => "A list of topics discussed in the conversation"
-                  },
-                  "people" => {
-                    "type" => "array",
-                    "items" => {
-                      "type" => "string"
-                    },
-                    "description" => "A list of people and their relationships mentioned"
-                  },
-                  "notes" => {
-                    "type" => "array",
-                    "items" => {
-                      "type" => "string"
-                    },
-                    "description" => "Important information to remember"
-                  }
-                },
-                "required" => ["reasoning", "topics", "people", "notes"]
-              }
-            },
-            "required" => ["message", "context"]
-          }
-        }
-      }
-      body["response_format"] ||= chat_plus_schema
     end
 
     # Get tools from app settings
@@ -736,10 +676,6 @@ module PerplexityHelper
             item["text"] = item["text"].sub(/---\n\n/, "")
           end
         end
-      end
-    else
-      if obj["monadic"] || obj["json"]
-        body["response_format"] ||= { "type" => "json_object" }
       end
     end
 
@@ -1204,54 +1140,47 @@ module PerplexityHelper
               end
             end
 
-            # Skip citations processing for monadic mode
-            if !obj["monadic"]
-              citations = stored_citations
+            citations = stored_citations
 
-              # Debug: Check citations for all models
-              if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
-                if citations && citations.any?
-                  DebugHelper.debug("Perplexity: Citations content: #{citations.inspect}", category: :api, level: :debug)
-                end
-                # Check if content has citation references
-                content = texts.first[1]["choices"][0]["message"]["content"]
-                citation_refs = content.scan(/\[(\d+)\]/).flatten
-                if citation_refs.any?
-                  DebugHelper.debug("Perplexity: Found citation references in content: #{citation_refs}", category: :api, level: :info)
-                end
-              end
-
-              new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
-
-              # Debug: Log citation processing results
-              if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
-                if new_text != texts.first[1]["choices"][0]["message"]["content"]
-                  DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
-                end
-              end
-
-              # add citations to the last message
+            # Debug: Check citations for all models
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Perplexity: Model #{obj["model"]} - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
               if citations && citations.any?
-                citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
-                  "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
-                end.join("\n") + "</ol></div>"
-
-                if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
-                  DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
-                end
-
-                texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
-              else
-                if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Perplexity: No citations to add (citations nil or empty)", category: :api, level: :info)
-                end
+                DebugHelper.debug("Perplexity: Citations content: #{citations.inspect}", category: :api, level: :debug)
               end
+              # Check if content has citation references
+              content = texts.first[1]["choices"][0]["message"]["content"]
+              citation_refs = content.scan(/\[(\d+)\]/).flatten
+              if citation_refs.any?
+                DebugHelper.debug("Perplexity: Found citation references in content: #{citation_refs}", category: :api, level: :info)
+              end
+            end
+
+            new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
+
+            # Debug: Log citation processing results
+            if CONFIG["EXTRA_LOGGING"]
+              DebugHelper.debug("Perplexity: After check_citations - new_citations count: #{new_citations&.size || 0}", category: :api, level: :info)
+              if new_text != texts.first[1]["choices"][0]["message"]["content"]
+                DebugHelper.debug("Perplexity: Citation references were renumbered", category: :api, level: :debug)
+              end
+            end
+
+            # add citations to the last message
+            if citations && citations.any?
+              citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+                "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+              end.join("\n") + "</ol></div>"
+
+              if CONFIG["EXTRA_LOGGING"]
+                DebugHelper.debug("Perplexity: Adding citation HTML to content", category: :api, level: :info)
+                DebugHelper.debug("Perplexity: Citation HTML preview: #{citation_text[0..100]}...", category: :api, level: :debug)
+              end
+
+              texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
             else
               if CONFIG["EXTRA_LOGGING"]
-                DebugHelper.debug("Perplexity: Skipping citations for monadic mode", category: :api, level: :info)
+                DebugHelper.debug("Perplexity: No citations to add (citations nil or empty)", category: :api, level: :info)
               end
             end
             stopped = true
@@ -1276,170 +1205,27 @@ module PerplexityHelper
       # Get citations from stored_citations (captured from first chunk)
       citations = stored_citations
 
-      # Skip citations processing for monadic mode
-      if !obj["monadic"]
-        # Debug: Log second citation processing
+      # Debug: Log second citation processing
+      if CONFIG["EXTRA_LOGGING"]
+        DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
+      end
+
+      new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
+      # add citations to the last message
+      if citations && citations.any?
+        citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
+          "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
+        end.join("\n") + "</ol></div>"
+        texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
+
         if CONFIG["EXTRA_LOGGING"]
-          DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
-        end
-
-        new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
-        # add citations to the last message
-        if citations && citations.any?
-          citation_text = "\n\n<div data-title='Citations' class='toggle'><ol>" + new_citations.map.with_index do |citation, i|
-            "<li><a href='#{citation}' target='_blank' rel='noopener noreferrer'>#{CGI.unescape(citation)}</a></li>"
-          end.join("\n") + "</ol></div>"
-          texts.first[1]["choices"][0]["message"]["content"] = new_text + citation_text
-
-          if CONFIG["EXTRA_LOGGING"]
-            DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
-          end
-        end
-      else
-        if CONFIG["EXTRA_LOGGING"]
-          DebugHelper.debug("Perplexity: Processing citations for monadic mode", category: :api, level: :info)
-        end
-
-        # For monadic mode, we need to store citations separately
-        # They will be processed after JSON parsing
-        if citations && citations.any? && texts.first && texts.first[1]
-          # Store citations in a temporary location
-          texts.first[1]["__citations__"] = citations
+          DebugHelper.debug("Perplexity: Second citation processing - added citations to content", category: :api, level: :info)
         end
       end
     end
 
     thinking_result = thinking.empty? ? nil : thinking.join("\n\n")
     text_result = texts.empty? ? nil : texts.first[1]
-
-    # Store citations in text_result if available
-    if text_result && stored_citations && stored_citations.any? && obj["monadic"]
-      text_result["__citations__"] = stored_citations
-    end
-
-    if text_result && obj["monadic"]
-      # For monadic mode, fix Perplexity's malformed JSON structure
-      content = text_result["choices"][0]["message"]["content"]
-      
-      # Perplexity returns a malformed JSON structure like: {"{"message":"...
-      # We need to extract the actual JSON starting from the second {
-      if content.start_with?('{"{"') || content.start_with?("{'{\"")
-        
-        # Find the start of the actual JSON (second opening brace)
-        actual_json_start = content.index('{', 1)
-        if actual_json_start
-          # Extract from the second { to the end
-          actual_json = content[actual_json_start..-1]
-          
-          # Find the matching closing brace for the actual JSON
-          # Count braces to find the correct closing position
-          brace_count = 0
-          last_valid_pos = -1
-          
-          actual_json.each_char.with_index do |char, idx|
-            if char == '{'
-              brace_count += 1
-            elsif char == '}'
-              brace_count -= 1
-              if brace_count == 0
-                last_valid_pos = idx
-                break
-              end
-            end
-          end
-          
-          if last_valid_pos > -1
-            actual_json = actual_json[0..last_valid_pos]
-            
-            begin
-              parsed = JSON.parse(actual_json)
-              if parsed.is_a?(Hash) && parsed.key?("message") && parsed.key?("context")
-                # Process citations if they exist
-                if text_result["__citations__"]
-                  citations = text_result["__citations__"]
-                  
-                  # Check citations in both message and reasoning fields
-                  
-                  # Combine message and reasoning to check all citations
-                  combined_text = "#{parsed["message"]} #{parsed["context"]["reasoning"]}"
-                  
-                  # For monadic mode, we need to keep the citation numbers
-                  # Extract all used citation numbers from both fields
-                  msg_refs = parsed["message"].scan(/\[(\d+)\]/).flatten.map(&:to_i)
-                  reason_refs = parsed["context"]["reasoning"].scan(/\[(\d+)\]/).flatten.map(&:to_i) if parsed["context"]["reasoning"]
-                  all_refs = (msg_refs + (reason_refs || [])).uniq.sort
-                  
-                  
-                  # Collect the actual citations based on the references
-                  new_citations = all_refs.map { |ref| citations[ref - 1] }.compact
-                  
-                  
-                  # Don't modify the text - keep the citation numbers as-is
-                  parsed["message"] = parsed["message"]
-                  parsed["context"]["reasoning"] = parsed["context"]["reasoning"] if parsed["context"]["reasoning"]
-                  
-                  # Add citations to context
-                  parsed["context"]["citations"] = new_citations if new_citations && new_citations.any?
-                  
-                  # Remove temporary citation storage
-                  text_result.delete("__citations__")
-                end
-                
-                # Generate the final JSON with citations included
-                final_json = JSON.generate(parsed)
-                text_result["choices"][0]["message"]["content"] = final_json
-                
-              end
-            rescue JSON::ParserError => e
-              # Failed to parse extracted JSON
-            end
-          end
-        end
-      else
-        # Try to parse as normal JSON
-        begin
-          parsed = JSON.parse(content)
-          if parsed.is_a?(Hash) && parsed.key?("message") && parsed.key?("context")
-            
-            # Process citations if they exist
-            if text_result["__citations__"]
-              citations = text_result["__citations__"]
-              
-              # Check citations in both message and reasoning fields
-              
-              # Combine message and reasoning to check all citations
-              combined_text = "#{parsed["message"]} #{parsed["context"]["reasoning"]}"
-              
-              # For monadic mode, we need to keep the citation numbers
-              # Extract all used citation numbers from both fields
-              msg_refs = parsed["message"].scan(/\[(\d+)\]/).flatten.map(&:to_i)
-              reason_refs = parsed["context"]["reasoning"].scan(/\[(\d+)\]/).flatten.map(&:to_i) if parsed["context"]["reasoning"]
-              all_refs = (msg_refs + (reason_refs || [])).uniq.sort
-              
-              
-              # Collect the actual citations based on the references
-              new_citations = all_refs.map { |ref| citations[ref - 1] }.compact
-              
-              
-              # Don't modify the text - keep the citation numbers as-is
-              parsed["message"] = parsed["message"]
-              parsed["context"]["reasoning"] = parsed["context"]["reasoning"] if parsed["context"]["reasoning"]
-              
-              # Add citations to context
-              parsed["context"]["citations"] = new_citations if new_citations && new_citations.any?
-              
-              # Update the content with modified JSON
-              text_result["choices"][0]["message"]["content"] = JSON.generate(parsed)
-              
-              # Remove temporary citation storage
-              text_result.delete("__citations__")
-            end
-          end
-        rescue JSON::ParserError => e
-          # Content is not valid JSON
-        end
-      end
-    end
 
     if tools.any?
       context = []
@@ -1541,6 +1327,14 @@ module PerplexityHelper
 
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: function_name,
+          argument_hash: argument_hash,
+          session: session
+        )
       rescue StandardError => e
         pp e.message
         pp e.backtrace

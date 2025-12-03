@@ -180,11 +180,11 @@ features do
 end
 
 # プロバイダー固有の機能:
-features do  
+features do
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
   jupyter true            # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
-  monadic true            # 構造化JSONレスポンス（すべてのプロバイダーでサポート）
+  monadic true            # Session Stateアプリでは必須 - ツールによるコンテキスト管理を有効化
   initiate_from_assistant true # AIメッセージで会話を開始
 end
 ```
@@ -275,7 +275,7 @@ app "ChatClaude" do  # クラス名と正確に一致する必要があります
   end
 
   features do
-    monadic false  # 標準モードを使用
+    monadic false  # Session State（コンテキスト管理）を無効化
     initiate_from_assistant true
   end
 end
@@ -473,6 +473,57 @@ class WikipediaOpenAI < MonadicApp
 end
 ```
 
+
+### Session Stateアプリ
+
+Session Stateを使用すると、明示的なツール呼び出しを使用して会話ターン間でコンテキストを永続化できます。進捗を追跡したり、情報を蓄積したり、構造化された状態を維持する必要があるアプリに有用です。
+
+#### Session Stateアプリの要件
+
+Session Stateを使用するアプリは、featuresブロックで`monadic true`を**必ず**設定する必要があります：
+
+```ruby
+app "MySessionStateApp" do
+  features do
+    monadic true  # 必須 - Session State機能を有効化
+  end
+
+  tools do
+    # 状態管理用のload/saveツールを定義
+    define_tool "load_context", "セッション状態から現在のコンテキストを読み込む" do
+      parameter :session, "object", "セッションオブジェクト（自動的に提供される）", required: false
+    end
+
+    define_tool "save_context", "応答とコンテキストをセッション状態に保存する" do
+      parameter :message, "string", "あなたの応答メッセージ", required: true
+      parameter :topics, "array", "議論されたトピック（累積）", required: false
+      parameter :notes, "array", "重要なメモ（累積）", required: false
+    end
+  end
+end
+```
+
+#### なぜ`monadic true`が必要か？
+
+`monadic true`フラグはツール定義から自動的に推論できません。UIおよびバックエンドのいくつかの動作を制御するためです：
+
+- **UIバッジ**：Session Stateアプリ用のビジュアルインジケーターを表示
+- **レンダリング**：構造化レスポンス用の異なるMarkdownレンダリングロジック
+- **TTS処理**：post-completion text-to-speechの動作が異なる
+- **プロバイダー機能**：Claudeのthinkingモードや他のプロバイダー固有機能に影響
+
+#### 組み込みSession Stateアプリ
+
+以下のアプリがコンテキスト管理にSession Stateを使用：
+
+| アプリ | 説明 |
+|-------|------|
+| Chat Plus | 会話コンテキスト（トピック、人物、メモ） |
+| Research Assistant | 研究進捗（発見、ソース、検索履歴） |
+| Math Tutor | 学習進捗（解いた問題、概念、弱点） |
+| Novel Writer | 執筆進捗（プロット、キャラクター、章） |
+| Voice Interpreter | 翻訳コンテキスト |
+| Language Practice Plus | 言語学習フィードバック |
 
 ### プロバイダー固有のアダプター
 

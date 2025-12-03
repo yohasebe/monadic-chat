@@ -3,90 +3,93 @@ app "ChatPlusGrok" do
     en <<~TEXT
     Conversational AI with integrated web search capabilities. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     ウェブ検索機能を統合した会話AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     集成网络搜索功能的对话AI。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     웹 검색 기능이 통합된 대화 AI. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     IA conversacional con capacidades de búsqueda web integradas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     IA conversationnelle avec recherche web intégrée. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Konversations-KI mit integrierten Websuchfunktionen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"
-  
+
   system_prompt <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    You have access to a shared folder at /monadic/data where you can read and write files. Use the available tools to:
-    - List files in the shared folder to see what's available
-    - Read files from the shared folder to access their contents
-    - Write or append text content to files in the shared folder
+    ## Context Tracking
 
-    File operations:
-    - When listing files, you can optionally specify a subdirectory within the shared folder
-    - When reading files, provide the relative path from the shared folder
-    - When writing files, provide the file path (supports subdirectories and Unicode characters, e.g., 'プロジェクト/2025年/レポート.md')
-    - You can choose to either overwrite (mode: "write") or append to existing files (mode: "append")
+    You have session context tools to track conversation information. The context is displayed in the sidebar panel in real-time.
 
-    ## Context Tracking and Response Format (CRITICAL)
-    
-    Every response MUST include two parts:
-    
-    1. **Main Response**: Your regular response to the user with an appropriate emoji at the beginning.
-    
-    2. **Context Summary**: At the end of EVERY response, include a summary in this EXACT format:
-    
-    ---
-    📝 **Context Summary:**
-    - **Topics**: [List ALL topics discussed in the entire conversation so far]
-    - **People**: [List ALL people mentioned and their relationships]
-    - **Notes**: [List ALL user preferences, important dates, locations, events, and key information]
-    - **Reasoning**: [Brief explanation of your thought process for this response]
-    ---
-    
-    This context summary is MANDATORY and helps maintain continuity across the conversation. Each response should accumulate information - never remove items from previous summaries unless explicitly asked.
-    
-    When starting a new conversation, if you see previous context summaries in the history, incorporate ALL that information into your current summary.
+    **When to update context** (use `update_context`):
+    - Topics being discussed → topics parameter
+    - People mentioned → people parameter
+    - Important facts, dates, preferences → notes parameter
 
-    You can also save important conversation context to files in the shared folder for long-term reference.
-TEXT
-  
+    **To remove items**: Use `remove_from_context` or `clear_context`.
+
+    Example:
+    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
+    - User asks about Python → call update_context(topics: ["Python programming"])
+    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+
+    ## File Operations
+
+    You have access to file operations in the shared folder for reading, writing, and listing files.
+
+    When using write_file_to_shared_folder, choose the correct mode:
+    - **mode="append"**: Add to existing content
+    - **mode="write"**: Create new or replace existing content
+
+    ## Guidelines
+    - Be concise yet comprehensive in your responses
+    - Ask clarifying questions when needed
+    - Provide examples and analogies to illustrate complex concepts
+    - Acknowledge uncertainties and limitations honestly
+  TEXT
+
   llm do
     provider "xai"
     model "grok-4-1-fast-reasoning"
-    context_size 100
+    context_size 20
     parallel_function_calling true  # Enable parallel function calling for proper tool execution
   end
-  
+
   display_name "Chat Plus"
-  
+
   features do
     disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false
-    monadic false  # Required for tool execution
+    monadic true  # Enables sidebar context panel for session state tracking
   end
-  
+
+  # Define context fields to track for this app
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"
+    field :people, icon: "fa-users", label: "People", description: "Names of people mentioned"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts and preferences to remember"
+  end
+
   tools do
-    # Import shared file operations tools (always visible - Phase 1)
-    # Phase 2 will evaluate if PTD (visibility: "conditional") provides value
+    # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end
 end

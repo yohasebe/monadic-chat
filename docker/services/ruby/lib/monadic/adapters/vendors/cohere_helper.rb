@@ -3,8 +3,6 @@ require_relative "../../utils/interaction_utils"
 require_relative "../../utils/error_formatter"
 require_relative "../../utils/language_config"
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
-require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/system_defaults"
@@ -14,8 +12,6 @@ require_relative "../../utils/function_call_error_handler"
 module CohereHelper
   include BaseVendorHelper
   include InteractionUtils
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
@@ -35,15 +31,15 @@ module CohereHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    CohereHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    CohereHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    CohereHelper.write_timeout
   end
 
   MAX_RETRIES = 5
@@ -1097,40 +1093,6 @@ module CohereHelper
         }
       end
     end
-    
-    # Apply monadic transformation to the last user message if in monadic mode
-    if obj["monadic"].to_s == "true" && messages.any? && 
-       messages.last["role"] == "user" && role == "user"
-      last_msg = messages.last
-      if last_msg["content"].is_a?(Array)
-        # Handle structured content with images
-        text_content = last_msg["content"].find { |c| c["type"] == "text" }
-        if text_content
-          # Remove prompt suffix to get base message
-          base_message = text_content["text"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
-          # Apply monadic transformation using unified interface
-          monadic_message = apply_monadic_transformation(base_message, app, "user")
-          # Add prompt suffix back using unified system
-          text_content["text"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
-            base_message: monadic_message,
-            session: session,
-            options: { prompt_suffix: obj["prompt_suffix"] }
-          )
-        end
-      else
-        # Handle simple string content
-        # Remove prompt suffix to get base message
-        base_message = messages.last["content"].sub(/\n\n#{Regexp.escape(obj["prompt_suffix"] || "")}$/, "")
-        # Apply monadic transformation using unified interface
-        monadic_message = apply_monadic_transformation(base_message, app, "user")
-        # Add prompt suffix back using unified system
-        messages.last["content"] = Monadic::Utils::SystemPromptInjector.augment_user_message(
-          base_message: monadic_message,
-          session: session,
-          options: { prompt_suffix: obj["prompt_suffix"] }
-        )
-      end
-    end
 
     # SSOT: Resolve capabilities
     begin
@@ -1227,8 +1189,6 @@ module CohereHelper
       end
     end
 
-    # Configure monadic response format using unified interface
-    body = configure_monadic_response(body, :cohere, app)
 
     # Check if we need to switch to vision-capable model (SSOT)
     if messages_containing_img
@@ -1814,16 +1774,8 @@ module CohereHelper
       # Handle regular text response or empty response (e.g., only thinking content)
       
       if result
-        # Apply monadic transformation if enabled
         final_result = result
-        if obj["monadic"] && final_result
-          # Process through unified interface
-          processed = process_monadic_response(final_result, app)
-          # Validate the response
-          validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-          final_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
-        end
-        
+
         # Send DONE message to complete the stream
         res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
         block&.call res
@@ -1991,6 +1943,14 @@ module CohereHelper
       # Execute function and capture result
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: function_name,
+          argument_hash: argument_hash,
+          session: session
+        )
       rescue StandardError => e
         pp "Function execution error: #{e.message}"  # Debug log
         function_return = Monadic::Utils::ErrorFormatter.tool_error(

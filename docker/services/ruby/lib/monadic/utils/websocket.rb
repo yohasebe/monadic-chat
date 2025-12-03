@@ -8,14 +8,18 @@ require 'async'
 require 'async/queue'
 require 'async/websocket/adapters/rack'
 require_relative '../agents/ai_user_agent'
+require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
 require_relative 'ssl_configuration'
 require_relative 'string_utils'
+require_relative '../shared_tools/monadic_session_state'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
 module WebSocketHelper
   include AIUserAgent
+  include ContextExtractorAgent
+  include Monadic::SharedTools::MonadicSessionState
   # Handle websocket connection
 
   # Access Rack session from thread-local storage in WebSocket context
@@ -1705,6 +1709,7 @@ module WebSocketHelper
           session[:messages].clear
           session[:parameters].clear
           session[:progressive_tools]&.clear  # Reset Progressive Tool Disclosure state
+          session[:monadic_state]&.clear  # Reset conversation context for Session Context panel
           session[:error] = nil
           session[:obj] = nil
           sync_session_state!
@@ -1721,6 +1726,8 @@ module WebSocketHelper
           handle_edit_message(connection, obj)
         when "UPDATE_MCP_CONFIG"
           handle_mcp_config_update(connection, obj)
+        when "UPDATE_CONTEXT_FROM_CLIENT"
+          handle_context_update_from_client(connection, obj)
         when "AI_USER_QUERY"
           # Get session ID for targeted broadcasting
           ws_session_id = Thread.current[:websocket_session_id]
@@ -1957,6 +1964,56 @@ module WebSocketHelper
               else
                 WebSocketHelper.broadcast_to_all(info_message)
               end
+
+              # Context extraction for monadic apps (automatic context tracking)
+              # This runs AFTER the response is sent to the user, in a background thread
+              # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
+              if params["monadic"]
+                begin
+                  # Get the provider and context_schema from the app settings
+                  app_name = params["app_name"]
+                  app = APPS[app_name] if defined?(APPS) && app_name
+                  provider = app&.settings&.dig("provider") || app&.settings&.dig(:provider) || "openai"
+                  context_schema = app&.settings&.dig(:context_schema) || app&.settings&.dig("context_schema")
+
+                  # Find the last user message from session messages
+                  user_messages = messages.select { |m| m["role"] == "user" }
+                  last_user_message = user_messages.last
+                  user_text = last_user_message&.dig("text") || ""
+
+                  # Capture session data for thread (avoid closure issues)
+                  thread_session = session.dup
+                  thread_ws_session_id = ws_session_id
+                  thread_context_schema = context_schema
+
+                  # Only extract context if we have both user message and assistant response
+                  if !user_text.empty? && !final_text.to_s.empty?
+                    # Run context extraction in a separate thread to avoid blocking
+                    Thread.new do
+                      begin
+                        process_and_broadcast_context(
+                          thread_session,
+                          user_text,
+                          final_text,
+                          provider,
+                          thread_ws_session_id,
+                          thread_context_schema
+                        )
+                      rescue StandardError => ctx_err
+                        if CONFIG && CONFIG["EXTRA_LOGGING"]
+                          puts "[ContextExtractor] Background error: #{ctx_err.message}"
+                          puts "[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}"
+                        end
+                      end
+                    end
+                  end
+                rescue StandardError => ctx_setup_err
+                  # Don't let context extraction setup errors affect the main flow
+                  if CONFIG && CONFIG["EXTRA_LOGGING"]
+                    puts "[ContextExtractor] Setup error: #{ctx_setup_err.message}"
+                  end
+                end
+              end
             rescue StandardError => e
               STDERR.puts "Error processing request: #{e.message}"
               ws_session_id = Thread.current[:websocket_session_id]
@@ -1976,6 +2033,19 @@ module WebSocketHelper
           end
 
           session[:parameters] ||= {}
+
+          # Check if app is changing - if so, reset conversation context
+          current_app = session[:parameters]["app_name"]
+          new_app = incoming["app_name"]&.to_s
+          if new_app && current_app && new_app != current_app
+            # App is changing - reset conversation context
+            if session[:monadic_state]
+              session[:monadic_state][:conversation_context] = nil
+            end
+            if CONFIG && CONFIG["EXTRA_LOGGING"]
+              puts "[WebSocket] App changed from #{current_app} to #{new_app} - context reset"
+            end
+          end
 
           sanitized = {}
           incoming.each do |key, value|
@@ -2775,8 +2845,19 @@ module WebSocketHelper
                 @tts_thread = nil
               end
 
-              # Get complete text from buffer
-              text = buffer.join
+              # Get TTS text: prefer tts_target extraction (from session[:tts_text]) over full buffer
+              # This allows apps to specify a specific tool parameter for TTS instead of the full response
+              tts_text_from_target = session[:tts_text]
+              text = tts_text_from_target || buffer.join
+
+              # Clear session tts_text after use to avoid reusing on next request
+              session.delete(:tts_text) if tts_text_from_target
+
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}")
+                end
+              end
 
               # Only process if there's actual text
               if text.strip != ""
@@ -2889,31 +2970,9 @@ module WebSocketHelper
 
                 response.dig("choices", 0, "message")["content"] = content
 
-                if obj["auto_speech"] && obj["monadic"]
-                  begin
-                    parsed_content = JSON.parse(content)
-                    message = parsed_content["message"]
-                    
-                    if message && !message.empty?
-                      res_hash = tts_api_request(message,
-                                                provider: provider,
-                                                voice: voice,
-                                                speed: speed,
-                                                response_format: response_format)
-                      # Use captured ws_session_id for session-targeted broadcasting
-                      if res_hash
-                        if ws_session_id
-                          WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
-                        else
-                          WebSocketHelper.broadcast_to_all(res_hash.to_json)
-                        end
-                      end
-                    end
-                  rescue JSON::ParserError => e
-                    # Log the error but don't crash
-                    puts "[TTS] Failed to parse monadic response for TTS: #{e.message}"
-                  end
-                end
+                # Note: TTS for Session State apps is handled via tts_target feature
+                # which extracts text from tool parameters (e.g., save_response message)
+                # and stores it in session[:tts_text], processed earlier in the pipeline
 
                 queue.push(response)
               end
@@ -2977,5 +3036,46 @@ module WebSocketHelper
     end
 
     send_to_client(connection, { "type" => "info", "content" => "MCP configuration updated" })
+  end
+
+  # Handle context update from client sidebar panel
+  # This is called when user edits context directly in the sidebar
+  def handle_context_update_from_client(connection, obj)
+    current_session = session
+    context = obj["context"]
+
+    return unless context.is_a?(Hash)
+
+    # Save context to session state using MonadicSessionState
+    begin
+      # Use the same key as SessionContext module
+      context_key = :conversation_context
+
+      # Save to session state
+      result = JSON.parse(monadic_save_state(key: context_key, payload: context, session: current_session))
+
+      if result["success"]
+        # Broadcast the update back to confirm (session-specific)
+        ws_session_id = Thread.current[:websocket_session_id]
+        message = {
+          "type" => "context_update",
+          "context" => context,
+          "timestamp" => Time.now.to_f
+        }
+
+        if ws_session_id
+          WebSocketHelper.send_to_session(message.to_json, ws_session_id)
+        end
+
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[WebSocket] Context updated from client: #{context.keys.join(', ')}"
+        end
+      else
+        send_to_client(connection, { "type" => "error", "content" => "Failed to save context" })
+      end
+    rescue StandardError => e
+      puts "[WebSocket] Context update error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      send_to_client(connection, { "type" => "error", "content" => "Context update error: #{e.message}" })
+    end
   end
 end

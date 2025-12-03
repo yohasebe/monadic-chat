@@ -712,6 +712,7 @@ require_relative "monadic/utils/error_pattern_detector"
 require_relative "monadic/utils/model_spec_loader"
 require_relative "monadic/utils/language_config"
 require_relative "monadic/utils/selenium_helper"
+require_relative "monadic/utils/tts_text_extractor"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"
@@ -1591,6 +1592,26 @@ get "/api/pdf_storage_defaults" do
   end
 end
 
+# Get monadic_state for export (Session State mechanism)
+get "/monadic_state" do
+  content_type :json
+  if session[:monadic_state]
+    # Convert symbol keys to strings for JSON serialization
+    serializable_state = session[:monadic_state].each_with_object({}) do |(app_key, app_data), result|
+      result[app_key.to_s] = app_data.each_with_object({}) do |(state_key, state_entry), app_result|
+        app_result[state_key.to_s] = {
+          "data" => state_entry[:data],
+          "version" => state_entry[:version],
+          "updated_at" => state_entry[:updated_at]
+        }
+      end
+    end
+    { success: true, monadic_state: serializable_state }.to_json
+  else
+    { success: true, monadic_state: nil }.to_json
+  end
+end
+
 # Upload a Session JSON file to load past messages
 post "/load" do
   # For AJAX requests, respond with JSON
@@ -1626,6 +1647,26 @@ post "/load" do
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"
           session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+        end
+
+        # Restore monadic_state if present in import data (for Session State mechanism)
+        if json_data["monadic_state"]
+          # Convert string keys to symbols for consistency
+          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
+            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
+              app_result[state_key] = {
+                data: state_entry["data"],
+                version: state_entry["version"].to_i,
+                updated_at: state_entry["updated_at"]
+              }
+            end
+          end
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] [Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}"
+            extra_log.close
+          end
         end
 
         # Process messages
@@ -1736,6 +1777,19 @@ post "/load" do
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"
           session[:parameters]["initial_prompt"] = json_data["messages"].first["text"]
+        end
+
+        # Restore monadic_state if present in import data (for Session State mechanism)
+        if json_data["monadic_state"]
+          session[:monadic_state] = json_data["monadic_state"].transform_keys(&:to_s).each_with_object({}) do |(app_key, app_data), result|
+            result[app_key] = app_data.transform_keys(&:to_s).each_with_object({}) do |(state_key, state_entry), app_result|
+              app_result[state_key] = {
+                data: state_entry["data"],
+                version: state_entry["version"].to_i,
+                updated_at: state_entry["updated_at"]
+              }
+            end
+          end
         end
 
         session[:messages] = json_data["messages"].uniq.map do |msg|

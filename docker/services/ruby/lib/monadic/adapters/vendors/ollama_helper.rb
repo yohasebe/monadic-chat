@@ -1,12 +1,8 @@
 require 'http'
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
-require_relative "../../monadic_schema_validator"
 require_relative "../../monadic_performance"
 
 module OllamaHelper
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   OPEN_TIMEOUT = 5
   READ_TIMEOUT = 60
@@ -269,9 +265,6 @@ module OllamaHelper
       }
     }
 
-    # Configure monadic response format using unified interface
-    body = configure_monadic_response(body, :ollama, app)
-
     messages_containing_img = false
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
@@ -314,15 +307,6 @@ module OllamaHelper
     end
 
     if role == "user"
-      # Apply monadic transformation if in monadic mode
-      if obj["monadic"].to_s == "true" && body["messages"].any? && body["messages"].last["role"] == "user"
-        # Get the base message without prompt suffix
-        base_message = body["messages"].last["content"]
-        # Apply monadic transformation using unified interface
-        monadic_message = apply_monadic_transformation(base_message, app, "user")
-        body["messages"].last["content"] = monadic_message
-      end
-
       # Use unified system prompt injector for user message augmentation
       if body["messages"].last && body["messages"].last["content"]
         augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
@@ -440,14 +424,6 @@ module OllamaHelper
       extra_log.puts("Total fragments processed: #{texts.length}")
       extra_log.puts("Final result length: #{result.length}")
       extra_log.close
-    end
-
-    if result && obj["monadic"]
-      # Process through unified interface
-      processed = process_monadic_response(result, app)
-      # Validate the response
-      validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-      result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
     end
 
     if result

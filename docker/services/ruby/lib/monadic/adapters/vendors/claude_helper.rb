@@ -8,8 +8,6 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/system_prompt_injector"
-require_relative "../../monadic_provider_interface"
-require_relative "../../monadic_schema_validator"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 
@@ -18,8 +16,6 @@ module ClaudeHelper
   include InteractionUtils
   include ErrorPatternDetector
   include FunctionCallErrorHandler
-  include MonadicProviderInterface
-  include MonadicSchemaValidator
   include MonadicPerformance
   MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.anthropic.com/v1"
@@ -57,6 +53,59 @@ module ClaudeHelper
 
   # ENV key for emergency override
   LEGACY_MODE_ENV = "CLAUDE_LEGACY_MODE"
+
+  # Convert OpenAI-format tools to Claude format
+  # Claude API requires 'type: "custom"' for custom tools (as of 2025)
+  # OpenAI uses 'type: "function"' with a nested 'function' object
+  def self.convert_tool_to_claude_format(tool)
+    return tool unless tool.is_a?(Hash)
+
+    # Already in Claude format (has type: "custom" or is a native tool)
+    tool_type = tool["type"] || tool[:type]
+    if tool_type == "custom" ||
+       tool_type&.start_with?("web_search") ||
+       tool_type&.start_with?("code_execution") ||
+       tool_type&.start_with?("bash_") ||
+       tool_type&.start_with?("text_editor_") ||
+       tool_type&.start_with?("memory_")
+      return tool
+    end
+
+    # Convert OpenAI format (type: "function" with nested function object)
+    if tool_type == "function" && (tool["function"] || tool[:function])
+      func = tool["function"] || tool[:function]
+      return {
+        "type" => "custom",
+        "name" => func["name"] || func[:name],
+        "description" => func["description"] || func[:description],
+        "input_schema" => func["parameters"] || func[:parameters] || {
+          "type" => "object",
+          "properties" => {},
+          "required" => []
+        }
+      }
+    end
+
+    # Tool has name but wrong type - just fix the type
+    if tool["name"] || tool[:name]
+      converted = tool.dup
+      converted["type"] = "custom"
+      converted.delete(:type)
+
+      # Ensure input_schema exists (Claude requires it)
+      unless converted["input_schema"] || converted[:input_schema]
+        converted["input_schema"] = {
+          "type" => "object",
+          "properties" => {},
+          "required" => []
+        }
+      end
+
+      return converted
+    end
+
+    tool
+  end
 
 
   # Native Anthropic web search tool
@@ -426,7 +475,6 @@ module ClaudeHelper
 
     # Get the parameters from the session
     obj = session[:parameters]
-    @obj = obj  # Set instance variable for monadic_mode? check
     app = obj["app_name"]
     model = obj["model"]
     
@@ -759,12 +807,6 @@ module ClaudeHelper
       # Required for models before Sonnet 4.5 (safe to include for all models)
       beta_headers << "model-context-window-exceeded-2025-08-26"
 
-      # Add beta header for structured outputs if enabled and model supports it
-      if monadic_mode? && Monadic::Utils::ModelSpec.supports_structured_outputs?(obj["model"])
-        beta_header = Monadic::Utils::ModelSpec.get_structured_output_beta(obj["model"])
-        beta_headers << beta_header if beta_header
-      end
-
       # Merge all unique beta headers into comma-separated string
       headers["anthropic-beta"] = beta_headers.uniq.join(",") unless beta_headers.empty?
     rescue StandardError => e
@@ -865,7 +907,9 @@ module ClaudeHelper
           tool_name = tool.dig("name") || tool.dig("function", "name")
           ["tavily_search", "tavily_fetch"].include?(tool_name)
         end
-        final_tools.concat(filtered_param)
+        # Convert OpenAI-format tools to Claude format
+        converted_param = filtered_param.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
+        final_tools.concat(converted_param)
       end
 
       final_tools.concat(filtered_tools)
@@ -879,7 +923,8 @@ module ClaudeHelper
       if final_tools.empty?
         body.delete("tools")
       else
-        body["tools"] = final_tools
+        # Ensure all tools are in Claude format before assignment
+        body["tools"] = final_tools.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
       end
       
       # Add code execution tool if Skills are specified (required for Skills beta)
@@ -958,12 +1003,6 @@ module ClaudeHelper
     messages = context.compact.map do |msg|
       content = { "type" => "text", "text" => msg["text"] }
       { "role" => msg["role"], "content" => [content] }
-    end
-    
-    # Apply monadic transformation to the last user message if in monadic mode
-    if obj["monadic"].to_s == "true" && messages.any? && messages.last["role"] == "user" && role == "user" && message != ""
-      monadic_message = apply_monadic_transformation(obj["message"], app, "user")
-      messages.last["content"][0]["text"] = monadic_message
     end
 
     # Only add a default message for regular chat mode, not for AI User mode
@@ -1129,7 +1168,9 @@ module ClaudeHelper
           tool_name = tool.dig("name") || tool.dig("function", "name")
           ["tavily_search", "tavily_fetch"].include?(tool_name)
         end
-        final_tools.concat(filtered_param)
+        # Convert OpenAI-format tools to Claude format
+        converted_param = filtered_param.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
+        final_tools.concat(converted_param)
       end
       final_tools.concat(filtered_function_tools)
       final_tools.compact!
@@ -1138,23 +1179,21 @@ module ClaudeHelper
       if final_tools.empty?
         body.delete("tools")
       else
-        body["tools"] = final_tools
+        # Ensure all tools are in Claude format before assignment
+        body["tools"] = final_tools.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
       end
-      
+
       # Log for debugging
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Claude processing tool results:")
         extra_log.puts("Tools included: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}")
         if body["tools"]
-          extra_log.puts("Tool names: #{body["tools"].map { |t| t["name"] || t["function"]["name"] }.join(", ")}")
+          extra_log.puts("Tool names: #{body["tools"].map { |t| t["name"] || t.dig("function", "name") }.join(", ")}")
         end
         extra_log.close
       end
     end
-
-    # Configure monadic response format
-    body = configure_monadic_response(body, :claude, app)
 
     # Capability audit (optional)
     if CONFIG["EXTRA_LOGGING"]
@@ -1196,9 +1235,6 @@ module ClaudeHelper
       end
     end
 
-    # Configure monadic response format if enabled
-    configure_monadic_response(body, :claude, app, false)
-
     # Call the API
     begin
       target_uri = "#{API_ENDPOINT}/messages"
@@ -1219,7 +1255,6 @@ module ClaudeHelper
         end
         extra_log.puts("  anthropic-version: #{headers["anthropic-version"]}")
         extra_log.puts("  Model: #{body["model"]}")
-        extra_log.puts("  Monadic mode: #{monadic_mode?}")
         extra_log.puts("  Thinking mode: #{body["thinking"] ? "enabled" : "disabled"}")
         extra_log.puts("  Output format present: #{body["output_format"] ? "yes" : "no"}")
         if body["output_format"]
@@ -1759,18 +1794,6 @@ module ClaudeHelper
         return [{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }]
       end
 
-      # Apply monadic transformation if enabled
-      if text_result && obj["monadic"]
-        # Process through unified interface
-        processed = process_monadic_response(text_result, app)
-        # Validate the response
-        validated = validate_monadic_response!(processed, app.to_s.include?("chat_plus") ? :chat_plus : :basic)
-        # IMPORTANT: Preserve full JSON structure for monadic apps (message + context)
-        # This ensures UI cards display context information correctly
-        # Same approach as OpenAI helper
-        text_result = validated.is_a?(Hash) ? JSON.generate(validated) : validated
-      end
-
       # Send completion message
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
@@ -1915,6 +1938,14 @@ module ClaudeHelper
         if CONFIG["EXTRA_LOGGING"]
           puts "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}"
         end
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: tool_name,
+          argument_hash: argument_hash,
+          session: session
+        )
       rescue => e
         if CONFIG["EXTRA_LOGGING"]
           extra_log.puts("ERROR calling function: #{e.class} - #{e.message}")

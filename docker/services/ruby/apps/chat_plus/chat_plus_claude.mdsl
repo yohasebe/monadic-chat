@@ -1,59 +1,74 @@
 app "ChatPlusClaude" do
   description do
     en <<~TEXT
-    Conversational AI with structured context tracking using Claude's structured outputs. Maintains conversation history with reasoning traces, topic tracking, and memory persistence. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Conversational AI with structured context tracking using Claude. Maintains conversation history with reasoning traces, topic tracking, and memory persistence. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ja <<~TEXT
-    Claude構造化出力を使用した文脈追跡機能付き会話AI。推論過程の記録、トピック追跡、記憶の永続化により、自然で一貫性のある対話を実現します。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Claudeを使用した文脈追跡機能付き会話AI。推論過程の記録、トピック追跡、記憶の永続化により、自然で一貫性のある対話を実現します。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     zh <<~TEXT
-    使用Claude结构化输出的具有结构化上下文跟踪的对话AI。维护带有推理痕迹、主题跟踪和记忆持久化的对话历史。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    使用Claude的具有结构化上下文跟踪的对话AI。维护带有推理痕迹、主题跟踪和记忆持久化的对话历史。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     ko <<~TEXT
-    Claude 구조화 출력을 사용한 구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 추론 추적, 주제 추적 및 메모리 지속성으로 대화 기록을 유지합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Claude를 사용한 구조화된 컨텍스트 추적 기능이 있는 대화형 AI. 추론 추적, 주제 추적 및 메모리 지속성으로 대화 기록을 유지합니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     es <<~TEXT
-    IA conversacional con seguimiento de contexto estructurado usando salidas estructuradas de Claude. Mantiene el historial de conversación con trazas de razonamiento, seguimiento de temas y persistencia de memoria. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversacional con seguimiento de contexto estructurado usando Claude. Mantiene el historial de conversación con trazas de razonamiento, seguimiento de temas y persistencia de memoria. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     fr <<~TEXT
-    IA conversationnelle avec suivi de contexte structuré utilisant les sorties structurées de Claude. Maintient l'historique des conversations avec des traces de raisonnement, le suivi des sujets et la persistance de la mémoire. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle avec suivi de contexte structuré utilisant Claude. Maintient l'historique des conversations avec des traces de raisonnement, le suivi des sujets et la persistance de la mémoire. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
 
     de <<~TEXT
-    Konversations-KI mit strukturiertem Kontextverfolgung unter Verwendung strukturierter Claude-Ausgaben. Verwaltet Konversationshistorie mit Begründungsspuren, Themenverfolgung und Speicherbeständigkeit. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    Konversations-KI mit strukturiertem Kontextverfolgung unter Verwendung von Claude. Verwaltet Konversationshistorie mit Begründungsspuren, Themenverfolgung und Speicherbeständigkeit. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"
-  
+
   system_prompt <<~TEXT
     You are a friendly and professional consultant with deep knowledge across various domains. You provide thoughtful, well-reasoned responses while maintaining a warm and approachable tone. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    While keeping the conversation going, you take structured notes on various aspects of the conversation:
-    - **reasoning**: Your thought process and reasoning behind responses
-    - **topics**: Key subjects and themes discussed
-    - **people**: Individuals mentioned and their relationships
-    - **notes**: Important information and insights to remember
+    ## Context Tracking
 
-    You should update these notes as the conversation progresses, maintaining context awareness and continuity across multiple exchanges.
+    You have session context tools to track conversation information. The context is displayed in the sidebar panel in real-time.
+
+    **When to update context** (use `update_context`):
+    - Topics being discussed → topics parameter
+    - People mentioned → people parameter
+    - Important facts, dates, preferences → notes parameter
+
+    **To remove items**: Use `remove_from_context` or `clear_context`.
+
+    Example:
+    - User mentions "I'm John, a software engineer" → call update_context(people: ["John - software engineer"])
+    - User asks about Python → call update_context(topics: ["Python programming"])
+    - User says "remember I prefer dark mode" → call update_context(notes: ["User prefers dark mode"])
+
+    ## File Operations
+
+    You have access to file operations in the shared folder for reading, writing, and listing files.
+
+    When using write_file_to_shared_folder, choose the correct mode:
+    - **mode="append"**: Add to existing content
+    - **mode="write"**: Create new or replace existing content
 
     ## Guidelines
     - Be concise yet comprehensive in your responses
     - Ask clarifying questions when needed
     - Provide examples and analogies to illustrate complex concepts
     - Acknowledge uncertainties and limitations honestly
-    - Build upon previous conversation context naturally
-TEXT
-  
+  TEXT
+
   llm do
     provider "anthropic"
     model ["claude-sonnet-4-5-20250929", "claude-opus-4-20250514"]
     temperature 0.7
-    context_size 100
+    context_size 20
   end
 
   display_name "Chat Plus"
@@ -63,8 +78,20 @@ TEXT
     easy_submit true
     auto_speech false
     initiate_from_assistant false
-    monadic true
+    monadic true  # Enables sidebar context panel for session state tracking
     image_generation "disabled"
     group "Anthropic"
+  end
+
+  # Define context fields to track for this app
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"
+    field :people, icon: "fa-users", label: "People", description: "Names of people mentioned"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts and preferences to remember"
+  end
+
+  tools do
+    # Import shared file operations tools
+    import_shared_tools :file_operations, visibility: "always"
   end
 end

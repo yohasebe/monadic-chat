@@ -3,133 +3,83 @@ app "ChatPlusOpenAI" do
     en <<~TEXT
     Conversational AI grounded in your PDFs. Import and persist documents locally or in OpenAI's Vector Store, then chat with citations from their contents. Web search is optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     PDFを知識ベースとして会話するAI。文書をローカルまたはOpenAIのVector Storeに保存し、内容に基づいて（出典付きで）回答します。ウェブ検索は任意で有効化できます。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     以您的PDF为知识基础的对话AI。将文档持久化到本地或OpenAI向量存储，并基于其内容（附引用）进行对话；网页搜索为可选。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     PDF를 지식 기반으로 사용하는 대화형 AI. 문서를 로컬 또는 OpenAI Vector Store에 저장하고, 그 내용에 근거해 인용과 함께 대화합니다. 웹 검색은 선택 사항입니다. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     IA conversacional basada en tus PDF. Importa y guarda documentos localmente o en el Vector Store de OpenAI, y conversa citando su contenido. La búsqueda web es opcional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
-    IA conversationnelle ancrée dans vos PDF. Importez et conservez vos documents en local ou dans le Vector Store d’OpenAI, puis discutez en citant leur contenu. La recherche web est optionnelle. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    IA conversationnelle ancrée dans vos PDF. Importez et conservez vos documents en local ou dans le Vector Store d'OpenAI, puis discutez en citant leur contenu. La recherche web est optionnelle. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Konversations-KI, die auf Ihren PDFs basiert. Dokumente lokal oder im OpenAI Vector Store speichern und mit Zitaten aus deren Inhalten chatten. Websuche ist optional. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=chat-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "chat-plus"
-  
+
   system_prompt <<~TEXT
     You are a friendly and professional consultant with real-time, up-to-date information about almost anything. You are able to answer various types of questions, write computer program code, make decent suggestions, and give helpful advice in response to a prompt from the user. If the prompt is not clear enough, ask the user to rephrase it. Insert an emoji that you deem appropriate for the user's input at the beginning of your response.
 
-    While keeping the conversation going, you take notes on various aspects of the conversation, such as the topics discussed, the people mentioned, and other important information provided by the user. You should update these notes as the conversation progresses.
-
     ## File Operations
-    You have access to file operations in the shared folder. Use these capabilities when:
-    - The user explicitly asks to read, write, or list files
-    - You need to save important information for later use
-    - The user wants to manage documents or data files
-    
-    ### CRITICAL: File Writing Mode Selection
-    When using write_file_to_shared_folder, you MUST carefully choose the correct mode based on user intent:
-    
-    **Use mode="append" when the user indicates they want to:**
-    - Add content to an existing file
-    - Continue or extend existing content
-    - Append, accumulate, or supplement data
-    - Keep existing content and add more
-    - Update a log or diary with new entries
-    
-    **Use mode="write" (default) when the user indicates they want to:**
-    - Create a new file
-    - Replace or overwrite existing content
-    - Start fresh or begin anew
-    - Discard old content
-    
-    **IMPORTANT**: Analyze the user's intent carefully regardless of their language. If they want to ADD to existing content, use mode="append". Never overwrite existing content unless explicitly requested.
-    
-    ### Examples of Correct Usage:
-    - User wants to add today's results to a log file → Use mode="append"
-    - User wants to add notes to an existing document → Use mode="append"
-    - User wants to continue writing in a file → Use mode="append"
-    - User wants to create a new report → Use mode="write"
-    - User wants to replace old configuration → Use mode="write"
-    
-    ### Before Writing:
-    1. Check if the file exists using list_files_in_shared_folder or read_file_from_shared_folder
-    2. If it exists and user wants to add content, use mode="append"
-    3. If creating new or replacing, use mode="write"
-    
-    Only use file operation tools when explicitly requested or clearly necessary for the task.
 
-    When you use tools:
-    1. Execute the tool to get the result
-    2. Include the tool result in your response message
-    3. ALWAYS maintain the JSON structure in your final response
-    4. Your response after tool execution MUST still be valid JSON
+    You have access to file operations in the shared folder for reading, writing, and listing files.
 
-    Remember that the list items in the context object should be "accumulated" - do not remove any items from the list unless the user explicitly asks you to do so.
-
-    ## CRITICAL: Response Format (ALWAYS REQUIRED)
-    Your response MUST be a valid JSON object with this exact structure:
-    {
-      "message": "Your response to the user (including tool results if any)",
-      "context": {
-        "reasoning": "The reasoning and thought process behind your response",
-        "topics": ["topic1", "topic2", ...],
-        "people": ["person1 and their relationship", ...],
-        "notes": ["important information", "dates", "preferences", ...]
-      }
-    }
-    
-    Always respond with valid JSON. The message field contains your response (including any tool results), and context tracks the conversation state.
-    
-    NEVER respond with plain text. ALWAYS use the JSON structure above, even after using tools.
+    When using write_file_to_shared_folder, choose the correct mode:
+    - **mode="append"**: Add to existing content
+    - **mode="write"**: Create new or replace existing content
 
     ## PDF Document Search
+
     You have access to PDF documents through two storage systems:
     1) Local PDF Database — via the tools: find_closest_doc, find_closest_text, list_titles, get_text_snippet, get_text_snippets
     2) Cloud Vector Store (OpenAI) — via the file_search tool when available
 
-    When the user asks about PDF content or documents:
-    - If the file_search tool is available, try it first to search across uploaded PDFs in the cloud
-    - If file_search returns no relevant results or is not available, use the local PDF tools
-    - Call at most ONCE per source for a given user request. Avoid repeated or looping searches
-    - Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position
+    When the user asks about PDF content:
+    - If file_search tool is available, try it first
+    - If no results or not available, use local PDF tools
+    - Call at most ONCE per source for a given request
+    - Include citation footer with Doc Title, Snippet tokens, and position
   TEXT
-  
+
   llm do
     provider "openai"
     model ["gpt-5.1", "gpt-4.1"]
     reasoning_effort "minimal"
-    context_size 100
+    context_size 20
   end
-  
+
   display_name "Chat Plus"
-  
+
   features do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
     pdf_vector_storage true
-    monadic true
-    # enhanced_monadic_html true  # Temporarily disabled
+    monadic true  # Enables sidebar context panel for session state tracking
   end
-  
+
+  # Define context fields to track for this app
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects discussed in conversation"
+    field :people, icon: "fa-users", label: "People", description: "Names of people mentioned"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts and preferences to remember"
+  end
+
   tools do
-    # Import shared file operations tools (always visible for now - Phase 1)
-    # Phase 2 will evaluate if PTD (visibility: "conditional") provides value
+    # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end
 end

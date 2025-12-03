@@ -3802,3 +3802,172 @@ i.fas.fa-bolt,
     line-height: 1.75rem !important;
   }
 }
+
+/* ============================================
+   Context Panel Styles
+   ============================================ */
+
+#context-panel {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.context-section {
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: var(--border-radius, 4px);
+  overflow: hidden;
+}
+
+.context-section-header {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  transition: background-color var(--transition-fast, 200ms) ease;
+  user-select: none;
+}
+
+.context-section-header:hover {
+  background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.context-section-header i.toggle-icon {
+  transition: transform var(--transition-fast, 200ms) ease;
+}
+
+.context-section.collapsed .context-section-header i.toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.context-section-content {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.context-section.collapsed .context-section-content {
+  display: none;
+}
+
+.context-item {
+  padding: 0.25rem 0.5rem;
+  margin: 0.25rem 0;
+  background: var(--bs-body-bg, #fff);
+  border: 1px solid var(--bs-border-color-translucent, rgba(0,0,0,0.1));
+  border-radius: var(--border-radius, 4px);
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+.context-items-list {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--bs-body-color, #212529);
+  word-break: break-word;
+}
+
+.context-badge {
+  font-size: 0.7rem;
+  min-width: 1.25rem;
+}
+
+/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
+.dark-theme #context-panel .context-section {
+  border-color: #495057 !important;
+  background: #1a1d20 !important;
+}
+
+.dark-theme #context-panel .context-section-header {
+  background: #2b3035 !important;
+}
+
+.dark-theme #context-panel .context-section-header span {
+  color: #dee2e6 !important;
+}
+
+.dark-theme #context-panel .context-section-header:hover {
+  background: #3a4045 !important;
+}
+
+.dark-theme #context-panel .context-section-header i {
+  color: #adb5bd !important;
+}
+
+.dark-theme #context-panel .context-section-content {
+  background: #1a1d20 !important;
+  border-top-color: #495057 !important;
+}
+
+.dark-theme #context-panel .context-section-content div {
+  color: #dee2e6 !important;
+}
+
+.dark-theme #context-panel .context-item {
+  background: #212529 !important;
+}
+
+.dark-theme #context-panel .context-items-list {
+  color: #dee2e6 !important;
+}
+
+.dark-theme #context-panel .context-badge {
+  background-color: #6c757d !important;
+  color: #fff !important;
+}
+
+.dark-theme #context-panel #context-legend {
+  color: #adb5bd !important;
+}
+
+.dark-theme #context-panel #context-legend span {
+  color: #adb5bd !important;
+}
+
+/* Context Panel Turn Grouping */
+.context-items-grouped {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.context-turn-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.context-turn-group.with-separator {
+  border-top: 1px dashed var(--bs-border-color, #dee2e6);
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.context-turn-label {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color, #6c757d);
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.context-turn-items {
+  flex-grow: 1;
+  color: var(--bs-body-color);
+}
+
+/* Dark mode for turn grouping */
+.dark-theme #context-panel .context-turn-label {
+  background: #343a40 !important;
+  color: #adb5bd !important;
+}
+
+.dark-theme #context-panel .context-turn-items {
+  color: #dee2e6 !important;
+}
+
+.dark-theme #context-panel .context-turn-group.with-separator {
+  border-top-color: #495057 !important;
+}

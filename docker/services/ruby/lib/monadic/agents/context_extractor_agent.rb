@@ -1,0 +1,665 @@
+# frozen_string_literal: true
+
+require_relative "../utils/system_defaults"
+require "net/http"
+require "uri"
+require "json"
+
+# Context Extractor Agent
+# Automatically extracts conversation context after each response for apps with monadic: true setting
+# Now supports app-specific context schemas defined in MDSL via context_schema block
+#
+# IMPORTANT: This module uses direct HTTP API calls instead of send_query to avoid
+# re-triggering the WebSocket message flow, which would cause infinite loops.
+module ContextExtractorAgent
+  # Default schema for apps without explicit context_schema
+  DEFAULT_SCHEMA = {
+    fields: [
+      { name: "topics", icon: "fa-tags", label: "Topics", description: "Main subjects discussed" },
+      { name: "people", icon: "fa-users", label: "People", description: "Names of people mentioned" },
+      { name: "notes", icon: "fa-sticky-note", label: "Notes", description: "Important facts to remember" }
+    ]
+  }.freeze
+
+  # Build dynamic extraction prompt based on context schema
+  # @param schema [Hash] The context schema
+  # @param language [String] The conversation language code (e.g., "ja", "en", "auto")
+  def build_extraction_prompt(schema, language = nil)
+    fields = schema[:fields] || schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    field_descriptions = fields.map do |field|
+      name = field[:name] || field["name"]
+      desc = field[:description] || field["description"]
+      "- #{name}: #{desc} (brief phrases, 2-5 words each)"
+    end.join("\n")
+
+    json_example = fields.map do |field|
+      name = field[:name] || field["name"]
+      "\"#{name}\":[\"example1\",\"example2\"]"
+    end.join(",")
+
+    # Build language instruction
+    language_instruction = if language && language != "auto"
+      lang_name = case language
+        when "ja" then "Japanese"
+        when "zh" then "Chinese"
+        when "ko" then "Korean"
+        when "es" then "Spanish"
+        when "fr" then "French"
+        when "de" then "German"
+        else language.upcase
+      end
+      "- Output all extracted items in #{lang_name} to match the conversation language"
+    else
+      "- Match the language of extracted items to the dominant language of the conversation"
+    end
+
+    <<~PROMPT
+      You are a context extraction assistant. Analyze the conversation and extract key information.
+
+      Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
+      {#{json_example}}
+
+      Fields to extract:
+      #{field_descriptions}
+
+      Rules:
+      - Include only NEW information from this exchange
+      - Use empty arrays [] for categories with no new information
+      - Keep items concise and relevant
+      #{language_instruction}
+      - IMPORTANT: Normalize and deduplicate entities - do not include variations of the same item
+        - For people: Use the most complete or formal name mentioned (e.g., "田中太郎" not both "田中" and "田中太郎")
+        - For topics: Use canonical form without honorifics or casual variations
+        - For any category: If two items refer to the same entity, include only one
+    PROMPT
+  end
+
+  # API endpoints for different providers
+  API_ENDPOINTS = {
+    "openai" => "https://api.openai.com/v1/chat/completions",
+    "anthropic" => "https://api.anthropic.com/v1/messages",
+    "gemini" => "https://generativelanguage.googleapis.com/v1beta/models/%{model}:generateContent",
+    "xai" => "https://api.x.ai/v1/chat/completions",
+    "mistral" => "https://api.mistral.ai/v1/chat/completions",
+    "cohere" => "https://api.cohere.ai/v2/chat",
+    "deepseek" => "https://api.deepseek.com/v1/chat/completions",
+    "ollama" => "http://ollama:11434/api/chat"
+  }.freeze
+
+  # Extract context from a conversation exchange using direct HTTP API calls
+  # @param session [Hash] The session information
+  # @param user_message [String] The user's message
+  # @param assistant_response [String] The assistant's response
+  # @param provider [String] The AI provider to use
+  # @param schema [Hash] The context schema defining fields to extract (optional)
+  # @param language [String] The conversation language code (optional)
+  # @return [Hash, nil] Extracted context or nil on failure
+  def extract_context(session, user_message, assistant_response, provider, schema = nil, language = nil)
+    provider = normalize_provider(provider)
+    model = SystemDefaults.get_default_model(provider)
+
+    # For Ollama, try to get the first available model if no default is configured
+    if model.nil? && provider == "ollama"
+      model = get_ollama_fallback_model
+    end
+
+    return nil unless model
+
+    # Check API key availability (Ollama doesn't need API key)
+    api_key = get_api_key_for_provider(provider)
+    return nil unless api_key || provider == "ollama"
+
+    # Use provided schema or default
+    effective_schema = schema || DEFAULT_SCHEMA
+
+    # Build the extraction prompt dynamically with language support
+    extraction_prompt = build_extraction_prompt(effective_schema, language)
+
+    conversation_text = <<~TEXT
+      User: #{user_message}
+
+      Assistant: #{assistant_response}
+    TEXT
+
+    system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
+
+    begin
+      result = call_provider_api(provider, model, system_message, api_key)
+
+      if result.is_a?(String) && !result.empty?
+        parse_context_json(result, effective_schema)
+      else
+        nil
+      end
+    rescue StandardError => e
+      log_extraction_error(provider, model, e)
+      nil
+    end
+  end
+
+  # Make direct HTTP API call to the provider
+  # @param provider [String] The provider name
+  # @param model [String] The model to use
+  # @param system_message [String] The system message containing the prompt
+  # @param api_key [String] The API key (nil for Ollama)
+  # @return [String, nil] The response text or nil
+  def call_provider_api(provider, model, system_message, api_key)
+    case provider
+    when "openai", "xai", "mistral", "deepseek"
+      call_openai_compatible_api(provider, model, system_message, api_key)
+    when "anthropic"
+      call_anthropic_api(model, system_message, api_key)
+    when "gemini"
+      call_gemini_api(model, system_message, api_key)
+    when "cohere"
+      call_cohere_api(model, system_message, api_key)
+    when "ollama"
+      call_ollama_api(model, system_message)
+    else
+      # Default to OpenAI-compatible format
+      call_openai_compatible_api(provider, model, system_message, api_key)
+    end
+  end
+
+  # Call OpenAI-compatible API (OpenAI, xAI, Mistral, DeepSeek)
+  def call_openai_compatible_api(provider, model, system_message, api_key)
+    endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS["openai"]
+    uri = URI.parse(endpoint)
+
+    request_body = {
+      "model" => model,
+      "messages" => [
+        { "role" => "system", "content" => system_message },
+        { "role" => "user", "content" => "Extract context and return JSON only." }
+      ]
+    }
+
+    # Handle OpenAI-specific parameters based on model
+    if provider == "openai"
+      request_body["max_completion_tokens"] = 500
+
+      # GPT-5 and GPT-5.1 don't support temperature, use reasoning_effort instead
+      if model.start_with?("gpt-5")
+        # gpt-5.1 should use "none", gpt-5 should use "minimal"
+        request_body["reasoning_effort"] = model.include?("5.1") ? "none" : "minimal"
+      else
+        # Other OpenAI models (gpt-4.1, etc.) support temperature
+        request_body["temperature"] = 0.3
+      end
+    else
+      # Other providers (xAI, Mistral, DeepSeek) use max_tokens and temperature
+      request_body["max_tokens"] = 500
+      request_body["temperature"] = 0.3
+    end
+
+    response = make_http_request(uri, request_body, {
+      "Authorization" => "Bearer #{api_key}",
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+    data.dig("choices", 0, "message", "content")
+  rescue StandardError => e
+    puts "[ContextExtractor] OpenAI-compatible API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Call Anthropic API
+  def call_anthropic_api(model, system_message, api_key)
+    uri = URI.parse(API_ENDPOINTS["anthropic"])
+
+    request_body = {
+      "model" => model,
+      "system" => system_message,
+      "messages" => [
+        { "role" => "user", "content" => "Extract context and return JSON only." }
+      ],
+      "max_tokens" => 500,
+      "temperature" => 0.3
+    }
+
+    response = make_http_request(uri, request_body, {
+      "x-api-key" => api_key,
+      "anthropic-version" => "2023-06-01",
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+    content = data.dig("content", 0)
+    content["text"] if content && content["type"] == "text"
+  rescue StandardError => e
+    puts "[ContextExtractor] Anthropic API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Call Gemini API
+  def call_gemini_api(model, system_message, api_key)
+    endpoint = API_ENDPOINTS["gemini"] % { model: model }
+    uri = URI.parse("#{endpoint}?key=#{api_key}")
+
+    request_body = {
+      "contents" => [
+        {
+          "parts" => [
+            { "text" => "#{system_message}\n\nExtract context and return JSON only." }
+          ]
+        }
+      ],
+      "generationConfig" => {
+        "maxOutputTokens" => 500,
+        "temperature" => 0.3
+      }
+    }
+
+    response = make_http_request(uri, request_body, {
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+    data.dig("candidates", 0, "content", "parts", 0, "text")
+  rescue StandardError => e
+    puts "[ContextExtractor] Gemini API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Call Cohere API
+  def call_cohere_api(model, system_message, api_key)
+    uri = URI.parse(API_ENDPOINTS["cohere"])
+
+    request_body = {
+      "model" => model,
+      "messages" => [
+        { "role" => "system", "content" => system_message },
+        { "role" => "user", "content" => "Extract context and return JSON only." }
+      ],
+      "max_tokens" => 500,
+      "temperature" => 0.3
+    }
+
+    response = make_http_request(uri, request_body, {
+      "Authorization" => "Bearer #{api_key}",
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+    data.dig("message", "content", 0, "text")
+  rescue StandardError => e
+    puts "[ContextExtractor] Cohere API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Call Ollama API (local, no API key required)
+  def call_ollama_api(model, system_message)
+    uri = URI.parse(API_ENDPOINTS["ollama"])
+
+    request_body = {
+      "model" => model,
+      "messages" => [
+        { "role" => "system", "content" => system_message },
+        { "role" => "user", "content" => "Extract context and return JSON only." }
+      ],
+      "stream" => false,
+      "options" => {
+        "temperature" => 0.3
+      }
+    }
+
+    # Ollama uses HTTP (local), not HTTPS
+    response = make_http_request_local(uri, request_body, {
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+    data.dig("message", "content")
+  rescue StandardError => e
+    puts "[ContextExtractor] Ollama API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Make HTTP request with timeout (HTTPS)
+  def make_http_request(uri, body, headers)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    http.open_timeout = 10
+    http.read_timeout = 30
+
+    request = Net::HTTP::Post.new(uri.request_uri)
+    headers.each { |key, value| request[key] = value }
+    request.body = body.to_json
+
+    response = http.request(request)
+
+    if response.code.to_i >= 200 && response.code.to_i < 300
+      response.body
+    else
+      puts "[ContextExtractor] HTTP error #{response.code}: #{response.body[0..200]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      nil
+    end
+  rescue StandardError => e
+    puts "[ContextExtractor] HTTP request error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Make HTTP request with timeout (HTTP, no SSL - for local services like Ollama)
+  def make_http_request_local(uri, body, headers)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = false
+    http.open_timeout = 10
+    http.read_timeout = 60  # Longer timeout for local models
+
+    request = Net::HTTP::Post.new(uri.request_uri)
+    headers.each { |key, value| request[key] = value }
+    request.body = body.to_json
+
+    response = http.request(request)
+
+    if response.code.to_i >= 200 && response.code.to_i < 300
+      response.body
+    else
+      puts "[ContextExtractor] Local HTTP error #{response.code}: #{response.body[0..200]}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+      nil
+    end
+  rescue StandardError => e
+    puts "[ContextExtractor] Local HTTP request error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Get API key for provider
+  def get_api_key_for_provider(provider)
+    return nil unless defined?(CONFIG)
+
+    key = case provider.to_s.downcase
+    when "openai" then CONFIG["OPENAI_API_KEY"]
+    when "anthropic" then CONFIG["ANTHROPIC_API_KEY"]
+    when "gemini" then CONFIG["GEMINI_API_KEY"]
+    when "xai" then CONFIG["XAI_API_KEY"]
+    when "mistral" then CONFIG["MISTRAL_API_KEY"]
+    when "cohere" then CONFIG["COHERE_API_KEY"]
+    when "deepseek" then CONFIG["DEEPSEEK_API_KEY"]
+    else nil
+    end
+
+    key&.to_s&.strip&.empty? ? nil : key
+  end
+
+  # Get fallback model for Ollama when no default is configured
+  def get_ollama_fallback_model
+    if defined?(OllamaHelper) && OllamaHelper.respond_to?(:list_models)
+      models = OllamaHelper.list_models
+      models&.first
+    else
+      # Fallback to a common default
+      "llama3.2:3b"
+    end
+  rescue StandardError => e
+    puts "[ContextExtractor] Error getting Ollama models: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Process context extraction after a response and broadcast to sidebar
+  # @param session [Hash] The session information
+  # @param user_message [String] The user's message
+  # @param assistant_response [String] The assistant's response
+  # @param provider [String] The AI provider
+  # @param session_id [String] WebSocket session ID for broadcasting
+  # @param schema [Hash] The context schema defining fields to extract (optional)
+  def process_and_broadcast_context(session, user_message, assistant_response, provider, session_id, schema = nil)
+    return unless session_id
+
+    effective_schema = schema || DEFAULT_SCHEMA
+
+    # Extract conversation language from session runtime settings
+    language = session.dig(:runtime_settings, :language) || session.dig("runtime_settings", "language")
+
+    context = extract_context(session, user_message, assistant_response, provider, effective_schema, language)
+    return unless context
+
+    # Check if there's any actual content to broadcast (dynamic field check)
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+    field_names = fields.map { |f| f[:name] || f["name"] }
+    has_content = field_names.any? { |name| context[name]&.any? }
+    return unless has_content
+
+    # Merge with existing context from session (using dynamic schema)
+    merged_context = merge_with_session_context(session, context, effective_schema)
+
+    # Broadcast to sidebar via WebSocket (include schema for frontend rendering)
+    broadcast_context_update(session_id, merged_context, effective_schema)
+
+    # Also save to session state
+    save_context_to_session(session, merged_context)
+
+    log_extraction_success(provider, merged_context, effective_schema) if CONFIG && CONFIG["EXTRA_LOGGING"]
+  end
+
+  private
+
+  # Normalize provider name
+  def normalize_provider(provider)
+    return "openai" if provider.nil? || provider.empty?
+
+    case provider.to_s.downcase
+    when /anthropic|claude/
+      "anthropic"
+    when /gemini|google/
+      "gemini"
+    when /grok|xai/
+      "xai"
+    else
+      provider.to_s.downcase
+    end
+  end
+
+  # Parse JSON from LLM response (handles markdown code blocks)
+  # @param text [String] The raw response text
+  # @param schema [Hash] The context schema defining expected fields
+  def parse_context_json(text, schema = nil)
+    # Remove markdown code blocks if present
+    cleaned = text.gsub(/```json\s*/i, "").gsub(/```\s*/, "").strip
+
+    # Try to find JSON object in the text
+    if match = cleaned.match(/\{[^{}]*\}/m)
+      cleaned = match[0]
+    end
+
+    parsed = JSON.parse(cleaned)
+
+    # Get field names from schema
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    # Build result with all schema fields
+    result = {}
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      result[name] = Array(parsed[name]).map(&:to_s).reject(&:empty?)
+    end
+
+    result
+  rescue JSON::ParserError => e
+    puts "[ContextExtractor] JSON parse error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Check if two text items are similar (one contains the other or are variations)
+  # @param text1 [String] First text
+  # @param text2 [String] Second text
+  # @return [Boolean] True if items are similar variations
+  def similar_items?(text1, text2)
+    return true if text1 == text2
+
+    t1 = text1.to_s.strip
+    t2 = text2.to_s.strip
+
+    return false if t1.empty? || t2.empty?
+
+    # Check if one contains the other (handles "かんたろう" vs "かんたろうさん")
+    return true if t1.include?(t2) || t2.include?(t1)
+
+    # Check for common Japanese honorific variations
+    # Remove common suffixes and compare
+    stripped1 = t1.gsub(/[さんくんちゃん様氏]$/, "")
+    stripped2 = t2.gsub(/[さんくんちゃん様氏]$/, "")
+    return true if stripped1 == stripped2 && !stripped1.empty?
+
+    false
+  end
+
+  # Find if a new item is similar to any existing item
+  # @param new_text [String] The new text to check
+  # @param existing_items [Array] Existing items to compare against
+  # @return [Hash, nil] The similar existing item, or nil if none found
+  def find_similar_existing(new_text, existing_items)
+    existing_items.find do |item|
+      existing_text = item.is_a?(Hash) ? item["text"] : item.to_s
+      similar_items?(new_text, existing_text)
+    end
+  end
+
+  # Merge new context with existing session context
+  # @param session [Hash] The session
+  # @param new_context [Hash] The new extracted context
+  # @param schema [Hash] The context schema defining expected fields
+  def merge_with_session_context(session, new_context, schema = nil)
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    # Build empty defaults based on schema
+    defaults = { "_turn_count" => 0 }
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      defaults[name] = []
+    end
+
+    existing = get_session_context(session) || defaults
+
+    # Increment turn count
+    current_turn = (existing["_turn_count"] || 0) + 1
+
+    # Merge each field with turn information
+    result = { "_turn_count" => current_turn }
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      existing_items = existing[name] || []
+
+      # Convert new items to turn-aware format
+      new_items = (new_context[name] || []).map do |item|
+        if item.is_a?(Hash) && item["text"]
+          item  # Already in new format
+        else
+          { "text" => item.to_s, "turn" => current_turn }
+        end
+      end
+
+      # Normalize existing items to new format if needed
+      normalized_existing = existing_items.map do |item|
+        if item.is_a?(Hash) && item["text"]
+          item
+        else
+          { "text" => item.to_s, "turn" => item.is_a?(Hash) ? (item["turn"] || 1) : 1 }
+        end
+      end
+
+      # Merge with existing items (avoid duplicates and similar variations)
+      unique_new_items = []
+      new_items.each do |new_item|
+        new_text = new_item["text"]
+        similar = find_similar_existing(new_text, normalized_existing + unique_new_items)
+
+        if similar.nil?
+          # No similar item found, add as new
+          unique_new_items << new_item
+        else
+          # Found similar item - if new one is longer/more complete, replace
+          similar_text = similar["text"]
+          if new_text.length > similar_text.length
+            # Replace the shorter version with the longer one
+            if normalized_existing.include?(similar)
+              normalized_existing.delete(similar)
+              normalized_existing << { "text" => new_text, "turn" => similar["turn"] }
+            elsif unique_new_items.include?(similar)
+              unique_new_items.delete(similar)
+              unique_new_items << new_item
+            end
+          end
+          # Otherwise keep the existing longer version
+        end
+      end
+
+      result[name] = normalized_existing + unique_new_items
+    end
+
+    result
+  end
+
+  # Get existing context from session
+  def get_session_context(session)
+    return nil unless session
+
+    state = session[:monadic_state] || session["monadic_state"]
+    return nil unless state
+
+    state[:conversation_context] || state["conversation_context"]
+  end
+
+  # Save context to session state
+  def save_context_to_session(session, context)
+    return unless session
+
+    session[:monadic_state] ||= {}
+    session[:monadic_state][:conversation_context] = context
+  end
+
+  # Broadcast context update via WebSocket
+  # @param session_id [String] The WebSocket session ID
+  # @param context [Hash] The context data
+  # @param schema [Hash] The context schema for frontend rendering
+  def broadcast_context_update(session_id, context, schema = nil)
+    effective_schema = schema || DEFAULT_SCHEMA
+
+    message = {
+      "type" => "context_update",
+      "context" => context,
+      "schema" => effective_schema,
+      "timestamp" => Time.now.to_f
+    }
+
+    if defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_to_session)
+      WebSocketHelper.send_to_session(message.to_json, session_id)
+      puts "[ContextExtractor] Sent context_update to session #{session_id}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    else
+      puts "[ContextExtractor] WebSocketHelper not available" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    end
+  rescue StandardError => e
+    puts "[ContextExtractor] Broadcast error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+  end
+
+  # Logging helpers
+  def log_extraction_error(provider, model, error)
+    return unless CONFIG && CONFIG["EXTRA_LOGGING"]
+    puts "[ContextExtractor] Error with #{provider}/#{model}: #{error.message}"
+  end
+
+  def log_extraction_success(provider, context, schema = nil)
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    field_counts = fields.map do |field|
+      name = field[:name] || field["name"]
+      "#{name}=#{(context[name] || []).length}"
+    end.join(", ")
+
+    puts "[ContextExtractor] Extracted: #{field_counts}"
+  end
+end

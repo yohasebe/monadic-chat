@@ -3372,6 +3372,16 @@ let loadedApp = "Chat";
         break;
       }
 
+      case "context_update": {
+        // Handle context update from server (sent by ContextExtractorAgent)
+        // Includes both context data and optional schema for dynamic rendering
+        if (typeof ContextPanel !== "undefined" && data.context) {
+          ContextPanel.updateContext(data.context, data.schema || null);
+          console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
+        }
+        break;
+      }
+
       case "language_updated": {
         // Show notification about language change
         const languageName = data.language_name || data.language;

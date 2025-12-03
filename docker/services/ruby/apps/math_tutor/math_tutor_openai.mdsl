@@ -11,6 +11,7 @@ app "MathTutorOpenAI" do
     reasoning_effort "minimal"
     temperature 0.0
     presence_penalty 0.2
+    context_size 25
   end
   
   features do
@@ -19,13 +20,56 @@ app "MathTutorOpenAI" do
     auto_speech false
     initiate_from_assistant true
     mathjax true
+    monadic true  # Uses Session State mechanism for learning progress tracking
   end
-  
+
+  context_schema do
+    field :concepts, icon: "fa-brain", label: "Concepts", description: "Mathematical concepts covered"
+    field :formulas, icon: "fa-square-root-alt", label: "Formulas", description: "Key formulas and equations"
+    field :tips, icon: "fa-lightbulb", label: "Tips", description: "Problem-solving tips"
+  end
+
   tools do
-    # Import shared Python execution tools (always visible - Phase 1)
+    # Import shared Python execution tools
     import_shared_tools :python_execution, visibility: "always"
 
-    # Import shared file reading tools (always visible - Phase 1)
+    # Import shared file reading tools
     import_shared_tools :file_reading, visibility: "always"
+
+    # Learning progress management tools
+    define_tool "load_learning_progress", "Load current learning progress (problems solved, concepts, weak areas) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_learning_progress", "Save response and learning progress to session state" do
+      parameter :message, "string", "Your response message to the student", required: true
+      parameter :current_problem, "string", "The problem currently being worked on", required: false
+      parameter :problems_solved, "array", "Problems solved with solution methods (accumulated)", required: false
+      parameter :concepts_covered, "array", "Mathematical concepts covered (accumulated)", required: false
+      parameter :weak_areas, "array", "Areas needing more practice (accumulated)", required: false
+      parameter :learning_notes, "array", "Observations about student progress (accumulated)", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_solved_problem", "Add a solved problem to the learning history" do
+      parameter :problem, "string", "Description of the problem solved", required: true
+      parameter :solution_method, "string", "Method or approach used to solve it", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_concepts", "Add mathematical concepts covered (accumulates without replacing)" do
+      parameter :concepts, "array", "Mathematical concepts to add", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_weak_areas", "Record areas needing more practice (accumulates without replacing)" do
+      parameter :areas, "array", "Areas where student struggles", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_learning_notes", "Add observations about the student's progress (accumulates without replacing)" do
+      parameter :notes, "array", "Notes to add", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
   end
 end

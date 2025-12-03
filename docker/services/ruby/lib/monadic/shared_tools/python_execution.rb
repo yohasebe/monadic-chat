@@ -47,7 +47,7 @@ module MonadicSharedTools
     #     command: "ruby",
     #     extension: "rb"
     #   )
-    def run_code(code:, command:, extension:)
+    def run_code(code:, command:, extension:, session: nil)
       # Validate inputs
       unless code && command && extension
         return {
@@ -64,12 +64,31 @@ module MonadicSharedTools
         }
       end
 
-      # Call existing MonadicHelper implementation
-      # Returns execution output as string
-      output = super(code: code, command: command, extension: extension)
+      # Call existing MonadicHelper implementation, passing the session
+      output_json = super(code: code, command: command, extension: extension, session: session)
+
+      # Parse output and store filename if successful (for continuous editing/analysis)
+      if session && output_json.is_a?(String)
+        begin
+          # MonadicHelper#run_code typically returns a JSON string with success and filename fields
+          parsed_output = JSON.parse(output_json)
+          if parsed_output["success"] && parsed_output["filename"]
+            session[:code_interpreter_last_output_file] = parsed_output["filename"]
+          end
+        rescue JSON::ParserError
+          # Attempt to extract filename from raw output if not JSON (e.g., from image generation)
+          if output_json =~ /File\(s\) generated.*?: ([^\s]+\.(?:png|jpg|jpeg|gif|svg|html))/i
+            filename = $1
+            session[:code_interpreter_last_output_file] = filename
+          elsif output_json =~ /Created HTML file: ([^\s]+?\.html)/i
+            filename = $1
+            session[:code_interpreter_last_output_file] = filename
+          end
+        end
+      end
 
       # Return output directly (MonadicHelper already formats it)
-      output
+      output_json
     end
 
     # Execute a bash command in the Python container

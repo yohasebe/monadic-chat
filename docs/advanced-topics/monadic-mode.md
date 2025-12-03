@@ -1,151 +1,128 @@
-# Monadic Mode
+# Monadic Mode (Session State)
 
 Monadic Mode is a distinctive feature of Monadic Chat that allows you to maintain and update structured context throughout your conversation with AI agents. This enables more coherent and purposeful interactions.
 
 ## Overview
 
-In Monadic Mode, each response from the AI includes both a message and a structured context object. This context is preserved and updated throughout the conversation, allowing the AI to maintain state and reference previous information.
+In Monadic Mode, apps use **Session State tools** to manage conversation context. The AI calls tools like `save_context` and `load_context` to persist and retrieve structured data throughout the conversation.
 
+### How It Works
 
-### Basic Structure
+1. **At the start of each turn**: The AI calls `load_context` to retrieve the current conversation state
+2. **During processing**: The AI may use additional tools (file operations, PDF search, etc.)
+3. **Before responding**: The AI calls `save_context` with:
+   - The response message
+   - Updated context data (topics, people, notes, etc.)
+
+### Context Structure Example
 
 ```json
 {
   "message": "The AI's response to the user",
-  "context": {
-    "key1": "value1",
-    "key2": "value2",
-    // Additional context fields as needed
-  }
+  "reasoning": "The thought process behind the response",
+  "topics": ["topic1", "topic2"],
+  "people": ["person1", "person2"],
+  "notes": ["important note 1", "important note 2"]
 }
 ```
 
+## Session State Apps
 
-## Monadic Mode Support
+The following apps use Session State mechanism for context management:
 
-Monadic Chat provides monadic mode support across multiple providers, though capabilities and limitations vary:
-
-- **OpenAI** - Native `response_format` support (works well with tools)
-- **Claude** - JSON through system prompts (requires `monadic: false` for tool-heavy apps)
-- **Gemini** - `responseMimeType` configuration (cannot combine with function calling)
-- **Mistral** - `response_format` with JSON schema
-- **Cohere** - Structured output support (limited to single tool calls)
-- **DeepSeek** - JSON output format
-- **Perplexity** - Structured response capabilities
-- **Grok** - JSON format support (incompatible with tool execution)
-- **Ollama** - `format: "json"` option
-
-!> **Important**: For applications that heavily use tool/function calling (like Jupyter Notebook or Code Interpreter), some providers may require `monadic: false` for optimal operation.
-
-?> **Note**: The `monadic` and `toggle` features are mutually exclusive. The choice between them determines how context is displayed in the UI - `monadic` uses collapsible JSON views while `toggle` uses HTML-based sections. Both approaches maintain conversation context effectively.
+| App | Provider | Description |
+|-----|----------|-------------|
+| Chat Plus | OpenAI, Claude, Ollama | Conversational AI with context tracking |
+| Voice Interpreter | OpenAI, Cohere | Real-time voice translation |
+| Language Practice Plus | OpenAI, Claude | Language learning with feedback |
 
 ## Architecture
 
-The monadic functionality is implemented through several modules:
+Session State is implemented through:
 
-- `monadic_unit`: Wraps messages with context in JSON format
-- `monadic_unwrap`: Safely extracts data from JSON responses
-- `monadic_map`: Transforms context with optional processing
-- Client-side rendering (`MarkdownRenderer`) converts the JSON into collapsible HTML blocks in the browser
+1. **MDSL Tool Definitions**: Apps define context management tools using `define_tool`
+2. **Tool Implementation**: Shared Ruby modules (`chat_plus_tools.rb`, etc.) implement the tool methods
+3. **Session Storage**: Context is stored in `session[:monadic_state]`
+4. **TTS Integration**: The `tts_target` feature extracts TTS text from tool parameters
 
-## Practical Examples
+### Tool Flow Example
 
-### 1. Jupyter Notebook App
-
-The Jupyter Notebook app uses Monadic Mode to track the state of a Python notebook session (Note: Only OpenAI's implementation uses monadic mode; Claude, Gemini, and Grok require `monadic: false` for proper tool execution):
-
-```yaml
-# Context structure maintained by the app
-context:
-  link: "http://localhost:8888/notebooks/analysis.ipynb"
-  modules: ["numpy", "pandas", "matplotlib"]
-  functions: [{"name": "process_data", "args": ["df", "threshold"]}]
-  variables: ["df", "results", "config"]
+```
+User Message
+    ↓
+load_context() → Retrieve existing state
+    ↓
+Process request (may call other tools)
+    ↓
+save_context(message, topics, people, notes) → Persist state
+    ↓
+Response displayed to user
 ```
 
-This allows the AI to:
-- Reference previously defined variables and functions
-- Know which libraries are imported
-- Suggest code that builds on previous cells
+## Creating a Session State App
 
-### 2. Novel Writer App
-
-The Novel Writer app maintains story consistency through structured context:
-
-```yaml
-# Context for creative writing
-context:
-  plot: "A detective story set in Victorian London"
-  target_length: 50000
-  current_length: 12500
-  language: "English"
-  summary: "Detective Holmes has discovered the first clue..."
-  characters: ["Sherlock Holmes", "Dr. Watson", "Professor Moriarty"]
-  question: "How should Holmes proceed with the investigation?"
-```
-
-### 3. Language Practice Plus App
-
-For language learning, the context tracks learning progress:
-
-```yaml
-# Context for language practice
-context:
-  target_language: "Japanese"
-  advice: 
-    - "Consider using 'です/ます' form for politeness"
-    - "The particle 'を' is needed after the direct object"
-```
-
-## Creating a Monadic App
-
-To create an app that uses Monadic Mode, define it in your MDSL file:
+To create an app that uses Session State:
 
 ```ruby
 app "MyAppOpenAI" do
   description "An app that maintains context"
   icon "fa-brain"
-  
+
   features do
-    monadic true  # This is set automatically for OpenAI
-    context_size 20
+    monadic true  # Indicates Session State mechanism
   end
 
   system_prompt <<~PROMPT
     You are an AI assistant that maintains context.
-    
-    Return your response in this JSON format:
-    {
-      "message": "Your response here",
-      "context": {
-        "state": "current state",
-        "data": "accumulated data"
-      }
-    }
+
+    ## MANDATORY TOOL USAGE
+
+    1. ALWAYS call `load_context` at the start of each turn
+    2. ALWAYS call `save_context` with your response and context
   PROMPT
+
+  tools do
+    define_tool "load_context", "Load current conversation context" do
+      parameter :session, "object", "Session object", required: false
+    end
+
+    define_tool "save_context", "Save response and context" do
+      parameter :message, "string", "Your response", required: true
+      parameter :topics, "array", "Topics discussed", required: false
+      parameter :notes, "array", "Important notes", required: false
+    end
+  end
 end
 ```
 
 ## UI Representation
 
-In the web interface, monadic context appears as:
+In the web interface, Session State context appears as:
 - Collapsible sections showing the context structure
 - Empty objects display as ": empty" for clarity
 - Field labels are shown with increased font weight
-- Missing values shown as "no value" in italic gray text
+- The "monadic" badge indicates an app uses Session State
+
+## TTS Integration
+
+For apps with voice output, use `tts_target` to specify which tool parameter contains the TTS text:
+
+```ruby
+features do
+  monadic true
+  auto_speech true
+  tts_target :tool_param, "save_context", "message"
+end
+```
 
 ## Best Practices
 
-1. **Keep context focused**: Only store information that will be referenced later
-2. **Use consistent keys**: Maintain the same context structure throughout the conversation
-3. **Update incrementally**: Modify only the parts of context that change
-4. **Handle errors gracefully**: Always validate context before using it
-
-## Troubleshooting
-
-If context is not updating properly, ensure your initial prompt specifies the expected JSON format and that the AI response includes valid JSON. Keep context objects reasonably sized to avoid issues.
+1. **Always call load_context first**: This ensures you have the latest state
+2. **Accumulate context items**: Don't remove items unless explicitly asked
+3. **Use consistent structure**: Maintain the same context fields throughout
+4. **Keep context focused**: Only store information that will be referenced later
 
 ## See Also
 
 - [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference
-- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Monadic Mode
+- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Session State

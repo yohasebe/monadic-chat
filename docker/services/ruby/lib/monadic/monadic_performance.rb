@@ -288,15 +288,6 @@ module MonadicPerformance
     end
   end
 
-  # Batch validation for multiple responses
-  def validate_batch(responses, schema_type = :basic)
-    performance_monitor.measure("batch_validation") do
-      responses.map do |response|
-        validate_monadic_response!(response, schema_type)
-      end
-    end
-  end
-
   # Get performance report
   def get_performance_report
     {

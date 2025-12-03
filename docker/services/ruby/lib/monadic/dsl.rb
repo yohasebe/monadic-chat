@@ -11,6 +11,7 @@ require_relative 'shared_tools/file_reading'
 require_relative 'shared_tools/jupyter_operations'
 require_relative 'shared_tools/web_automation'
 require_relative 'shared_tools/content_analysis_openai'
+require_relative 'shared_tools/session_context'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)
@@ -487,9 +488,12 @@ module MonadicDSL
       end
     end
 
-    class AnthropicFormatter
+    # ClaudeFormatter for Anthropic Claude API
+    # Note: Claude API requires 'type: custom' for custom tools (as of 2025)
+    class ClaudeFormatter
       def format(tool)
         {
+          type: "custom",
           name: tool.name,
           description: tool.description,
           input_schema: {
@@ -499,9 +503,9 @@ module MonadicDSL
           }
         }
       end
-      
+
       private
-      
+
       def format_properties(tool)
         props = {}
         tool.parameters.each do |name, param|
@@ -514,6 +518,9 @@ module MonadicDSL
         props
       end
     end
+
+    # Alias for backwards compatibility
+    AnthropicFormatter = ClaudeFormatter
     
     class CohereFormatter
       def format(tool)
@@ -719,8 +726,8 @@ module MonadicDSL
   class ToolConfiguration
     FORMATTERS = {
       openai: ToolFormatters::OpenAIFormatter,
-      anthropic: ToolFormatters::AnthropicFormatter,
-      claude: ToolFormatters::AnthropicFormatter,
+      anthropic: ToolFormatters::ClaudeFormatter,
+      claude: ToolFormatters::ClaudeFormatter,
       cohere: ToolFormatters::CohereFormatter,
       gemini: ToolFormatters::GeminiFormatter,
       mistral: ToolFormatters::MistralFormatter,
@@ -1033,6 +1040,22 @@ module MonadicDSL
       end
     end
 
+    # Context schema for monadic apps
+    # Defines what context fields should be tracked automatically
+    # @example
+    #   context_schema do
+    #     field :topics, icon: "fa-tags", label: "Topics", description: "Main subjects"
+    #     field :people, icon: "fa-users", label: "People", description: "Names mentioned"
+    #     field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important facts"
+    #   end
+    def context_schema(&block)
+      if block_given?
+        config = ContextSchemaConfiguration.new
+        config.instance_eval(&block)
+        @state.settings[:context_schema] = config.to_hash
+      end
+    end
+
     # Import shared tools at app level (delegates to ToolConfiguration)
     # This allows import_shared_tools to be called outside of tools {} block
     def import_shared_tools(*groups, **options)
@@ -1087,6 +1110,84 @@ module MonadicDSL
 
     def to_hash
       @config
+    end
+  end
+
+  # Context Schema Configuration DSL
+  # Defines what context fields should be tracked for monadic apps
+  # Each field represents a category of information to extract from conversations
+  class ContextSchemaConfiguration
+    attr_reader :fields
+
+    def initialize
+      @fields = []
+    end
+
+    # Define a context field to track
+    # @param name [Symbol] The field identifier (e.g., :topics, :people)
+    # @param options [Hash] Field options
+    # @option options [String] :icon FontAwesome icon name (e.g., "fa-tags")
+    # @option options [String] :label Display label for the field
+    # @option options [String] :description Description for AI extraction prompt
+    def field(name, icon: nil, label: nil, description: nil)
+      @fields << {
+        name: name.to_s,
+        icon: icon || default_icon_for(name),
+        label: label || name.to_s.capitalize.gsub("_", " "),
+        description: description || default_description_for(name)
+      }
+    end
+
+    def to_hash
+      {
+        fields: @fields
+      }
+    end
+
+    private
+
+    def default_icon_for(name)
+      case name.to_sym
+      when :topics then "fa-tags"
+      when :people then "fa-users"
+      when :notes then "fa-sticky-note"
+      when :images, :generated_images, :uploaded_images then "fa-image"
+      when :files then "fa-file"
+      when :code then "fa-code"
+      when :links, :urls then "fa-link"
+      when :dates then "fa-calendar"
+      when :locations then "fa-map-marker"
+      when :tasks then "fa-tasks"
+      when :questions then "fa-question"
+      when :ideas then "fa-lightbulb"
+      when :decisions then "fa-check-circle"
+      when :styles, :style_preferences then "fa-palette"
+      when :prompts, :prompt_history then "fa-history"
+      else "fa-circle"
+      end
+    end
+
+    def default_description_for(name)
+      case name.to_sym
+      when :topics then "Main subjects discussed"
+      when :people then "Names of people mentioned"
+      when :notes then "Important facts to remember"
+      when :images then "Images referenced in conversation"
+      when :generated_images then "Images generated in this session"
+      when :uploaded_images then "Images uploaded by user"
+      when :files then "Files mentioned or processed"
+      when :code then "Code snippets discussed"
+      when :links, :urls then "URLs and web links"
+      when :dates then "Important dates mentioned"
+      when :locations then "Places or locations discussed"
+      when :tasks then "Action items or tasks"
+      when :questions then "Questions raised"
+      when :ideas then "Ideas proposed"
+      when :decisions then "Decisions made"
+      when :styles, :style_preferences then "Visual or stylistic preferences"
+      when :prompts, :prompt_history then "Key prompts or requests"
+      else "#{name.to_s.gsub('_', ' ').capitalize} information"
+      end
     end
   end
 
@@ -1278,10 +1379,16 @@ module MonadicDSL
 
     def method_missing(method_name, *args)
       # Default all called methods to true, handle special cases
-      value = args.first.nil? ? true : args.first
+      # For multi-argument settings like tts_target, store as array
+      value = if args.empty?
+                true
+              elsif args.length == 1
+                args.first
+              else
+                args  # Store multiple arguments as array
+              end
 
       @state.features[method_name] = value
-
     end
 
     def respond_to_missing?(method_name, include_private = false)
@@ -1518,14 +1625,27 @@ module MonadicDSL
     # Add extra modules if specified
     include_modules = state.settings[:include_modules] || []
     include_statements = [helper_module]
-    
+
     # Automatically include tool module if it exists
     # Remove provider suffix to get base app name
     app_base_name = state.name.sub(/OpenAI|Claude|Gemini|Mistral|Cohere|Perplexity|Grok|DeepSeek|Ollama$/, '')
     tool_module_name = "#{app_base_name}Tools"
     include_statements << tool_module_name
-    
+
     include_statements += include_modules
+
+    # Include shared tool modules for imported tool groups
+    # This ensures the Ruby methods are available when AI calls the tools
+    if state.settings[:imported_tool_groups]
+      state.settings[:imported_tool_groups].each do |group_info|
+        group_name = group_info[:name]
+        module_name = MonadicSharedTools::Registry.module_name_for(group_name)
+        if module_name
+          include_statements << module_name
+        end
+      end
+    end
+
     include_lines = include_statements.map { |m| "        include #{m} if defined?(#{m})" }.join("\n")
     
     # Use group from features if defined, otherwise use provider's display_group
@@ -1630,6 +1750,11 @@ module MonadicDSL
     # Add betas if specified
     if state.settings[:betas]
       class_def << "        @settings[:betas] = #{state.settings[:betas].inspect}\n"
+    end
+
+    # Add context_schema if specified (for monadic apps)
+    if state.settings[:context_schema]
+      class_def << "        @settings[:context_schema] = #{state.settings[:context_schema].inspect}\n"
     end
 
     class_def << "      end\n"

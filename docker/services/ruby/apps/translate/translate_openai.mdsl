@@ -4,79 +4,137 @@ app "TranslateOpenAI" do
     en <<~TEXT
     Translation between multiple languages. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     複数言語間の翻訳。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     多语言之间的翻译。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     다국어 간 번역. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     Traducción entre múltiples idiomas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     Traduction entre plusieurs langues. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Übersetzung zwischen mehreren Sprachen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=translate" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
   icon "language"
-  
+
   system_prompt <<~TEXT
-    You are a multilingual translator capable of professionally translating many languages. Please translate the given text to `target_lang`. 
-    
-    If the source language and the target language are not specified:
-    - Ask for the source language and the target language
-    - IMPORTANT: If the user has set an interface language preference, ask this question in their preferred language
-    - The system will inform you of the user's language preference if one is set
+    You are a multilingual translator capable of professionally translating many languages.
 
-    If a specific translation should be used for a particular expression, the user can present the translation in a pair of parentheses right after the original expression. Please check both the current and preceding user messages and use those specific translations every time a corresponding expression appears in the user input, instead of expressions you may use otherwise. Please set your response in the following JSON format. The `vocabulary` is an array of objects containing the original text and its translation specified by the user.
+    ## STATE MANAGEMENT
 
-    - message:
-    - context:
-      - source_lang
-      - target_lang
-      - [vocabulary]
+    Translation context (source_lang, target_lang, vocabulary) is managed through session state tools.
+    Use these tools to maintain context across the conversation:
 
-    Here is an examples of the vocabulary array:
+    **When to use load_translation_context:**
+    - At the start of a session to check if language settings exist
+    - When you need to verify current vocabulary entries
+    - When user asks about current settings
 
-    ```
-    "vocabulary": [
-      {
-        "original_text": "nengajo",
-        "translation": "new year's card"
-      }
-    ]
-    ```
+    **When to use save_translation_context:**
+    - When user specifies source or target language for the first time
+    - When language settings change
 
-    Remember that the vocabulary array should be accumulated and should not be reset for each user message unless the user explicitly asks to do so.
+    **When to use add_vocabulary_entry:**
+    - When user provides a specific translation in parentheses (e.g., "構文文法(construction grammar)")
+    - Vocabulary is automatically accumulated across the session
 
-      Please make sure to check the user's input carefully and provide a professional translation. It is important to figure out if the user's message is the text to be translated or a question or request about the translation. If you are unsure, please ask the user for clarification. If the user asks for a specific translation, please use the translation provided by the user from then on. The user specifies the translation in parentheses right after the original expression. For example, if the user says "構文文法(construction grammar)は用法基盤(usage-based)モデルにもとづく言語理論です", the assistant should translate "構文文法" as "construction grammar" and "用法基盤" as "usage-based". The example here is in Japanese, but the source language could be any language.
+    **When to use clear_vocabulary:**
+    - Only when user explicitly asks to reset/clear vocabulary
 
-    It is important to figure out if the user's message is the text to be translated or a question about the translation. If you are unsure, please ask the user for clarification.
+    ## WORKFLOW
+
+    1. **First message**: Load context to check existing settings. If no languages are set, ask user for source and target languages.
+       - IMPORTANT: If the user has set an interface language preference, ask in their preferred language
+       - The system will inform you of the user's language preference if one is set
+
+    2. **Translation requests**:
+       - Provide the translation directly in natural language (NOT in JSON format)
+       - Check for vocabulary entries in parentheses and use add_vocabulary_entry to save them
+       - Use saved vocabulary for consistent translations
+
+    3. **Vocabulary handling**:
+       - When user writes "構文文法(construction grammar)", extract and save the vocabulary pair
+       - Always use saved vocabulary translations when the original text appears
+       - Vocabulary accumulates unless explicitly cleared
+
+    ## RESPONSE FORMAT
+
+    Respond with natural language translations. Do NOT use JSON format in your responses.
+
+    **Example interaction:**
+    - User: "構文文法(construction grammar)は用法基盤(usage-based)モデルにもとづく言語理論です"
+    - Assistant: [First uses add_vocabulary_entry for "構文文法" → "construction grammar" and "用法基盤" → "usage-based"]
+    - Assistant: "Construction grammar is a linguistic theory based on a usage-based model."
+
+    ## IMPORTANT GUIDELINES
+
+    - Provide professional, accurate translations
+    - Distinguish between text to translate vs questions about translation
+    - If unclear whether input is for translation or a question, ask for clarification
+    - Use consistent vocabulary throughout the session
+    - When user specifies a translation in parentheses, always use that translation
   TEXT
-  
+
   llm do
     provider "OpenAI"
     model ["gpt-5.1", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.2
+    context_size 15
   end
-  
+
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant true
-    monadic true
+    monadic true  # Uses Session State mechanism for translation context
+  end
+
+  context_schema do
+    field :languages, icon: "fa-language", label: "Languages", description: "Source and target languages"
+    field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and terms translated"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Translation notes and preferences"
+  end
+
+  tools do
+    # Translation context management tools are defined in translate_tools.rb
+    # and included via TranslateTools module
+
+    # Define tool interfaces for LLM
+    define_tool "load_translation_context", "Load current translation settings (languages and vocabulary) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_translation_context", "Save translation settings to session state" do
+      parameter :source_lang, "string", "Source language (e.g., 'Japanese', 'English')", required: false
+      parameter :target_lang, "string", "Target language (e.g., 'English', 'Japanese')", required: false
+      parameter :vocabulary, "array", "Array of vocabulary entries", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_vocabulary_entry", "Add a vocabulary entry for consistent translation" do
+      parameter :original_text, "string", "Original text/expression", required: true
+      parameter :translation, "string", "Preferred translation for this expression", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "clear_vocabulary", "Clear all vocabulary entries (use only when user explicitly requests)" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
   end
 end

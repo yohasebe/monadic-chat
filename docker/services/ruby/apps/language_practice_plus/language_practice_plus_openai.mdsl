@@ -3,27 +3,27 @@ app "LanguagePracticePlusOpenAI" do
     en <<~TEXT
     Enhanced language practice with detailed feedback and advice. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     詳細なフィードバックとアドバイス付き言語練習。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     带详细反馈和建议的增强语言练习。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     상세한 피드백과 조언이 포함된 향상된 언어 연습. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     Práctica de idiomas mejorada con retroalimentación detallada. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     Pratique linguistique améliorée avec feedback détaillé. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Erweiterte Sprachpraxis mit detailliertem Feedback. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=language-practice-plus" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
@@ -32,41 +32,119 @@ app "LanguagePracticePlusOpenAI" do
 
   system_prompt <<~TEXT
     You are a friendly and experienced language teacher. You are adept at making conversations fun and informative, even when speaking with users who are not very proficient in the language.
-    
-    For initial interactions:
+
+    ## CRITICAL: MANDATORY TOOL USAGE
+
+    **YOU MUST USE THE PROVIDED TOOLS TO MANAGE STATE. THIS IS NOT OPTIONAL.**
+
+    Before ANY response, you MUST call tools in this order:
+    1. **FIRST**: Call `load_context` to check existing state (target language, previous advice)
+    2. **THEN**: If target language is not set, call `set_target_language` after asking/determining it
+    3. **ALWAYS**: Call `save_response` with your message and language advice
+
+    **FAILURE TO CALL THESE TOOLS IS A CRITICAL ERROR.**
+
+    ## INITIAL INTERACTIONS
+
     - If the user has set an interface language preference, use their preferred language for greetings and initial questions
     - The system will inform you of the user's language preference if one is set
-    - If the "target language" is unknown, ask what language the user would like to learn (in their preferred language if set)
-    
-    Once the target language is established, use that language for the conversation, but include explanations in the user's preferred language (or English if not set) in your language advice.
+    - If the "target language" is unknown (check via `load_context`), ask what language the user would like to learn
 
-    Each time the user speaks, you respond to them, say something relevant to the ongoing topic, or ask a question, using emojis that express the topic or tone of the conversation.
+    ## CONVERSATION FLOW
 
-    While you are responding to the user, you provide language advice. You correct grammar and vocabulary mistakes and suggest better ways to say things if necessary. You can offer useful expressions relevant to the ongoing conversation if there are no grammar or vocabulary mistakes. Or you can provide cultural information or offer general advice about learning the language.
+    Once the target language is established:
+    1. Use that language for the conversation
+    2. Include explanations in the user's preferred language (or English if not set) in your language advice
+    3. Respond using emojis that express the topic or tone of the conversation
 
-    The following JSON structure is used to respond to the user's message. The "message" contains your response to the user's message. The "context" contains two properties: "target_lang" is the target language to practice, and "language_advice" is an array of pieces of your language advice to the user.
+    ## LANGUAGE ADVICE
 
-      - message: your response to the user's message
-      - context:
-        - target_lang: the target language to practice
-        - language_advice: pieces of your language advice to the user
+    While responding, provide language advice:
+    - Correct grammar and vocabulary mistakes
+    - Suggest better ways to say things if necessary
+    - Offer useful expressions relevant to the ongoing conversation
+    - Provide cultural information or general advice about learning the language
+
+    ## MANDATORY TOOL SEQUENCE
+
+    ### For EVERY new session or first message:
+    ```
+    1. CALL load_context → Check if target language is set
+    2. IF no target language:
+       - Ask user what language they want to practice
+       - Wait for response, then CALL set_target_language
+    3. Write your response
+    4. CALL save_response with:
+       - message: your response to the user
+       - target_lang: the target language (if newly established)
+       - language_advice: array of advice items
+    ```
+
+    ### For EVERY subsequent message:
+    ```
+    1. CALL load_context → Get current state
+    2. Write your response in the target language
+    3. CALL save_response with:
+       - message: your response
+       - language_advice: array of advice items for this turn
+    ```
+
+    ## RESPONSE FORMAT
+
+    Your visible response should be natural conversation in the target language.
+    The `save_response` tool captures:
+    - Your message (for TTS playback)
+    - Language advice (for display in the UI context area)
+
+    ## ABSOLUTE RULES
+
+    1. **ALWAYS call load_context at the start of each turn**
+    2. **ALWAYS call set_target_language when establishing the language**
+    3. **ALWAYS call save_response with your message and advice**
+    4. **NEVER skip tool calls - they are MANDATORY**
+    5. **The message in save_response will be used for TTS - make it natural spoken language**
   TEXT
-  
+
   llm do
     provider "openai"
     model ["gpt-5.1-chat-latest", "gpt-4.1"]
     reasoning_effort "minimal"
     temperature 0.4
-    context_size 100
+    context_size 30
   end
-  
+
   display_name "Language Practice Plus"
-  
+
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     easy_submit true
     auto_speech true
     initiate_from_assistant true
-    monadic true
+    monadic true  # Uses Session State mechanism for context tracking
+    tts_target :tool_param, "save_response", "message"
+  end
+
+  context_schema do
+    field :vocabulary, icon: "fa-book", label: "Vocabulary", description: "Key vocabulary and phrases learned"
+    field :grammar, icon: "fa-spell-check", label: "Grammar", description: "Grammar points covered"
+    field :tips, icon: "fa-lightbulb", label: "Tips", description: "Language learning tips and corrections"
+  end
+
+  tools do
+    define_tool "load_context", "Load current language practice context (target language, previous advice) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_response", "Save response and context to session state. The message parameter is used for TTS playback." do
+      parameter :message, "string", "Your response message to the user (will be used for TTS)", required: true
+      parameter :target_lang, "string", "Target language being practiced", required: false
+      parameter :language_advice, "array", "Array of language advice strings for this turn", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "set_target_language", "Set or update the target language for practice" do
+      parameter :target_lang, "string", "The target language to practice (e.g., 'Japanese', 'French', 'Spanish')", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
   end
 end

@@ -32,15 +32,15 @@ module DeepSeekHelper
 
   # Instance methods that delegate to class methods
   def open_timeout
-    self.class.open_timeout
+    DeepSeekHelper.open_timeout
   end
 
   def read_timeout
-    self.class.read_timeout
+    DeepSeekHelper.read_timeout
   end
 
   def write_timeout
-    self.class.write_timeout
+    DeepSeekHelper.write_timeout
   end
 
   MAX_RETRIES = 5
@@ -429,15 +429,7 @@ module DeepSeekHelper
     if role != "tool"
       message = obj["message"].to_s
 
-      # If the app is monadic, the message is passed through the monadic_map function
-      if obj["monadic"].to_s == "true" && message != ""
-        if message != ""
-          APPS[app].methods
-          message = APPS[app].monadic_unit(message)
-        end
-      end
-
-      # HTML is generated from the original message, not the monadic version
+      # HTML is generated from the original message
       html = if obj["message"] != ""
                markdown_to_html(obj["message"])
              else
@@ -712,10 +704,6 @@ module DeepSeekHelper
       body["messages"] = body["messages"].map do |msg|
         msg["content"] = msg["content"].sub(/---\n\n/, "")
         msg
-      end
-    else
-      if obj["monadic"] || obj["json"]
-        body["response_format"] ||= { "type" => "json_object" }
       end
     end
 
@@ -1062,22 +1050,6 @@ module DeepSeekHelper
         end
       end
       
-      if obj["monadic"]
-        choice = text_result["choices"][0]
-        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
-          message = choice["message"]["content"]
-          # monadic_map returns JSON string, but we need the actual content
-          modified = APPS[app].monadic_map(message)
-          # Parse the JSON and extract the message field
-          begin
-            parsed = JSON.parse(modified)
-            choice["message"]["content"] = parsed["message"] || modified
-          rescue JSON::ParserError
-            # If parsing fails, use the original modified value
-            choice["message"]["content"] = modified
-          end
-        end
-      end
     end
 
     # If we have tool calls, ignore the finish_reason from streaming
@@ -1181,6 +1153,14 @@ module DeepSeekHelper
       else
         function_return = APPS[app].send(function_name.to_sym, **converted)
       end
+
+        # Extract TTS text from tool parameters if tts_target is configured
+        Monadic::Utils::TtsTextExtractor.extract_tts_text(
+          app: app,
+          function_name: function_name,
+          argument_hash: converted,
+          session: session
+        )
       rescue StandardError => e
         function_return = Monadic::Utils::ErrorFormatter.tool_error(
           provider: "DeepSeek",

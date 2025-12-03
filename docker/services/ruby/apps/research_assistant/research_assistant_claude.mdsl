@@ -1,33 +1,87 @@
 app "ResearchAssistantClaude" do
   icon ResearchAssistant::ICON
   description ResearchAssistant::DESCRIPTION
-  
-  # Claude uses native web search
+
+  # Claude uses native web search, so customize the prompt
   system_prompt <<~TEXT
     You are a professional research assistant who helps users find information and answers their questions.
-    
+
+    ## CRITICAL: MANDATORY TOOL USAGE FOR RESEARCH PROGRESS
+
+    **YOU MUST USE THE PROVIDED TOOLS TO TRACK RESEARCH PROGRESS. THIS IS NOT OPTIONAL.**
+
+    Before ANY response, you MUST call tools in this order:
+    1. **FIRST**: Call `load_research_progress` to check existing research state
+    2. **ALWAYS**: Call `save_research_progress` with your response and updated progress
+
+    **FAILURE TO CALL THESE TOOLS IS A CRITICAL ERROR.**
+
+    ## Research Progress Tracking
+
+    Track the research journey using the progress management tools:
+    - **current_topic**: The current research topic
+    - **research_topics**: Topics explored in this session
+    - **search_history**: Searches performed with results
+    - **findings**: Key findings and insights
+    - **sources**: Citations and references
+    - **notes**: Research observations
+
+    You should ACCUMULATE these notes as the session progresses - never remove items unless explicitly asked.
+
+    ## MANDATORY TOOL SEQUENCE
+
+    ### For EVERY message:
+    ```
+    1. CALL load_research_progress → Get current research state
+    2. Conduct research (web search, PDF analysis, etc.)
+    3. CALL save_research_progress with:
+       - message: your response to the user
+       - current_topic: what's being researched
+       - research_topics: updated list (accumulated)
+       - findings: key insights discovered
+       - sources: citations and references
+       - notes: observations
+    ```
+
+    ### For specific updates:
+    - Use `add_finding` to record a key insight with its source
+    - Use `add_research_topics` to add new topics explored
+    - Use `add_search` to log searches performed
+    - Use `add_sources` to add citations
+    - Use `add_research_notes` for observations
+
+    ## Your Capabilities
+
     You have access to the web_search tool that provides real-time web content. Use it proactively when:
     - The user asks about current events, news, or recent information
     - The user asks about specific people, companies, organizations, or entities
     - You need to verify facts or get the latest information beyond your knowledge cutoff
     - The information would benefit from up-to-date sources
-    
+
     When using web search:
     - Use searches efficiently - DO NOT search for the same or very similar terms repeatedly
-    - Limit yourself to 3 searches per request (not 5)
+    - Limit yourself to 3 searches per request
     - If initial searches don't yield desired results, try different keywords ONCE
     - Citations are automatically included in your responses
     - Search results will include source URLs, titles, and content
-    
+
     Provide comprehensive, well-researched answers with inline citations when using web search results.
 
     Note: Web search must be enabled by your organization's administrator in the Anthropic Console.
+
+    ## ABSOLUTE RULES
+
+    1. **ALWAYS call load_research_progress at the start of each turn**
+    2. **ALWAYS call save_research_progress with your response**
+    3. **ACCUMULATE progress items - never remove unless explicitly asked**
+    4. **NEVER skip tool calls - they are MANDATORY**
   TEXT
 
   llm do
     provider "anthropic"
     model "claude-sonnet-4-5-20250929"
     temperature 0.0
+    context_size 30
   end
 
   # Custom context management for research tasks
@@ -62,19 +116,69 @@ app "ResearchAssistantClaude" do
     auto_speech false
     initiate_from_assistant true
     mathjax true
+    monadic true  # Uses Session State mechanism for research progress tracking
+  end
+
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics", description: "Research topics being investigated"
+    field :findings, icon: "fa-search", label: "Findings", description: "Key findings and discoveries"
+    field :sources, icon: "fa-link", label: "Sources", description: "Sources and references used"
   end
 
   tools do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
+    # Import unified web search tools (conditional - native or Tavily)
+    import_shared_tools :web_search_tools, visibility: "conditional"
+
+    # Research progress management tools
+    define_tool "load_research_progress", "Load current research progress (topics, findings, sources) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_research_progress", "Save response and research progress to session state" do
+      parameter :message, "string", "Your response message to the user", required: true
+      parameter :current_topic, "string", "The current research topic", required: false
+      parameter :research_topics, "array", "Research topics explored (accumulated)", required: false
+      parameter :search_history, "array", "Searches performed with results (accumulated)", required: false
+      parameter :findings, "array", "Key findings and insights (accumulated)", required: false
+      parameter :sources, "array", "Citations and references (accumulated)", required: false
+      parameter :notes, "array", "Research observations (accumulated)", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_finding", "Add a key finding with its source" do
+      parameter :finding, "string", "Key finding or insight", required: true
+      parameter :source, "string", "Source of the finding", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_research_topics", "Add research topics explored (accumulates without replacing)" do
+      parameter :topics, "array", "Research topics to add", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_search", "Log a search performed" do
+      parameter :query, "string", "The search query", required: true
+      parameter :result_summary, "string", "Brief summary of results", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_sources", "Add citations and references (accumulates without replacing)" do
+      parameter :sources, "array", "Sources to add", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_research_notes", "Add research observations (accumulates without replacing)" do
+      parameter :notes, "array", "Notes to add", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
     # Progressive Tool Disclosure unlock mechanism
     define_tool "request_tool", "Request access to a locked tool by name" do
       parameter :tool_name, "string", "Name of the tool to unlock", required: true
       visibility "always"
     end
-
-    # Import unified web search tools (conditional - native or Tavily)
-    import_shared_tools :web_search_tools, visibility: "conditional"
   end
 end

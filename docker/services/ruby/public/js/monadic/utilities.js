@@ -1347,10 +1347,10 @@ function isMaskEditingEnabled(appName) {
     appName = $("#apps").val();
   }
   
-  // Disable mask editor for Gemini Image Generator (uses semantic masking instead)
-  if (appName && appName.includes("ImageGeneratorGemini")) {
-  return false;
-}
+  // Disable mask editor for Gemini/Grok Image Generators (use semantic masking instead)
+  if (appName && (appName.includes("ImageGeneratorGemini") || appName.includes("ImageGeneratorGrok"))) {
+    return false;
+  }
 
 // Helper: show/hide OpenAI PDF manager and refresh list
 // (reverted) removed OpenAI PDF manager utilities and handlers
@@ -1400,6 +1400,11 @@ function doResetActions(resetToDefaultApp = false) {
   // Get UI language from cookie or default to 'en'
   const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
   ws.send(JSON.stringify({ "message": "LOAD", "ui_language": uiLanguage }));
+
+  // Reset Context Panel for monadic apps
+  if (typeof ContextPanel !== "undefined" && ContextPanel.resetContext) {
+    ContextPanel.resetContext();
+  }
 
   currentPdfData = null;
   
@@ -1940,6 +1945,21 @@ $(document).ready(function() {
     setTimeout(function() {
       updateAppBadges(selectedApp);
     }, 100); // Small delay to ensure DOM is ready
+
+    // Show/hide Context Panel based on monadic setting
+    if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
+      const isMonadic = apps[selectedApp]["monadic"] === true ||
+                        apps[selectedApp]["monadic"] === "true";
+      if (isMonadic) {
+        // Get context_schema from app settings if defined
+        const contextSchema = apps[selectedApp]["context_schema"] || null;
+        ContextPanel.show(selectedApp, contextSchema);
+        console.log('[App Change] Context panel shown for monadic app:', selectedApp, 'schema:', contextSchema);
+      } else {
+        ContextPanel.hide();
+        console.log('[App Change] Context panel hidden for non-monadic app:', selectedApp);
+      }
+    }
   });
 
   // Handle checkbox changes for user-controlled capabilities

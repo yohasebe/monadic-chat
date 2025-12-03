@@ -469,6 +469,77 @@ module MonadicSharedTools
         available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
       },
 
+      session_context: {
+        module_name: 'MonadicSharedTools::SessionContext',
+        tools: [
+          {
+            name: "get_context",
+            description: "Get current conversation context from session. The context is also displayed in the sidebar panel.",
+            parameters: []
+          },
+          {
+            name: "update_context",
+            description: "Update conversation context by adding new topics, people, or notes. Items are merged with existing context by default. The sidebar panel will update automatically.",
+            parameters: [
+              {
+                name: :topics,
+                type: "array",
+                description: "Topics to add to context (e.g., ['AI', 'Ruby programming'])",
+                required: false
+              },
+              {
+                name: :people,
+                type: "array",
+                description: "People to add to context (e.g., ['John - project manager'])",
+                required: false
+              },
+              {
+                name: :notes,
+                type: "array",
+                description: "Notes to add to context (e.g., ['User prefers Python'])",
+                required: false
+              },
+              {
+                name: :replace,
+                type: "boolean",
+                description: "If true, replace all context instead of merging (default: false)",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "remove_from_context",
+            description: "Remove specific items from conversation context. The sidebar panel will update automatically.",
+            parameters: [
+              {
+                name: :topics,
+                type: "array",
+                description: "Topics to remove from context",
+                required: false
+              },
+              {
+                name: :people,
+                type: "array",
+                description: "People to remove from context",
+                required: false
+              },
+              {
+                name: :notes,
+                type: "array",
+                description: "Notes to remove from context",
+                required: false
+              }
+            ]
+          },
+          {
+            name: "clear_context",
+            description: "Clear all conversation context (topics, people, notes). The sidebar panel will update automatically.",
+            parameters: []
+          }
+        ],
+        default_hint: "Use session context tools to track conversation topics, people, and notes. Context is displayed in the sidebar panel."
+      },
+
       jupyter_operations: {
         module_name: 'MonadicSharedTools::JupyterOperations',
         tools: [

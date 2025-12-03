@@ -106,7 +106,7 @@ function openMaskEditor(imageData) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Show original image as a semi-transparent background
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.6;
     ctx.drawImage(img, 0, 0);
     ctx.globalAlpha = 1.0;
   };
@@ -131,7 +131,7 @@ function openMaskEditor(imageData) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Redraw the semi-transparent image
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.6;
     ctx.drawImage(img, 0, 0);
     ctx.globalAlpha = 1.0;
   });
@@ -202,7 +202,7 @@ function openMaskEditor(imageData) {
     const currentAlpha = ctx.globalAlpha;
     
     // Set reduced opacity for background reference image
-    ctx.globalAlpha = 0.3;
+    ctx.globalAlpha = 0.6;
     
     // Create a tightly-fitted clipping region around our circle
     ctx.save();

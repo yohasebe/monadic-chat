@@ -357,12 +357,11 @@ RSpec.describe AIUserAgent do
 
     it 'handles various provider names' do
       # These values should match system_defaults.json provider_defaults
-      # Note: perplexity uses "sonar" for AI User (non-thinking model) instead of system_defaults value
       providers_and_defaults = {
         "gemini" => "gemini-2.5-flash",
         "mistral" => "mistral-large-latest",
-        "grok" => "grok-4-1-fast-non-reasoning",  # Updated to current default
-        "perplexity" => "sonar",  # AI User uses non-thinking model (not sonar-reasoning-pro)
+        "grok" => "grok-4-1-fast-non-reasoning",
+        "perplexity" => "sonar-reasoning-pro",  # Matches system_defaults.json
         "deepseek" => "deepseek-chat",
         "cohere" => "command-a-03-2025"
       }

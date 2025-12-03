@@ -68,7 +68,8 @@ RSpec.describe "File Naming Conventions" do
         has_valid_suffix = valid_suffixes.any? { |suffix| basename.downcase.end_with?(suffix) }
         
         # Some apps may not follow this pattern (e.g., wikipedia.mdsl, mermaid_grapher.mdsl)
-        exceptions = %w[wikipedia mermaid_grapher video_describer_app]
+        # gemini3_preview is a special case for Gemini 3 Pro Preview model-specific app
+        exceptions = %w[wikipedia mermaid_grapher video_describer_app gemini3_preview]
         is_exception = exceptions.any? { |ex| basename.include?(ex) }
         
         unless has_valid_suffix || is_exception
@@ -105,12 +106,13 @@ RSpec.describe "File Naming Conventions" do
         
         app_identifier = app_match[1]
         basename = File.basename(file, ".mdsl")
-        
+
         # Skip exceptions (including apps with spaces in identifier)
-        exceptions = %w[Wikipedia MermaidGrapher VideoDescriber]
+        # Gemini3Preview is a model-specific app name for Gemini 3 Pro Preview
+        exceptions = %w[Wikipedia MermaidGrapher VideoDescriber Gemini3Preview]
         is_exception = exceptions.any? { |ex| app_identifier.include?(ex) } || app_identifier.include?(" ")
         next if is_exception
-        
+
         # Check if app identifier ends with a valid provider suffix
         valid_suffixes = provider_mapping.values.map { |v| v[:suffix] }
         # Add special case for MistralAI

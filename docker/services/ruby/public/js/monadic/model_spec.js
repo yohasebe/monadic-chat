@@ -402,14 +402,16 @@ const modelSpec = {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
     "tool_capability": false,
-    "vision_capability": false
+    "vision_capability": false,
+    "deprecated": true
   },
   "o1-mini-2024-09-12": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [25000, 65536],
     "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": false,
-    "vision_capability": false
+    "vision_capability": false,
+    "deprecated": true
   },
   "o1-pro": {
     "context_window" : [1, 200000],
@@ -646,6 +648,92 @@ const modelSpec = {
     "structured_output_beta": "structured-outputs-2025-11-13",
     "beta_flags": [
       "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
+  },
+  "claude-opus-4-5-20251101": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 32000], 32000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "structured_output_beta": "structured-outputs-2025-11-13",
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
+  },
+  "claude-opus-4-1-20250805": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 32000], 32000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "structured_output_beta": "structured-outputs-2025-11-13",
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
+  },
+  "claude-sonnet-4-20250514": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 64000], 64000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "structured_output_beta": "structured-outputs-2025-11-13",
+    "beta_flags": [
+      "interleaved-thinking-2025-05-14",
+      "pdfs-2024-09-25"
+    ]
+  },
+  "claude-haiku-4-5-20251001": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 8192], 8192],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": false,
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "beta_flags": [
       "pdfs-2024-09-25"
     ]
   },
@@ -1068,7 +1156,18 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "mistral-large-2512": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
   },
   "mistral-vibe-cli-latest": {
     "context_window" : [1, 128000],
@@ -1236,7 +1335,18 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "ministral-3b-2512": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
   },
   "ministral-8b-latest": {
     "max_output_tokens" : [1, 131000],
@@ -1244,7 +1354,37 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "ministral-8b-2512": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "ministral-14b-latest": {
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
+  },
+  "ministral-14b-2512": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 131000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true
   },
   // open models
   "open-mistral-nemo": {
@@ -1256,6 +1396,28 @@ const modelSpec = {
     "tool_capability": true
   },
   // xAI models
+  "grok-4-fast-reasoning": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true
+  },
+  "grok-4-fast-non-reasoning": {
+    "context_window" : [1, 2000000],
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "websearch_capability": true,
+    "supports_web_search": true,
+    "supports_parallel_function_calling": true
+  },
   "grok-4-1-fast-reasoning": {
     "context_window" : [1, 2000000],
     "max_output_tokens" : [1, 32768],

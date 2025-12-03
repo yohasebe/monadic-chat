@@ -56,9 +56,9 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         expect([nil, "minimal"]).to include(app_instance.settings[:reasoning_effort])
       end
 
-      it "has monadic mode DISABLED for function calling compatibility" do
-        # Monadic mode disabled for better function calling (like Grok)
-        expect(app_instance.settings[:monadic]).to eq(false)
+      it "has monadic mode ENABLED for session state tracking" do
+        # Monadic mode enabled for Jupyter notebook context tracking via Session State
+        expect(app_instance.settings[:monadic]).to eq(true)
       end
 
       it "has initiate_from_assistant enabled for better UX" do
@@ -210,23 +210,23 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         instance
       end
 
-      it "is configured for optimal function calling" do
-        # Monadic mode disabled for better function calling (like Grok)
-        expect(app_instance.settings[:monadic]).to eq(false)
-        
+      it "is configured for optimal function calling with session state" do
+        # Monadic mode enabled for session state tracking (notebook context)
+        expect(app_instance.settings[:monadic]).to eq(true)
+
         # Tools available
         expect(app_instance.settings[:tools]).not_to be_empty
-        
+
         # Reasoning effort may be omitted for function calling; accept nil or minimal
         expect([nil, "minimal"]).to include(app_instance.settings[:reasoning_effort])
-        
+
         # Assistant initiation enabled with proper tool mode management
         expect(app_instance.settings[:initiate_from_assistant]).to eq(true)
-        
-        puts "\n✅ Gemini Jupyter Notebook optimized for function calling:"
-        puts "   - Model: gemini-2.5-flash with 2.0 fallback"
-        puts "   - Reasoning effort: minimal (required for 2.5 function calling)"
-        puts "   - Monadic mode: DISABLED (like Grok for better function calling)"
+
+        puts "\n✅ Gemini Jupyter Notebook optimized for function calling with session state:"
+        puts "   - Model: gemini-3-pro-preview with 2.5 fallback"
+        puts "   - Reasoning effort: minimal (required for function calling)"
+        puts "   - Monadic mode: ENABLED (for notebook context tracking via Session State)"
         puts "   - Function calling: ENABLED with #{app_instance.settings[:tools].length} tools"
         puts "   - Assistant initiation: ENABLED"
         puts "   - Natural language responses with embedded links"

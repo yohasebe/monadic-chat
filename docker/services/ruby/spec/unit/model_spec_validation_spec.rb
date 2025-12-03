@@ -142,10 +142,12 @@ RSpec.describe "Model Specification Validation" do
         # Exclude audio/realtime/generation models from deprecated check (they don't belong in model_spec)
         openai_models_in_spec = openai_models_in_spec.reject { |m| should_exclude_from_model_spec?(m) }
 
-        # Filter out models that have explicit deprecated: false flag
+        # Filter out models that have explicit deprecated flag
         deprecated_models = openai_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Normalize model name before checking
           normalized_model = normalize_model_name(model)
           # Check if normalized model is not in available models

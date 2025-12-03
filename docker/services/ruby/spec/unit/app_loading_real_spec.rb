@@ -157,6 +157,8 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
           generate_video_with_veo generate_image_with_imagen generate_video_with_sora
           validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
           current_time
+          monadic_load_state monadic_save_state
+          save_context get_context update_context remove_from_context clear_context
         ]
         
         tools_to_check = tool_matches.flatten.reject { |tool| standard_tools.include?(tool) }
@@ -258,9 +260,11 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
                              end
           
           # Skip validation for apps with non-standard naming (like single-provider apps)
-          # Also skip legacy apps that haven't been updated yet
+          # Also skip legacy apps and model-specific apps (e.g., Gemini3Preview for Gemini 3 Pro Preview)
           legacy_apps = ["VideoDescriberApp", "Wikipedia"]
-          unless expected_suffixes.any? { |suffix| app_id.end_with?(suffix) } || app_id.include?(" ") || legacy_apps.include?(app_id)
+          model_specific_patterns = ["Gemini3Preview"]  # Model version-specific app names
+          is_model_specific = model_specific_patterns.any? { |pattern| app_id.include?(pattern) }
+          unless expected_suffixes.any? { |suffix| app_id.end_with?(suffix) } || app_id.include?(" ") || legacy_apps.include?(app_id) || is_model_specific
             issues << "#{file}: App ID '#{app_id}' should end with one of #{expected_suffixes.join(', ')} for provider '#{provider}'"
           end
         end
@@ -511,6 +515,8 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
         generate_video_with_sora
         gpt5_codex_agent grok_code_agent
+        save_context get_context update_context remove_from_context clear_context
+        load_context add_topics add_people add_notes
       ]
       
       app_dirs.each do |app_dir|

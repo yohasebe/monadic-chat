@@ -2797,6 +2797,14 @@ $(function () {
       obj.monadic_state = monadicState;
     }
 
+    // Include session_context from ContextPanel if available
+    if (typeof ContextPanel !== 'undefined' && ContextPanel.currentContext) {
+      obj.session_context = ContextPanel.currentContext;
+      if (ContextPanel.currentSchema) {
+        obj.context_schema = ContextPanel.currentSchema;
+      }
+    }
+
     saveObjToJson(obj, "monadic.json");
   });
 

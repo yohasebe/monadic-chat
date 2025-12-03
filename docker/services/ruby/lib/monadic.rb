@@ -1670,6 +1670,23 @@ post "/load" do
           end
         end
 
+        # Restore session_context if present in import data (for Session Context feature)
+        if json_data["session_context"]
+          session[:monadic_state] ||= {}
+          session[:monadic_state][:conversation_context] = json_data["session_context"]
+
+          # Also store context_schema if present
+          if json_data["context_schema"]
+            session[:monadic_state][:context_schema] = json_data["context_schema"]
+          end
+
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+            extra_log.puts "[#{Time.now}] [Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}"
+            extra_log.close
+          end
+        end
+
         # Process messages
         app_name = json_data["parameters"]["app_name"]
         session[:messages] = json_data["messages"].uniq.map do |msg|
@@ -1737,6 +1754,17 @@ post "/load" do
             WebSocketHelper.send_to_session({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json, ws_session_id) unless session[:parameters].empty?
             sleep(0.05)
             WebSocketHelper.send_to_session({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json, ws_session_id)
+
+            # Send session_context if present (for Session Context feature)
+            if session[:monadic_state] && session[:monadic_state][:conversation_context]
+              context_schema = session[:monadic_state][:context_schema] || nil
+              WebSocketHelper.send_to_session({
+                "type" => "context_update",
+                "context" => session[:monadic_state][:conversation_context],
+                "schema" => context_schema,
+                "from_import" => true
+              }.to_json, ws_session_id)
+            end
           else
             # Fallback to broadcast if no session ID (shouldn't happen in normal operation)
             WebSocketHelper.broadcast_to_all({ "type" => "apps", "content" => apps_data, "version" => session[:version], "docker" => session[:docker], "from_import" => true }.to_json) unless apps_data.empty?
@@ -1744,6 +1772,17 @@ post "/load" do
             WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => session[:parameters], "from_import" => true }.to_json) unless session[:parameters].empty?
             sleep(0.05)
             WebSocketHelper.broadcast_to_all({ "type" => "past_messages", "content" => filtered_messages, "from_import" => true }.to_json)
+
+            # Send session_context if present (for Session Context feature)
+            if session[:monadic_state] && session[:monadic_state][:conversation_context]
+              context_schema = session[:monadic_state][:context_schema] || nil
+              WebSocketHelper.broadcast_to_all({
+                "type" => "context_update",
+                "context" => session[:monadic_state][:conversation_context],
+                "schema" => context_schema,
+                "from_import" => true
+              }.to_json)
+            end
           end
 
           if CONFIG["EXTRA_LOGGING"]

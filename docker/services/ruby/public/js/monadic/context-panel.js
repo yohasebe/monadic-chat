@@ -12,6 +12,7 @@ const ContextPanel = {
   currentSchema: null,
   isVisible: false,
   currentAppName: null,
+  isLoading: false,
 
   // Default schema (used when app doesn't define context_schema)
   defaultSchema: {
@@ -103,6 +104,39 @@ const ContextPanel = {
       this.panel.style.display = "none";
       this.isVisible = false;
       this.resetContext();
+      this.hideLoading();
+    }
+  },
+
+  /**
+   * Show the loading indicator (blinking dot) while context is being extracted
+   */
+  showLoading() {
+    if (!this.panel || !this.isVisible) return;
+
+    this.isLoading = true;
+    // Add loading indicator next to the header title
+    const header = this.panel.querySelector("h5");
+    if (header && !header.querySelector(".context-loading-indicator")) {
+      const indicator = document.createElement("span");
+      indicator.className = "context-loading-indicator";
+      // Use i18n translation if available
+      const tooltipText = typeof webUIi18n !== "undefined"
+        ? webUIi18n.t("ui.messages.spinnerUpdatingContext")
+        : "Updating context...";
+      indicator.title = tooltipText;
+      header.querySelector(".text")?.appendChild(indicator);
+    }
+  },
+
+  /**
+   * Hide the loading indicator
+   */
+  hideLoading() {
+    this.isLoading = false;
+    const indicator = this.panel?.querySelector(".context-loading-indicator");
+    if (indicator) {
+      indicator.remove();
     }
   },
 

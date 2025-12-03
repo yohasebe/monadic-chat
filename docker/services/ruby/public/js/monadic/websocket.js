@@ -3372,12 +3372,24 @@ let loadedApp = "Chat";
         break;
       }
 
+      case "context_extraction_started": {
+        // Handle context extraction start notification
+        if (typeof ContextPanel !== "undefined") {
+          ContextPanel.showLoading();
+          console.log("[WS] Context extraction started");
+        }
+        break;
+      }
+
       case "context_update": {
         // Handle context update from server (sent by ContextExtractorAgent)
         // Includes both context data and optional schema for dynamic rendering
-        if (typeof ContextPanel !== "undefined" && data.context) {
-          ContextPanel.updateContext(data.context, data.schema || null);
-          console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
+        if (typeof ContextPanel !== "undefined") {
+          ContextPanel.hideLoading();
+          if (data.context) {
+            ContextPanel.updateContext(data.context, data.schema || null);
+            console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
+          }
         }
         break;
       }

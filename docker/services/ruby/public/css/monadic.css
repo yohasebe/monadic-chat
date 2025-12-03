@@ -3971,3 +3971,26 @@ i.fas.fa-bolt,
 .dark-theme #context-panel .context-turn-group.with-separator {
   border-top-color: #495057 !important;
 }
+
+/* Context Panel Loading Indicator */
+.context-loading-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-amber);
+  animation: context-loading-pulse 1.2s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes context-loading-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}

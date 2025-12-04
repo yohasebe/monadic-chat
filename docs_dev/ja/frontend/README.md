@@ -25,4 +25,4 @@ Monadic ChatのフロントエンドはバニラJavaScriptで構築され、Ruby
 - [SSOT正規化](../ssot_normalization_and_accessors.md) - モデル機能語彙
 
 参照：
-- `docs_dev/developer/code_structure.md` - コード構成の公開開発者リファレンス
+- `docs/ja/advanced-topics/code_structure.md` - コード構成の公開開発者リファレンス

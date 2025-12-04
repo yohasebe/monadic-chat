@@ -688,5 +688,5 @@ REALTIME_TTS_MIN_LENGTH = 60  # Characters
 ## Related Documentation
 
 - `docs_dev/ruby_service/thinking_reasoning_display.md` - Reasoning/thinking content handling
-- `docs_dev/developer/code_structure.md` - Vendor helper architecture
+- `docs_dev/ruby_service/vendors/README.md` - Vendor helper architecture
 - `CLAUDE.md` - Provider independence requirements

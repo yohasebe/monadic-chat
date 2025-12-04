@@ -36,4 +36,4 @@ For frontend-related topics covered elsewhere:
 - [SSOT Normalization](../ssot_normalization_and_accessors.md) - Model capability vocabulary
 
 See also:
-- `docs_dev/developer/code_structure.md` - Public developer reference for code organization
+- `docs/advanced-topics/code_structure.md` - Public developer reference for code organization

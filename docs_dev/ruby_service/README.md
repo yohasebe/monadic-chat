@@ -63,5 +63,5 @@ Core systems:
 - [Type Conversion Policy](/type_conversion_policy.md)
 
 See also:
-- `docs_dev/developer/code_structure.md` - Public code organization reference
+- `docs/advanced-topics/code_structure.md` - Public code organization reference
 - `docs_dev/developer/development_workflow.md` - Development best practices

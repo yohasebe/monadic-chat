@@ -162,5 +162,5 @@ end
 ## 関連ドキュメント
 
 - `docs_dev/ruby_service/thinking_reasoning_display.md` - 推論/思考コンテンツの処理
-- `docs_dev/developer/code_structure.md` - ベンダーヘルパーアーキテクチャ
+- `docs_dev/ruby_service/vendors/README.md` - ベンダーヘルパーアーキテクチャ
 - `CLAUDE.md` - プロバイダー独立性要件

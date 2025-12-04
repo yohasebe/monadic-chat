@@ -327,6 +327,5 @@ end
 
 ## Related Documentation
 
-- `docs_dev/developer/code_structure.md` - Overall architecture
 - `docs/advanced-topics/monadic_dsl.md` - MDSL syntax reference
 - `docs_dev/ruby_service/gemini_tool_continuation_fix.md` - Tool format handling

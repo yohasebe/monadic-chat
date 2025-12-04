@@ -60,5 +60,5 @@ RubyサービスはMonadic Chatのコアバックエンドで、RackとAsync/Fal
 - [型変換ポリシー](/ja/type_conversion_policy.md)
 
 参照：
-- `docs_dev/developer/code_structure.md` - 公開コード構成リファレンス
+- `docs/ja/advanced-topics/code_structure.md` - 公開コード構成リファレンス
 - `docs_dev/developer/development_workflow.md` - 開発ベストプラクティス

@@ -13,8 +13,7 @@
 - **理由**: すべてのOpenAI APIキー保持者がOpenAI Codeにアクセス可能
 
 #### 2. Grok-Code-Fast-1エージェント実装
-- `Monadic::Agents::GrokCodeAgent`モジュールを作成
-- OpenAI Code実装と並行
+- Grok-Codeエージェントサポートを追加し、コード生成を強化
 - すべてのGrokコーディングアプリに統合：
   - Code Interpreter Grok
   - Coding Assistant Grok
@@ -66,32 +65,6 @@
 1. 環境変数（最高優先度）
 2. `system_defaults.json`
 3. ハードコードされたデフォルト（最低優先度）
-
-### 開発ガイドライン
-`CLAUDE.md`を以下で更新：
-- コード品質ガイドライン
-- 言語使用ルール（日本語コメントと英語識別子）
-- OpenAI Codeアクセスに関する注意事項
-- 設定優先順位のドキュメント
-
-### 新しいドキュメント
-- エージェントアーキテクチャパターンに関する内部開発者ドキュメント
-- `docs/release_notes/2025_09_improvements.md` - このファイル
-
-## テスト
-
-### 新しいテストカバレッジ
-- `spec/unit/adapters/jupyter_helper_spec.rb` - Jupyterファイル処理テスト
-- `spec/unit/apps/coding_assistant_tools_spec.rb` - Coding Assistantファイル操作
-- 既存: `spec/unit/agents/openai_code_agent_spec.rb`
-- 既存: `spec/unit/agents/grok_code_agent_spec.rb`
-
-### テスト重点領域
-- ファイル拡張子処理
-- 日本語フォント設定
-- エージェントアクセスチェック
-- ファイルパス検証
-- エラーハンドリング
 
 ## 破壊的変更
 なし - すべての変更は後方互換性があります

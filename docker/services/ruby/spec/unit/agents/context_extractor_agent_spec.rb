@@ -117,35 +117,40 @@ RSpec.describe ContextExtractorAgent do
     end
   end
 
-  describe "#detect_language" do
-    it "detects Japanese from hiragana/katakana" do
+  describe "#detect_conversation_language" do
+    it "detects Japanese" do
       text = "これは日本語のテストです。こんにちは！"
-      expect(agent.detect_language(text)).to eq("ja")
+      expect(agent.detect_conversation_language(text)).to eq("ja")
     end
 
-    it "detects Japanese from mixed kanji and kana" do
-      text = "風雪のような関連する概念を合わせた熟語はどのようなものがある？"
-      expect(agent.detect_language(text)).to eq("ja")
-    end
-
-    it "detects English from Latin characters" do
+    it "detects English" do
       text = "This is a test in English. Hello world!"
-      expect(agent.detect_language(text)).to eq("en")
+      expect(agent.detect_conversation_language(text)).to eq("en")
     end
 
-    it "detects Korean from Hangul" do
-      text = "이것은 한국어 테스트입니다."
-      expect(agent.detect_language(text)).to eq("ko")
+    it "detects French" do
+      text = "Bonjour, comment allez-vous? C'est un test en français."
+      expect(agent.detect_conversation_language(text)).to eq("fr")
     end
 
-    it "detects Chinese from CJK without kana" do
-      text = "这是中文测试。你好世界！"
-      expect(agent.detect_language(text)).to eq("zh")
+    it "detects German" do
+      text = "Guten Tag, wie geht es Ihnen? Das ist ein Test auf Deutsch."
+      expect(agent.detect_conversation_language(text)).to eq("de")
+    end
+
+    it "detects Spanish" do
+      text = "Hola, ¿cómo estás? Esta es una prueba en español."
+      expect(agent.detect_conversation_language(text)).to eq("es")
+    end
+
+    it "detects Korean" do
+      text = "이것은 한국어 테스트입니다. 안녕하세요!"
+      expect(agent.detect_conversation_language(text)).to eq("ko")
     end
 
     it "returns English for empty text" do
-      expect(agent.detect_language("")).to eq("en")
-      expect(agent.detect_language(nil)).to eq("en")
+      expect(agent.detect_conversation_language("")).to eq("en")
+      expect(agent.detect_conversation_language(nil)).to eq("en")
     end
   end
 

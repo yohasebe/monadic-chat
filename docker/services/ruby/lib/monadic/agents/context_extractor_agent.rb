@@ -4,6 +4,7 @@ require_relative "../utils/system_defaults"
 require "net/http"
 require "uri"
 require "json"
+require "cld"
 
 # Context Extractor Agent
 # Automatically extracts conversation context after each response for apps with monadic: true setting
@@ -103,43 +104,17 @@ module ContextExtractorAgent
   }.freeze
 
   # Detect the dominant language of the conversation text
-  # Uses a simple heuristic based on character ranges
+  # Uses CLD (Compact Language Detector) gem for accurate detection
   # @param text [String] The text to analyze
-  # @return [String] The detected language code (e.g., "ja", "zh", "ko", "en")
-  def detect_language(text)
+  # @return [String] The detected language code (e.g., "ja", "zh", "ko", "en", "fr", "de", etc.)
+  def detect_conversation_language(text)
     return "en" if text.nil? || text.empty?
 
-    # Count characters by script type
-    japanese_chars = text.scan(/[\p{Hiragana}\p{Katakana}]/).length
-    cjk_chars = text.scan(/[\p{Han}]/).length  # Kanji/Hanzi/Hanja
-    korean_chars = text.scan(/[\p{Hangul}]/).length
-    cyrillic_chars = text.scan(/[\p{Cyrillic}]/).length
-    arabic_chars = text.scan(/[\p{Arabic}]/).length
-    thai_chars = text.scan(/[\p{Thai}]/).length
-    devanagari_chars = text.scan(/[\p{Devanagari}]/).length
-
-    # Calculate total non-ASCII characters
-    total_special = japanese_chars + cjk_chars + korean_chars + cyrillic_chars + arabic_chars + thai_chars + devanagari_chars
-
-    # If there are significant Japanese-specific characters (hiragana/katakana), it's Japanese
-    if japanese_chars > 5 || (japanese_chars > 0 && cjk_chars > 0 && japanese_chars.to_f / (japanese_chars + cjk_chars) > 0.1)
-      return "ja"
-    end
-
-    # Korean is identifiable by Hangul
-    return "ko" if korean_chars > 5
-
-    # Chinese if there are CJK characters but no Japanese/Korean indicators
-    return "zh" if cjk_chars > 5 && japanese_chars == 0 && korean_chars == 0
-
-    # Other scripts
-    return "ru" if cyrillic_chars > 5
-    return "ar" if arabic_chars > 5
-    return "th" if thai_chars > 5
-    return "hi" if devanagari_chars > 5
-
-    # Default to English for Latin-based scripts
-    "en"
+    # Use the CLD gem for accurate language detection
+    CLD.detect_language(text)[:code]
+  rescue StandardError => e
+    puts "[ContextExtractor] Language detection error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    "en"  # Default to English on error
   end
 
   # Extract context from a conversation exchange using direct HTTP API calls
@@ -173,7 +148,7 @@ module ContextExtractorAgent
     if language.nil? || language == "auto"
       # Detect language from the combined conversation text
       conversation_for_detection = "#{user_message}\n#{assistant_response}"
-      detected_language = detect_language(conversation_for_detection)
+      detected_language = detect_conversation_language(conversation_for_detection)
       puts "[ContextExtractor] Detected language: #{detected_language}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     end
 

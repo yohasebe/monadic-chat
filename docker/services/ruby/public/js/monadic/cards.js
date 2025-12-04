@@ -15,7 +15,7 @@ function escapeHtml(unsafe)
          .replace(/'/g, "&#039;");
  }
 
-function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false) {
+function createCard(role, badge, html, _lang = "en", mid = "", status = true, images = [], _monadic = false, turnNumber = null) {
   const status_class = status === true ? "active" : "";
   const statusTooltip = status === true
     ? getTranslation('ui.messages.messageActive', 'Active (within context)')
@@ -135,9 +135,17 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   const enhancedBadge2 = enhancedBadge.replace(/<i class=['"]fas (fa-face-smile|fa-robot|fa-bars)['"]><\/i>/g,
     `<i class="fas ${roleIcon}"></i>`);
 
+  // Create turn number badge for assistant cards
+  const turnLabelText = typeof webUIi18n !== "undefined"
+    ? webUIi18n.t("ui.messages.contextTurnLabel")
+    : "Turn";
+  const turnBadge = (role === "assistant" && turnNumber !== null && turnNumber > 0)
+    ? `<span class="card-turn-badge" data-turn="${turnNumber}" title="${turnLabelText} ${turnNumber}">T${turnNumber}</span>`
+    : '';
+
   // Create the card element with the mid attribute
   const card = $(`
-    <div class="card mt-3" id="${mid}">
+    <div class="card mt-3" id="${mid}"${turnNumber ? ` data-turn="${turnNumber}"` : ''}>
     <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
     <div class="fs-5 card-title mb-0">${enhancedBadge2}</div>
     ${(!runningOnChrome && !runningOnEdge && !runningOnSafari) ? `
@@ -145,6 +153,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
         <span title="Copy" class="func-copy me-3"><i class="fas fa-copy"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
         <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        ${turnBadge}
         <span title="${statusTooltip}" class="status ${status_class}"></span>
         </div>
         ` : `
@@ -154,6 +163,7 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
         <span title="Stop TTS" class="func-stop me-3"><i class="fas fa-stop"></i></span>
         <span title="Delete" class="func-delete me-3" ><i class="fas fa-xmark"></i></span>
         <span title="Edit" class="func-edit me-3"><i class="fas fa-pen-to-square"></i></span>
+        ${turnBadge}
         <span title="${statusTooltip}" class="status ${status_class}"></span>
         </div>
         `}
@@ -925,12 +935,59 @@ window.deleteSystemMessage = function(mid, messageIndex) {
   setAlert("<i class='fas fa-circle-check'></i> Message deleted", "success");
 };
 
+/**
+ * Update turn numbers on all assistant cards after a deletion
+ * @param {number} deletedTurn - The turn number that was deleted (1-indexed)
+ */
+function updateCardTurnNumbers(deletedTurn) {
+  if (!deletedTurn || deletedTurn < 1) return;
+
+  const turnLabelText = typeof webUIi18n !== "undefined"
+    ? webUIi18n.t("ui.messages.contextTurnLabel")
+    : "Turn";
+
+  // Find all cards with turn badges that have turn > deletedTurn
+  $('#discourse .card[data-turn]').each(function() {
+    const $card = $(this);
+    const currentTurn = parseInt($card.attr('data-turn'), 10);
+
+    if (currentTurn > deletedTurn) {
+      const newTurn = currentTurn - 1;
+      // Update data attribute
+      $card.attr('data-turn', newTurn);
+
+      // Update the badge display
+      const $badge = $card.find('.card-turn-badge');
+      if ($badge.length) {
+        $badge.attr('data-turn', newTurn);
+        $badge.attr('title', `${turnLabelText} ${newTurn}`);
+        $badge.text(`T${newTurn}`);
+      }
+    }
+  });
+}
+
+/**
+ * Get the turn number of an assistant card by its mid
+ * @param {string} mid - The message ID
+ * @returns {number|null} The turn number or null if not found
+ */
+function getCardTurnNumber(mid) {
+  const $card = $(`#${mid}`);
+  if (!$card.length) return null;
+
+  const turn = $card.attr('data-turn');
+  return turn ? parseInt(turn, 10) : null;
+}
+
 // Expose these functions globally so they can be called from other scripts
 window.createCard = createCard;
 window.attachEventListeners = attachEventListeners;
 window.detachEventListeners = detachEventListeners;
 window.cancelEditMode = cancelEditMode;
 window.cleanupCardTextListeners = cleanupCardTextListeners;
+window.updateCardTurnNumbers = updateCardTurnNumbers;
+window.getCardTurnNumber = getCardTurnNumber;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
@@ -942,7 +999,9 @@ if (typeof module !== 'undefined' && module.exports) {
     cleanupCardTextListeners,
     deleteSystemMessage,
     deleteMessageAndSubsequent,
-    deleteMessageOnly
+    deleteMessageOnly,
+    updateCardTurnNumbers,
+    getCardTurnNumber
   };
 }
 window.deleteMessageAndSubsequent = function(mid, messageIndex) {
@@ -1002,7 +1061,10 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     console.error("Card not found:", mid);
     return;
   }
-  
+
+  // Get the turn number before deletion (for assistant cards)
+  const deletedTurn = getCardTurnNumber(mid);
+
   // Properly clean up all tooltips to prevent orphaned tooltip elements
   if (typeof cleanupAllTooltips === 'function') {
     cleanupAllTooltips();
@@ -1011,7 +1073,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     $card.find("[title]").tooltip('hide').tooltip('dispose');
     $('.tooltip').remove();
   }
-  
+
   // Special case: handle system role messages with our specialized function
   if ($card.find(".role-system").length > 0) {
     // Use the specialized system message deletion to maintain consistency
@@ -1035,16 +1097,25 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     $card.remove();
     ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
     mids.delete(mid);
+    // Update turn numbers on remaining cards
+    if (deletedTurn) {
+      updateCardTurnNumbers(deletedTurn);
+    }
     return;
   }
-  
+
   // Remove the extra confirmation dialog to simplify the deletion process
-  
+
   // Remove just this message, preserving subsequent messages
   messages.splice(messageIndex, 1);
   $card.remove();
   ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
   mids.delete(mid);
+
+  // Update turn numbers on remaining cards
+  if (deletedTurn) {
+    updateCardTurnNumbers(deletedTurn);
+  }
 };
 
   // Combine mouse events into a single listener

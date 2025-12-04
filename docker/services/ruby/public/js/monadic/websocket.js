@@ -2744,8 +2744,8 @@ let loadedApp = "Chat";
   }
 
   // Helper function to append a card to the discourse
-  function appendCard(role, badge, html, lang, mid, status, images) {
-    const htmlElement = createCard(role, badge, html, lang, mid, status, images);
+  function appendCard(role, badge, html, lang, mid, status, images, turnNumber = null) {
+    const htmlElement = createCard(role, badge, html, lang, mid, status, images, false, turnNumber);
     $("#discourse").append(htmlElement);
 
     // Defer applyRenderers to ensure DOM is fully ready
@@ -4912,6 +4912,9 @@ let loadedApp = "Chat";
           window.SessionState.app.model = currentModel;
         }
 
+        // Track turn number for assistant cards during session restore
+        let assistantTurnCount = 0;
+
         serverMessages.forEach((msg, index) => {
           if (!msg || typeof msg !== "object") {
             return;
@@ -4959,6 +4962,8 @@ let loadedApp = "Chat";
               break;
             }
             case "assistant": {
+              // Increment turn count for this assistant message
+              assistantTurnCount++;
               const badge =
                 msg.badge ||
                 "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>";
@@ -4969,7 +4974,9 @@ let loadedApp = "Chat";
                 msg.lang,
                 msg.mid,
                 msg.active,
-                Array.isArray(msg.images) ? msg.images : []
+                Array.isArray(msg.images) ? msg.images : [],
+                false,  // monadic parameter
+                assistantTurnCount  // turnNumber
               );
               $("#discourse").append(assistantCard);
               if (window.MarkdownRenderer) {
@@ -5378,7 +5385,9 @@ let loadedApp = "Chat";
           }
 
           if (data["content"]["role"] === "assistant") {
-            appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true);
+            // Calculate turn number based on existing assistant cards + 1
+            const turnNumber = $('#discourse .card .role-assistant').length + 1;
+            appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
             // Show message input and hide spinner
             $("#message").show();

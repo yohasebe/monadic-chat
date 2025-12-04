@@ -304,7 +304,9 @@ const webUITranslations = {
         pdfModel: "Model",
         pdfExported: "Exported",
         messageActive: "Active (within context)",
-        messageInactive: "Inactive (outside context)"
+        messageInactive: "Inactive (outside context)",
+        contextEditedBadge: "Re-extracted after message edit",
+        contextTurnLabel: "Turn"
       },
       session: {
         startSession: "Start Session",
@@ -611,7 +613,9 @@ const webUITranslations = {
         pdfModel: "モデル",
         pdfExported: "出力日時",
         messageActive: "アクティブ（コンテキスト内）",
-        messageInactive: "非アクティブ（コンテキスト外）"
+        messageInactive: "非アクティブ（コンテキスト外）",
+        contextEditedBadge: "メッセージ編集後に再抽出",
+        contextTurnLabel: "ターン"
       },
       session: {
         startSession: "セッションを開始",
@@ -926,7 +930,9 @@ const webUITranslations = {
         pdfModel: "模型",
         pdfExported: "导出时间",
         messageActive: "活动（上下文内）",
-        messageInactive: "非活动（上下文外）"
+        messageInactive: "非活动（上下文外）",
+        contextEditedBadge: "消息编辑后重新提取",
+        contextTurnLabel: "轮次"
       },
       session: {
         startSession: "开始会话",
@@ -1213,7 +1219,9 @@ const webUITranslations = {
         pdfModel: "모델",
         pdfExported: "내보내기 날짜",
         messageActive: "활성 (컨텍스트 내)",
-        messageInactive: "비활성 (컨텍스트 외)"
+        messageInactive: "비활성 (컨텍스트 외)",
+        contextEditedBadge: "메시지 편집 후 재추출됨",
+        contextTurnLabel: "턴"
       },
       session: {
         startSession: "세션 시작",
@@ -1500,7 +1508,9 @@ const webUITranslations = {
         pdfModel: "Modelo",
         pdfExported: "Exportado",
         messageActive: "Activo (dentro del contexto)",
-        messageInactive: "Inactivo (fuera del contexto)"
+        messageInactive: "Inactivo (fuera del contexto)",
+        contextEditedBadge: "Re-extraído después de editar mensaje",
+        contextTurnLabel: "Turno"
       },
       session: {
         startSession: "Iniciar Sesión",
@@ -1787,7 +1797,9 @@ const webUITranslations = {
         pdfModel: "Modèle",
         pdfExported: "Exporté",
         messageActive: "Actif (dans le contexte)",
-        messageInactive: "Inactif (hors contexte)"
+        messageInactive: "Inactif (hors contexte)",
+        contextEditedBadge: "Ré-extrait après modification du message",
+        contextTurnLabel: "Tour"
       },
       session: {
         startSession: "Démarrer Session",
@@ -2074,7 +2086,9 @@ const webUITranslations = {
         pdfModel: "Modell",
         pdfExported: "Exportiert",
         messageActive: "Aktiv (innerhalb des Kontexts)",
-        messageInactive: "Inaktiv (außerhalb des Kontexts)"
+        messageInactive: "Inaktiv (außerhalb des Kontexts)",
+        contextEditedBadge: "Nach Nachrichtenbearbeitung erneut extrahiert",
+        contextTurnLabel: "Runde"
       },
       session: {
         startSession: "Sitzung Starten",

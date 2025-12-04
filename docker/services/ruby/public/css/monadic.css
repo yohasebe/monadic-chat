@@ -4018,6 +4018,26 @@ i.fas.fa-bolt,
   border-left-color: #ffc107;
 }
 
+/* Card turn number badge */
+.card-turn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #dc4c64;
+  color: white;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-right: 8px;
+  min-width: 22px;
+  cursor: default;
+}
+
+.dark-theme .card-turn-badge {
+  background: #e57373;
+}
+
 /* Highlight effect when navigating to a card */
 .card.context-highlight {
   animation: context-card-highlight 2s ease-out;

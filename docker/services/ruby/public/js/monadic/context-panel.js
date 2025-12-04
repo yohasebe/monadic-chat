@@ -359,14 +359,22 @@ const ContextPanel = {
       const hasEditedItems = turnItems.some(item => item.edited);
       const itemsText = turnItems.map(item => this.escapeHtml(item.text)).join(", ");
 
+      // Get i18n translations with fallbacks
+      const editedBadgeTooltip = typeof webUIi18n !== "undefined"
+        ? webUIi18n.t("ui.messages.contextEditedBadge")
+        : "Re-extracted after message edit";
+      const turnLabelText = typeof webUIi18n !== "undefined"
+        ? webUIi18n.t("ui.messages.contextTurnLabel")
+        : "Turn";
+
       // Add edited badge if any item in this turn was edited
       const editedBadge = hasEditedItems
-        ? '<span class="context-edited-badge" title="This turn was re-extracted after editing"><i class="fas fa-pen-to-square"></i></span>'
+        ? `<span class="context-edited-badge" title="${editedBadgeTooltip}"><i class="fas fa-pen-to-square"></i></span>`
         : '';
 
       html += `
         <div class="context-turn-group${index > 0 ? ' with-separator' : ''}${hasEditedItems ? ' edited' : ''}">
-          <span class="context-turn-label clickable" data-turn="${turn}" title="Click to jump to Turn ${turn}">T${turn}</span>${editedBadge}
+          <span class="context-turn-label clickable" data-turn="${turn}" title="Click to jump to ${turnLabelText} ${turn}">T${turn}</span>${editedBadge}
           <span class="context-turn-items">${itemsText}</span>
         </div>
       `;

@@ -5389,8 +5389,8 @@ let loadedApp = "Chat";
           }
 
           if (data["content"]["role"] === "assistant") {
-            // Calculate turn number based on existing assistant cards + 1
-            const turnNumber = $('#discourse .card .role-assistant').length + 1;
+            // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
+            const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
             appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
             // Show message input and hide spinner
@@ -5527,8 +5527,8 @@ let loadedApp = "Chat";
             images = data["content"]["images"]
           }
           // Use the appendCard helper function
-          // User turn number is existing assistant cards + 1 (the turn this user message belongs to)
-          const userTurnNumber = $('#discourse .card .role-assistant').length + 1;
+          // User turn number is existing assistant cards + 1 (excluding temp-card)
+          const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
           appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
           $("#message").show();
           $("#message").prop("disabled", false);
@@ -5643,8 +5643,8 @@ let loadedApp = "Chat";
         }
 
         // Use the appendCard helper function to show the user message
-        // User turn number is existing assistant cards + 1 (the turn this user message belongs to)
-        const userTurnNumber = $('#discourse .card .role-assistant').length + 1;
+        // User turn number is existing assistant cards + 1 (excluding temp-card)
+        const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
         appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
 
         // Scroll down immediately after showing user message to make it visible

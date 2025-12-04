@@ -500,8 +500,8 @@ function handleHtmlMessage(data, messages, createCardFunc) {
     if (data.content.role === 'assistant') {
       // Create card if function is provided
       if (typeof createCardFunc === 'function') {
-        // Calculate turn number based on existing assistant cards + 1
-        const turnNumber = $('#discourse .card .role-assistant').length + 1;
+        // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
+        const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
         createCardFunc('assistant',
                      '<span class="text-secondary"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>',
                      finalHtml,

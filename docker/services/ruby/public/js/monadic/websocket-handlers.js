@@ -457,19 +457,16 @@ function handleAudioMessage(data, processAudio) {
 /**
  * Handles HTML messages (assistant responses)
  * @param {Object} data - Parsed message data
- * @param {Array} messages - The messages array to update
  * @param {Function} createCardFunc - Function to create UI cards
  * @returns {boolean} - Whether the message was handled
  */
-function handleHtmlMessage(data, messages, createCardFunc) {
+function handleHtmlMessage(data, createCardFunc) {
   if (data && data.type === 'html' && data.content) {
     // Hide the temp-card as we're about to show the final HTML
     $('#temp-card').hide();
-    
-    // Safely update messages array if it exists
-    if (Array.isArray(messages)) {
-      messages.push(data.content);
-    }
+
+    // Note: Message is already added to window.messages via SessionState.addMessage
+    // in websocket.js before this handler is called - no need to push here
 
     // Phase 2: Use MarkdownRenderer if html field is missing
     let html;

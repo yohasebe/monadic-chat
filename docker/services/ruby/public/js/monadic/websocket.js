@@ -5339,7 +5339,7 @@ let loadedApp = "Chat";
         // Use the handler if available, otherwise use inline code
         let handled = false;
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
-          handled = wsHandlers.handleHtmlMessage(data, messages, appendCard);
+          handled = wsHandlers.handleHtmlMessage(data, appendCard);
           if (handled) {
             document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
           }

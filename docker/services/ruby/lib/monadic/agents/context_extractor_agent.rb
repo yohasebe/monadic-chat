@@ -24,7 +24,8 @@ module ContextExtractorAgent
   # Build dynamic extraction prompt based on context schema
   # @param schema [Hash] The context schema
   # @param language [String] The conversation language code (e.g., "ja", "en", "auto")
-  def build_extraction_prompt(schema, language = nil)
+  # @param detected_language [String] The detected language when language is "auto"
+  def build_extraction_prompt(schema, language = nil, detected_language = nil)
     fields = schema[:fields] || schema["fields"] || DEFAULT_SCHEMA[:fields]
 
     field_descriptions = fields.map do |field|
@@ -39,19 +40,33 @@ module ContextExtractorAgent
     end.join(",")
 
     # Build language instruction
-    language_instruction = if language && language != "auto"
-      lang_name = case language
+    effective_language = if language && language != "auto"
+      language
+    else
+      detected_language
+    end
+
+    language_instruction = if effective_language
+      lang_name = case effective_language
         when "ja" then "Japanese"
         when "zh" then "Chinese"
         when "ko" then "Korean"
         when "es" then "Spanish"
         when "fr" then "French"
         when "de" then "German"
-        else language.upcase
+        when "pt" then "Portuguese"
+        when "it" then "Italian"
+        when "ru" then "Russian"
+        when "ar" then "Arabic"
+        when "hi" then "Hindi"
+        when "th" then "Thai"
+        when "vi" then "Vietnamese"
+        when "en" then "English"
+        else effective_language.upcase
       end
-      "- Output all extracted items in #{lang_name} to match the conversation language"
+      "- IMPORTANT: Output ALL extracted items in #{lang_name} only. Do not mix languages."
     else
-      "- Match the language of extracted items to the dominant language of the conversation"
+      "- Output extracted items in the same language as the conversation"
     end
 
     <<~PROMPT
@@ -87,6 +102,46 @@ module ContextExtractorAgent
     "ollama" => "http://ollama:11434/api/chat"
   }.freeze
 
+  # Detect the dominant language of the conversation text
+  # Uses a simple heuristic based on character ranges
+  # @param text [String] The text to analyze
+  # @return [String] The detected language code (e.g., "ja", "zh", "ko", "en")
+  def detect_language(text)
+    return "en" if text.nil? || text.empty?
+
+    # Count characters by script type
+    japanese_chars = text.scan(/[\p{Hiragana}\p{Katakana}]/).length
+    cjk_chars = text.scan(/[\p{Han}]/).length  # Kanji/Hanzi/Hanja
+    korean_chars = text.scan(/[\p{Hangul}]/).length
+    cyrillic_chars = text.scan(/[\p{Cyrillic}]/).length
+    arabic_chars = text.scan(/[\p{Arabic}]/).length
+    thai_chars = text.scan(/[\p{Thai}]/).length
+    devanagari_chars = text.scan(/[\p{Devanagari}]/).length
+
+    # Calculate total non-ASCII characters
+    total_special = japanese_chars + cjk_chars + korean_chars + cyrillic_chars + arabic_chars + thai_chars + devanagari_chars
+
+    # If there are significant Japanese-specific characters (hiragana/katakana), it's Japanese
+    if japanese_chars > 5 || (japanese_chars > 0 && cjk_chars > 0 && japanese_chars.to_f / (japanese_chars + cjk_chars) > 0.1)
+      return "ja"
+    end
+
+    # Korean is identifiable by Hangul
+    return "ko" if korean_chars > 5
+
+    # Chinese if there are CJK characters but no Japanese/Korean indicators
+    return "zh" if cjk_chars > 5 && japanese_chars == 0 && korean_chars == 0
+
+    # Other scripts
+    return "ru" if cyrillic_chars > 5
+    return "ar" if arabic_chars > 5
+    return "th" if thai_chars > 5
+    return "hi" if devanagari_chars > 5
+
+    # Default to English for Latin-based scripts
+    "en"
+  end
+
   # Extract context from a conversation exchange using direct HTTP API calls
   # @param session [Hash] The session information
   # @param user_message [String] The user's message
@@ -113,8 +168,17 @@ module ContextExtractorAgent
     # Use provided schema or default
     effective_schema = schema || DEFAULT_SCHEMA
 
+    # Detect language from conversation if language is "auto" or nil
+    detected_language = nil
+    if language.nil? || language == "auto"
+      # Detect language from the combined conversation text
+      conversation_for_detection = "#{user_message}\n#{assistant_response}"
+      detected_language = detect_language(conversation_for_detection)
+      puts "[ContextExtractor] Detected language: #{detected_language}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    end
+
     # Build the extraction prompt dynamically with language support
-    extraction_prompt = build_extraction_prompt(effective_schema, language)
+    extraction_prompt = build_extraction_prompt(effective_schema, language, detected_language)
 
     conversation_text = <<~TEXT
       User: #{user_message}

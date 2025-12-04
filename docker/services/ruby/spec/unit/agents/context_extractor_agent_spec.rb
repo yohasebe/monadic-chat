@@ -100,11 +100,52 @@ RSpec.describe ContextExtractorAgent do
         expect(prompt).to include("Spanish")
       end
 
-      it "handles auto language detection" do
+      it "handles auto language without detected language" do
         prompt = agent.build_extraction_prompt(ContextExtractorAgent::DEFAULT_SCHEMA, "auto")
 
-        expect(prompt).to include("dominant language")
+        # When language is "auto" but no detected_language is provided, fallback to generic instruction
+        expect(prompt).to include("same language as the conversation")
       end
+
+      it "handles auto language with detected language" do
+        prompt = agent.build_extraction_prompt(ContextExtractorAgent::DEFAULT_SCHEMA, "auto", "ja")
+
+        # When language is "auto" and detected_language is provided, use that language
+        expect(prompt).to include("Japanese")
+        expect(prompt).to include("Do not mix languages")
+      end
+    end
+  end
+
+  describe "#detect_language" do
+    it "detects Japanese from hiragana/katakana" do
+      text = "これは日本語のテストです。こんにちは！"
+      expect(agent.detect_language(text)).to eq("ja")
+    end
+
+    it "detects Japanese from mixed kanji and kana" do
+      text = "風雪のような関連する概念を合わせた熟語はどのようなものがある？"
+      expect(agent.detect_language(text)).to eq("ja")
+    end
+
+    it "detects English from Latin characters" do
+      text = "This is a test in English. Hello world!"
+      expect(agent.detect_language(text)).to eq("en")
+    end
+
+    it "detects Korean from Hangul" do
+      text = "이것은 한국어 테스트입니다."
+      expect(agent.detect_language(text)).to eq("ko")
+    end
+
+    it "detects Chinese from CJK without kana" do
+      text = "这是中文测试。你好世界！"
+      expect(agent.detect_language(text)).to eq("zh")
+    end
+
+    it "returns English for empty text" do
+      expect(agent.detect_language("")).to eq("en")
+      expect(agent.detect_language(nil)).to eq("en")
     end
   end
 

@@ -135,13 +135,15 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   const enhancedBadge2 = enhancedBadge.replace(/<i class=['"]fas (fa-face-smile|fa-robot|fa-bars)['"]><\/i>/g,
     `<i class="fas ${roleIcon}"></i>`);
 
-  // Create turn number badge for assistant cards
+  // Create turn number badge for user and assistant cards
   const turnLabelText = typeof webUIi18n !== "undefined"
     ? webUIi18n.t("ui.messages.contextTurnLabel")
     : "Turn";
-  const turnBadge = (role === "assistant" && turnNumber !== null && turnNumber > 0)
-    ? `<span class="card-turn-badge" data-turn="${turnNumber}" title="${turnLabelText} ${turnNumber}">T${turnNumber}</span>`
-    : '';
+  let turnBadge = '';
+  if ((role === "assistant" || role === "user") && turnNumber !== null && turnNumber > 0) {
+    const badgeClass = role === "user" ? "card-turn-badge card-turn-badge-user" : "card-turn-badge";
+    turnBadge = `<span class="${badgeClass}" data-turn="${turnNumber}" title="${turnLabelText} ${turnNumber}">T${turnNumber}</span>`;
+  }
 
   // Create the card element with the mid attribute
   const card = $(`
@@ -936,7 +938,7 @@ window.deleteSystemMessage = function(mid, messageIndex) {
 };
 
 /**
- * Update turn numbers on all assistant cards after a deletion
+ * Update turn numbers on all cards (user and assistant) after a deletion
  * @param {number} deletedTurn - The turn number that was deleted (1-indexed)
  */
 function updateCardTurnNumbers(deletedTurn) {

@@ -4038,6 +4038,15 @@ i.fas.fa-bolt,
   background: #e57373;
 }
 
+/* User turn badge (blue to match user icon) */
+.card-turn-badge-user {
+  background: #4cacdc;
+}
+
+.dark-theme .card-turn-badge-user {
+  background: #64b5f6;
+}
+
 /* Highlight effect when navigating to a card */
 .card.context-highlight {
   animation: context-card-highlight 2s ease-out;

@@ -79,32 +79,44 @@ const ContextPanel = {
   },
 
   /**
-   * Scroll to the assistant message card corresponding to the given turn number
+   * Scroll to the message card corresponding to the given turn number
+   * Prefers assistant card, falls back to user card if assistant not found
    * @param {number} turn - The turn number (1-indexed)
    */
   scrollToTurn(turn) {
-    // Get all assistant cards in the discourse area (excluding temp-card)
-    const assistantCards = document.querySelectorAll('#discourse .card:not(#temp-card) .role-assistant');
+    if (turn <= 0) {
+      console.warn(`[ContextPanel] Invalid turn number: ${turn}`);
+      return;
+    }
 
-    if (turn > 0 && turn <= assistantCards.length) {
-      // Turn 1 = index 0, Turn 2 = index 1, etc.
-      const targetCardBody = assistantCards[turn - 1];
-      const targetCard = targetCardBody.closest('.card');
+    // First try to find assistant card with this turn number (using data-turn attribute)
+    let targetCard = document.querySelector(`#discourse .card[data-turn="${turn}"]:not(#temp-card) .role-assistant`);
+    if (targetCard) {
+      targetCard = targetCard.closest('.card');
+    }
 
-      if (targetCard) {
-        // Scroll to the card with smooth animation
-        targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        // Add a brief highlight effect
-        targetCard.classList.add('context-highlight');
-        setTimeout(() => {
-          targetCard.classList.remove('context-highlight');
-        }, 2000);
-
-        console.log(`[ContextPanel] Scrolled to Turn ${turn}`);
+    // If assistant card not found, fall back to user card with same turn
+    if (!targetCard) {
+      const userCardBody = document.querySelector(`#discourse .card[data-turn="${turn}"]:not(#temp-card) .role-user`);
+      if (userCardBody) {
+        targetCard = userCardBody.closest('.card');
+        console.log(`[ContextPanel] Assistant card for Turn ${turn} not found, falling back to user card`);
       }
+    }
+
+    if (targetCard) {
+      // Scroll to the card with smooth animation
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Add a brief highlight effect
+      targetCard.classList.add('context-highlight');
+      setTimeout(() => {
+        targetCard.classList.remove('context-highlight');
+      }, 2000);
+
+      console.log(`[ContextPanel] Scrolled to Turn ${turn}`);
     } else {
-      console.warn(`[ContextPanel] Turn ${turn} not found (total: ${assistantCards.length})`);
+      console.warn(`[ContextPanel] Turn ${turn} not found`);
     }
   },
 

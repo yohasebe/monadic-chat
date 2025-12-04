@@ -4949,6 +4949,8 @@ let loadedApp = "Chat";
                 .replace(/\n/g, "<br>")
                 .replace(/\s/g, " ");
               const images = Array.isArray(msg.images) ? msg.images : [];
+              // User turn number is the next assistant turn (current count + 1)
+              const userTurnNumber = assistantTurnCount + 1;
               const userCard = createCard(
                 "user",
                 "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>",
@@ -4956,7 +4958,9 @@ let loadedApp = "Chat";
                 msg.lang,
                 msg.mid,
                 msg.active,
-                images
+                images,
+                false,  // monadic parameter
+                userTurnNumber  // turnNumber
               );
               $("#discourse").append(userCard);
               break;
@@ -5523,7 +5527,9 @@ let loadedApp = "Chat";
             images = data["content"]["images"]
           }
           // Use the appendCard helper function
-          appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
+          // User turn number is existing assistant cards + 1 (the turn this user message belongs to)
+          const userTurnNumber = $('#discourse .card .role-assistant').length + 1;
+          appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
           $("#message").show();
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
@@ -5637,7 +5643,9 @@ let loadedApp = "Chat";
         }
 
         // Use the appendCard helper function to show the user message
-        appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images);
+        // User turn number is existing assistant cards + 1 (the turn this user message belongs to)
+        const userTurnNumber = $('#discourse .card .role-assistant').length + 1;
+        appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
 
         // Scroll down immediately after showing user message to make it visible
         if (!isElementInViewport(mainPanel)) {

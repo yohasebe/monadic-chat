@@ -238,6 +238,14 @@
           console.error('[SessionState.addMessage] Invalid message:', message);
           return null;
         }
+        // Check for duplicate before adding to internal array
+        const isDuplicate = this.conversation.messages.some(m =>
+          m === message || (m.mid && message.mid && m.mid === message.mid)
+        );
+        if (isDuplicate) {
+          console.log('[SessionState.addMessage] Skipping duplicate message:', message.mid);
+          return message; // Return without adding
+        }
         // Add to internal array
         this.conversation.messages.push(message);
       

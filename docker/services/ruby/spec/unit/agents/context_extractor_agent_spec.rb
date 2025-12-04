@@ -391,4 +391,79 @@ RSpec.describe ContextExtractorAgent do
       expect(ContextExtractorAgent::API_ENDPOINTS["ollama"]).to include("ollama:11434")
     end
   end
+
+  describe "#remove_turn_from_context" do
+    let(:context) do
+      {
+        "_turn_count" => 3,
+        "topics" => [
+          { "text" => "AI", "turn" => 1 },
+          { "text" => "Ruby", "turn" => 2 },
+          { "text" => "Python", "turn" => 3 }
+        ],
+        "people" => [
+          { "text" => "John", "turn" => 1 },
+          { "text" => "Mary", "turn" => 2 }
+        ],
+        "notes" => []
+      }
+    end
+
+    it "removes items from the specified turn" do
+      result = agent.send(:remove_turn_from_context, context, 2)
+
+      topic_texts = result["topics"].map { |t| t["text"] }
+      expect(topic_texts).to contain_exactly("AI", "Python")
+
+      people_texts = result["people"].map { |p| p["text"] }
+      expect(people_texts).to contain_exactly("John")
+    end
+
+    it "preserves turn count" do
+      result = agent.send(:remove_turn_from_context, context, 2)
+      expect(result["_turn_count"]).to eq(3)
+    end
+
+    it "returns original context if turn_to_remove is nil" do
+      result = agent.send(:remove_turn_from_context, context, nil)
+      expect(result).to eq(context)
+    end
+  end
+
+  describe "#remap_turns_after_deletion" do
+    let(:context) do
+      {
+        "_turn_count" => 3,
+        "topics" => [
+          { "text" => "AI", "turn" => 1 },
+          { "text" => "Python", "turn" => 3 }
+        ],
+        "people" => [],
+        "notes" => []
+      }
+    end
+
+    it "decrements turn numbers greater than deleted turn" do
+      result = agent.send(:remap_turns_after_deletion, context, 2)
+
+      # Turn 3 should become Turn 2
+      python_item = result["topics"].find { |t| t["text"] == "Python" }
+      expect(python_item["turn"]).to eq(2)
+
+      # Turn 1 should stay as Turn 1
+      ai_item = result["topics"].find { |t| t["text"] == "AI" }
+      expect(ai_item["turn"]).to eq(1)
+    end
+
+    it "decrements turn count" do
+      result = agent.send(:remap_turns_after_deletion, context, 2)
+      expect(result["_turn_count"]).to eq(2)
+    end
+
+    it "does not go below zero for turn count" do
+      context["_turn_count"] = 0
+      result = agent.send(:remap_turns_after_deletion, context, 1)
+      expect(result["_turn_count"]).to eq(0)
+    end
+  end
 end

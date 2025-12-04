@@ -684,6 +684,186 @@ module ContextExtractorAgent
     puts "[ContextExtractor] Broadcast error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
   end
 
+  # Remove items associated with a specific turn from context
+  # @param context [Hash] The current context
+  # @param turn_to_remove [Integer] The turn number to remove
+  # @param schema [Hash] The context schema
+  # @return [Hash] Updated context with items from that turn removed
+  def remove_turn_from_context(context, turn_to_remove, schema = nil)
+    return context unless context && turn_to_remove
+
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    result = { "_turn_count" => context["_turn_count"] || 0 }
+
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      items = context[name] || []
+
+      # Filter out items from the specified turn
+      result[name] = items.reject do |item|
+        item_turn = item.is_a?(Hash) ? (item["turn"] || 1) : 1
+        item_turn == turn_to_remove
+      end
+    end
+
+    result
+  end
+
+  # Remap turn numbers after a deletion (decrement turns greater than deleted turn)
+  # @param context [Hash] The current context
+  # @param deleted_turn [Integer] The turn that was deleted
+  # @param schema [Hash] The context schema
+  # @return [Hash] Updated context with remapped turn numbers
+  def remap_turns_after_deletion(context, deleted_turn, schema = nil)
+    return context unless context && deleted_turn
+
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    # Decrement turn count
+    new_turn_count = [(context["_turn_count"] || 0) - 1, 0].max
+    result = { "_turn_count" => new_turn_count }
+
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      items = context[name] || []
+
+      # Remap turn numbers
+      result[name] = items.map do |item|
+        if item.is_a?(Hash)
+          item_turn = item["turn"] || 1
+          if item_turn > deleted_turn
+            item.merge("turn" => item_turn - 1)
+          else
+            item
+          end
+        else
+          item
+        end
+      end
+    end
+
+    result
+  end
+
+  # Handle context update when a message is deleted
+  # @param session [Hash] The session
+  # @param deleted_turn [Integer] The turn that was deleted (nil if not an assistant message)
+  # @param schema [Hash] The context schema
+  # @param session_id [String] WebSocket session ID for broadcasting
+  def handle_message_deletion(session, deleted_turn, schema = nil, session_id = nil)
+    return unless session && deleted_turn
+
+    context = get_session_context(session)
+    return unless context
+
+    effective_schema = schema || DEFAULT_SCHEMA
+
+    # Remove items from the deleted turn
+    updated_context = remove_turn_from_context(context, deleted_turn, effective_schema)
+
+    # Remap subsequent turn numbers
+    updated_context = remap_turns_after_deletion(updated_context, deleted_turn, effective_schema)
+
+    # Save and broadcast
+    save_context_to_session(session, updated_context)
+
+    if session_id
+      broadcast_context_update(session_id, updated_context, effective_schema)
+    end
+
+    puts "[ContextExtractor] Handled deletion of turn #{deleted_turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+  end
+
+  # Handle context update when multiple messages are deleted (e.g., "delete this and below")
+  # @param session [Hash] The session
+  # @param starting_turn [Integer] The first turn to delete (all turns >= this are removed)
+  # @param schema [Hash] The context schema
+  # @param session_id [String] WebSocket session ID for broadcasting
+  def handle_bulk_deletion(session, starting_turn, schema = nil, session_id = nil)
+    return unless session && starting_turn
+
+    context = get_session_context(session)
+    return unless context
+
+    effective_schema = schema || DEFAULT_SCHEMA
+    fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+    # Keep only items with turn < starting_turn
+    result = { "_turn_count" => [starting_turn - 1, 0].max }
+
+    fields.each do |field|
+      name = field[:name] || field["name"]
+      items = context[name] || []
+
+      result[name] = items.select do |item|
+        item_turn = item.is_a?(Hash) ? (item["turn"] || 1) : 1
+        item_turn < starting_turn
+      end
+    end
+
+    # Save and broadcast
+    save_context_to_session(session, result)
+
+    if session_id
+      broadcast_context_update(session_id, result, effective_schema)
+    end
+
+    puts "[ContextExtractor] Handled bulk deletion from turn #{starting_turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+  end
+
+  # Mark items from a specific turn as edited and re-extract context
+  # @param session [Hash] The session
+  # @param turn [Integer] The turn that was edited
+  # @param user_message [String] The user message for this turn
+  # @param assistant_response [String] The assistant response for this turn
+  # @param provider [String] The AI provider
+  # @param schema [Hash] The context schema
+  # @param session_id [String] WebSocket session ID for broadcasting
+  # @param language [String] The conversation language
+  def handle_message_edit(session, turn, user_message, assistant_response, provider, schema = nil, session_id = nil, language = nil)
+    return unless session && turn && user_message && assistant_response
+
+    context = get_session_context(session)
+    return unless context
+
+    effective_schema = schema || DEFAULT_SCHEMA
+
+    # First, remove existing items from this turn
+    updated_context = remove_turn_from_context(context, turn, effective_schema)
+
+    # Re-extract context for this turn
+    new_context = extract_context(session, user_message, assistant_response, provider, effective_schema, language)
+
+    if new_context
+      fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
+
+      fields.each do |field|
+        name = field[:name] || field["name"]
+        new_items = new_context[name] || []
+
+        # Add new items with turn number and edited flag
+        new_items_with_meta = new_items.map do |item|
+          text = item.is_a?(Hash) ? item["text"] : item.to_s
+          { "text" => text, "turn" => turn, "edited" => true }
+        end
+
+        updated_context[name] = (updated_context[name] || []) + new_items_with_meta
+      end
+    end
+
+    # Save and broadcast
+    save_context_to_session(session, updated_context)
+
+    if session_id
+      broadcast_context_update(session_id, updated_context, effective_schema)
+    end
+
+    puts "[ContextExtractor] Handled edit of turn #{turn}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+  end
+
   # Logging helpers
   def log_extraction_error(provider, model, error)
     return unless CONFIG && CONFIG["EXTRA_LOGGING"]

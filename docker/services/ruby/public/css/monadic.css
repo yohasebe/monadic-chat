@@ -3989,6 +3989,35 @@ i.fas.fa-bolt,
   color: white !important;
 }
 
+/* Edited badge for re-extracted turns */
+.context-edited-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  color: #fd7e14;
+  margin-left: 2px;
+  opacity: 0.9;
+}
+
+.context-edited-badge i {
+  font-size: 0.55rem;
+}
+
+.context-turn-group.edited {
+  border-left: 2px solid #fd7e14;
+  padding-left: 6px;
+  margin-left: -8px;
+}
+
+.dark-theme .context-edited-badge {
+  color: #ffc107;
+}
+
+.dark-theme .context-turn-group.edited {
+  border-left-color: #ffc107;
+}
+
 /* Highlight effect when navigating to a card */
 .card.context-highlight {
   animation: context-card-highlight 2s ease-out;

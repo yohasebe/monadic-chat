@@ -329,7 +329,7 @@ const ContextPanel = {
 
   /**
    * Render items grouped by turn with separators
-   * @param {Array} items - The items to render (can be strings or {text, turn} objects)
+   * @param {Array} items - The items to render (can be strings or {text, turn, edited} objects)
    * @returns {string} HTML string
    */
   renderItems(items) {
@@ -356,11 +356,17 @@ const ContextPanel = {
     let html = '<div class="context-items-grouped">';
     turns.forEach((turn, index) => {
       const turnItems = groupedByTurn[turn];
+      const hasEditedItems = turnItems.some(item => item.edited);
       const itemsText = turnItems.map(item => this.escapeHtml(item.text)).join(", ");
 
+      // Add edited badge if any item in this turn was edited
+      const editedBadge = hasEditedItems
+        ? '<span class="context-edited-badge" title="This turn was re-extracted after editing"><i class="fas fa-pen-to-square"></i></span>'
+        : '';
+
       html += `
-        <div class="context-turn-group${index > 0 ? ' with-separator' : ''}">
-          <span class="context-turn-label clickable" data-turn="${turn}" title="Click to jump to Turn ${turn}">T${turn}</span>
+        <div class="context-turn-group${index > 0 ? ' with-separator' : ''}${hasEditedItems ? ' edited' : ''}">
+          <span class="context-turn-label clickable" data-turn="${turn}" title="Click to jump to Turn ${turn}">T${turn}</span>${editedBadge}
           <span class="context-turn-items">${itemsText}</span>
         </div>
       `;
@@ -373,17 +379,18 @@ const ContextPanel = {
   /**
    * Group items by their turn number
    * @param {Array} items - The items with turn information
-   * @returns {Object} Items grouped by turn number
+   * @returns {Object} Items grouped by turn number, preserving edited flag
    */
   groupItemsByTurn(items) {
     const grouped = {};
     items.forEach(item => {
       const turn = typeof item === 'object' ? (item.turn || 1) : 1;
       const text = typeof item === 'object' ? item.text : String(item);
+      const edited = typeof item === 'object' ? (item.edited || false) : false;
       if (!grouped[turn]) {
         grouped[turn] = [];
       }
-      grouped[turn].push({ text, turn });
+      grouped[turn].push({ text, turn, edited });
     });
     return grouped;
   },

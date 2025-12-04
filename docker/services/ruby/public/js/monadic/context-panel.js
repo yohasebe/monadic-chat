@@ -59,6 +59,14 @@ const ContextPanel = {
         const header = e.target.closest(".context-section-header");
         if (header) {
           this.toggleSection(header);
+          return;
+        }
+
+        // Turn label click - navigate to corresponding card
+        const turnLabel = e.target.closest(".context-turn-label");
+        if (turnLabel && turnLabel.dataset.turn) {
+          const turn = parseInt(turnLabel.dataset.turn, 10);
+          this.scrollToTurn(turn);
         }
       });
     }
@@ -67,6 +75,36 @@ const ContextPanel = {
     const toggleAllBtn = document.getElementById("context-toggle-all");
     if (toggleAllBtn) {
       toggleAllBtn.addEventListener("click", () => this.toggleAllSections());
+    }
+  },
+
+  /**
+   * Scroll to the assistant message card corresponding to the given turn number
+   * @param {number} turn - The turn number (1-indexed)
+   */
+  scrollToTurn(turn) {
+    // Get all assistant cards in the discourse area (excluding temp-card)
+    const assistantCards = document.querySelectorAll('#discourse .card:not(#temp-card) .role-assistant');
+
+    if (turn > 0 && turn <= assistantCards.length) {
+      // Turn 1 = index 0, Turn 2 = index 1, etc.
+      const targetCardBody = assistantCards[turn - 1];
+      const targetCard = targetCardBody.closest('.card');
+
+      if (targetCard) {
+        // Scroll to the card with smooth animation
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Add a brief highlight effect
+        targetCard.classList.add('context-highlight');
+        setTimeout(() => {
+          targetCard.classList.remove('context-highlight');
+        }, 2000);
+
+        console.log(`[ContextPanel] Scrolled to Turn ${turn}`);
+      }
+    } else {
+      console.warn(`[ContextPanel] Turn ${turn} not found (total: ${assistantCards.length})`);
     }
   },
 
@@ -322,7 +360,7 @@ const ContextPanel = {
 
       html += `
         <div class="context-turn-group${index > 0 ? ' with-separator' : ''}">
-          <span class="context-turn-label" title="Turn ${turn}">T${turn}</span>
+          <span class="context-turn-label clickable" data-turn="${turn}" title="Click to jump to Turn ${turn}">T${turn}</span>
           <span class="context-turn-items">${itemsText}</span>
         </div>
       `;

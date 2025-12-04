@@ -3972,6 +3972,50 @@ i.fas.fa-bolt,
   border-top-color: #495057 !important;
 }
 
+/* Clickable turn labels */
+.context-turn-label.clickable {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-turn-label.clickable:hover {
+  background: var(--bs-primary, #0d6efd);
+  color: white !important;
+  transform: scale(1.05);
+}
+
+.dark-theme .context-turn-label.clickable:hover {
+  background: var(--bs-primary, #0d6efd) !important;
+  color: white !important;
+}
+
+/* Highlight effect when navigating to a card */
+.card.context-highlight {
+  animation: context-card-highlight 2s ease-out;
+}
+
+@keyframes context-card-highlight {
+  0% {
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.5);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+.dark-theme .card.context-highlight {
+  animation: context-card-highlight-dark 2s ease-out;
+}
+
+@keyframes context-card-highlight-dark {
+  0% {
+    box-shadow: 0 0 0 4px rgba(102, 178, 255, 0.5);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
 /* Context Panel Loading Indicator */
 .context-loading-indicator {
   display: inline-block;

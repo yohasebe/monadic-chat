@@ -1,5 +1,3 @@
-require_relative "second_opinion_tools"
-
 class SecondOpinionGemini < MonadicApp
   include GeminiHelper
   include SecondOpinionAgent

@@ -130,23 +130,34 @@ def wait_for_socket(host, seconds = 90)
 end
 
 def ensure_docker_ready
-  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
-
-  # On macOS, only attempt to start Desktop if the Desktop socket is missing
-  if is_mac?
-    script = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
-    if File.executable?(script) && !File.socket?(desktop_sock)
-      ok = system(script)
-      return [false, "Docker Desktop not ready"] unless ok
-    end
-  end
-
+  # First check if Docker is already responsive
+  ctx = ENV['DOCKER_CONTEXT']
   host = preferred_docker_host
-  # If still no host detected, fall back to Desktop socket to check once
+  desktop_sock = File.expand_path("~/Library/Containers/com.docker.docker/Data/docker-cli.sock")
   host ||= "unix://#{desktop_sock}"
 
-  # Wait up to 90s for the socket to exist (no repeated docker info calls)
-  if host.start_with?("unix://")
+  ok, output = probe_docker(context: ctx, host: host)
+  if ok
+    ctx ? ENV['DOCKER_CONTEXT'] = ctx : ENV.delete('DOCKER_CONTEXT')
+    host ? ENV['DOCKER_HOST'] = host : ENV.delete('DOCKER_HOST')
+    return [true, output]
+  end
+
+  # On macOS, start Docker Desktop
+  # Clear Bundler environment variables that may interfere with open command
+  if is_mac?
+    STDERR.puts "[DEBUG] Starting Docker Desktop with clean environment" if ENV['EXTRA_LOGGING']
+    clean_env = ENV.to_h.reject { |k, _| k.start_with?('BUNDLE', 'RUBY') }
+    clean_env['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin'
+    pid = Process.spawn(clean_env, '/usr/bin/open', '-a', 'Docker',
+                        unsetenv_others: true,
+                        [:out, :err] => '/dev/null')
+    Process.detach(pid)
+    sleep 3  # Give Docker time to start initializing
+  end
+
+  # Wait for Docker socket and daemon to be ready
+  if host&.start_with?("unix://")
     socket_path = host.sub("unix://", "")
     90.times do
       break if File.socket?(socket_path)
@@ -155,7 +166,6 @@ def ensure_docker_ready
     return [false, "Docker socket #{socket_path} not available"] unless File.socket?(socket_path)
   end
 
-  ctx = ENV['DOCKER_CONTEXT']
   ok, output = probe_docker(context: ctx, host: host)
 
   if ok
@@ -169,10 +179,12 @@ end
 
 def try_start_docker
   return false unless is_mac?
-  script = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
-  return false unless File.executable?(script)
-  STDERR.puts "[DEBUG] Attempting to start Docker Desktop via #{script}" if ENV['EXTRA_LOGGING']
-  system(script)
+  script_path = File.expand_path(File.join(DOCKER_HOME, "services", "support_scripts", "mac-start-docker.sh"))
+  return false unless File.exist?(script_path)
+  STDERR.puts "[DEBUG] Attempting to start Docker Desktop via script content" if ENV['EXTRA_LOGGING']
+  # Execute shell script content directly - more reliable than system(script_path)
+  script_content = File.read(script_path)
+  system(script_content)
 end
 
 # Helper methods for container management

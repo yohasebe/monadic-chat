@@ -192,7 +192,7 @@ namespace :server do
 
     puts "="*80 + "\n"
 
-    # Start the development server (handles Docker daemon/support containers)
+    # Start the development server (Docker startup handled by monadic_dev)
     sh "./bin/monadic_server.sh debug"
   end
   

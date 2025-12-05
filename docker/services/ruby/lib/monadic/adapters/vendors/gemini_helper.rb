@@ -1094,13 +1094,13 @@ module GeminiHelper
                     []
                   end
 
-    # Set default toolConfig mode to AUTO; keep unless explicitly disabled for non-tool-capable models
-    body["toolConfig"] = {
-      "functionCallingConfig" => { "mode" => "AUTO" }
-    }
-
+    # Only add tools and toolConfig when function_declarations exist
+    # Gemini API returns 400 if toolConfig is set without function_declarations
     if tool_capable && tools_array.respond_to?(:any?) && tools_array.any?
       body["tools"] = tools_array
+      body["toolConfig"] = {
+        "functionCallingConfig" => { "mode" => "AUTO" }
+      }
     end
 
     if temperature || max_tokens || is_thinking_model
@@ -1470,6 +1470,7 @@ module GeminiHelper
       else
         DebugHelper.debug("Gemini: No tools or websearch (google_search_allowed=#{google_search_allowed})", category: :api, level: :debug)
         body.delete("tools")
+        body.delete("toolConfig")
       end
       
       # Check if user message contains URLs and add URL Context tool if needed
@@ -1495,6 +1496,8 @@ module GeminiHelper
         tool.is_a?(Hash) && (tool.key?("google_search") || tool.key?("url_context"))
       end
       body.delete("toolConfig")
+      # Remove empty tools array to prevent API errors
+      body.delete("tools") if body["tools"]&.empty?
     end
 
     # Debug: Log tools status to extra.log for Jupyter apps
@@ -1516,7 +1519,12 @@ module GeminiHelper
     end
 
     # Force toolConfig AUTO for tool-capable models on user turns (prevents NONE leakage from stale session)
-    if role != "tool" && tool_capable
+    # Only set toolConfig if tools with function_declarations are present
+    # google_search tool does NOT need toolConfig and will error if it's set without function_declarations
+    has_function_declarations_in_body = body["tools"]&.any? { |tool|
+      tool.is_a?(Hash) && tool["function_declarations"]&.any?
+    }
+    if role != "tool" && tool_capable && has_function_declarations_in_body
       body["toolConfig"] ||= {}
       body["toolConfig"]["functionCallingConfig"] ||= {}
       body["toolConfig"]["functionCallingConfig"]["mode"] ||= "AUTO"
@@ -1713,6 +1721,17 @@ module GeminiHelper
 
 
     http = HTTP.headers(headers)
+
+    # Final safety check: Remove toolConfig if no function_declarations exist
+    # This prevents the "Function calling config is set without function_declarations" error
+    # that can occur in edge cases (e.g., google_search only, or tool arrays without function_declarations)
+    has_any_function_declarations = body["tools"]&.any? { |tool|
+      tool.is_a?(Hash) && tool["function_declarations"]&.any?
+    }
+    if body["toolConfig"] && !has_any_function_declarations
+      Monadic::Utils::ExtraLogger.log { "[Gemini] Removing orphan toolConfig (no function_declarations). tools=#{body["tools"].inspect}" }
+      body.delete("toolConfig")
+    end
 
     MAX_RETRIES.times do
       res = http.timeout(connect: open_timeout,

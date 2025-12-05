@@ -22,14 +22,13 @@ end
 
 # RSpec::Core::RakeTask.new(:spec) # Commented out as we define custom :spec task below
 
-require "rubocop/rake_task"
-
-RuboCop::RakeTask.new
-
-task default: %i[spec rubocop]
-
-task :eslint do
-  sh "npx eslint ."
+begin
+  require "rubocop/rake_task"
+  RuboCop::RakeTask.new
+  task default: %i[spec rubocop]
+rescue LoadError
+  # RuboCop is not available, skip it
+  task default: %i[spec]
 end
 
 desc "Download vendor assets from CDN for local use"

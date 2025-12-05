@@ -6,7 +6,8 @@ process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
 const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
-const extendedContextMenu = require('electron-context-menu');
+// electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
+let extendedContextMenu = null;
 const i18n = require('./i18n');
 
 // Splash window for updates
@@ -3411,7 +3412,11 @@ ipcMain.on('save-settings', (_event, data) => {
 });
 
 // This is the main entry point for app initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Load ESM-only modules dynamically
+  const contextMenuModule = await import('electron-context-menu');
+  extendedContextMenu = contextMenuModule.default;
+
   // Register custom protocol handler for monadic:// URLs
   // This enables AppleScript and other tools to control the internal browser
   if (!app.isDefaultProtocolClient('monadic')) {

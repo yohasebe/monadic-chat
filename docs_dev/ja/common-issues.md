@@ -30,7 +30,6 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 ### リファクタリング後の"Cannot find module"エラー
 - app/main.jsの`app.isPackaged`条件分岐を確認
 - process.resourcesPathと__dirnameのパスを検証
-- 必要に応じて`scripts/fix_packaged_paths.sh`を実行
 
 ### プロバイダー固有エラーでAPIテストが失敗
 - mdsl/model_specのデフォルトを優先。モデルがサポートしていない可能性のあるパラメータ（例：temperature）の強制は避ける。

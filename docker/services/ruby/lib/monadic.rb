@@ -535,10 +535,14 @@ delete "/openai/pdf" do
               fid = f["id"]
               begin
                 HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{fid}")
-              rescue StandardError; end
+              rescue StandardError => e
+                Monadic::Utils::ExtraLogger.log { "[Cleanup] VS file delete failed: #{e.message}" }
+              end
               begin
                 HTTP.headers(headers).delete("#{api_base}/files/#{fid}")
-              rescue StandardError; end
+              rescue StandardError => e
+                Monadic::Utils::ExtraLogger.log { "[Cleanup] File delete failed: #{e.message}" }
+              end
             end
           end
           # Clear files in metadata
@@ -547,34 +551,44 @@ delete "/openai/pdf" do
               meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
               meta["files"] = []
               File.write(vs_meta_path, JSON.pretty_generate(meta))
-            rescue StandardError; end
+            rescue StandardError => e
+              Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata clear failed: #{e.message}" }
+            end
           end
           # Also clear files for this app in registry
           begin
             Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
-          rescue StandardError; end
+          rescue StandardError => e
+            Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry clear failed: #{e.message}" }
+          end
         else
           # No ENV fixed: Delete VS itself and clear metadata
           begin
             HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}")
-          rescue StandardError; end
+          rescue StandardError => e
+            Monadic::Utils::ExtraLogger.log { "[Cleanup] VS delete failed: #{e.message}" }
+          end
           if File.exist?(vs_meta_path)
             begin
               File.write(vs_meta_path, JSON.pretty_generate({}))
-            rescue StandardError; end
+            rescue StandardError => e
+              Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata write failed: #{e.message}" }
+            end
           end
           # Clear VS and files in registry
           begin
             Monadic::Utils::DocumentStoreRegistry.clear_cloud(app_key)
             Monadic::Utils::DocumentStoreRegistry.set_cloud_vs(app_key, nil)
-          rescue StandardError; end
+          rescue StandardError => e
+            Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry clear failed: #{e.message}" }
+          end
         end
       end
       # Bump session cache version to invalidate mode/presence caches
       begin
         session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError
-        # no-op
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
       end
       { success: true }.to_json
     when "delete"
@@ -621,8 +635,8 @@ delete "/openai/pdf" do
         if vs_id
           HTTP.headers(headers).delete("#{api_base}/vector_stores/#{vs_id}/files/#{file_id}")
         end
-      rescue StandardError
-        # ignore
+      rescue StandardError => e
+        Monadic::Utils::ExtraLogger.log { "[Cleanup] VS file unlink failed: #{e.message}" }
       end
       del_res = HTTP.headers(headers).delete("#{api_base}/files/#{file_id}")
       if del_res.status.success?
@@ -632,15 +646,21 @@ delete "/openai/pdf" do
             meta = (JSON.parse(File.read(vs_meta_path)) rescue {})
             meta["files"] = (meta["files"] || []).reject { |f| f["file_id"] == file_id }
             File.write(vs_meta_path, JSON.pretty_generate(meta))
-          rescue StandardError; end
+          rescue StandardError => e
+            Monadic::Utils::ExtraLogger.log { "[Cleanup] Metadata update failed: #{e.message}" }
+          end
         end
         begin
           Monadic::Utils::DocumentStoreRegistry.remove_cloud_file(app_key, file_id)
-        rescue StandardError; end
+        rescue StandardError => e
+          Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry file remove failed: #{e.message}" }
+        end
         # Bump cache version
         begin
           session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-        rescue StandardError; end
+        rescue StandardError => e
+          Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
+        end
         { success: true }.to_json
       else
         { success: false, error: "Failed to delete file: #{del_res.status}" }.to_json

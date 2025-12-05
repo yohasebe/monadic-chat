@@ -1732,7 +1732,9 @@ module WebSocketHelper
             # Invalidate caches for mode/presence
             begin
               session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-            rescue StandardError; end
+            rescue StandardError => e
+              Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
+            end
           else
             send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error deleting #{title}" })
           end
@@ -1746,7 +1748,9 @@ module WebSocketHelper
             send_to_client(connection, { "type" => "pdf_titles", "content" => [] })
             begin
               session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-            rescue StandardError; end
+            rescue StandardError => e
+              Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
+            end
           rescue StandardError => e
             send_to_client(connection, { "type" => "pdf_deleted", "res" => "failure", "content" => "Error clearing PDFs: #{e.message}" })
           end

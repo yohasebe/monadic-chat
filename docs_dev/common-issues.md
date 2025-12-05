@@ -30,7 +30,6 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 ### "Cannot find module" errors after reorganization
 - Check `app.isPackaged` conditionals in app/main.js
 - Verify paths in process.resourcesPath vs __dirname
-- Run `scripts/fix_packaged_paths.sh` if needed
 
 ### API tests failing with provider-specific errors
 - Prefer mdsl/model_spec defaults. Avoid forcing params (e.g., temperature) that a model may not support.

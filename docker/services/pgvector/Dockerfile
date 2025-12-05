@@ -1,4 +1,4 @@
-FROM ankane/pgvector
+FROM pgvector/pgvector:pg17
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

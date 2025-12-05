@@ -1,6 +1,6 @@
 # Stage 1: Build environment
 
-FROM ruby:3.4.1-slim-bookworm AS build
+FROM ruby:3.4.7-slim-bookworm AS build
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 
@@ -26,7 +26,7 @@ RUN bundle install -j4 && \
 
 # Stage 2: Runtime environment
 
-FROM ruby:3.4.1-slim-bookworm
+FROM ruby:3.4.7-slim-bookworm
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 

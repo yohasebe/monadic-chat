@@ -28,11 +28,11 @@
     "npm": ">=10.0.0"
   },
   "devDependencies": {
-    "@electron/notarize": "^3.0.1",
+    "@electron/notarize": "^2.5.0",
     "@jest/globals": "^30.2.0",
     "cross-env": "^10.1.0",
     "electron": "^39.2.5",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^25.1.8",
     "globals": "^16.5.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
@@ -110,10 +110,8 @@
         "zip"
       ],
       "icon": "icons/icon.ico",
-      "signtoolOptions": {
-        "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
-        "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06"
-      },
+      "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
+      "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06",
       "artifactName": "Monadic.Chat.Setup.${version}.${ext}",
       "protocols": [
         {

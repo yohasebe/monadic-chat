@@ -116,7 +116,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       window.setTtsPlaybackStarted(true);
     }
 
-    console.log('[DOMContentLoaded] Initialized new tab - spinner hidden, Auto Speech flags reset');
   } catch (e) {
     console.error('[DOMContentLoaded] Failed to initialize tab state:', e);
   }
@@ -348,7 +347,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     const script = document.createElement('script');
     script.src = 'js/monadic/ui-utilities.js?' + (new Date().getTime());
     script.onload = function() {
-      console.log('UI utilities loaded dynamically');
       if (typeof window.uiUtils !== 'undefined') {
         uiUtils = window.uiUtils;
       }
@@ -363,7 +361,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     const script = document.createElement('script');
     script.src = 'js/monadic/form-handlers.js?' + (new Date().getTime());
     script.onload = function() {
-      console.log('Form handlers loaded dynamically');
       if (typeof window.formHandlers !== 'undefined') {
         formHandlers = window.formHandlers;
       }
@@ -1271,8 +1268,6 @@ $(function () {
         // Don't reset state, just clear listeners
         // window.UIState.reset();
       }
-      
-      console.log('Event handlers cleaned up successfully');
     } catch (error) {
       if (window.ErrorHandler) {
         window.ErrorHandler.log({
@@ -1374,14 +1369,11 @@ $(function () {
             $("#reasoning-effort").val(defaultValue || availableOptions[0]);
           }
         }
-        
-        console.log(`Updated reasoning options for ${provider}/${selectedModel}: [${availableOptions.join(', ')}]`);
       } else {
         $("#reasoning-effort").prop("disabled", true);
       }
     } else {
       $("#reasoning-effort").prop("disabled", true);
-      console.log(`Provider ${provider} with model ${selectedModel} does not support reasoning/thinking`);
     }
     
     // Always restore default options when disabled (for consistency)
@@ -1540,16 +1532,6 @@ $(function () {
     // Skip if loading parameters from server (new tab initialization)
     // Also skip if user hasn't actively sent messages in this tab (messages loaded from session)
     if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.isLoadingParams && window.userHasInteractedInTab) {
-      console.log('[App Change] Modal trigger:', {
-        messagesLength: messages.length,
-        selectedApp: selectedAppValue,
-        previousApp: previousAppValue,
-        isRestoring: window.isRestoringSession,
-        lastApp: window.lastApp,
-        isLoadingParams: window.isLoadingParams,
-        userHasInteractedInTab: window.userHasInteractedInTab
-      });
-
       // Prevent the dropdown from changing yet
       event.preventDefault();
       // Set dropdown back to previous value temporarily
@@ -1566,8 +1548,6 @@ $(function () {
     // However, if there are messages from session (not user interaction), clear them first
     // IMPORTANT: Don't clear during import process
     if (messages.length > 0 && selectedAppValue !== previousAppValue && !window.userHasInteractedInTab && !window.isProcessingImport) {
-      console.log('[App Change] Clearing session messages before app change in new tab');
-
       // Clear messages via SessionState API
       if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
         window.SessionState.clearMessages();
@@ -1605,7 +1585,6 @@ $(function () {
       // Restore to lastApp
       $("#apps").val(lastApp);
       updateAppSelectIcon(lastApp);
-      console.log('[App Change] Modal cancelled, restored to:', lastApp);
     }
   });
 
@@ -1799,9 +1778,6 @@ $(function () {
 
         // DON'T clear isProcessingImport here - it must stay active through the entire import flow
         // It will be cleared in the past_messages WebSocket handler after all import processing is complete
-        if (importingFlow) {
-          console.log('[Import] Keeping isProcessingImport=true through proceedWithAppChange → loadParams');
-        }
         return;
       }
       if (retries >= 10) {
@@ -1810,9 +1786,6 @@ $(function () {
         if (window.logTL) window.logTL('loadParams_called_from_proceed_force', { app: appValue, calledFor: 'changeApp' });
 
         // DON'T clear isProcessingImport even on forced execution
-        if (importingFlow) {
-          console.log('[Import] Keeping isProcessingImport=true through forced proceedWithAppChange → loadParams');
-        }
         return;
       }
       setTimeout(() => ensureLoadParams(retries + 1), 100);
@@ -2029,10 +2002,8 @@ $(function () {
   $("#check-auto-speech").on("change", function () {
     if ($(this).is(":checked")) {
       params["auto_speech"] = true;
-      console.log("Auto speech enabled");
     } else {
       params["auto_speech"] = false;
-      console.log("Auto speech disabled");
     }
     // Update badges to reflect toggle state
     const selectedApp = $("#apps").val();
@@ -2082,7 +2053,6 @@ $(function () {
     if (window.UIState && window.UIState.initialize) {
       try {
         window.UIState.initialize();
-        console.log('UIState initialized successfully');
       } catch (error) {
         if (window.ErrorHandler) {
           window.ErrorHandler.log({
@@ -2405,7 +2375,6 @@ $(function () {
     // Clear import/initial load flag when user manually starts/continues session
     // This allows Auto TTS to work normally after user interaction
     if (window.isProcessingImport) {
-      console.log('[StartButton] Clearing isProcessingImport flag after user pressed Start/Continue button');
       window.isProcessingImport = false;
     }
 
@@ -2432,7 +2401,6 @@ $(function () {
     const safetyTimeout = setTimeout(function() {
       // Only run if user panel is visible but controls are disabled
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
-        console.log("Safety timeout: Re-enabling controls that were left in disabled state");
         ensureControlsEnabled();
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input'}`, "success");
       }
@@ -2491,9 +2459,6 @@ $(function () {
               ws.send(JSON.stringify(params));
         });
       } else {
-        if (shouldSkipAssistant) {
-          console.log('[StartButton] Skipping initiate_from_assistant for imported session');
-        }
         $("#user-panel").show();
         ensureControlsEnabled();
         setInputFocus();
@@ -2503,7 +2468,6 @@ $(function () {
     // Clear skipAssistantInitiation after processing (important for imports)
     // This ensures the flag only affects the FIRST session start after import
     if (window.skipAssistantInitiation) {
-      console.log('[StartButton] Clearing skipAssistantInitiation flag after session start');
       window.skipAssistantInitiation = false;
     }
   });
@@ -2564,7 +2528,6 @@ $(function () {
   $("#send").on("click", function (event) {
     event.preventDefault();
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-      console.log('[Send] Ignoring send click: tab is not foreground');
       return;
     }
     if (message.value === "") {
@@ -2789,7 +2752,6 @@ $(function () {
         // Get session_context from server (more reliable than frontend state)
         if (data.session_context) {
           serverSessionContext = data.session_context;
-          console.log('[Export] Got session_context from server:', serverSessionContext);
         }
         if (data.context_schema) {
           serverContextSchema = data.context_schema;
@@ -2817,11 +2779,9 @@ $(function () {
 
     if (sessionContext) {
       obj.session_context = sessionContext;
-      console.log('[Export] Including session_context:', sessionContext);
     }
     if (contextSchema) {
       obj.context_schema = contextSchema;
-      console.log('[Export] Including context_schema:', contextSchema);
     }
 
     saveObjToJson(obj, "monadic.json");
@@ -3447,7 +3407,6 @@ $(function () {
   if (savedSTTModel) {
     $("#stt-model").val(savedSTTModel);
     params["stt_model"] = savedSTTModel;
-    console.log("Restored STT model from cookie:", savedSTTModel);
   }
 
   $("#tts-provider").on("change", function () {
@@ -3456,7 +3415,6 @@ $(function () {
     
     // Reset audio elements when switching TTS providers
     if (oldProvider !== params["tts_provider"] && typeof window.resetAudioElements === 'function') {
-      console.log(`[TTS] Switching provider from ${oldProvider} to ${params["tts_provider"]}`);
       window.resetAudioElements();
     }
     
@@ -3515,7 +3473,6 @@ $(function () {
   $("#stt-model").on("change", function () {
     params["stt_model"] = $("#stt-model option:selected").val();
     setCookie("stt-model", params["stt_model"], 30);
-    console.log("STT model changed to:", params["stt_model"]);
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('stt_model_change');
     }
@@ -3534,23 +3491,16 @@ $(function () {
     if (typeof window.checkAndUpdateImageButtonVisibility === 'function') {
       window.checkAndUpdateImageButtonVisibility();
     }
-    
-    console.log("Conversation language changed to:", params["conversation_language"]);
-    console.log("WebSocket state:", window.ws ? window.ws.readyState : "null");
-    
+
     // If WebSocket is open, send UPDATE_LANGUAGE message to server
     if (window.ws && window.ws.readyState === WebSocket.OPEN) {
       const message = {
         message: "UPDATE_LANGUAGE",
         new_language: params["conversation_language"]
       };
-      console.log("Sending UPDATE_LANGUAGE:", message);
       window.ws.send(JSON.stringify(message));
     } else {
-      console.log("Cannot send UPDATE_LANGUAGE - WebSocket not open");
-      if (window.ws) {
-        console.log("WebSocket readyState:", window.ws.readyState);
-      }
+      console.warn("Cannot send UPDATE_LANGUAGE - WebSocket not open");
     }
 
     if (!isParamBroadcastSuppressed()) {
@@ -3663,9 +3613,6 @@ $(function () {
       // Use the form handlers module if available, otherwise fallback
       const response = await formHandlers.importSession(file);
 
-      // Debug: Log the response
-      console.log('[Import] Server response:', response);
-
       // Process the response
       if (response && response.success) {
         // Clean up UI after successful import
@@ -3677,7 +3624,6 @@ $(function () {
 
         // Server will push data via WebSocket - no reload needed
         // The WebSocket 'parameters' handler will set the app name via loadParams
-        console.log('[Import] Import successful, waiting for WebSocket data push');
       } else {
         // Clear import flags on server error
         window.isProcessingImport = false;
@@ -3799,10 +3745,8 @@ $(function () {
   function updateRTLInterface(langCode) {
     if (isRTLLanguage(langCode)) {
       $("body").addClass("rtl-messages");
-      console.log("RTL messages enabled for:", langCode);
     } else {
       $("body").removeClass("rtl-messages");
-      console.log("LTR messages enabled for:", langCode);
     }
   }
   

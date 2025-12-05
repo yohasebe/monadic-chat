@@ -96,12 +96,8 @@
       // Initialize markdown-it if needed
       this._initMarkdownIt();
 
-      // Debug: Log render call
-      console.log('[MarkdownRenderer.render] Called with options:', options, 'Text starts with:', text.substring(0, 80));
-
       // 1. Check if this is Monadic JSON
       const isMonadic = this.isMonadicJson(text, options);
-      console.log('[MarkdownRenderer.render] isMonadicJson result:', isMonadic);
 
       if (isMonadic) {
         return this.renderMonadicJson(text, options);
@@ -258,7 +254,6 @@
       try {
         const obj = JSON.parse(normalizedText);
         if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-          console.log('[MonadicJSON] Successfully parsed as pure JSON');
           return obj;
         }
       } catch (e) {
@@ -267,12 +262,10 @@
           const sanitized = this._sanitizeJsonString(normalizedText);
           const obj = JSON.parse(sanitized);
           if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-            console.log('[MonadicJSON] Successfully parsed as pure JSON (after sanitization)');
             return obj;
           }
         } catch (e2) {
           // Not pure JSON, continue to other methods
-          console.log('[MonadicJSON] Direct parse failed:', e.message, 'First 100 chars:', normalizedText.substring(0, 100));
         }
       }
 
@@ -288,11 +281,9 @@
         const codeBlockMatch = normalizedText.match(pattern);
         if (codeBlockMatch) {
           const extractedContent = codeBlockMatch[1].trim();
-          console.log('[MonadicJSON] Code block found, content starts with:', extractedContent.substring(0, 50));
           try {
             const obj = JSON.parse(extractedContent);
             if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-              console.log('[MonadicJSON] Successfully extracted from code block');
               return obj;
             }
           } catch (e) {
@@ -301,11 +292,10 @@
               const sanitized = this._sanitizeJsonString(extractedContent);
               const obj = JSON.parse(sanitized);
               if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-                console.log('[MonadicJSON] Successfully extracted from code block (after sanitization)');
                 return obj;
               }
             } catch (e2) {
-              console.log('[MonadicJSON] Code block parse failed:', e.message);
+              // Code block parse failed, continue to next pattern
             }
           }
         }
@@ -356,7 +346,6 @@
           try {
             const obj = JSON.parse(potentialJson);
             if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-              console.log('[MonadicJSON] Successfully extracted JSON from text');
               return obj;
             }
           } catch (e) {
@@ -365,17 +354,15 @@
               const sanitized = this._sanitizeJsonString(potentialJson);
               const obj = JSON.parse(sanitized);
               if (typeof obj === 'object' && obj !== null && ('message' in obj || 'context' in obj)) {
-                console.log('[MonadicJSON] Successfully extracted JSON from text (after sanitization)');
                 return obj;
               }
             } catch (e2) {
-              console.log('[MonadicJSON] Embedded JSON parse failed:', e.message, 'Attempted JSON:', potentialJson.substring(0, 200));
+              // Embedded JSON parse failed
             }
           }
         }
       }
 
-      console.log('[MonadicJSON] All extraction methods failed');
       return null;
     },
 
@@ -802,6 +789,5 @@
 
   // Export to global scope
   window.MarkdownRenderer = MarkdownRenderer;
-  console.log('[MarkdownRenderer] Module exported to window.MarkdownRenderer');
 
 })(window);

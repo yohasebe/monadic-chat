@@ -703,10 +703,7 @@ describe('WebSocket Handlers', () => {
       
       // Mock createCard function
       const createCard = jest.fn();
-      
-      // Mock messages array
-      const messages = [];
-      
+
       // Test data
       const data = {
         type: 'html',
@@ -718,13 +715,12 @@ describe('WebSocket Handlers', () => {
           mid: 'test123'
         }
       };
-      
-      // Call the handler
-      const result = handlers.handleHtmlMessage(data, messages, createCard);
-      
+
+      // Call the handler (messages are now managed internally via window.messages)
+      const result = handlers.handleHtmlMessage(data, createCard);
+
       // Verify the result
       expect(result).toBe(true);
-      expect(messages).toHaveLength(1);
       expect(createCard).toHaveBeenCalled();
       expect(mockMessageElement.show).toHaveBeenCalled();
       expect(mockMessageElement.val).toHaveBeenCalled();
@@ -783,9 +779,9 @@ describe('WebSocket Handlers', () => {
         }
       };
       
-      // Call the handler
-      const result = handlers.handleHtmlMessage(data, [], createCard);
-      
+      // Call the handler (messages are now managed internally via window.messages)
+      const result = handlers.handleHtmlMessage(data, createCard);
+
       // Verify handler used reasoning_content
       expect(result).toBe(true);
       expect(createCard).toHaveBeenCalled();
@@ -813,16 +809,16 @@ describe('WebSocket Handlers', () => {
         }
       };
       
-      // Call the handler
-      const result = handlers.handleHtmlMessage(data, [], createCard);
-      
+      // Call the handler (messages are now managed internally via window.messages)
+      const result = handlers.handleHtmlMessage(data, createCard);
+
       // Should return false for non-assistant messages
       expect(result).toBe(false);
       expect(createCard).not.toHaveBeenCalled();
     });
-    
+
     it('should return false for non-html messages', () => {
-      const result = handlers.handleHtmlMessage({ type: 'something-else' }, [], jest.fn());
+      const result = handlers.handleHtmlMessage({ type: 'something-else' }, jest.fn());
       expect(result).toBe(false);
     });
     
@@ -873,7 +869,7 @@ describe('WebSocket Handlers', () => {
       };
       
       // Call the handler without createCard function
-      const result = handlers.handleHtmlMessage(data, []);
+      const result = handlers.handleHtmlMessage(data, null);
       
       // Should still process the message and update UI
       expect(result).toBe(true);
@@ -933,7 +929,7 @@ describe('WebSocket Handlers', () => {
       };
       
       // Call the handler
-      const result = handlers.handleHtmlMessage(data, [], createCard);
+      const result = handlers.handleHtmlMessage(data, createCard);
       
       // Verify the result
       expect(result).toBe(true);
@@ -988,7 +984,7 @@ describe('WebSocket Handlers', () => {
       };
       
       // Call the handler
-      const result = handlers.handleHtmlMessage(incompleteData, []);
+      const result = handlers.handleHtmlMessage(incompleteData, null);
       
       // Should still process the message
       expect(result).toBe(true);
@@ -1008,7 +1004,7 @@ describe('WebSocket Handlers', () => {
         }
       };
       
-      const emptyResult = handlers.handleHtmlMessage(emptyHtmlData, []);
+      const emptyResult = handlers.handleHtmlMessage(emptyHtmlData, null);
       expect(emptyResult).toBe(true);
       expect(mockMessageElement.show).toHaveBeenCalled();
       expect(mockMessageElement.val).toHaveBeenCalled();

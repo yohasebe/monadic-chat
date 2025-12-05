@@ -243,7 +243,6 @@
           m === message || (m.mid && message.mid && m.mid === message.mid)
         );
         if (isDuplicate) {
-          console.log('[SessionState.addMessage] Skipping duplicate message:', message.mid);
           return message; // Return without adding
         }
         // Add to internal array
@@ -337,7 +336,6 @@
         this.notifyListeners('flags:reset', { forceNew: true, justReset: true });
         // Save to localStorage so flags persist across page reloads
         this.save();
-        console.log('[SessionState] Reset flags set and saved to localStorage');
       } catch (error) {
         console.error('[SessionState.setResetFlags] Error:', error);
       }
@@ -353,7 +351,6 @@
         this.notifyListeners('flags:cleared', { forceNew: false, justReset: false });
         // Save to localStorage to persist cleared flags
         this.save();
-        console.log('[SessionState] Reset flags cleared and saved to localStorage');
       } catch (error) {
         console.error('[SessionState.clearResetFlags] Error:', error);
       }
@@ -602,7 +599,6 @@
           const data = await response.json();
           if (data.max_stored_messages) {
             this.config.maxStoredMessages = data.max_stored_messages;
-            console.log(`[SessionState] Max stored messages set to ${data.max_stored_messages}`);
           }
         }
       } catch (error) {

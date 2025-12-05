@@ -331,10 +331,10 @@ module E2EHelper
     if html_messages.any?
       last_html = html_messages.last
       if last_html["content"].is_a?(Hash) && last_html["content"]["html"]
-        puts "[DEBUG] Found HTML message with html content"
+        puts "[DEBUG] Found HTML message with html content" if ENV['DEBUG']
         return last_html["content"]["html"]
       elsif last_html["content"].is_a?(Hash) && last_html["content"]["text"]
-        puts "[DEBUG] Found HTML message with text content"
+        puts "[DEBUG] Found HTML message with text content" if ENV['DEBUG']
         # For monadic apps, the text might contain the raw JSON
         return last_html["content"]["text"]
       end
@@ -363,8 +363,8 @@ module E2EHelper
     result = response_parts.join("")
     
     # Return the extracted result
-    puts "[DEBUG] Returning fragment-based response: #{result[0..100]}..."
-    
+    puts "[DEBUG] Returning fragment-based response: #{result[0..100]}..." if ENV['DEBUG']
+
     result
   end
   

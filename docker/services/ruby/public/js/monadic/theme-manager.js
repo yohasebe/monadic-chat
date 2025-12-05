@@ -26,24 +26,15 @@
         return;
       }
 
-      console.log('[ThemeManager] Initializing...');
-
       try {
         // Web UI theme is always managed independently via cookies
         // Electron native UI (window frame, dialogs) follows system preference
         this.themeSource = this.getStoredThemePreference();
 
-        if (window.electronAPI) {
-          console.log('[ThemeManager] Running in Electron mode (Web UI theme independent)');
-        } else {
-          console.log('[ThemeManager] Running in external browser mode');
-        }
-
         // Determine and apply theme
         this.updateTheme();
 
         this.initialized = true;
-        console.log('[ThemeManager] Initialized successfully');
       } catch (error) {
         console.error('[ThemeManager] Initialization error:', error);
         // Fallback to light theme
@@ -66,8 +57,6 @@
      * @param {string} theme - 'light' or 'dark'
      */
     applyTheme(theme) {
-      console.log(`[ThemeManager] Applying theme: ${theme}`);
-
       const html = document.documentElement;
 
       if (theme === 'dark') {
@@ -100,7 +89,6 @@
         return false;
       }
 
-      console.log(`[ThemeManager] Setting theme to: ${themeSource}`);
       this.themeSource = themeSource;
 
       // Apply theme directly (both Electron and external browser)

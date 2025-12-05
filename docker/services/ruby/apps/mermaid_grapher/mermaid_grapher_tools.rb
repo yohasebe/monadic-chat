@@ -324,14 +324,14 @@ finally:
   end
 
   def run_full_validation(code, source: nil)
-    puts "[DEBUG run_full_validation] Starting validation, source: #{source}"
+    puts "[DEBUG run_full_validation] Starting validation, source: #{source}" if ENV['DEBUG']
     result = begin
-      puts "[DEBUG run_full_validation] Attempting Selenium validation..."
+      puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
       actual_validation = validate_with_mermaid_cli(code)
-      puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}"
+      puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}" if ENV['DEBUG']
       build_validation_payload(actual_validation)
     rescue => e
-      puts "[DEBUG run_full_validation] Selenium validation failed: #{e.message}, falling back to static validation"
+      puts "[DEBUG run_full_validation] Selenium validation failed: #{e.message}, falling back to static validation" if ENV['DEBUG']
       build_validation_payload(static_validation(code))
     end
 
@@ -346,7 +346,7 @@ finally:
       result[:next_action] = 'revise_code' if result[:next_action] == 'request_preview'
     end
 
-    puts "[DEBUG run_full_validation] Final result: success=#{result[:success]}, workflow_status=#{result[:workflow_status]}"
+    puts "[DEBUG run_full_validation] Final result: success=#{result[:success]}, workflow_status=#{result[:workflow_status]}" if ENV['DEBUG']
     result
   end
 
@@ -480,7 +480,7 @@ finally:
     
     result = run_bash_command(command: command)
 
-    puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}"
+    puts "[DEBUG validate_with_mermaid_cli] Selenium result: #{result.inspect}" if ENV['DEBUG']
 
     # Clean up HTML file
     File.delete(html_path) if html_path && File.exist?(html_path)
@@ -492,24 +492,24 @@ finally:
 
     # run_bash_command returns a string, not a hash
     if result.is_a?(String)
-      puts "[DEBUG validate_with_mermaid_cli] Result is String, checking for SUCCESS..."
+      puts "[DEBUG validate_with_mermaid_cli] Result is String, checking for SUCCESS..." if ENV['DEBUG']
       if result.include?("SUCCESS")
-        { 
-          valid: true, 
-          message: "Diagram validated successfully with Selenium and Mermaid.js" 
+        {
+          valid: true,
+          message: "Diagram validated successfully with Selenium and Mermaid.js"
         }
       else
         error_match = result.match(/ERROR: (.+)/)
         error_msg = error_match ? error_match[1] : "Unknown validation error"
-        puts "[DEBUG validate_with_mermaid_cli] No SUCCESS or ERROR found. Returning validation failed."
-        puts "[DEBUG validate_with_mermaid_cli] Result preview: #{result[0..200]}"
+        puts "[DEBUG validate_with_mermaid_cli] No SUCCESS or ERROR found. Returning validation failed." if ENV['DEBUG']
+        puts "[DEBUG validate_with_mermaid_cli] Result preview: #{result[0..200]}" if ENV['DEBUG']
         {
           valid: false,
           errors: [error_msg]
         }
       end
     else
-      puts "[DEBUG validate_with_mermaid_cli] Result is NOT a String: #{result.class}"
+      puts "[DEBUG validate_with_mermaid_cli] Result is NOT a String: #{result.class}" if ENV['DEBUG']
       {
         valid: false,
         errors: ["Selenium validation failed: #{result}"]

@@ -131,7 +131,6 @@ $(document).ready(function() {
   if (isIOSDevice) {
     // Hide the voice button completely on iOS/iPadOS
     $("#voice").hide();
-    console.log("Speech Input button hidden on iOS/iPadOS device");
   }
 });
 
@@ -180,15 +179,8 @@ function startAudioCapture() {
     }
   };
 
-  console.log("Starting audio capture with constraints:", JSON.stringify(constraints));
-
   navigator.mediaDevices.getUserMedia(constraints)
     .then(function (stream) {
-      console.log("Audio stream obtained successfully");
-      // Log information about the audio tracks
-      const audioTracks = stream.getAudioTracks();
-      console.log("Audio tracks:", audioTracks.length, audioTracks.map(t => t.label + " (enabled: " + t.enabled + ")"));
-      
       localStream = stream;
       // Check which STT model is selected
       const sttModelSelect = $("#stt-model");
@@ -212,7 +204,6 @@ function startAudioCapture() {
       for (const mimeType of mimeTypes) {
         if (MediaRecorder.isTypeSupported(mimeType)) {
           options = {mimeType: mimeType};
-          console.log("Using MIME type:", mimeType);
           break;
         }
       }
@@ -256,7 +247,6 @@ voiceButton.on("click", function () {
   // "Start" button is pressed
   if (!isListening) {
   if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-    console.log('[Voice] Ignoring voice input start: tab is not foreground.');
     return;
   }
 
@@ -285,27 +275,16 @@ voiceButton.on("click", function () {
 
     // For Electron environment, try to explicitly request permissions via bridge API
     if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
-      console.log("Detected Electron environment, requesting permissions via bridge API");
-
       // Check if navigator.mediaDevices is available
       if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.enumerateDevices === 'function') {
         // Try to enumerate devices first to trigger permission dialogs if needed
         navigator.mediaDevices.enumerateDevices()
-          .then(devices => {
-            console.log("Available devices:", devices.length);
-            devices.forEach(device => {
-              if (device.kind === 'audioinput') {
-                console.log(`Audio input device: ${device.label || 'unlabeled device'} (${device.deviceId})`);
-              }
-            });
-
+          .then(() => {
             // Now request permissions explicitly through the bridge
             return window.electronAPI.requestMediaPermissions();
           })
           .then(success => {
-            if (success) {
-              console.log("Media permissions granted via Electron bridge");
-            } else {
+            if (!success) {
               console.error("Failed to get media permissions via Electron bridge");
             }
             // Continue with getUserMedia regardless of bridge result
@@ -321,9 +300,7 @@ voiceButton.on("click", function () {
         // Request permissions via bridge without enumerating devices
         window.electronAPI.requestMediaPermissions()
           .then(success => {
-            if (success) {
-              console.log("Media permissions granted via Electron bridge");
-            } else {
+            if (!success) {
               console.error("Failed to get media permissions via Electron bridge");
             }
             // Continue with getUserMedia regardless of bridge result
@@ -337,7 +314,6 @@ voiceButton.on("click", function () {
       }
     } else {
       // Standard browser environment
-      console.log("Using standard browser media API (non-Electron environment)");
       startAudioCapture();
     }
 
@@ -368,7 +344,7 @@ voiceButton.on("click", function () {
           // Check if the blob size is too small (indicates no sound captured)
           // Increased threshold to 100 bytes to better detect empty recordings
           if (event.data.size <= 100) { // Increased from 44 bytes for better detection
-            console.log("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
+            console.warn("No audio data detected or recording too small. Size: " + event.data.size + " bytes");
             const noAudioText = getTranslation('ui.messages.noAudioDetected', 'NO AUDIO DETECTED: Check your microphone settings');
             setAlert(noAudioText, "error");
             // Restore original placeholder
@@ -382,12 +358,8 @@ voiceButton.on("click", function () {
             return; // This prevents further processing
           }
           
-          // Only process if we have sufficient audio data
-          console.log("Audio data size: " + event.data.size + " bytes - Processing...");
-          
           soundToBase64(event.data, function (base64) {
             if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-              console.log('[Voice] Skipping STT send: tab not foreground.');
               const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
               $("#message").attr("placeholder", origPlaceholder);
               $("#voice").html('<i class=\'fas fa-microphone\'></i> Speech Input');
@@ -398,7 +370,7 @@ voiceButton.on("click", function () {
             }
             // Double-check the base64 length to ensure we have actual content
             if (!base64 || base64.length < 100) {
-              console.log("Base64 audio data too small. Canceling STT processing.");
+              console.warn("Base64 audio data too small. Canceling STT processing.");
               const audioFailedText = getTranslation('ui.messages.audioProcessingFailed', 'AUDIO PROCESSING FAILED');
               setAlert(audioFailedText, "error");
               // Restore original placeholder
@@ -428,8 +400,6 @@ voiceButton.on("click", function () {
                 if (format === "mp4a-latm") format = "mp4";
                 if (format === "x-wav" || format === "wave") format = "wav";
               }
-              console.log("Using audio format for STT: " + format);
-              console.log("Using STT model: " + stt_model);
             }
             const json = JSON.stringify({message: "AUDIO", content: base64, format: format, lang_code: lang_code, stt_model: stt_model});
             reconnect_websocket(ws, function () {
@@ -469,10 +439,10 @@ voiceButton.on("click", function () {
         $("#asr-p-value").show();
         $("#amplitude").hide();
       } catch (e) {
-        console.log(e);
+        console.error("Error in mediaRecorder processing:", e);
         $("#send, #clear, #voice").prop("disabled", false);
         $("#monadic-spinner").hide();
-      } 
+      }
     }
 
   } else {
@@ -546,11 +516,7 @@ if (typeof module !== 'undefined' && module.exports) {
 $(document).ready(function() {
   // Only in Electron environment
   if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
-    console.log("Pre-requesting media permissions in Electron environment");
     window.electronAPI.requestMediaPermissions()
-      .then(result => {
-        console.log("Pre-request media permissions result:", result);
-      })
       .catch(err => {
         console.error("Error in pre-request media permissions:", err);
       });

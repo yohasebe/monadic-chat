@@ -1355,13 +1355,6 @@ module GeminiHelper
     app_settings = APPS[app]&.settings
     app_tools = app_settings && (app_settings[:tools] || app_settings["tools"]) ? (app_settings[:tools] || app_settings["tools"]) : []
 
-    # Debug: Check tools structure
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Gemini Tools] app=#{app}"
-      puts "[DEBUG Gemini Tools] app_tools type: #{app_tools.class}"
-      puts "[DEBUG Gemini Tools] app_tools.inspect: #{app_tools.inspect[0..500]}"
-    end
-
     raw_function_tools =
       if app_tools.is_a?(Hash) && app_tools["function_declarations"]
         app_tools["function_declarations"]
@@ -1556,13 +1549,6 @@ module GeminiHelper
       # Check what tools have been called so far
       tool_names = obj["tool_results"].map { |r| r.dig("functionResponse", "name") }.compact
 
-      # Debug logging for tool_names extraction
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[DEBUG Gemini Jupyter] tool_names extracted: #{tool_names.inspect}"
-        puts "[DEBUG Gemini Jupyter] is_jupyter_app: #{is_jupyter_app}"
-        puts "[DEBUG Gemini Jupyter] tool_results count: #{obj["tool_results"]&.length || 0}"
-      end
-
       # For Gemini 2.5 thinking models, we now know they support function calling
       # according to the official documentation
       if is_jupyter_app
@@ -1591,26 +1577,14 @@ module GeminiHelper
         
         # Count only action tool calls (not info gathering)
         action_tool_count = action_tool_names.length
-        
+
         # Determine whether to allow more tool calls based on operation flow
         should_stop = false
-
-        # Debug logging for action_tool_names
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[DEBUG Gemini Jupyter] action_tool_names: #{action_tool_names.inspect}"
-          puts "[DEBUG Gemini Jupyter] action_tool_count: #{action_tool_count}"
-          puts "[DEBUG Gemini Jupyter] has_notebook_creation: #{has_notebook_creation}"
-          puts "[DEBUG Gemini Jupyter] has_cell_operations: #{has_cell_operations}"
-          puts "[DEBUG Gemini Jupyter] has_execution: #{has_execution}"
-        end
 
         # If create_and_populate was used, it's a complete operation - stop immediately
         # This combined tool handles everything in one call, so we're done
         if action_tool_names.include?("create_and_populate_jupyter_notebook")
           should_stop = true
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[DEBUG Gemini Jupyter] should_stop=true: create_and_populate_jupyter_notebook detected"
-          end
         end
 
         # For add_jupyter_cells alone (not combined with create_and_populate),
@@ -1631,11 +1605,6 @@ module GeminiHelper
           should_stop = true
         end
 
-        # Final debug log before applying should_stop decision
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[DEBUG Gemini Jupyter] FINAL should_stop=#{should_stop}"
-        end
-
         if should_stop
           # Disable tools completely to force text response
           # Remove both tools and toolConfig to prevent the model from attempting
@@ -1648,9 +1617,6 @@ module GeminiHelper
           # to ensure tokens are available for text output
           if body["generationConfig"] && body["generationConfig"]["thinkingConfig"]
             body["generationConfig"].delete("thinkingConfig")
-            if CONFIG["EXTRA_LOGGING"]
-              puts "[DEBUG Gemini] Removed thinkingConfig for tool result processing (should_stop=true)"
-            end
           end
         else
           # Still need to call more tools
@@ -1740,36 +1706,6 @@ module GeminiHelper
       end
     end
     
-    # Debug logging
-    if CONFIG["EXTRA_LOGGING"]  # Enable with EXTRA_LOGGING config setting
-      puts "[DEBUG Gemini] app=#{app}, websearch=#{use_native_websearch}, app_tools=#{app_tools.inspect}"
-      puts "[DEBUG Gemini] Final request body:"
-      puts JSON.pretty_generate(body.dup.tap { |b| 
-        # Truncate long system prompts for readability
-        if b["system_instruction"] && b["system_instruction"]["parts"]
-          b["system_instruction"]["parts"].each do |part|
-            if part["text"] && part["text"].length > 200
-              part["text"] = part["text"][0..200] + "... [truncated]"
-            end
-          end
-        end
-      })
-      # Capability audit (tools/streaming/pdf)
-      begin
-        audit = []
-        audit << "streaming:#{supports_streaming}(#{streaming_source})"
-        audit << "tools:#{tool_capable}(#{tool_capable_source})"
-        # Add PDF capability if it was evaluated
-        if defined?(pdf_capable) && defined?(pdf_capable_source)
-          pdf_capable_source ||= "fallback"
-          audit << "pdf:#{pdf_capable}(#{pdf_capable_source})"
-        end
-        puts "[Gemini SSOT] capabilities for #{model_name}: #{audit.join(", ") }"
-      rescue StandardError
-        # ignore logging errors
-      end
-    end
-    
     # Use v1beta for thinking models or PDF handling, v1alpha for others
     # PDF requires v1beta endpoint for proper document processing
     endpoint = (is_thinking_model || has_pdf_part) ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
@@ -1791,12 +1727,6 @@ module GeminiHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-
-      # Debug: Check error_report structure
-      if CONFIG["EXTRA_LOGGING"]
-        STDERR.puts "[Gemini Error Response] Type: #{error_report.class}"
-        STDERR.puts "[Gemini Error Response] Content: #{error_report.inspect[0..500]}"
-      end
 
       # Handle both hash and array error formats
       error_message = if error_report.is_a?(Hash)
@@ -1919,20 +1849,6 @@ module GeminiHelper
 
           if CONFIG["EXTRA_LOGGING"]
             extra_log.puts(JSON.pretty_generate(json_obj))
-            
-            # Specifically log if this is a web search response
-            if CONFIG["EXTRA_LOGGING"] && session[:parameters]["websearch"] && json_obj["candidates"]
-              json_obj["candidates"].each_with_index do |candidate, idx|
-                if candidate["content"] && candidate["content"]["parts"]
-                  candidate["content"]["parts"].each_with_index do |part, part_idx|
-                    if part["text"] && (part["grounding_metadata"] || part["searchEntryPoint"])
-                      puts "[DEBUG Gemini WebSearch] Candidate #{idx}, Part #{part_idx} contains search data"
-                      puts "[DEBUG Gemini WebSearch] Text preview: #{part["text"][0..200]}..." if part["text"]
-                    end
-                  end
-                end
-              end
-            end
           end
 
           # Capture usage metadata if available
@@ -1946,12 +1862,7 @@ module GeminiHelper
           end
 
           candidates = json_obj["candidates"]
-          
-          # Debug: Log if no candidates
-          if CONFIG["EXTRA_LOGGING"] && (candidates.nil? || candidates.empty?)
-            puts "[DEBUG Gemini] No candidates in response: #{json_obj.inspect}"
-          end
-          
+
           candidates&.each do |candidate|
             
             # Check for URL Context metadata at candidate level
@@ -1965,11 +1876,6 @@ module GeminiHelper
                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                   log.puts "[Gemini] Found URL Context metadata at candidate level:"
                   log.puts "  - URL metadata count: #{url_context_data["urlMetadata"]&.length}"
-                  
-                  if CONFIG["EXTRA_LOGGING"]
-                    log.puts "[DEBUG Gemini] Full URL Context data structure:"
-                    log.puts JSON.pretty_generate(url_context_data)
-                  end
                 end
               end
               
@@ -2020,11 +1926,6 @@ module GeminiHelper
                   log.puts "[Gemini] Found grounding metadata at candidate level:"
                   log.puts "  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}"
                   log.puts "  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}"
-                  
-                  if CONFIG["EXTRA_LOGGING"]
-                    log.puts "[DEBUG Gemini] Full grounding data structure:"
-                    log.puts JSON.pretty_generate(grounding_data)
-                  end
                 end
               end
               
@@ -2080,10 +1981,6 @@ module GeminiHelper
 
               if text_parts.empty?
                 # Thinking consumed all tokens, no actual text output
-                if CONFIG["EXTRA_LOGGING"]
-                  thoughts_tokens = json_obj.dig("usageMetadata", "thoughtsTokenCount") || 0
-                  puts "[DEBUG Gemini] MAX_TOKENS with empty content - thinking used #{thoughts_tokens} tokens"
-                end
                 # Return a helpful error message
                 res = { "type" => "error", "content" => "The model's thinking process used all available tokens. The notebook was created successfully, but no summary could be generated. Please check the notebook directly." }
                 block&.call res
@@ -2103,11 +2000,6 @@ module GeminiHelper
               # 1. toolConfig mode is NONE but model still tries to call a function
               # 2. Model generates invalid function call syntax
               # 3. Tools were removed for should_stop but model still tries to call functions
-              finish_message = candidate["finishMessage"] || "Model generated malformed function call"
-              if CONFIG["EXTRA_LOGGING"]
-                puts "[DEBUG Gemini] MALFORMED_FUNCTION_CALL: #{finish_message}"
-              end
-
               # Check if this is a Jupyter app where tools were successfully completed
               # In this case, the malformed call is likely because we disabled tools after success
               tool_results = session[:parameters]["tool_results"] || []
@@ -2122,9 +2014,6 @@ module GeminiHelper
 
               if has_successful_jupyter_result
                 # The notebook was created/updated successfully, just return a success message
-                if CONFIG["EXTRA_LOGGING"]
-                  puts "[DEBUG Gemini] MALFORMED_FUNCTION_CALL ignored: Jupyter tools already completed successfully"
-                end
                 # Extract notebook info from tool results for a helpful message
                 notebook_info = tool_results.find do |r|
                   content = r.dig("functionResponse", "response", "content")
@@ -2157,53 +2046,14 @@ module GeminiHelper
             end
 
             content = candidate["content"]
-            
-            # Debug: Log why content might be skipped
-            if CONFIG["EXTRA_LOGGING"]
-              if content.nil?
-                puts "[DEBUG Gemini] Skipping candidate: content is nil"
-              elsif finish_reason == "recitation"
-                puts "[DEBUG Gemini] Skipping candidate: finish_reason is recitation"
-              elsif finish_reason == "safety"
-                puts "[DEBUG Gemini] Skipping candidate: finish_reason is safety"
-                # For safety, try to provide more information
-                safety_ratings = candidate["safetyRatings"]
-                if safety_ratings
-                  puts "[DEBUG Gemini] Safety ratings: #{safety_ratings.inspect}"
-                end
-              end
-            end
-            
+
             next if (content.nil? || finish_reason == "recitation" || finish_reason == "safety")
 
             content["parts"]&.each do |part|
-              # Debug: Log all parts for Jupyter debugging
-              if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
-                puts "[DEBUG Gemini Jupyter] Part keys: #{part.keys.inspect}"
-                if part["functionCall"]
-                  puts "[DEBUG Gemini Jupyter] Function call detected: #{part["functionCall"].inspect}"
-                end
-                if part["text"] && part["text"].length > 0
-                  puts "[DEBUG Gemini Jupyter] Text fragment (first 100 chars): #{part["text"][0..100]}"
-                end
-              end
-              
               # Process and display grounding metadata for web search results (part level)
               # Only process if we haven't already captured it at candidate level
               if @grounding_html.nil? && (part["grounding_metadata"] || json_obj["groundingMetadata"])
                 grounding_data = part["grounding_metadata"] || json_obj["groundingMetadata"]
-                
-                # Log when found at part/json level
-                if CONFIG["EXTRA_LOGGING"] && defined?(MonadicApp::EXTRA_LOG_FILE)
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts "[Gemini] Found grounding metadata at #{part["grounding_metadata"] ? "part" : "json"} level"
-                    log.puts "  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}"
-                    log.puts "  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}"
-                    log.puts "[DEBUG Gemini] Full grounding metadata structure:"
-                    log.puts JSON.pretty_generate(grounding_data)
-                    log.puts "  - searchEntryPoint exists: #{!grounding_data["searchEntryPoint"].nil?}"
-                  end
-                end
                 
                 # Build search metadata display if we have search queries and sources
                 if grounding_data["webSearchQueries"] && !grounding_data["webSearchQueries"].empty?
@@ -2284,26 +2134,15 @@ module GeminiHelper
               
               if part["text"]
                 fragment = part["text"]
-                
+
                 # Special handling for Math Tutor FIRST - needs priority
-                # Debug: Log the actual app_name
-                if CONFIG["EXTRA_LOGGING"] && fragment.include?("```")
-                  puts "[DEBUG] App name: '#{session[:parameters]["app_name"]}'"
-                  puts "[DEBUG] Display name: '#{session[:parameters]["display_name"]}'"
-                end
-                
                 if session[:parameters]["app_name"].to_s.include?("MathTutor") || 
                    session[:parameters]["display_name"].to_s.include?("Math Tutor")
                   # For Math Tutor, only extract image HTML from code blocks
                   # Don't interfere with other content to avoid breaking MathJax
                   if fragment =~ /```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im
-                    image_html = $1
                     # Replace just the code block containing the image with the raw HTML
                     fragment = fragment.gsub(/```(?:html)?\s*\n?(<div class="generated_image">.*?<\/div>)\s*\n?```/im, '\1')
-                    
-                    if CONFIG["EXTRA_LOGGING"]
-                      puts "[DEBUG Math Tutor] Extracted image HTML from code block"
-                    end
                   end
                 # Special processing for media generator app to strip code blocks
                 # Extract HTML from code blocks - for both media generator and code interpreter apps
@@ -2469,13 +2308,6 @@ module GeminiHelper
       end
 
       begin
-        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
-          puts "[DEBUG Gemini Jupyter] Processing #{tool_calls.length} function calls"
-          tool_calls.each do |tc|
-            puts "[DEBUG Gemini Jupyter] Function: #{tc["name"]}, Args keys: #{tc["args"]&.keys}"
-          end
-        end
-        
         # Check if this is a Math Tutor run_code call
         is_math_tutor_code = (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
                               session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
@@ -2485,18 +2317,11 @@ module GeminiHelper
         
         # For Math Tutor, inject HTML for generated images
         if is_math_tutor_code && new_results
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[DEBUG Math Tutor] Checking tool results for image files"
-          end
-          
           # Check if any image files were generated
           result_text = new_results.to_s
           if result_text =~ /File\(s\) generated.*?(\/data\/[^,\s]+\.(?:svg|png|jpg|jpeg|gif))/i
             image_file = $1
-            if CONFIG["EXTRA_LOGGING"]
-              puts "[DEBUG Math Tutor] Found generated image: #{image_file}"
-            end
-            
+
             # Inject HTML for the image
             image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"#{image_file}\" />\n</div>"
             
@@ -2508,18 +2333,11 @@ module GeminiHelper
             block&.call res
           end
         end
-        
-        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
-          puts "[DEBUG Gemini Jupyter] Function results received: #{new_results.class}"
-        end
       rescue StandardError => e
         new_results = [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
           provider: "Gemini",
           message: e.message
         ) }]
-        if CONFIG["EXTRA_LOGGING"] && session[:parameters]["app_name"].to_s.include?("Jupyter")
-          puts "[DEBUG Gemini Jupyter] Function call error: #{e.message}"
-        end
       end
 
       if result && new_results
@@ -2532,19 +2350,12 @@ module GeminiHelper
           end
           
           # Special handling for Math Tutor run_code results
-          if (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
-              session[:parameters]["display_name"].to_s.include?("Math Tutor")) && 
+          if (session[:parameters]["app_name"].to_s.include?("MathTutor") ||
+              session[:parameters]["display_name"].to_s.include?("Math Tutor")) &&
              tool_calls.any? { |tc| tc["name"] == "run_code" }
-            if CONFIG["EXTRA_LOGGING"]
-              puts "[DEBUG Math Tutor] Processing run_code result: #{tool_result_content[0..200]}"
-            end
-            
             # Check if image files were generated
             if tool_result_content =~ /File\(s\) generated.*?(\/data\/[^,\s;]+\.(?:svg|png|jpg|jpeg|gif))/i
               image_file = $1
-              if CONFIG["EXTRA_LOGGING"]
-                puts "[DEBUG Math Tutor] Appending HTML for image: #{image_file}"
-              end
               # Append HTML directly to the tool result
               tool_result_content += "\n\n<div class=\"generated_image\">\n  <img src=\"#{image_file}\" />\n</div>"
             end
@@ -2789,10 +2600,6 @@ module GeminiHelper
         end
 
         if has_successful_jupyter_result
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[DEBUG Gemini Jupyter] Empty response but tools succeeded - generating success message"
-          end
-
           # Extract notebook info from tool results
           notebook_info = tool_results.find do |r|
             content = r.dig("functionResponse", "response", "content")
@@ -2863,15 +2670,7 @@ module GeminiHelper
       begin
         # Parse arguments from the tool call
         argument_hash = tool_call["args"] || {}
-        
-        # Debug logging for Jupyter add_jupyter_cells
-        if CONFIG["EXTRA_LOGGING"] && function_name == "add_jupyter_cells"
-          puts "[DEBUG Gemini Jupyter] add_jupyter_cells arguments before conversion:"
-          puts "  - Raw args: #{argument_hash.inspect}"
-          puts "  - cells type: #{argument_hash["cells"]&.class}"
-          puts "  - cells value: #{argument_hash["cells"]&.inspect[0..500]}"
-        end
-        
+
         # Convert string keys to symbols for method calling
         argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
           memo[k.to_sym] = v
@@ -3174,11 +2973,6 @@ module GeminiHelper
     end
     
     # Make the API request with the tool results
-    # Log the call depth for debugging
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Gemini] Tool call depth: #{call_depth}, making API request with tool results"
-    end
-    
     # Remove the artificial limit - let MAX_FUNC_CALLS handle it
     # The real issue might be elsewhere
     

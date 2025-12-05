@@ -610,14 +610,13 @@ function ttsSpeak(text, stream, callback) {
   ws.send(JSON.stringify(voiceData));
 
   // Clear the global queue for new TTS playback
-  if (typeof window.globalAudioQueue !== 'undefined') {
-    window.globalAudioQueue = [];
-    window.isProcessingAudioQueue = false;
-  }
-  
-  // Clear MediaSource-based audio queue as well
+  // IMPORTANT: Use clearAudioQueue() which properly clears the queue
+  // without breaking the reference between window.globalAudioQueue and the local variable
   if (typeof clearAudioQueue === 'function') {
     clearAudioQueue();
+  } else if (typeof window.globalAudioQueue !== 'undefined' && Array.isArray(window.globalAudioQueue)) {
+    // Fallback: clear by setting length to 0 (preserves reference)
+    window.globalAudioQueue.length = 0;
   }
   
   // Note: Don't reset audio elements here as it causes issues with ongoing playback
@@ -677,15 +676,14 @@ function ttsStop() {
     removeStopButtonHighlight();
   }
 
-  // Clear the global audio queue first
+  // Clear the global audio queue
+  // IMPORTANT: Use clearAudioQueue() which properly clears the queue
+  // without breaking the reference between window.globalAudioQueue and the local variable
   if (typeof clearAudioQueue === 'function') {
     clearAudioQueue();
-  }
-
-  // Clear global audio queue
-  if (typeof window.globalAudioQueue !== 'undefined') {
-    window.globalAudioQueue = [];
-    window.isProcessingAudioQueue = false;
+  } else if (typeof window.globalAudioQueue !== 'undefined' && Array.isArray(window.globalAudioQueue)) {
+    // Fallback: clear by setting length to 0 (preserves reference)
+    window.globalAudioQueue.length = 0;
   }
 
   // Stop Web Speech API if active

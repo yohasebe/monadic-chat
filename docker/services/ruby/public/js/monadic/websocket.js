@@ -2,8 +2,6 @@
 // set up the websocket
 //////////////////////////////
 
-console.log('[WebSocket] Module loading... Version: 2025-11-08-v2 (with MarkdownRenderer integration)');
-
 // CRITICAL: Initialize window.apps if not already defined (by utilities.js)
 // WebSocket handlers need to write to the global apps object
 // Don't create a local variable - always use window.apps directly
@@ -34,6 +32,7 @@ if (typeof window.isProcessingImport === 'undefined') {
 }
 
 // Lightweight timeline logger to trace initialization order
+// Entries are stored in window._timeline for debugging (access via console)
 if (!window.logTL) {
   window.logTL = function(event, payload) {
     try {
@@ -41,8 +40,6 @@ if (!window.logTL) {
       const entry = Object.assign({ ts, event }, payload || {});
       window._timeline = window._timeline || [];
       window._timeline.push(entry);
-      // Keep console concise
-      console.log('[TL]', event, entry);
     } catch (_) {}
   };
 }
@@ -236,11 +233,6 @@ function setAutoSpeechSuppressed(value, options = {}) {
       window.autoSpeechActive = false;
       window.autoPlayAudio = false;
     }
-    if (options.log !== false) {
-      console.log('[Auto TTS] Suppression enabled', options.reason ? `(${options.reason})` : '');
-    }
-  } else if (wasSuppressed && options.log !== false) {
-    console.log('[Auto TTS] Suppression cleared');
   }
 }
 
@@ -309,28 +301,21 @@ function checkAndHideSpinner() {
   if (!inForeground) {
     // Background tab - only hide spinner if NOT actively processing
     if (stillProcessing) {
-      console.log('[checkAndHideSpinner] Background tab but still processing - keeping spinner state');
       return; // Don't hide spinner, don't modify state
     }
-    console.log('[checkAndHideSpinner] Background tab and not processing - hiding spinner');
     $("#monadic-spinner").hide();
     return;
   }
 
   // CRITICAL: On initial load (no messages), always hide spinner regardless of Auto Speech settings
   // This prevents sticky "Processing audio" spinner from other tabs
-  // With sessionStorage, each tab is isolated, so we don't get cross-tab contamination
   const messageCount = (window.messages && window.messages.length) || 0;
   if (messageCount === 0) {
-    console.log('[checkAndHideSpinner] Initial load (no messages) - hiding spinner unconditionally');
     $("#monadic-spinner").hide();
     return;
   }
 
   // Check Auto Speech from multiple sources
-  // 1. params["auto_speech"] - the source of truth set when Start/Send clicked
-  // 2. UI checkbox state
-  // 3. window.autoSpeechActive - set when TTS is actively playing
   const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
   const checkboxEnabled = $("#check-auto-speech").is(":checked");
   const autoSpeechActive = window.autoSpeechActive === true;
@@ -338,29 +323,13 @@ function checkAndHideSpinner() {
   const reasoningActive = typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive();
   const streamingActive = streamingResponse === true;
 
-  console.log('[checkAndHideSpinner] Called with:', {
-    messageCount,
-    paramsEnabled,
-    checkboxEnabled,
-    autoSpeechActive,
-    autoSpeechEnabled,
-    textResponseCompleted,
-    ttsPlaybackStarted,
-    inForeground,
-    reasoningActive,
-    streamingActive,
-    spinnerVisible: $("#monadic-spinner").is(":visible")
-  });
-
   if (reasoningActive || streamingActive) {
-    console.log('[checkAndHideSpinner] Deferring hide while reasoning/streaming active');
     ensureThinkingSpinnerVisible();
     return;
   }
 
   if (!autoSpeechEnabled) {
     // For non-Auto Speech mode, hide spinner immediately
-    console.log('[checkAndHideSpinner] Hiding spinner (Auto Speech disabled)');
     $("#monadic-spinner").hide();
     return;
   }
@@ -368,7 +337,6 @@ function checkAndHideSpinner() {
   // For Auto Speech mode
   if (textResponseCompleted && ttsPlaybackStarted) {
     // Both text and TTS completed - hide spinner
-    console.log('[checkAndHideSpinner] Hiding spinner (conditions met)');
     $("#monadic-spinner").hide();
 
     // Reset spinner to default state
@@ -381,9 +349,6 @@ function checkAndHideSpinner() {
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
   } else if (textResponseCompleted && !ttsPlaybackStarted) {
     // Text completed but TTS not started yet - update spinner to show audio processing
-    // Note: Initial load (messageCount === 0) is already handled above, so this only runs for actual responses
-    console.log('[checkAndHideSpinner] Updating spinner for audio processing');
-    // Ensure spinner is visible BEFORE updating content
     $("#monadic-spinner").show();
 
     $("#monadic-spinner")
@@ -396,11 +361,6 @@ function checkAndHideSpinner() {
     $("#monadic-spinner")
       .find("span")
       .html(`<i class="fas fa-headphones fa-pulse"></i> ${processingAudioText}`);
-  } else {
-    console.log('[checkAndHideSpinner] NOT hiding spinner - conditions not met:', {
-      textResponseCompleted,
-      ttsPlaybackStarted
-    });
   }
 }
 
@@ -1191,8 +1151,16 @@ window.addToGlobalAudioQueue = function(audioItem) {
   globalAudioQueue.push(audioItem);
 
   // Process the queue if not already processing
+  // IMPORTANT: Wrap in try-catch to prevent errors from bubbling up
+  // This avoids triggering fallback handlers that could add duplicate audio
   if (!isProcessingAudioQueue) {
-    processGlobalAudioQueue();
+    try {
+      processGlobalAudioQueue();
+    } catch (e) {
+      console.error('[AudioQueue] Error in processGlobalAudioQueue:', e);
+      // Reset processing flag so queue can continue on next add
+      isProcessingAudioQueue = false;
+    }
   }
 };
 
@@ -1378,14 +1346,11 @@ function resetAudioElements() {
   } catch (e) {
     // Variables not yet initialized (TDZ), skip cleanup
     // This is normal during page initialization
-    console.log('[resetAudioElements] Skipping cleanup - variables not yet initialized:', e.message);
   }
 }
 
 // Reset all session-specific state when switching apps or resetting
 function resetSessionState() {
-  console.log('[resetSessionState] Resetting all session-specific state');
-
   // Clear SessionState conversation and flags (client-side)
   if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
     window.SessionState.clearMessages();
@@ -1427,8 +1392,6 @@ function resetSessionState() {
   if (typeof setAutoSpeechSuppressed === 'function') {
     setAutoSpeechSuppressed(false, { reason: 'clear' });
   }
-
-  console.log('[resetSessionState] State reset complete');
 }
 
 // Export for use in other modules
@@ -1566,11 +1529,14 @@ function addToAudioQueue(audioData, sequenceId, mimeType) {
       mimeType: mimeType
     };
 
-    const pendingNums = Object.keys(pendingAudioSegments).map(k => parseInt(k, 10)).sort((a, b) => a - b);
-    console.log(`[AudioQueue] Received seq${sequenceNum} at ${new Date().toISOString()}, next expected: seq${nextExpectedSequence}, pending: [${pendingNums.join(', ')}]`);
-
     // Try to process any segments that are now ready
-    processSequentialAudio();
+    // IMPORTANT: Wrap in try-catch to prevent errors from bubbling up
+    // This avoids triggering fallback handlers that could add duplicate audio
+    try {
+      processSequentialAudio();
+    } catch (e) {
+      console.error('[AudioQueue] Error in processSequentialAudio:', e);
+    }
   } else {
     // Non-sequential audio (regular TTS mode) - use normal queue
     globalAudioQueue.push({
@@ -1582,8 +1548,16 @@ function addToAudioQueue(audioData, sequenceId, mimeType) {
     });
 
     // Start processing if not already running
+    // IMPORTANT: Wrap in try-catch to prevent errors from bubbling up
+    // This avoids triggering fallback handlers that could add duplicate audio
     if (!isProcessingAudioQueue) {
-      processGlobalAudioQueue();
+      try {
+        processGlobalAudioQueue();
+      } catch (e) {
+        console.error('[AudioQueue] Error in processGlobalAudioQueue:', e);
+        // Reset processing flag so queue can continue on next add
+        isProcessingAudioQueue = false;
+      }
     }
   }
 }
@@ -1676,14 +1650,10 @@ function processSequentialAudio() {
 
 // Process the global audio queue to ensure sequential playback
 function processGlobalAudioQueue() {
-  console.log("[AudioQueue] processGlobalAudioQueue - queue length:", globalAudioQueue.length, "isProcessing:", isProcessingAudioQueue);
-
   if (globalAudioQueue.length === 0) {
     // Check if there are pending sequential segments waiting
     const pendingCount = Object.keys(pendingAudioSegments).length;
     if (pendingCount > 0) {
-      const pendingNums = Object.keys(pendingAudioSegments).map(k => parseInt(k, 10)).sort((a, b) => a - b);
-      console.log("[AudioQueue] Queue empty but pending segments exist:", pendingNums, "- checking for seq" + nextExpectedSequence);
       isProcessingAudioQueue = false;
       // Try to process the next expected segment
       processSequentialAudio();
@@ -1717,15 +1687,12 @@ function processGlobalAudioQueue() {
   isProcessingAudioQueue = true;
   const audioItem = globalAudioQueue.shift();
   currentAudioSequenceId = audioItem.sequenceId;
-  console.log("[AudioQueue] Processing audio item:", audioItem.sequenceId);
 
   // Choose appropriate playback method based on device
   if (window.isIOS || window.basicAudioMode) {
-    console.log("[AudioQueue] Using iOS/basic audio mode");
     playAudioForIOSFromQueue(audioItem.data);
   } else {
-    console.log("[AudioQueue] Using standard playback");
-    playAudioFromQueue(audioItem); // Pass full item including mimeType
+    playAudioFromQueue(audioItem);
   }
 }
 
@@ -1833,11 +1800,6 @@ function processAudio(audioData) {
 
 // Play audio from queue for standard browsers
 function playAudioFromQueue(audioItem) {
-  console.log("[AudioQueue] playAudioFromQueue called with:", {
-    hasData: !!(audioItem.data || audioItem),
-    mimeType: audioItem.mimeType,
-    sequenceNum: audioItem.sequenceNum
-  });
   try {
     // Extract data and mimeType from audioItem
     const audioData = audioItem.data || audioItem;
@@ -1871,8 +1833,6 @@ function playAudioFromQueue(audioItem) {
       // CRITICAL: Set callback BEFORE calling playPCMAudio
       // This ensures the callback is available when onended fires
       window.ttsPlaybackCallback = function() {
-        console.log("[AudioQueue] ttsPlaybackCallback fired - processing next segment");
-        // Process next segment immediately
         isProcessingAudioQueue = false;
         processGlobalAudioQueue();
       };
@@ -1906,8 +1866,6 @@ function playAudioFromQueue(audioItem) {
 
       // If tab is hidden, audio playback may be interrupted by browser - this is expected behavior
       if (document.hidden) {
-        console.log(`[AudioQueue] Audio playback interrupted for seq${sequenceNum} (tab is hidden)`);
-        // Clean up but don't report as error
         isProcessingAudioQueue = false;
         processGlobalAudioQueue();
         return;
@@ -1921,10 +1879,7 @@ function playAudioFromQueue(audioItem) {
 
     // Set source and play
     segmentAudio.src = audioUrl;
-    console.log("[AudioQueue] Starting playback for seq" + sequenceNum);
     segmentAudio.play().then(() => {
-      console.log("[AudioQueue] Playback started successfully for seq" + sequenceNum);
-
       // Mark TTS playback as started (audio is now playing)
       if (typeof window.setTtsPlaybackStarted === 'function') {
         window.setTtsPlaybackStarted(true);
@@ -1941,7 +1896,6 @@ function playAudioFromQueue(audioItem) {
     }).catch(err => {
       // If tab is hidden, audio playback may be interrupted by browser - this is expected behavior
       if (document.hidden) {
-        console.log(`[AudioQueue] Audio playback interrupted for seq${sequenceNum} (tab is hidden)`);
         URL.revokeObjectURL(audioUrl);
         currentSegmentAudio = null;
         isProcessingAudioQueue = false;
@@ -1949,7 +1903,7 @@ function playAudioFromQueue(audioItem) {
         return;
       }
 
-      console.error("[AudioQueue] Playback failed for seq" + sequenceNum + ":", err);
+      console.error("[AudioQueue] Playback failed:", err);
       URL.revokeObjectURL(audioUrl);
       currentSegmentAudio = null; // Clear reference
       handleAudioError(`Failed to play segment seq${sequenceNum}: ${err.message}`);
@@ -2195,7 +2149,6 @@ function processIOSAudioBuffer() {
 
 // Function to play PCM audio data from Gemini
 function playPCMAudio(pcmData, sampleRate) {
-  console.log("[AudioQueue] playPCMAudio called - dataLength:", pcmData.length, "sampleRate:", sampleRate);
   try {
     // Initialize audio context if needed
     if (typeof audioInit === 'function') {
@@ -2204,66 +2157,44 @@ function playPCMAudio(pcmData, sampleRate) {
 
     // Create AudioContext if not exists
     if (!window.audioCtx) {
-      console.log("[AudioQueue] Creating new AudioContext");
       window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
     // Check AudioContext state and resume if suspended
-    console.log("[AudioQueue] AudioContext state:", window.audioCtx.state);
     if (window.audioCtx.state === 'suspended') {
-      console.log("[AudioQueue] AudioContext is suspended, resuming...");
-      window.audioCtx.resume().then(() => {
-        console.log("[AudioQueue] AudioContext resumed successfully");
-      }).catch(err => {
+      window.audioCtx.resume().catch(err => {
         console.error("[AudioQueue] Failed to resume AudioContext:", err);
       });
     }
 
     // PCM is 16-bit linear, so we need to convert from bytes to float32
-    const numSamples = pcmData.length / 2; // 2 bytes per sample
-    console.log("[AudioQueue] Converting PCM data - numSamples:", numSamples);
+    const numSamples = pcmData.length / 2;
     const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
     const channelData = audioBuffer.getChannelData(0);
 
     // Convert 16-bit PCM to float32
     for (let i = 0; i < numSamples; i++) {
-      // Read 16-bit signed integer (little-endian)
       const sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
-      // Convert to signed value
       const signedSample = sample < 0x8000 ? sample : sample - 0x10000;
-      // Normalize to [-1, 1] range
       channelData[i] = signedSample / 32768.0;
     }
-
-    console.log("[AudioQueue] AudioBuffer created - duration:", audioBuffer.duration, "seconds");
 
     // Create a buffer source and play it
     const source = window.audioCtx.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(window.audioCtx.destination);
-    currentPCMSource = source; // Track the current source
-
-    console.log("[AudioQueue] BufferSource created and connected to destination");
-    console.log("[AudioQueue] Callback check - window.ttsPlaybackCallback exists:", !!window.ttsPlaybackCallback);
+    currentPCMSource = source;
 
     // Handle playback end
     source.onended = function() {
-      console.log("[AudioQueue] *** PCM audio playback ended (onended fired) ***");
-      currentPCMSource = null; // Clear reference
-
-      // Trigger any callbacks if needed
+      currentPCMSource = null;
       if (window.ttsPlaybackCallback) {
-        console.log("[AudioQueue] Calling ttsPlaybackCallback");
         window.ttsPlaybackCallback(true);
-      } else {
-        console.warn("[AudioQueue] No ttsPlaybackCallback set!");
       }
     };
 
     // Start playback
-    console.log("[AudioQueue] Starting PCM audio playback with source.start(0)");
     source.start(0);
-    console.log("[AudioQueue] source.start(0) called successfully");
 
     // Mark TTS playback as started (audio is now playing)
     if (typeof window.setTtsPlaybackStarted === 'function') {
@@ -2295,7 +2226,6 @@ function playPCMAudio(pcmData, sampleRate) {
     }
 
     // Try fallback method - convert to WAV format
-    console.log("[AudioQueue] Trying WAV fallback for PCM audio");
     try {
       const wavBlob = createWAVFromPCM(pcmData, sampleRate);
       const blobUrl = URL.createObjectURL(wavBlob);
@@ -2303,20 +2233,12 @@ function playPCMAudio(pcmData, sampleRate) {
       // Use standard audio element as fallback
       const audio = new Audio(blobUrl);
       audio.onended = function() {
-        console.log("[AudioQueue] WAV fallback playback ended");
         URL.revokeObjectURL(blobUrl);
-        // Trigger callback
         if (window.ttsPlaybackCallback) {
-          console.log("[AudioQueue] Calling ttsPlaybackCallback from WAV fallback");
           window.ttsPlaybackCallback(true);
         }
       };
-      console.log("[AudioQueue] Starting WAV fallback playback");
-      audio.play().then(() => {
-        console.log("[AudioQueue] WAV fallback playback started");
-        // Audio playback started (fallback mode)
-        // Note: Spinner will be hidden when all TTS playback is completed
-      }).catch(err => {
+      audio.play().catch(err => {
         console.error("[AudioQueue] Fallback audio playback failed:", err);
         // On error, set both flags to true to ensure spinner hides
         if (typeof window.setTextResponseCompleted === 'function') {
@@ -4597,26 +4519,14 @@ let loadedApp = "Chat";
         break;
       }
       case "info": {
-        console.log('[INFO-START] Entering info handler');
-        console.log('[INFO] Received info message:', {
-          callingFunction,
-          streamingResponse,
-          messagesLength: messages.length,
-          spinnerVisible: $('#monadic-spinner').is(':visible')
-        });
-
         infoHtml = formatInfo(data["content"]);
         if (infoHtml !== "") {
-          console.log('[INFO] Setting stats with HTML:', infoHtml.substring(0, 100));
           setStats(infoHtml);
         }
 
         // CRITICAL: For initial load (no messages), ALWAYS hide spinner immediately
         // This prevents "Processing Audio" from appearing in new tabs
-        // New tabs should NEVER show processing spinner before any conversation starts
         if (messages.length === 0) {
-          console.log('[INFO] Initial load (no messages) - force hiding spinner and resetting flags');
-
           // Reset Auto Speech completion flags
           if (typeof window.setTextResponseCompleted === 'function') {
             window.setTextResponseCompleted(true);
@@ -4636,46 +4546,28 @@ let loadedApp = "Chat";
           $("#monadic-spinner")
             .find("span")
             .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-
-          console.log('[INFO] Initial load handling complete - spinner hidden');
         }
         // For non-initial loads, follow standard logic
         else if (!callingFunction && !streamingResponse) {
-          console.log('[INFO] Non-initial load - standard spinner handling');
-
-          // Mark text response as completed
           window.setTextResponseCompleted(true);
-
-          // Check if we can hide spinner (depends on Auto Speech mode)
           if (typeof window.checkAndHideSpinner === 'function') {
-            console.log('[INFO] Calling checkAndHideSpinner function');
             window.checkAndHideSpinner();
           } else {
-            console.log('[INFO] Directly hiding spinner');
             $("#monadic-spinner").hide();
           }
-        } else {
-          console.log('[INFO] NOT hiding spinner:', { callingFunction, streamingResponse });
         }
 
         // Then update status message after spinner is hidden
-        // Check both window.apps object AND DOM options to avoid race condition
-        // During initial load, apps data may be in window.apps but DOM not yet populated
         const hasAppsData = window.apps && Object.keys(window.apps).length > 0;
         const hasDOMOptions = $("#apps option").length > 0;
 
-        console.log('[INFO] Apps availability check:', { hasAppsData, hasDOMOptions, appsKeys: hasAppsData ? Object.keys(window.apps).length : 0, domOptions: hasDOMOptions ? $("#apps option").length : 0 });
-
         if (!hasAppsData && !hasDOMOptions) {
           const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
-          console.log('[INFO] No apps available, showing warning');
           setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
         } else {
           // Show "Ready" unless we're calling functions or streaming
-          // At this point (after token verification), we can safely update status
           if (!callingFunction && !streamingResponse) {
             const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
-            console.log('[INFO] Setting Ready alert');
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
           }
         }
@@ -5449,7 +5341,6 @@ let loadedApp = "Chat";
               setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
               window.autoSpeechActive = false;
               window.autoPlayAudio = false;
-              console.log('[Auto TTS] Auto playback skipped because tab is in background');
             } else if (suppressionActive) {
               window.autoSpeechActive = false;
               window.autoPlayAudio = false;
@@ -5465,23 +5356,13 @@ let loadedApp = "Chat";
                 clearTimeout(window.autoTTSSpinnerTimeout);
                 window.autoTTSSpinnerTimeout = null;
               }
-              console.log('[Auto TTS] Auto playback skipped because suppression is active');
             } else if (window.autoSpeechActive || autoSpeechEnabled) {
-              console.log('[Auto TTS] Auto speech enabled, triggering playback');
               // Use setTimeout to ensure the card is fully rendered before triggering TTS
               setTimeout(() => {
                 const lastCard = $("#discourse div.card:last");
                 const playButton = lastCard.find(".func-play");
-                console.log('[Auto TTS] Card check:', {
-                  lastCardExists: lastCard.length > 0,
-                  playButtonExists: playButton.length > 0,
-                  cardId: lastCard.attr('id'),
-                  realtimeMode: realtimeMode
-                });
                 if (playButton.length > 0) {
                   // Early highlight for Auto TTS: provides immediate visual feedback
-                  // Note: This will be re-highlighted by Play button handler and again
-                  // on first segment reception, but multiple highlights are safe (idempotent)
                   const cardId = lastCard.attr('id');
                   if (cardId && typeof window.highlightStopButton === 'function') {
                     window.highlightStopButton(cardId);
@@ -5490,19 +5371,12 @@ let loadedApp = "Chat";
                   // In realtime mode, audio is already generated and queued
                   // Only click Play button for post-completion mode to trigger TTS
                   if (!realtimeMode) {
-                    console.log('[Auto TTS] Triggering play button click');
-                    // Simulate a click on the play button to trigger TTS
                     playButton.click();
-                  } else {
-                    console.log('[Auto TTS] Skipping click (realtime mode)');
                   }
 
-                  // Set timeout to force hide spinner if audio doesn't start playing.
-                  // This is deferred when reasoning/streaming is still active so users
-                  // don't lose visual feedback during long reasoning phases.
+                  // Set timeout to force hide spinner if audio doesn't start playing
                   scheduleAutoTtsSpinnerTimeout();
                 } else {
-                  console.log('[Auto TTS] Play button not found, hiding spinner');
                   if (typeof checkAndHideSpinner === 'function') {
                     checkAndHideSpinner();
                   }
@@ -6224,6 +6098,13 @@ function reconnect_websocket(ws, callback) {
           setAlert(message, "warning");
         }
 
+        // Clear audio state before reconnection to prevent stale sequences
+        try {
+          clearAudioQueue();
+        } catch (e) {
+          console.warn('[reconnect_websocket] Error clearing audio queue:', e);
+        }
+
         // Create new connection
         ws = connect_websocket(callback);
         window.ws = ws;  // Update global reference
@@ -6327,6 +6208,14 @@ function handleVisibilityChange() {
           } else {
             const stoppedText = getTranslation('ui.messages.stopped', 'Stopped');
             setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
+          }
+
+          // Clear audio state before reconnection to prevent stale sequences
+          // This ensures new TTS sessions start fresh without waiting for old sequence numbers
+          try {
+            clearAudioQueue();
+          } catch (e) {
+            console.warn('[handleVisibilityChange] Error clearing audio queue:', e);
           }
 
           // Establish a new connection with proper callback

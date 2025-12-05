@@ -179,7 +179,6 @@ function handleFragmentWithAudio(data, processAudio) {
       // Check if this is a Web Speech API message
       if (data.audio && data.audio.type === 'web_speech') {
         if (!inForeground) {
-          console.log('[Auto TTS] Skipped Web Speech playback (background tab)');
           return true;
         }
         if (suppressionActive) {
@@ -190,7 +189,6 @@ function handleFragmentWithAudio(data, processAudio) {
               console.warn('[Auto TTS] Failed to cancel Web Speech synthesis during suppression:', cancelErr);
             }
           }
-          console.log('[Auto TTS] Skipped Web Speech playback due to suppression');
           return true;
         }
 
@@ -230,7 +228,6 @@ function handleFragmentWithAudio(data, processAudio) {
       // Process regular audio data
       else if (data.audio && typeof processAudio === 'function') {
         if (!inForeground) {
-          console.log('[Auto TTS] Skipping buffered audio in background tab');
           return true;
         }
         // The audio processing might vary between environments
@@ -245,7 +242,6 @@ function handleFragmentWithAudio(data, processAudio) {
             }
             window.autoSpeechActive = false;
             window.autoPlayAudio = false;
-            console.log('[Auto TTS] Skipped audio segment due to suppression');
             return true;
           }
 
@@ -274,13 +270,13 @@ function handleFragmentWithAudio(data, processAudio) {
               // Immediately ensure audio is playing on standard browsers
               if (!window.firefoxAudioMode && !window.basicAudioMode && window.audio) {
                 if (window.audio.paused) {
-                  window.audio.play().catch(err => console.log("Error auto-playing audio:", err));
+                  window.audio.play().catch(err => console.error("Error auto-playing audio:", err));
                 }
               }
               
               // For iOS devices, ensure auto-playback
               if (window.isIOS && !window.isIOSAudioPlaying && window.iosAudioElement) {
-                window.iosAudioElement.play().catch(err => console.log("Error auto-playing iOS audio:", err));
+                window.iosAudioElement.play().catch(err => console.error("Error auto-playing iOS audio:", err));
               }
             }
           }
@@ -398,7 +394,6 @@ function handleAudioMessage(data, processAudio) {
   if (data && data.type === 'audio') {
     try {
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-        console.log('[Audio] Ignoring audio message in background tab');
         return true;
       }
       // Check if content is a valid string

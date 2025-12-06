@@ -1332,39 +1332,28 @@ start_docker_compose() {
     echo "[HTML]: <p>All containers are available. Moving on...</p>"
   fi
 
-  # Ensure Ruby gem dependencies are up to date (fingerprint-based)
+  # Ensure Ruby gem dependencies are up to date (hash-based comparison only)
+  # This check is skipped if we already did a full or Ruby rebuild above
   if command -v sha256sum >/dev/null 2>&1; then
     if [ "$needs_full_rebuild" != true ] && [ "$needs_ruby_rebuild" != true ]; then
-      # Skip check if we just did a full build (within last 5 minutes)
-      local last_build_file="${HOME_DIR}/monadic/log/last_full_build.txt"
-      local skip_gems_check=false
-      if [ -f "$last_build_file" ]; then
-        local last_build_time=$(cat "$last_build_file" 2>/dev/null || echo "0")
-        local current_time=$(date +%s)
-        local time_diff=$((current_time - last_build_time))
-        if [ "$time_diff" -lt 300 ]; then
-          skip_gems_check=true
+      local gems_hash current_hash image_ref
+      if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
+        gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
+        image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
+        if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
+          image_ref="yohasebe/monadic-chat:latest"
         fi
-      fi
+        current_hash=$(${DOCKER} inspect --format '{{ index .Config.Labels "com.monadic.gems_hash" }}' "${image_ref}" 2>/dev/null || true)
 
-      if [ "$skip_gems_check" != true ]; then
-        # Only check when we didn't just rebuild everything
-        local gems_hash current_hash image_ref
-        if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
-          gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')
-          image_ref="yohasebe/monadic-chat:${MONADIC_VERSION}"
-          if ! ${DOCKER} images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${image_ref}$"; then
-            image_ref="yohasebe/monadic-chat:latest"
-          fi
-          current_hash=$(${DOCKER} inspect --format '{{ index .Config.Labels "com.monadic.gems_hash" }}' "${image_ref}" 2>/dev/null || true)
-          if [ -z "$current_hash" ]; then
-            echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (hash not found in image) . . .</p>"
-            build_ruby_container
-          elif [ "$current_hash" != "$gems_hash" ]; then
-            echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (Gemfile dependencies changed) . . .</p>"
-            build_ruby_container
-          fi
+        # Only rebuild if hash is missing or different - skip entirely if hashes match
+        if [ -z "$current_hash" ]; then
+          echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (hash not found in image) . . .</p>"
+          build_ruby_container
+        elif [ "$current_hash" != "$gems_hash" ]; then
+          echo "[HTML]: <p><i class='fa-solid fa-gem'></i> Updating Ruby gems layer (Gemfile dependencies changed) . . .</p>"
+          build_ruby_container
         fi
+        # If hashes match, skip build entirely - no docker build command is executed
       fi
     fi
   fi

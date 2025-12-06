@@ -1278,6 +1278,12 @@ def init_apps
       app.settings = new_settings
     end
 
+    # Skip apps with invalid app_name (nil, empty, or "undefined")
+    if app_name.nil? || app_name.to_s.strip.empty? || app_name.to_s == "undefined"
+      puts "[WARNING] Skipping app with invalid app_name: #{app.class.name}" if CONFIG["EXTRA_LOGGING"]
+      next
+    end
+
     apps[app_name] = app
   end
 

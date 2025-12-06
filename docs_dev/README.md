@@ -18,6 +18,7 @@ New to the codebase? Start here:
 High-level system design and component relationships:
 - **[Docker Architecture](docker-architecture.md)** - Container orchestration and service configuration
 - **[Docker Build Caching](docker-build-caching.md)** - Build optimization and caching strategies
+- **[Electron Build](electron-build.md)** - Desktop app packaging for all platforms
 - **[Frontend Architecture](frontend/)** - JavaScript architecture and UI components
 
 ### Core Systems

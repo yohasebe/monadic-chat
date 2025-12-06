@@ -1,4 +1,4 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.12-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

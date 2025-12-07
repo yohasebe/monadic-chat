@@ -3708,6 +3708,12 @@ let loadedApp = "Chat";
                 console.warn('[WebSocket] Skipping invalid app in global cache with key:', key);
                 continue;
               }
+              // Skip apps with missing display name and app name
+              const displayName = value && (value["display_name"] || value["app_name"]);
+              if (!displayName || displayName === 'undefined') {
+                console.warn('[WebSocket] Skipping app with missing display name in cache:', key);
+                continue;
+              }
               apps[key] = value;
             }
             window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
@@ -3724,6 +3730,13 @@ let loadedApp = "Chat";
             // Skip invalid entries (undefined, null, or empty key)
             if (!key || key === 'undefined' || key.trim() === '') {
               console.warn('[WebSocket] Skipping invalid app entry with key:', key);
+              continue;
+            }
+
+            // Skip apps with missing display name and app name (would show as "undefined")
+            const displayName = value && (value["display_name"] || value["app_name"]);
+            if (!displayName || displayName === 'undefined') {
+              console.warn('[WebSocket] Skipping app with missing display name:', key, value);
               continue;
             }
 
@@ -4585,6 +4598,15 @@ let loadedApp = "Chat";
             let regularApps = [];
             let specialApps = {};
             for (const [key, value] of Object.entries(rebuildData.content)) {
+              // Skip invalid entries
+              if (!key || key === 'undefined' || key.trim() === '') {
+                continue;
+              }
+              // Skip apps with missing display name and app name
+              const displayName = value && (value["display_name"] || value["app_name"]);
+              if (!displayName || displayName === 'undefined') {
+                continue;
+              }
               const group = value["group"];
               if (group && group.trim().toLowerCase() === "openai") {
                 regularApps.push([key, value]);

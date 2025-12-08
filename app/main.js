@@ -46,11 +46,12 @@ app.name = 'Monadic Chat';
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 // Audio configuration for all platforms
-// Note: AudioServiceOutOfProcess should remain ENABLED (default) on macOS
-// to prevent interference with system-wide audio (e.g., HDMI audio output)
 if (process.platform === 'darwin') {
-  // macOS: Use default audio service (out-of-process) to avoid conflicts
+  // macOS: Disable AudioServiceOutOfProcess to run audio in the main process
+  // This prevents the separate audio helper process from interfering with
+  // system-wide audio (e.g., other apps like PowerPoint playing audio)
   app.commandLine.appendSwitch('enable-features', 'WebRtcHWH264Encoding');
+  app.commandLine.appendSwitch('disable-features', 'AudioServiceOutOfProcess');
 } else {
   // Other platforms: Enable hardware audio acceleration
   app.commandLine.appendSwitch('enable-features', 'AudioServiceHWAVAudioIO,WebRtcHWH264Encoding');

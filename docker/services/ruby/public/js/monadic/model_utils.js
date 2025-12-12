@@ -229,6 +229,47 @@ function getBaseModelName(modelName) {
 }
 
 /**
+ * Get model spec with fallback to base model name
+ * This allows dated models (e.g., gpt-5.2-pro-2025-12-11) to inherit
+ * properties from their base model (e.g., gpt-5.2-pro) when not explicitly defined.
+ * @param {String} modelName - The model name to look up
+ * @param {String} property - Optional: specific property to get (if not specified, returns full spec)
+ * @returns {Object|*} The model spec or the specific property value
+ */
+function getModelSpecWithFallback(modelName, property) {
+  const modelSpec = window.modelSpec || {};
+
+  // Try exact match first
+  let spec = modelSpec[modelName];
+
+  // If not found or property not in spec, try base model
+  if (!spec || (property && !spec.hasOwnProperty(property))) {
+    const baseName = getBaseModelName(modelName);
+    if (baseName !== modelName && modelSpec[baseName]) {
+      spec = modelSpec[baseName];
+    }
+  }
+
+  if (!spec) return property ? undefined : null;
+
+  return property ? spec[property] : spec;
+}
+
+/**
+ * Check if a model requires confirmation before use (expensive models)
+ * Falls back to base model if dated version is not found
+ * @param {String} modelName - The model name to check
+ * @returns {Boolean} True if the model requires confirmation
+ */
+function modelRequiresConfirmation(modelName) {
+  return getModelSpecWithFallback(modelName, 'requires_confirmation') === true;
+}
+
+// Export to window for global access
+window.getModelSpecWithFallback = getModelSpecWithFallback;
+window.modelRequiresConfirmation = modelRequiresConfirmation;
+
+/**
  * Get the latest dated model from an array of dated models
  * @param {Array} datedModels - Array of model names with date suffixes
  * @returns {String} The model with the latest date

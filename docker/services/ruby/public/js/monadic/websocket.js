@@ -684,17 +684,21 @@ window.handleFragmentMessage = function(fragment) {
   if (fragment && fragment.type === 'fragment') {
     const text = fragment.content || '';
 
-    // Debug logging for GPT-5 duplicate issue
+    // Debug logging for streaming fragment ordering
     if (window.debugFragments) {
+      const now = performance.now();
       console.log('[Fragment Debug]', {
-        content: text,
+        content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
         sequence: fragment.sequence,
         index: fragment.index,
         timestamp: fragment.timestamp || Date.now(),
         is_first: fragment.is_first,
         lastSequence: window._lastProcessedSequence,
-        lastIndex: window._lastProcessedIndex
+        lastIndex: window._lastProcessedIndex,
+        processingTime: now,
+        timeSinceLast: window._lastFragmentTime ? (now - window._lastFragmentTime).toFixed(2) + 'ms' : 'N/A'
       });
+      window._lastFragmentTime = now;
     }
 
     // Skip empty fragments
@@ -741,10 +745,28 @@ window.handleFragmentMessage = function(fragment) {
     // Prefer sequence number over index for duplicate detection
     // Sequence is more reliable as it's incremented for each fragment sent
     if (fragment.sequence !== undefined) {
+      // Track sequence gaps for debugging
+      if (window.debugFragments && window._lastProcessedSequence !== undefined && window._lastProcessedSequence !== -1) {
+        const expectedSequence = window._lastProcessedSequence + 1;
+        if (fragment.sequence !== expectedSequence) {
+          console.warn('[Fragment Debug] SEQUENCE GAP DETECTED:', {
+            expected: expectedSequence,
+            received: fragment.sequence,
+            gap: fragment.sequence - expectedSequence,
+            content: text.substring(0, 30)
+          });
+          // Track gap history for later analysis
+          window._sequenceGaps = window._sequenceGaps || [];
+          window._sequenceGaps.push({ expected: expectedSequence, received: fragment.sequence, time: performance.now() });
+        }
+      }
+
       if (window._lastProcessedSequence !== undefined && window._lastProcessedSequence >= fragment.sequence) {
         // Skip duplicate or out-of-order fragments
         if (window.debugFragments) {
-          console.log('[Fragment Debug] Skipping duplicate - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
+          console.warn('[Fragment Debug] SKIPPING fragment - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
+          window._skippedFragments = window._skippedFragments || [];
+          window._skippedFragments.push({ sequence: fragment.sequence, content: text.substring(0, 30), time: performance.now() });
         }
         return;
       }
@@ -822,6 +844,41 @@ window.handleFragmentMessage = function(fragment) {
     }
   }
 };
+
+// Debug function to check streaming fragment issues after a response
+// Usage: window.debugFragmentSummary() in browser console
+window.debugFragmentSummary = function() {
+  console.log('=== Fragment Debug Summary ===');
+  console.log('Last processed sequence:', window._lastProcessedSequence);
+  console.log('Last processed index:', window._lastProcessedIndex);
+
+  if (window._sequenceGaps && window._sequenceGaps.length > 0) {
+    console.warn('Sequence gaps detected:', window._sequenceGaps.length);
+    window._sequenceGaps.forEach(gap => console.warn('  Gap:', gap));
+  } else {
+    console.log('No sequence gaps detected ✓');
+  }
+
+  if (window._skippedFragments && window._skippedFragments.length > 0) {
+    console.warn('Skipped fragments:', window._skippedFragments.length);
+    window._skippedFragments.forEach(f => console.warn('  Skipped:', f));
+  } else {
+    console.log('No skipped fragments ✓');
+  }
+
+  console.log('==============================');
+};
+
+// Reset debug tracking for new streaming response
+window.resetFragmentDebug = function() {
+  window._lastProcessedSequence = -1;
+  window._lastProcessedIndex = -1;
+  window._sequenceGaps = [];
+  window._skippedFragments = [];
+  window._lastFragmentTime = null;
+  console.log('[Fragment Debug] Tracking reset');
+};
+
 // Make defaultApp globally available
 window.defaultApp = DEFAULT_APP;
 
@@ -5088,7 +5145,7 @@ let loadedApp = "Chat";
 
         const connectedText =
           typeof webUIi18n !== "undefined" && webUIi18n.initialized
-            ? webUIi18n.t("ui.status.connected")
+            ? webUIi18n.t("ui.messages.connected")
             : "Connected";
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedText}`, "success");
 

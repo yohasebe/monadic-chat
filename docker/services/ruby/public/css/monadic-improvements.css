@@ -338,6 +338,32 @@
   filter: invert(1) grayscale(100%) brightness(200%);
 }
 
+/* Dark mode: TTS Notice Toast */
+.dark-theme #tts-toast {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+  border: 1px solid #444;
+}
+
+.dark-theme #tts-toast .toast-header {
+  background-color: #333;
+  color: #e5e5e5;
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme #tts-toast .toast-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.dark-theme #tts-toast .toast-body {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+}
+
+.dark-theme #tts-toast .toast-body .text-muted {
+  color: #aaa !important;
+}
+
 /* Dark mode: Navbar improvements (ID selectors have high specificity) */
 .dark-theme #main-nav {
   background-color: #2b2b2b;

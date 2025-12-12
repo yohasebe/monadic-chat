@@ -1,7 +1,7 @@
 {
   "provider_defaults": {
     "openai": {
-      "model": "gpt-5.1"
+      "model": "gpt-5.2"
     },
     "anthropic": {
       "model": "claude-sonnet-4-5-20250929"

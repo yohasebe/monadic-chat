@@ -104,7 +104,7 @@ app "ResearchAssistantOpenAI" do
 
   llm do
     provider "openai"
-    model ["gpt-5.1", "gpt-4.1"]
+    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
     reasoning_effort "low"  # web_search requires low or higher
     context_size 30
 

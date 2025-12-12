@@ -35,7 +35,7 @@ app "ImageGeneratorOpenAI" do
 
   llm do
     provider "openai"
-    model "gpt-5.1"
+    model ["gpt-5.2", "gpt-5.1"]
     temperature 0.0
     reasoning_effort "none"
     context_size 10

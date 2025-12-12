@@ -85,16 +85,38 @@ def list_elevenlabs_voices
 end
 
 def list_gemini_voices
-  # Gemini TTS voices - updated based on API response
+  # Gemini 2.5 TTS voices - full list of 30 voices
   [
-    { "name" => "Aoede", "voice_id" => "aoede" },
-    { "name" => "Charon", "voice_id" => "charon" },
-    { "name" => "Fenrir", "voice_id" => "fenrir" },
-    { "name" => "Kore", "voice_id" => "kore" },
-    { "name" => "Orus", "voice_id" => "orus" },
+    { "name" => "Zephyr", "voice_id" => "zephyr" },
     { "name" => "Puck", "voice_id" => "puck" },
+    { "name" => "Charon", "voice_id" => "charon" },
+    { "name" => "Kore", "voice_id" => "kore" },
+    { "name" => "Fenrir", "voice_id" => "fenrir" },
+    { "name" => "Leda", "voice_id" => "leda" },
+    { "name" => "Orus", "voice_id" => "orus" },
+    { "name" => "Aoede", "voice_id" => "aoede" },
+    { "name" => "Callirrhoe", "voice_id" => "callirrhoe" },
+    { "name" => "Autonoe", "voice_id" => "autonoe" },
+    { "name" => "Enceladus", "voice_id" => "enceladus" },
+    { "name" => "Iapetus", "voice_id" => "iapetus" },
+    { "name" => "Umbriel", "voice_id" => "umbriel" },
+    { "name" => "Algieba", "voice_id" => "algieba" },
+    { "name" => "Despina", "voice_id" => "despina" },
+    { "name" => "Erinome", "voice_id" => "erinome" },
+    { "name" => "Algenib", "voice_id" => "algenib" },
+    { "name" => "Rasalgethi", "voice_id" => "rasalgethi" },
+    { "name" => "Laomedeia", "voice_id" => "laomedeia" },
+    { "name" => "Achernar", "voice_id" => "achernar" },
+    { "name" => "Alnilam", "voice_id" => "alnilam" },
     { "name" => "Schedar", "voice_id" => "schedar" },
-    { "name" => "Zephyr", "voice_id" => "zephyr" }
+    { "name" => "Gacrux", "voice_id" => "gacrux" },
+    { "name" => "Pulcherrima", "voice_id" => "pulcherrima" },
+    { "name" => "Achird", "voice_id" => "achird" },
+    { "name" => "Zubenelgenubi", "voice_id" => "zubenelgenubi" },
+    { "name" => "Vindemiatrix", "voice_id" => "vindemiatrix" },
+    { "name" => "Sadachbia", "voice_id" => "sadachbia" },
+    { "name" => "Sadaltager", "voice_id" => "sadaltager" },
+    { "name" => "Sulafat", "voice_id" => "sulafat" }
   ]
 end
 
@@ -203,7 +225,7 @@ def tts_api_request(text,
   when "gemini"
     # Try ENV first (for test environment)
     api_key = ENV["GEMINI_API_KEY"]
-    
+
     # Fall back to reading config file
     unless api_key
       begin
@@ -223,34 +245,32 @@ def tts_api_request(text,
 
     # Import HTTP for API calls
     require 'json'
-    
+
     headers = {
       "Content-Type" => "application/json"
     }
-    
-    # Construct the text with voice instructions (lowercase voice names)
-    voice_instruction = case voice.downcase
-    when "zephyr"
-      "Say cheerfully with bright tone: "
-    when "puck"
-      "Say with upbeat energy: "
-    when "charon"
-      "Say in an informative tone: "
-    when "kore"
-      "Say warmly: "
-    when "fenrir"
-      "Say expressively: "
-    when "aoede"
-      "Say creatively: "
-    when "orus"
-      "Say clearly: "
-    when "schedar"
-      "Say professionally: "
+
+    # Apply speed control using natural language instructions
+    # Gemini TTS doesn't have a numeric speed parameter, so we use natural language prompts
+    # Note: Voice-specific style instructions removed to let each voice's natural characteristics come through
+    speed_val = speed.to_f
+    speed_instruction = if speed_val >= 1.8
+      "[extremely fast] "
+    elsif speed_val >= 1.4
+      "Speak quickly and at a faster pace. "
+    elsif speed_val >= 1.2
+      "Speak at a slightly faster pace than normal. "
+    elsif speed_val <= 0.6
+      "Speak very slowly and deliberately. "
+    elsif speed_val <= 0.8
+      "Speak slowly and take your time. "
+    elsif speed_val < 1.0
+      "Speak at a slightly slower pace than normal. "
     else
-      ""
+      "Speak at a natural, conversational pace. "  # Normal speed (0.95-1.15 range)
     end
-    
-    prompt_text = voice_instruction + text
+
+    prompt_text = speed_instruction + text
     
     body = {
       "contents" => [{

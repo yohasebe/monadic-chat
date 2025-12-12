@@ -20,13 +20,13 @@
 
 ##### Q: Can I adjust the speed of the AI agent's voice? :id=voice-speed-adjustment
 
-**A**: Yes, you can adjust the playback speed of the synthesized speech using the `Text-to-Speech Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, though quality may vary.
+**A**: Yes, you can adjust the playback speed of the synthesized speech using the `Text-to-Speech Speed` slider in the Speech Settings panel. The speed can be adjusted from 0.7 (slower) to 1.2 (faster). ElevenLabs voices generally provide better quality at modified speeds compared to OpenAI voices. The Web Speech API also supports speed adjustment, though quality may vary. Gemini TTS also supports speed adjustment through natural language instructions internally converted from the slider value.
 
 ---
 
 ##### Q: What is Gemini TTS and how does it differ from other providers? :id=gemini-tts-overview
 
-**A**: Gemini TTS is Google's text-to-speech service that provides multiple unique voices with natural-sounding speech synthesis. It requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs LINEAR16 PCM audio).
+**A**: Gemini TTS is Google's text-to-speech service using Gemini 2.5 Flash and Pro models with 30 unique voices and support for 24 languages. It requires a Gemini API key and supports both real-time streaming for interactive conversations and audio file generation through the Speech Draft Helper app (outputs LINEAR16 PCM audio at 24kHz).
 
 ---
 
@@ -48,6 +48,7 @@
 
 - **OpenAI models**: Multiple models with varying accuracy and features. Advanced models support speaker identification (diarization) for multi-person audio.
 - **Google Gemini**: Provides advanced audio understanding with flexible language recognition and multilingual support.
+- **ElevenLabs Scribe**: High-accuracy speech recognition with word-level timestamps. Requires an ElevenLabs API key.
 
 You can select your preferred model in the **Speech Settings** panel under the **Speech-to-Text Model** dropdown. Available models are automatically enabled based on your configured API keys. Your selection is saved in your browser and persists across sessions.
 

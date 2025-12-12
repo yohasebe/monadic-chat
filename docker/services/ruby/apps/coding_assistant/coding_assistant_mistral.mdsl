@@ -43,7 +43,7 @@ app "CodingAssistantMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
+    model "devstral-medium-latest"
     temperature 0.0
   end
   

@@ -39,6 +39,14 @@
 - If a PDF upload is rejected, the model may require a URL (check `supports_pdf_upload`).
 - Enable `EXTRA_LOGGING` to record a one‑line capability audit in server logs.
 
+**Model Naming Policy**
+- **Only base model names**: Do NOT add dated versions (e.g., `gpt-4o-2024-11-20`, `o3-2025-04-16`) to `model_spec.js`. Only add the base name (e.g., `gpt-4o`, `o3`).
+- **Alias/Fallback system**: The `ModelSpec.normalize_model_name()` and `resolve_model_alias()` methods automatically map dated versions to their base models. For example, `gpt-4o-2024-11-20` automatically uses the `gpt-4o` spec.
+- **Supported date formats**: YYYY-MM-DD (OpenAI), YYYYMMDD (Claude), MM-YYYY (Cohere), YYMM (Mistral), -NNN version numbers (Gemini).
+- **Special-purpose models**: Do NOT add audio/realtime/transcription/embedding models to `model_spec.js`. These are handled separately by their respective features.
+- **-latest aliases**: For providers that use `-latest` aliases (e.g., Mistral's `mistral-large-latest`), prefer the `-latest` version in the spec.
+- **Legacy models**: Do not add clearly outdated models (e.g., `gpt-3.5-turbo`) even if they still exist in the API.
+
 **For App Authors**
 - Let `model_spec.js` drive behavior; avoid hardcoding model names.
 - Prefer feature flags (e.g., `tool_capability`, `supports_streaming`) over lists.

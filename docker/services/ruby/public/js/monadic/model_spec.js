@@ -187,6 +187,74 @@ const modelSpec = {
     "supports_pdf": false,
     "skip_in_progress_events": true
   },
+  "gpt-5.1-codex-max": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "medium", "high", "xhigh"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": false,
+    "supports_pdf": false,
+    "skip_in_progress_events": true
+  },
+  // gpt-5.2 models (GPT-5.2 Thinking)
+  "gpt-5.2": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "medium"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true
+  },
+  // GPT-5.2 Instant (fast, everyday tasks)
+  "gpt-5.2-chat-latest": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "reasoning_effort": [["medium"], "medium"],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_verbosity": true,
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_image_generation": true,
+    "supports_pdf_upload": true,
+    "skip_in_progress_events": true
+  },
+  // GPT-5.2 Pro (maximum accuracy)
+  "gpt-5.2-pro": {
+    "context_window" : [1, 400000],
+    "max_output_tokens" : [1, 128000],
+    "reasoning_effort": [["medium", "high", "xhigh"], "medium"],
+    "tool_capability": true,
+    "vision_capability": false,
+    "supports_verbosity": true,
+    "supports_structured_output": false,
+    "api_type": "responses",
+    "supports_web_search": false,
+    "supports_pdf_upload": false,
+    "skip_in_progress_events": true,
+    "requires_confirmation": true
+  },
   // Gemini 3 image preview (image generation only)
   "gemini-3-pro-image-preview": {
     "context_window": [1, 32000],
@@ -201,17 +269,6 @@ const modelSpec = {
   "gpt-4o": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
-  "gpt-4o-2024-05-13": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4096],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -243,39 +300,6 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf_upload": true
   },
-  "gpt-4o-2024-08-06": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
-  "gpt-4o-2024-11-20": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
-  "gpt-4o-mini-2024-07-18": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true
-  },
   "gpt-4o-audio-preview": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
@@ -287,47 +311,7 @@ const modelSpec = {
     "vision_capability": true,
     "audio_capability": true
   },
-  "gpt-4o-audio-preview-2024-10-01": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "audio_capability": true
-  },
-  "gpt-4o-audio-preview-2024-12-17": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "audio_capability": true
-  },
   "gpt-4o-realtime-preview": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4096],
-    "temperature": [[0.6, 1.2], 0.8],
-    "tool_capability": true,
-    "vision_capability": false,
-    "audio_capability": true,
-    "realtime_capability": true
-  },
-  "gpt-4o-realtime-preview-2024-10-01": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4096],
-    "temperature": [[0.6, 1.2], 0.8],
-    "tool_capability": true,
-    "vision_capability": false,
-    "audio_capability": true,
-    "realtime_capability": true
-  },
-  "gpt-4o-realtime-preview-2024-12-17": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4096],
     "temperature": [[0.6, 1.2], 0.8],
@@ -367,51 +351,11 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // reasoning models
-  "o4-mini": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true
-  },
-  "o4-mini-2025-04-16": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_web_search": true
-  },
   "o1": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
     "tool_capability": false,
     "vision_capability": false
-  },
-  "o1-2024-12-17": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": false,
-    "vision_capability": false
-  },
-  "o1-mini": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [25000, 65536],
-    "tool_capability": false,
-    "vision_capability": false,
-    "deprecated": true
-  },
-  "o1-mini-2024-09-12": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [25000, 65536],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": false,
-    "vision_capability": false,
-    "deprecated": true
   },
   "o1-pro": {
     "context_window" : [1, 200000],
@@ -419,33 +363,11 @@ const modelSpec = {
     "reasoning_effort": [["none", "low", "medium", "high"], "low"],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_streaming": false
-  },
-  "o1-pro-2025-03-19": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "reasoning_effort": [["none", "low", "medium", "high"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_streaming": false
+    "supports_streaming": false,
+    "requires_confirmation": true
   },
   // O3 series models
   "o3": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"],
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow",
-    "is_reasoning_model": true
-  },
-  "o3-2025-04-16": {
     "context_window": [1, 200000],
     "max_output_tokens": [1, 100000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -474,37 +396,10 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "latency_tier": "slow",
-    "is_reasoning_model": true
-  },
-  "o3-pro-2025-06-10": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
-    "api_type": "responses",
-    "supports_web_search": true,
-    "latency_tier": "slow",
-    "is_reasoning_model": true
+    "is_reasoning_model": true,
+    "requires_confirmation": true
   },
   "o3-mini": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": false,
-    "reasoning_effort": [["low", "medium", "high"], "low"],
-    "api_type": "responses",
-    "is_reasoning_model": true
-  },
-  "o3-mini-2025-01-31": {
     "context_window": [1, 200000],
     "max_output_tokens": [1, 100000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -529,18 +424,6 @@ const modelSpec = {
     "reasoning_effort": [["none", "low", "medium", "high"], "high"],
     "is_reasoning_model": true
   },
-  "o3-deep-research-2025-06-26": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "high"],
-    "is_reasoning_model": true
-  },
   // O4 series models
   "o4-mini": {
     "context_window": [1, 200000],
@@ -551,31 +434,11 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
-  },
-  "o4-mini-2025-04-16": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["low", "medium", "high"], "low"]
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "api_type": "responses",
+    "supports_web_search": true
   },
   "o4-mini-deep-research": {
-    "context_window": [1, 200000],
-    "max_output_tokens": [1, 100000],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "reasoning_effort": [["none", "low", "medium", "high"], "high"]
-  },
-  "o4-mini-deep-research-2025-06-26": {
     "context_window": [1, 200000],
     "max_output_tokens": [1, 100000],
     "temperature": [[0.0, 2.0], 1.0],
@@ -782,40 +645,6 @@ const modelSpec = {
       "pdfs-2024-09-25"
     ]
   },
-  "claude-3-5-sonnet-20240620": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 1.0],
-    "top_p": [0.0, 1.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": false,
-    "supports_web_search": true,
-    "supports_streaming": true,
-    "supports_pdf": true,
-    "beta_flags": [
-      "pdfs-2024-09-25"
-    ],
-    "deprecated": true
-  },
-  "claude-3-5-sonnet-20241022": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 1.0],
-    "top_p": [0.0, 1.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": false,
-    "supports_web_search": true,
-    "supports_streaming": true,
-    "supports_pdf": true,
-    "beta_flags": [
-      "pdfs-2024-09-25"
-    ],
-    "deprecated": true
-  },
   "claude-3-5-haiku-20241022": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
@@ -827,8 +656,7 @@ const modelSpec = {
     "supports_thinking": false,
     "supports_web_search": true,
     "supports_streaming": true,
-    "supports_pdf": false,
-    "deprecated": true
+    "supports_pdf": false
   },
   "claude-3-opus-20240229": {
     "context_window" : [1, 200000],
@@ -871,31 +699,11 @@ const modelSpec = {
     "vision_capability": true,
     "deprecated": false
   },
-  "command-a-03-2025": {
-    "context_window" : [1, 256000],
-    "max_output_tokens" : [1, 8000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
-    "deprecated": false
-  },
-  "command-a-translate-08-2025": {
-    "context_window" : [1, 8992],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": false,
-    "deprecated": false
-  },
   "c4ai-aya-vision-32b": {
     "context_window" : [1, 16000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
+    "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "vision_capability": true
@@ -916,7 +724,7 @@ const modelSpec = {
     "context_window" : [1, 8000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
+    "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "vision_capability": true
@@ -925,17 +733,19 @@ const modelSpec = {
     "context_window" : [1, 8000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
+    "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0]
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true
   },
   "c4ai-aya-expanse-32b": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],
     "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
+    "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true
   },
   "command-r-08-2024": {
     "context_window" : [1, 128000],
@@ -984,27 +794,6 @@ const modelSpec = {
         "high": 20000
       }
     },
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-2.5-flash-lite-06-17": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 65536],
-    "thinking_budget": {
-      "min": 512,
-      "max": 24576,
-      "can_disable": true,
-      "default_disabled": true,
-      "presets": {
-        "none": 0,
-        "low": 512,
-        "medium": 8000,
-        "high": 20000
-      }
-    },
-    "top_p": [[0.0, 1.0], 0.95],
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
@@ -1093,15 +882,6 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true
   },
-  "gemini-2.0-pro-exp-02-05": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf": true
-  },
   "gemini-2.0-pro-exp": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
@@ -1112,15 +892,6 @@ const modelSpec = {
     "supports_pdf": true
   },
   // Flash models
-  "gemini-2.0-flash-001": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf": true
-  },
   "gemini-2.0-flash": {
     "context_window" : [1, 1048576],
     "max_output_tokens" : [1, 8192],
@@ -1159,16 +930,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
-  "mistral-large-2512": {
-    "context_window" : [1, 256000],
-    "max_output_tokens" : [1, 131000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
   "mistral-vibe-cli-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 128000],
@@ -1186,22 +947,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "vision_capability": true
   },
-  "voxtral-small-latest": {
-    "context_window" : [1, 32000],
-    "max_output_tokens" : [1, 32000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0]
-  },
-  "voxtral-mini-latest": {
-    "context_window" : [1, 32000],
-    "max_output_tokens" : [1, 32000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0]
-  },
+  // magistral models (reasoning models)
   "magistral-small-latest": {
     "context_window" : [1, 40000],
     "max_output_tokens" : [1, 40000],
@@ -1209,15 +955,8 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "supports_thinking": true
-  },
-  "magistral-small-2509": {
-    "context_window" : [1, 40000],
-    "max_output_tokens" : [1, 40000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
     "supports_thinking": true
   },
   "magistral-medium-latest": {
@@ -1227,19 +966,11 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "supports_thinking": true,
-    "vision_capability": true
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true
   },
-  "magistral-medium-2509": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 128000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "supports_thinking": true,
-    "vision_capability": true
-  },
+  // devstral models (coding/agent specialized)
   "devstral-medium-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 128000],
@@ -1252,22 +983,6 @@ const modelSpec = {
   "devstral-small-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 128000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
-  },
-  "open-mixtral-8x22b": {
-    "max_output_tokens" : [1, 65536],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
-  },
-  "open-mixtral-8x7b": {
-    "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -1290,6 +1005,7 @@ const modelSpec = {
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
     "vision_capability": true
   },
   "mistral-small-latest": {
@@ -1338,16 +1054,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
-  "ministral-3b-2512": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 131000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
   "ministral-8b-latest": {
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -1357,27 +1063,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
-  "ministral-8b-2512": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 131000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
   "ministral-14b-latest": {
-    "max_output_tokens" : [1, 131000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
-  "ministral-14b-2512": {
-    "context_window" : [1, 128000],
     "max_output_tokens" : [1, 131000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],

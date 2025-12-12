@@ -174,27 +174,39 @@ function setCookieValues() {
 
 function listModels(models, openai = false) {
   // Array of patterns to identify different model types
-  const gpt5ModelPatterns = [/^gpt-5(-(?:mini|nano|pro|chat-latest))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
-  const regularModelPatterns = [/^\b(?:gpt-4o|gpt-4\.\d)\b/];
-  const betaModelPatterns = [/^\bo\d\b/];
+  // GPT-5: gpt-5, gpt-5.1, gpt-5.2, gpt-5-mini, gpt-5.2-pro, gpt-5.2-chat-latest, etc.
+  const gpt5ModelPatterns = [/^gpt-5(?:\.\d)?(-(?:mini|nano|pro|chat-latest|codex(?:-mini|-max)?))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
+  // GPT-4: gpt-4, gpt-4o, gpt-4o-mini, chatgpt-4o-latest, etc.
+  const gpt4ModelPatterns = [/^(?:chatgpt-4o|gpt-4)/];
 
   // Separate models by type
   const gpt5Models = [];
-  const regularModels = [];
-  const betaModels = [];
+  const gpt4Models = [];
   const otherModels = [];
 
   for (let model of models) {
     if (gpt5ModelPatterns.some(pattern => pattern.test(model))) {
       gpt5Models.push(model);
-    } else if (regularModelPatterns.some(pattern => pattern.test(model))) {
-      regularModels.push(model);
-    } else if (betaModelPatterns.some(pattern => pattern.test(model))) {
-      betaModels.push(model);
+    } else if (gpt4ModelPatterns.some(pattern => pattern.test(model))) {
+      gpt4Models.push(model);
     } else {
       otherModels.push(model);
     }
   }
+
+  // Sort GPT-5 models: newer versions first (5.2 > 5.1 > 5)
+  gpt5Models.sort((a, b) => {
+    const getVersion = (model) => {
+      const match = model.match(/^gpt-5(?:\.(\d))?/);
+      return match ? (match[1] ? parseFloat(`5.${match[1]}`) : 5.0) : 0;
+    };
+    const versionDiff = getVersion(b) - getVersion(a);
+    if (versionDiff !== 0) return versionDiff;
+    return a.localeCompare(b);
+  });
+
+  // Sort GPT-4 models alphabetically
+  gpt4Models.sort((a, b) => a.localeCompare(b));
 
   // Generate options based on the value of openai
   let modelOptions = [];
@@ -202,39 +214,34 @@ function listModels(models, openai = false) {
   if (openai) {
     // Include GPT-5 section at the top if GPT-5 models are available
     if (gpt5Models.length > 0) {
-      modelOptions.push('<option disabled>──GPT-5 (Latest)──</option>');
+      modelOptions.push('<option disabled>──GPT-5──</option>');
       modelOptions.push(...gpt5Models.map(model =>
         `<option value="${model}" data-model-type="reasoning">${model}</option>`
       ));
     }
-    
-    // Include regular GPT models
-    modelOptions.push('<option disabled>──gpt-models──</option>');
-    modelOptions.push(...regularModels.map(model =>
-      `<option value="${model}">${model}</option>`
-    ));
-    
-    // Include reasoning models
-    modelOptions.push('<option disabled>──reasoning models──</option>');
-    modelOptions.push(...betaModels.map(model =>
-      `<option value="${model}" data-model-type="reasoning">${model}</option>`
-    ));
-    
-    // Include other models
-    modelOptions.push('<option disabled>──other models──</option>');
-    modelOptions.push(...otherModels.map(model =>
-      `<option value="${model}">${model}</option>`
-    ));
+
+    // Include GPT-4 models
+    if (gpt4Models.length > 0) {
+      modelOptions.push('<option disabled>──GPT-4──</option>');
+      modelOptions.push(...gpt4Models.map(model =>
+        `<option value="${model}">${model}</option>`
+      ));
+    }
+
+    // Include other models (o1, o3, codex, etc.)
+    if (otherModels.length > 0) {
+      modelOptions.push('<option disabled>──Other Models──</option>');
+      modelOptions.push(...otherModels.map(model =>
+        `<option value="${model}">${model}</option>`
+      ));
+    }
   } else {
     // Exclude dummy options when openai is false
     modelOptions = [
       ...gpt5Models.map(model =>
         `<option value="${model}">${model}</option>`
       ),
-      ...regularModels.map(model =>
-        `<option value="${model}">${model}</option>`
-      ),
-      ...betaModels.map(model =>
+      ...gpt4Models.map(model =>
         `<option value="${model}">${model}</option>`
       ),
       ...otherModels.map(model =>

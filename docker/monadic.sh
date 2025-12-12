@@ -410,9 +410,12 @@ build_ruby_container() {
     "${ROOT_DIR}/services/ruby" 2>&1 | tee "${log_file}"
 
   "${DOCKER}" tag yohasebe/monadic-chat:${MONADIC_VERSION} yohasebe/monadic-chat:latest
-  
+
   # Don't call build_docker_compose here to avoid rebuilding the same container again
   # build_docker_compose
+
+  # Save container version information to prevent unnecessary full rebuilds on next start
+  save_container_versions "silent"
 
   remove_older_images yohasebe/monadic-chat
   remove_project_dangling_images
@@ -670,6 +673,10 @@ OPTIONS
   echo "[META_JSON] ${meta_json}"
   echo "Build logs are available under: ${run_dir}"
   echo "[BUILD_COMPLETE] success"
+
+  # Save container version information to prevent unnecessary full rebuilds on next start
+  save_container_versions "silent"
+
   release_build_lock
 }
 

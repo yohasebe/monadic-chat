@@ -1316,8 +1316,42 @@ $(function () {
     setupResizeObserver();
   });
 
+  // Store previous model value for confirmation revert
+  let previousModelValue = null;
+
+  // Capture previous value on focus
+  $("#model").on("focus", function() {
+    previousModelValue = $(this).val();
+  });
+
   $("#model").on("change", function() {
     const selectedModel = $("#model").val();
+
+    // Check if the selected model requires confirmation (expensive models)
+    if (typeof window.modelRequiresConfirmation === 'function' &&
+        window.modelRequiresConfirmation(selectedModel) &&
+        previousModelValue !== selectedModel) {
+
+      // Get translated confirmation message
+      const confirmTitle = typeof webUIi18n !== 'undefined'
+        ? webUIi18n.t('ui.expensiveModelConfirm.title')
+        : 'Expensive Model Warning';
+      const confirmMessage = typeof webUIi18n !== 'undefined'
+        ? webUIi18n.t('ui.expensiveModelConfirm.message').replace('{{model}}', selectedModel)
+        : `"${selectedModel}" is a premium model with significantly higher API costs. Are you sure you want to use this model?`;
+
+      if (!confirm(`${confirmTitle}\n\n${confirmMessage}`)) {
+        // User cancelled - revert to previous model
+        if (previousModelValue) {
+          $(this).val(previousModelValue);
+          return; // Exit without processing the change
+        }
+      }
+    }
+
+    // Update previous value after confirmation
+    previousModelValue = selectedModel;
+
     const defaultModel = apps[$("#apps").val()]["model"];
     if (selectedModel !== defaultModel) {
       $("#model-non-default").show();

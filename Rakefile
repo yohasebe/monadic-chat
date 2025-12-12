@@ -144,6 +144,23 @@ namespace :server do
       puts "="*80 + "\n"
     end
 
+    # Stop Docker Ruby container if running (it would conflict with local server)
+    puts "\n" + "="*80
+    puts "🐳 Checking for Docker Ruby container..."
+    puts "="*80 + "\n"
+
+    ruby_container_names = ["monadic-chat-ruby-container", "ruby-container"]
+    ruby_container_names.each do |container_name|
+      container_status = `docker container inspect #{container_name} --format '{{.State.Status}}' 2>/dev/null`.strip
+      if container_status == "running"
+        puts "Found running Docker Ruby container: #{container_name}"
+        puts "Stopping it to avoid port conflict..."
+        system("docker stop #{container_name} >/dev/null 2>&1")
+        puts "✅ Docker Ruby container stopped"
+        break
+      end
+    end
+
     # Clean up any existing processes using port 4567
     puts "\n" + "="*80
     puts "🧹 Checking for existing server processes on port 4567..."

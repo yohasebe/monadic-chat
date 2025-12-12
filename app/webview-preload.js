@@ -91,14 +91,17 @@ const isMac = /Mac/.test(navigator.platform);
 if (isMac) {
   // Add handler to clean up audio resources on page unload
   window.addEventListener('beforeunload', () => {
-    // Find and clean up any AudioContext instances
+    // Use cleanupAudioResources if available (closes AudioContext completely)
+    if (typeof window.cleanupAudioResources === 'function') {
+      window.cleanupAudioResources();
+    } else if (typeof window.ttsStop === 'function') {
+      // Fallback to ttsStop if cleanupAudioResources is not available
+      window.ttsStop();
+    }
+
+    // Also close window.audioCtx if it exists (from websocket.js PCM playback)
     if (window.audioCtx && typeof window.audioCtx.close === 'function') {
       window.audioCtx.close().catch(err => console.warn('Error closing AudioContext:', err));
-    }
-    
-    // If ttsStop function exists, call it to properly clean up audio resources
-    if (typeof window.ttsStop === 'function') {
-      window.ttsStop();
     }
     
     // Stop all media streams

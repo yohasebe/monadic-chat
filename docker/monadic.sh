@@ -1030,13 +1030,14 @@ build_docker_compose() {
   echo "[DISK USAGE BEFORE BUILD]" >> "${log_file}"
   ${DOCKER} system df >> "${log_file}" 2>&1 || echo "Unable to get disk usage" >> "${log_file}"
   echo "" >> "${log_file}"
-  echo "[DEBUG] Executing: HELP_EXPORT_ID='${help_export_id}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
+  echo "[DEBUG] GEMS_FINGERPRINT='${gems_fingerprint}'" >> "${log_file}"
+  echo "[DEBUG] Executing: HELP_EXPORT_ID='${help_export_id}' GEMS_FINGERPRINT='${gems_fingerprint}' '${DOCKER}' compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache}" >> "${log_file}"
   echo "======================================" >> "${log_file}"
   echo "" >> "${log_file}"
 
   # Execute docker compose build and redirect output to log file with or without cache
   local build_start_epoch=$(date +%s)
-  eval "HELP_EXPORT_ID=\"${help_export_id}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
+  eval "HELP_EXPORT_ID=\"${help_export_id}\" GEMS_FINGERPRINT=\"${gems_fingerprint}\" \"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} build ${use_cache} 2>&1 | tee -a \"${log_file}\""
   local build_status=${PIPESTATUS[0]}
   local build_end_epoch=$(date +%s)
   local build_duration=$((build_end_epoch - build_start_epoch))

@@ -250,6 +250,22 @@ def start_server(opts)
     puts "✅ Docker daemon is responding"
   end
 
+  # Stop Ruby container if running (we're running Ruby locally, not in Docker)
+  ruby_container_names = ["monadic-chat-ruby-container", "ruby-container"]
+  ruby_container_names.each do |container_name|
+    if container_running?(container_name)
+      puts "🛑 Stopping Ruby container (#{container_name}) for local development..."
+      system("#{DOCKER_CMD} container stop #{container_name} > /dev/null 2>&1")
+      # Wait for container to stop
+      15.times do
+        break unless container_running?(container_name)
+        sleep 0.5
+      end
+      puts "✅ Ruby container stopped"
+      break
+    end
+  end
+
   # STEP 3: Start required support containers (NOT Ruby container)
   REQUIRED_CONTAINER_ALIASES.each do |aliases|
     name = aliases.find { |n| container_exists?(n) }

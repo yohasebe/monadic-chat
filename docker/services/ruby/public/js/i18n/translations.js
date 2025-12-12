@@ -201,6 +201,7 @@ const webUITranslations = {
         updating: "Updating Docker containers...",
         ready: "Ready",
         error: "Error",
+        connected: "Connected",
         connecting: "Connecting...",
         readyForInput: "Ready for input",
         responding: "RESPONDING",
@@ -320,6 +321,10 @@ const webUITranslations = {
         textExceedsLimit: "(Text exceeds audio output limit)",
         manualPlay: "Playing {{total}} sentences",
         useStopButton: "(Use Stop button to cancel)"
+      },
+      expensiveModelConfirm: {
+        title: "Expensive Model Warning",
+        message: "\"{{model}}\" is a premium model with significantly higher API costs. Are you sure you want to use this model?"
       }
     }
   },
@@ -519,6 +524,7 @@ const webUITranslations = {
         updating: "Dockerコンテナを更新しています...",
         ready: "準備完了",
         error: "エラー",
+        connected: "接続完了",
         connecting: "接続中...",
         readyForInput: "入力可能",
         responding: "応答中",
@@ -638,6 +644,10 @@ const webUITranslations = {
         textExceedsLimit: "（テキストが長すぎます）",
         manualPlay: "{{total}} 文を再生します",
         useStopButton: "（停止ボタンでキャンセル可）"
+      },
+      expensiveModelConfirm: {
+        title: "高額モデルの警告",
+        message: "「{{model}}」は高額なAPIコストがかかるプレミアムモデルです。このモデルを使用してもよろしいですか？"
       }
     }
   },
@@ -824,6 +834,7 @@ const webUITranslations = {
         updating: "正在更新Docker容器...",
         ready: "就绪",
         error: "错误",
+        connected: "已连接",
         connecting: "连接中...",
         readyForInput: "准备输入",
         responding: "响应中",
@@ -964,6 +975,10 @@ const webUITranslations = {
         textExceedsLimit: "（文本超出音频输出限制）",
         manualPlay: "正在播放 {{total}} 句",
         useStopButton: "（点击停止按钮取消）"
+      },
+      expensiveModelConfirm: {
+        title: "高价模型警告",
+        message: "「{{model}}」是一个API成本较高的高级模型。您确定要使用此模型吗？"
       }
     }
   },
@@ -1150,6 +1165,7 @@ const webUITranslations = {
         updating: "Docker 컨테이너를 업데이트하는 중...",
         ready: "준비 완료",
         error: "오류",
+        connected: "연결 완료",
         connecting: "연결 중...",
         readyForInput: "입력 준비",
         responding: "응답 중",
@@ -1262,6 +1278,10 @@ const webUITranslations = {
         textExceedsLimit: "(텍스트가 음성 출력 제한을 초과)",
         manualPlay: "{{total}} 문장 재생 중",
         useStopButton: "(정지 버튼으로 취소)"
+      },
+      expensiveModelConfirm: {
+        title: "고가 모델 경고",
+        message: "「{{model}}」은(는) API 비용이 높은 프리미엄 모델입니다. 이 모델을 사용하시겠습니까?"
       }
     }
   },
@@ -1448,6 +1468,7 @@ const webUITranslations = {
         updating: "Actualizando contenedores Docker...",
         ready: "Listo",
         error: "Error",
+        connected: "Conectado",
         connecting: "Conectando...",
         readyForInput: "Listo para entrada",
         responding: "RESPONDIENDO",
@@ -1560,6 +1581,10 @@ const webUITranslations = {
         textExceedsLimit: "(El texto excede el límite de salida de audio)",
         manualPlay: "Reproduciendo {{total}} oraciones",
         useStopButton: "(Usa el botón Detener para cancelar)"
+      },
+      expensiveModelConfirm: {
+        title: "Advertencia de modelo costoso",
+        message: "\"{{model}}\" es un modelo premium con costos de API significativamente más altos. ¿Está seguro de que desea usar este modelo?"
       }
     }
   },
@@ -1746,6 +1771,7 @@ const webUITranslations = {
         updating: "Mise à jour des conteneurs Docker...",
         ready: "Prêt",
         error: "Erreur",
+        connected: "Connecté",
         connecting: "Connexion...",
         readyForInput: "Prêt pour l'entrée",
         responding: "RÉPONSE EN COURS",
@@ -1858,6 +1884,10 @@ const webUITranslations = {
       session: {
         startSession: "Démarrer Session",
         continueSession: "Continuer Session"
+      },
+      expensiveModelConfirm: {
+        title: "Avertissement de modèle coûteux",
+        message: "\"{{model}}\" est un modèle premium avec des coûts API significativement plus élevés. Êtes-vous sûr de vouloir utiliser ce modèle ?"
       }
     }
   },
@@ -2044,6 +2074,7 @@ const webUITranslations = {
         updating: "Docker-Container werden aktualisiert...",
         ready: "Bereit",
         error: "Fehler",
+        connected: "Verbunden",
         connecting: "Verbindung wird hergestellt...",
         readyForInput: "Bereit für Eingabe",
         responding: "ANTWORTEN",
@@ -2156,6 +2187,10 @@ const webUITranslations = {
       session: {
         startSession: "Sitzung Starten",
         continueSession: "Sitzung Fortsetzen"
+      },
+      expensiveModelConfirm: {
+        title: "Warnung: Teures Modell",
+        message: "\"{{model}}\" ist ein Premium-Modell mit deutlich höheren API-Kosten. Sind Sie sicher, dass Sie dieses Modell verwenden möchten?"
       }
     }
   }

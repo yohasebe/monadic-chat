@@ -92,20 +92,32 @@ module Monadic
 
         # Generate system prompt addition for language preference
         def system_prompt_for_language(language_code)
-          return "" if language_code.nil? || language_code == "auto"
-          
+          return "" if language_code.nil?
+
+          # For "auto" mode, instruct AI to match the user's language
+          if language_code == "auto"
+            return <<~PROMPT.strip
+
+              LANGUAGE MATCHING: Respond in the same language as the user's message.
+              - Detect the language of each user message and respond in that language
+              - If the user switches languages, follow their lead
+              - Do NOT mention or acknowledge this language matching behavior in your response (e.g., avoid phrases like "I'll respond in English" or "Since you're writing in Japanese, I'll continue in Japanese")
+            PROMPT
+          end
+
           lang_info = LANGUAGES[language_code]
           return "" unless lang_info
-          
+
           english_name = lang_info[:english]
-          
+
           # Generate appropriate prompt based on language
           <<~PROMPT.strip
-            
+
             IMPORTANT: You MUST respond in #{english_name}. This is a language preference set by the user.
             - Always use #{english_name} for your responses
             - Even if the user writes in a different language, respond in #{english_name} unless explicitly asked to switch
             - Maintain natural, fluent #{english_name} throughout the conversation
+            - Do NOT mention or acknowledge this language setting in your response (e.g., avoid phrases like "I'll respond in #{english_name}" or "I'll stick with #{english_name}")
           PROMPT
         end
 

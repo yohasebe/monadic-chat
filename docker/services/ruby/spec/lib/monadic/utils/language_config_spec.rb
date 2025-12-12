@@ -31,8 +31,17 @@ RSpec.describe Monadic::Utils::LanguageConfig do
       expect(prompt).to include("Always use Japanese for your responses")
     end
 
-    it "returns empty string for 'auto'" do
-      expect(described_class.system_prompt_for_language("auto")).to eq("")
+    it "instructs not to acknowledge the language setting" do
+      prompt = described_class.system_prompt_for_language("en")
+      expect(prompt).to include("Do NOT mention or acknowledge this language setting")
+      expect(prompt).to include("avoid phrases like")
+    end
+
+    it "returns language matching instruction for 'auto'" do
+      prompt = described_class.system_prompt_for_language("auto")
+      expect(prompt).to include("LANGUAGE MATCHING")
+      expect(prompt).to include("same language as the user's message")
+      expect(prompt).to include("Do NOT mention or acknowledge")
     end
 
     it "returns empty string for nil" do

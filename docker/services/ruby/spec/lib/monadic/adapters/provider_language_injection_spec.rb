@@ -230,9 +230,10 @@ RSpec.describe "Provider Language Injection" do
       expect(language_prompt).to include("Even if the user writes in a different language")
     end
     
-    it "returns empty string for 'auto' language" do
+    it "returns language matching instruction for 'auto' language" do
       language_prompt = Monadic::Utils::LanguageConfig.system_prompt_for_language("auto")
-      expect(language_prompt).to eq("")
+      expect(language_prompt).to include("LANGUAGE MATCHING")
+      expect(language_prompt).to include("same language as the user's message")
     end
     
     it "returns empty string for nil language" do

@@ -45,7 +45,7 @@ RSpec.describe SecondOpinionAgent do
     context "model defaults" do
       it "uses correct default models for each provider" do
         expect(agent.send(:determine_provider_and_model, "claude", nil)[1]).to eq("claude-sonnet-4-5-20250929")
-        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.1")
+        expect(agent.send(:determine_provider_and_model, "openai", nil)[1]).to eq("gpt-5.2")
         expect(agent.send(:determine_provider_and_model, "gemini", nil)[1]).to eq("gemini-2.5-flash")
         expect(agent.send(:determine_provider_and_model, "grok", nil)[1]).to eq("grok-4-1-fast-non-reasoning")
         expect(agent.send(:determine_provider_and_model, "mistral", nil)[1]).to eq("mistral-large-latest")
@@ -63,7 +63,7 @@ RSpec.describe SecondOpinionAgent do
       
       it "handles empty model strings by using defaults" do
         expect(agent.send(:determine_provider_and_model, "claude", "")[1]).to eq("claude-sonnet-4-5-20250929")
-        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-5.1")
+        expect(agent.send(:determine_provider_and_model, "openai", " ")[1]).to eq("gpt-5.2")
       end
     end
     

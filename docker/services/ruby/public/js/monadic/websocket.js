@@ -5564,6 +5564,12 @@ let loadedApp = "Chat";
               const currentMid = data["content"]["mid"];
               if (currentMid && currentMid === lastAutoTtsMessageId) {
                 console.debug('[Auto TTS] Skipped - already played for message:', currentMid);
+                // Mark TTS as "completed" (skipped) so spinner hides properly
+                window.autoSpeechActive = false;
+                window.autoPlayAudio = false;
+                if (typeof window.setTtsPlaybackStarted === 'function') {
+                  window.setTtsPlaybackStarted(true);
+                }
                 // Hide spinner since we're skipping TTS
                 if (typeof checkAndHideSpinner === 'function') {
                   checkAndHideSpinner();

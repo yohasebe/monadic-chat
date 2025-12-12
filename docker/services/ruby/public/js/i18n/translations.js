@@ -311,6 +311,15 @@ const webUITranslations = {
       session: {
         startSession: "Start Session",
         continueSession: "Continue Session"
+      },
+      tts: {
+        noticeTitle: "Audio Output",
+        partialOutput: "Playing {{played}}/{{total}} sentences",
+        textTooLong: "(Text too long for complete audio output)",
+        skipped: "Audio output skipped",
+        textExceedsLimit: "(Text exceeds audio output limit)",
+        manualPlay: "Playing {{total}} sentences",
+        useStopButton: "(Use Stop button to cancel)"
       }
     }
   },
@@ -620,6 +629,15 @@ const webUITranslations = {
       session: {
         startSession: "セッションを開始",
         continueSession: "セッションを続行"
+      },
+      tts: {
+        noticeTitle: "音声出力",
+        partialOutput: "{{played}}/{{total}} 文を再生します",
+        textTooLong: "（テキストが長いため一部のみ再生）",
+        skipped: "音声出力をスキップしました",
+        textExceedsLimit: "（テキストが長すぎます）",
+        manualPlay: "{{total}} 文を再生します",
+        useStopButton: "（停止ボタンでキャンセル可）"
       }
     }
   },
@@ -937,6 +955,15 @@ const webUITranslations = {
       session: {
         startSession: "开始会话",
         continueSession: "继续会话"
+      },
+      tts: {
+        noticeTitle: "音频输出",
+        partialOutput: "正在播放 {{played}}/{{total}} 句",
+        textTooLong: "（文本过长，仅播放部分内容）",
+        skipped: "已跳过音频输出",
+        textExceedsLimit: "（文本超出音频输出限制）",
+        manualPlay: "正在播放 {{total}} 句",
+        useStopButton: "（点击停止按钮取消）"
       }
     }
   },
@@ -1226,6 +1253,15 @@ const webUITranslations = {
       session: {
         startSession: "세션 시작",
         continueSession: "세션 계속"
+      },
+      tts: {
+        noticeTitle: "음성 출력",
+        partialOutput: "{{played}}/{{total}} 문장 재생 중",
+        textTooLong: "(텍스트가 너무 길어 일부만 재생)",
+        skipped: "음성 출력 건너뜀",
+        textExceedsLimit: "(텍스트가 음성 출력 제한을 초과)",
+        manualPlay: "{{total}} 문장 재생 중",
+        useStopButton: "(정지 버튼으로 취소)"
       }
     }
   },
@@ -1515,6 +1551,15 @@ const webUITranslations = {
       session: {
         startSession: "Iniciar Sesión",
         continueSession: "Continuar Sesión"
+      },
+      tts: {
+        noticeTitle: "Salida de Audio",
+        partialOutput: "Reproduciendo {{played}}/{{total}} oraciones",
+        textTooLong: "(Texto demasiado largo para salida de audio completa)",
+        skipped: "Salida de audio omitida",
+        textExceedsLimit: "(El texto excede el límite de salida de audio)",
+        manualPlay: "Reproduciendo {{total}} oraciones",
+        useStopButton: "(Usa el botón Detener para cancelar)"
       }
     }
   },
@@ -1800,6 +1845,15 @@ const webUITranslations = {
         messageInactive: "Inactif (hors contexte)",
         contextEditedBadge: "Ré-extrait après modification du message",
         contextTurnLabel: "Tour"
+      },
+      tts: {
+        noticeTitle: "Sortie Audio",
+        partialOutput: "Lecture de {{played}}/{{total}} phrases",
+        textTooLong: "(Texte trop long pour une sortie audio complète)",
+        skipped: "Sortie audio ignorée",
+        textExceedsLimit: "(Le texte dépasse la limite de sortie audio)",
+        manualPlay: "Lecture de {{total}} phrases",
+        useStopButton: "(Utilisez le bouton Arrêter pour annuler)"
       },
       session: {
         startSession: "Démarrer Session",
@@ -2089,6 +2143,15 @@ const webUITranslations = {
         messageInactive: "Inaktiv (außerhalb des Kontexts)",
         contextEditedBadge: "Nach Nachrichtenbearbeitung erneut extrahiert",
         contextTurnLabel: "Runde"
+      },
+      tts: {
+        noticeTitle: "Audioausgabe",
+        partialOutput: "{{played}}/{{total}} Sätze werden abgespielt",
+        textTooLong: "(Text zu lang für vollständige Audioausgabe)",
+        skipped: "Audioausgabe übersprungen",
+        textExceedsLimit: "(Text überschreitet Audioausgabelimit)",
+        manualPlay: "{{total}} Sätze werden abgespielt",
+        useStopButton: "(Stopp-Taste zum Abbrechen)"
       },
       session: {
         startSession: "Sitzung Starten",

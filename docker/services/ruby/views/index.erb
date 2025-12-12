@@ -897,6 +897,7 @@
                 <option id="openai-stt-4o-diarize" value="gpt-4o-transcribe-diarize" disabled>GPT-4o Transcribe (Diarize)</option>
                 <option id="openai-stt-whisper" value="whisper-1" disabled>Whisper-1</option>
                 <option id="gemini-stt-flash" value="gemini-2.5-flash" disabled>Gemini 2.5 Flash</option>
+                <option id="elevenlabs-stt-scribe" value="scribe_v1" disabled>ElevenLabs Scribe</option>
               </select>
             </div>
 
@@ -940,14 +941,37 @@
             <div id="gemini-voices" class="my-1" style="display: none;">
               <label for="gemini-voice" class="div-label my-2" data-i18n="ui.geminiVoice">Gemini Text-to-Speech Voice</label>
               <select class="form-select form-select-sm" id="gemini-tts-voice">
-                <option value="aoede">Aoede</option>
-                <option value="charon">Charon</option>
-                <option value="fenrir">Fenrir</option>
-                <option value="kore">Kore</option>
-                <option value="orus">Orus</option>
-                <option value="puck">Puck</option>
-                <option value="schedar">Schedar</option>
+                <!-- Voices will be populated by JavaScript from websocket gemini_voices message -->
                 <option value="zephyr">Zephyr</option>
+                <option value="puck">Puck</option>
+                <option value="charon">Charon</option>
+                <option value="kore">Kore</option>
+                <option value="fenrir">Fenrir</option>
+                <option value="leda">Leda</option>
+                <option value="orus">Orus</option>
+                <option value="aoede">Aoede</option>
+                <option value="callirrhoe">Callirrhoe</option>
+                <option value="autonoe">Autonoe</option>
+                <option value="enceladus">Enceladus</option>
+                <option value="iapetus">Iapetus</option>
+                <option value="umbriel">Umbriel</option>
+                <option value="algieba">Algieba</option>
+                <option value="despina">Despina</option>
+                <option value="erinome">Erinome</option>
+                <option value="algenib">Algenib</option>
+                <option value="rasalgethi">Rasalgethi</option>
+                <option value="laomedeia">Laomedeia</option>
+                <option value="achernar">Achernar</option>
+                <option value="alnilam">Alnilam</option>
+                <option value="schedar">Schedar</option>
+                <option value="gacrux">Gacrux</option>
+                <option value="pulcherrima">Pulcherrima</option>
+                <option value="achird">Achird</option>
+                <option value="zubenelgenubi">Zubenelgenubi</option>
+                <option value="vindemiatrix">Vindemiatrix</option>
+                <option value="sadachbia">Sadachbia</option>
+                <option value="sadaltager">Sadaltager</option>
+                <option value="sulafat">Sulafat</option>
               </select>
             </div>
 
@@ -1559,6 +1583,20 @@
     </div>
     <div id="back_to_top" role="button" aria-label="Scroll to top" tabindex="0">
       <a href="#" aria-hidden="true"><i class="fas fa-arrow-up"></i></a>
+    </div>
+
+    <!-- TTS Notice Toast -->
+    <div id="tts-toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1055;">
+      <div id="tts-toast" class="toast" role="alert" aria-live="polite" aria-atomic="true" data-bs-autohide="false">
+        <div class="toast-header">
+          <i class="fas fa-volume-up text-primary me-2"></i>
+          <strong class="me-auto" data-i18n="ui.tts.noticeTitle">Audio Output</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="tts-toast-body">
+          <!-- Message will be inserted dynamically -->
+        </div>
+      </div>
     </div>
 
   </body>

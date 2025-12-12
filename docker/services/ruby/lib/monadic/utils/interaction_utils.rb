@@ -301,6 +301,38 @@ module InteractionUtils
     end
   end
 
+  # Convert raw PCM audio data to WAV format (in memory, no file I/O)
+  # WAV format adds a 44-byte header to the raw PCM data
+  # @param pcm_data [String] Raw PCM audio data (binary string)
+  # @param sample_rate [Integer] Sample rate in Hz (default: 24000 for Gemini TTS)
+  # @param channels [Integer] Number of audio channels (default: 1 for mono)
+  # @param bits_per_sample [Integer] Bits per sample (default: 16)
+  # @return [String] WAV audio data (binary string)
+  def pcm_to_wav(pcm_data, sample_rate: 24000, channels: 1, bits_per_sample: 16)
+    data_size = pcm_data.bytesize
+    byte_rate = sample_rate * channels * bits_per_sample / 8
+    block_align = channels * bits_per_sample / 8
+
+    # WAV file header (44 bytes)
+    header = [
+      "RIFF",                          # ChunkID
+      data_size + 36,                  # ChunkSize (file size - 8)
+      "WAVE",                          # Format
+      "fmt ",                          # Subchunk1ID
+      16,                              # Subchunk1Size (16 for PCM)
+      1,                               # AudioFormat (1 = PCM)
+      channels,                        # NumChannels
+      sample_rate,                     # SampleRate
+      byte_rate,                       # ByteRate
+      block_align,                     # BlockAlign
+      bits_per_sample,                 # BitsPerSample
+      "data",                          # Subchunk2ID
+      data_size                        # Subchunk2Size
+    ].pack("A4VA4A4VvvVVvvA4V")
+
+    header + pcm_data
+  end
+
   def tts_api_request(text,
                       provider:,
                       voice:,
@@ -431,37 +463,35 @@ module InteractionUtils
       if api_key.nil?
         return { "type" => "error", "content" => "ERROR: GEMINI_API_KEY is not set." }
       end
-      
+
       # Minimal debug logging for performance
       puts "Gemini TTS: voice=#{voice}, provider=#{provider}" if ENV["DEBUG_TTS"]
-      
+
       headers = {
         "Content-Type" => "application/json"
       }
-      
-      # Construct the text with voice instructions (lowercase voice names)
-      voice_instruction = case voice.downcase
-      when "zephyr"
-        "Say cheerfully with bright tone: "
-      when "puck"
-        "Say with upbeat energy: "
-      when "charon"
-        "Say in an informative tone: "
-      when "kore"
-        "Say warmly: "
-      when "fenrir"
-        "Say expressively: "
-      when "aoede"
-        "Say creatively: "
-      when "orus"
-        "Say clearly: "
-      when "schedar"
-        "Say professionally: "
+
+      # Apply speed control using natural language instructions
+      # Gemini TTS doesn't have a numeric speed parameter, so we use natural language prompts
+      # For default speed (1.0), skip instruction to reduce latency
+      # Note: Voice-specific style instructions removed to let each voice's natural characteristics come through
+      speed_instruction = if val_speed >= 1.8
+        "[extremely fast] "
+      elsif val_speed >= 1.4
+        "Speak quickly. "
+      elsif val_speed >= 1.2
+        "Speak slightly faster. "
+      elsif val_speed <= 0.6
+        "Speak very slowly. "
+      elsif val_speed <= 0.8
+        "Speak slowly. "
+      elsif val_speed < 1.0
+        "Speak slightly slower. "
       else
-        ""
+        ""  # Default speed - no instruction needed for faster response
       end
-      
-      prompt_text = voice_instruction + text_converted
+
+      prompt_text = speed_instruction + text_converted
       
       body = {
         "contents" => [{
@@ -630,38 +660,51 @@ module InteractionUtils
         return res
       end
 
-      # Handle Gemini response format
+      # Handle Gemini response format - convert PCM to WAV for browser compatibility
       if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
         begin
           gemini_response = JSON.parse(res.body.to_s)
-          
+
           # Minimal debug logging
           puts "Gemini TTS: Response received" if ENV["DEBUG_TTS"]
-          
+
           # Extract audio data from Gemini response
-          if gemini_response["candidates"] && 
-             gemini_response["candidates"][0] && 
-             gemini_response["candidates"][0]["content"] && 
+          if gemini_response["candidates"] &&
+             gemini_response["candidates"][0] &&
+             gemini_response["candidates"][0]["content"] &&
              gemini_response["candidates"][0]["content"]["parts"] &&
              gemini_response["candidates"][0]["content"]["parts"][0] &&
              gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
-            
-            audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-            mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
-            
-            puts "Gemini TTS: Audio received (#{audio_data.length} bytes)" if ENV["DEBUG_TTS"]
-            
-            # Audio data is already base64 encoded from Gemini
-            
+
+            pcm_base64 = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            original_mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+
+            # Decode base64 PCM data
+            pcm_data = Base64.decode64(pcm_base64)
+
+            # Extract sample rate from mime_type (e.g., "audio/L16;codec=pcm;rate=24000")
+            sample_rate = 24000  # Default
+            if original_mime_type =~ /rate=(\d+)/
+              sample_rate = $1.to_i
+            end
+
+            # Convert PCM to WAV (in memory, no file I/O)
+            wav_data = pcm_to_wav(pcm_data, sample_rate: sample_rate)
+
+            # Re-encode to base64
+            wav_base64 = Base64.strict_encode64(wav_data)
+
+            puts "Gemini TTS: PCM (#{pcm_data.length} bytes) -> WAV (#{wav_data.length} bytes)" if ENV["DEBUG_TTS"]
+
             if block_given?
-              # For streaming, send the complete audio at once with MIME type
-              hash_res = { "type" => "audio", "content" => audio_data, "mime_type" => mime_type, "t_index" => 1, "finished" => false }
+              # For streaming, send the complete audio at once with WAV MIME type
+              hash_res = { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav", "t_index" => 1, "finished" => false }
               block&.call hash_res
               finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
               block&.call finish
               return nil
             else
-              return { "type" => "audio", "content" => audio_data, "mime_type" => mime_type }
+              return { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav" }
             end
           else
             puts "Gemini TTS Error: Invalid response format"
@@ -987,29 +1030,8 @@ module InteractionUtils
         return
       end
 
-      # Construct the text with voice instructions (lowercase voice names)
-      voice_instruction = case voice.downcase
-      when "zephyr"
-        "Say cheerfully with bright tone: "
-      when "puck"
-        "Say with upbeat energy: "
-      when "charon"
-        "Say in an informative tone: "
-      when "kore"
-        "Say warmly: "
-      when "fenrir"
-        "Say expressively: "
-      when "aoede"
-        "Say creatively: "
-      when "orus"
-        "Say clearly: "
-      when "schedar"
-        "Say professionally: "
-      else
-        ""
-      end
-
-      prompt_text = voice_instruction + text_converted
+      # Note: Voice-specific style instructions removed to let each voice's natural characteristics come through
+      prompt_text = text_converted
 
       body = {
         "contents" => [{
@@ -1055,7 +1077,7 @@ module InteractionUtils
             begin
               gemini_response = JSON.parse(response.body.to_s)
 
-              # Extract audio data from Gemini response
+              # Extract audio data from Gemini response and convert PCM to WAV
               if gemini_response["candidates"] &&
                  gemini_response["candidates"][0] &&
                  gemini_response["candidates"][0]["content"] &&
@@ -1063,19 +1085,34 @@ module InteractionUtils
                  gemini_response["candidates"][0]["content"]["parts"][0] &&
                  gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]
 
-                audio_data = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
-                mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+                pcm_base64 = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+                original_mime_type = gemini_response["candidates"][0]["content"]["parts"][0]["inlineData"]["mimeType"]
+
+                # Decode base64 PCM data
+                pcm_data = Base64.decode64(pcm_base64)
+
+                # Extract sample rate from mime_type (e.g., "audio/L16;codec=pcm;rate=24000")
+                sample_rate = 24000  # Default
+                if original_mime_type =~ /rate=(\d+)/
+                  sample_rate = $1.to_i
+                end
+
+                # Convert PCM to WAV (in memory, no file I/O)
+                wav_data = pcm_to_wav(pcm_data, sample_rate: sample_rate)
+
+                # Re-encode to base64
+                wav_base64 = Base64.strict_encode64(wav_data)
 
                 result = {
                   "type" => "audio",
-                  "content" => audio_data,
-                  "mime_type" => mime_type
+                  "content" => wav_base64,
+                  "mime_type" => "audio/wav"
                 }
                 result["sequence_id"] = sequence_id if sequence_id
 
                 if CONFIG["EXTRA_LOGGING"]
                   File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (Gemini/http.rb) - audio_size=#{audio_data.length}, sequence_id=#{sequence_id}")
+                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: SUCCESS (Gemini/http.rb) - pcm_size=#{pcm_data.length}, wav_size=#{wav_data.length}, sequence_id=#{sequence_id}")
                   end
                 end
 
@@ -1334,6 +1371,130 @@ module InteractionUtils
     end
   end
 
+  # ElevenLabs Speech-to-Text API request using Scribe v1
+  # @param blob [String] The audio data
+  # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
+  # @param lang_code [String] The language code (e.g., "en", "ja", "auto")
+  # @param model [String] The model to use (e.g., "scribe_v1")
+  # @return [Hash] The transcription result or error
+  def elevenlabs_stt_api_request(blob, format, lang_code, model)
+    api_key = CONFIG["ELEVENLABS_API_KEY"]
+
+    if api_key.nil? || api_key.to_s.strip.empty?
+      return {
+        "type" => "error",
+        "content" => "ElevenLabs API key is not configured"
+      }
+    end
+
+    # ElevenLabs STT endpoint
+    url = "https://api.elevenlabs.io/v1/speech-to-text"
+
+    # Normalize format for file extension
+    normalized_format = format.to_s.downcase
+    normalized_format = "mp3" if normalized_format == "mpeg"
+    normalized_format = "mp4" if normalized_format == "mp4a-latm"
+    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
+
+    num_retrial = 0
+
+    begin
+      # Create temporary file with audio data
+      temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
+      temp_file.binmode
+      temp_file.write(blob)
+      temp_file.flush
+
+      # Build multipart form data
+      # ElevenLabs accepts file_format: "other" for standard audio formats
+      options = {
+        "model_id" => model,
+        "file" => HTTP::FormData::File.new(temp_file.path),
+        "file_format" => "other",
+        "timestamps_granularity" => "word"
+      }
+
+      # Add language code if specified (not "auto")
+      if lang_code && lang_code != "auto"
+        options["language_code"] = lang_code
+      end
+
+      form_data = HTTP::FormData.create(options)
+
+      response = HTTP.headers(
+        "xi-api-key" => api_key,
+        "Content-Type" => form_data.content_type
+      ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
+       .post(url, body: form_data.to_s)
+
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
+    ensure
+      if temp_file
+        temp_file.close
+        temp_file.unlink
+      end
+    end
+
+    if response.status.success?
+      result = JSON.parse(response.body)
+
+      # ElevenLabs response format:
+      # {
+      #   "language_code": "en",
+      #   "language_probability": 0.99,
+      #   "text": "transcribed text",
+      #   "words": [{"text": "word", "start": 0.0, "end": 0.5, "type": "word", ...}]
+      # }
+
+      text = result["text"]&.strip || ""
+
+      # Build logprobs from word-level data if available
+      # ElevenLabs provides logprob per word
+      logprobs = []
+      if result["words"].is_a?(Array)
+        result["words"].each do |word|
+          if word["logprob"]
+            logprobs << { "logprob" => word["logprob"].to_f }
+          end
+        end
+      end
+
+      return {
+        "text" => text,
+        "logprobs" => logprobs,
+        "language_code" => result["language_code"],
+        "language_probability" => result["language_probability"]
+      }
+    else
+      # Parse error from response
+      error_message = begin
+        error_data = JSON.parse(response.body)
+        detail = error_data["detail"]
+        if detail.is_a?(Hash)
+          detail["message"] || detail.to_s
+        elsif detail.is_a?(String)
+          detail
+        else
+          "Unknown error"
+        end
+      rescue JSON::ParserError
+        response.body.to_s
+      end
+
+      return {
+        "type" => "error",
+        "content" => "ElevenLabs STT Error (#{response.status}): #{error_message}"
+      }
+    end
+  end
+
   # Format diarized transcript segments into readable text
   # @param segments [Array<Hash>] Array of segment hashes with 'speaker' and 'text' keys
   # @return [String] Formatted transcript with speaker labels
@@ -1351,6 +1512,11 @@ module InteractionUtils
     # Route to Gemini API if model starts with "gemini-"
     if model.start_with?("gemini-")
       return gemini_stt_api_request(blob, format, lang_code, model)
+    end
+
+    # Route to ElevenLabs API if model starts with "scribe"
+    if model.start_with?("scribe")
+      return elevenlabs_stt_api_request(blob, format, lang_code, model)
     end
 
     lang_code = nil if lang_code == "auto"

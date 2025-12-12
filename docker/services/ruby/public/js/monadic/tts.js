@@ -3,29 +3,62 @@ let audioCtx = null;
 let playPromise = null;
 let ttsAudio = null;
 
+// Timer to close AudioContext after inactivity (for macOS audio compatibility)
+let audioContextCloseTimer = null;
+const AUDIO_CONTEXT_CLOSE_DELAY = 10000; // 10 seconds of inactivity
+
 // Web Speech API voices storage
 let webSpeechVoices = [];
 let webSpeechInitialized = false;
 
+// Schedule closing AudioContext after inactivity (for macOS audio compatibility)
+function scheduleAudioContextClose() {
+  const isMac = /Mac/.test(navigator.platform);
+  if (!isMac) return; // Only needed for macOS
+
+  // Clear any existing timer
+  if (audioContextCloseTimer) {
+    clearTimeout(audioContextCloseTimer);
+  }
+
+  // Schedule close after inactivity
+  audioContextCloseTimer = setTimeout(() => {
+    if (audioCtx && audioCtx.state !== 'closed') {
+      audioCtx.close().catch(err => console.warn('Error closing AudioContext after inactivity:', err));
+      audioCtx = null;
+    }
+    audioContextCloseTimer = null;
+  }, AUDIO_CONTEXT_CLOSE_DELAY);
+}
+
+// Cancel scheduled AudioContext close (called when TTS starts)
+function cancelAudioContextClose() {
+  if (audioContextCloseTimer) {
+    clearTimeout(audioContextCloseTimer);
+    audioContextCloseTimer = null;
+  }
+}
+
 // Create a lazy initializer for audioContext to prevent unnecessary contexts
 function audioInit() {
-  if (audioCtx === null) {
+  // Cancel any scheduled close since we're about to use audio
+  cancelAudioContextClose();
+
+  if (audioCtx === null || audioCtx.state === 'closed') {
     // Create a new AudioContext only when needed
     audioCtx = new AudioContext();
-    
-    // For macOS specifically, add an event listener to close context when inactive
+
+    // For macOS specifically, add an event listener to suspend context when window loses focus
     const isMac = /Mac/.test(navigator.platform);
     if (isMac) {
-      // Close audio context when window loses focus (important for macOS)
       window.addEventListener('blur', function() {
         if (audioCtx && audioCtx.state !== 'closed') {
-          // Just suspend (don't close) in case we need it again soon
           audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
         }
       }, { passive: true });
     }
   }
-  
+
   if (audioCtx.state === 'suspended') {
     audioCtx.resume().catch(err => console.warn('Error resuming AudioContext:', err));
   }
@@ -258,14 +291,14 @@ function resetAudioVariables() {
   
   // Reset play promise
   playPromise = null;
-  
-  // For macOS specifically, properly manage AudioContext
-  const isMac = /Mac/.test(navigator.platform);
-  if (isMac && audioCtx && audioCtx.state !== 'closed') {
-    // Suspend but don't close - we might need it again soon
+
+  // For macOS: suspend immediately and schedule close after inactivity
+  // This allows quick reuse while ensuring cleanup if not used again
+  if (audioCtx && audioCtx.state !== 'closed') {
     audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
   }
-  
+  scheduleAudioContextClose();
+
   // Hide any spinners - respect Auto Speech mode
   if (typeof window.checkAndHideSpinner === 'function') {
     // Set both flags to true to ensure spinner hides (called on reset/stop/error)
@@ -775,12 +808,11 @@ function ttsStop() {
       }
     }
     
-    // For macOS specifically, properly manage AudioContext
-    const isMac = /Mac/.test(navigator.platform);
-    if (isMac && audioCtx && audioCtx.state !== 'closed') {
-      // Suspend but don't close - we might need it again soon
+    // For macOS: suspend immediately and schedule close after inactivity
+    if (audioCtx && audioCtx.state !== 'closed') {
       audioCtx.suspend().catch(err => console.warn('Error suspending AudioContext:', err));
     }
+    scheduleAudioContextClose();
     
   } catch (e) {
     console.warn('Error in ttsStop:', e);
@@ -792,6 +824,24 @@ function ttsStop() {
   playPromise = null;
 }
 
+// Clean up all audio resources (for app shutdown/page unload)
+function cleanupAudioResources() {
+  // Cancel any scheduled close timer (we're closing immediately)
+  cancelAudioContextClose();
+
+  // Call ttsStop first to clean up media sources
+  ttsStop();
+
+  // Cancel again (ttsStop schedules a close timer)
+  cancelAudioContextClose();
+
+  // Then close the AudioContext completely (not just suspend)
+  if (audioCtx && audioCtx.state !== 'closed') {
+    audioCtx.close().catch(err => console.warn('Error closing AudioContext:', err));
+    audioCtx = null;
+  }
+}
+
 // Export functions to window for browser environment
 window.audioInit = audioInit;
 window.ttsSpeak = ttsSpeak;
@@ -799,6 +849,7 @@ window.ttsStop = ttsStop;
 window.initWebSpeech = initWebSpeech;
 window.populateWebSpeechVoices = populateWebSpeechVoices;
 window.resetAudioVariables = resetAudioVariables;
+window.cleanupAudioResources = cleanupAudioResources;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {

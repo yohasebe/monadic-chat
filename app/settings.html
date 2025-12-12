@@ -363,6 +363,10 @@
           <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="auto-tts-realtime-mode">
           <small class="text-muted" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
 
+          <label for="auto-tts-max-bytes" data-i18n="settings.labels.autoTtsMaxBytes">Auto TTS Max Bytes</label>
+          <input type="number" id="auto-tts-max-bytes" name="auto-tts-max-bytes" min="400" max="10000" value="400">
+          <small class="text-muted" data-i18n="settings.labels.autoTtsMaxBytesDesc">Maximum text size (in bytes) for auto TTS in post-completion mode. Text exceeding this limit will be partially played or skipped. Range: 400-10000 bytes.</small>
+
           <label for="auto-tts-min-length" data-i18n="settings.labels.autoTtsMinLength">Auto TTS Buffer Size (characters)</label>
           <input type="number" id="auto-tts-min-length" name="auto-tts-min-length" min="20" max="200" value="50">
           <small class="text-muted" data-i18n="settings.labels.autoTtsMinLengthDesc">Minimum text length before generating TTS in realtime mode. Smaller values (20-40) provide faster response but may cause choppy audio. Larger values (60-100) improve fluency but increase initial delay. Range: 20-200 characters.</small>
@@ -459,6 +463,7 @@
           UI_LANGUAGE: document.getElementById('ui-language').value,
           PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value,
           AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked,
+          AUTO_TTS_MAX_BYTES: document.getElementById('auto-tts-max-bytes').value,
           AUTO_TTS_MIN_LENGTH: document.getElementById('auto-tts-min-length').value
         };
         
@@ -586,6 +591,7 @@
         document.getElementById('rouge-theme').value = data.ROUGE_THEME || 'pastie:light';
         document.getElementById('tts-dict-path').value = data.TTS_DICT_PATH || '';
         document.getElementById('auto-tts-realtime-mode').checked = data.AUTO_TTS_REALTIME_MODE == "true" || false;
+        document.getElementById('auto-tts-max-bytes').value = data.AUTO_TTS_MAX_BYTES || '400';
         document.getElementById('auto-tts-min-length').value = data.AUTO_TTS_MIN_LENGTH || '50';
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;

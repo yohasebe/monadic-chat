@@ -788,16 +788,39 @@ module WebSocketHelper
     end
     
     # Send Gemini voices if API key is available
+    # Full list of 30 voices from Gemini 2.5 TTS API
     if CONFIG["GEMINI_API_KEY"]
       gemini_voices = [
-        { "voice_id" => "aoede", "name" => "Aoede" },
-        { "voice_id" => "charon", "name" => "Charon" },
-        { "voice_id" => "fenrir", "name" => "Fenrir" },
-        { "voice_id" => "kore", "name" => "Kore" },
-        { "voice_id" => "orus", "name" => "Orus" },
+        { "voice_id" => "zephyr", "name" => "Zephyr" },
         { "voice_id" => "puck", "name" => "Puck" },
+        { "voice_id" => "charon", "name" => "Charon" },
+        { "voice_id" => "kore", "name" => "Kore" },
+        { "voice_id" => "fenrir", "name" => "Fenrir" },
+        { "voice_id" => "leda", "name" => "Leda" },
+        { "voice_id" => "orus", "name" => "Orus" },
+        { "voice_id" => "aoede", "name" => "Aoede" },
+        { "voice_id" => "callirrhoe", "name" => "Callirrhoe" },
+        { "voice_id" => "autonoe", "name" => "Autonoe" },
+        { "voice_id" => "enceladus", "name" => "Enceladus" },
+        { "voice_id" => "iapetus", "name" => "Iapetus" },
+        { "voice_id" => "umbriel", "name" => "Umbriel" },
+        { "voice_id" => "algieba", "name" => "Algieba" },
+        { "voice_id" => "despina", "name" => "Despina" },
+        { "voice_id" => "erinome", "name" => "Erinome" },
+        { "voice_id" => "algenib", "name" => "Algenib" },
+        { "voice_id" => "rasalgethi", "name" => "Rasalgethi" },
+        { "voice_id" => "laomedeia", "name" => "Laomedeia" },
+        { "voice_id" => "achernar", "name" => "Achernar" },
+        { "voice_id" => "alnilam", "name" => "Alnilam" },
         { "voice_id" => "schedar", "name" => "Schedar" },
-        { "voice_id" => "zephyr", "name" => "Zephyr" }
+        { "voice_id" => "gacrux", "name" => "Gacrux" },
+        { "voice_id" => "pulcherrima", "name" => "Pulcherrima" },
+        { "voice_id" => "achird", "name" => "Achird" },
+        { "voice_id" => "zubenelgenubi", "name" => "Zubenelgenubi" },
+        { "voice_id" => "vindemiatrix", "name" => "Vindemiatrix" },
+        { "voice_id" => "sadachbia", "name" => "Sadachbia" },
+        { "voice_id" => "sadaltager", "name" => "Sadaltager" },
+        { "voice_id" => "sulafat", "name" => "Sulafat" }
       ]
       WebSocketHelper.broadcast_to_all({ "type" => "gemini_voices", "content" => gemini_voices }.to_json)
     end
@@ -835,6 +858,89 @@ module WebSocketHelper
     sync_session_state!
   end
 
+  # Single TTS request for post-completion mode (no sentence splitting)
+  # This provides better audio quality with natural flow and intonation
+  # @param text [String] Text to convert to speech (whole text, not segmented)
+  # @param provider [String] TTS provider
+  # @param voice [String] Voice ID
+  # @param speed [Float] Speech speed
+  # @param response_format [String] Audio format
+  # @param language [String] Language code
+  # @param ws_session_id [String] WebSocket session ID for targeted broadcasting
+  def start_single_tts_request(text:, provider:, voice:, speed:, response_format:, language:, ws_session_id:)
+    # Special handling for Web Speech API - no API call needed
+    if provider == "webspeech" || provider == "web-speech"
+      res_hash = { "type" => "web_speech", "content" => text }
+      if ws_session_id
+        WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(res_hash.to_json)
+      end
+
+      # Send completion message
+      complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(complete_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(complete_message)
+      end
+      return
+    end
+
+    # Start TTS thread for API-based providers
+    @tts_thread = Thread.new do
+      Thread.current[:type] = :tts_playback
+
+      begin
+        res_hash = tts_api_request(text,
+                                   previous_text: nil,
+                                   provider: provider,
+                                   voice: voice,
+                                   speed: speed,
+                                   response_format: response_format,
+                                   language: language)
+
+        if res_hash && res_hash["type"] == "audio"
+          res_hash["segment_index"] = 0
+          res_hash["total_segments"] = 1
+          res_hash["is_segment"] = false  # Not segmented
+
+          if ws_session_id
+            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(res_hash.to_json)
+          end
+
+          # Send progress (100% complete)
+          progress_message = {
+            "type" => "tts_progress",
+            "segment_index" => 0,
+            "total_segments" => 1,
+            "progress" => 100
+          }
+          if ws_session_id
+            WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(progress_message.to_json)
+          end
+        else
+          puts "[TTS] Single request failed: #{res_hash&.dig("content") || "Unknown error"}"
+        end
+      rescue => e
+        puts "[TTS] Single request exception: #{e.message}"
+        puts "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      end
+
+      # Send completion message
+      complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
+      if ws_session_id
+        WebSocketHelper.send_to_session(complete_message, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(complete_message)
+      end
+    end
+  end
+
   # Common TTS playback processing for PLAY_TTS and Auto Speech
   # This method handles text segmentation, prefetching, and threaded TTS generation
   # @param text [String] Text to convert to speech
@@ -843,25 +949,189 @@ module WebSocketHelper
   # @param speed [Float] Speech speed
   # @param response_format [String] Audio format (e.g., "mp3")
   # @param language [String] Language code
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:)
+  # @param realtime_mode [Boolean] If true, use sentence splitting with prefetch (for streaming TTS)
+  # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, realtime_mode: false, manual_play: false)
     # Get session ID for targeted broadcasting
     ws_session_id = Thread.current[:websocket_session_id]
 
     if CONFIG["EXTRA_LOGGING"]
       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}")
+        log.puts("[#{Time.now}] [DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}, realtime_mode=#{realtime_mode}, manual_play=#{manual_play}")
       end
     end
 
     # Strip Markdown markers and HTML tags before processing
     text = StringUtils.strip_markdown_for_tts(text)
 
+    # MANUAL PLAY MODE: User explicitly clicked Play button - no byte limit, play full text
+    # Send notification that full text will be played and Stop button is available
+    if manual_play
+      # Send notice for manual playback (full text will be played)
+      ps = PragmaticSegmenter::Segmenter.new(text: text)
+      total_segments = ps.segment.length
+
+      notice_message = {
+        "type" => "tts_notice",
+        "content" => {
+          "notice_type" => "manual_play",
+          "segments_total" => total_segments
+        }
+      }
+      if ws_session_id
+        WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
+      else
+        WebSocketHelper.broadcast_to_all(notice_message.to_json)
+      end
+
+      # Play full text without any byte limit
+      return start_single_tts_request(
+        text: text,
+        provider: provider,
+        voice: voice,
+        speed: speed,
+        response_format: response_format,
+        language: language,
+        ws_session_id: ws_session_id
+      )
+    end
+
+    # Get max bytes limit from config (only for Auto TTS)
+    max_bytes = CONFIG["AUTO_TTS_MAX_BYTES"] || 4000
+
+    # POST-COMPLETION MODE (realtime_mode = false): Use whole text without sentence splitting
+    # This provides better audio quality with natural flow and intonation
+    unless realtime_mode
+      text_bytes = text.bytesize
+
+      if CONFIG["EXTRA_LOGGING"]
+        puts "[TTS] Post-completion mode: text_bytes=#{text_bytes}, max_bytes=#{max_bytes}"
+      end
+
+      if text_bytes <= max_bytes
+        # Text is within limit - send as single TTS request
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[TTS] Text within limit, sending as single request"
+        end
+        return start_single_tts_request(
+          text: text,
+          provider: provider,
+          voice: voice,
+          speed: speed,
+          response_format: response_format,
+          language: language,
+          ws_session_id: ws_session_id
+        )
+      else
+        # Text exceeds limit - use sentence boundary cutoff
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[TTS] Text exceeds limit (#{text_bytes} > #{max_bytes}), using sentence boundary cutoff"
+        end
+
+        # Segment text to find sentence boundaries
+        ps = PragmaticSegmenter::Segmenter.new(text: text)
+        all_segments = ps.segment
+
+        # Accumulate consecutive segments from the beginning until byte limit is reached
+        accumulated_bytes = 0
+        tts_segments = []
+        skipped_segments = []
+        limit_reached = false
+
+        all_segments.each do |segment|
+          if limit_reached
+            # Once limit is reached, all remaining segments are skipped
+            skipped_segments << segment
+          else
+            segment_bytes = segment.bytesize
+            if accumulated_bytes + segment_bytes <= max_bytes
+              tts_segments << segment
+              accumulated_bytes += segment_bytes
+            else
+              # First segment that doesn't fit - mark limit as reached
+              limit_reached = true
+              skipped_segments << segment
+            end
+          end
+        end
+
+        if CONFIG["EXTRA_LOGGING"]
+          puts "[TTS] Sentence boundary cutoff: #{tts_segments.length}/#{all_segments.length} segments included"
+          puts "[TTS] Accumulated bytes: #{accumulated_bytes}"
+        end
+
+        # Send TTS notice if some segments will be played and some were skipped
+        # (Don't send if tts_segments is empty - that case is handled below)
+        if tts_segments.any? && skipped_segments.any?
+          notice_message = {
+            "type" => "tts_notice",
+            "content" => {
+              "notice_type" => "partial",
+              "segments_played" => tts_segments.length,
+              "segments_total" => all_segments.length,
+              "bytes_played" => accumulated_bytes,
+              "bytes_total" => text_bytes
+            }
+          }
+          if ws_session_id
+            WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(notice_message.to_json)
+          end
+        end
+
+        # If no segments fit within limit, always include at least the first segment
+        # It's better to read something than nothing
+        if tts_segments.empty? && all_segments.any?
+          first_segment = skipped_segments.shift  # Move first from skipped to tts
+          tts_segments << first_segment
+          accumulated_bytes = first_segment.bytesize
+
+          if CONFIG["EXTRA_LOGGING"]
+            puts "[TTS] First segment exceeds limit but will be played anyway (#{accumulated_bytes} bytes)"
+          end
+
+          # Update notice to show partial output (1 of N segments)
+          if skipped_segments.any?
+            notice_message = {
+              "type" => "tts_notice",
+              "content" => {
+                "notice_type" => "partial",
+                "segments_played" => 1,
+                "segments_total" => all_segments.length,
+                "bytes_played" => accumulated_bytes,
+                "bytes_total" => text_bytes
+              }
+            }
+            if ws_session_id
+              WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
+            else
+              WebSocketHelper.broadcast_to_all(notice_message.to_json)
+            end
+          end
+        end
+
+        # Combine segments and send as single TTS request
+        combined_text = tts_segments.join(" ")
+        return start_single_tts_request(
+          text: combined_text,
+          provider: provider,
+          voice: voice,
+          speed: speed,
+          response_format: response_format,
+          language: language,
+          ws_session_id: ws_session_id
+        )
+      end
+    end
+
+    # REALTIME MODE (realtime_mode = true): Use sentence splitting with prefetch
     # Process text with PragmaticSegmenter to split into sentences
     ps = PragmaticSegmenter::Segmenter.new(text: text)
     segments = ps.segment
 
     if CONFIG["EXTRA_LOGGING"]
-      puts "[TTS] Original text: '#{text[0..100]}...'"
+      puts "[TTS] Realtime mode: Original text: '#{text[0..100]}...'"
       puts "[TTS] Segmented into #{segments.length} segments:"
       segments.each_with_index { |s, i| puts "[TTS]   [#{i}] '#{s}'" }
     end
@@ -951,9 +1221,18 @@ module WebSocketHelper
         valid_segments.each_with_index { |s, i| puts "[TTS]   Valid[#{i}] '#{s}'" }
       end
 
-      # Prefetch pipeline: Start first 2 TTS requests in parallel
-      # Limited to 2 to respect provider rate limits and concurrent request constraints
-      # Most providers have strict limits: OpenAI (RPM), Gemini (QPM), ElevenLabs (concurrent)
+      # Prefetch pipeline: Start TTS requests in parallel
+      # Provider-specific prefetch counts based on rate limits and response times:
+      # - Gemini: 4 (slower API, but high rate limit 125-150 QPM)
+      # - OpenAI: 2 (fast API, moderate rate limit)
+      # - ElevenLabs: 2 (concurrent request limit)
+      prefetch_count = case provider
+                       when "gemini-flash", "gemini-pro", "gemini"
+                         4  # Gemini has slower response time, prefetch more
+                       else
+                         2  # Default for other providers
+                       end
+
       tts_futures = []
       # Store futures array in thread local for STOP_TTS cleanup
       Thread.current[:tts_futures] = tts_futures
@@ -987,8 +1266,8 @@ module WebSocketHelper
         end
       else
         # Prefetch mode for API-based TTS providers
-        # Start first 2 requests to prevent gaps between short sentences
-        [0, 1].each do |idx|
+        # Start initial requests to prevent gaps between sentences
+        (0...prefetch_count).each do |idx|
           break if idx >= valid_segments.length
 
           segment = valid_segments[idx]
@@ -1046,9 +1325,9 @@ module WebSocketHelper
           # Store for context
           prev_texts_for_tts << segment unless provider == "elevenlabs-v3"
 
-          # Start next segment's TTS request (prefetch i+2 to maintain 2-segment buffer)
-          # This ensures we're always 1-2 segments ahead without overwhelming provider APIs
-          next_idx = i + 2
+          # Start next segment's TTS request to maintain prefetch buffer
+          # Use provider-specific prefetch count for optimal performance
+          next_idx = i + prefetch_count
           if next_idx < valid_segments.length
             next_segment = valid_segments[next_idx]
             # Get previous_text directly from valid_segments for prefetch
@@ -1504,6 +1783,13 @@ module WebSocketHelper
   def calculate_logprob(res, model)
     # Gemini models do not support logprobs for STT
     return nil if model.start_with?("gemini-")
+
+    # ElevenLabs Scribe models - use logprobs array if available
+    if model.start_with?("scribe")
+      return nil unless res["logprobs"].is_a?(Array) && !res["logprobs"].empty?
+      avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
+      return Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+    end
 
     case model
     when "whisper-1"
@@ -2464,14 +2750,15 @@ module WebSocketHelper
           response_format = "mp3"
           language = obj["conversation_language"] || "auto"
 
-          # Use common TTS playback method
+          # Use common TTS playback method with manual_play: true (no byte limit for explicit Play button)
           start_tts_playback(
             text: text,
             provider: provider,
             voice: voice,
             speed: speed,
             response_format: response_format,
-            language: language
+            language: language,
+            manual_play: true
           )
         else # fragment
           # Get session ID for targeted broadcasting throughout streaming

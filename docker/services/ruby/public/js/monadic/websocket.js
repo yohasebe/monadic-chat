@@ -191,6 +191,83 @@ function resetAutoSpeechSpinner() {
     .html('<i class="fas fa-comment fa-pulse"></i> Starting');
 }
 
+// Show TTS notice using Bootstrap Toast
+// @param {Object} content - Notice content from server
+// @param {string} content.notice_type - "partial" or "skipped"
+// @param {number} content.segments_played - Number of segments played (for partial)
+// @param {number} content.segments_total - Total number of segments (for partial)
+// @param {number} content.bytes_played - Bytes played (for partial)
+// @param {number} content.bytes_total - Total bytes
+// @param {number} content.max_bytes - Max bytes limit (for skipped)
+function showTtsNotice(content) {
+  if (typeof $ === 'undefined' || typeof bootstrap === 'undefined') return;
+
+  const toastEl = document.getElementById('tts-toast');
+  const toastBody = document.getElementById('tts-toast-body');
+  if (!toastEl || !toastBody) return;
+
+  let message = '';
+  let details = '';
+
+  if (content.notice_type === 'partial') {
+    // Partial TTS output - manually interpolate {{played}} and {{total}}
+    if (typeof webUIi18n !== 'undefined') {
+      message = webUIi18n.t('ui.tts.partialOutput')
+        .replace('{{played}}', content.segments_played)
+        .replace('{{total}}', content.segments_total);
+    } else {
+      message = `Audio output: ${content.segments_played}/${content.segments_total} sentences played`;
+    }
+    details = typeof webUIi18n !== 'undefined'
+      ? webUIi18n.t('ui.tts.textTooLong')
+      : '(Text too long for complete audio output)';
+  } else if (content.notice_type === 'skipped') {
+    // TTS skipped entirely
+    message = typeof webUIi18n !== 'undefined'
+      ? webUIi18n.t('ui.tts.skipped')
+      : 'Audio output skipped';
+    details = typeof webUIi18n !== 'undefined'
+      ? webUIi18n.t('ui.tts.textExceedsLimit')
+      : '(Text exceeds audio output limit)';
+  } else if (content.notice_type === 'manual_play') {
+    // Manual Play button clicked - full text will be played
+    if (typeof webUIi18n !== 'undefined') {
+      message = webUIi18n.t('ui.tts.manualPlay')
+        .replace('{{total}}', content.segments_total);
+    } else {
+      message = `Playing ${content.segments_total} sentences`;
+    }
+    details = typeof webUIi18n !== 'undefined'
+      ? webUIi18n.t('ui.tts.useStopButton')
+      : '(Use Stop button to cancel)';
+  }
+
+  // Build HTML content
+  let html = `<p class="mb-1">${message}</p>`;
+  if (details) {
+    html += `<small class="text-muted">${details}</small>`;
+  }
+  toastBody.innerHTML = html;
+
+  // Show toast
+  const toast = new bootstrap.Toast(toastEl);
+  toast.show();
+}
+
+// Hide TTS notice Toast (called when audio playback completes)
+function hideTtsToast() {
+  const toastEl = document.getElementById('tts-toast');
+  if (!toastEl || typeof bootstrap === 'undefined') return;
+
+  const toast = bootstrap.Toast.getInstance(toastEl);
+  if (toast) {
+    toast.hide();
+  }
+}
+
+// Make hideTtsToast globally accessible
+window.hideTtsToast = hideTtsToast;
+
 function updateAutoSpeechSuppressedFlag() {
   autoSpeechSuppressed = autoSpeechSuppressionReasons.size > 0;
   window.autoSpeechSuppressed = autoSpeechSuppressed;
@@ -1681,6 +1758,11 @@ function processGlobalAudioQueue() {
       $("#monadic-spinner").hide();
     }
 
+    // Hide TTS notice Toast when audio playback completes
+    if (typeof window.hideTtsToast === 'function') {
+      window.hideTtsToast();
+    }
+
     return;
   }
 
@@ -1747,6 +1829,11 @@ function clearAudioQueue() {
   }
   if (typeof window.firefoxAudioQueue !== 'undefined') {
     window.firefoxAudioQueue = [];
+  }
+
+  // Hide TTS notice Toast when audio is stopped
+  if (typeof window.hideTtsToast === 'function') {
+    window.hideTtsToast();
   }
 }
 
@@ -2149,6 +2236,60 @@ function processIOSAudioBuffer() {
 
 // Function to play PCM audio data from Gemini
 function playPCMAudio(pcmData, sampleRate) {
+  // Inner function to actually play the audio
+  const doPlayPCM = () => {
+    try {
+      // PCM is 16-bit linear, so we need to convert from bytes to float32
+      const numSamples = pcmData.length / 2;
+      const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
+      const channelData = audioBuffer.getChannelData(0);
+
+      // Convert 16-bit PCM to float32
+      for (let i = 0; i < numSamples; i++) {
+        const sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
+        const signedSample = sample < 0x8000 ? sample : sample - 0x10000;
+        channelData[i] = signedSample / 32768.0;
+      }
+
+      // Create a buffer source and play it
+      const source = window.audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(window.audioCtx.destination);
+      currentPCMSource = source;
+
+      // Handle playback end
+      source.onended = function() {
+        currentPCMSource = null;
+        if (window.ttsPlaybackCallback) {
+          window.ttsPlaybackCallback(true);
+        }
+      };
+
+      // Start playback
+      source.start(0);
+
+      // Mark TTS playback as started (audio is now playing)
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+        if (typeof window.checkAndHideSpinner === 'function') {
+          window.checkAndHideSpinner();
+        }
+      }
+
+      // Clear timeout if set
+      if (window.autoTTSSpinnerTimeout) {
+        clearTimeout(window.autoTTSSpinnerTimeout);
+        window.autoTTSSpinnerTimeout = null;
+      }
+    } catch (innerError) {
+      console.error("[AudioQueue] Error in doPlayPCM:", innerError);
+      // Trigger callback to continue queue processing
+      if (window.ttsPlaybackCallback) {
+        window.ttsPlaybackCallback(false);
+      }
+    }
+  };
+
   try {
     // Initialize audio context if needed
     if (typeof audioInit === 'function') {
@@ -2161,53 +2302,20 @@ function playPCMAudio(pcmData, sampleRate) {
     }
 
     // Check AudioContext state and resume if suspended
+    // IMPORTANT: Wait for resume to complete before playing
     if (window.audioCtx.state === 'suspended') {
-      window.audioCtx.resume().catch(err => {
+      window.audioCtx.resume().then(() => {
+        doPlayPCM();
+      }).catch(err => {
         console.error("[AudioQueue] Failed to resume AudioContext:", err);
+        // Trigger callback to continue queue processing even on error
+        if (window.ttsPlaybackCallback) {
+          window.ttsPlaybackCallback(false);
+        }
       });
-    }
-
-    // PCM is 16-bit linear, so we need to convert from bytes to float32
-    const numSamples = pcmData.length / 2;
-    const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
-    const channelData = audioBuffer.getChannelData(0);
-
-    // Convert 16-bit PCM to float32
-    for (let i = 0; i < numSamples; i++) {
-      const sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
-      const signedSample = sample < 0x8000 ? sample : sample - 0x10000;
-      channelData[i] = signedSample / 32768.0;
-    }
-
-    // Create a buffer source and play it
-    const source = window.audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(window.audioCtx.destination);
-    currentPCMSource = source;
-
-    // Handle playback end
-    source.onended = function() {
-      currentPCMSource = null;
-      if (window.ttsPlaybackCallback) {
-        window.ttsPlaybackCallback(true);
-      }
-    };
-
-    // Start playback
-    source.start(0);
-
-    // Mark TTS playback as started (audio is now playing)
-    if (typeof window.setTtsPlaybackStarted === 'function') {
-      window.setTtsPlaybackStarted(true);
-      if (typeof window.checkAndHideSpinner === 'function') {
-        window.checkAndHideSpinner();
-      }
-    }
-
-    // Clear timeout if set
-    if (window.autoTTSSpinnerTimeout) {
-      clearTimeout(window.autoTTSSpinnerTimeout);
-      window.autoTTSSpinnerTimeout = null;
+    } else {
+      // AudioContext is already running, play immediately
+      doPlayPCM();
     }
 
   } catch (error) {
@@ -3297,6 +3405,15 @@ let loadedApp = "Chat";
           setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
         }
 
+        break;
+      }
+
+      case "tts_notice": {
+        // TTS notice: partial output or skipped due to text length
+        const noticeContent = data.content;
+        if (noticeContent) {
+          showTtsNotice(noticeContent);
+        }
         break;
       }
 
@@ -4422,16 +4539,20 @@ let loadedApp = "Chat";
         const cookieValue = getCookie("elevenlabs-tts-voice");
         let voices = data["content"];
         if (voices.length > 0) {
-          // set ElevenLabs provider options enabled
+          // set ElevenLabs provider options enabled (TTS)
           $("#elevenlabs-flash-provider-option").prop("disabled", false);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
           $("#elevenlabs-v3-provider-option").prop("disabled", false);
+          // set ElevenLabs STT option enabled
+          $("#elevenlabs-stt-scribe").prop("disabled", false);
           // Do not set ElevenLabs as default - prefer openai-tts-4o
         } else {
-          // set ElevenLabs provider options disabled
+          // set ElevenLabs provider options disabled (TTS)
           $("#elevenlabs-flash-provider-option").prop("disabled", true);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
           $("#elevenlabs-v3-provider-option").prop("disabled", true);
+          // set ElevenLabs STT option disabled
+          $("#elevenlabs-stt-scribe").prop("disabled", true);
         }
         $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {
@@ -6334,6 +6455,14 @@ window.addEventListener('beforeunload', function() {
     audio.src = '';
     audio.load();
     audio = null;
+  }
+
+  // Close AudioContext instances (important for macOS audio cleanup)
+  if (audioContext && audioContext.state !== 'closed') {
+    audioContext.close().catch(err => console.warn('Error closing audioContext:', err));
+  }
+  if (window.audioCtx && window.audioCtx.state !== 'closed') {
+    window.audioCtx.close().catch(err => console.warn('Error closing window.audioCtx:', err));
   }
 
   // Close WebSocket connection if it's open

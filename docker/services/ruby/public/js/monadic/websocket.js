@@ -168,6 +168,9 @@ function updateTabForegroundState() {
 let textResponseCompleted = false; // Track if text response finished
 let ttsPlaybackStarted = false; // Track if TTS playback started (audio is actually playing)
 
+// Auto TTS message tracking - prevents duplicate TTS on sleep/wake reconnection
+let lastAutoTtsMessageId = null;
+
 // Export completion flags to window for access from handlers
 window.setTextResponseCompleted = function(value) {
   textResponseCompleted = value;
@@ -5557,33 +5560,48 @@ let loadedApp = "Chat";
                 window.autoTTSSpinnerTimeout = null;
               }
             } else if (window.autoSpeechActive || autoSpeechEnabled) {
-              // Use setTimeout to ensure the card is fully rendered before triggering TTS
-              setTimeout(() => {
-                const lastCard = $("#discourse div.card:last");
-                const playButton = lastCard.find(".func-play");
-                if (playButton.length > 0) {
-                  // Early highlight for Auto TTS: provides immediate visual feedback
-                  const cardId = lastCard.attr('id');
-                  if (cardId && typeof window.highlightStopButton === 'function') {
-                    window.highlightStopButton(cardId);
-                  }
-
-                  // In realtime mode, audio is already generated and queued
-                  // Only click Play button for post-completion mode to trigger TTS
-                  if (!realtimeMode) {
-                    playButton.click();
-                  }
-
-                  // Set timeout to force hide spinner if audio doesn't start playing
-                  scheduleAutoTtsSpinnerTimeout();
-                } else {
-                  if (typeof checkAndHideSpinner === 'function') {
-                    checkAndHideSpinner();
-                  }
+              // Message ID check: prevent duplicate TTS for the same message (e.g., on sleep/wake reconnection)
+              const currentMid = data["content"]["mid"];
+              if (currentMid && currentMid === lastAutoTtsMessageId) {
+                console.debug('[Auto TTS] Skipped - already played for message:', currentMid);
+                // Hide spinner since we're skipping TTS
+                if (typeof checkAndHideSpinner === 'function') {
+                  checkAndHideSpinner();
                 }
-                // Note: window.autoSpeechActive will be reset when audio starts playing
-                // See audio.play() promise handler where spinner is hidden
-              }, 100);
+              } else {
+                // Record message ID before triggering TTS
+                if (currentMid) {
+                  lastAutoTtsMessageId = currentMid;
+                }
+
+                // Use setTimeout to ensure the card is fully rendered before triggering TTS
+                setTimeout(() => {
+                  const lastCard = $("#discourse div.card:last");
+                  const playButton = lastCard.find(".func-play");
+                  if (playButton.length > 0) {
+                    // Early highlight for Auto TTS: provides immediate visual feedback
+                    const cardId = lastCard.attr('id');
+                    if (cardId && typeof window.highlightStopButton === 'function') {
+                      window.highlightStopButton(cardId);
+                    }
+
+                    // In realtime mode, audio is already generated and queued
+                    // Only click Play button for post-completion mode to trigger TTS
+                    if (!realtimeMode) {
+                      playButton.click();
+                    }
+
+                    // Set timeout to force hide spinner if audio doesn't start playing
+                    scheduleAutoTtsSpinnerTimeout();
+                  } else {
+                    if (typeof checkAndHideSpinner === 'function') {
+                      checkAndHideSpinner();
+                    }
+                  }
+                  // Note: window.autoSpeechActive will be reset when audio starts playing
+                  // See audio.play() promise handler where spinner is hidden
+                }, 100);
+              }
             }
           } else {
             // For non-assistant messages, show "Ready for input" only if system is not busy

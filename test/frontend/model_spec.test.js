@@ -28,7 +28,7 @@ describe('Model Specification', () => {
     expect(modelSpec['gpt-4.1']).toBeDefined();
     expect(modelSpec['claude-sonnet-4-5-20250929']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash']).toBeDefined();
-    expect(modelSpec['command-a-03-2025']).toBeDefined();
+    expect(modelSpec['command-a-vision-07-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
     expect(modelSpec['grok-4-1-fast-reasoning']).toBeDefined();
   });
@@ -72,10 +72,9 @@ describe('Model Specification', () => {
     });
     
     it('should have different vision capabilities for different Claude models', () => {
-      // Claude Sonnet 3.5 (deprecated) should still report vision support
-      expect(modelSpec['claude-3-5-sonnet-20241022'].vision_capability).toBe(true);
-      expect(modelSpec['claude-3-5-sonnet-20241022'].deprecated).toBe(true);
-      
+      // Claude Sonnet 4.5 should have vision support
+      expect(modelSpec['claude-sonnet-4-5-20250929'].vision_capability).toBe(true);
+
       // Claude Haiku shouldn't have vision (at least one version)
       expect(modelSpec['claude-3-5-haiku-20241022'].vision_capability).toBe(false);
     });
@@ -83,20 +82,19 @@ describe('Model Specification', () => {
   
   describe('Cohere Models', () => {
     it('should have correct parameters for Cohere models', () => {
-      const model = modelSpec['command-a-03-2025'];
-      
+      const model = modelSpec['command-a-vision-07-2025'];
+
       // Check essential parameters
-      expect(model.context_window).toEqual([1, 256000]);
+      expect(model.context_window).toEqual([1, 128000]);
       expect(model.max_output_tokens).toEqual([1, 8000]);
       expect(model.temperature).toEqual([[0.0, 1.0], 0.3]);
       expect(model.top_p).toEqual([[0.01, 0.09], 0.75]);
     });
-    
+
     it('should have different tool capabilities for different Cohere models', () => {
       // Newer model with tool support
-      expect(modelSpec['command-a-03-2025'].tool_capability).toBe(true);
+      expect(modelSpec['command-a-vision-07-2025'].tool_capability).toBe(true);
       expect(modelSpec['command-a-reasoning-08-2025'].tool_capability).toBe(true);
-      expect(modelSpec['command-a-03-2025'].tool_capability).toBe(true);
     });
   });
   

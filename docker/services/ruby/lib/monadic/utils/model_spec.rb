@@ -252,7 +252,20 @@ module Monadic
         end
         
         def supports_verbosity?(model_name)
-          get_model_property(model_name, "supports_verbosity") == true
+          # Support both old format (supports_verbosity: true) and new format (verbosity: [[options], default])
+          return true if get_model_property(model_name, "supports_verbosity") == true
+          verbosity = get_model_property(model_name, "verbosity")
+          verbosity.is_a?(Array) && verbosity.length == 2
+        end
+
+        def get_verbosity_options(model_name)
+          verbosity = get_model_property(model_name, "verbosity")
+          return nil unless verbosity.is_a?(Array) && verbosity.length == 2
+
+          options = verbosity[0]
+          default = verbosity[1]
+
+          { options: options, default: default }
         end
         
         def skip_in_progress_events?(model_name)

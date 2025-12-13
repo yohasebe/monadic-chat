@@ -25,6 +25,8 @@
   - `supports_pdf?(model)`：ブール値
   - `supports_pdf_upload?(model)`：ブール値
   - `supports_web_search?(model)`：ブール値
+  - `supports_verbosity?(model)`：ブール値（`supports_verbosity: true`と`verbosity: [[options], default]`の両形式をサポート）
+  - `get_verbosity_options(model)`：`{ options: [...], default: "..." }`またはnilを返す
   - `responses_api?(model)`：ブール値
 
 **ヘルパーガイドライン**

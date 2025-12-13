@@ -25,6 +25,8 @@ This document describes the server-side normalization layer and canonical access
   - `supports_pdf?(model)`: boolean
   - `supports_pdf_upload?(model)`: boolean
   - `supports_web_search?(model)`: boolean
+  - `supports_verbosity?(model)`: boolean (supports both `supports_verbosity: true` and `verbosity: [[options], default]` formats)
+  - `get_verbosity_options(model)`: returns `{ options: [...], default: "..." }` or nil
   - `responses_api?(model)`: boolean
 
 **Helper Guidelines**

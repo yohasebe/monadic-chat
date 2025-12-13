@@ -31,6 +31,11 @@ This document defines the canonical property names used across providers in `mod
 - reasoning_effort: [ [options], default ]
   - Example: [["minimal","low","medium","high"], "low"].
 
+- verbosity: [ [options], default ]
+  - GPT-5 series output length control.
+  - Example: [["low","medium","high"], "medium"].
+  - Some models may only support a subset (e.g., [["medium"], "medium"]).
+
 - supports_thinking: boolean
   - Whether a provider supports a dedicated thinking/thought budget feature.
 
@@ -70,6 +75,8 @@ Helpers should prefer accessors over reading raw properties when possible:
 - ModelSpec.supports_pdf?(model)
 - ModelSpec.supports_pdf_upload?(model)
 - ModelSpec.supports_web_search?(model)
+- ModelSpec.supports_verbosity?(model)
+- ModelSpec.get_verbosity_options(model)
 - ModelSpec.responses_api?(model)
 
 These accessors apply conservative defaults (e.g., streaming defaults to true when undefined) in line with existing helper behavior.

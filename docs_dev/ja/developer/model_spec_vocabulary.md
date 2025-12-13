@@ -31,6 +31,11 @@
 - reasoning_effort: [ [options], default ]
   - 例: [["minimal","low","medium","high"], "low"]。
 
+- verbosity: [ [options], default ]
+  - GPT-5シリーズの出力長制御。
+  - 例: [["low","medium","high"], "medium"]。
+  - 一部のモデルはサブセットのみサポート（例: [["medium"], "medium"]）。
+
 - supports_thinking: boolean
   - プロバイダーが専用の思考/思考予算機能をサポートするかどうか。
 
@@ -70,6 +75,8 @@
 - ModelSpec.supports_pdf?(model)
 - ModelSpec.supports_pdf_upload?(model)
 - ModelSpec.supports_web_search?(model)
+- ModelSpec.supports_verbosity?(model)
+- ModelSpec.get_verbosity_options(model)
 - ModelSpec.responses_api?(model)
 
 これらのアクセサーは、既存のヘルパーの動作に沿って保守的なデフォルト（例：未定義の場合、ストリーミングはtrueがデフォルト）を適用します。

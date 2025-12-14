@@ -222,7 +222,7 @@ def tts_api_request(text,
 
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
-  when "gemini"
+  when "gemini", "gemini-flash", "gemini-pro"
     # Try ENV first (for test environment)
     api_key = ENV["GEMINI_API_KEY"]
 
@@ -289,9 +289,17 @@ def tts_api_request(text,
         }
       }
     }
-    
-    # Use the Gemini 2.5 Flash Preview TTS model
-    target_uri = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=#{api_key}"
+
+    # Use the appropriate Gemini model with TTS capability
+    model_name = case provider
+                 when "gemini-pro"
+                   "gemini-2.5-pro-preview-tts"
+                 when "gemini-flash", "gemini"
+                   "gemini-2.5-flash-preview-tts"
+                 else
+                   "gemini-2.5-flash-preview-tts"
+                 end
+    target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
   else # openai
     # Try ENV first (for test environment)
     api_key = ENV["OPENAI_API_KEY"]
@@ -349,7 +357,7 @@ def tts_api_request(text,
     end
     
     # Handle Gemini response format
-    if provider == "gemini"
+    if provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro"
       begin
         gemini_response = JSON.parse(res.body.to_s)
         
@@ -521,7 +529,7 @@ begin
   outfile = File.basename(textpath, ".*")
   
   # Determine file extension based on provider and response
-  file_extension = if provider == "gemini" && response.is_a?(Hash) && response[:mime_type]
+  file_extension = if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && response.is_a?(Hash) && response[:mime_type]
     # Extract extension from mime type (e.g., "audio/wav" -> "wav")
     mime_ext = response[:mime_type].split("/").last
     # Default to wav if we can't determine the format
@@ -534,7 +542,7 @@ begin
   file_path = File.join(save_path, filename)
 
   # Save the audio file
-  audio_content = if provider == "gemini" && response.is_a?(Hash)
+  audio_content = if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && response.is_a?(Hash)
     response[:audio_data]
   else
     response
@@ -545,12 +553,12 @@ begin
   end
 
   # Save a copy in the current directory (skip for Gemini to avoid issues)
-  if provider != "gemini"
+  if provider != "gemini" && provider != "gemini-flash" && provider != "gemini-pro"
     File.write(outfile, response)
   end
   
   # Display appropriate message based on file format
-  if provider == "gemini" && file_extension != "mp3"
+  if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && file_extension != "mp3"
     puts "Text-to-speech audio saved to #{filename} (#{file_extension.upcase} format)"
   else
     puts "Text-to-speech audio MP3 saved to #{filename}"

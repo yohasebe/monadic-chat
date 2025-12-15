@@ -3138,7 +3138,7 @@ module WebSocketHelper
                   WebSocketHelper.broadcast_to_all(fragment.to_json)
                 end
               end
-              sleep 0.01
+              sleep 0.001  # Reduced from 0.01 for faster streaming
             end
 
             Thread.exit if !responses || responses.empty?

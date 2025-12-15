@@ -2933,8 +2933,8 @@ let loadedApp = "Chat";
     try {
       data = JSON.parse(event.data);
 
-      // Debug: Log all incoming WebSocket messages with additional context
-      if (data["type"]) {
+      // Debug: Log all incoming WebSocket messages with additional context (only when debugging)
+      if (window.debugWebSocket && data["type"]) {
         console.log(`[WS] Received message type: ${data["type"]}, content length: ${JSON.stringify(data).length}`);
         if (data["type"] === "info") {
           console.log(`[WS-INFO] Full info message:`, data);
@@ -2948,7 +2948,9 @@ let loadedApp = "Chat";
       clearTimeout(messageTimeout);
       return;
     }
-    console.log(`[WS-SWITCH] About to process message type: ${data["type"]}`);
+    if (window.debugWebSocket) {
+      console.log(`[WS-SWITCH] About to process message type: ${data["type"]}`);
+    }
     switch (data["type"]) {
       case "fragment_with_audio": {
         // Handle the optimized combined fragment and audio message
@@ -3485,7 +3487,7 @@ let loadedApp = "Chat";
         // Handle context extraction start notification
         if (typeof ContextPanel !== "undefined") {
           ContextPanel.showLoading();
-          console.log("[WS] Context extraction started");
+          if (window.debugWebSocket) console.log("[WS] Context extraction started");
         }
         break;
       }
@@ -3497,7 +3499,7 @@ let loadedApp = "Chat";
           ContextPanel.hideLoading();
           if (data.context) {
             ContextPanel.updateContext(data.context, data.schema || null);
-            console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
+            if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
           }
         }
         break;
@@ -6399,6 +6401,53 @@ function handleVisibilityChange() {
       if (stillProcessing && !$("#monadic-spinner").is(":visible")) {
         console.log('[handleVisibilityChange] Tab visible, restoring spinner (processing still active)');
         $("#monadic-spinner").show();
+      } else if (!stillProcessing) {
+        // Not processing - reset TTS flags to prevent stale "Processing audio" spinner
+        // This handles the case where sleep/wake interrupts TTS before it starts
+        console.log('[handleVisibilityChange] Tab visible, resetting TTS flags (processing not active)');
+
+        // Reset TTS flags to "completed" state
+        window.autoSpeechActive = false;
+        window.autoPlayAudio = false;
+        if (typeof window.setTtsPlaybackStarted === 'function') {
+          window.setTtsPlaybackStarted(true);
+        }
+        if (typeof window.setTextResponseCompleted === 'function') {
+          window.setTextResponseCompleted(true);
+        }
+
+        // Stop any ongoing Web Speech API
+        if (typeof window.speechSynthesis !== 'undefined') {
+          try {
+            window.speechSynthesis.cancel();
+          } catch (e) {
+            console.warn('[handleVisibilityChange] Error stopping speech synthesis:', e);
+          }
+        }
+
+        // Clear any pending Auto TTS timeout
+        if (window.autoTTSSpinnerTimeout) {
+          clearTimeout(window.autoTTSSpinnerTimeout);
+          window.autoTTSSpinnerTimeout = null;
+        }
+
+        // Remove TTS button highlight if active
+        if (typeof removeStopButtonHighlight === 'function') {
+          removeStopButtonHighlight();
+        }
+
+        // If spinner is visible, hide it and reset to default state
+        if ($("#monadic-spinner").is(":visible")) {
+          console.log('[handleVisibilityChange] Hiding stale spinner');
+          $("#monadic-spinner").hide();
+          $("#monadic-spinner")
+            .find("span i")
+            .removeClass("fa-headphones fa-brain fa-circle-nodes")
+            .addClass("fa-comment");
+          $("#monadic-spinner")
+            .find("span")
+            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        }
       }
 
       // Clear any existing reconnection timer to prevent duplicate reconnection attempts

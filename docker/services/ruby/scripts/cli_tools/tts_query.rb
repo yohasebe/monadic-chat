@@ -326,7 +326,7 @@ def tts_api_request(text,
       Authorization: "Bearer #{api_key}"
     }
 
-    model = "gpt-4o-mini-tts"
+    model = "gpt-4o-mini-tts-2025-12-15"
 
     body = {
       input: text,

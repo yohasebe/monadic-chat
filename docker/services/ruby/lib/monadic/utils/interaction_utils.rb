@@ -368,13 +368,13 @@ module InteractionUtils
 
       model = case provider
               when "openai-tts-4o"
-                "gpt-4o-mini-tts"
+                "gpt-4o-mini-tts-2025-12-15"
               when "openai-tts-hd"
                 "tts-1-hd"
               when "openai-tts"
                 "tts-1"
               else
-                "gpt-4o-mini-tts"
+                "gpt-4o-mini-tts-2025-12-15"
               end
 
       body = {
@@ -796,13 +796,13 @@ module InteractionUtils
       api_key = settings.api_key
       model = case provider
               when "openai-tts-4o"
-                "gpt-4o-mini-tts"
+                "gpt-4o-mini-tts-2025-12-15"
               when "openai-tts-hd"
                 "tts-1-hd"
               when "openai-tts"
                 "tts-1"
               else
-                "gpt-4o-mini-tts"
+                "gpt-4o-mini-tts-2025-12-15"
               end
 
       body = {

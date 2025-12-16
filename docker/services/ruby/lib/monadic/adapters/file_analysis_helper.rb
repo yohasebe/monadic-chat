@@ -9,7 +9,7 @@ module MonadicHelper
     send_command(command: command, container: "ruby")
   end
 
-  def analyze_audio(audio: "", model: "gpt-4o-mini-transcribe")
+  def analyze_audio(audio: "", model: "gpt-4o-mini-transcribe-2025-12-15")
     # Get STT model from Web UI settings (stored in session by websocket handler)
     stt_model = settings["stt_model"] || settings[:stt_model] || model
 

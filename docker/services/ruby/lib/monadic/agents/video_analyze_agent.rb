@@ -70,7 +70,7 @@ module VideoAnalyzeAgent
       # 3. System default (fallback)
       stt_model = session[:parameters]&.[]("stt_model") ||      # Web UI selection
                   settings.dig(:agents, :speech_to_text) ||     # MDSL default
-                  "gpt-4o-mini-transcribe"                      # System default
+                  "gpt-4o-mini-transcribe-2025-12-15"           # System default
 
       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
         puts "[VideoAnalyzer] Using STT model: #{stt_model}"

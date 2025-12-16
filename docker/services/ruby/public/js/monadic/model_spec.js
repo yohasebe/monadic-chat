@@ -318,17 +318,6 @@ const modelSpec = {
     "audio_capability": true,
     "realtime_capability": true
   },
-  "gpt-4o-transcribe-diarize": {
-    "context_window": [1, 128000],
-    "max_output_tokens": [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": false,
-    "vision_capability": false,
-    "supports_diarization": true
-  },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
     "context_window": [1, 400000],
@@ -465,26 +454,6 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": false
-  },
-  "gpt-4o-mini-transcribe": {
-    "context_window": [1, 128000],
-    "max_output_tokens": [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": false,
-    "vision_capability": false
-  },
-  "gpt-4o-transcribe": {
-    "context_window": [1, 128000],
-    "max_output_tokens": [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": false,
     "vision_capability": false
   },
   // Anthropic models

@@ -1682,7 +1682,7 @@ module WebSocketHelper
     blob = Base64.decode64(obj["content"])
 
     # Get STT model from Web UI (priority) or use default
-    model = obj["stt_model"] || "gpt-4o-mini-transcribe"
+    model = obj["stt_model"] || "gpt-4o-mini-transcribe-2025-12-15"
     format = obj["format"] || "webm"
 
     # Store stt_model in session for use by other components (e.g., Video Describer)

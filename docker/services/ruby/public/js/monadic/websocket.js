@@ -414,7 +414,9 @@ function checkAndHideSpinner() {
     return;
   }
 
-  // For Auto Speech mode
+  // For Auto Speech mode - only HIDE spinner, never SHOW
+  // The "Processing audio" spinner should only be shown when actual TTS API call is made (in cards.js)
+  // This prevents stale spinner display after sleep/wake or session restore
   if (textResponseCompleted && ttsPlaybackStarted) {
     // Both text and TTS completed - hide spinner
     $("#monadic-spinner").hide();
@@ -427,21 +429,10 @@ function checkAndHideSpinner() {
     $("#monadic-spinner")
       .find("span")
       .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-  } else if (textResponseCompleted && !ttsPlaybackStarted) {
-    // Text completed but TTS not started yet - update spinner to show audio processing
-    $("#monadic-spinner").show();
-
-    $("#monadic-spinner")
-      .find("span i")
-      .removeClass("fa-comment fa-brain fa-circle-nodes fa-cogs")
-      .addClass("fa-headphones");
-
-    const processingAudioText = typeof webUIi18n !== 'undefined' ?
-      webUIi18n.t('ui.messages.spinnerProcessingAudio') : 'Processing audio';
-    $("#monadic-spinner")
-      .find("span")
-      .html(`<i class="fas fa-headphones fa-pulse"></i> ${processingAudioText}`);
   }
+  // NOTE: Removed the "else if (textResponseCompleted && !ttsPlaybackStarted)" branch
+  // that used to SHOW the spinner. This was causing stale spinner display after sleep/wake.
+  // The spinner is now ONLY shown when PLAY_TTS message is actually sent (in cards.js).
 }
 
 // Export helper functions to window for global access
@@ -5983,25 +5974,15 @@ let loadedApp = "Chat";
           const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
 
           if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
-            // Auto Speech enabled, TTS not started yet, and tab is foreground - update spinner to "Processing audio"
-            console.log('[streaming_complete] Updating spinner for Audio Speech processing');
-
+            // Auto Speech enabled, TTS not started yet, and tab is foreground
             // CRITICAL: Set autoSpeechActive flag so that html message handler knows to trigger TTS
             window.autoSpeechActive = true;
-            console.log('[streaming_complete] Set window.autoSpeechActive = true');
+            console.log('[streaming_complete] Set window.autoSpeechActive = true (spinner will show when TTS starts)');
 
-            $("#monadic-spinner").show();
-            $("#monadic-spinner")
-              .find("span i")
-              .removeClass("fa-comment fa-brain fa-circle-nodes fa-cogs")
-              .addClass("fa-headphones");
-
-            const processingAudioText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerProcessingAudio') : 'Processing audio';
-
-            $("#monadic-spinner")
-              .find("span")
-              .html(`<i class="fas fa-headphones fa-pulse"></i> ${processingAudioText}`);
+            // NOTE: Do NOT show "Processing audio" spinner here.
+            // The spinner should ONLY be shown when the actual TTS API call is made (PLAY_TTS message sent).
+            // This prevents stale spinner display after sleep/wake or session restore.
+            // The spinner will be shown in cards.js when Play button is clicked (manually or programmatically).
           } else {
             // Check if we can hide spinner (depends on Auto Speech mode)
             if (typeof window.checkAndHideSpinner === 'function') {

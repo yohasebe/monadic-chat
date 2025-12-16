@@ -1236,10 +1236,26 @@ start_docker_compose() {
     sleep $RETRY_INTERVAL
   done
 
-  # get yohasebe/monadic-chat image tag
-  MONADIC_CHAT_IMAGE_TAG=$(${DOCKER} images | grep "yohasebe/monadic-chat" | awk '{print $2}')
-  MONADIC_CHAT_IMAGE_TAG=$(echo ${MONADIC_CHAT_IMAGE_TAG} | tr -d '\r')
-  MONADIC_CHAT_IMAGE_TAG=$(echo ${MONADIC_CHAT_IMAGE_TAG} | sed 's/latest//g')
+  # get yohasebe/monadic-chat image tag (prefer version-format tags like X.Y.Z)
+  # Use --format to get clean output, then filter for version-like tags
+  local all_tags=$(${DOCKER} images --filter "reference=yohasebe/monadic-chat" --format "{{.Tag}}" 2>/dev/null | tr -d '\r')
+
+  # First try to find a tag that looks like a version number (X.Y.Z or X.Y.Z-suffix)
+  MONADIC_CHAT_IMAGE_TAG=""
+  while IFS= read -r tag; do
+    # Skip empty lines and 'latest' tag
+    [ -z "$tag" ] || [ "$tag" = "latest" ] && continue
+    # Check if tag matches version pattern (e.g., 1.0.0, 1.0.0-beta.1)
+    if [[ "$tag" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+      MONADIC_CHAT_IMAGE_TAG="$tag"
+      break
+    fi
+  done <<< "$all_tags"
+
+  # If no version-format tag found, use the first non-latest tag
+  if [ -z "${MONADIC_CHAT_IMAGE_TAG}" ]; then
+    MONADIC_CHAT_IMAGE_TAG=$(echo "$all_tags" | grep -v "^latest$" | head -1)
+  fi
 
   if [ -z "${MONADIC_CHAT_IMAGE_TAG}" ]; then
     MONADIC_CHAT_IMAGE_TAG="None"

@@ -1163,44 +1163,66 @@ EOF
 }
 
 # Function to check if Dockerfiles have changed since last build
+# Sets global variables for individual container changes:
+#   PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, PGVECTOR_DOCKERFILE_CHANGED
+# Returns 0 (true) if any changes detected, 1 (false) otherwise
 check_dockerfiles_changed() {
   local config_dir="${HOME_DIR}/monadic/config"
   local json_file="${config_dir}/container_versions.json"
-  
-  # If the file doesn't exist, consider everything changed
-  if [ ! -f "$json_file" ]; then
-    return 0 # true - changes detected
-  fi
-  
-  # Read stored hashes from JSON file
-  local stored_version=$(grep -o '"version": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
-  
+
+  # Initialize change flags (global variables for use in start_docker_compose)
+  PYTHON_DOCKERFILE_CHANGED=false
+  SELENIUM_DOCKERFILE_CHANGED=false
+  PGVECTOR_DOCKERFILE_CHANGED=false
+
   # Calculate current hashes
   local python_dockerfile="${ROOT_DIR}/services/python/Dockerfile"
   local python_hash=$(calculate_docker_hash "$python_dockerfile")
-  
+
   local selenium_dockerfile="${ROOT_DIR}/services/selenium/Dockerfile"
   local selenium_hash=$(calculate_docker_hash "$selenium_dockerfile")
-  
+
   local pgvector_dockerfile="${ROOT_DIR}/services/pgvector/Dockerfile"
   local pgvector_hash=$(calculate_docker_hash "$pgvector_dockerfile")
-  
+
   # Get current help export ID
   local help_export_id="initial_empty_database"
   local help_export_file="${ROOT_DIR}/services/pgvector/help_data/export_id.txt"
   if [ -f "$help_export_file" ]; then
     help_export_id=$(cat "$help_export_file")
   fi
-  
-  # If any hash is different, return true (changes detected)
-  if [[ "$stored_python_hash" != "$python_hash" || "$stored_selenium_hash" != "$selenium_hash" || "$stored_pgvector_hash" != "$pgvector_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+
+  # If the file doesn't exist, consider everything changed
+  if [ ! -f "$json_file" ]; then
+    PYTHON_DOCKERFILE_CHANGED=true
+    SELENIUM_DOCKERFILE_CHANGED=true
+    PGVECTOR_DOCKERFILE_CHANGED=true
     return 0 # true - changes detected
   fi
-  
+
+  # Read stored hashes from JSON file
+  local stored_python_hash=$(grep -o '"python_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_selenium_hash=$(grep -o '"selenium_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_pgvector_hash=$(grep -o '"pgvector_hash": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+  local stored_help_export_id=$(grep -o '"help_export_id": *"[^"]*"' "$json_file" | cut -d'"' -f4)
+
+  # Check each container individually
+  if [[ "$stored_python_hash" != "$python_hash" ]]; then
+    PYTHON_DOCKERFILE_CHANGED=true
+  fi
+  if [[ "$stored_selenium_hash" != "$selenium_hash" ]]; then
+    SELENIUM_DOCKERFILE_CHANGED=true
+  fi
+  # PGVector changes if either Dockerfile or help export ID changed
+  if [[ "$stored_pgvector_hash" != "$pgvector_hash" || "$stored_help_export_id" != "$help_export_id" ]]; then
+    PGVECTOR_DOCKERFILE_CHANGED=true
+  fi
+
+  # Return true if any changes detected
+  if [[ "$PYTHON_DOCKERFILE_CHANGED" = true || "$SELENIUM_DOCKERFILE_CHANGED" = true || "$PGVECTOR_DOCKERFILE_CHANGED" = true ]]; then
+    return 0 # true - changes detected
+  fi
+
   # If we get here, no changes detected
   return 1 # false - no changes detected
 }
@@ -1267,13 +1289,14 @@ start_docker_compose() {
 
   # Check for all required containers and services
   local needs_full_rebuild=false
+  local needs_selective_rebuild=false
   local needs_ruby_rebuild=false
   local needs_user_containers=false
 
   # Define the list of required containers - these names must match container_name in compose.yml files
   local required_containers=("monadic-chat-ruby-container" "monadic-chat-python-container" "monadic-chat-pgvector-container" "monadic-chat-selenium-container")
   local missing_containers=()
-  
+
   # Check if main image exists or needs update
   if ! ${DOCKER} images | grep -q "yohasebe/monadic-chat"; then
     echo "[IMAGE NOT FOUND]"
@@ -1282,10 +1305,13 @@ start_docker_compose() {
   elif [[ "${MONADIC_CHAT_IMAGE_TAG}" != *"${MONADIC_VERSION}"* ]]; then
     # When we have a version update, check if Dockerfiles for Python, Selenium, PGVector have changed
     if check_dockerfiles_changed; then
-      remove_containers
-      echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}) with Dockerfile changes. Full rebuild required.</p>"
-      eval "\"${DOCKER}\" compose ${REPORTING} ${COMPOSE_FILES} down"
-      needs_full_rebuild=true
+      # Selective rebuild: only rebuild containers with changed Dockerfiles
+      local changed_list=""
+      if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Python "; fi
+      if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}Selenium "; fi
+      if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then changed_list="${changed_list}PGVector "; fi
+      echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Rebuilding: Ruby ${changed_list}</p>"
+      needs_selective_rebuild=true
     else
       echo "[HTML]: <p>App update detected (v${MONADIC_CHAT_IMAGE_TAG} → v${MONADIC_VERSION}). Only rebuilding Ruby container.</p>"
       needs_ruby_rebuild=true
@@ -1295,7 +1321,7 @@ start_docker_compose() {
   fi
   
   # If we haven't decided on a full rebuild, check individual containers
-  if [ "$needs_full_rebuild" = false ] && [ "$needs_ruby_rebuild" = false ]; then
+  if [ "$needs_full_rebuild" = false ] && [ "$needs_selective_rebuild" = false ] && [ "$needs_ruby_rebuild" = false ]; then
     for container in "${required_containers[@]}"; do
       # Use more reliable method to check for container existence
       if ! ${DOCKER} container ls --all --format "{{.Names}}" | grep -q "^${container}$"; then
@@ -1346,6 +1372,31 @@ start_docker_compose() {
     if [[ "$1" != "silent" ]]; then
       echo "[HTML]: <p>Starting all Monadic Chat containers...</p>"
     fi
+  elif [ "$needs_selective_rebuild" = true ]; then
+    # Selective rebuild: only rebuild containers with changed Dockerfiles (--no-cache)
+    # Ruby is always rebuilt on version update
+    build_ruby_container
+
+    # Rebuild only the containers whose Dockerfiles have changed
+    if [ "$PYTHON_DOCKERFILE_CHANGED" = true ]; then
+      echo "[HTML]: <p><i class='fa-brands fa-python'></i> Rebuilding Python container (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/python/compose.yml\" build --no-cache python_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+    fi
+    if [ "$SELENIUM_DOCKERFILE_CHANGED" = true ]; then
+      echo "[HTML]: <p><i class='fa-solid fa-globe'></i> Rebuilding Selenium container (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/selenium/compose.yml\" build --no-cache selenium_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+    fi
+    if [ "$PGVECTOR_DOCKERFILE_CHANGED" = true ]; then
+      echo "[HTML]: <p><i class='fa-solid fa-database'></i> Rebuilding PGVector container (Dockerfile changed)...</p>"
+      eval "\"${DOCKER}\" compose ${REPORTING} -f \"${ROOT_DIR}/services/pgvector/compose.yml\" build --no-cache pgvector_service 2>&1" | tee -a "${HOME_DIR}/monadic/log/docker_build.log"
+    fi
+
+    # Save updated container versions after selective rebuild
+    save_container_versions "silent"
+
+    if [[ "$1" != "silent" ]]; then
+      echo "[HTML]: <p>Starting containers with updated images...</p>"
+    fi
   elif [ "$needs_ruby_rebuild" = true ]; then
     # Only rebuild Ruby container
     build_ruby_container
@@ -1357,9 +1408,9 @@ start_docker_compose() {
   fi
 
   # Ensure Ruby gem dependencies are up to date (hash-based comparison only)
-  # This check is skipped if we already did a full or Ruby rebuild above
+  # This check is skipped if we already did a full, selective, or Ruby rebuild above
   if command -v sha256sum >/dev/null 2>&1; then
-    if [ "$needs_full_rebuild" != true ] && [ "$needs_ruby_rebuild" != true ]; then
+    if [ "$needs_full_rebuild" != true ] && [ "$needs_selective_rebuild" != true ] && [ "$needs_ruby_rebuild" != true ]; then
       local gems_hash current_hash image_ref
       if [ -f "${ROOT_DIR}/services/ruby/Gemfile" ] && [ -f "${ROOT_DIR}/services/ruby/monadic.gemspec" ]; then
         gems_hash=$(cat "${ROOT_DIR}/services/ruby/Gemfile" "${ROOT_DIR}/services/ruby/monadic.gemspec" | sha256sum | awk '{print $1}')

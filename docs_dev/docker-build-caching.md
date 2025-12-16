@@ -44,19 +44,53 @@ mismatch   match
     │         │
     ↓         └─→ Continue startup
 Check: Dockerfile changed?
+(sets PYTHON_DOCKERFILE_CHANGED, SELENIUM_DOCKERFILE_CHANGED, PGVECTOR_DOCKERFILE_CHANGED)
     │
 ┌───┴───┐
 │       │
 Yes     No
 │       │
 ↓       ↓
-Full    Ruby only
-rebuild rebuild
-│       │
-↓       ↓
---no-cache  Use cache (fast)
-(slow)      (1-2 min)
+Selective   Ruby only
+rebuild     rebuild
+│           │
+↓           ↓
+Ruby: cache  Use cache (fast)
++ changed    (1-2 min)
+containers:
+--no-cache
 ```
+
+### Selective Rebuild Strategy (NEW)
+
+When a version update is detected and some Dockerfiles have changed, the system performs **selective rebuilds** instead of full rebuilds:
+
+**How it works:**
+1. `check_dockerfiles_changed()` sets individual change flags:
+   - `PYTHON_DOCKERFILE_CHANGED`
+   - `SELENIUM_DOCKERFILE_CHANGED`
+   - `PGVECTOR_DOCKERFILE_CHANGED`
+
+2. Only containers with changed Dockerfiles are rebuilt with `--no-cache`
+
+3. Unchanged containers keep their existing images (no rebuild)
+
+4. Ruby container is always rebuilt on version update (with cache)
+
+**Example scenario:**
+- Python Dockerfile changed → Rebuild Python with `--no-cache` (~15-30 min)
+- Selenium Dockerfile unchanged → Skip (use existing image)
+- PGVector Dockerfile unchanged → Skip (use existing image)
+- Ruby → Rebuild with cache (~1-2 min)
+
+**Benefits:**
+- Faster updates when only some Dockerfiles change
+- Changed containers get clean builds (no stale dependencies)
+- Unchanged containers avoid unnecessary rebuilds
+
+**Implementation:**
+- Location: `docker/monadic.sh` - `check_dockerfiles_changed()` and `start_docker_compose()`
+- Change tracking: `~/monadic/config/container_versions.json`
 
 **Key Code Locations:**
 - FORCE_REBUILD check: `docker/monadic.sh:375, 463`

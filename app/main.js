@@ -3473,61 +3473,38 @@ app.whenReady().then(async () => {
         });
     }
 
-    // Reset TTS state in the WebView to prevent stale "Processing audio" spinner
-    // This handles the case where sleep/wake interrupts TTS before it starts
+    // Reset TTS spinner state in the WebView to prevent stale "Processing audio" spinner
+    // Note: Only hide spinner, don't reset TTS flags to avoid conflicts with visibilitychange handler
     if (webviewWindow && !webviewWindow.isDestroyed()) {
-      const resetTTSScript = `
+      const resetSpinnerScript = `
         (function() {
-          console.log('[powerMonitor resume] Resetting TTS state after system wake');
+          console.log('[powerMonitor resume] Checking spinner state after system wake');
 
-          // Reset TTS flags to "completed" state
-          window.autoSpeechActive = false;
-          window.autoPlayAudio = false;
-          if (typeof window.setTtsPlaybackStarted === 'function') {
-            window.setTtsPlaybackStarted(true);
-          }
-          if (typeof window.setTextResponseCompleted === 'function') {
-            window.setTextResponseCompleted(true);
-          }
-
-          // Stop any ongoing Web Speech API
-          if (typeof window.speechSynthesis !== 'undefined') {
-            try {
-              window.speechSynthesis.cancel();
-            } catch (e) {
-              console.warn('[powerMonitor resume] Error stopping speech synthesis:', e);
-            }
-          }
-
-          // Clear any pending Auto TTS timeout
-          if (window.autoTTSSpinnerTimeout) {
-            clearTimeout(window.autoTTSSpinnerTimeout);
-            window.autoTTSSpinnerTimeout = null;
-          }
-
-          // Remove TTS button highlight if active
-          if (typeof removeStopButtonHighlight === 'function') {
-            removeStopButtonHighlight();
-          }
-
-          // Hide spinner if visible and reset to default state
+          // Only hide spinner if it's showing "Processing audio" and no active processing
           var spinner = document.getElementById('monadic-spinner');
           if (spinner && spinner.style.display !== 'none') {
-            console.log('[powerMonitor resume] Hiding stale spinner');
-            spinner.style.display = 'none';
-            var iconEl = spinner.querySelector('span i');
             var spanEl = spinner.querySelector('span');
-            if (iconEl) {
-              iconEl.className = 'fas fa-comment fa-pulse';
-            }
-            if (spanEl) {
-              spanEl.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+            var isProcessingAudio = spanEl && spanEl.textContent.includes('Processing');
+            var stillProcessing = window.streamingResponse === true ||
+                                  window.callingFunction === true ||
+                                  window.runningSecondaryApp === true;
+
+            if (isProcessingAudio && !stillProcessing) {
+              console.log('[powerMonitor resume] Hiding stale Processing audio spinner');
+              spinner.style.display = 'none';
+              var iconEl = spinner.querySelector('span i');
+              if (iconEl) {
+                iconEl.className = 'fas fa-comment fa-pulse';
+              }
+              if (spanEl) {
+                spanEl.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+              }
             }
           }
         })();
       `;
-      webviewWindow.webContents.executeJavaScript(resetTTSScript).catch(err => {
-        console.warn('[powerMonitor resume] Failed to reset TTS state:', err);
+      webviewWindow.webContents.executeJavaScript(resetSpinnerScript).catch(err => {
+        console.warn('[powerMonitor resume] Failed to check spinner state:', err);
       });
     }
   });

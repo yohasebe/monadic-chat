@@ -6394,51 +6394,54 @@ function handleVisibilityChange() {
   // Only take action when tab becomes visible again
   if (!document.hidden) {
     try {
-      // Restore spinner if processing is still in progress
+      // Check if actual processing (streaming/function calls) is happening
       const stillProcessing = streamingResponse === true || callingFunction === true ||
         (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
 
-      if (stillProcessing && !$("#monadic-spinner").is(":visible")) {
-        console.log('[handleVisibilityChange] Tab visible, restoring spinner (processing still active)');
-        $("#monadic-spinner").show();
-      } else if (!stillProcessing) {
-        // Not processing - reset TTS flags to prevent stale "Processing audio" spinner
-        // This handles the case where sleep/wake interrupts TTS before it starts
-        console.log('[handleVisibilityChange] Tab visible, resetting TTS flags (processing not active)');
+      // Always reset TTS flags and hide stale spinners on visibility change
+      // Note: We intentionally do NOT restore spinner here to prevent stale "Processing audio" after sleep/wake
+      // If actual processing is happening, the processing code will show/update the spinner appropriately
+      console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
 
-        // Reset TTS flags to "completed" state
-        window.autoSpeechActive = false;
-        window.autoPlayAudio = false;
-        if (typeof window.setTtsPlaybackStarted === 'function') {
-          window.setTtsPlaybackStarted(true);
-        }
-        if (typeof window.setTextResponseCompleted === 'function') {
-          window.setTextResponseCompleted(true);
-        }
+      // Reset TTS flags to "completed" state to prevent stale audio processing
+      window.autoSpeechActive = false;
+      window.autoPlayAudio = false;
+      if (typeof window.setTtsPlaybackStarted === 'function') {
+        window.setTtsPlaybackStarted(true);
+      }
+      if (typeof window.setTextResponseCompleted === 'function') {
+        window.setTextResponseCompleted(true);
+      }
 
-        // Stop any ongoing Web Speech API
-        if (typeof window.speechSynthesis !== 'undefined') {
-          try {
-            window.speechSynthesis.cancel();
-          } catch (e) {
-            console.warn('[handleVisibilityChange] Error stopping speech synthesis:', e);
-          }
+      // Stop any ongoing Web Speech API
+      if (typeof window.speechSynthesis !== 'undefined') {
+        try {
+          window.speechSynthesis.cancel();
+        } catch (e) {
+          console.warn('[handleVisibilityChange] Error stopping speech synthesis:', e);
         }
+      }
 
-        // Clear any pending Auto TTS timeout
-        if (window.autoTTSSpinnerTimeout) {
-          clearTimeout(window.autoTTSSpinnerTimeout);
-          window.autoTTSSpinnerTimeout = null;
-        }
+      // Clear any pending Auto TTS timeout
+      if (window.autoTTSSpinnerTimeout) {
+        clearTimeout(window.autoTTSSpinnerTimeout);
+        window.autoTTSSpinnerTimeout = null;
+      }
 
-        // Remove TTS button highlight if active
-        if (typeof removeStopButtonHighlight === 'function') {
-          removeStopButtonHighlight();
-        }
+      // Remove TTS button highlight if active
+      if (typeof removeStopButtonHighlight === 'function') {
+        removeStopButtonHighlight();
+      }
 
-        // If spinner is visible, hide it and reset to default state
-        if ($("#monadic-spinner").is(":visible")) {
-          console.log('[handleVisibilityChange] Hiding stale spinner');
+      // Hide spinner if showing "Processing audio" but actual processing is not happening
+      // This handles sleep/wake scenarios where TTS completed but spinner text wasn't reset
+      if ($("#monadic-spinner").is(":visible")) {
+        const spinnerText = $("#monadic-spinner").find("span").text();
+        const isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
+                                   spinnerText.toLowerCase().includes('audio');
+
+        if (isProcessingAudio && !stillProcessing) {
+          console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
           $("#monadic-spinner").hide();
           $("#monadic-spinner")
             .find("span i")

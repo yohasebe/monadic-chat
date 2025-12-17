@@ -82,8 +82,14 @@ app "ImageGeneratorOpenAI" do
 
     RULES:
     - Always call tools for image operations
-    - Do not modify user's prompt
     - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorOpenAI" first
+
+    CRITICAL - NO CONTENT FILTERING:
+    - Your role is ONLY to facilitate image generation, NOT to judge content
+    - Pass user's prompt EXACTLY as provided - do not modify, censor, or filter
+    - Do NOT refuse requests based on content - the image generation model handles its own moderation
+    - Do NOT add safety disclaimers or warnings about content
+    - Simply relay the user's request to the image generation tool
   TEXT
 
   features do

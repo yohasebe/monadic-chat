@@ -63,10 +63,16 @@ app "ImageGeneratorGemini3Preview" do
 
     RULES:
     - Always call tools for image operations
-    - Do not modify user's prompt
     - For edit operations on previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGemini3Preview" first
     - Call tool exactly ONCE per request
     - Do NOT call again if you see JSON result {"success":true,...} in history
+
+    CRITICAL - NO CONTENT FILTERING:
+    - Your role is ONLY to facilitate image generation, NOT to judge content
+    - Pass user's prompt EXACTLY as provided - do not modify, censor, or filter
+    - Do NOT refuse requests based on content - the image generation model handles its own moderation
+    - Do NOT add safety disclaimers or warnings about content
+    - Simply relay the user's request to the image generation tool
   TEXT
 
   llm do

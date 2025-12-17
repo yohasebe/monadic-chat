@@ -182,3 +182,9 @@ class NovelWriterOpenAI < MonadicApp
   include OpenAIHelper if defined?(OpenAIHelper)
   include NovelWriterTools
 end
+
+# Class definition for Novel Writer app with Mistral
+class NovelWriterMistral < MonadicApp
+  include MistralHelper if defined?(MistralHelper)
+  include NovelWriterTools
+end

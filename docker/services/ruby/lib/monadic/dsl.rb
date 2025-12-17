@@ -1667,6 +1667,7 @@ module MonadicDSL
         initial_prompt = #{state.prompts[:initial].inspect}
 
         @settings = {
+          provider: #{state.settings[:provider].inspect},
           group: #{group_value.inspect},
           disabled: #{disabled_condition},
           models: #{models_value},

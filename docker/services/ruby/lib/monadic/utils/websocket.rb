@@ -3294,6 +3294,13 @@ module WebSocketHelper
               end
             end
 
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] Processing #{responses&.length || 0} responses")
+                log.puts("[#{Time.now}] [DEBUG] responses.nil?=#{responses.nil?}, responses.empty?=#{responses&.empty?}")
+              end
+            end
+
             responses.each do |response|
               # if response is not a hash, skip with error message
               unless response.is_a?(Hash)
@@ -3398,13 +3405,29 @@ module WebSocketHelper
                 queue.push(response)
               end
             end
-            
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] Finished processing responses loop")
+              end
+            end
+
             # Send streaming complete message after all responses are processed (session-targeted)
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] About to send streaming_complete for session: #{ws_session_id}")
+              end
+            end
             streaming_complete = { "type" => "streaming_complete" }.to_json
             if ws_session_id
               WebSocketHelper.send_to_session(streaming_complete, ws_session_id)
             else
               WebSocketHelper.broadcast_to_all(streaming_complete)
+            end
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] streaming_complete sent successfully")
+              end
             end
           end
         end

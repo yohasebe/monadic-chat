@@ -993,6 +993,16 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true
   },
+  // Mistral Labs experimental models
+  "labs-mistral-small-creative": {
+    "max_output_tokens" : [1, 32768],
+    "temperature": [[0.0, 2.0], 0.8],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": false
+  },
   // Non-latest pixtral and mistral models
   "pixtral-12b": {
     "max_output_tokens" : [1, 8192],

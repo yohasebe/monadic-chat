@@ -16,7 +16,7 @@ module MistralHelper
   include InteractionUtils
   include MonadicPerformance
   include FunctionCallErrorHandler
-  MAX_FUNC_CALLS = 20
+  MAX_FUNC_CALLS = 30
   API_ENDPOINT   = "https://api.mistral.ai/v1"
   def self.open_timeout
     defined?(CONFIG) ? (CONFIG["MISTRAL_OPEN_TIMEOUT"]&.to_i || 5) : 5

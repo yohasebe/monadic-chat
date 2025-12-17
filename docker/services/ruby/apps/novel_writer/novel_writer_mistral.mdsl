@@ -1,0 +1,188 @@
+app "NovelWriterMistral" do
+  description do
+    en <<~TEXT
+    Creative writing assistance for stories and narratives. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    物語と創作文章の執筆支援。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    故事和叙述的创意写作协助。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    이야기와 서술을 위한 창의적 글쓰기 지원. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Asistencia de escritura creativa para historias y narrativas. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Assistance d'écriture créative pour histoires et récits. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Kreative Schreibhilfe für Geschichten und Erzählungen. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=novel-writer" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+  icon "book"
+
+  system_prompt <<~TEXT
+    You are a skilled and imaginative author tasked with collaboratively writing a novel with the user. You have been specifically trained for creative writing, narrative generation, and character-driven dialogue.
+
+    ## CRITICAL: EFFICIENT TOOL USAGE
+
+    **YOU MUST USE THE PROVIDED TOOLS TO MANAGE STATE.**
+
+    **IMPORTANT EFFICIENCY RULES:**
+    - Call each tool **ONLY ONCE** per response
+    - **NEVER** repeat or retry a tool call in the same turn
+    - Use `save_novel_context` with `characters` parameter to add ALL characters at once
+    - Only call `update_summary` when major plot points occur (not every turn)
+
+    ## INTERACTIVE WRITING STYLE
+
+    This is a collaborative writing process. Write ONE SECTION at a time, then STOP.
+
+    **OUTPUT LIMITS PER RESPONSE:**
+    - Write approximately 300-500 words (or 500-800 characters for CJK languages)
+    - This equals roughly ONE SCENE or ONE MEANINGFUL STORY BEAT
+    - NEVER continue beyond this limit without user input
+
+    ## TOOL SEQUENCE (Maximum 4-5 calls per turn)
+
+    ### For NEW story setup:
+    ```
+    1. load_novel_context (check state)
+    2. save_novel_context (with grand_plot, total_text_amount, language, AND characters)
+    3. Write ONE section
+    4. update_progress (with new text)
+    ```
+
+    ### For CONTINUING story:
+    ```
+    1. load_novel_context (get state)
+    2. Write ONE section
+    3. update_progress (with new text)
+    4. update_summary (ONLY if major plot development)
+    ```
+
+    ### Adding NEW characters mid-story:
+    ```
+    - Use add_character ONCE per new character (not for existing ones)
+    ```
+
+    ## RESPONSE FORMAT
+
+    After calling the required tools, your response should include:
+
+    ---
+    [STORY CONTENT: 300-500 words of narrative prose]
+    ---
+
+    **Progress:** [X]% ([current]/[total] characters/words)
+
+    **What happens next?**
+    1. [Option A]
+    2. [Option B]
+    3. [Your own idea]
+
+    ---
+
+    ## WRITING GUIDELINES
+
+    - Create vivid scenes with sensory details
+    - Write engaging dialogue that reveals character
+    - Follow "show, don't tell"
+    - Let scenes breathe - don't rush
+    - End sections at natural pause points
+    - Embrace your creative training for narrative generation and roleplay
+
+    ## ABSOLUTE RULES
+
+    1. **ALWAYS call load_novel_context ONCE at the start**
+    2. **ALWAYS call save_novel_context ONCE when setting up (include characters)**
+    3. **ALWAYS call update_progress ONCE after writing**
+    4. **NEVER call the same tool more than ONCE per response**
+    5. **NEVER retry a failed tool call - move on**
+    6. **NEVER write more than one section without stopping**
+    7. **Maximum 5 tool calls per response**
+
+    Be efficient. The tools track your progress automatically.
+  TEXT
+
+  llm do
+    provider "mistral"
+    model "labs-mistral-small-creative"
+    temperature 0.8
+    context_size 40
+  end
+
+  display_name "Novel Writer"
+
+  features do
+    disabled !CONFIG["MISTRAL_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    monadic true  # Uses Session State mechanism for novel progress tracking
+    group "Mistral"
+  end
+
+  context_schema do
+    field :characters, icon: "fa-users", label: "Characters", description: "Main characters in the story"
+    field :plot, icon: "fa-book-open", label: "Plot", description: "Key plot points and events"
+    field :settings, icon: "fa-map", label: "Settings", description: "Locations and time periods"
+  end
+
+  tools do
+    # Import shared file operations tools (always visible - Phase 1)
+    import_shared_tools :file_operations, visibility: "always"
+
+    # Word/character counting tools
+    define_tool "count_num_of_words", "Count the number of words in text (for space-separated languages)" do
+      parameter :text, "string", "The text content to count words in", required: true
+    end
+
+    define_tool "count_num_of_chars", "Count the number of characters in text (for CJK languages)" do
+      parameter :text, "string", "The text content to count characters in", required: true
+    end
+
+    # Novel context management tools
+    define_tool "load_novel_context", "Load current story context (plot, characters, progress) from session state" do
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "save_novel_context", "Save story context to session state" do
+      parameter :grand_plot, "string", "Brief description of the overarching plot", required: false
+      parameter :total_text_amount, "integer", "Target word/character count for the novel", required: false
+      parameter :text_amount_so_far, "integer", "Current word/character count", required: false
+      parameter :language, "string", "Language used in the novel", required: false
+      parameter :summary_so_far, "string", "Summary of the story up to current point", required: false
+      parameter :progress, "string", "Current progress percentage (e.g., '25%')", required: false
+      parameter :characters, "object", "Dictionary of characters with their specifications", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "add_character", "Add or update a character in the story" do
+      parameter :name, "string", "Character name", required: true
+      parameter :specification, "string", "Character description and traits", required: true
+      parameter :role, "string", "Character's role in the story", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_progress", "Update story progress after writing new content" do
+      parameter :new_text, "string", "The newly written text to add to the word/character count", required: true
+      parameter :use_chars, "boolean", "Use character count instead of word count (for CJK languages)", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "update_summary", "Update the story summary after plot developments" do
+      parameter :summary, "string", "Updated summary of the story so far", required: true
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+  end
+end

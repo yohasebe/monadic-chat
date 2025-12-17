@@ -218,10 +218,10 @@ module ContextExtractorAgent
     if provider == "openai"
       request_body["max_completion_tokens"] = 500
 
-      # GPT-5 and GPT-5.1 don't support temperature, use reasoning_effort instead
+      # GPT-5 models don't support temperature, use reasoning_effort instead
       if model.start_with?("gpt-5")
-        # gpt-5.1 should use "none", gpt-5 should use "minimal"
-        request_body["reasoning_effort"] = model.include?("5.1") ? "none" : "minimal"
+        # Use "none" for all GPT-5 variants (context extraction is a simple task)
+        request_body["reasoning_effort"] = "none"
       else
         # Other OpenAI models (gpt-4.1, etc.) support temperature
         request_body["temperature"] = 0.3

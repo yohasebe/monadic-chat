@@ -13,9 +13,9 @@ end
 
 # Parse command line arguments
 
-options = { 
+options = {
   operation: "generate",
-  model: "dall-e-3",
+  model: "gpt-image-1.5",
   size: "1024x1024",
   quality: "auto",
   output_format: "png",
@@ -34,10 +34,10 @@ parser = OptionParser.new do |opts|
     end
   end
 
-  opts.on("-m", "--model MODEL", "Model: dall-e-2, dall-e-3, gpt-image-1, gpt-image-1-mini") do |model|
+  opts.on("-m", "--model MODEL", "Model: gpt-image-1.5, gpt-image-1, gpt-image-1-mini, dall-e-3, dall-e-2") do |model|
     options[:model] = model
-    unless %w[dall-e-2 dall-e-3 gpt-image-1 gpt-image-1-mini].include?(model)
-      puts "ERROR: Invalid model. Allowed models are dall-e-2, dall-e-3, gpt-image-1, gpt-image-1-mini."
+    unless %w[gpt-image-1.5 gpt-image-1 gpt-image-1-mini dall-e-3 dall-e-2].include?(model)
+      puts "ERROR: Invalid model. Allowed models are gpt-image-1.5, gpt-image-1, gpt-image-1-mini, dall-e-3, dall-e-2."
       exit
     end
   end
@@ -93,7 +93,7 @@ parser = OptionParser.new do |opts|
 end.parse!
 
 
-if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
+if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
 
   unless %w[low medium high auto].include?(options[:quality])
     puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
@@ -214,7 +214,7 @@ def generate_image(options, num_retrials = 3)
       
       # Add response_format only for DALL-E models
 
-      if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
+      if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
         # GPT Image models specific parameters
 
         body[:size] = options[:size] if options[:size]
@@ -236,7 +236,7 @@ def generate_image(options, num_retrials = 3)
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
 
-      if ["gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
+      if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
         # For GPT Image models, prepare multipart form with image[] array
 
         form = {}

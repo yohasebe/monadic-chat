@@ -2,6 +2,8 @@
 
 Session Context is an automatic context tracking feature for Monadic apps that enables real-time extraction and display of key information from conversations. This feature works in conjunction with the `monadic: true` setting to provide intelligent context management.
 
+> **Note**: Session Context is one of two context features enabled by `monadic: true`. The other is [Session State](monadic-mode.md) for explicit tool-based context management. These features complement each other.
+
 ## Overview
 
 When enabled, Session Context automatically:
@@ -123,7 +125,7 @@ The following built-in apps use Session Context:
 
 Session Context works with all major AI providers:
 
-- **OpenAI** (GPT-4, GPT-4.1, GPT-5)
+- **OpenAI**
 - **Anthropic** (Claude)
 - **Google** (Gemini)
 - **xAI** (Grok)
@@ -240,3 +242,9 @@ Context updates are sent via WebSocket with the message type `context_update`:
 - The deduplication logic handles common variations
 - If duplicates appear, consider making descriptions more specific
 - Japanese honorific variations (-san, -kun, etc.) are handled automatically
+
+## See Also
+
+- [Session State (Monadic Mode)](monadic-mode.md) - Explicit tool-based context management
+- [Monadic DSL](./monadic_dsl.md) - Full MDSL syntax reference including `context_schema`
+- [Basic Apps](../basic-usage/basic-apps.md) - Examples of apps using Session Context

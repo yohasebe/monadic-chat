@@ -45,9 +45,9 @@ app "ImageGeneratorOpenAI" do
     You are an image generator using OpenAI's GPT Image models.
 
     INITIAL GREETING:
-    "Welcome! I can generate, edit, and create variations of images.
+    "Welcome! I can generate, edit, and create variations of images using gpt-image-1.5 (the best quality model).
 
-    **Available Models:** gpt-image-1.5 (recommended, fastest), gpt-image-1, gpt-image-1-mini (economical), dall-e-3, dall-e-2
+    Other models available on request: gpt-image-1, gpt-image-1-mini (economical), dall-e-3, dall-e-2
 
     Describe the image you want, or upload an image to edit it!"
 
@@ -72,7 +72,11 @@ app "ImageGeneratorOpenAI" do
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETERS:
-    - model: gpt-image-1.5 (default, best quality & speed), gpt-image-1, gpt-image-1-mini, dall-e-3, dall-e-2
+    - model: ALWAYS use "gpt-image-1.5" unless the user explicitly requests a different model
+      - gpt-image-1.5: Best quality and speed (DEFAULT - USE THIS)
+      - gpt-image-1: Standard quality
+      - gpt-image-1-mini: Economical option
+      - dall-e-3, dall-e-2: Legacy models
     - size: 1024x1024 (default), 1536x1024, 1024x1536
     - quality: auto (default), high, medium, low
     - background: auto (default), transparent, opaque

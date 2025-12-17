@@ -453,4 +453,266 @@ describe('ContextPanel Tests', () => {
       expect(window.ContextPanel.currentAppName).toBeNull();
     });
   });
+
+  describe('Scroll To Turn', () => {
+    beforeEach(() => {
+      // Set up discourse with message cards
+      document.body.innerHTML += `
+        <div id="discourse">
+          <div class="card" data-turn="1">
+            <div class="role-user">User message 1</div>
+          </div>
+          <div class="card" data-turn="1">
+            <div class="role-assistant">Assistant response 1</div>
+          </div>
+          <div class="card" data-turn="2">
+            <div class="role-user">User message 2</div>
+          </div>
+          <div class="card" data-turn="2">
+            <div class="role-assistant">Assistant response 2</div>
+          </div>
+          <div id="temp-card" class="card" data-turn="3">
+            <div class="role-assistant">Temp card</div>
+          </div>
+        </div>
+      `;
+      // Re-initialize panel with updated DOM
+      window.ContextPanel.init();
+    });
+
+    test('should scroll to assistant card for given turn', () => {
+      const scrollIntoViewMock = jest.fn();
+      const assistantCard = document.querySelector('#discourse .card[data-turn="2"] .role-assistant').closest('.card');
+      assistantCard.scrollIntoView = scrollIntoViewMock;
+
+      window.ContextPanel.scrollToTurn(2);
+
+      expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    });
+
+    test('should fall back to user card if assistant card not found', () => {
+      // Remove assistant card for turn 2
+      const assistantDiv = document.querySelector('#discourse .card[data-turn="2"] .role-assistant');
+      if (assistantDiv) {
+        assistantDiv.closest('.card').remove();
+      }
+
+      const scrollIntoViewMock = jest.fn();
+      const userCard = document.querySelector('#discourse .card[data-turn="2"] .role-user')?.closest('.card');
+      if (userCard) {
+        userCard.scrollIntoView = scrollIntoViewMock;
+        window.ContextPanel.scrollToTurn(2);
+        expect(scrollIntoViewMock).toHaveBeenCalled();
+      }
+    });
+
+    test('should not scroll for invalid turn number', () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      window.ContextPanel.scrollToTurn(0);
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith('[ContextPanel] Invalid turn number: 0');
+      consoleWarnSpy.mockRestore();
+    });
+
+    test('should ignore temp-card when scrolling', () => {
+      const scrollIntoViewMock = jest.fn();
+      const tempCard = document.getElementById('temp-card');
+      tempCard.scrollIntoView = scrollIntoViewMock;
+
+      // Turn 3 only exists on temp-card, so should not scroll
+      window.ContextPanel.scrollToTurn(3);
+
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    });
+
+    test('should add and remove highlight class', () => {
+      jest.useFakeTimers();
+
+      const assistantCard = document.querySelector('#discourse .card[data-turn="1"] .role-assistant').closest('.card');
+      assistantCard.scrollIntoView = jest.fn();
+
+      window.ContextPanel.scrollToTurn(1);
+
+      expect(assistantCard.classList.contains('context-highlight')).toBe(true);
+
+      jest.advanceTimersByTime(2000);
+
+      expect(assistantCard.classList.contains('context-highlight')).toBe(false);
+
+      jest.useRealTimers();
+    });
+  });
+
+  describe('Loading Indicator', () => {
+    beforeEach(() => {
+      // Add header with text span for loading indicator
+      document.body.innerHTML = `
+        <div id="context-panel" style="display: none;">
+          <h5><span class="text">Context</span></h5>
+          <div id="context-sections"></div>
+          <button id="context-toggle-all"></button>
+          <button id="context-save" style="display: block;"></button>
+          <button id="context-cancel" style="display: block;"></button>
+          <div id="context-legend" style="display: none;">
+            <span id="context-turn-badge">0</span>
+          </div>
+        </div>
+      `;
+      window.ContextPanel.init();
+    });
+
+    test('should show loading indicator when panel is visible', () => {
+      window.ContextPanel.show('TestApp');
+      window.ContextPanel.showLoading();
+
+      expect(window.ContextPanel.isLoading).toBe(true);
+      const indicator = document.querySelector('.context-loading-indicator');
+      expect(indicator).not.toBeNull();
+    });
+
+    test('should not show loading indicator when panel is not visible', () => {
+      window.ContextPanel.showLoading();
+
+      expect(window.ContextPanel.isLoading).toBe(false);
+      const indicator = document.querySelector('.context-loading-indicator');
+      expect(indicator).toBeNull();
+    });
+
+    test('should hide loading indicator', () => {
+      window.ContextPanel.show('TestApp');
+      window.ContextPanel.showLoading();
+      window.ContextPanel.hideLoading();
+
+      expect(window.ContextPanel.isLoading).toBe(false);
+      const indicator = document.querySelector('.context-loading-indicator');
+      expect(indicator).toBeNull();
+    });
+
+    test('should not add duplicate loading indicators', () => {
+      window.ContextPanel.show('TestApp');
+      window.ContextPanel.showLoading();
+      window.ContextPanel.showLoading();
+
+      const indicators = document.querySelectorAll('.context-loading-indicator');
+      expect(indicators.length).toBe(1);
+    });
+  });
+
+  describe('Edited Flag Handling', () => {
+    beforeEach(() => {
+      window.ContextPanel.show('TestApp');
+    });
+
+    test('should preserve edited flag when grouping items by turn', () => {
+      const items = [
+        { text: 'AI', turn: 1, edited: false },
+        { text: 'ML', turn: 1, edited: true },
+        { text: 'Ruby', turn: 2, edited: false }
+      ];
+
+      const grouped = window.ContextPanel.groupItemsByTurn(items);
+
+      expect(grouped[1].some(item => item.edited === true)).toBe(true);
+      expect(grouped[1].some(item => item.edited === false)).toBe(true);
+      expect(grouped[2][0].edited).toBe(false);
+    });
+
+    test('should render edited badge for turns with edited items', () => {
+      const context = {
+        topics: [
+          { text: 'AI', turn: 1, edited: true },
+          { text: 'ML', turn: 2, edited: false }
+        ],
+        people: [],
+        notes: []
+      };
+
+      window.ContextPanel.updateContext(context);
+
+      const editedBadge = document.querySelector('.context-edited-badge');
+      expect(editedBadge).not.toBeNull();
+    });
+
+    test('should add edited class to turn group with edited items', () => {
+      const context = {
+        topics: [
+          { text: 'AI', turn: 1, edited: true }
+        ],
+        people: [],
+        notes: []
+      };
+
+      window.ContextPanel.updateContext(context);
+
+      const editedGroup = document.querySelector('.context-turn-group.edited');
+      expect(editedGroup).not.toBeNull();
+    });
+
+    test('should not show edited badge for non-edited items', () => {
+      const context = {
+        topics: [
+          { text: 'AI', turn: 1, edited: false },
+          { text: 'ML', turn: 2, edited: false }
+        ],
+        people: [],
+        notes: []
+      };
+
+      window.ContextPanel.updateContext(context);
+
+      const editedBadges = document.querySelectorAll('.context-edited-badge');
+      expect(editedBadges.length).toBe(0);
+    });
+  });
+
+  describe('Turn Label Click Navigation', () => {
+    beforeEach(() => {
+      // Set up discourse with message cards
+      document.body.innerHTML = `
+        <div id="context-panel" style="display: none;">
+          <div id="context-sections"></div>
+          <button id="context-toggle-all"></button>
+          <button id="context-save" style="display: none;"></button>
+          <button id="context-cancel" style="display: none;"></button>
+          <div id="context-legend" style="display: none;">
+            <span id="context-turn-badge">0</span>
+          </div>
+        </div>
+        <div id="discourse">
+          <div class="card" data-turn="1">
+            <div class="role-assistant">Response 1</div>
+          </div>
+        </div>
+      `;
+      window.ContextPanel.init();
+      window.ContextPanel.show('TestApp');
+    });
+
+    test('should have clickable class on turn labels', () => {
+      const context = {
+        topics: [{ text: 'AI', turn: 1 }],
+        people: [],
+        notes: []
+      };
+
+      window.ContextPanel.updateContext(context);
+
+      const turnLabel = document.querySelector('.context-turn-label');
+      expect(turnLabel.classList.contains('clickable')).toBe(true);
+    });
+
+    test('should have data-turn attribute on turn labels', () => {
+      const context = {
+        topics: [{ text: 'AI', turn: 1 }],
+        people: [],
+        notes: []
+      };
+
+      window.ContextPanel.updateContext(context);
+
+      const turnLabel = document.querySelector('.context-turn-label');
+      expect(turnLabel.dataset.turn).toBe('1');
+    });
+  });
 });

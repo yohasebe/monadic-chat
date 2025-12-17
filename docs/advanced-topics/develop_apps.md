@@ -203,7 +203,7 @@ For apps that need specific model choices:
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # Users select from dropdown
+  model ["<model-1>", "<model-2>", "<model-3>"]  # Users select from dropdown
 end
 ```
 

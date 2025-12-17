@@ -2,7 +2,7 @@
 
 ## Overview
 
-AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines GPT-5, Claude Code, or Grok-4-Fast-Reasoning orchestration with provider-specific code generation (OpenAI Code, Claude Code, or Grok-Code-Fast-1).
+AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer application generation system that combines intelligent orchestration with provider-specific code generation. Each provider variant uses its optimal models for orchestration and code generation.
 
 ## Architecture
 
@@ -45,10 +45,8 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 
 #### 1. MDSL Configuration (`auto_forge_openai.mdsl`, `auto_forge_claude.mdsl`, `auto_forge_grok.mdsl`)
 - Defines the app interface and system prompt for each provider
-- Configures available models:
-  - OpenAI: gpt-5 for orchestration; gpt-5-codex and gpt-4.1 as fallbacks for code generation
-  - Claude: claude-sonnet-4-5-20250929 for both orchestration and code generation
-  - Grok: grok-4-fast-reasoning and grok-4-fast-non-reasoning for orchestration; grok-code-fast-1 for code generation
+- Configures available models for each provider (orchestration + code generation)
+- Check the actual MDSL files for current model configurations
 - Registers tool methods, including `generate_additional_file`
 - Uses the provider's chat/responses API for orchestration
 
@@ -92,10 +90,7 @@ AutoForge (public name: "Artifact Builder") is a sophisticated multi-layer appli
 ### Model Selection Logic
 
 ```ruby
-# Orchestration uses models from MDSL:
-# - gpt-5 for OpenAI
-# - claude-sonnet-4-5-20250929 for Claude
-# - grok-4-fast-reasoning for Grok
+# Orchestration uses models from MDSL (check actual files for current models)
 # Provider helpers route to the correct API automatically.
 
 # Code generation is delegated to the provider-specific agent
@@ -153,9 +148,9 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 ## Provider Variants & Progress Broadcasting
 
 - Three MDSL apps wrap the shared tool layer:
-  - `auto_forge_openai`: GPT-5 orchestration + OpenAI Code generation
-  - `auto_forge_claude`: Claude Code 4.1 orchestration + generation
-  - `auto_forge_grok`: Grok-4-Fast-Reasoning orchestration + Grok-Code-Fast-1 generation
+  - `auto_forge_openai`: OpenAI orchestration + code generation
+  - `auto_forge_claude`: Claude orchestration + code generation
+  - `auto_forge_grok`: Grok orchestration + code generation
 - Provider agents emit `wait` fragments with `source` identifiers so the WebSocket layer can stream updates into the temp card:
   - `OpenAICodeAgent` for OpenAI
   - `ClaudeCodeAgent` for Claude
@@ -165,8 +160,8 @@ call_grok_code(prompt: prompt, app_name: 'AutoForgeGrok')       # Grok
 
 ### Grok-Specific Implementation Details
 
-- **Orchestration Model**: Grok-4-Fast-Reasoning with `reasoning_effort: "medium"` for balanced quality and speed
-- **Code Generation Model**: Grok-Code-Fast-1 (default in `GrokCodeAgent`)
+- **Orchestration Model**: Grok's reasoning model with `reasoning_effort: "medium"` for balanced quality and speed
+- **Code Generation Model**: Grok's code generation model (default in `GrokCodeAgent`)
 - **Prompt Optimization**: Prompts emphasize "smaller, focused tasks" and "iterative development" to match Grok-Code-Fast-1's strengths
 - **Performance**: 92 tokens/sec throughput, significantly faster than OpenAI Code
 - **Cost**: 6-7x cheaper than OpenAI Code

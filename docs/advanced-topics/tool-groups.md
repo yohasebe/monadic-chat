@@ -106,7 +106,7 @@ If you're creating custom apps using MDSL, you can import tool groups instead of
 MonadicApp.register "MyCustomApp" do
   llm do
     provider "openai"
-    model "gpt-4.5-preview"
+    model "<model-id>"
   end
 
   # Import file operations tools

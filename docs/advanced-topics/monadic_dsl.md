@@ -34,7 +34,6 @@ app "AppNameProvider" do  # Follow the naming convention: AppName + Provider (e.
   end
 
   features do
-    image_support true
     auto_speech false
   end
 end
@@ -101,7 +100,7 @@ Use specific model names for stability and predictability:
 ```ruby
 llm do
   provider "openai"
-  model "gpt-4.1"  # Explicit model name ensures consistent behavior
+  model "<model-id>"  # Explicit model name ensures consistent behavior
 end
 ```
 
@@ -130,7 +129,7 @@ end
 
 Model values are resolved in this order (highest to lowest):
 
-1. **Explicit MDSL value**: `model "gpt-4.1"` (highest priority)
+1. **Explicit MDSL value**: `model "<model-id>"` (highest priority)
 2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` from `~/monadic/config/env`
 3. **System defaults**: `docker/services/ruby/config/system_defaults.json`
 4. **Hardcoded fallback**: Built-in default values
@@ -142,7 +141,7 @@ Provide users with model choices using an array:
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # Users can select from dropdown
+  model ["<model-1>", "<model-2>", "<model-3>"]  # Users can select from dropdown
 end
 ```
 
@@ -266,9 +265,10 @@ end
 ### Simple Chat Application
 
 ```ruby
-app "Simple Chat" do
+app "ChatClaude" do  # Class name must match: AppName + Provider
   description "Basic chat application with Claude"
   icon "fa-solid fa-comments"
+  display_name "Chat"
 
   system_prompt <<~PROMPT
     You are a helpful assistant that provides accurate and concise information.
@@ -277,8 +277,13 @@ app "Simple Chat" do
 
   llm do
     provider "anthropic"
-    model "<model-id>"  # Specify your model ID (e.g., "claude-sonnet-4-5-latest")
+    model "<model-id>"
     temperature 0.7
+  end
+
+  features do
+    monadic false  # Disable Session State (context management)
+    initiate_from_assistant true
   end
 end
 ```
@@ -288,10 +293,9 @@ end
 ### Code Interpreter-Enabled Math Tutor
 
 ```ruby
-app "Math Tutor" do
+app "MathTutorOpenAI" do  # Class name must match: AppName + Provider
   description "AI assistant that helps solve math problems step-by-step"
   icon "fa-solid fa-calculator"
-  
   display_name "Math Tutor"
   
   system_prompt <<~PROMPT

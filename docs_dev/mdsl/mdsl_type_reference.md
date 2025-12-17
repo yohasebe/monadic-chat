@@ -92,14 +92,14 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # ✅ Correct: array of strings
+  model ["<model-1>", "<model-2>", "<model-3>"]  # ✅ Correct: array of strings
 end
 ```
 
 **Common Mistakes**:
 ```ruby
 llm do
-  model "gpt-5"  # ❌ Wrong: single string instead of array
+  model "<model-id>"  # ❌ Wrong: single string instead of array
 end
 ```
 
@@ -137,7 +137,7 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5"]
+  model ["<model-id>"]
   reasoning_effort "medium"  # ✅ Correct: string enum value
 end
 ```
@@ -329,7 +329,7 @@ toBool("true")  → true
 
 ```javascript
 // ❌ Problem
-typeof apps[appValue]["models"] === "string"  // "[\"gpt-5\",\"gpt-4.1\"]"
+typeof apps[appValue]["models"] === "string"  // "[\"model-1\",\"model-2\"]"
 
 // ✅ Solution
 const models = JSON.parse(apps[appValue]["models"]);
@@ -407,7 +407,7 @@ const models = JSON.parse(apps[appValue]["models"]);
 const tools = JSON.parse(apps[appValue]["tools"]);
 
 // ❌ Don't use stringified version directly
-if (apps[appValue]["models"].includes("gpt-5")) {  // Wrong!
+if (apps[appValue]["models"].includes("<model-id>")) {  // Wrong!
 }
 ```
 

@@ -263,11 +263,11 @@ end
 **Coverage**: 9 providers × 7 app types = 63 test combinations
 
 **Providers**:
-1. OpenAI (GPT-4, GPT-5, o1/o3 reasoning)
-2. Anthropic (Claude 3.5, Claude 4.5)
-3. Gemini (Gemini 1.5, Gemini 2.0)
+1. OpenAI
+2. Anthropic (Claude)
+3. Google (Gemini)
 4. Mistral
-5. Cohere (Command R+)
+5. Cohere (Command)
 6. DeepSeek
 7. Perplexity
 8. xAI (Grok)
@@ -310,8 +310,8 @@ rake spec_api:all    # $1.50
 
 ```ruby
 # Use cheaper models for basic functionality tests
-OPENAI_TEST_MODEL=gpt-4.1-mini  # Instead of gpt-5
-ANTHROPIC_TEST_MODEL=claude-haiku-4.5  # Instead of claude-sonnet-4.5
+OPENAI_TEST_MODEL=<cheaper-model>     # Use faster/cheaper variant
+ANTHROPIC_TEST_MODEL=<cheaper-model>  # Use faster/cheaper variant
 ```
 
 #### 3. Minimize Context

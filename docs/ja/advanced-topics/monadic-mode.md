@@ -2,6 +2,22 @@
 
 MonadicモードはMonadic Chatの特徴的な機能で、AIエージェントとの会話を通じて構造化されたコンテキストを維持・更新できます。これにより、より一貫性のある目的志向の対話が可能になります。
 
+## 用語ガイド
+
+関連用語の使い分けについて説明します：
+
+| 用語 | 説明 |
+|------|------|
+| **Monadicモード** | コンテキスト対応機能を有効にする機能フラグ（`monadic: true`） |
+| **Session State** | AIが明示的に`load_context`/`save_context`を呼び出すツールベースのコンテキスト管理 |
+| **Session Context** | サイドバーに表示される重要情報の自動抽出（[Session Context](session-context.md)を参照） |
+
+**関係性**: `monadic: true`を有効にすると、以下の機能が利用可能になります：
+1. **Session Stateツール** - 明示的なコンテキスト管理（このドキュメントで説明）
+2. **Session Context抽出** - サイドバーの自動更新（[Session Context](session-context.md)で説明）
+
+これらの機能は補完関係にあります。Session StateはAIの作業メモリを管理し、Session Contextはユーザーに視覚的な追跡情報を提供します。
+
 ## 概要
 
 Monadicモードでは、アプリは**Session Stateツール**を使用して会話コンテキストを管理します。AIは`save_context`や`load_context`などのツールを呼び出して、会話全体を通じて構造化データを保存・取得します。

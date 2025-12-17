@@ -280,7 +280,7 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # ユーザーがドロップダウンから選択
+  model ["<model-1>", "<model-2>", "<model-3>"]  # ユーザーがドロップダウンから選択
 end
 ```
 

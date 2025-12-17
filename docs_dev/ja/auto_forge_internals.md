@@ -2,7 +2,7 @@
 
 ## 概要
 
-AutoForge（公開名：「Artifact Builder」）は、GPT-5、Claude Code、またはGrok-4-Fast-Reasoningのオーケストレーションと、プロバイダー固有のコード生成（OpenAI Code、Claude Code、またはGrok-Code-Fast-1）を組み合わせた洗練されたマルチレイヤーアプリケーション生成システムです。
+AutoForge（公開名：「Artifact Builder」）は、インテリジェントなオーケストレーションとプロバイダー固有のコード生成を組み合わせた洗練されたマルチレイヤーアプリケーション生成システムです。各プロバイダーバリアントは、オーケストレーションとコード生成に最適なモデルを使用します。
 
 ## アーキテクチャ
 

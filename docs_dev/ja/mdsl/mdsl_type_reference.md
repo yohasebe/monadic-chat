@@ -93,14 +93,14 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # ✅ 正しい：文字列の配列
+  model ["<model-1>", "<model-2>", "<model-3>"]  # ✅ 正しい：文字列の配列
 end
 ```
 
 **よくある間違い**：
 ```ruby
 llm do
-  model "gpt-5"  # ❌ 誤り：配列ではなく単一文字列
+  model "<model-id>"  # ❌ 誤り：配列ではなく単一文字列
 end
 ```
 
@@ -138,7 +138,7 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5"]
+  model ["<model-id>"]
   reasoning_effort "medium"  # ✅ 正しい：文字列enum値
 end
 ```

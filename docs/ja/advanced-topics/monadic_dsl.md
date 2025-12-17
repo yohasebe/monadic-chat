@@ -96,7 +96,7 @@ MDSLでモデルを指定する方法は3つあり、それぞれ異なる用途
 ```ruby
 llm do
   provider "openai"
-  model "gpt-4.1"  # 明示的なモデル名で一貫した動作を保証
+  model "<model-id>"  # 明示的なモデル名で一貫した動作を保証
 end
 ```
 
@@ -125,7 +125,7 @@ end
 
 モデル値は以下の順序で解決されます（優先度の高い順）：
 
-1. **明示的なMDSL値**: `model "gpt-4.1"`（最優先）
+1. **明示的なMDSL値**: `model "<model-id>"`（最優先）
 2. **環境変数**: `~/monadic/config/env`の`ENV["OPENAI_DEFAULT_MODEL"]`
 3. **システムデフォルト**: `docker/services/ruby/config/system_defaults.json`
 4. **ハードコードされたフォールバック**: 組み込みのデフォルト値
@@ -137,7 +137,7 @@ end
 ```ruby
 llm do
   provider "openai"
-  model ["gpt-5", "gpt-4.1", "gpt-4.1-mini"]  # ユーザーがドロップダウンから選択可能
+  model ["<model-1>", "<model-2>", "<model-3>"]  # ユーザーがドロップダウンから選択可能
 end
 ```
 

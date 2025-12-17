@@ -2,7 +2,7 @@
 
 ## Overview
 
-Recent updates to OpenAI's GPT-5 models require adjustments to the `reasoning_effort` parameter when using certain features.
+OpenAI's reasoning models require the `reasoning_effort` parameter to control computational reasoning levels. This document describes the configuration requirements for different features.
 
 ## Affected Applications
 

@@ -106,7 +106,7 @@ MDSLを使用してカスタムアプリを作成する場合、個別にツー�
 MonadicApp.register "MyCustomApp" do
   llm do
     provider "openai"
-    model "gpt-4.5-preview"
+    model "<model-id>"
   end
 
   # ファイル操作ツールをインポート

@@ -55,15 +55,26 @@ def normalize_model_name(model)
 end
 
 # Check if model should be excluded from model_spec.js
-# Excludes audio, realtime, TTS, STT, image/video generation, and embedding models
+# Excludes audio, realtime, TTS, STT, transcription, image/video generation, embedding, and code-only models
+# Policy: model_spec.js only contains chat/reasoning models, not TTS/STT/transcription models
 def should_exclude_from_model_spec?(model)
+  # Audio and realtime models
   return true if model.include?('audio-preview') || model.include?('audio')
   return true if model.include?('realtime')
+  # TTS (Text-to-Speech) models
   return true if model.match?(/^tts-/)
+  # STT (Speech-to-Text) / Transcription models
   return true if model.match?(/^whisper-/)
+  return true if model.include?('transcribe')  # gpt-4o-transcribe, gpt-4o-mini-transcribe, etc.
+  # Image/Video generation models
   return true if model.match?(/^dall-e/)
   return true if model.match?(/^sora/)
+  # Embedding models
   return true if model.match?(/^text-embedding/)
+  # Voice models (Mistral voxtral series)
+  return true if model.match?(/^voxtral/)
+  # Code-only models that are not general chat models (devstral is code-only)
+  return true if model.match?(/^devstral/)
   false
 end
 
@@ -268,7 +279,10 @@ RSpec.describe "Model Specification Validation" do
 
         available_models = MistralHelper.list_models
         skip "No Mistral models returned; skipping sync check" if available_models.nil? || available_models.empty?
-        
+
+        # Exclude models that don't belong in model_spec (voice models, code-only models)
+        available_models = available_models.reject { |m| should_exclude_from_model_spec?(m) }
+
         model_spec_keys = model_spec.keys
         missing_models = available_models - model_spec_keys
         missing_models -= Array(MISSING_MODEL_ALLOWLIST['mistral'])
@@ -464,9 +478,12 @@ RSpec.describe "Model Specification Validation" do
         if config[:key].nil? || ENV[config[:key]] || CONFIG[config[:key]]
           begin
             available_models = config[:helper].list_models
-            
+
+            # Exclude TTS/STT/transcription/voice/code-only models from comparison
+            available_models = available_models.reject { |m| should_exclude_from_model_spec?(m) }
+
             models_in_spec = model_spec.keys.select { |k| k.match?(config[:pattern]) }
-            
+
             missing = available_models - model_spec.keys
             deprecated = models_in_spec - available_models
             

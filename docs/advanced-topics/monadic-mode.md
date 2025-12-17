@@ -2,6 +2,22 @@
 
 Monadic Mode is a distinctive feature of Monadic Chat that allows you to maintain and update structured context throughout your conversation with AI agents. This enables more coherent and purposeful interactions.
 
+## Terminology Guide
+
+Before diving in, here's how the related terms are used:
+
+| Term | Description |
+|------|-------------|
+| **Monadic Mode** | The feature flag (`monadic: true`) that enables context-aware functionality |
+| **Session State** | Tool-based context management where the AI explicitly calls `load_context`/`save_context` |
+| **Session Context** | Automatic extraction of key information displayed in the sidebar (see [Session Context](session-context.md)) |
+
+**Relationship**: When you enable `monadic: true`, you get:
+1. **Session State tools** for explicit context management (described in this document)
+2. **Session Context extraction** for automatic sidebar updates (described in [Session Context](session-context.md))
+
+These features complement each other - Session State manages the AI's working memory, while Session Context provides visual tracking for users.
+
 ## Overview
 
 In Monadic Mode, apps use **Session State tools** to manage conversation context. The AI calls tools like `save_context` and `load_context` to persist and retrieve structured data throughout the conversation.

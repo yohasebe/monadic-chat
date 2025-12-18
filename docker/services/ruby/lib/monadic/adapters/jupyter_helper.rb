@@ -88,6 +88,8 @@ module MonadicHelper
   # Verify that cells were actually added to the notebook
   def verify_cells_added(filename, expected_cells)
     begin
+      # Sanitize filename to prevent directory traversal
+      filename = File.basename(filename.to_s)
       # Add .ipynb extension only if not already present
       filename_with_ext = filename.end_with?(".ipynb") ? filename : "#{filename}.ipynb"
       
@@ -194,12 +196,14 @@ module MonadicHelper
   end
 
   def add_jupyter_cells(filename: "", cells: "", run: true, escaped: false, retrial: false)
+    # Sanitize filename to prevent directory traversal
+    filename = File.basename(filename.to_s)
 
     original_cells = cells.dup
 
     # Debug: Log before processing
     puts "[DEBUG Jupyter] add_jupyter_cells called with filename: #{filename}, cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}" if CONFIG["EXTRA_LOGGING"]
-    
+
     # Handle case where filename doesn't have timestamp but the actual file does
     # If the exact filename doesn't exist, try to find a matching file with timestamp
     if filename && !filename.empty? && !filename.end_with?(".ipynb")
@@ -379,7 +383,8 @@ module MonadicHelper
     end
 
     results1 = if success
-                 command = "jupyter_controller.py add_from_json #{filename} #{tempfile}"
+                 # Use Shellwords.escape for safe command construction
+                 command = "jupyter_controller.py add_from_json #{Shellwords.escape(filename)} #{Shellwords.escape(tempfile)}"
                  puts "[DEBUG Jupyter] Executing command: #{command}" if CONFIG["EXTRA_LOGGING"]
                  result = send_command(command: command,
                               container: "python",
@@ -569,12 +574,15 @@ module MonadicHelper
 
   def create_jupyter_notebook(filename:)
     begin
+      # Sanitize filename to prevent directory traversal and command injection
+      filename = File.basename(filename.to_s)
       # filename extension is not required and removed if provided
-      filename = filename.to_s.split(".")[0]
+      filename = filename.split(".")[0]
     rescue StandardError
       filename = ""
     end
-    command = "jupyter_controller.py create #{filename}"
+    # Use Shellwords.escape for safe command construction
+    command = "jupyter_controller.py create #{Shellwords.escape(filename)}"
     
     # Get result from command
     result = send_command(command: command, container: "python")

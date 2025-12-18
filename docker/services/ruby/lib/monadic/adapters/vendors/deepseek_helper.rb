@@ -458,7 +458,7 @@ module DeepSeekHelper
         provider: "DeepSeek",
         env_var: "DEEPSEEK_API_KEY"
       )
-      pp error_message
+      STDERR.puts "[DeepSeek] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -737,7 +737,7 @@ module DeepSeekHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      pp error_report
+      STDERR.puts "[DeepSeek API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
       error_message = Monadic::Utils::ErrorFormatter.api_error(
         provider: "DeepSeek",
         message: error_report.dig("error", "message") || error_report["message"] || "Unknown API error",
@@ -768,16 +768,16 @@ module DeepSeekHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
+      error_message = "The request has timed out."
+      STDERR.puts "[DeepSeek] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
       block&.call res
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    STDERR.puts "[DeepSeek] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[DeepSeek] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
     [res]
   end
@@ -976,7 +976,7 @@ module DeepSeekHelper
                 end
               end
             rescue JSON::ParserError => e
-              pp "JSON parse error: #{e.message}"
+              STDERR.puts "[DeepSeek] JSON parse error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
             end
           else
             scanner.pos += 1
@@ -986,8 +986,8 @@ module DeepSeekHelper
         buffer = scanner.rest
 
       rescue StandardError => e
-        pp e.message
-        pp e.backtrace
+        STDERR.puts "[DeepSeek Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        STDERR.puts "[DeepSeek Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
         next
       end
     end

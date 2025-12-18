@@ -1731,7 +1731,7 @@ module OpenAIHelper
       
       error_body = JSON.parse(res.body)
       error_report = error_body["error"]
-      pp error_report
+      STDERR.puts "[OpenAI API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "OpenAI",
         message: error_report["message"] || "Unknown API error",
@@ -1840,7 +1840,8 @@ module OpenAIHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
+      error_message = "The request has timed out."
+      STDERR.puts "[OpenAI] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       formatted_error = Monadic::Utils::ErrorFormatter.network_error(
         provider: "OpenAI",
         message: error_message,
@@ -1851,9 +1852,8 @@ module OpenAIHelper
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
+    STDERR.puts "[OpenAI] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "OpenAI",
       message: "Unexpected error: #{e.message}"
@@ -1990,9 +1990,8 @@ module OpenAIHelper
         end
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "[OpenAI Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     end
 
     result = texts.empty? ? nil : texts.first[1]
@@ -2196,8 +2195,8 @@ module OpenAIHelper
             session: session
           )
         rescue StandardError => e
-          pp e.message
-          pp e.backtrace
+          STDERR.puts "[OpenAI Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          STDERR.puts "[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
           function_return = Monadic::Utils::ErrorFormatter.tool_error(
             provider: "OpenAI",
             tool_name: function_name,
@@ -2840,9 +2839,8 @@ module OpenAIHelper
           rescue JSON::ParserError => e
             # JSON parsing error, continue to next iteration
           rescue StandardError => e
-            pp e.message
-            pp e.backtrace
-            pp e.inspect
+            STDERR.puts "[OpenAI Events] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            STDERR.puts "[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
           end
           if CONFIG["EXTRA_LOGGING"]
             duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
@@ -3044,9 +3042,8 @@ module OpenAIHelper
       [response]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
+    STDERR.puts "[OpenAI] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "OpenAI",
       message: "Unexpected error: #{e.message}"
@@ -3055,7 +3052,7 @@ module OpenAIHelper
     block&.call res
     [res]
   end
-  
+
   # Helper methods for Responses API
   
   # Check if a model should use the Responses API

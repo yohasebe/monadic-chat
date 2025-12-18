@@ -1286,7 +1286,7 @@ module ClaudeHelper
 
       unless res.status.success?
         error_report = JSON.parse(res.body)["error"]
-        pp error_report
+        STDERR.puts "[Claude API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Claude",
           message: error_report["message"] || "Unknown API error",
@@ -1322,9 +1322,8 @@ module ClaudeHelper
         [res]
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "[Claude] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[Claude] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
       error_message = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Claude",
         message: "Unexpected error: #{e.message}"
@@ -1629,9 +1628,8 @@ module ClaudeHelper
         end
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "[Claude Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     end
 
     if CONFIG["EXTRA_LOGGING"]

@@ -158,8 +158,9 @@ module OllamaHelper
     if res.status.success?
       JSON.parse(res.body).dig("choices", 0, "message", "content")
     else
-      pp JSON.parse(res.body)["error"]
-      "ERROR: #{JSON.parse(res.body)["error"]}"
+      error = JSON.parse(res.body)["error"]
+      STDERR.puts "[Ollama API Error] #{error}" if CONFIG["EXTRA_LOGGING"]
+      "ERROR: #{error}"
     end
   rescue StandardError
     "Error: The request could not be completed."
@@ -343,7 +344,7 @@ module OllamaHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      pp error_report
+      STDERR.puts "[Ollama API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
       block&.call res
       return [res]
@@ -356,16 +357,16 @@ module OllamaHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
+      error_message = "The request has timed out."
+      STDERR.puts "[Ollama] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
       block&.call res
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    STDERR.puts "[Ollama] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
     [res]
   end
@@ -413,9 +414,8 @@ module OllamaHelper
         buffer << chunk
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "[Ollama Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     end
 
     result = texts.join("")

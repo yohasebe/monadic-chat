@@ -1458,8 +1458,9 @@ module CohereHelper
         sleep RETRY_DELAY * (i + 1) # Exponential backoff
       rescue HTTP::Error, HTTP::TimeoutError => e
         next unless i == MAX_RETRIES - 1
-        
-        pp error_message = "Network error: #{e.message}"
+
+        error_message = "Network error: #{e.message}"
+        STDERR.puts "[Cohere] #{error_message}" if CONFIG["EXTRA_LOGGING"]
         formatted_error = Monadic::Utils::ErrorFormatter.network_error(
           provider: "Cohere",
           message: error_message,
@@ -1478,7 +1479,7 @@ module CohereHelper
                     rescue StandardError
                       { "message" => "Unknown error occurred" }
                     end
-      pp error_report
+      STDERR.puts "[Cohere API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Cohere",
         message: error_report["message"] || "Unknown API error",
@@ -1496,9 +1497,8 @@ module CohereHelper
                       res: res.body,
                       call_depth: call_depth, &block)
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
+    STDERR.puts "[Cohere] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[Cohere] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Cohere",
       message: "Unexpected error: #{e.message}"
@@ -1719,9 +1719,8 @@ module CohereHelper
         end
       end
     rescue StandardError => e
-      pp e.message
-      pp e.backtrace
-      pp e.inspect
+      STDERR.puts "[Cohere Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     end
 
     if CONFIG["EXTRA_LOGGING"]
@@ -1952,7 +1951,7 @@ module CohereHelper
           session: session
         )
       rescue StandardError => e
-        pp "Function execution error: #{e.message}"  # Debug log
+        STDERR.puts "[Cohere Tools] Function execution error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
         function_return = Monadic::Utils::ErrorFormatter.tool_error(
           provider: "Cohere",
           tool_name: function_name,

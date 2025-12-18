@@ -399,7 +399,7 @@ module PerplexityHelper
         provider: "Perplexity",
         env_var: "PERPLEXITY_API_KEY"
       )
-      pp error_message
+      STDERR.puts "[Perplexity] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return [res]
@@ -827,7 +827,8 @@ module PerplexityHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
+      error_message = "The request has timed out."
+      STDERR.puts "[Perplexity] #{error_message}" if CONFIG["EXTRA_LOGGING"]
       formatted_error = Monadic::Utils::ErrorFormatter.network_error(
         provider: "Perplexity",
         message: error_message,
@@ -838,9 +839,8 @@ module PerplexityHelper
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
+    STDERR.puts "[Perplexity] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Perplexity",
       message: "Unexpected error: #{e.message}"
@@ -1188,7 +1188,7 @@ module PerplexityHelper
           end
 
         rescue JSON::ParserError => e
-          pp "JSON parse error: #{e.message}"
+          STDERR.puts "[Perplexity] JSON parse error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
           buffer = "data: #{json_str}" + buffer
           break
         end
@@ -1287,10 +1287,8 @@ module PerplexityHelper
       [res]
     end
   rescue StandardError => e
-    pp "[ERROR] Error in process_json_data: #{e.message}"
-    pp "[ERROR] Error class: #{e.class}"
-    pp "[ERROR] Backtrace:"
-    pp e.backtrace[0..5]
+    STDERR.puts "[Perplexity] Error in process_json_data: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+    STDERR.puts "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Perplexity",
       message: e.message
@@ -1336,8 +1334,8 @@ module PerplexityHelper
           session: session
         )
       rescue StandardError => e
-        pp e.message
-        pp e.backtrace
+        STDERR.puts "[Perplexity Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        STDERR.puts "[Perplexity Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
         function_return = Monadic::Utils::ErrorFormatter.tool_error(
           provider: "Perplexity",
           tool_name: function_name,

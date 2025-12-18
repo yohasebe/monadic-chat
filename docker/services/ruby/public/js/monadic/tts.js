@@ -822,6 +822,11 @@ function ttsStop() {
   
   // Clear any pending audio promises
   playPromise = null;
+
+  // CRITICAL: Reset auto-play flags to prevent repeated playback
+  // This ensures that canplay event handlers don't trigger playback after stop
+  window.autoSpeechActive = false;
+  window.autoPlayAudio = false;
 }
 
 // Clean up all audio resources (for app shutdown/page unload)

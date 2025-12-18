@@ -1814,6 +1814,10 @@ function processGlobalAudioQueue() {
       window.hideTtsToast();
     }
 
+    // Reset auto-play flags when playback finishes naturally
+    window.autoSpeechActive = false;
+    window.autoPlayAudio = false;
+
     return;
   }
 
@@ -1886,6 +1890,12 @@ function clearAudioQueue() {
   if (typeof window.hideTtsToast === 'function') {
     window.hideTtsToast();
   }
+
+  // CRITICAL: Reset auto-play flags to prevent repeated playback
+  // These flags must be reset when audio is stopped to avoid the canplay event
+  // from triggering playback again
+  window.autoSpeechActive = false;
+  window.autoPlayAudio = false;
 }
 
 // Main audio processing function

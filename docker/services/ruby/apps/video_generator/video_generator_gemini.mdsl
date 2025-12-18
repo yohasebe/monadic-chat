@@ -35,7 +35,7 @@ app "VideoGeneratorGemini" do
   
   llm do
     provider "gemini"
-    model "gemini-2.5-flash"
+    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     temperature 0.0
     context_size 10
   end

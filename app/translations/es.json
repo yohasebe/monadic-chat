@@ -94,7 +94,8 @@
     "buttons": { "save": "Guardar", "close": "Cerrar" }
   },
     "checkForUpdates": "Buscar Actualizaciones",
-    "uninstall": "Desinstalar Imágenes y Contenedores",
+    "removeDockerData": "Eliminar Imágenes/Contenedores/Datos",
+    "howToUninstall": "Cómo Desinstalar",
     "buildAll": "Construir Todo",
     "buildRubyContainer": "Construir Contenedor Ruby",
     "buildPythonContainer": "Construir Contenedor Python",
@@ -145,8 +146,8 @@
     "quitConfirmMessage": "Los contenedores Docker están en ejecución. ¿Desea detenerlos antes de salir?",
     "stopContainers": "Detener Contenedores",
     "quitDirectly": "Salir Directamente",
-    "confirmUninstall": "Confirmar Desinstalación",
-    "uninstallMessage": "Esto eliminará todas las imágenes y contenedores de Monadic Chat. ¿Desea continuar?",
+    "confirmRemoveDockerData": "Confirmar Eliminación",
+    "removeDockerDataMessage": "Esto eliminará todas las imágenes, contenedores y datos almacenados de Monadic Chat (incluyendo incrustaciones vectoriales de PDF). ¿Desea continuar?",
     "deleteAll": "Eliminar todo",
     "quit": "Salir",
     "seleniumWillStartOnNextLaunch": "El contenedor Selenium se iniciará en el próximo arranque de Monadic Chat.",
@@ -224,6 +225,8 @@
     "runningContainers": "Contenedores en Ejecución",
     "containerAccessInfo": "Puede acceder directamente a los contenedores usando los siguientes comandos:",
     "systemAvailableAt": "Sistema disponible en",
-    "versionInfo": "Monadic Chat app v{{appVersion}}  Imagen de contenedor v{{containerVersion}}"
+    "versionInfo": "Monadic Chat app v{{appVersion}}  Imagen de contenedor v{{containerVersion}}",
+    "versionInfoApp": "App",
+    "versionInfoContainer": "Contenedor"
   }
 }

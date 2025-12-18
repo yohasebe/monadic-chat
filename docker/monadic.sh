@@ -323,7 +323,7 @@ ensure_data_dir() {
   if [[ -f "${config_dir}/rbsetup.sh" && -s "${config_dir}/rbsetup.sh" ]]; then
     cp -f "${config_dir}/rbsetup.sh" "${ROOT_DIR}/services/ruby/rbsetup.sh"
     if [[ "$container_type" == "ruby" || "$container_type" == "" ]]; then
-      echo "[HTML]: <p><i class='fa-solid fa-gem'></i>Custom Ruby setup script (rbsetup.sh) detected and will be used.</p>"
+      echo "[HTML]: <p><i class='fa-solid fa-gem' style='color:#CC342D;'></i> Custom Ruby setup script (rbsetup.sh) detected and will be used.</p>"
     fi
   fi
 
@@ -331,7 +331,7 @@ ensure_data_dir() {
   if [[ -f "${config_dir}/pysetup.sh" && -s "${config_dir}/pysetup.sh" ]]; then
     cp -f "${config_dir}/pysetup.sh" "${ROOT_DIR}/services/python/pysetup.sh"
     if [[ "$container_type" == "python" || "$container_type" == "" ]]; then
-      echo "[HTML]: <p><i class='fa-brands fa-python'></i>Custom Python setup script (pysetup.sh) detected and will be used.</p>"
+      echo "[HTML]: <p><i class='fa-brands fa-python' style='color:#3776AB;'></i> Custom Python setup script (pysetup.sh) detected and will be used.</p>"
     fi
   fi
 
@@ -339,7 +339,7 @@ ensure_data_dir() {
   if [[ -f "${config_dir}/olsetup.sh" && -s "${config_dir}/olsetup.sh" ]]; then
     cp -f "${config_dir}/olsetup.sh" "${ROOT_DIR}/services/ollama/olsetup.sh"
     if [[ "$container_type" == "ollama" || "$container_type" == "" ]]; then
-      echo "[HTML]: <p><i class='fa-solid fa-robot'></i>Custom Ollama setup script (olsetup.sh) detected. To use it, please build the Ollama container from the menu.</p>"
+      echo "[HTML]: <p><i class='fa-solid fa-horse' style='color:#333333;'></i> Custom Ollama setup script (olsetup.sh) detected. To use it, please build the Ollama container from the menu.</p>"
     fi
   fi
 }
@@ -1234,15 +1234,24 @@ start_docker_compose() {
   # Load environment variables from env file
   local config_dir="${HOME_DIR}/monadic/config"
   local env_file="${config_dir}/env"
-  local host_binding="0.0.0.0" # Default to all interfaces
-  
+  local host_binding="127.0.0.1" # Default to localhost only for security
+  local distributed_mode="off"
+
   if [ -f "${env_file}" ]; then
-    # Read HOST_BINDING from env file if it exists
+    # Read DISTRIBUTED_MODE from env file
+    if grep -q "DISTRIBUTED_MODE=" "${env_file}"; then
+      distributed_mode=$(grep "DISTRIBUTED_MODE=" "${env_file}" | cut -d'=' -f2)
+    fi
+
+    # Read HOST_BINDING from env file if explicitly set
     if grep -q "HOST_BINDING=" "${env_file}"; then
       host_binding=$(grep "HOST_BINDING=" "${env_file}" | cut -d'=' -f2)
+    elif [ "${distributed_mode}" = "server" ]; then
+      # Auto-enable network binding for server mode
+      host_binding="0.0.0.0"
     fi
   fi
-  
+
   # Export for docker-compose
   export HOST_BINDING="${host_binding}"
 

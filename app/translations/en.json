@@ -105,7 +105,8 @@
     "openLogFolder": "Open Log Folder",
     "documentation": "Documentation",
     "checkForUpdates": "Check for Updates",
-    "uninstall": "Uninstall Images and Containers",
+    "removeDockerData": "Remove Images/Containers/Data",
+    "howToUninstall": "How to Uninstall",
     "buildAll": "Build All",
     "buildRubyContainer": "Build Ruby Container",
     "buildPythonContainer": "Build Python Container",
@@ -208,7 +209,9 @@
     "runningContainers": "Running Containers",
     "containerAccessInfo": "You can directly access the containers using the following commands:",
     "systemAvailableAt": "System available at",
-    "versionInfo": "Monadic Chat app v{{appVersion}}  Container image v{{containerVersion}}"
+    "versionInfo": "Monadic Chat app v{{appVersion}}  Container image v{{containerVersion}}",
+    "versionInfoApp": "App",
+    "versionInfoContainer": "Container"
   },
   "dialogs": {
     "error": "Error",
@@ -229,8 +232,8 @@
     "quitConfirmMessage": "Docker containers are currently running. Do you want to stop them before quitting?",
     "stopContainers": "Stop Containers",
     "quitDirectly": "Quit Directly",
-    "confirmUninstall": "Confirm Uninstall",
-    "uninstallMessage": "This will remove all the Monadic Chat images and containers. Do you want to continue?",
+    "confirmRemoveDockerData": "Confirm Removal",
+    "removeDockerDataMessage": "This will remove all Monadic Chat images, containers, and stored data (including PDF vector embeddings). Do you want to continue?",
     "deleteAll": "Delete all",
     "quit": "Quit",
     "unsavedChangesTitle": "Unsaved Changes",

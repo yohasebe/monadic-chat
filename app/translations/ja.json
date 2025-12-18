@@ -105,7 +105,8 @@
     "openLogFolder": "ログフォルダを開く",
     "documentation": "ドキュメント",
     "checkForUpdates": "アップデートを確認",
-    "uninstall": "イメージとコンテナをアンインストール",
+    "removeDockerData": "イメージ/コンテナ/データを削除",
+    "howToUninstall": "アンインストール方法",
     "buildAll": "すべてビルド",
     "buildRubyContainer": "Rubyコンテナをビルド",
     "buildPythonContainer": "Pythonコンテナをビルド",
@@ -208,7 +209,9 @@
     "runningContainers": "実行中のコンテナ",
     "containerAccessInfo": "以下のコマンドを使用してコンテナに直接アクセスできます：",
     "systemAvailableAt": "システムへのアクセス",
-    "versionInfo": "Monadic Chat アプリ v{{appVersion}}  コンテナイメージ v{{containerVersion}}"
+    "versionInfo": "Monadic Chat アプリ v{{appVersion}}  コンテナイメージ v{{containerVersion}}",
+    "versionInfoApp": "アプリ",
+    "versionInfoContainer": "コンテナ"
   },
   "dialogs": {
     "error": "エラー",
@@ -229,8 +232,8 @@
     "quitConfirmMessage": "Dockerコンテナが実行中です。終了前に停止しますか？",
     "stopContainers": "コンテナを停止",
     "quitDirectly": "直接終了",
-    "confirmUninstall": "アンインストールの確認",
-    "uninstallMessage": "Monadic Chatのすべてのイメージとコンテナが削除されます。続行しますか？",
+    "confirmRemoveDockerData": "削除の確認",
+    "removeDockerDataMessage": "Monadic Chatのすべてのイメージ、コンテナ、保存データ（PDFベクトル埋め込みを含む）が削除されます。続行しますか？",
     "cleanupCloudConfirmTitle": "クラウドストレージのクリーンアップ",
     "cleanupCloudConfirmMessage": "Monadic Chatが作成したVector Store（名前が 'monadic-' で始まるもの）と、それらに紐づくファイルをすべて削除します。よろしいですか？",
     "deleteAll": "すべて削除",

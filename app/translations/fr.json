@@ -98,7 +98,8 @@
     "openLogFolder": "Ouvrir le dossier log",
     "documentation": "Documentation",
     "checkForUpdates": "Vérifier les mises à jour",
-    "uninstall": "Désinstaller images et conteneurs",
+    "removeDockerData": "Supprimer Images/Conteneurs/Données",
+    "howToUninstall": "Comment Désinstaller",
     "buildAll": "Tout construire",
     "buildRubyContainer": "Construire conteneur Ruby",
     "buildPythonContainer": "Construire conteneur Python",
@@ -196,7 +197,9 @@
     "runningContainers": "Conteneurs en cours d'exécution",
     "containerAccessInfo": "Vous pouvez accéder directement aux conteneurs en utilisant les commandes suivantes :",
     "systemAvailableAt": "Système disponible à",
-    "versionInfo": "Monadic Chat app v{{appVersion}}  Image conteneur v{{containerVersion}}"
+    "versionInfo": "Monadic Chat app v{{appVersion}}  Image conteneur v{{containerVersion}}",
+    "versionInfoApp": "App",
+    "versionInfoContainer": "Conteneur"
   },
   "dialogs": {
     "unsavedChangesTitle": "Modifications non enregistrées",
@@ -220,8 +223,8 @@
     "quitConfirmMessage": "Les conteneurs Docker sont actuellement en cours d'exécution. Voulez-vous les arrêter avant de quitter ?",
     "stopContainers": "Arrêter les conteneurs",
     "quitDirectly": "Quitter directement",
-    "confirmUninstall": "Confirmer la désinstallation",
-    "uninstallMessage": "Cela supprimera toutes les images et conteneurs de Monadic Chat. Voulez-vous continuer ?",
+    "confirmRemoveDockerData": "Confirmer la suppression",
+    "removeDockerDataMessage": "Cela supprimera toutes les images, conteneurs et données stockées de Monadic Chat (y compris les embeddings vectoriels PDF). Voulez-vous continuer ?",
     "deleteAll": "Tout supprimer",
     "quit": "Quitter",
     "seleniumWillStartOnNextLaunch": "Le conteneur Selenium démarrera au prochain lancement de Monadic Chat.",

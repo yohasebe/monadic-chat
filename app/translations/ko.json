@@ -94,7 +94,8 @@
     "buttons": { "save": "저장", "close": "닫기" }
   },
     "checkForUpdates": "업데이트 확인",
-    "uninstall": "이미지 및 컨테이너 제거",
+    "removeDockerData": "이미지/컨테이너/데이터 제거",
+    "howToUninstall": "제거 방법",
     "buildAll": "모두 빌드",
     "buildRubyContainer": "Ruby 컨테이너 빌드",
     "buildPythonContainer": "Python 컨테이너 빌드",
@@ -145,8 +146,8 @@
     "quitConfirmMessage": "Docker 컨테이너가 실행 중입니다. 종료하기 전에 중지하시겠습니까?",
     "stopContainers": "컨테이너 중지",
     "quitDirectly": "바로 종료",
-    "confirmUninstall": "제거 확인",
-    "uninstallMessage": "Monadic Chat의 모든 이미지와 컨테이너가 삭제됩니다. 계속하시겠습니까?",
+    "confirmRemoveDockerData": "삭제 확인",
+    "removeDockerDataMessage": "Monadic Chat의 모든 이미지, 컨테이너, 저장된 데이터(PDF 벡터 임베딩 포함)가 삭제됩니다. 계속하시겠습니까?",
     "deleteAll": "모두 삭제",
     "quit": "종료",
     "seleniumWillStartOnNextLaunch": "Selenium 컨테이너는 다음 Monadic Chat 시작 시 시작됩니다.",
@@ -224,6 +225,8 @@
     "runningContainers": "실행 중인 컨테이너",
     "containerAccessInfo": "다음 명령을 사용하여 컨테이너에 직접 액세스할 수 있습니다:",
     "systemAvailableAt": "시스템 액세스 주소",
-    "versionInfo": "Monadic Chat 앱 v{{appVersion}}  컨테이너 이미지 v{{containerVersion}}"
+    "versionInfo": "Monadic Chat 앱 v{{appVersion}}  컨테이너 이미지 v{{containerVersion}}",
+    "versionInfoApp": "앱",
+    "versionInfoContainer": "컨테이너"
   }
 }

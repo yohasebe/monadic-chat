@@ -173,8 +173,8 @@ function openWebViewWindow(url, forceReload = false) {
       session: customSession,
       webSecurity: true, // Re-enable web security
       allowRunningInsecureContent: false,
-      // Enable DevTools for debugging
-      devTools: true
+      // Only enable DevTools in development mode
+      devTools: !app.isPackaged
     }
   });
   // Set permission request handler to auto-approve media access requests
@@ -671,11 +671,11 @@ class DockerManager {
               
               // Handle HTML messages with specific patterns
               if (output.includes('Custom Ruby setup script')) {
-                translatedOutput = formatMessage('info', 'messages.customRubySetup');
+                translatedOutput = formatMessage('ruby', 'messages.customRubySetup');
               } else if (output.includes('Custom Python setup script')) {
-                translatedOutput = formatMessage('info', 'messages.customPythonSetup');
+                translatedOutput = formatMessage('python', 'messages.customPythonSetup');
               } else if (output.includes('Custom Ollama setup script')) {
-                translatedOutput = formatMessage('info', 'messages.customOllamaSetup');
+                translatedOutput = formatMessage('ollama', 'messages.customOllamaSetup');
               } else if (output.includes('Checking container integrity')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.checkingContainerIntegrity')}</p>`;
               } else if (output.includes('Starting Docker...')) {
@@ -723,7 +723,10 @@ class DockerManager {
                 const appVersionMatch = output.match(/Monadic Chat app v([^\s]+)/);
                 const containerVersionMatch = output.match(/Container image v([^\s]+)/);
                 if (appVersionMatch && containerVersionMatch) {
-                  translatedOutput = `[HTML]: <p>${i18n.t('messages.versionInfo', { appVersion: appVersionMatch[1], containerVersion: containerVersionMatch[1] })}</p>`;
+                  // Styled version info with visual separation
+                  const appLabel = i18n.t('messages.versionInfoApp');
+                  const containerLabel = i18n.t('messages.versionInfoContainer');
+                  translatedOutput = `[HTML]: <p style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;"><span style="background: #e8f4fc; border: 1px solid #b8d4e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-solid fa-desktop" style="color: #4CACDC; margin-right: 4px;"></i>${appLabel} <strong>v${appVersionMatch[1]}</strong></span><span style="background: #f0e8fc; border: 1px solid #d4b8e8; border-radius: 4px; padding: 2px 8px; font-size: 0.9em;"><i class="fa-brands fa-docker" style="color: #2496ED; margin-right: 4px;"></i>${containerLabel} <strong>v${containerVersionMatch[1]}</strong></span></p>`;
                 }
               }
               
@@ -1047,14 +1050,14 @@ function checkForUpdatesManual(showDialog = false) {
   });
 }
 
-// Uninstall Monadic Chat by removing Docker images and containers
-function uninstall() {
+// Remove Docker images, containers, and data
+function removeDockerData() {
   let options = {
     type: 'question',
     buttons: [i18n.t('dialogs.cancel'), i18n.t('dialogs.deleteAll')],
     defaultId: 1,
-    message: i18n.t('dialogs.confirmUninstall'),
-    detail: i18n.t('dialogs.uninstallMessage'),
+    message: i18n.t('dialogs.confirmRemoveDockerData'),
+    detail: i18n.t('dialogs.removeDockerDataMessage'),
     icon: path.join(iconDir, 'app-icon.png')
   };
 
@@ -1168,8 +1171,10 @@ app.on('before-quit', (event) => {
 
 function openMainWindow() {
   createMainWindow();
-  mainWindow.show();
-  mainWindow.focus();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
+    mainWindow.focus();
+  }
 }
 
 // Clean up OpenAI Files and Vector Stores created by Monadic Chat
@@ -1969,9 +1974,15 @@ function updateApplicationMenu() {
           }
         },
         {
-          label: i18n.t('menu.uninstall'),
+          label: i18n.t('menu.removeDockerData'),
           click: () => {
-            uninstall();
+            removeDockerData();
+          }
+        },
+        {
+          label: i18n.t('menu.howToUninstall'),
+          click: () => {
+            shell.openExternal('https://yohasebe.github.io/monadic-chat/#/getting-started/uninstallation');
           }
         },
         {
@@ -2273,10 +2284,11 @@ function updateApplicationMenu() {
           role: 'reload',
           accelerator: process.platform === 'darwin' ? 'Cmd+R' : 'Ctrl+R'
         },
-        {
+        // Only show DevTools option in development mode
+        ...(app.isPackaged ? [] : [{
           role: 'toggleDevTools',
           accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I'
-        }
+        }])
       ]
     }
   ]);
@@ -2363,7 +2375,10 @@ function formatMessage(type, messageKey, params = {}) {
     error: '<i class="fa-solid fa-circle-exclamation" style="color:#DC4C64;"></i>',
     sync: '<i class="fa-solid fa-sync fa-spin"></i>',
     server: '<i class="fa-solid fa-server" style="color:#DC4C64;"></i>',
-    laptop: '<i class="fa-solid fa-laptop" style="color:#4CACDC;"></i>'
+    laptop: '<i class="fa-solid fa-laptop" style="color:#4CACDC;"></i>',
+    ruby: '<i class="fa-solid fa-gem" style="color:#CC342D;"></i>',
+    python: '<i class="fa-brands fa-python" style="color:#3776AB;"></i>',
+    ollama: '<i class="fa-solid fa-horse" style="color:#333333;"></i>'
   };
   
   let message = i18n.t(messageKey, params);
@@ -2418,7 +2433,7 @@ function openInstallOptionsWindow() {
     return;
   }
   installOptionsWindow = new BrowserWindow({
-    devTools: true,
+    devTools: !app.isPackaged, // Only enable DevTools in development
     width: 600,
     minWidth: 600,
     height: 400,
@@ -2577,7 +2592,7 @@ function createMainWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       contentSecurityPolicy: "default-src 'self' http://localhost:4567 http://127.0.0.1:4567; style-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567 https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' data: http://localhost:4567 http://127.0.0.1:4567 https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' http://localhost:4567 http://127.0.0.1:4567; connect-src 'self' http://localhost:4567 ws://localhost:4567 http://127.0.0.1:4567 ws://127.0.0.1:4567 https://raw.githubusercontent.com; img-src 'self' data: http://localhost:4567 http://127.0.0.1:4567; worker-src 'self';",
-      devTools: true, // Enable developer tools
+      devTools: !app.isPackaged, // Only enable DevTools in development
       spellcheck: false // Disable spellcheck to avoid IMKit related errors
     },
     title: "Monadic Chat",
@@ -2867,7 +2882,7 @@ function openBrowser(url, outside = false, forceOpen = false) {
 function openSettingsWindow() {
   if (!settingsWindow) {
     settingsWindow = new BrowserWindow({
-      devTools: true,
+      devTools: !app.isPackaged, // Only enable DevTools in development
       width: 600,
       minWidth: 600,
       height: 400,
@@ -3518,6 +3533,18 @@ app.whenReady().then(async () => {
       updateSplashWindow = null;
     }
     // Don't automatically initialize the app here to avoid double initialization
+  });
+
+  // Handle unhandled promise rejections to prevent silent crashes
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled promise rejection:', reason);
+    console.error('Promise:', promise);
+    // Close splash screen if it's open
+    if (updateSplashWindow && !updateSplashWindow.isDestroyed()) {
+      updateSplashWindow.close();
+      updateSplashWindow = null;
+    }
+    // Log but don't crash - let the app continue if possible
   });
   
   // Check for pending updates before initializing the app

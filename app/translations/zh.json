@@ -94,7 +94,8 @@
     "buttons": { "save": "保存", "close": "关闭" }
   },
     "checkForUpdates": "检查更新",
-    "uninstall": "卸载镜像和容器",
+    "removeDockerData": "删除镜像/容器/数据",
+    "howToUninstall": "如何卸载",
     "buildAll": "全部构建",
     "buildRubyContainer": "构建Ruby容器",
     "buildPythonContainer": "构建Python容器",
@@ -145,8 +146,8 @@
     "quitConfirmMessage": "Docker容器正在运行。退出前是否停止它们？",
     "stopContainers": "停止容器",
     "quitDirectly": "直接退出",
-    "confirmUninstall": "确认卸载",
-    "uninstallMessage": "这将删除所有Monadic Chat的镜像和容器。是否继续？",
+    "confirmRemoveDockerData": "确认删除",
+    "removeDockerDataMessage": "这将删除所有Monadic Chat的镜像、容器和存储数据（包括PDF向量嵌入）。是否继续？",
     "deleteAll": "全部删除",
     "quit": "退出",
     "seleniumWillStartOnNextLaunch": "Selenium容器将在下次启动Monadic Chat时启动。",
@@ -224,6 +225,8 @@
     "runningContainers": "运行中的容器",
     "containerAccessInfo": "您可以使用以下命令直接访问容器：",
     "systemAvailableAt": "系统可访问于",
-    "versionInfo": "Monadic Chat 应用 v{{appVersion}}  容器镜像 v{{containerVersion}}"
+    "versionInfo": "Monadic Chat 应用 v{{appVersion}}  容器镜像 v{{containerVersion}}",
+    "versionInfoApp": "应用",
+    "versionInfoContainer": "容器"
   }
 }

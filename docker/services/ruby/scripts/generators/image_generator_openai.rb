@@ -26,18 +26,18 @@ options = {
 parser = OptionParser.new do |opts|
   opts.banner = "Usage: image_generator_openai.rb [options]"
 
-  opts.on("-o", "--operation OPERATION", "Operation: generate, edit, variation") do |op|
+  opts.on("-o", "--operation OPERATION", "Operation: generate, edit") do |op|
     options[:operation] = op
-    unless %w[generate edit variation].include?(op)
-      puts "ERROR: Invalid operation. Allowed operations are generate, edit, variation."
+    unless %w[generate edit].include?(op)
+      puts "ERROR: Invalid operation. Allowed operations are generate, edit."
       exit
     end
   end
 
-  opts.on("-m", "--model MODEL", "Model: gpt-image-1.5, gpt-image-1, gpt-image-1-mini, dall-e-3, dall-e-2") do |model|
+  opts.on("-m", "--model MODEL", "Model: gpt-image-1.5, chatgpt-image-latest") do |model|
     options[:model] = model
-    unless %w[gpt-image-1.5 gpt-image-1 gpt-image-1-mini dall-e-3 dall-e-2].include?(model)
-      puts "ERROR: Invalid model. Allowed models are gpt-image-1.5, gpt-image-1, gpt-image-1-mini, dall-e-3, dall-e-2."
+    unless %w[gpt-image-1.5 chatgpt-image-latest].include?(model)
+      puts "ERROR: Invalid model. Allowed models are gpt-image-1.5, chatgpt-image-latest."
       exit
     end
   end
@@ -67,11 +67,11 @@ parser = OptionParser.new do |opts|
     options[:quality] = quality
   end
 
-  opts.on("-f", "--format FORMAT", "Output format for gpt-image-1 (png, jpeg, webp)") do |format|
+  opts.on("-f", "--format FORMAT", "Output format (png, jpeg, webp)") do |format|
     options[:output_format] = format
   end
 
-  opts.on("-b", "--background BACKGROUND", "Background for gpt-image-1 (transparent, opaque, auto)") do |bg|
+  opts.on("-b", "--background BACKGROUND", "Background (transparent, opaque, auto)") do |bg|
     options[:background] = bg
   end
 
@@ -93,18 +93,10 @@ parser = OptionParser.new do |opts|
 end.parse!
 
 
-if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
-
-  unless %w[low medium high auto].include?(options[:quality])
-    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
-    options[:quality] = "auto"
-  end
-else
-
-  if options[:quality] != "standard" && !options[:quality].nil?
-    puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'standard' instead."
-    options[:quality] = "standard"
-  end
+# Both gpt-image-1.5 and chatgpt-image-latest use the same quality options
+unless %w[low medium high auto].include?(options[:quality])
+  puts "WARNING: Invalid quality '#{options[:quality]}' for #{options[:model]}. Using 'auto' instead."
+  options[:quality] = "auto"
 end
 
 # Validate required options based on operation
@@ -119,15 +111,6 @@ when "edit"
   unless options[:prompt] && options[:images]
     puts "ERROR: A prompt and at least one input image are required for edit operation."
     exit
-  end
-when "variation"
-  unless options[:images]
-    puts "ERROR: An input image is required for variation operation."
-    exit
-  end
-  if options[:model] != "dall-e-2"
-    puts "WARNING: The variation operation is only supported with the dall-e-2 model."
-    options[:model] = "dall-e-2"
   end
 end
 
@@ -211,23 +194,13 @@ def generate_image(options, num_retrials = 3)
         prompt: options[:prompt],
         n: options[:n]
       }
-      
-      # Add response_format only for DALL-E models
 
-      if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
-        # GPT Image models specific parameters
-
-        body[:size] = options[:size] if options[:size]
-        body[:quality] = options[:quality] if options[:quality]
-        body[:output_format] = options[:output_format] if options[:output_format]
-        body[:background] = options[:background] if options[:background]
-        body[:output_compression] = options[:output_compression] if options[:output_compression]
-      else
-        # DALL-E models use b64_json format
-        body[:response_format] = "b64_json"
-        body[:size] = options[:size] if options[:size]
-        body[:quality] = options[:quality] if options[:quality]
-      end
+      # GPT Image models specific parameters
+      body[:size] = options[:size] if options[:size]
+      body[:quality] = options[:quality] if options[:quality]
+      body[:output_format] = options[:output_format] if options[:output_format]
+      body[:background] = options[:background] if options[:background]
+      body[:output_compression] = options[:output_compression] if options[:output_compression]
       
       puts "Sending request to generate image with prompt: #{options[:prompt]}" if options[:verbose]
       puts "Request body: #{body.to_json}" if options[:verbose]
@@ -236,134 +209,66 @@ def generate_image(options, num_retrials = 3)
     when "edit"
       url = "https://api.openai.com/v1/images/edits"
 
-      if ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini"].include?(options[:model])
-        # For GPT Image models, prepare multipart form with image[] array
+      # Prepare multipart form with image[] array
+      form = {}
 
-        form = {}
+      # Add basic parameters
+      form[:model] = options[:model]
+      form[:prompt] = options[:prompt]
+      form[:n] = options[:n].to_s
 
-        # Add basic parameters
-
-        form[:model] = options[:model]
-        form[:prompt] = options[:prompt]
-        form[:n] = options[:n].to_s
-
-        # Add specific parameters for GPT Image models
-
-        form[:size] = options[:size] if options[:size]
-        form[:quality] = options[:quality] if options[:quality]
-        form[:output_format] = options[:output_format] if options[:output_format]
-        form[:background] = options[:background] if options[:background]
-        form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
-        form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
-        
-        # Add images with proper MIME types
-
-        options[:images].each do |img_path|
-          mime_type = get_mime_type(img_path)
-          form[:"image[]"] ||= []
-          
-          image_file = HTTP::FormData::File.new(
-            img_path,
-            content_type: mime_type,
-            filename: File.basename(img_path)
-          )
-          
-          if form[:"image[]"].is_a?(Array)
-            form[:"image[]"] << image_file
-          else
-            form[:"image[]"] = [form[:"image[]"], image_file]
-          end
-        end
-        
-        # Add mask if provided
-
-        if options[:mask]
-          mime_type = get_mime_type(options[:mask])
-          form[:mask] = HTTP::FormData::File.new(
-            options[:mask],
-            content_type: mime_type,
-            filename: File.basename(options[:mask])
-          )
-        end
-        
-        puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
-        puts "Form data keys: #{form.keys}" if options[:verbose]
-        
-        # Debug information
-
-        if options[:verbose]
-          form.each do |key, value|
-            if value.is_a?(HTTP::FormData::File)
-              puts "  #{key}: File (#{value.content_type})"
-            elsif value.is_a?(Array) && value.all? { |v| v.is_a?(HTTP::FormData::File) }
-              puts "  #{key}: Array of Files (#{value.map { |v| v.content_type }.join(', ')})"
-            else
-              puts "  #{key}: #{value}"
-            end
-          end
-        end
-        
-        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
-      else
-        # For DALL-E models, use standard approach
-
-        form = {}
-        
-        # Add text parameters
-
-        form[:model] = options[:model]
-        form[:prompt] = options[:prompt]
-        form[:n] = options[:n].to_s
-        form[:response_format] = "b64_json"
-        form[:size] = options[:size] if options[:size]
-        
-        # Add image file
-
-        mime_type = get_mime_type(options[:images].first)
-        form[:image] = HTTP::FormData::File.new(
-          options[:images].first,
-          content_type: mime_type,
-          filename: File.basename(options[:images].first)
-        )
-        
-        # Add mask if provided
-
-        if options[:mask]
-          mime_type = get_mime_type(options[:mask])
-          form[:mask] = HTTP::FormData::File.new(
-            options[:mask],
-            content_type: mime_type,
-            filename: File.basename(options[:mask])
-          )
-        end
-        
-        puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
-        res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
-      end
-      
-    when "variation"
-      url = "https://api.openai.com/v1/images/variations"
-      
-      # Use raw multipart form data approach
-
-      form = {
-        model: options[:model],
-        n: options[:n].to_s,
-        response_format: "b64_json"
-      }
-      
+      # Add specific parameters
       form[:size] = options[:size] if options[:size]
-      
-      # Add image file with MIME type
+      form[:quality] = options[:quality] if options[:quality]
+      form[:output_format] = options[:output_format] if options[:output_format]
+      form[:background] = options[:background] if options[:background]
+      form[:output_compression] = options[:output_compression].to_s if options[:output_compression]
+      form[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
 
-      mime_type = get_mime_type(options[:images].first)
-      form[:image] = HTTP::FormData::File.new(
-        options[:images].first,
-        content_type: mime_type,
-        filename: File.basename(options[:images].first)
-      )
-      
-      puts "Sending request to create variation of image" if options[:verbose]
+      # Add images with proper MIME types
+      options[:images].each do |img_path|
+        mime_type = get_mime_type(img_path)
+        form[:"image[]"] ||= []
+
+        image_file = HTTP::FormData::File.new(
+          img_path,
+          content_type: mime_type,
+          filename: File.basename(img_path)
+        )
+
+        if form[:"image[]"].is_a?(Array)
+          form[:"image[]"] << image_file
+        else
+          form[:"image[]"] = [form[:"image[]"], image_file]
+        end
+      end
+
+      # Add mask if provided
+      if options[:mask]
+        mime_type = get_mime_type(options[:mask])
+        form[:mask] = HTTP::FormData::File.new(
+          options[:mask],
+          content_type: mime_type,
+          filename: File.basename(options[:mask])
+        )
+      end
+
+      puts "Sending request to edit image with prompt: #{options[:prompt]}" if options[:verbose]
+      puts "Form data keys: #{form.keys}" if options[:verbose]
+
+      # Debug information
+      if options[:verbose]
+        form.each do |key, value|
+          if value.is_a?(HTTP::FormData::File)
+            puts "  #{key}: File (#{value.content_type})"
+          elsif value.is_a?(Array) && value.all? { |v| v.is_a?(HTTP::FormData::File) }
+            puts "  #{key}: Array of Files (#{value.map { |v| v.content_type }.join(', ')})"
+          else
+            puts "  #{key}: #{value}"
+          end
+        end
+      end
+
       res = HTTP.headers(Authorization: "Bearer #{api_key}").post(url, form: form)
     end
     

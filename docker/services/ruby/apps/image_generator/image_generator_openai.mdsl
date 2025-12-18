@@ -45,9 +45,9 @@ app "ImageGeneratorOpenAI" do
     You are an image generator using OpenAI's GPT Image models.
 
     INITIAL GREETING:
-    "Welcome! I can generate, edit, and create variations of images using gpt-image-1.5 (the best quality model).
+    "Welcome! I can generate and edit images using gpt-image-1.5 (the best quality model).
 
-    Other models available on request: gpt-image-1, gpt-image-1-mini (economical), dall-e-3, dall-e-2
+    A lighter model is also available: chatgpt-image-latest (faster, more economical)
 
     Describe the image you want, or upload an image to edit it!"
 
@@ -74,9 +74,7 @@ app "ImageGeneratorOpenAI" do
     PARAMETERS:
     - model: ALWAYS use "gpt-image-1.5" unless the user explicitly requests a different model
       - gpt-image-1.5: Best quality and speed (DEFAULT - USE THIS)
-      - gpt-image-1: Standard quality
-      - gpt-image-1-mini: Economical option
-      - dall-e-3, dall-e-2: Legacy models
+      - chatgpt-image-latest: Lighter, faster model for quick generations
     - size: 1024x1024 (default), 1536x1024, 1024x1536
     - quality: auto (default), high, medium, low
     - background: auto (default), transparent, opaque
@@ -112,9 +110,9 @@ app "ImageGeneratorOpenAI" do
   end
 
   tools do
-    define_tool "generate_image_with_openai", "Generate, edit, or create variations of images using OpenAI models." do
-      parameter :operation, "string", "Type of operation: 'generate', 'edit', or 'variation'", required: true, enum: ["generate", "edit", "variation"]
-      parameter :model, "string", "Model to use for image generation", required: true, enum: ["gpt-image-1.5", "gpt-image-1", "gpt-image-1-mini", "dall-e-3", "dall-e-2"]
+    define_tool "generate_image_with_openai", "Generate or edit images using OpenAI models." do
+      parameter :operation, "string", "Type of operation: 'generate' or 'edit'", required: true, enum: ["generate", "edit"]
+      parameter :model, "string", "Model to use for image generation", required: true, enum: ["gpt-image-1.5", "chatgpt-image-latest"]
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: false
       parameter :images, "array", "Array of image filenames for editing or variation operations", required: false, items: {
         type: "string",

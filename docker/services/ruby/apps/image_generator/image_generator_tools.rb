@@ -28,7 +28,7 @@ class ImageGeneratorOpenAI < MonadicApp
                                 background: nil, output_compression: nil, input_fidelity: nil,
                                 session: nil)
     # Input validation
-    raise ArgumentError, "Invalid operation" unless %w[generate edit variation].include?(operation)
+    raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Model is required" if model.to_s.strip.empty?
     raise ArgumentError, "Prompt is required for generate/edit" if %w[generate edit].include?(operation) && prompt.to_s.strip.empty?
 
@@ -309,7 +309,7 @@ class ImageGeneratorOpenAI < MonadicApp
     end
     
     # Validate images presence after resolution
-    raise ArgumentError, "Images required for edit/variation" if %w[edit variation].include?(operation) && (images.nil? || images.empty?)
+    raise ArgumentError, "Images required for edit" if operation == "edit" && (images.nil? || images.empty?)
     
     # Validate background parameter if provided
     if background && !%w[transparent opaque auto].include?(background.to_s)

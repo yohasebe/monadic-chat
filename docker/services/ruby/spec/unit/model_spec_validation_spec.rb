@@ -68,6 +68,8 @@ def should_exclude_from_model_spec?(model)
   return true if model.include?('transcribe')  # gpt-4o-transcribe, gpt-4o-mini-transcribe, etc.
   # Image/Video generation models
   return true if model.match?(/^dall-e/)
+  return true if model.match?(/^gpt-image/)
+  return true if model.match?(/^chatgpt-image/)
   return true if model.match?(/^sora/)
   # Embedding models
   return true if model.match?(/^text-embedding/)

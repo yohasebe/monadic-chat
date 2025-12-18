@@ -38,7 +38,7 @@ app "JupyterNotebookGemini" do
   llm do
     provider "gemini"
     # Now supports both Gemini 2.0 and 2.5 models
-    model ["gemini-3-pro-preview", "gemini-2.5-flash"]  # Gemini 3 default with thinking level; 2.5 fallback
+    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     temperature 0.0  # Set to 0 for deterministic outputs
     max_tokens 8192
     context_size 20

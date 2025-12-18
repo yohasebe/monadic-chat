@@ -725,6 +725,27 @@ const modelSpec = {
     "deprecated": false
   },
   // Gemini models
+  "gemini-3-flash-preview": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-3-pro-preview": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],

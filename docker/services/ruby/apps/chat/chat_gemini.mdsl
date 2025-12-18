@@ -51,7 +51,7 @@ app "ChatGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-2.5-flash", "gemini-2.0-flash"]
+    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     reasoning_effort "minimal"
   end
   

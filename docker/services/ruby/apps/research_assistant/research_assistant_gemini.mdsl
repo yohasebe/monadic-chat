@@ -75,7 +75,7 @@ app "ResearchAssistantGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3-pro-preview", "gemini-2.5-flash"]
+    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     context_size 30
   end
 

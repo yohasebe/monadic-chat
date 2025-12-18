@@ -2,12 +2,12 @@
 
 ## コンソールボタン項目
 
-![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+<!-- SCREENSHOT: コンソールパネルのメインウィンドウ。Start、Stop、Restart、Open Browser、Shared Folder、Quitボタンとステータス表示エリアを含む -->
+
+コンソールパネルはMonadic Chatのメイン制御インターフェースです。現在のステータス（Stopped、Starting、Runningなど）を表示し、一般的な操作へのクイックアクセスボタンを提供します。
 
 **Start** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
-
-<!-- > 📸 **スクリーンショットが必要**: Startボタンがハイライトされたコンソールパネル -->
 
 **Stop** <br />
 Monadic Chatを停止します。
@@ -20,7 +20,7 @@ Monadic ChatをWebブラウザで開きます。
 アクセス URL: [http://localhost:4567](http://localhost:4567)
 
 **Shared Folder** <br />
-ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。
+ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。
 
 
 **Quit**<br />
@@ -28,11 +28,13 @@ Monadic Chat Consoleを終了します。
 
 ## コンソールメニュー項目
 
-![Console Menu](../assets/images/console-menu.png ':size=300')
+<!-- SCREENSHOT: コンソールメニューバー。File、Actions、Openメニュー項目を表示 -->
+
+コンソールの上部にはメニューバーがあり、追加機能へのドロップダウンメニューを提供します。
 
 ### Actions メニュー
 
-![Action Menu](../assets/images/action-menu.png ':size=150')
+<!-- SCREENSHOT: Actionsメニュードロップダウン。Start、Stop、Restart、ビルドオプション、JupyterLab制御、Selenium制御、ドキュメントDBインポート/エクスポートオプションを表示 -->
 
 **開始** <br />
 Monadic Chatを起動します。初回起動時はDocker上での環境構築のため少し時間がかかります。
@@ -47,8 +49,6 @@ Monadic Chatを再起動します。
 Monadic ChatのすべてのDockerイメージおよびコンテナを構築します。
 
 ?> **補足:** メニューから実行するビルドコマンドは常に Docker の `--no-cache` フラグ付きで動作し、Dockerfile の変更や依存関係の更新を確実に反映します。
-
-<!-- > 📸 **スクリーンショットが必要**: Dockerビルドの進行状況を表示するコンソール出力 -->
 
 **Ruby コンテナをビルド** <br />
 Monadic Chatのシステムを担うDockerイメージおよびコンテナ（`monadic-chat-ruby-container`）を構築します。
@@ -79,13 +79,13 @@ Monadic Chatのベクトルデータベースに保存されているPDFドキ�
 
 ### Open メニュー
 
-![Open Menu](../assets/images/open-menu.png ':size=150')
+<!-- SCREENSHOT: Openメニュードロップダウン。Open Browser、Open Shared Folder、Open Config Folder、Open Log Folder、Open Console、Settingsオプションを表示 -->
 
 **Open Browser** <br />
 Monadic Chatをデフォルトブラウザで開きます。アクセスURL: [http://localhost:4567](http://localhost:4567)
 
 **Open Shared Folder** <br />
-ホストコンピュータととDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
+ホストコンピュータとDockerコンテナ間で共有されるフォルダーを開きます。共有フォルダはファイルのインポートやエクスポートに使用します。また、追加アプリを導入する際にも使用します。下記のフォルダが含まれます。
 
 - `apps`: 追加アプリケーションを格納するフォルダ
 - `helpers`: アプリで使用される関数を含むヘルパーファイルを格納するフォルダ
@@ -131,17 +131,22 @@ Monadic Chatの設定パネルを開きます。注意：これはWebインタ�
 **Check for Updates** <br />
 アプリケーションの更新を確認し、ダウンロードします。更新が利用可能な場合は、ダウンロードオプションのダイアログが表示されます。ダウンロード後、更新を適用するためにアプリケーションを再起動するよう促されます。
 
-**Uninstall Images and Containers** <br />
-Monadic ChatのすべてのDockerイメージとコンテナを削除します。
+**Remove Images/Containers/Data** <br />
+Monadic ChatのすべてのDockerイメージ、コンテナ、および保存データ（PDFベクトル埋め込みを含む）を削除します。
+
+**How to Uninstall** <br />
+お使いのOSに応じた完全なアンインストール手順を記載したオンラインドキュメントを開きます。
 
 **Quit Monadic Chat** <br />
 アプリケーションを終了します。
 
 ## 設定パネル
 
-設定パネルで行った設定は自動的に保存されます。
+設定パネルで行った設定は自動的に保存されます。設定パネルはタブでアクセスできる複数のセクションに分かれています。
 
-![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
+<!-- SCREENSHOT: 設定パネル。API Keysタブを表示し、OPENAI_API_KEY、ANTHROPIC_API_KEY、COHERE_API_KEY、GEMINI_API_KEY、MISTRAL_API_KEY、XAI_API_KEY、PERPLEXITY_API_KEY、DEEPSEEK_API_KEY、ELEVENLABS_API_KEY、TAVILY_API_KEYの入力フィールドを含む -->
+
+### APIキー
 
 **OPENAI_API_KEY** <br />
 （推奨）OpenAI APIキーを入力します。このキーは、Chat API、DALL-E画像生成API、Speech-to-Text API、およびText-to-Speech APIにアクセスするために使用されます。必須ではありませんが、多くの基本機能がこのキーに依存しています。APIキーは[OpenAI APIページ](https://platform.openai.com/docs/guides/authentication)から取得できます。
@@ -174,18 +179,23 @@ ElevenLabs APIキーを入力します。このキーは、ElevenLabsの音声�
 **TAVILY_API_KEY** <br />
 Tavily APIキーを入力します。このキーは、2つの目的で使用されます。1) "From URL"機能（指定しない場合、Seleniumがフォールバックとして使用されます）、2) ネイティブ検索機能を持たないプロバイダー（Mistral、Cohere、DeepSeek、Ollama）でのWeb検索機能。APIキーは[https://tavily.com/](https://tavily.com/)から取得できます。
 
-![設定パネル](../assets/images/settings-model.png ':size=600')
+<!-- SCREENSHOT: 設定パネル。Modelタブを表示し、AI_USER_MAX_TOKENSドロップダウンセレクターを含む -->
+
+### モデル設定
 
 **AI_USER_MAX_TOKENS** <br />
 AIユーザーの最大トークン数を選択します。この設定は、単一リクエストで使用できるトークンの数を制限するために使用されます。デフォルトは`2000`です。
 
-![設定パネル](../assets/images/settings-display.png ':size=600')
+<!-- SCREENSHOT: 設定パネル。Displayタブを表示し、Syntax Highlighting Themeドロップダウンセレクターを含む -->
+
+### 表示設定
 
 **Syntax Highlighting Theme** <br />
-
 コードブロックでのシンタックスハイライトのテーマを選択します。デフォルトは`pastie`です。
 
-![設定パネル](../assets/images/settings-voice.png ':size=600')
+<!-- SCREENSHOT: 設定パネル。Voiceタブを表示し、STT_MODELドロップダウンとTTS Dictionary File Pathの入力フィールドを含む -->
+
+### 音声設定
 
 **STT_MODEL** <br />
 Speech-to-Textに使用するモデルを選択します。設定済みのプロバイダーが提供するSTTモデルが一覧表示されるため、詳細は各プロバイダーのドキュメントを参照してください。
@@ -193,10 +203,12 @@ Speech-to-Textに使用するモデルを選択します。設定済みのプロ
 **TTS Dictionary File Path** <br />
 Text-to-Speech辞書ファイルのパスを入力します。辞書ファイルはCSV形式で、置き換えられる文字列と音声合成に使用される文字列のカンマ区切りのエントリが含まれています（ヘッダ行は不要）。Text-to-Speechを使用する際、テキスト内の置き換えられる文字列は音声合成用の文字列に置き換えられます。
 
-![設定パネル](../assets/images/settings-system.png ':size=600')
+<!-- SCREENSHOT: 設定パネル。Systemタブを表示し、Application Modeドロップダウン、Browser Modeドロップダウン、Extra Loggingトグルを含む -->
+
+### システム設定
 
 **Application Mode** <br />
-Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
+Monadic Chatのアプリケーションモードを選択します。"Standalone"モードは単一デバイスでアプリケーションを実行し、"Server"モードはローカルネットワーク上の複数のデバイスがMonadic Chatサーバーに接続できるようにします。デフォルトは"Standalone"です。
 
 
 **Browser Mode** <br />

@@ -10,13 +10,11 @@ Click the `Actions/Start JupyterLab` menu in the Monadic Chat console to launch 
 - No password or token is required (configured for local use only)
 
 
-![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
+<!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
 When JupyterLab is launched, it starts with `/monadic/data` as its home directory and current working directory. This allows you to access files in the shared folder within JupyterLab.
 
-<!-- > 📸 **Screenshot needed**: JupyterLab interface showing file browser with shared folder -->
-
-![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
+<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
 
 ## Stopping JupyterLab
 

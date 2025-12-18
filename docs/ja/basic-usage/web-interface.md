@@ -1,6 +1,8 @@
 # Monadic Chat Web インターフェース
 
-![](../assets/images/monadic-chat-web.png ':size=700')
+<!-- SCREENSHOT: Monadic Chat Webインターフェースのメイン画面 - チャット履歴、メッセージ入力エリア、設定パネルが表示されている様子 -->
+
+Monadic ChatのWebインターフェースは、チャット履歴の表示エリア、メッセージ入力エリア、各種設定パネルで構成されています。
 
 ## ブラウザモード :id=browser-modes
 
@@ -39,7 +41,9 @@ Monadic Chatは2つの異なるブラウザモードでWebインターフェー�
 
 ## システム設定画面 :id=system-settings-screen
 
-![](../assets/images/chat-settings.png ':size=700')
+<!-- SCREENSHOT: システム設定画面 - Base App選択、Model選択、各種パラメータ設定、チェックボックスオプション、Start Session/Continue Sessionボタンが表示されている様子 -->
+
+システム設定画面では、使用するアプリケーションとモデルを選択し、各種パラメータを調整できます。
 
 **Base App** <br />
 基本アプリの中から1つを選択します。各アプリでは異なるデフォルトパラメータと初期プロンプトが設定されています。詳細は[Base Apps](./basic-apps.md)を参照してください。
@@ -94,7 +98,9 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 
 ## 基本情報パネル :id=info-panel
 
-![](../assets/images/monadic-chat-info.png ':size=400')
+<!-- SCREENSHOT: 基本情報パネル - Monadic Chat Infoセクションに関連ウェブサイトへのリンクとバージョン番号、Current Base Appセクションに選択中のアプリ名と説明が表示されている様子 -->
+
+基本情報パネルには、Monadic Chatのバージョン情報と現在選択中のアプリの情報が表示されます。
 
 **Monadic Chat Info**<br />
 関連ウェブサイトへのリンクと現在のバージョンです。
@@ -104,7 +110,9 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 
 ## ステータスパネル :id=status-panel
 
-![](../assets/images/monadic-chat-status.png ':size=400')
+<!-- SCREENSHOT: ステータスパネル - Monadic Chat Statusセクションに現在の会話状態、Model Selectedに選択中のモデル名、Model Chat Statsにメッセージ数とトークン数がリアルタイムで表示されている様子 -->
+
+ステータスパネルには、現在の会話状態、選択中のモデル、メッセージ数とトークン数が表示されます。
 
 **Monadic Chat Status**<br />
 現在の会話の状態をリアルタイムで更新します。
@@ -117,7 +125,9 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 
 ## セッション表示パネル :id=session-panel
 
-![](../assets/images/monadic-chat-session.png ':size=400')
+<!-- SCREENSHOT: セッション表示パネル - Reset、Settings、Import、Export、PDF出力の各ボタンが縦に配置されている様子 -->
+
+セッション表示パネルには、会話の管理とデータの入出力を行うためのボタンが配置されています。
 
 **リセット（Reset Conversation）**<br />
 `Reset`ボタンをクリックすると、現在の会話をクリアし、パラメーターをデフォルトに戻しながら、アプリ選択を維持します。同じアプリで新しくやり直すことができます。すべての保存データを含む完全なリセットを行い、初期のアプリ選択に戻るには、フローティングツールバーの**リセット（Reset All）**ボタンを使用してください（内部ブラウザモードのみ）。
@@ -136,7 +146,9 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 
 ## 音声設定パネル :id=speech-settings-panel
 
-![](../assets/images/monadic-chat-tts.png ':size=400')
+<!-- SCREENSHOT: 音声設定パネル - Speech-to-Text Model、Text-to-Speech Provider、Text-to-Speech Voice、TTS Speedの各設定項目がドロップダウンとスライダーで表示されている様子 -->
+
+音声設定パネルでは、音声認識と音声合成の設定を行うことができます。
 
 !> 音声機能を使用するには、Google Chrome、Microsoft Edge、またはSafariブラウザを使用する必要があります。
 
@@ -154,7 +166,9 @@ AIが最新情報を検索できるようにします。ツール/関数呼び�
 
 ## PDFデータベース表示パネル :id=pdf-database-display-panel
 
-![](../assets/images/monadic-chat-pdf-db.png ':size=400')
+<!-- SCREENSHOT: PDFデータベース表示パネル - Uploaded PDFセクションにアップロード済みPDFファイルのリストと各ファイル名の右側にゴミ箱アイコンが表示されている様子 -->
+
+PDFデータベース表示パネルには、アップロード済みのPDFファイルのリストが表示されます。
 
 ?> このパネルはPDF読み込み機能を備えたアプリを選択しているときだけ表示されます。
 

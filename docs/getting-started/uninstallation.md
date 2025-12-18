@@ -12,19 +12,19 @@ The basic steps to uninstall Monadic Chat are as follows:
 
 ### **macOS**
 
-1. Run `Uninstall Images and Containers` from the menu. This will delete the Docker containers and images shown below.
+1. Run `Remove Images/Containers/Data` from the menu. This will delete the Docker containers, images, and stored data (including PDF vector embeddings) shown below.
 2. Exit Monadic Chat.
 3. Open the `Applications` folder in Finder and drag Monadic Chat to the trash.
 
 ### **Windows**
 
-1. Run `Uninstall Images and Containers` from the menu. This will delete the Docker containers and images shown below.
+1. Run `Remove Images/Containers/Data` from the menu. This will delete the Docker containers, images, and stored data (including PDF vector embeddings) shown below.
 2. Exit Monadic Chat.
 3. Uninstall Monadic Chat from `Add or Remove Programs`.
 
 ### **Linux**
 
-1. Run `Uninstall Images and Containers` from the menu. This will delete the Docker containers and images shown below.
+1. Run `Remove Images/Containers/Data` from the menu. This will delete the Docker containers, images, and stored data (including PDF vector embeddings) shown below.
 2. Exit Monadic Chat.
 3. Run the following command in the terminal.
 
@@ -34,7 +34,7 @@ $ sudo apt remove monadic-chat
 
 <!-- tabs:end -->
 
-![](../assets/images/monadic-chat-menu.png ':size=250')
+<!-- SCREENSHOT: Monadic Chat menu showing Actions menu with Remove Images/Containers/Data option -->
 
 ## User Data :id=user-data
 
@@ -45,7 +45,7 @@ This includes your configuration files, chat logs, and any generated data. You c
 
 ## Cleanup (Optional) :id=cleanup
 
-If the containers and images are not deleted even after running `Uninstall Images and Containers`, or if problems occur during an update or uninstallation, you have two options:
+If the containers, images, and data are not deleted even after running `Remove Images/Containers/Data`, or if problems occur during an update or uninstallation, you have two options:
 
 ### Option 1: Clean/Purge All Docker Data :id=clean-purge-docker-data
 

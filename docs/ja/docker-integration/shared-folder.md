@@ -4,11 +4,9 @@ Monadic Chatを最初に起動すると、`~/monadic/data`ディレクトリが�
 
 Monadic Chatコンソールの`Shared Folder`ボタンをクリックすると、OS標準のファイルマネージャが起動し、共有フォルダを開くことができます。
 
-![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+<!-- SCREENSHOT: Monadic Chatコンソール - 上部にStart/Stopボタン、中央にログ表示エリア、下部にShared Folderボタンが配置されている様子 -->
 
 このディレクトリにファイルを配置すると、Monadic ChatのDockerコンテナ内でそのファイルにアクセスできます。ローカルでの共有フォルダのパスは`~/monadic/data`ですが、各Dockerコンテナ内での共有フォルダのパスは、`/monadic/data`です。
-
-<!-- > 📸 **スクリーンショットが必要**: ~/monadic/dataフォルダ構造を表示するファイルエクスプローラー -->
 
 コードを実行することができるアプリでは（例：Code Interpreterアプリ）、共有フォルダ内のファイルを読み込むことができます。ファイルを指定する際にはディレクトリは指定せずファイル名のみを指定します。
 

@@ -4,7 +4,7 @@
 
 **A**: Yes, after selecting an appropriate basic app, you can freely change settings such as system prompts on the Web UI. You can also export the session in the modified state and call the same state when needed.
 
-![](../assets/images/monadic-chat-session.png ':size=400')
+<!-- SCREENSHOT: Session panel with Reset, Settings, Import, Export, and PDF Export buttons -->
 
 ---
 

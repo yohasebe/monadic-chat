@@ -4,7 +4,7 @@
 
 **A**: はい、適当な基本アプリを選択した後、Web UI上でシステムプロンプトなどの設定を自由に変更することができます。また、変更した状態でセッションをエクスポートすることで、必要な時に同じ状態を呼び出すことができます。
 
-![](../assets/images/monadic-chat-session.png ':size=400')
+<!-- SCREENSHOT: セッション表示パネル - Reset、Settings、Import、Export、PDF出力の各ボタンが表示され、Exportボタンがハイライトされている様子 -->
 
 ---
 

@@ -41,7 +41,7 @@ When you start Monadic Chat, the availability of each container is displayed in 
 
 By using the `Actions/Start JupyterLab` menu in the Monadic Chat console, you can start JupyterLab, which will launch with `/monadic/data` as the current directory on the Python container. By clicking `Terminal` on the JupyterLab Launcher screen, you can access the Python container.
 
-![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
+<!-- SCREENSHOT: JupyterLab terminal window showing command prompt at /monadic/data directory -->
 
 ## Common Use Cases
 

@@ -9,14 +9,11 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューをクリッ
 - JupyterLabは[http://localhost:8889](http://localhost:8889)または[http://127.0.0.1:8889](http://127.0.0.1:8889)でアクセスできます
 - パスワードやトークンは不要です（ローカル使用専用に設定）
 
-![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
-
+<!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
 JupyterLabを起動すると、`/monadic/data`をホームディレクトリとしてJupyterLabが起動します。このため、JupyterLab内でも共有フォルダ内のファイルにアクセスできます。
 
-![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
-
-<!-- > 📸 **スクリーンショットが必要**: 共有フォルダが表示されたJupyterLabインターフェース -->
+<!-- SCREENSHOT: JupyterLabターミナル - JupyterLabインターフェース内でTerminalが開かれ、カレントディレクトリが/monadic/dataとなっている様子 -->
 
 ## JupyterLabの停止
 

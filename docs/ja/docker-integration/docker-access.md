@@ -41,7 +41,7 @@ Monadic Chatを起動すると、各コンテナの利用可能性がメイン�
 
 Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用してJupyterLabを起動すると、Pythonコンテナ上の`/monadic/data`をカレントディレクトリとしてJupyterLabが起動します。JupyterLabのLauncher画面で`Terminal`をクリックすると、Pythonコンテナにアクセスできます。
 
-![JupyterLab Terminal](../assets/images/jupyterlab-terminal.png ':size=600')
+<!-- SCREENSHOT: JupyterLabターミナル - JupyterLabインターフェース内でTerminalが開かれ、Pythonコンテナのシェルプロンプトが表示されている様子 -->
 
 ## 一般的な使用例
 

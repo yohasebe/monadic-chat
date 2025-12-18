@@ -23,7 +23,7 @@ Download from [Docker Desktop](https://docs.docker.com/desktop/):
 - Intel Mac: `Docker Desktop Installer.dmg`
 - Apple Silicon: `Docker Desktop Installer Apple Silicon.dmg`
 
-![](../assets/images/mac-docker-download.png ':size=800')
+<!-- SCREENSHOT: Docker Desktop download page showing Intel and Apple Silicon download options -->
 
 Drag the Docker icon to Applications folder and launch. Accept the service agreement and use recommended settings.
 
@@ -40,7 +40,7 @@ Open PowerShell as administrator and run:
 > wsl --install -d Ubuntu
 ```
 
-![](../assets/images/win-wsl-install.png ':size=800')
+<!-- SCREENSHOT: PowerShell window showing WSL installation progress with Ubuntu being installed -->
 
 Restart your computer. Set up Ubuntu username and password when prompted.
 
@@ -48,7 +48,7 @@ Restart your computer. Set up Ubuntu username and password when prompted.
 
 Download from [Docker Desktop](https://docs.docker.com/desktop/) and install.
 
-![](../assets/images/win-docker-download.png ':size=800')
+<!-- SCREENSHOT: Docker Desktop for Windows download page showing Windows installer download button -->
 
 Accept the service agreement and use recommended settings.
 
@@ -90,7 +90,7 @@ For detailed usage instructions, see the [Web Interface](../basic-usage/web-inte
 
 ## Updating Monadic Chat :id=update
 
-![](../assets/images/monadic-chat-menu.png ':size=240')
+<!-- SCREENSHOT: Monadic Chat menu showing File menu with Check for Updates option -->
 
 Monadic Chat automatically checks for updates on startup.
 

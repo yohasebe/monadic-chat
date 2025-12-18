@@ -1,6 +1,6 @@
 # Monadic Chat Web Interface
 
-![](../assets/images/monadic-chat-web.png ':size=700')
+<!-- SCREENSHOT: Main web interface showing chat area, sidebar with settings, and status indicators -->
 
 ## Browser Modes :id=browser-modes
 
@@ -41,7 +41,7 @@ You can change the language at any time during a conversation. Your language pre
 
 ## System Settings Screen :id=system-settings-screen
 
-![](../assets/images/chat-settings.png ':size=700')
+<!-- SCREENSHOT: System settings panel showing Base App selector, Model dropdown, reasoning controls, token limits, and various chat options -->
 
 **Base App** <br />
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
@@ -96,7 +96,7 @@ Start a new chat or continue your current conversation.
 
 ## Info Panel :id=info-panel
 
-![](../assets/images/monadic-chat-info.png ':size=400')
+<!-- SCREENSHOT: Info panel showing Monadic Chat version, links to related websites, current base app name and description -->
 
 **Monadic Chat Info**<br />
 Links to related websites and the current version.
@@ -106,7 +106,7 @@ Name and description of the selected app.
 
 ## Status Panel :id=status-panel
 
-![](../assets/images/monadic-chat-status.png ':size=400')
+<!-- SCREENSHOT: Status panel displaying current conversation status, selected model name, and chat statistics (message count, token count) -->
 
 **Monadic Chat Status**<br />
 Current conversation status, updated in real-time.
@@ -120,7 +120,7 @@ Message and token counts for the current session.
 
 ## Session Panel :id=session-panel
 
-![](../assets/images/monadic-chat-session.png ':size=400')
+<!-- SCREENSHOT: Session panel with Reset, Settings, Import, Export, and PDF Export buttons -->
 
 **Reset (Reset Conversation)**<br />
 Click the `Reset` button to clear the current conversation and reset parameters to defaults while keeping your app selection. This allows you to start fresh with the same app. For a complete reset including all stored data and returning to the initial app selection, use the **Reset All** button in the floating toolbar (Internal Browser Mode only).
@@ -139,7 +139,7 @@ Save the current conversation as a PDF file with syntax highlighting and formatt
 
 ## Speech Settings Panel :id=speech-settings-panel
 
-![](../assets/images/monadic-chat-tts.png ':size=400')
+<!-- SCREENSHOT: Speech settings panel showing Speech-to-Text model selector, Text-to-Speech provider and voice dropdowns, and TTS speed slider -->
 
 !> **Note:** To use the speech feature, you need to use the Google Chrome, Microsoft Edge, or Safari browser.
 
@@ -158,7 +158,7 @@ Adjust the playback speed of synthesized speech (0.7 to 1.2).
 
 ## PDF Database Display Panel :id=pdf-database-display-panel
 
-![](../assets/images/monadic-chat-pdf-db.png ':size=400')
+<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
 
 ?> This panel is displayed only when an app with PDF reading functionality is selected.
 

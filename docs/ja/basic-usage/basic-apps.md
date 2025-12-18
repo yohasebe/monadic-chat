@@ -68,8 +68,6 @@
 
 また、メッセージ入力エリアの`URLから読込`機能により、プロバイダーに関係なく、Seleniumベースのスクレイピングで任意のURLのコンテンツを抽出できます。
 
-<!-- > 📸 **スクリーンショットが必要**: 絵文字を伴う会話を表示するChatアプリのインターフェース -->
-
 本アプリの対応プロバイダーはページ冒頭の表を参照してください。
 
 ### Chat Plus
@@ -90,12 +88,11 @@ Chatアプリの拡張版で、"monadic" な振る舞いを示します。AIの�
 
 選択したプロバイダーの音声認識APIとブラウザの音声合成APIを組み合わせ、音声でチャットを行えるアプリケーションです。初期プロンプトは基本的にChatアプリと同じです。
 
-![Voice input](../assets/images/voice-input-stop.png ':size=400')
+<!-- SCREENSHOT: 音声入力中の画面 - Speech Inputボタンの代わりにStopボタンが表示され、音声波形が動いている様子 -->
 
 音声入力中は波形が表示されます。プロバイダー/モデルによっては、音声入力が終了すると、認識の「確からしさ」を示すp-value（0〜1の値）が表示されます。
 
-![Voice p-value](../assets/images/voice-p-value.png ':size=400')
-
+<!-- SCREENSHOT: 音声入力後のp-value表示 - テキストエリア上部に「p-value: 0.95」などの信頼度スコアが表示されている様子 -->
 
 Voice Chatの対応プロバイダーは冒頭の表を参照してください。音声入出力の設定については[音声設定パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
@@ -141,8 +138,6 @@ Research Assistantの対応プロバイダーは冒頭の表を参照してく�
 ![Language Practice app icon](../assets/icons/language-practice.png ':size=40')
 
 アシスタントの発話から会話が始まる語学学習アプリケーションです。アシスタントの発話は音声合成で再生されます。ユーザーは、Enterキーを押して発話入力を開始し、もう一度Enterキーを押して発話入力を終了します。
-
-<!-- > 📸 **スクリーンショットが必要**: 語学学習ガイダンスを伴う会話を表示するLanguage Practiceアプリ -->
 
 Language Practiceの対応プロバイダーは冒頭の表を参照してください。音声合成の設定については[音声設定パネル](./web-interface.md#speech-settings-panel)を参照してください。
 
@@ -396,13 +391,11 @@ PDF Navigatorの動作は`~/monadic/config/env`の環境変数でカスタマイ
 - `PDF_RAG_TOKENS`: チャンクあたりのトークン数
 - `PDF_RAG_OVERLAP_LINES`: チャンク間でオーバーラップする行数
 
+<!-- SCREENSHOT: PDF Navigatorアプリ画面 - Upload PDFボタンがハイライトされ、PDFアップロード機能が利用可能な様子 -->
 
-![PDF button](../assets/images/app-pdf.png ':size=700')
+<!-- SCREENSHOT: PDFインポートダイアログ - PDFファイルを選択するダイアログと表示名入力フィールドが表示されている様子 -->
 
-
-![Import PDF](../assets/images/import-pdf.png ':size=400')
-
-![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
+<!-- SCREENSHOT: PDFデータベースパネル - アップロード済みPDFファイルのリストと各ファイル名の右側にゴミ箱アイコンが表示されている様子 -->
 
 ### Content Reader
 
@@ -436,8 +429,6 @@ AIに読み込ませたいファイル（PythonコードやCSVデータなど）
 
 ?> **注意:** 日本語テキストを含むmatplotlibプロットでは、Pythonコンテナに日本語フォントサポート（Noto Sans CJK JP）がmatplotlibrcを通じて設定されています。
 
-<!-- > 📸 **スクリーンショットが必要**: コード実行と出力および生成されたプロットを表示するCode Interpreter -->
-
 Code Interpreterの対応プロバイダーは冒頭の表を参照してください。プロバイダーによってツール呼び出しの仕様が異なるため、動作に差異が生じる場合があります。
 
 ### Coding Assistant
@@ -464,7 +455,7 @@ Coding Assistantの対応プロバイダーは冒頭の表を参照してくだ�
 AIがJupyter Notebookを作成して、ユーザーからのリクエストに応じてセルを追加し、セル内のコードを実行するアプリケーションです。コードの実行には、Dockerコンテナ内のPython環境が使用されます。作成されたNotebookは`Shared Folder`に保存されます。
 
 ?> Jupyterノートブックを実行するためのJupyterLabサーバーの起動と停止は、AIエージェントに自然言語で依頼する他に、Monadic Chatコンソールパネルのメニューからも行うことができます（`Start JupyterLab`, `Stop JupyterLab`）。
-<br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
+<br /><br /><!-- SCREENSHOT: Actionsメニュー - Start JupyterLabとStop JupyterLabのメニュー項目が表示されている様子 -->
 
 ?> **注意:** サーバーモードでの制約については、[Web Interface - Server Mode](./web-interface.md#server-mode)を参照してください。
 

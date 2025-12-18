@@ -4,7 +4,7 @@
 
 **A**: それぞれのボタンとアイコンの役割は以下の通りです。
 
-![](../assets/images/message-buttons.png ':size=600')
+<!-- SCREENSHOT: メッセージボタン - チャット内の各メッセージの右上にCopy、Play/Stop、Delete、Edit、Active/Inactiveアイコンが横並びで表示されている様子 -->
 
 - **Copy**<br />メッセージのテキストをクリップボードにコピーします。
 - **Play**<br />メッセージのテキストを音声合成して再生します。
@@ -29,7 +29,7 @@
 
 **A**: それぞれ次の役割があります。
 
-![](../assets/images/role-selector.png ':size=400')
+<!-- SCREENSHOT: ロールセレクター - メッセージ入力エリア上部にUser、User (to add to past messages)、Assistant (to add to past messages)、System (to provide additional direction)の選択肢を持つドロップダウンが表示されている様子 -->
 
 - **User**<br />通常はこれを選択します。ユーザーとしてメッセージを入力し、直ちにAIエージェントに送信してレスポンスを求めます。
 - **User (to add to past messages)**<br />ユーザーとしてメッセージを入力しますが、コンテクストの一部として過去のメッセージに追加する目的で使用します。AIエージェントからの直接的なレスポンスを求めません。

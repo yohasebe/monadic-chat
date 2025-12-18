@@ -1,8 +1,10 @@
 # メッセージ入力
 
-Monadic Chat コンソールでサーバーを起動し、Web インターフェイスでアプリの選択と各種の設定行った後に `Start Session` ボタンをクリックする以下のような画面が表示されます。
+Monadic Chat コンソールでサーバーを起動し、Web インターフェイスでアプリの選択と各種の設定行った後に `Start Session` ボタンをクリックするとチャット画面が表示されます。
 
-![](../assets/images/monadic-chat-message-input.png ':size=700')
+<!-- SCREENSHOT: メッセージ入力画面 - 上部にチャット履歴エリア、下部にテキストエリア、Send/Speech Input/Image/From file/From URLなどのボタンが配置されている様子 -->
+
+チャット画面には、テキスト入力エリアとメッセージ送信のための各種ボタンが表示されます。
 
 テキストエリアにメッセージを入力し、`Send` ボタンをクリックすると、メッセージが送信されます。音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
@@ -16,11 +18,11 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 `Image`（PDFもサポートするモデルでは`Image/PDF`）をクリックして画像を選択します。対応形式：JPG、JPEG、PNG、GIF、WebP
 
-![](../assets/images/attach-image.png ':size=400')
+<!-- SCREENSHOT: 画像添付ダイアログ - ファイル選択ダイアログが開き、JPG、JPEG、PNG、GIF、WebP形式の画像ファイルを選択できる様子 -->
 
 画像をアップロードすると、画像認識が行われ、プロンプトのテキストでの指示に応じてAIエージェントが画像に関する情報を提供します（画像認識ができないモデルもあります）。
 
-![](../assets/images/monadic-chat-message-with-pics.png ':size=700')
+<!-- SCREENSHOT: 画像付きメッセージ - チャット履歴にユーザーがアップロードした画像とAIの画像分析結果が表示されている様子 -->
 
 ## PDF のアップロード :id=uploading-pdfs
 
@@ -28,7 +30,7 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 ?> **Anthropic Claude**: Claudeのモデルを用いたアプリでは、PDFを直接アップロードしてAIエージェントに内容を認識させることが可能です。
 
-![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
+<!-- SCREENSHOT: PDFアップロード後のチャット - ユーザーがPDFファイルをアップロードし、AIがPDFの内容について回答している様子 -->
 
 一度アップロードすると、削除`×`ボタンをクリックするまで毎回のメッセージでPDFが送信されます。同じPDFを繰り返し参照する場合は、システム設定で`Prompt Caching`を有効にするとAPIコストを削減できます。
 
@@ -36,13 +38,13 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 `From file` ボタンをクリックすると、文書ファイルを選択するダイアログが表示されます。選択したファイルの内容がテキストエリアに読み込まれます。読み込みが可能なファイル形式はPDF、Wordファイル（`.docx`）、Excelファイル（.`xlsx`）、PowerPointファイル（`.pptx`）、さまざまなテキストファイル（`.txt`, `.md`, `.html`, etc）です。
 
-![](../assets/images/monadic-chat-extract-from-file.png ':size=400')
+<!-- SCREENSHOT: ファイルからテキスト抽出ダイアログ - ファイル選択ダイアログが表示され、各種文書ファイル形式が選択可能な様子 -->
 
 ## URL からのテキスト読み込み :id=reading-text-from-urls
 
 `From URL` ボタンをクリックすると、URL を入力するダイアログが表示されます。URL を入力すると、その URL にあるコンテンツが可能な範囲で読み出され、Markdown形式でテキストエリアに読み込まれます。
 
-![](../assets/images/monadic-chat-extract-from-url.png ':size=400')
+<!-- SCREENSHOT: URLからテキスト抽出ダイアログ - URL入力フィールドとOK/Cancelボタンが表示されている様子 -->
 
 ## 音声入力 :id=speech-input
 
@@ -50,11 +52,13 @@ Monadic Chat コンソールでサーバーを起動し、Web インターフェ
 
 音声入力を行う場合は、`Speech Input` ボタンをクリックして音声入力を開始し、`Stop` ボタンをクリックして音声入力を終了します。音声入力が終了すると、Speech-to-Text API を通じて音声がテキストに変換され、テキストエリアに表示されます。
 
-![](../assets/images/voice-input-stop.png ':size=400')
+<!-- SCREENSHOT: 音声入力中の画面 - Speech Inputボタンの代わりにStopボタンが表示され、音声波形が動いている様子 -->
+
+音声入力中は波形が表示され、入力が進行中であることを視覚的に確認できます。
 
 音声入力後には、音声入力の信頼度を示す `p-value` が表示されます。`p-value` は音声入力の信頼度を示す指標で、0 から 1 の範囲で表されます。`p-value` が 1 に近いほど、音声入力の信頼度が高いことを示します。
 
-![](../assets/images/voice-p-value.png ':size=400')
+<!-- SCREENSHOT: 音声入力後のp-value表示 - テキストエリア上部に「p-value: 0.95」などの信頼度スコアが表示されている様子 -->
 
 ## 音声認識モデルの選択 :id=speech-to-text-model-selection
 

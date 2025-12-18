@@ -23,7 +23,7 @@ $ sysctl -n machdep.cpu.brand_string
 - Intel Mac: `Docker Desktop Installer.dmg`
 - Apple Silicon: `Docker Desktop Installer Apple Silicon.dmg`
 
-![](../assets/images/mac-docker-download.png ':size=800')
+<!-- SCREENSHOT: Docker Desktopダウンロードページ - Mac用のDocker Desktop Installer.dmgとApple Silicon版のダウンロードボタンが表示されている様子 -->
 
 Dockerアイコンをアプリケーションフォルダにドラッグして起動。サービス契約に同意し、推奨設定を使用してください。
 
@@ -40,7 +40,7 @@ PowerShellを管理者として開き、以下を実行：
 > wsl --install -d Ubuntu
 ```
 
-![](../assets/images/win-wsl-install.png ':size=800')
+<!-- SCREENSHOT: PowerShellでのWSLインストール画面 - wsl --install -d Ubuntuコマンドの実行中とインストール進行状況が表示されている様子 -->
 
 コンピューターを再起動。プロンプトが表示されたらUbuntuのユーザー名とパスワードを設定してください。
 
@@ -48,7 +48,7 @@ PowerShellを管理者として開き、以下を実行：
 
 [Docker Desktop](https://docs.docker.com/desktop/)からダウンロードしてインストール。
 
-![](../assets/images/win-docker-download.png ':size=800')
+<!-- SCREENSHOT: Docker Desktopダウンロードページ - Windows用のDocker Desktop Installer.exeのダウンロードボタンが表示されている様子 -->
 
 サービス契約に同意し、推奨設定を使用してください。
 
@@ -90,7 +90,7 @@ $ sudo apt install ./monadic-chat-*.deb
 
 ## Monadic Chatの更新 :id=update
 
-![](../assets/images/monadic-chat-menu.png ':size=240')
+<!-- SCREENSHOT: Monadic Chatメニュー - File、View、Actions、Helpの各メニュー項目が表示され、Fileメニューに「アップデートを確認」オプションがある様子 -->
 
 Monadic Chatは起動時に自動的に更新をチェックします。
 

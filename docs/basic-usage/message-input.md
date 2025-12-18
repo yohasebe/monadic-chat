@@ -2,11 +2,9 @@
 
 After starting the server and selecting an app and configuring it, click the `Start Session` button to display the following screen.
 
-![](../assets/images/monadic-chat-message-input.png ':size=700')
+<!-- SCREENSHOT: Message input interface showing text area, Send button, Speech Input button, Image/PDF upload button, From file button, From URL button, and Role selector -->
 
 Enter a message in the text area and click the `Send` button to send the message. To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. The voice is converted to text via Speech-to-Text API and displayed in the text area.
-
-<!-- > 📸 **Screenshot needed**: Message input area showing text area, send button, and role selector -->
 
 ?> To chat smoothly with the AI agent using voice input and speech synthesis, it is convenient to turn on `Auto Speech` and `Easy Submit` in the System Settings. These are enabled by default in the [Voice Chat](./basic-apps.md#voice-chat) app.
 
@@ -18,13 +16,11 @@ Image uploads are supported for vision-capable models (OpenAI, Anthropic Claude,
 
 Click `Image` (or `Image/PDF` for models that support PDF) to select an image. Supported formats: JPG, JPEG, PNG, GIF, WebP.
 
-<!-- > 📸 **Screenshot needed**: File upload dialog showing image format options -->
+<!-- SCREENSHOT: File upload dialog showing image format options (JPG, JPEG, PNG, GIF, WebP) -->
 
-![](../assets/images/attach-image.png ':size=400')
+After uploading the image, a thumbnail of the uploaded image appears below the message input area with a delete button (×). The image is sent along with your text prompt.
 
-After uploading the image, image recognition is performed, and the AI agent provides information about the image according to the text prompt (some models do not support image recognition).
-
-![](../assets/images/monadic-chat-message-with-pics.png ':size=700')
+<!-- SCREENSHOT: Chat showing user message with attached image thumbnail and AI response analyzing the image content -->
 
 ## Uploading PDFs :id=uploading-pdfs
 
@@ -32,7 +28,7 @@ Some providers (OpenAI, Anthropic Claude, Google Gemini) support PDF uploads. Cl
 
 ?> **Anthropic Claude**: Claude apps support direct PDF upload for AI content recognition.
 
-![](../assets/images/monadic-chat-chat-about-pdf.png ':size=700')
+<!-- SCREENSHOT: Chat showing user message with attached PDF file indicator and AI response discussing the PDF content -->
 
 Once uploaded, the PDF is sent with each message until you click the delete `×` button. Enable `Prompt Caching` in System Settings to reduce API costs when repeatedly referencing the same PDF.
 
@@ -41,13 +37,13 @@ Once uploaded, the PDF is sent with each message until you click the delete `×`
 
 Click the `From file` button to select a document file. The contents of the selected file are loaded into the text area. Supported file formats include PDF, Word files (`.docx`), Excel files (`.xlsx`), PowerPoint files (`.pptx`), and various text files (`.txt`, `.md`, `.html`, etc).
 
-![](../assets/images/monadic-chat-extract-from-file.png ':size=400')
+<!-- SCREENSHOT: File selection dialog allowing user to choose a document file, with extracted text appearing in the message input area -->
 
 ## Reading Text from URLs :id=reading-text-from-urls
 
 Click the `From URL` button to enter a URL. The content at that URL is loaded into the text area in Markdown format.
 
-![](../assets/images/monadic-chat-extract-from-url.png ':size=400')
+<!-- SCREENSHOT: URL input dialog where user enters a web address, with extracted content appearing as Markdown in the message input area -->
 
 ## Speech Input :id=speech-input
 
@@ -55,11 +51,11 @@ Click the `From URL` button to enter a URL. The content at that URL is loaded in
 
 To use voice input, click the `Speech Input` button to start voice input, and click the `Stop` button to end voice input. After voice input ends, the voice is converted to text via the Speech-to-Text API and displayed in the text area.
 
-![](../assets/images/voice-input-stop.png ':size=400')
+<!-- SCREENSHOT: Message input area during voice recording showing animated waveform and Stop button -->
 
 After voice input, a `p-value` indicating the confidence of the voice input is displayed. The `p-value` is an indicator of the confidence of the voice input, expressed in the range from 0 to 1. The closer the `p-value` is to 1, the higher the confidence of the voice input.
 
-![](../assets/images/voice-p-value.png ':size=400')
+<!-- SCREENSHOT: Message input area showing transcribed text with p-value confidence score displayed below -->
 
 ## Speech-to-Text Model Selection :id=speech-to-text-model-selection
 

@@ -12,19 +12,19 @@ Monadic Chatをアンインストールする基本的な手順は以下の通�
 
 ### **macOS**
 
-1. メニューの`Uninstall Images and Containers`を実行します。これにより、下に示すDockerコンテナとイメージが削除されます。
+1. メニューの`Remove Images/Containers/Data`を実行します。これにより、下に示すDockerコンテナ、イメージ、および保存データ（PDFベクトル埋め込みを含む）が削除されます。
 2. Monadic Chatを終了します。
 3. Finderで`Applications`フォルダーを開き、Monadic Chatをゴミ箱にドラッグします。
 
 ### **Windows**
 
-1. メニューの`Uninstall Images and Containers`を実行します。これにより、下に示すDockerコンテナとイメージが削除されます。
+1. メニューの`Remove Images/Containers/Data`を実行します。これにより、下に示すDockerコンテナ、イメージ、および保存データ（PDFベクトル埋め込みを含む）が削除されます。
 2. Monadic Chatを終了します。
 3. `プログラムの追加と削除`からMonadic Chatをアンインストールします。
 
 ### **Linux**
 
-1. メニューの`Uninstall Images and Containers`を実行します。これにより、下に示すDockerコンテナとイメージが削除されます。
+1. メニューの`Remove Images/Containers/Data`を実行します。これにより、下に示すDockerコンテナ、イメージ、および保存データ（PDFベクトル埋め込みを含む）が削除されます。
 2. Monadic Chatを終了します。
 3. ターミナルで以下のコマンドを実行します。
 
@@ -34,7 +34,7 @@ $ sudo apt remove monadic-chat
 
 <!-- tabs:end -->
 
-![](../assets/images/monadic-chat-menu.png ':size=250')
+<!-- SCREENSHOT: Monadic Chatメニュー - File、View、Actions、Helpの各メニュー項目が表示され、Actionsメニューに「Remove Images/Containers/Data」オプションがある様子 -->
 
 ## ユーザーデータ :id=user-data
 
@@ -45,7 +45,7 @@ $ sudo apt remove monadic-chat
 
 ## クリーンアップ（任意） :id=cleanup
 
-万が一`Uninstall Images and Containers`を実行してもコンテナとイメージが削除されなかったり、アップデート時またはアンインストール時に問題が生じた場合は、以下の2つの方法があります：
+万が一`Remove Images/Containers/Data`を実行してもコンテナ、イメージ、データが削除されなかったり、アップデート時またはアンインストール時に問題が生じた場合は、以下の2つの方法があります：
 
 ### 方法1: すべてのDockerデータをクリーン/パージ :id=clean-purge-docker-data
 

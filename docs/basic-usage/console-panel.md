@@ -2,11 +2,11 @@
 
 ## Console Button Items
 
-![Monadic Chat Console](../assets/images/monadic-chat-console.png ':size=700')
+<!-- SCREENSHOT: Console panel main window showing Start, Stop, Restart, Open Browser, Shared Folder, and Quit buttons with status display area -->
+
+The console panel is the main control interface for Monadic Chat. It displays the current status (Stopped, Starting, Running, etc.) and provides quick access buttons for common operations.
 
 **Start** Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
-
-<!-- > 📸 **Screenshot needed**: Console panel with Start button highlighted -->
 
 **Stop** <br />
 Stop Monadic Chat.
@@ -27,11 +27,13 @@ Exit the Monadic Chat Console.
 
 ## Console Menu Items
 
-![Console Menu](../assets/images/console-menu.png ':size=300')
+<!-- SCREENSHOT: Console menu bar showing File, Actions, Open menu items -->
+
+The console has a menu bar at the top with several dropdown menus for additional functionality.
 
 ### Actions Menu
 
-![Action Menu](../assets/images/action-menu.png ':size=150')
+<!-- SCREENSHOT: Actions menu dropdown showing Start, Stop, Restart, Build options, JupyterLab controls, Selenium controls, and Document DB import/export options -->
 
 **Start** <br />
 Launch Monadic Chat. The initial startup may take some time due to environment setup on Docker.
@@ -46,8 +48,6 @@ Restart Monadic Chat.
 Build all Docker images and containers for Monadic Chat.
 
 ?> **Note:** Build commands triggered from the menu always run with Docker's `--no-cache` flag so that newly released Dockerfile changes and dependencies are applied immediately.
-
-<!-- > 📸 **Screenshot needed**: Console output showing Docker build progress -->
 
 **Build Ruby Container** <br />
 Build the Docker image and container (`monadic-chat-ruby-container`) that powers Monadic Chat.
@@ -79,7 +79,7 @@ Export PDF document data stored in Monadic Chat's vector database. The exported 
 
 ### Open Menu
 
-![Open Menu](../assets/images/open-menu.png ':size=150')
+<!-- SCREENSHOT: Open menu dropdown showing Open Browser, Open Shared Folder, Open Config Folder, Open Log Folder, Open Console, and Settings options -->
 
 **Open Browser** <br />
 Open the default browser to access Monadic Chat at [http://localhost:4567](http://localhost:4567)
@@ -131,17 +131,22 @@ Shows information about the application version.
 **Check for Updates** <br />
 Checks for and downloads application updates. When an update is available, you'll see a dialog with the option to download it. After downloading, you'll be prompted to restart the application to apply the update.
 
-**Uninstall Images and Containers** <br />
-Removes all Docker images and containers for Monadic Chat.
+**Remove Images/Containers/Data** <br />
+Removes all Docker images, containers, and stored data (including PDF vector embeddings) for Monadic Chat.
+
+**How to Uninstall** <br />
+Opens the online documentation with complete uninstallation instructions for your operating system.
 
 **Quit Monadic Chat** <br />
 Exits the application.
 
 ## Settings Panel
 
-Settings configured in the settings panel are automatically saved.
+Settings configured in the settings panel are automatically saved. The settings panel is organized into several sections accessible via tabs.
 
-![Settings Panel](../assets/images/settings-api_keys.png ':size=600')
+<!-- SCREENSHOT: Settings panel showing API Keys tab with input fields for OPENAI_API_KEY, ANTHROPIC_API_KEY, COHERE_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, XAI_API_KEY, PERPLEXITY_API_KEY, DEEPSEEK_API_KEY, ELEVENLABS_API_KEY, and TAVILY_API_KEY -->
+
+### API Keys
 
 **OPENAI_API_KEY** <br />
 (Recommended) Enter your OpenAI API key. This key is used to access the Chat API, DALL-E image generation API, Speech-to-Text API, and Text-to-Speech API. While not strictly required, many core features depend on this key. It can be obtained from the [OpenAI API page](https://platform.openai.com/docs/guides/authentication).
@@ -174,17 +179,23 @@ Enter your ElevenLabs API key. This key is required to use the ElevenLabs voice 
 **TAVILY_API_KEY** <br />
 Enter your Tavily API key. This key is used for two purposes: 1) For "From URL" feature as an alternative to Selenium, and 2) For web search functionality in apps using providers without native search (Mistral, Cohere, DeepSeek, Ollama). It can be obtained from [https://tavily.com/](https://tavily.com/).
 
-![Settings Panel](../assets/images/settings-model.png ':size=600')
+<!-- SCREENSHOT: Settings panel showing Model tab with AI_USER_MAX_TOKENS dropdown selector -->
+
+### Model Settings
 
 **AI_USER_MAX_TOKENS** <br />
 Select the maximum number of tokens for the AI user. This setting is used to limit the number of tokens that can be used in a single request. The default is `2000`.
 
-![Settings Panel](../assets/images/settings-display.png ':size=600')
+<!-- SCREENSHOT: Settings panel showing Display tab with Syntax Highlighting Theme dropdown selector -->
+
+### Display Settings
 
 **Syntax Highlighting Theme** <br />
 Select the theme for code syntax highlighting. The default is `pastie`.
 
-![Settings Panel](../assets/images/settings-voice.png ':size=600')
+<!-- SCREENSHOT: Settings panel showing Voice tab with STT_MODEL dropdown and TTS Dictionary File Path input field -->
+
+### Voice Settings
 
 **STT_MODEL** <br />
 Select the model used for speech-to-text. The dropdown lists the STT models exposed by your configured providers (for example, OpenAI Whisper or transcribe models). Refer to the provider documentation for current options.
@@ -192,7 +203,9 @@ Select the model used for speech-to-text. The dropdown lists the STT models expo
 **TTS Dictionary File Path** <br />
 Enter the path to the text-to-speech dictionary file. The dictionary file is in CSV format and contains comma-separated entries of strings to be replaced and the strings to be used for speech synthesis (no header row is required). When using text-to-speech, the strings to be replaced in the text are replaced with the strings for speech synthesis.
 
-![Settings Panel](../assets/images/settings-system.png ':size=600')
+<!-- SCREENSHOT: Settings panel showing System tab with Application Mode dropdown, Browser Mode dropdown, and Extra Logging toggle -->
+
+### System Settings
 
 **Application Mode** <br />
 Select the application mode. "Standalone" mode runs the application for a single device while "Server" mode allows multiple devices in the local network to connect to the Monadic Chat server. The default is "Standalone".

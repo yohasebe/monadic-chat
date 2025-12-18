@@ -68,8 +68,6 @@ Start a standard conversation with the AI, which will respond to your text with 
 
 You can also use the `From URL` feature to extract content from any website using Selenium-based web scraping, regardless of the provider.
 
-<!-- > 📸 **Screenshot needed**: Chat app interface showing a conversation with emojis -->
-
 Availability for this app follows the provider table at the top of this page.
 
 ### Chat Plus
@@ -90,14 +88,15 @@ Engage in a "monadic" chat that reveals the AI's thought process. As the AI resp
 
 Chat with the AI using your voice. This app uses your provider's speech recognition API and your browser's speech synthesis API to create a voice-based conversation. The initial prompt is the same as the standard Chat app, and you can use different AI models for responses. A modern web browser that supports the Text to Speech API (like Google Chrome or Microsoft Edge) is required.
 
-![Voice input](../assets/images/voice-input-stop.png ':size=400')
-
 While the user is speaking, a waveform is displayed. When the user stops speaking, the probability value (p-value, 0 - 1) of the voice recognition result is displayed.
 
-![Voice p-value](../assets/images/voice-p-value.png ':size=400')
-
-
 Voice Chat supports the same providers indicated in the availability table. For speech input/output settings, see [Speech Settings Panel](./web-interface.md#speech-settings-panel).
+
+<!-- SCREENSHOT: Voice input interface showing waveform animation while speaking -->
+
+The voice input feature displays a visual waveform while you speak. After stopping, it shows a confidence score (p-value) indicating the accuracy of speech recognition.
+
+<!-- SCREENSHOT: Voice input after stopping, showing transcribed text with p-value confidence score -->
 
 ### Wikipedia
 
@@ -246,12 +245,6 @@ With supported models, the image editing feature allows you to:
 
 When editing images, you can create a mask to specify which areas of the image should be modified:
 
-#### Original Image
-
-Here's an example of an original image that we want to edit:
-
-![Original Image](../assets/images/origina-image.jpg ':size=400')
-
 #### Creating a Mask
 
 1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
@@ -261,7 +254,7 @@ Here's an example of an original image that we want to edit:
    - Adjust brush size using the slider
    - Black areas will be preserved, white areas will be edited
 
-![Image Masking](../assets/images/image-masking.png ':size=500')
+<!-- SCREENSHOT: Mask editor interface showing an uploaded image with brush/eraser tools, brush size slider, and mask drawing canvas overlaid on the original image -->
 
 3. **Save the Mask**: Click "Save Mask" when finished
 4. **Apply the Mask**: The mask will be automatically applied to your next image edit operation
@@ -271,12 +264,6 @@ The mask editor provides intuitive controls:
 - Adjustable brush size
 - Clear mask button
 - Preview of the original image underneath the mask
-
-#### Result After Editing
-
-After applying the mask and providing edit instructions, you'll get a result like this:
-
-![Edit Result](../assets/images/image-edit-result.png ':size=400')
 
 The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas marked by your mask.
 
@@ -449,13 +436,15 @@ PDF Navigator behavior can be customized via environment variables in `~/monadic
 - `PDF_RAG_TOKENS`: Number of tokens per chunk
 - `PDF_RAG_OVERLAP_LINES`: Number of lines to overlap between chunks
 
+<!-- SCREENSHOT: Chat interface showing Import PDF button in the message input area -->
 
-![PDF button](../assets/images/app-pdf.png ':size=700')
+When you import a PDF, a dialog allows you to provide a display name for the document. The PDF is then processed and added to the vector database.
 
+<!-- SCREENSHOT: PDF import dialog showing file selection and optional display name field -->
 
-![Import PDF](../assets/images/import-pdf.png ':size=400')
+The PDF Database panel (visible when using PDF Navigator app) shows all uploaded PDFs with their display names and allows you to delete individual documents.
 
-![PDF DB Panel](../assets/images/monadic-chat-pdf-db.png ':size=400')
+<!-- SCREENSHOT: PDF database panel listing uploaded PDFs with display names and delete icons -->
 
 ### Content Reader
 
@@ -487,8 +476,6 @@ Let the AI create and execute Python code in a sandboxed Docker environment. Any
 
 ?> **Note:** For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc.
 
-<!-- > 📸 **Screenshot needed**: Code Interpreter showing code execution with output and generated plots -->
-
 Code Interpreter availability matches the provider table. Provider tool-calling specifications may vary, which can affect behavior.
 
 ### Coding Assistant
@@ -514,9 +501,7 @@ Coding Assistant supports the providers indicated in the availability table.
 Let the AI create Jupyter Notebooks, add cells, and execute code based on your requests. The app intelligently maintains context of the current notebook, allowing you to seamlessly continue editing and running code in the same notebook across multiple turns. The code runs in a sandboxed Python environment inside a Docker container, and the created notebook is saved to your `Shared Folder`.
 
 ?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
-<br /><br />![Action menu](../assets/images/jupyter-start-stop.png ':size=190')
-
-<!-- > 📸 **Screenshot needed**: Jupyter Notebook app showing notebook creation and cell execution -->
+<br /><br /><!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->
 
 ?> **Note:** For Server Mode restrictions, see [Web Interface - Server Mode](./web-interface.md#server-mode).
 

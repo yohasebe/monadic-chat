@@ -1,4 +1,6 @@
-FROM ollama/ollama:latest
+# Pin to stable version for reproducible builds
+# Update version periodically to get new model support
+FROM ollama/ollama:0.5
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

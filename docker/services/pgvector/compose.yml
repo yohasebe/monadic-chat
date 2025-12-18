@@ -11,7 +11,10 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_HOST_AUTH_METHOD: "trust"
+      # Use md5 password authentication instead of trust for security
+      # Password matches the one used in lib/monadic/utils/environment.rb
+      POSTGRES_HOST_AUTH_METHOD: "md5"
+      POSTGRES_PASSWORD: "postgres"
       POSTGRES_DB: monadic
       POSTGRES_USER: postgres
     volumes:

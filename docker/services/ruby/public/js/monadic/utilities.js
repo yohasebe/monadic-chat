@@ -460,7 +460,10 @@ function setAlert(text = "", alertType = "success") {
       const $card = $(this).closest(".card");
       const mid = $card.attr("id");
 
-      // Immediately remove from DOM
+      // Clean up event listeners before removing from DOM
+      if (typeof detachEventListeners === 'function') {
+        detachEventListeners($card);
+      }
       $card.remove();
 
       // Notify server to maintain consistency
@@ -572,19 +575,29 @@ function clearStatusMessage() {
  */
 function clearErrorCards() {
   $(".error-message-card").each(function() {
-    const mid = $(this).attr("id");
+    const $card = $(this);
+    const mid = $card.attr("id");
+    // Clean up event listeners before removing
+    if (typeof detachEventListeners === 'function') {
+      detachEventListeners($card);
+    }
     if (mid) {
       // Notify server to maintain consistency
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
       mids.delete(mid);
     }
+    // Remove from DOM
+    $card.remove();
   });
-  // Remove from DOM
-  $(".error-message-card").remove();
 }
 
 function deleteMessage(mid) {
-  $(`#${mid}`).remove();
+  const $card = $(`#${mid}`);
+  // Clean up event listeners before removing
+  if ($card.length && typeof detachEventListeners === 'function') {
+    detachEventListeners($card);
+  }
+  $card.remove();
   const index = messages.findIndex((m) => m.mid === mid);
   
   // If the message exists, remove it from the messages array

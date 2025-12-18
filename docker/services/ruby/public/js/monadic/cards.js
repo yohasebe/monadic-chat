@@ -179,7 +179,9 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   // Check if this card already exists (could happen during refresh/updates)
   if (mid !== "" && $(`#${mid}`).length > 0) {
     // Remove existing card to avoid duplicates
-    $(`#${mid}`).remove();
+    const $existingCard = $(`#${mid}`);
+    detachEventListeners($existingCard);
+    $existingCard.remove();
   }
 
   // Attach event listeners
@@ -312,10 +314,11 @@ function attachEventListeners($card) {
       $("#deleteConfirmation").modal("show");
     } else {
       // If no message found, just delete the card
+      detachEventListeners($parentCard);
       $parentCard.remove();
       ws.send(JSON.stringify({ "message": "DELETE", "mid": mid }));
       mids.delete(mid);
-      
+
       // Add explicit visual feedback for the user
       const messageDeletedText = getTranslation('ui.messages.messageDeleted', 'Message deleted');
       setAlert(`<i class='fas fa-circle-check'></i> ${messageDeletedText}`, "success");

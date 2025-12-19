@@ -846,13 +846,12 @@ module InteractionUtils
 
       target_uri = "#{API_ENDPOINT}/audio/speech"
 
-      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
       require 'http'
 
       Thread.new do
         begin
           response = HTTP
-            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .timeout(connect: 5, read: 15)
             .headers(
               "Content-Type" => "application/json",
               "Authorization" => "Bearer #{api_key}"
@@ -966,13 +965,12 @@ module InteractionUtils
       output_format = "mp3_44100_128"
       target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
 
-      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
       require 'http'
 
       Thread.new do
         begin
           response = HTTP
-            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .timeout(connect: 5, read: 15)
             .headers(
               "Content-Type" => "application/json",
               "xi-api-key" => api_key
@@ -1083,13 +1081,12 @@ module InteractionUtils
 
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
 
-      # Use http.rb gem with thread-based async HTTP (replaces em-http-request)
       require 'http'
 
       Thread.new do
         begin
           response = HTTP
-            .timeout(connect: 5, read: 15)  # Same timeouts as before
+            .timeout(connect: 5, read: 15)
             .headers("Content-Type" => "application/json")
             .post(target_uri, json: body)
 

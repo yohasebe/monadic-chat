@@ -10,6 +10,46 @@ require "rubygems"
 require_relative "./docker/services/ruby/lib/monadic/version"
 version = Monadic::VERSION
 
+# Unicode display width for proper terminal table alignment
+begin
+  require "unicode/display_width"
+  UNICODE_DISPLAY_WIDTH_AVAILABLE = true
+rescue LoadError
+  UNICODE_DISPLAY_WIDTH_AVAILABLE = false
+end
+
+# Display-width-aware string padding helpers
+# These methods pad strings based on terminal display width, not character count
+module DisplayWidthHelpers
+  def self.display_width(str)
+    if UNICODE_DISPLAY_WIDTH_AVAILABLE
+      Unicode::DisplayWidth.of(str)
+    else
+      str.length
+    end
+  end
+
+  def self.ljust(str, width, padstr = ' ')
+    current_width = display_width(str)
+    padding_needed = [width - current_width, 0].max
+    str + (padstr * padding_needed)
+  end
+
+  def self.rjust(str, width, padstr = ' ')
+    current_width = display_width(str)
+    padding_needed = [width - current_width, 0].max
+    (padstr * padding_needed) + str
+  end
+
+  def self.center(str, width, padstr = ' ')
+    current_width = display_width(str)
+    padding_needed = [width - current_width, 0].max
+    left_pad = padding_needed / 2
+    right_pad = padding_needed - left_pad
+    (padstr * left_pad) + str + (padstr * right_pad)
+  end
+end
+
 # Set development environment variables if not in Docker container
 unless File.file?("/.dockerenv")
   ENV['POSTGRES_HOST'] ||= 'localhost'
@@ -2483,13 +2523,13 @@ namespace :test do
     # Determine if we should run media tests (only on 'full' API level)
     run_media = (api_level == 'full')
 
-    puts <<~BANNER
-      ╔═══════════════════════════════════════╗
-      ║   Monadic Chat - Full Test Suite     ║
-      ║   API Level: #{api_level.ljust(25)}║
-      ║   Media Tests: #{(run_media ? 'enabled' : 'disabled').ljust(22)}║
-      ╔═══════════════════════════════════════╝
-    BANNER
+    # Build banner with proper display-width alignment
+    banner_width = 39  # Inner width between ║ characters
+    puts "╔#{'═' * banner_width}╗"
+    puts "║#{DisplayWidthHelpers.center('Monadic Chat - Full Test Suite', banner_width)}║"
+    puts "║   API Level: #{DisplayWidthHelpers.ljust(api_level, banner_width - 14)}║"
+    puts "║   Media Tests: #{DisplayWidthHelpers.ljust(run_media ? 'enabled' : 'disabled', banner_width - 16)}║"
+    puts "╚#{'═' * banner_width}╝"
 
     results = {}
     start_time = Time.now

@@ -665,8 +665,23 @@ module InteractionUtils
         begin
           gemini_response = JSON.parse(res.body.to_s)
 
-          # Minimal debug logging
-          puts "Gemini TTS: Response received" if ENV["DEBUG_TTS"]
+          # Debug logging for Gemini TTS response
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DEBUG] Gemini TTS response keys: #{gemini_response.keys.inspect}")
+              if gemini_response["error"]
+                log.puts("[#{Time.now}] [DEBUG] Gemini TTS API error: #{gemini_response['error'].inspect}")
+              end
+            end
+          end
+
+          # Check for API error response
+          if gemini_response["error"]
+            error_msg = gemini_response["error"]["message"] || gemini_response["error"].to_s
+            error_res = { "type" => "error", "content" => "Gemini TTS API Error: #{error_msg}" }
+            block&.call error_res if block_given?
+            return error_res
+          end
 
           # Extract audio data from Gemini response
           if gemini_response["candidates"] &&
@@ -707,9 +722,14 @@ module InteractionUtils
               return { "type" => "audio", "content" => wav_base64, "mime_type" => "audio/wav" }
             end
           else
-            puts "Gemini TTS Error: Invalid response format"
-            puts "Full response: #{gemini_response.inspect}"
-            error_res = { "type" => "error", "content" => "ERROR: Invalid response format from Gemini API" }
+            # Log detailed error for debugging
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts("[#{Time.now}] [DEBUG] Gemini TTS Error: Invalid response format (no inlineData)")
+                log.puts("[#{Time.now}] [DEBUG] Response structure: #{gemini_response.to_json[0..500]}")
+              end
+            end
+            error_res = { "type" => "error", "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues." }
             block&.call error_res if block_given?
             return error_res
           end
@@ -1077,6 +1097,30 @@ module InteractionUtils
             begin
               gemini_response = JSON.parse(response.body.to_s)
 
+              # Debug logging for Gemini TTS response
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: Gemini response keys: #{gemini_response.keys.inspect}")
+                  if gemini_response["error"]
+                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_em: Gemini TTS API error: #{gemini_response['error'].inspect}")
+                  end
+                end
+              end
+
+              # Check for API error response
+              if gemini_response["error"]
+                error_msg = gemini_response["error"]["message"] || gemini_response["error"].to_s
+                error_result = {
+                  "type" => "error",
+                  "content" => "Gemini TTS API Error: #{error_msg}"
+                }
+                error_result["sequence_id"] = sequence_id if sequence_id
+                Async do
+                  block.call(error_result)
+                end
+                next
+              end
+
               # Extract audio data from Gemini response and convert PCM to WAV
               if gemini_response["candidates"] &&
                  gemini_response["candidates"][0] &&
@@ -1123,13 +1167,14 @@ module InteractionUtils
               else
                 error_result = {
                   "type" => "error",
-                  "content" => "ERROR: Invalid response format from Gemini API"
+                  "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues."
                 }
                 error_result["sequence_id"] = sequence_id if sequence_id
 
                 if CONFIG["EXTRA_LOGGING"]
                   File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Invalid Gemini response format (http.rb), sequence_id=#{sequence_id}")
+                    log.puts("[#{Time.now}] [ERROR] tts_api_request_em: Invalid Gemini response format (no inlineData), sequence_id=#{sequence_id}")
+                    log.puts("[#{Time.now}] [DEBUG] Response structure: #{gemini_response.to_json[0..500]}")
                   end
                 end
 

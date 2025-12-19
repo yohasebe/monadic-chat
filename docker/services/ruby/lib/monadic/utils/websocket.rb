@@ -3001,7 +3001,7 @@ module WebSocketHelper
 
                               # Submit TTS request immediately
                               Async do
-                                tts_api_request_em(
+                                tts_api_request_async(
                                   combined_text,
                                   provider: provider,
                                   voice: voice,
@@ -3067,7 +3067,7 @@ module WebSocketHelper
 
                             # Submit TTS request immediately
                             Async do
-                              tts_api_request_em(
+                              tts_api_request_async(
                                 combined_text,
                                 provider: provider,
                                 voice: voice,
@@ -3208,7 +3208,7 @@ module WebSocketHelper
                 sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
                 # Call async TTS for final segment
-                tts_api_request_em(
+                tts_api_request_async(
                   final_text,
                   provider: provider,
                   voice: voice,

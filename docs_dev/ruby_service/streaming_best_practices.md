@@ -223,7 +223,7 @@ def streaming_loop
       sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
       # Non-blocking async request using Thread + Async do
-      tts_api_request_em(
+      tts_api_request_async(
         sentence,
         provider: provider,
         sequence_id: sequence_id
@@ -240,14 +240,14 @@ def streaming_loop
     sequence_num = @realtime_tts_sequence_counter
     sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"  # Same format!
 
-    tts_api_request_em(final_text, sequence_id: sequence_id) do |res_hash|
+    tts_api_request_async(final_text, sequence_id: sequence_id) do |res_hash|
       @channel.push(res_hash.to_json)
     end
   end
 end
 
-# Implementation of tts_api_request_em (lib/monadic/utils/interaction_utils.rb)
-def tts_api_request_em(text, provider:, sequence_id: nil, &block)
+# Implementation of tts_api_request_async (lib/monadic/utils/interaction_utils.rb)
+def tts_api_request_async(text, provider:, sequence_id: nil, &block)
   Thread.new do
     begin
       response = HTTP
@@ -468,7 +468,7 @@ def streaming_loop
         segments[0...-1].each do |sentence|
           @realtime_tts_sequence_counter += 1
           sequence_id = "seq#{@realtime_tts_sequence_counter}_..."  # Always seq1!
-          tts_api_request_em(sentence, sequence_id: sequence_id)
+          tts_api_request_async(sentence, sequence_id: sequence_id)
         end
       end
     end
@@ -499,7 +499,7 @@ def streaming_loop
         segments[0...-1].each do |sentence|
           @realtime_tts_sequence_counter += 1  # Increments correctly: 1, 2, 3...
           sequence_id = "seq#{@realtime_tts_sequence_counter}_..."
-          tts_api_request_em(sentence, sequence_id: sequence_id)
+          tts_api_request_async(sentence, sequence_id: sequence_id)
         end
       end
     end

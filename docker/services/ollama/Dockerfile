@@ -1,6 +1,7 @@
 # Pin to stable version for reproducible builds
 # Update version periodically to get new model support
-FROM ollama/ollama:0.5
+# v0.13+ adds Vulkan acceleration, BERT support, DeepSeek-V3.1 tool parsing
+FROM ollama/ollama:0.13
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 

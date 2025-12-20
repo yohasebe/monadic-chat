@@ -51,7 +51,7 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         expect(result).to be_a(Hash)
-        expect(result.keys).to include("gpt-4", "claude-3-opus-20240229")
+        expect(result.keys).to include("gpt-4", "claude-opus-4-20250514")
         expect(result["gpt-4"]).to have_key("context_window")
         expect(result["gpt-4"]).to have_key("max_output_tokens")
       end
@@ -79,7 +79,7 @@ RSpec.describe "API /api/models endpoint" do
         expect(result["gpt-4"]).to have_key("tool_capability")
         
         # Other models should remain unchanged
-        expect(result).to have_key("claude-3-opus-20240229")
+        expect(result).to have_key("claude-opus-4-20250514")
       end
 
       it "handles deep merge correctly" do
@@ -117,7 +117,7 @@ RSpec.describe "API /api/models endpoint" do
         
         # Should have default models
         expect(result).to have_key("gpt-4")
-        expect(result).to have_key("claude-3-opus-20240229")
+        expect(result).to have_key("claude-opus-4-20250514")
         
         # Should not have custom models
         expect(result).not_to have_key("test-gpt-5")
@@ -229,7 +229,7 @@ RSpec.describe "API /api/models endpoint" do
       
       # Should return default models unchanged
       expect(result).to have_key("gpt-4")
-      expect(result).to have_key("claude-3-opus-20240229")
+      expect(result).to have_key("claude-opus-4-20250514")
     end
 
     it "handles models with special characters in names" do

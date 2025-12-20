@@ -57,7 +57,7 @@ RSpec.describe SecondOpinionAgent do
     
     context "with explicit model" do
       it "uses the provided model when specified" do
-        expect(agent.send(:determine_provider_and_model, "claude", "claude-3-opus-20240229")).to eq(["claude", "claude-3-opus-20240229"])
+        expect(agent.send(:determine_provider_and_model, "claude", "claude-opus-4-20250514")).to eq(["claude", "claude-opus-4-20250514"])
         expect(agent.send(:determine_provider_and_model, "openai", "gpt-5")).to eq(["openai", "gpt-5"])
       end
       
@@ -177,12 +177,12 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is the capital of France?",
           agent_response: "The capital of France is Paris",
           provider: "claude",
-          model: "claude-3-5-haiku-20241022"
+          model: "claude-3-haiku-20240307"
         )
         
         expect(result[:comments]).to be_a(String)
         expect(result[:comments].strip).not_to be_empty
-        expect(result[:model]).to include("claude-3-5-haiku")
+        expect(result[:model]).to include("claude-3-haiku")
       end
     
       it "gets a second opinion from Gemini" do
@@ -208,7 +208,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "Simple math",
           agent_response: "1 + 1 = 2",
           provider: "anthropic",  # Should normalize to claude
-          model: "claude-3-5-haiku-20241022"
+          model: "claude-3-haiku-20240307"
         )
         
         expect(result[:model]).to include("claude")

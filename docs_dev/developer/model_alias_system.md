@@ -36,7 +36,7 @@ The system recognizes and parses seven date formats:
 | Format | Example | Provider | Notes |
 |--------|---------|----------|-------|
 | `YYYY-MM-DD` | `gpt-4o-2024-11-20` | OpenAI, xAI | Most common format |
-| `YYYYMMDD` | `claude-3-7-sonnet-20250219` | Claude | 8-digit date |
+| `YYYYMMDD` | `claude-sonnet-4-5-20250929` | Claude | 8-digit date |
 | `MM-YYYY` | `command-r7b-12-2024` | Cohere | Month-year format |
 | `YYMM` | `magistral-small-2509` | Mistral | 2-digit year + month (2509 = Sep 2025) |
 | `MM-DD` | `gemini-2.5-flash-lite-06-17` | Gemini | Month-day format |
@@ -151,11 +151,11 @@ Models are sorted by actual date value, not string comparison:
 
 ### Claude Example
 
-**API Response**: Returns `claude-3-7-sonnet-20250219` (dated only)
+**API Response**: Returns `claude-sonnet-4-5-20250929` (dated only)
 
-**model_spec.js**: Contains `claude-3-7-sonnet-20250219` specification
+**model_spec.js**: Contains `claude-sonnet-4-5-20250929` specification
 
-**Web UI**: Displays `claude-3-7-sonnet-20250219`
+**Web UI**: Displays `claude-sonnet-4-5-20250929`
 
 **Note**: Claude models typically only have dated versions
 

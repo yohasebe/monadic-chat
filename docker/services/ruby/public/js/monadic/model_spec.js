@@ -572,55 +572,6 @@ const modelSpec = {
       "pdfs-2024-09-25"
     ]
   },
-  "claude-3-7-sonnet-20250219": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 64000], 64000],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": true,
-    "thinking_budget": {
-      "min": 1024,
-      "default": 10000,
-      "max": null
-    },
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_streaming": true,
-    "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
-    ]
-  },
-  "claude-3-5-haiku-20241022": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "vision_capability": false,
-    "supports_thinking": false,
-    "supports_web_search": true,
-    "supports_streaming": true,
-    "supports_pdf": false
-  },
-  "claude-3-opus-20240229": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [1, 4096],
-    "temperature": [[0.0, 1.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_thinking": false,
-    "supports_web_search": false,
-    "supports_streaming": true,
-    "supports_pdf": true,
-    "beta_flags": [
-      "pdfs-2024-09-25"
-    ]
-  },
   "claude-3-haiku-20240307": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",

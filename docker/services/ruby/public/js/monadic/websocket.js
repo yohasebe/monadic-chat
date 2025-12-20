@@ -22,6 +22,29 @@ try {
 // Note: WebSocket connection will be established after ensureMonadicTabId() is defined
 // See bottom of this file for actual connection initialization
 let ws;  // Will be set after tab ID is ready
+let isConnecting = false;  // Guard to prevent duplicate connection attempts
+
+// Properly close WebSocket connection before creating new one
+// This prevents connection accumulation after sleep/wake cycles
+function closeCurrentWebSocket() {
+  if (ws) {
+    try {
+      // Remove event handlers to prevent callbacks on old connection
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        console.log('[WebSocket] Closing old connection before creating new one');
+        ws.close(1000, 'Creating new connection');
+      }
+    } catch (e) {
+      console.warn('[WebSocket] Error closing old connection:', e);
+    }
+    ws = null;
+  }
+}
 let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 if (typeof window.skipAssistantInitiation === 'undefined') {
@@ -52,6 +75,11 @@ let iosAudioBuffer = [];
 let isIOSAudioPlaying = false;
 let iosAudioQueue = [];
 let iosAudioElement = null;
+
+// Event handler references for proper cleanup (prevents listener accumulation)
+let mediaSourceOpenHandler = null;
+let sourceBufferUpdateEndHandler = null;
+let audioCanPlayHandler = null;
 
 // Global audio queue for managing TTS playback order
 
@@ -1297,29 +1325,47 @@ window.addToGlobalAudioQueue = function(audioItem) {
 function initializeMediaSourceForAudio() {
   if ('MediaSource' in window && !window.basicAudioMode) {
     try {
+      // CRITICAL: Clean up existing resources before creating new ones
+      // This prevents listener accumulation (same pattern as WebSocket fix)
+      if (mediaSource && mediaSourceOpenHandler) {
+        try {
+          mediaSource.removeEventListener('sourceopen', mediaSourceOpenHandler);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+      if (sourceBuffer && sourceBufferUpdateEndHandler) {
+        try {
+          sourceBuffer.removeEventListener('updateend', sourceBufferUpdateEndHandler);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+
       mediaSource = new MediaSource();
 
-      mediaSource.addEventListener('sourceopen', function() {
-
-
+      // Create named handler for sourceopen (stored for later removal)
+      mediaSourceOpenHandler = function() {
         if (!sourceBuffer && mediaSource.readyState === 'open') {
           try {
             // Check browser and set appropriate codec
             if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
-
               window.firefoxAudioMode = true;
               window.firefoxAudioQueue = [];
             } else {
-
               sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-              sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+              // Store handler reference for proper cleanup
+              sourceBufferUpdateEndHandler = processAudioDataQueue;
+              sourceBuffer.addEventListener('updateend', sourceBufferUpdateEndHandler);
             }
           } catch (e) {
             console.error("Error setting up MediaSource: ", e);
             window.basicAudioMode = true;
           }
         }
-      });
+      };
+
+      mediaSource.addEventListener('sourceopen', mediaSourceOpenHandler);
 
       // Create audio element
       if (!audio) {
@@ -1327,9 +1373,8 @@ function initializeMediaSourceForAudio() {
         audio.src = URL.createObjectURL(mediaSource);
         window.audio = audio; // Export to window for global access
 
-
-        // Set up event listener for automatic playback
-        audio.addEventListener('canplay', function() {
+        // Create named handler for canplay (stored for later removal)
+        audioCanPlayHandler = function() {
           // If auto-speech is active or play button was pressed, start playback automatically
           if (window.autoSpeechActive || window.autoPlayAudio) {
             const playPromise = audio.play();
@@ -1385,7 +1430,6 @@ function initializeMediaSourceForAudio() {
                   // Create a one-time click handler to enable audio
                   const enableAudio = function() {
                     audio.play().then(() => {
-
                       document.removeEventListener('click', enableAudio);
                     }).catch(e => {
                       console.error("[Audio] Failed to start playback:", e);
@@ -1393,12 +1437,14 @@ function initializeMediaSourceForAudio() {
                   };
                   document.addEventListener('click', enableAudio);
                   const clickAudioText = getTranslation('ui.messages.clickToEnableAudio', 'Click anywhere to enable audio');
-          setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
+                  setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
                 }
               });
             }
           }
-        });
+        };
+
+        audio.addEventListener('canplay', audioCanPlayHandler);
       }
 
     } catch (e) {
@@ -1406,7 +1452,6 @@ function initializeMediaSourceForAudio() {
       window.basicAudioMode = true;
     }
   } else {
-
     window.basicAudioMode = true;
   }
 }
@@ -1416,6 +1461,37 @@ function resetAudioElements() {
   // CRITICAL: Wrap entire function in try-catch to handle TDZ (Temporal Dead Zone)
   // This can be called during page initialization before all variables are initialized
   try {
+    // CRITICAL: Remove event listeners BEFORE cleanup to prevent listener accumulation
+    // This is the same pattern as closeCurrentWebSocket() for WebSocket cleanup
+    if (audio && audioCanPlayHandler) {
+      try {
+        audio.removeEventListener('canplay', audioCanPlayHandler);
+      } catch (e) {
+        console.warn('[resetAudioElements] Error removing canplay listener:', e);
+      }
+    }
+
+    if (sourceBuffer && sourceBufferUpdateEndHandler) {
+      try {
+        sourceBuffer.removeEventListener('updateend', sourceBufferUpdateEndHandler);
+      } catch (e) {
+        console.warn('[resetAudioElements] Error removing updateend listener:', e);
+      }
+    }
+
+    if (mediaSource && mediaSourceOpenHandler) {
+      try {
+        mediaSource.removeEventListener('sourceopen', mediaSourceOpenHandler);
+      } catch (e) {
+        console.warn('[resetAudioElements] Error removing sourceopen listener:', e);
+      }
+    }
+
+    // Reset handler references
+    audioCanPlayHandler = null;
+    sourceBufferUpdateEndHandler = null;
+    mediaSourceOpenHandler = null;
+
     // Stop and clean up current audio completely
     if (audio) {
       if (!audio.paused) {
@@ -2658,8 +2734,27 @@ let loadedApp = "Chat";
       if (!mediaSource) {
 
         try {
+          // CRITICAL: Clean up existing handlers before creating new MediaSource
+          // This prevents listener accumulation (same pattern as WebSocket fix)
+          if (mediaSource && mediaSourceOpenHandler) {
+            try {
+              mediaSource.removeEventListener('sourceopen', mediaSourceOpenHandler);
+            } catch (e) {
+              // Ignore errors during cleanup
+            }
+          }
+          if (sourceBuffer && sourceBufferUpdateEndHandler) {
+            try {
+              sourceBuffer.removeEventListener('updateend', sourceBufferUpdateEndHandler);
+            } catch (e) {
+              // Ignore errors during cleanup
+            }
+          }
+
           mediaSource = new MediaSource();
-          mediaSource.addEventListener('sourceopen', function() {
+
+          // Create named handler for sourceopen (stored for later removal)
+          mediaSourceOpenHandler = function() {
             try {
               // Check if mediaSource is still valid and in correct state
               if (!mediaSource || mediaSource.readyState !== 'open') {
@@ -2675,7 +2770,6 @@ let loadedApp = "Chat";
 
               if (runningOnFirefox) {
                 // Firefox needs special handling
-
                 window.firefoxAudioMode = true;
                 window.firefoxAudioQueue = [];
 
@@ -2710,19 +2804,21 @@ let loadedApp = "Chat";
                 }
 
                 sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
-                sourceBuffer.addEventListener('updateend', processAudioDataQueue);
+                // Store handler reference for proper cleanup
+                sourceBufferUpdateEndHandler = processAudioDataQueue;
+                sourceBuffer.addEventListener('updateend', sourceBufferUpdateEndHandler);
               }
             } catch (e) {
               console.error("Error setting up MediaSource: ", e);
               // Fallback to basic audio mode if MediaSource setup fails
-
               window.basicAudioMode = true;
             }
-          });
+          };
+
+          mediaSource.addEventListener('sourceopen', mediaSourceOpenHandler);
         } catch (e) {
           console.error("Error creating MediaSource: ", e);
           // Fallback to basic audio mode if MediaSource creation fails
-
           window.basicAudioMode = true;
         }
       }
@@ -6179,6 +6275,12 @@ let loadedApp = "Chat";
 
   ws.onclose = function (_e) {
     initialLoadComplete = false;
+
+    // CRITICAL: Reset isConnecting flag when connection closes
+    // This prevents handleVisibilityChange from being permanently blocked
+    // if connection fails before onopen callback fires
+    isConnecting = false;
+
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', false);
@@ -6201,6 +6303,10 @@ let loadedApp = "Chat";
 
   ws.onerror = function (err) {
     console.error(`[WebSocket] Socket error for ${wsUrl}:`, err.message || 'Unknown error');
+
+    // Reset isConnecting flag on error (onclose will also reset, but be safe)
+    isConnecting = false;
+
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', false);
@@ -6231,7 +6337,8 @@ const baseReconnectDelay = 1000; // Base delay in milliseconds
 let reconnectionTimer = null; // Store the timer to allow cancellation
 
 // Improved WebSocket reconnection logic with proper cleanup and retry handling
-function reconnect_websocket(ws, callback) {
+// Note: Parameter renamed from 'ws' to 'currentWs' to avoid shadowing the module-level 'ws' variable
+function reconnect_websocket(currentWs, callback) {
   // In silent mode (intentional stop), suppress reconnection attempts
   try {
     if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
@@ -6239,19 +6346,19 @@ function reconnect_websocket(ws, callback) {
     }
   } catch (_) {}
   // Prevent multiple reconnection attempts for the same WebSocket
-  if (ws._isReconnecting) {
+  if (currentWs && currentWs._isReconnecting) {
     console.log("Already attempting to reconnect, skipping duplicate attempt");
     return;
   }
 
   // Store reconnection attempts in the WebSocket object itself
   // This ensures each WebSocket manages its own reconnection state
-  if (ws._reconnectAttempts === undefined) {
-    ws._reconnectAttempts = 0;
+  if (currentWs && currentWs._reconnectAttempts === undefined) {
+    currentWs._reconnectAttempts = 0;
   }
 
   // Limit maximum reconnection attempts
-  if (ws._reconnectAttempts >= maxReconnectAttempts) {
+  if (currentWs && currentWs._reconnectAttempts >= maxReconnectAttempts) {
     console.error(`Maximum reconnection attempts (${maxReconnectAttempts}) reached.`);
     // In silent mode, keep showing 'Stopped'; otherwise show failure
     if (!window.silentReconnectMode) {
@@ -6260,7 +6367,7 @@ function reconnect_websocket(ws, callback) {
     }
 
     // Properly clean up any pending timers
-    ws._isReconnecting = false;
+    currentWs._isReconnecting = false;
     if (reconnectionTimer) {
       clearTimeout(reconnectionTimer);
       reconnectionTimer = null;
@@ -6269,10 +6376,13 @@ function reconnect_websocket(ws, callback) {
   }
 
   // Mark as reconnecting
-  ws._isReconnecting = true;
+  if (currentWs) {
+    currentWs._isReconnecting = true;
+  }
 
-  // Calculate exponential backoff delay
-  const delay = baseReconnectDelay * Math.pow(1.5, ws._reconnectAttempts);
+  // Calculate exponential backoff delay (use currentWs for attempt tracking, fallback to 0)
+  const attemptCount = (currentWs && currentWs._reconnectAttempts) || 0;
+  const delay = baseReconnectDelay * Math.pow(1.5, attemptCount);
 
   // Clear any existing reconnection timer
   if (reconnectionTimer) {
@@ -6281,19 +6391,25 @@ function reconnect_websocket(ws, callback) {
   }
 
   try {
-    // Check WebSocket state
-    switch (ws.readyState) {
+    // Check WebSocket state (use currentWs if provided, otherwise check module-level ws)
+    const wsToCheck = currentWs || ws;
+    const currentState = wsToCheck ? wsToCheck.readyState : WebSocket.CLOSED;
+
+    switch (currentState) {
       case WebSocket.CLOSED:
         // Socket is closed, create a new one
-        ws._reconnectAttempts++;
+        if (currentWs) {
+          currentWs._reconnectAttempts = (currentWs._reconnectAttempts || 0) + 1;
+        }
 
         // Stop any active ping interval
         stopPing();
 
         // After maximum attempts, just show final error and don't reconnect
-        if (ws._reconnectAttempts >= maxReconnectAttempts) {
+        const currentAttempts = currentWs ? currentWs._reconnectAttempts : 0;
+        if (currentAttempts >= maxReconnectAttempts) {
           const connectionFailedRefreshText = getTranslation('ui.messages.connectionFailedRefresh', 'Connection failed - please refresh page');
-    setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
+          setAlert(`<i class='fa-solid fa-server'></i> ${connectionFailedRefreshText}`, "danger");
           return; // Exit without creating new connection
         }
 
@@ -6322,7 +6438,10 @@ function reconnect_websocket(ws, callback) {
           console.warn('[reconnect_websocket] Error clearing audio queue:', e);
         }
 
-        // Create new connection
+        // CRITICAL: Close old WebSocket before creating new one to prevent connection accumulation
+        closeCurrentWebSocket();
+
+        // Create new connection and assign to module-level ws (no shadowing now)
         ws = connect_websocket(callback);
         window.ws = ws;  // Update global reference
         break;
@@ -6331,8 +6450,10 @@ function reconnect_websocket(ws, callback) {
         // Wait for socket to fully close before reconnecting
         console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
         reconnectionTimer = setTimeout(() => {
-          ws._isReconnecting = false; // Reset flag before next attempt
-          reconnect_websocket(ws, callback);
+          if (currentWs) {
+            currentWs._isReconnecting = false; // Reset flag before next attempt
+          }
+          reconnect_websocket(currentWs, callback);
         }, delay);
         break;
 
@@ -6340,15 +6461,19 @@ function reconnect_websocket(ws, callback) {
         // Socket is still trying to connect, wait a bit before checking again
         console.log(`Socket is connecting. Checking again in ${delay}ms.`);
         reconnectionTimer = setTimeout(() => {
-          ws._isReconnecting = false; // Reset flag before next attempt
-          reconnect_websocket(ws, callback);
+          if (currentWs) {
+            currentWs._isReconnecting = false; // Reset flag before next attempt
+          }
+          reconnect_websocket(currentWs, callback);
         }, delay);
         break;
 
       case WebSocket.OPEN:
-        // Connection is successful, reset counters
-        ws._reconnectAttempts = 0;
-        ws._isReconnecting = false;
+        // Connection is successful, reset counters on the active connection
+        if (ws) {
+          ws._reconnectAttempts = 0;
+          ws._isReconnecting = false;
+        }
 
         // Start ping to keep connection alive
         startPing();
@@ -6374,9 +6499,11 @@ function reconnect_websocket(ws, callback) {
     // Schedule another attempt with backoff on error
     reconnectionTimer = setTimeout(() => {
       // Increment attempt counter on error
-      ws._reconnectAttempts++;
-      ws._isReconnecting = false; // Reset flag before next attempt
-      reconnect_websocket(ws, callback);
+      if (currentWs) {
+        currentWs._reconnectAttempts = (currentWs._reconnectAttempts || 0) + 1;
+        currentWs._isReconnecting = false; // Reset flag before next attempt
+      }
+      reconnect_websocket(currentWs, callback);
     }, delay);
   }
 }
@@ -6450,13 +6577,19 @@ function handleVisibilityChange() {
         reconnectionTimer = null;
       }
 
+      // Prevent duplicate connection attempts during rapid visibility changes
+      if (isConnecting) {
+        console.log('[handleVisibilityChange] Connection attempt already in progress, skipping');
+        return;
+      }
+
       // Handle different WebSocket states
-      switch (ws.readyState) {
+      switch (ws ? ws.readyState : WebSocket.CLOSED) {
         case WebSocket.CLOSED:
         case WebSocket.CLOSING:
 
           // Reset reconnection attempts for a fresh start when user returns to tab
-          if (ws._reconnectAttempts !== undefined) {
+          if (ws && ws._reconnectAttempts !== undefined) {
             ws._reconnectAttempts = 0;
           }
 
@@ -6485,8 +6618,16 @@ function handleVisibilityChange() {
             console.warn('[handleVisibilityChange] Error clearing audio queue:', e);
           }
 
+          // CRITICAL: Close old WebSocket before creating new one to prevent connection accumulation
+          closeCurrentWebSocket();
+
+          // Set connecting guard
+          isConnecting = true;
+
           // Establish a new connection with proper callback
           ws = connect_websocket((newWs) => {
+            isConnecting = false;  // Reset guard
+            window.ws = ws;  // Update global reference for other files (utilities.js, cards.js)
             if (newWs && newWs.readyState === WebSocket.OPEN) {
               // Reload data from server
               newWs.send(JSON.stringify({ message: "LOAD" }));
@@ -6516,6 +6657,9 @@ function handleVisibilityChange() {
       }
     } catch (error) {
       console.error("Error handling visibility change:", error);
+
+      // Reset connecting guard on error
+      isConnecting = false;
 
       // Cleanup any pending timers
       if (reconnectionTimer) {
@@ -6589,10 +6733,8 @@ window.addEventListener('beforeunload', function() {
     window.audioCtx.close().catch(err => console.warn('Error closing window.audioCtx:', err));
   }
 
-  // Close WebSocket connection if it's open
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    ws.close();
-  }
+  // Close WebSocket connection properly
+  closeCurrentWebSocket();
 });
 
 // Helper function to get a cookie by name
@@ -6606,6 +6748,7 @@ function getCookie(name) {
 // Export functions for browser environment
 window.connect_websocket = connect_websocket;
 window.reconnect_websocket = reconnect_websocket;
+window.closeCurrentWebSocket = closeCurrentWebSocket;
 window.handleVisibilityChange = handleVisibilityChange;
 window.startPing = startPing;
 window.stopPing = stopPing;

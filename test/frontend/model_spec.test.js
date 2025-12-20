@@ -75,8 +75,8 @@ describe('Model Specification', () => {
       // Claude Sonnet 4.5 should have vision support
       expect(modelSpec['claude-sonnet-4-5-20250929'].vision_capability).toBe(true);
 
-      // Claude Haiku 3 has vision support
-      expect(modelSpec['claude-3-haiku-20240307'].vision_capability).toBe(true);
+      // Claude Haiku 4.5 has vision support
+      expect(modelSpec['claude-haiku-4-5-20251001'].vision_capability).toBe(true);
     });
   });
   

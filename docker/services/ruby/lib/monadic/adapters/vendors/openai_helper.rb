@@ -1288,6 +1288,10 @@ module OpenAIHelper
                 end
                 normalized = entry.transform_keys { |k| k.to_s }
                 normalized["type"] ||= "reasoning"
+                # CRITICAL: Remove the original ID when sending reasoning items as input
+                # OpenAI rejects reasoning items with their original IDs (like rs_xxx...)
+                # because it expects specific following items that match the original response structure
+                normalized.delete("id")
                 output_items << normalized
                 has_reasoning = true
               end

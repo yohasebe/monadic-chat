@@ -33,11 +33,11 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "has correct model configuration" do
         model = app_instance.settings[:model]
-        # Updated to Gemini 3 Pro Preview
+        # Updated to Gemini 3 Flash Preview
         if model.is_a?(Array)
-          expect(model.first).to eq("gemini-3-pro-preview")
+          expect(model.first).to eq("gemini-3-flash-preview")
         else
-          expect(model).to eq("gemini-3-pro-preview")
+          expect(model).to eq("gemini-3-flash-preview")
         end
       end
 
@@ -224,7 +224,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         expect(app_instance.settings[:initiate_from_assistant]).to eq(true)
 
         puts "\n✅ Gemini Jupyter Notebook optimized for function calling with session state:"
-        puts "   - Model: gemini-3-pro-preview with 2.5 fallback"
+        puts "   - Model: gemini-3-flash-preview with 2.5 fallback"
         puts "   - Reasoning effort: minimal (required for function calling)"
         puts "   - Monadic mode: ENABLED (for notebook context tracking via Session State)"
         puts "   - Function calling: ENABLED with #{app_instance.settings[:tools].length} tools"

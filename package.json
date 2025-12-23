@@ -7,7 +7,6 @@
   "scripts": {
     "start": "electron .",
     "build:mac-arm64": "electron-builder --mac --arm64",
-    "build:mac-x64": "electron-builder --mac --x64",
     "build:win": "electron-builder --win --x64",
     "build:linux-arm64": "electron-builder --linux --arm64",
     "build:linux-x64": "electron-builder --linux --x64",

@@ -91,9 +91,8 @@ rake build
 
 # プラットフォーム別ビルド
 rake build:win           # Windows x64
-rake build:mac           # 両方のmacOSパッケージ
+rake build:mac           # macOS (Apple Siliconのみ)
 rake build:mac_arm64     # macOS arm64 (Apple Silicon)
-rake build:mac_x64       # macOS x64 (Intel)
 rake build:linux         # 両方のLinuxパッケージ
 rake build:linux_x64     # Linux x64
 rake build:linux_arm64   # Linux arm64

@@ -863,14 +863,6 @@ namespace :build do
     sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
-  desc "Build macOS x64 (Intel) package only"
-  task :mac_x64 do
-    skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
-    setup_build_environment(skip_help_db: skip_help_db)
-    puts "Building macOS x64 package..."
-    sh "npm run build:mac-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
-  end
-
   desc "Build Linux x64 package only"
   task :linux_x64 do
     skip_help_db = ENV['SKIP_HELP_DB'] == 'true'
@@ -887,8 +879,8 @@ namespace :build do
     sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   end
 
-  desc "Build macOS packages (both arm64 and x64)"
-  task :mac => [:mac_arm64, :mac_x64]
+  desc "Build macOS package (arm64 only, Apple Silicon)"
+  task :mac => [:mac_arm64]
 
   desc "Build Linux packages (both x64 and arm64)"
   task :linux => [:linux_x64, :linux_arm64]
@@ -909,7 +901,6 @@ task :build do
   sh "npm run build:linux-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:linux-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
   sh "npm run build:win -- --publish never -c.generateUpdatesFilesForAllChannels=true"
-  sh "npm run build:mac-x64 -- --publish never -c.generateUpdatesFilesForAllChannels=true" 
   sh "npm run build:mac-arm64 -- --publish never -c.generateUpdatesFilesForAllChannels=true"
 
   # First, get all files in the dist directory to see what was actually generated
@@ -931,12 +922,10 @@ task :build do
     "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
     "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
     
-    # macOS files
+    # macOS files (Apple Silicon only)
     "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
-    "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
     "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
-    "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
-    
+
     # Linux files
     "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
     "linux_arm64_deb" => "monadic-chat_VERSION_arm64.deb",
@@ -1680,12 +1669,10 @@ namespace :release do
     # Step 2: Build all packages if needed - check for ALL required file types
     escaped_version = escape_version_for_files(version)
     
-    # Define file patterns to check
+    # Define file patterns to check (macOS is Apple Silicon only)
     file_patterns = {
       "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
-      "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
       "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
-      "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
       "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
       "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
       "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",
@@ -1894,11 +1881,10 @@ namespace :release do
     
     if file_patterns.nil?
       # Default file patterns to look for
+      # macOS is Apple Silicon only
       update_patterns = {
         "mac_arm64_dmg" => "Monadic.Chat-VERSION-arm64.dmg",
-        "mac_x64_dmg" => "Monadic.Chat-VERSION-x64.dmg",
         "mac_arm64_zip" => "Monadic.Chat-VERSION-arm64.zip",
-        "mac_x64_zip" => "Monadic.Chat-VERSION-x64.zip",
         "win_installer" => "Monadic.Chat.Setup.VERSION.exe",
         "win_zip" => "Monadic.Chat.Setup.VERSION.zip",
         "linux_x64_deb" => "monadic-chat_VERSION_amd64.deb",

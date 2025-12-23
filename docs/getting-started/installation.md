@@ -5,6 +5,7 @@
 - **Docker Desktop**: Recent version recommended
 - **Memory**: At least 8GB RAM (16GB recommended)
 - **Storage**: Sufficient free disk space for Docker images and user data
+- **macOS**: Apple Silicon (M1 or later) required. Intel Macs are not supported.
 
 ## Basic Steps :id=basic-steps
 
@@ -12,18 +13,12 @@
 
 ### **macOS**
 
+> **Note**: macOS requires Apple Silicon (M1 or later). Intel Macs are not supported.
+
 1. **Install Docker Desktop for Mac**
 
-Check your CPU type:
-```shell
-$ sysctl -n machdep.cpu.brand_string
-```
-
 Download from [Docker Desktop](https://docs.docker.com/desktop/):
-- Intel Mac: `Docker Desktop Installer.dmg`
-- Apple Silicon: `Docker Desktop Installer Apple Silicon.dmg`
-
-<!-- SCREENSHOT: Docker Desktop download page showing Intel and Apple Silicon download options -->
+- Download `Docker Desktop Installer Apple Silicon.dmg`
 
 Drag the Docker icon to Applications folder and launch. Accept the service agreement and use recommended settings.
 

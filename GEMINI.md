@@ -33,8 +33,7 @@ This will start the Electron application. From the application's UI, you can sta
 
 To build the application for your platform, use the following commands:
 
-*   **macOS (Apple Silicon):** `npm run build:mac-arm64`
-*   **macOS (Intel):** `npm run build:mac-x64`
+*   **macOS (Apple Silicon only):** `npm run build:mac-arm64` (Intel Mac not supported)
 *   **Windows:** `npm run build:win`
 *   **Linux (arm64):** `npm run build:linux-arm64`
 *   **Linux (x64):** `npm run build:linux-x64`

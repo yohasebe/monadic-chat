@@ -5,6 +5,7 @@
 - **Docker Desktop**: 最新版を推奨
 - **メモリ**: 最低8GB RAM（16GB推奨）
 - **ストレージ**: Dockerイメージとユーザーデータ用の十分な空き容量
+- **macOS**: Apple Silicon（M1以降）が必要です。Intel Macはサポートされていません。
 
 ## 基本的な手順 :id=basic-steps
 
@@ -12,18 +13,12 @@
 
 ### **macOS**
 
+> **注意**: macOSはApple Silicon（M1以降）が必要です。Intel Macはサポートされていません。
+
 1. **Docker Desktop for Macのインストール**
 
-CPUタイプを確認：
-```shell
-$ sysctl -n machdep.cpu.brand_string
-```
-
 [Docker Desktop](https://docs.docker.com/desktop/)からダウンロード：
-- Intel Mac: `Docker Desktop Installer.dmg`
-- Apple Silicon: `Docker Desktop Installer Apple Silicon.dmg`
-
-<!-- SCREENSHOT: Docker Desktopダウンロードページ - Mac用のDocker Desktop Installer.dmgとApple Silicon版のダウンロードボタンが表示されている様子 -->
+- `Docker Desktop Installer Apple Silicon.dmg` をダウンロード
 
 Dockerアイコンをアプリケーションフォルダにドラッグして起動。サービス契約に同意し、推奨設定を使用してください。
 

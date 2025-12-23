@@ -6,8 +6,7 @@ This document covers the build process for the Monadic Chat Electron application
 
 ```bash
 # Build for specific platforms
-npm run build:mac-arm64   # Mac ARM64 (Apple Silicon)
-npm run build:mac-x64     # Mac Intel
+npm run build:mac-arm64   # Mac ARM64 (Apple Silicon) - Intel Mac not supported
 npm run build:win         # Windows x64
 npm run build:linux-arm64 # Linux ARM64
 npm run build:linux-x64   # Linux x64

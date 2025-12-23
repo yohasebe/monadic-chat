@@ -91,9 +91,8 @@ rake build
 
 # Platform-specific builds
 rake build:win           # Windows x64
-rake build:mac           # Both macOS packages
+rake build:mac           # macOS (Apple Silicon only)
 rake build:mac_arm64     # macOS arm64 (Apple Silicon)
-rake build:mac_x64       # macOS x64 (Intel)
 rake build:linux         # Both Linux packages
 rake build:linux_x64     # Linux x64
 rake build:linux_arm64   # Linux arm64

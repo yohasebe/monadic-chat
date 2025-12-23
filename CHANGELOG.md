@@ -25,7 +25,7 @@
   - **Electron 38.3.0**: Updated to latest stable Electron for improved performance and security
   - **Enhanced Stability**: Fixed all test suite issues for reliable operation
   - **Comprehensive Documentation**: Complete English and Japanese documentation with verified links
-  - **Multi-Platform Support**: Verified builds for macOS (ARM64/x64), Windows, and Linux
+  - **Multi-Platform Support**: Verified builds for macOS (Apple Silicon), Windows, and Linux (Intel Mac not supported)
   - **20+ Built-in Apps**: Production-ready applications including Code Interpreter, PDF Chat, AutoForge, Video Analysis
   - **9 AI Providers**: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, xAI, DeepSeek, Ollama
   - **Advanced Features**:

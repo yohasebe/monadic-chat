@@ -2382,18 +2382,45 @@ module WebSocketHelper
               # Context extraction for monadic apps (automatic context tracking)
               # This runs AFTER the response is sent to the user, in a background thread
               # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
+
+              # Debug: Log params["monadic"] value before the check
+              if CONFIG && CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [ContextExtractor] DEBUG: params['monadic']=#{params["monadic"].inspect}, params keys=#{params.keys.take(10).inspect}")
+                end
+              end
+
               if params["monadic"]
                 begin
+                  if CONFIG && CONFIG["EXTRA_LOGGING"]
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] Monadic mode detected, starting context extraction setup")
+                    end
+                  end
+
                   # Get the provider and context_schema from the app settings
                   app_name = params["app_name"]
                   app = APPS[app_name] if defined?(APPS) && app_name
                   provider = app&.settings&.dig("provider") || app&.settings&.dig(:provider) || "openai"
                   context_schema = app&.settings&.dig(:context_schema) || app&.settings&.dig("context_schema")
 
+                  if CONFIG && CONFIG["EXTRA_LOGGING"]
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] app_name=#{app_name}, provider=#{provider}, context_schema=#{context_schema ? 'present' : 'nil'}")
+                    end
+                  end
+
                   # Find the last user message from session messages
                   user_messages = messages.select { |m| m["role"] == "user" }
                   last_user_message = user_messages.last
                   user_text = last_user_message&.dig("text") || ""
+
+                  if CONFIG && CONFIG["EXTRA_LOGGING"]
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] user_text length=#{user_text.length}, final_text length=#{final_text.to_s.length}")
+                      log.puts("[#{Time.now}] [ContextExtractor] user_text empty?=#{user_text.empty?}, final_text empty?=#{final_text.to_s.empty?}")
+                    end
+                  end
 
                   # Capture session data for thread (avoid closure issues)
                   thread_session = session.dup
@@ -2421,8 +2448,10 @@ module WebSocketHelper
                         )
                       rescue StandardError => ctx_err
                         if CONFIG && CONFIG["EXTRA_LOGGING"]
-                          puts "[ContextExtractor] Background error: #{ctx_err.message}"
-                          puts "[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}"
+                          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                            log.puts("[#{Time.now}] [ContextExtractor] Background error: #{ctx_err.message}")
+                            log.puts("[#{Time.now}] [ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}")
+                          end
                         end
                       end
                     end
@@ -2430,7 +2459,9 @@ module WebSocketHelper
                 rescue StandardError => ctx_setup_err
                   # Don't let context extraction setup errors affect the main flow
                   if CONFIG && CONFIG["EXTRA_LOGGING"]
-                    puts "[ContextExtractor] Setup error: #{ctx_setup_err.message}"
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] Setup error: #{ctx_setup_err.message}")
+                    end
                   end
                 end
               end

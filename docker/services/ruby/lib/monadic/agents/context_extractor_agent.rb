@@ -127,6 +127,14 @@ module ContextExtractorAgent
   # @return [Hash, nil] Extracted context or nil on failure
   def extract_context(session, user_message, assistant_response, provider, schema = nil, language = nil)
     provider = normalize_provider(provider)
+
+    # Debug: Log provider normalization
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] extract_context called with provider=#{provider}")
+      end
+    end
+
     model = SystemDefaults.get_default_model(provider)
 
     # For Ollama, try to get the first available model if no default is configured
@@ -134,11 +142,40 @@ module ContextExtractorAgent
       model = get_ollama_fallback_model
     end
 
-    return nil unless model
+    # Debug: Log model lookup result
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] model lookup result: model=#{model.inspect}")
+      end
+    end
+
+    if model.nil?
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: model is nil for provider=#{provider}")
+        end
+      end
+      return nil
+    end
 
     # Check API key availability (Ollama doesn't need API key)
     api_key = get_api_key_for_provider(provider)
-    return nil unless api_key || provider == "ollama"
+
+    # Debug: Log API key check
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] API key present: #{!api_key.nil? && !api_key.empty?}")
+      end
+    end
+
+    if api_key.nil? && provider != "ollama"
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: no API key for provider=#{provider}")
+        end
+      end
+      return nil
+    end
 
     # Use provided schema or default
     effective_schema = schema || DEFAULT_SCHEMA
@@ -164,14 +201,42 @@ module ContextExtractorAgent
     system_message = "#{extraction_prompt}\n\nConversation to analyze:\n#{conversation_text}"
 
     begin
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] Calling API: provider=#{provider}, model=#{model}")
+        end
+      end
+
       result = call_provider_api(provider, model, system_message, api_key)
 
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] API result: #{result.nil? ? 'nil' : "#{result.length} chars"}")
+        end
+      end
+
       if result.is_a?(String) && !result.empty?
-        parse_context_json(result, effective_schema)
+        parsed = parse_context_json(result, effective_schema)
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ContextExtractor] Parsed context: #{parsed.inspect}")
+          end
+        end
+        parsed
       else
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ContextExtractor] API returned empty or nil result")
+          end
+        end
         nil
       end
     rescue StandardError => e
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] API exception: #{e.class}: #{e.message}")
+        end
+      end
       log_extraction_error(provider, model, e)
       nil
     end
@@ -454,24 +519,66 @@ module ContextExtractorAgent
   # @param session_id [String] WebSocket session ID for broadcasting
   # @param schema [Hash] The context schema defining fields to extract (optional)
   def process_and_broadcast_context(session, user_message, assistant_response, provider, session_id, schema = nil)
-    return unless session_id
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] process_and_broadcast_context called")
+        log.puts("[#{Time.now}] [ContextExtractor]   provider=#{provider}, session_id=#{session_id ? 'present' : 'nil'}")
+      end
+    end
+
+    if session_id.nil?
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: session_id is nil")
+        end
+      end
+      return
+    end
 
     effective_schema = schema || DEFAULT_SCHEMA
 
     # Extract conversation language from session runtime settings
     language = session.dig(:runtime_settings, :language) || session.dig("runtime_settings", "language")
 
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] Calling extract_context with language=#{language}")
+      end
+    end
+
     context = extract_context(session, user_message, assistant_response, provider, effective_schema, language)
-    return unless context
+
+    if context.nil?
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: extract_context returned nil")
+        end
+      end
+      return
+    end
 
     # Check if there's any actual content to broadcast (dynamic field check)
     fields = effective_schema[:fields] || effective_schema["fields"] || DEFAULT_SCHEMA[:fields]
     field_names = fields.map { |f| f[:name] || f["name"] }
     has_content = field_names.any? { |name| context[name]&.any? }
-    return unless has_content
+
+    if !has_content
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] EARLY RETURN: no content to broadcast")
+        end
+      end
+      return
+    end
 
     # Merge with existing context from session (using dynamic schema)
     merged_context = merge_with_session_context(session, context, effective_schema)
+
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] Broadcasting context update to session #{session_id}")
+      end
+    end
 
     # Broadcast to sidebar via WebSocket (include schema for frontend rendering)
     broadcast_context_update(session_id, merged_context, effective_schema)

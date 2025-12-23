@@ -7,6 +7,15 @@ class VideoGeneratorGemini < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GeminiHelper if defined?(GeminiHelper)
 
+  # Initialize with special flag for conversation history management
+  def initialize(*args)
+    super
+    # Flag to clear tool call history from orchestration model context
+    # This prevents the model from seeing previous tool calls and results
+    # which would cause it to repeatedly call the same tool
+    @clear_orchestration_history = true
+  end
+
   # Override to add monadic state saving for uploaded images
   def generate_video_with_veo(prompt:, image_path: nil, aspect_ratio: nil, person_generation: nil, negative_prompt: nil, veo_model: nil, session: nil)
     validate_video_prompt(prompt)
@@ -44,6 +53,15 @@ end
 class VideoGeneratorOpenAI < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include MonadicHelper
+
+  # Initialize with special flag for conversation history management
+  def initialize(*args)
+    super
+    # Flag to clear tool call history from orchestration model context
+    # This prevents the model from seeing previous tool calls and results
+    # which would cause it to repeatedly call the same tool
+    @clear_orchestration_history = true
+  end
 
   # Override to add monadic state saving for uploaded images
   def generate_video_with_sora(prompt:, model: "sora-2", size: "1280x720", seconds: "8", image_path: nil, remix_video_id: nil, session: nil)

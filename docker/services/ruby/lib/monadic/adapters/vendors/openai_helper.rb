@@ -631,6 +631,39 @@ module OpenAIHelper
     end
     context.each { |msg| msg["active"] = true if msg }
 
+    # Special handling for apps that need orchestration history cleared
+    # This prevents the model from seeing previous tool calls and results,
+    # which would cause it to repeatedly call the same tool (e.g., image generation)
+    if @clear_orchestration_history
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] OpenAI: Clearing orchestration history in api_request"
+        extra_log.puts "  Original context size: #{context.size}"
+        extra_log.puts "  self.class: #{self.class.name}"
+      end
+
+      # Keep only: first message (system) + last user message
+      # This prevents orchestration model from seeing tool results that trigger duplicates
+      first_msg = context.first
+      last_user_msg = context.reverse.find { |msg| msg["role"] == "user" }
+
+      if first_msg && last_user_msg
+        context = [first_msg]
+        context << last_user_msg unless first_msg == last_user_msg
+        context.each { |msg| msg["active"] = true }
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log.puts "  Filtered context size: #{context.size}"
+          extra_log.puts "  First message role: #{first_msg["role"]}"
+          extra_log.puts "  Last user message role: #{last_user_msg["role"]}"
+          extra_log.close
+        end
+      elsif CONFIG["EXTRA_LOGGING"]
+        extra_log.puts "  WARNING: Could not filter context (missing first or last user message)"
+        extra_log.close
+      end
+    end
+
     # Set the headers for the API request
     headers = {
       "Content-Type" => "application/json",

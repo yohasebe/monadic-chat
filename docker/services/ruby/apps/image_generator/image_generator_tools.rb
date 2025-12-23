@@ -8,6 +8,16 @@ require_relative "../../lib/monadic/shared_tools/monadic_session_state"
 class ImageGeneratorOpenAI < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include OpenAIHelper if defined?(OpenAIHelper)
+
+  # Initialize with special flag for conversation history management
+  def initialize(*args)
+    super
+    # Flag to clear tool call history from orchestration model context
+    # This prevents the model from seeing previous tool calls and results
+    # which would cause it to repeatedly call the same tool
+    @clear_orchestration_history = true
+  end
+
   # Generate, edit, or create variations of images using OpenAI
   # @param operation [String] Type of operation: 'generate', 'edit', or 'variation'
   # @param model [String] Model to use for image generation
@@ -450,6 +460,15 @@ end
 class ImageGeneratorGrok < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GrokHelper if defined?(GrokHelper)
+
+  # Initialize with special flag for conversation history management
+  def initialize(*args)
+    super
+    # Flag to clear tool call history from orchestration model context
+    # This prevents the model from seeing previous tool calls and results
+    # which would cause it to repeatedly call the same tool
+    @clear_orchestration_history = true
+  end
 
   # Generate images using Grok/xAI
   # @param prompt [String] Text description of the desired image

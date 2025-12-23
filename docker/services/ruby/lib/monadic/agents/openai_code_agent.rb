@@ -517,14 +517,17 @@ module Monadic
           ""
         end
 
+        # Note about potential long processing time for complex tasks
+        complexity_note = "<br><small style='color: #888;'><i class='fas fa-info-circle'></i> Complex applications may take 10-20 minutes to complete.</small>"
+
         # Use same HTML/icon format as existing wait messages
         case minutes
         when 0
-          "<i class='fas fa-robot'></i> OpenAI Code is analyzing requirements..."
+          "<i class='fas fa-robot'></i> OpenAI Code is analyzing requirements...#{complexity_note}"
         when 1..2
-          "<i class='fas fa-laptop-code'></i> OpenAI Code is generating code (#{time_str} elapsed)...#{timeout_warning}"
+          "<i class='fas fa-laptop-code'></i> OpenAI Code is generating code (#{time_str} elapsed)...#{complexity_note}#{timeout_warning}"
         when 3..4
-          "<i class='fas fa-cogs'></i> OpenAI Code is structuring the solution (#{time_str} elapsed)...#{timeout_warning}"
+          "<i class='fas fa-cogs'></i> OpenAI Code is structuring the solution (#{time_str} elapsed)...#{complexity_note}#{timeout_warning}"
         when 5..9
           "<i class='fas fa-brain'></i> OpenAI Code is optimizing the implementation (#{time_str} elapsed)...#{timeout_warning}"
         when 10..14

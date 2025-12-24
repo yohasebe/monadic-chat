@@ -407,8 +407,14 @@ class MonadicApp
       DOCKER
     end
 
-    # Use longer timeout for video generation (Veo 3 and Sora can take up to 7 minutes)
-    timeout_value = (command.include?("video_generator_veo") || command.include?("video_generator_openai")) ? 480 : 120  # 8 minutes for video, 2 minutes default
+    # Use longer timeout for media generation (videos and images can take several minutes)
+    timeout_value = if command.include?("video_generator_veo") || command.include?("video_generator_openai")
+                      480  # 8 minutes for video generation
+                    elsif command.include?("image_generator_openai") || command.include?("image_generator_grok")
+                      300  # 5 minutes for image generation
+                    else
+                      120  # 2 minutes default
+                    end
     stdout, stderr, status = self.capture_command(system_command, timeout: timeout_value)
 
     if block_given?

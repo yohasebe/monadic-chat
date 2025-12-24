@@ -167,20 +167,34 @@ class ChordAccompanistClaude < MonadicApp
   end
 
   def call_claude_for_validation(prompt, model)
-    messages = [{ role: "user", content: prompt }]
+    # Build messages in the format expected by send_query
+    messages = [{ "role" => "user", "content" => prompt }]
 
-    response = call_claude(
-      messages: messages,
-      model: model,
-      max_tokens: 4096,
-      temperature: 0.0
+    # Use send_query which is available from ClaudeHelper
+    # send_query returns the text content directly as a string
+    response = send_query(
+      {
+        "messages" => messages,
+        "max_tokens" => 4096,
+        "temperature" => 0.0
+      },
+      model: model
     )
 
-    if response && response["content"] && response["content"][0]
-      {
-        success: true,
-        content: response["content"][0]["text"]
-      }
+    # send_query returns a string (the response text) or an error message
+    if response && response.is_a?(String) && !response.empty?
+      # Check if the response looks like an error (ErrorFormatter messages contain specific patterns)
+      if response.include?("Error:") || response.include?("API error") || response.include?("error:")
+        {
+          success: false,
+          error: response
+        }
+      else
+        {
+          success: true,
+          content: response
+        }
+      end
     else
       {
         success: false,

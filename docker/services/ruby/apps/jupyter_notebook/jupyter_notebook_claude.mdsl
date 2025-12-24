@@ -67,6 +67,8 @@ app "JupyterNotebookClaude" do
     - State saving is AUTOMATIC - do NOT call monadic_save_state
     - Call each tool exactly ONCE per request
     - Do NOT call the same tool again if you see a successful result in history
+    - NEVER report tool failure without actually calling the tool first and seeing an error in the result
+    - If you think a tool call failed, check if you actually called it - if not, call it now
 
     WORKLOAD APPROACH:
     - By default, work efficiently in batches

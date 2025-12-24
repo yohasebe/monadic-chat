@@ -682,9 +682,33 @@ module GeminiHelper
             end
             
             result = text_parts.join(" ").strip
+
+            # Handle ReAct format output from Gemini 3 models
+            # When model outputs {"action": "...", "action_input": "..."}, extract meaningful content
+            if result.start_with?("{") && result.end_with?("}")
+              begin
+                react_json = JSON.parse(result)
+                if react_json.is_a?(Hash)
+                  # Skip only completely empty JSON objects
+                  if react_json.empty?
+                    result = ""
+                  # Handle ReAct format: extract action_input if it's a displayable string
+                  elsif react_json.key?("action") && react_json.key?("action_input")
+                    action_input = react_json["action_input"]
+                    if action_input.is_a?(String) && !action_input.strip.empty?
+                      result = action_input
+                    end
+                    # If action_input is not a string or is empty, keep original result
+                  end
+                end
+              rescue JSON::ParserError
+                # Not valid JSON, continue with original result
+              end
+            end
+
             return result unless result.empty?
           end
-          
+
           # 2. Check for direct text in content (some Gemini versions)
           if content["text"]
             return content["text"]
@@ -2154,6 +2178,39 @@ module GeminiHelper
               if part["text"]
                 fragment = part["text"]
 
+                # Handle ReAct format output from Gemini 3 models
+                # When model outputs {"action": "...", "action_input": "..."}, extract meaningful content
+                stripped_fragment = fragment.strip
+                if stripped_fragment.start_with?("{") && stripped_fragment.end_with?("}")
+                  begin
+                    react_json = JSON.parse(stripped_fragment)
+                    if react_json.is_a?(Hash)
+                      if CONFIG["EXTRA_LOGGING"]
+                        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                        extra_log.puts "[#{Time.now}] Gemini ReAct: keys=#{react_json.keys}, action_input_class=#{react_json["action_input"].class}"
+                        extra_log.close
+                      end
+
+                      # Skip only completely empty JSON objects
+                      if react_json.empty?
+                        next
+                      end
+
+                      # Handle ReAct format: extract action_input if it's a displayable string
+                      if react_json.key?("action") && react_json.key?("action_input")
+                        action_input = react_json["action_input"]
+                        if action_input.is_a?(String) && !action_input.strip.empty?
+                          fragment = action_input
+                        end
+                        # If action_input is not a string or is empty, continue with original fragment
+                        # (don't skip - let it display as-is for debugging)
+                      end
+                    end
+                  rescue JSON::ParserError
+                    # Not valid JSON, continue with original fragment
+                  end
+                end
+
                 # Special handling for Math Tutor FIRST - needs priority
                 if session[:parameters]["app_name"].to_s.include?("MathTutor") || 
                    session[:parameters]["display_name"].to_s.include?("Math Tutor")
@@ -2296,19 +2353,61 @@ module GeminiHelper
     end
 
     result = []
-    
+
     # Special handling for tool calls - don't show an error message yet if we have tool calls
     # because we might get a response after processing the function calls
     if texts.empty? && !tool_calls.any?
-      # Only show error message when no text AND no tool calls
-      # Don't store error messages as valid assistant responses
-      res = { "type" => "error", "content" => "No response received from model" }
-      block&.call res
-      finish_reason = "error"
-      # Return empty result to prevent storing error as a message
-      result = []
-    else 
+      # Check if this is an initiate_from_assistant app that needs a fallback greeting
+      app_name = session[:parameters]["app_name"].to_s
+      if app_name.include?("ImageGenerator") && app_name.include?("Gemini")
+        # Provide fallback greeting for Gemini Image Generator
+        fallback_greeting = "Welcome! I can generate and edit images using Gemini. Describe the image you want, or upload an image to edit it!"
+        res = { "type" => "fragment", "content" => fallback_greeting }
+        block&.call res
+        result = [fallback_greeting]
+      elsif app_name.include?("VideoGenerator") && app_name.include?("Gemini")
+        # Provide fallback greeting for Gemini Video Generator
+        fallback_greeting = "Welcome! I can create videos using Google's Veo. Simply describe your video or upload an image to animate!"
+        res = { "type" => "fragment", "content" => fallback_greeting }
+        block&.call res
+        result = [fallback_greeting]
+      else
+        # Only show error message when no text AND no tool calls
+        # Don't store error messages as valid assistant responses
+        res = { "type" => "error", "content" => "No response received from model" }
+        block&.call res
+        finish_reason = "error"
+        # Return empty result to prevent storing error as a message
+        result = []
+      end
+    else
       result = texts
+
+      # Post-process ReAct format for Image/Video Generator apps
+      # Since streaming sends fragments before we can detect the complete JSON,
+      # we need to check the final result and send a replacement if needed
+      app_name = session[:parameters]["app_name"].to_s
+      if (app_name.include?("ImageGenerator") || app_name.include?("VideoGenerator")) && app_name.include?("Gemini")
+        full_text = result.join("").strip
+        if full_text.start_with?("{") && full_text.end_with?("}")
+          begin
+            react_json = JSON.parse(full_text)
+            if react_json.is_a?(Hash) && react_json.key?("action") && react_json.key?("action_input")
+              action_input = react_json["action_input"]
+              if action_input.is_a?(String) && !action_input.strip.empty?
+                # Send the extracted content as a replacement fragment
+                # Using is_first: true will clear the temp-card content and replace with new content
+                res = { "type" => "fragment", "content" => action_input, "is_first" => true }
+                block&.call res
+                # Update result to contain only the extracted content
+                result = [action_input]
+              end
+            end
+          rescue JSON::ParserError
+            # Not valid JSON, keep original result
+          end
+        end
+      end
     end
 
     if tool_calls.any?
@@ -2990,11 +3089,100 @@ module GeminiHelper
         block&.call res
       end
     end
-    
+
+    # For Image/Video Generator apps, skip the recursive api_request after successful generation
+    # This prevents the model from seeing the tool result and calling the tool again
+    app_name = session[:parameters]["app_name"].to_s
+    if @clear_orchestration_history && (app_name.include?("ImageGenerator") || app_name.include?("VideoGenerator"))
+      # Check if we have a successful generation result
+      last_result = session_params["tool_results"]&.last
+      if last_result && last_result["functionResponse"]
+        response_content = last_result.dig("functionResponse", "response", "content").to_s
+
+        # Check for image generation success
+        if response_content.include?('"success":true') || response_content.include?('"success": true')
+          begin
+            parsed = JSON.parse(response_content)
+            if parsed["success"] && parsed["filename"]
+              filename = parsed["filename"]
+              prompt = parsed["prompt"] || "Image generation"
+
+              # Send the image HTML directly to the client
+              image_html = <<~HTML
+                <div class="prompt" style="margin-bottom: 15px;">
+                  <b>generate</b>: #{prompt}
+                </div>
+                <div class="generated_image">
+                  <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                </div>
+              HTML
+
+              res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+              block&.call res
+
+              # Send DONE message to complete the response
+              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+              block&.call res
+
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
+                extra_log.puts "  Filename: #{filename}"
+                extra_log.close
+              end
+
+              # Return the HTML as the result
+              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+            end
+          rescue JSON::ParserError
+            # Continue to normal flow if parsing fails
+          end
+        end
+
+        # Check for video generation success
+        if response_content.include?("Successfully saved video") || response_content.include?(".mp4")
+          if response_content =~ /\/data\/([^\s,]+\.mp4)/
+            video_filename = $1
+            prompt_match = response_content.match(/Original prompt: (.+?)(?:\n|$)/)
+            prompt = prompt_match ? prompt_match[1] : "Video generation"
+
+            # Send the video HTML directly to the client
+            video_html = <<~HTML
+              <div class="prompt" style="margin-bottom: 15px;">
+                <b>Prompt</b>: #{prompt}
+              </div>
+              <div class="generated_video">
+                <video controls width="600">
+                  <source src="/data/#{video_filename}" type="video/mp4" />
+                </video>
+              </div>
+            HTML
+
+            res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+            block&.call res
+
+            # Send DONE message to complete the response
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
+              extra_log.puts "  Filename: #{video_filename}"
+              extra_log.close
+            end
+
+            # Return the HTML as the result
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+          end
+        end
+      end
+    end
+
     # Make the API request with the tool results
     # Remove the artificial limit - let MAX_FUNC_CALLS handle it
     # The real issue might be elsewhere
-    
+
     api_request("tool", session, call_depth: call_depth, &block)
   end
 

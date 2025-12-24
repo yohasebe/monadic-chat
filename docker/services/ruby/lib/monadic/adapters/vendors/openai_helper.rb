@@ -2272,6 +2272,94 @@ module OpenAIHelper
 
     obj["function_returns"] = context
 
+    # For Image/Video Generator apps, skip the recursive api_request after successful generation
+    # This prevents the model from seeing the tool result and calling the tool again
+    app_name = session[:parameters]["app_name"].to_s
+    if @clear_orchestration_history && (app_name.include?("ImageGenerator") || app_name.include?("VideoGenerator"))
+      # Check if we have a successful generation result in the context
+      context.each do |ctx|
+        next unless ctx[:content].is_a?(String)
+        response_content = ctx[:content]
+
+        # Check for image generation success (OpenAI image generator returns image_url)
+        if response_content.include?("image_url") || (response_content.include?('"success"') && response_content.include?("filename"))
+          begin
+            parsed = JSON.parse(response_content)
+            # Handle OpenAI format with image_url
+            if parsed["image_url"]
+              image_url = parsed["image_url"]
+              prompt = parsed["prompt"] || "Image generation"
+
+              image_html = <<~HTML
+                <div class="prompt" style="margin-bottom: 15px;">
+                  <b>generate</b>: #{prompt}
+                </div>
+                <div class="generated_image">
+                  <img src="#{image_url}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                </div>
+              HTML
+
+              res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+              block&.call res
+              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+              block&.call res
+
+              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+            # Handle success/filename format
+            elsif parsed["success"] && parsed["filename"]
+              filename = parsed["filename"]
+              prompt = parsed["prompt"] || "Image generation"
+
+              image_html = <<~HTML
+                <div class="prompt" style="margin-bottom: 15px;">
+                  <b>generate</b>: #{prompt}
+                </div>
+                <div class="generated_image">
+                  <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                </div>
+              HTML
+
+              res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+              block&.call res
+              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+              block&.call res
+
+              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+            end
+          rescue JSON::ParserError
+            # Continue to normal flow
+          end
+        end
+
+        # Check for video generation success
+        if response_content.include?("Successfully saved video") || response_content.include?(".mp4")
+          if response_content =~ /\/data\/([^\s,]+\.mp4)/
+            video_filename = $1
+            prompt_match = response_content.match(/Original prompt: (.+?)(?:\n|$)/)
+            prompt = prompt_match ? prompt_match[1] : "Video generation"
+
+            video_html = <<~HTML
+              <div class="prompt" style="margin-bottom: 15px;">
+                <b>Prompt</b>: #{prompt}
+              </div>
+              <div class="generated_video">
+                <video controls width="600">
+                  <source src="/data/#{video_filename}" type="video/mp4" />
+                </video>
+              </div>
+            HTML
+
+            res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+            block&.call res
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+          end
+        end
+      end
+    end
+
     # return Array
     api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
   end

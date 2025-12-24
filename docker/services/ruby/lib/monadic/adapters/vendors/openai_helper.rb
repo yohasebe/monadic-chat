@@ -2308,23 +2308,45 @@ module OpenAIHelper
             # Handle success/filename format
             elsif parsed["success"] && parsed["filename"]
               filename = parsed["filename"]
-              prompt = parsed["prompt"] || "Image generation"
+              prompt = parsed["prompt"] || "Media generation"
 
-              image_html = <<~HTML
-                <div class="prompt" style="margin-bottom: 15px;">
-                  <b>generate</b>: #{prompt}
-                </div>
-                <div class="generated_image">
-                  <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
-                </div>
-              HTML
+              # Check if this is a video file
+              if filename.to_s.end_with?(".mp4")
+                video_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>Prompt</b>: #{prompt}
+                  </div>
+                  <div class="generated_video">
+                    <video controls width="600">
+                      <source src="/data/#{filename}" type="video/mp4" />
+                    </video>
+                  </div>
+                HTML
 
-              res = { "type" => "fragment", "content" => image_html, "is_first" => true }
-              block&.call res
-              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-              block&.call res
+                res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+                block&.call res
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
 
-              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+              else
+                # Image file
+                image_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>generate</b>: #{prompt}
+                  </div>
+                  <div class="generated_image">
+                    <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                  </div>
+                HTML
+
+                res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+                block&.call res
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
+              end
             end
           rescue JSON::ParserError
             # Continue to normal flow

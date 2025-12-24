@@ -2,14 +2,25 @@
 module JSONRepair
   def self.attempt_repair(json_string)
     return {} if json_string.nil? || json_string.empty?
-    
+
     # First, try normal parsing
     begin
       return JSON.parse(json_string)
     rescue JSON::ParserError
       # Continue with repair attempts
     end
-    
+
+    # Try to fix unescaped quotes inside string values
+    # This happens when LLM uses curly quotes throughout and they all get normalized
+    fixed_quotes = fix_unescaped_quotes_in_strings(json_string)
+    if fixed_quotes != json_string
+      begin
+        return JSON.parse(fixed_quotes)
+      rescue JSON::ParserError
+        # Continue with other repair attempts
+      end
+    end
+
     # Attempt to repair common truncation issues
     repaired = json_string.dup
     
@@ -156,11 +167,94 @@ module JSONRepair
       params["command"] = match[1]
     end
     
-    # Extract extension parameter  
+    # Extract extension parameter
     if match = json_string.match(/"extension"\s*:\s*"([^"]+)"/)
       params["extension"] = match[1]
     end
-    
+
     params
+  end
+
+  # Fix unescaped quotes inside JSON string values
+  # This handles cases where LLM generates JSON with curly quotes throughout,
+  # and after normalization, inner quotes break the JSON structure.
+  # Example: {"prompt":"text with "quotes" inside"} -> {"prompt":"text with \"quotes\" inside"}
+  def self.fix_unescaped_quotes_in_strings(json_string)
+    return json_string if json_string.nil? || json_string.empty?
+
+    result = ""
+    i = 0
+    in_string = false
+    is_key = false  # Track if we're in a key or value
+    escape_next = false
+
+    while i < json_string.length
+      char = json_string[i]
+
+      if escape_next
+        result << char
+        escape_next = false
+        i += 1
+        next
+      end
+
+      if char == '\\'
+        result << char
+        escape_next = true
+        i += 1
+        next
+      end
+
+      if char == '"'
+        if !in_string
+          # Starting a string - determine if it's a key or value
+          # Look back to see what preceded this quote
+          before = result.rstrip
+          if before.empty? || before.end_with?('{', ',', '[')
+            is_key = true
+          elsif before.end_with?(':')
+            is_key = false
+          end
+          in_string = true
+          result << char
+        else
+          # Check if this quote ends the string or is inside it
+          rest = json_string[(i + 1)..]
+          if is_end_of_json_string?(rest, is_key)
+            # This is the closing quote
+            in_string = false
+            result << char
+          else
+            # This is a quote inside the string - escape it
+            result << '\\"'
+          end
+        end
+      else
+        result << char
+      end
+
+      i += 1
+    end
+
+    result
+  end
+
+  # Check if we've reached the end of a JSON string
+  # Keys end with :, values end with , } ]
+  def self.is_end_of_json_string?(rest, is_key)
+    return true if rest.nil? || rest.empty?
+
+    # Skip whitespace
+    stripped = rest.lstrip
+
+    return true if stripped.empty?
+
+    if is_key
+      # Keys are followed by :
+      return stripped.start_with?(':')
+    else
+      # Values are followed by , } ]
+      return stripped.start_with?(',', '}', ']')
+    end
   end
 end

@@ -3099,40 +3099,72 @@ module GeminiHelper
       if last_result && last_result["functionResponse"]
         response_content = last_result.dig("functionResponse", "response", "content").to_s
 
-        # Check for image generation success
+        # Check for media generation success (image or video)
         if response_content.include?('"success":true') || response_content.include?('"success": true')
           begin
             parsed = JSON.parse(response_content)
             if parsed["success"] && parsed["filename"]
               filename = parsed["filename"]
-              prompt = parsed["prompt"] || "Image generation"
+              prompt = parsed["prompt"] || "Media generation"
 
-              # Send the image HTML directly to the client
-              image_html = <<~HTML
-                <div class="prompt" style="margin-bottom: 15px;">
-                  <b>generate</b>: #{prompt}
-                </div>
-                <div class="generated_image">
-                  <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
-                </div>
-              HTML
+              # Check if this is a video file
+              if filename.to_s.end_with?(".mp4")
+                # Send the video HTML directly to the client
+                video_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>Prompt</b>: #{prompt}
+                  </div>
+                  <div class="generated_video">
+                    <video controls width="600">
+                      <source src="/data/#{filename}" type="video/mp4" />
+                    </video>
+                  </div>
+                HTML
 
-              res = { "type" => "fragment", "content" => image_html, "is_first" => true }
-              block&.call res
+                res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+                block&.call res
 
-              # Send DONE message to complete the response
-              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-              block&.call res
+                # Send DONE message to complete the response
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
 
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
-                extra_log.puts "  Filename: #{filename}"
-                extra_log.close
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
+                  extra_log.puts "  Filename: #{filename}"
+                  extra_log.close
+                end
+
+                # Return the HTML as the result
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
+              else
+                # Send the image HTML directly to the client
+                image_html = <<~HTML
+                  <div class="prompt" style="margin-bottom: 15px;">
+                    <b>generate</b>: #{prompt}
+                  </div>
+                  <div class="generated_image">
+                    <img src="/data/#{filename}" style="max-width: 100%; border-radius: 8px; border: 1px solid #eee;">
+                  </div>
+                HTML
+
+                res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+                block&.call res
+
+                # Send DONE message to complete the response
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+
+                if CONFIG["EXTRA_LOGGING"]
+                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                  extra_log.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
+                  extra_log.puts "  Filename: #{filename}"
+                  extra_log.close
+                end
+
+                # Return the HTML as the result
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
               end
-
-              # Return the HTML as the result
-              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
             end
           rescue JSON::ParserError
             # Continue to normal flow if parsing fails

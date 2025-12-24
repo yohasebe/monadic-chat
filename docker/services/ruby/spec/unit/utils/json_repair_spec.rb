@@ -151,19 +151,57 @@ RSpec.describe JSONRepair do
         # Use double quotes and proper escaping
         truncated = "{\"message\": \"He said \\\"Hello"
         result = described_class.attempt_repair(truncated)
-        
+
         # Should handle escaped quotes properly
         expect(result["_json_repair_failed"]).to be_nil
       end
-      
+
       it 'handles escaped backslashes' do
         # Use heredoc for complex escaping
         truncated = <<~JSON.strip
           {"path": "C:\\\\Users\\\\test
         JSON
         result = described_class.attempt_repair(truncated)
-        
+
         expect(result["_json_repair_failed"]).to be_nil
+      end
+    end
+
+    context 'with unescaped quotes inside string values' do
+      it 'repairs unescaped quotes in string values' do
+        # This simulates what happens when LLM generates JSON with curly quotes
+        # and they all get normalized to regular quotes
+        bad_json = '{"prompt":"text with "quotes" inside"}'
+        result = described_class.attempt_repair(bad_json)
+
+        expect(result["_json_repair_failed"]).to be_nil
+        expect(result["prompt"]).to eq('text with "quotes" inside')
+      end
+
+      it 'repairs Japanese text with curly quotes normalized' do
+        # Real-world example from video generator
+        bad_json = '{"prompt":"Description "special text" more text"}'
+        result = described_class.attempt_repair(bad_json)
+
+        expect(result["_json_repair_failed"]).to be_nil
+        expect(result["prompt"]).to include("special text")
+      end
+
+      it 'handles multiple quote pairs inside value' do
+        bad_json = '{"text":"He said "hello" and she said "goodbye""}'
+        result = described_class.attempt_repair(bad_json)
+
+        expect(result["_json_repair_failed"]).to be_nil
+        expect(result["text"]).to eq('He said "hello" and she said "goodbye"')
+      end
+
+      it 'handles multiple fields with inner quotes' do
+        bad_json = '{"name":"John "JJ" Doe","title":"The "Great" One"}'
+        result = described_class.attempt_repair(bad_json)
+
+        expect(result["_json_repair_failed"]).to be_nil
+        expect(result["name"]).to eq('John "JJ" Doe')
+        expect(result["title"]).to eq('The "Great" One')
       end
     end
   end

@@ -3354,17 +3354,41 @@ let loadedApp = "Chat";
               utterance.rate = parseFloat(speedElement.value) || 1.0;
             }
 
+            // Set event handlers for proper button state management
+            utterance.onend = function() {
+              // Remove Stop button highlight when speech ends
+              if (typeof removeStopButtonHighlight === 'function') {
+                removeStopButtonHighlight();
+              }
+            };
+
+            utterance.onerror = function(event) {
+              console.error('Web Speech API error:', event);
+              // Remove Stop button highlight on error
+              if (typeof removeStopButtonHighlight === 'function') {
+                removeStopButtonHighlight();
+              }
+            };
+
             // Speak the text
             window.speechSynthesis.speak(utterance);
           } catch (e) {
             console.error("Error using Web Speech API:", e);
             setAlert("Web Speech API error: " + e.message, "warning");
+            // Remove Stop button highlight on error
+            if (typeof removeStopButtonHighlight === 'function') {
+              removeStopButtonHighlight();
+            }
           }
         } else {
           console.error("Web Speech API not available");
           const notAvailableText = typeof webUIi18n !== 'undefined' ?
             webUIi18n.t('ui.messages.webSpeechNotAvailable') : 'Web Speech API not available in this browser';
           setAlert(notAvailableText, "warning");
+          // Remove Stop button highlight if API not available
+          if (typeof removeStopButtonHighlight === 'function') {
+            removeStopButtonHighlight();
+          }
         }
         break;
       }

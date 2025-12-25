@@ -9,6 +9,7 @@
 - `spec_helper.rb` - すべてのテストの共通セットアップとヘルパーユーティリティ
 - `*_spec.rb` - 異なるコンポーネントの個別テストファイル
 - `monadic_app_command_mock.rb` - コマンド実行テスト用のMonadicAppのモック実装
+- `fixtures/` - テストフィクスチャファイル（サンプルOfficeドキュメントなど）
 
 ## 共有テストユーティリティ
 
@@ -32,6 +33,7 @@
 
 2. **テキスト処理**
    - `pdf_text_extractor_spec.rb` - PDF抽出のテスト
+   - `office_text_extractor_spec.rb` - Officeファイル抽出のテスト（docx、xlsx、pptx）
    - `string_utils_spec.rb` - 文字列ユーティリティ関数のテスト
 
 3. **API統合**

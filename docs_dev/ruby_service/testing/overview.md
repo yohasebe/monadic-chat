@@ -9,6 +9,7 @@ The test suite is organized as follows:
 - `spec_helper.rb` - Common setup and helper utilities for all tests
 - `*_spec.rb` - Individual test files for different components
 - `monadic_app_command_mock.rb` - Mock implementation of MonadicApp for testing command execution
+- `fixtures/` - Test fixture files (sample Office documents, etc.)
 
 ## Shared Testing Utilities
 
@@ -32,6 +33,7 @@ We've implemented several shared testing utilities to improve code reuse and con
 
 2. **Text Processing**
    - `pdf_text_extractor_spec.rb` - Tests for PDF extraction
+   - `office_text_extractor_spec.rb` - Tests for Office file extraction (docx, xlsx, pptx)
    - `string_utils_spec.rb` - Tests for string utility functions
 
 3. **API Integrations**

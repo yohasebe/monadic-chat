@@ -356,7 +356,28 @@ module CohereHelper
       "stream" => false
     }
     body["temperature"] = options["temperature"] || 0.7 unless is_thinking_model
-    
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      # Convert to Cohere format (similar to OpenAI)
+      body["tools"] = options["tools"].map do |tool|
+        if tool["type"] == "function" && tool["function"]
+          # Already in OpenAI format - Cohere accepts this
+          tool
+        else
+          # Convert from simple format to OpenAI/Cohere format
+          {
+            "type" => "function",
+            "function" => {
+              "name" => tool["name"] || tool[:name],
+              "description" => tool["description"] || tool[:description] || "",
+              "parameters" => tool["parameters"] || tool[:parameters] || { "type" => "object", "properties" => {} }
+            }
+          }
+        end
+      end
+    end
+
     # Make request
     target_uri = "#{API_ENDPOINT}/chat"
     http = HTTP.headers(headers)
@@ -380,6 +401,28 @@ module CohereHelper
         body_text = response.body.to_s
         result = JSON.parse(body_text)
         
+        # Check for tool calls in the response (Cohere v2 API format)
+        if result["message"] && result["message"]["tool_calls"] && result["message"]["tool_calls"].any?
+          tool_calls = result["message"]["tool_calls"].map do |tc|
+            {
+              "name" => tc.dig("function", "name") || tc["name"],
+              "args" => begin
+                args = tc.dig("function", "arguments") || tc["parameters"] || "{}"
+                args.is_a?(String) ? JSON.parse(args) : args
+              rescue
+                {}
+              end
+            }
+          end
+          # Get text content if any
+          text_content = ""
+          if result["message"]["content"].is_a?(Array)
+            text_items = result["message"]["content"].select { |item| item["type"] == "text" }
+            text_content = text_items.map { |item| item["text"] }.join("\n") if text_items.any?
+          end
+          return { text: text_content, tool_calls: tool_calls }
+        end
+
         # Extract text from Cohere's specific response structure
         if result["message"] && result["message"]["content"] && result["message"]["content"].is_a?(Array)
           # Get text from content array (v2 API format)

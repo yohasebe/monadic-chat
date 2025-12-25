@@ -1,97 +1,140 @@
-# Docker Integration Tests
+# Integration Tests
 
-This directory contains integration tests that verify the interaction between Monadic Chat and Docker containers.
+This document describes the integration test structure for Monadic Chat's Ruby service.
 
-## Prerequisites
+## Test Location
 
-1. Docker must be installed and running
-2. Monadic Chat containers must be built and running:
-   ```bash
-   ./docker/monadic.sh build
-   ./docker/monadic.sh start
-   ```
+Integration tests are located in `docker/services/ruby/spec/integration/`.
 
-## Running the Tests
+## Test Structure
 
-### Run all integration tests:
+### Provider Matrix Tests (`provider_matrix/`)
+
+The main comprehensive test suite for validating all providers and apps:
+
+**File:** `all_providers_all_apps_spec.rb`
+
+**Purpose:**
+- Tests all provider × app combinations systematically
+- Validates response quality using AI-based evaluation (ResponseEvaluator)
+- Verifies tool calling functionality across all providers
+- Detects runtime errors in responses
+
+**Supported Providers:**
+- OpenAI, Anthropic, Gemini, xAI/Grok, Mistral, Cohere, DeepSeek, Perplexity, Ollama
+
+**Running:**
 ```bash
-rake spec_integration
+# All providers
+RUN_API=true bundle exec rspec spec/integration/provider_matrix/
+
+# Specific providers
+PROVIDERS=openai,anthropic RUN_API=true bundle exec rspec spec/integration/provider_matrix/
+
+# With debug output
+DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/provider_matrix/
 ```
 
-### Run only Docker-specific tests:
-```bash
-rake spec_docker
+### Docker Infrastructure Tests
+
+| File | Description |
+|------|-------------|
+| `docker_infrastructure_spec.rb` | Container communication, health checks |
+| `flask_app_client_docker_spec.rb` | Python Flask container integration |
+| `code_interpreter_*.rb` | Code execution in containers |
+
+### Feature-Specific Tests
+
+| Category | Files | Description |
+|----------|-------|-------------|
+| Jupyter | `jupyter_*.rb` | Notebook creation, execution, advanced features |
+| Voice | `voice_*.rb` | TTS/STT integration, voice chat |
+| Web | `selenium_*.rb` | Browser automation, web scraping |
+| Database | `pgvector_*.rb`, `embeddings_*.rb` | Vector DB, embeddings |
+| WebSocket | `websocket_*.rb` | Real-time communication |
+
+### API Tests (`api_media/`)
+
+Media generation tests requiring external API calls:
+
+| File | Description |
+|------|-------------|
+| `image_generation_all_providers_spec.rb` | Image generation across providers |
+| `video_generation_openai_spec.rb` | Video generation (OpenAI Sora) |
+| `voice_pipeline_spec.rb` | Voice synthesis pipeline |
+
+**Note:** Requires `RUN_MEDIA=true` environment variable.
+
+## ResponseEvaluator
+
+The `ResponseEvaluator` utility provides AI-based response validation:
+
+```ruby
+require_relative '../../../lib/monadic/utils/response_evaluator'
+
+RE = Monadic::Utils::ResponseEvaluator
+
+result = RE.evaluate(
+  response: "The capital of France is Paris.",
+  expectation: "The AI correctly identified Paris as the capital",
+  prompt: "What is the capital of France?",
+  criteria: "Factual accuracy"
+)
+
+expect(result.match).to be(true)
+expect(result.confidence).to be >= 0.7
 ```
 
-### Run specific test files:
-```bash
-cd docker/services/ruby
-bundle exec rspec spec/integration/docker_integration_spec.rb
+**Features:**
+- AI-powered response validation (uses OpenAI API)
+- Confidence scoring
+- Batch evaluation for multiple expectations
+- Context-aware evaluation
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RUN_API` | Enable API-dependent tests | `false` |
+| `PROVIDERS` | Comma-separated list of providers to test | all configured |
+| `RUN_MEDIA` | Enable media generation tests | `false` |
+| `DEBUG` | Enable debug output | `false` |
+| `OPENAI_API_KEY` | Required for ResponseEvaluator | - |
+
+## Adding New Tests
+
+### Adding Apps to Provider Matrix
+
+Edit `APP_TEST_CONFIGS` in `all_providers_all_apps_spec.rb`:
+
+```ruby
+APP_TEST_CONFIGS = {
+  # ...existing apps...
+  'MyNewApp' => {
+    prompt: 'Test prompt for my app.',
+    expectation: 'The AI responded with relevant information',
+    skip_ai_evaluation: false  # Set true for process-oriented apps
+  }
+}
 ```
 
-## Test Coverage
+### Adding Providers
 
-### docker_integration_spec.rb
-- Basic container communication
-- Python code execution
-- File sharing between containers
-- Error handling
+1. Add to `PROVIDER_CONFIG`:
+```ruby
+PROVIDER_CONFIG = {
+  # ...existing providers...
+  'newprovider' => { suffix: 'NewProvider', timeout: 60 }
+}
+```
 
-### app_docker_integration_spec.rb
-- Code Interpreter functionality
-- Data science libraries (pandas, matplotlib, numpy)
-- File processing tools
-- Multi-container workflows
+2. Implement tool support in `provider_matrix_helper.rb`
 
-### container_helpers_integration_spec.rb
-- PythonContainerHelper methods
-- BashCommandHelper methods
-- ReadWriteHelper methods
-- Cross-helper integration
+3. Add provider to helper's tool support list
 
-### pgvector_integration_spec.rb
-- PostgreSQL/pgvector connectivity (placeholder)
-- Vector operations (placeholder)
-- Embedding storage (placeholder)
+## Best Practices
 
-## Writing New Docker Integration Tests
-
-When writing new Docker integration tests:
-
-1. Always check if Docker is available:
-   ```ruby
-   before(:all) do
-     skip "Docker tests require Docker environment" unless docker_available?
-   end
-   ```
-
-2. Use helper methods for container interaction:
-   ```ruby
-   result = execute_in_container(
-     code: "print('Hello')",
-     command: "python",
-     container: "python"
-   )
-   ```
-
-3. Clean up generated files:
-   ```ruby
-   # Cleanup
-   File.delete(test_file) if File.exist?(test_file)
-   ```
-
-4. Test both success and failure cases
-
-## Troubleshooting
-
-### Tests are skipped
-- Ensure Docker is running: `docker ps`
-- Ensure containers are running: `./docker/monadic.sh status`
-
-### Permission errors
-- Check file permissions in ~/monadic/data
-- Ensure current user has Docker permissions
-
-### Container not found
-- Verify container names match the pattern: `monadic-chat-{service}-container`
-- Check containers are running: `docker ps | grep monadic`
+1. **Use permissive expectations** - Focus on "app works" not "response quality"
+2. **Handle timeouts gracefully** - Skip rather than fail for infrastructure issues
+3. **Check for runtime errors** - Pattern match for Ruby exceptions in responses
+4. **Use ResponseEvaluator** - For semantic validation instead of string matching

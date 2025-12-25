@@ -113,7 +113,12 @@ module ProviderMatrixHelper
     end
 
     # Thin wrappers over vendor helpers
+    # Options:
+    #   max_turns: Maximum conversation turns (default: 1). If > 1, will follow up
+    #              when the AI asks clarifying questions instead of answering directly.
     def chat(prompt, **opts)
+      max_turns = opts.delete(:max_turns) || 1
+
       # Apps that require database/embedding operations need longer timeouts
       timeout = if ['Vector Search', 'PDF Navigator', 'User Docs'].include?(opts[:app])
                   @timeout * 2  # Double timeout for vector/database apps
@@ -121,17 +126,208 @@ module ProviderMatrixHelper
                   @timeout
                 end
 
-      Timeout.timeout(timeout) do
+      Timeout.timeout(timeout * max_turns) do
         helper = helper_for(@provider)
-        options = build_options(prompt: prompt, messages: opts[:messages])
-        throttle!
-        log_request(kind: 'chat', app: opts[:app], prompt: (prompt if prompt && !prompt.empty?), messages: options[:messages])
-        res = request_with_retry { helper.send_query(options) }
-        # Normalize to hash with :text
-        res = res.is_a?(String) ? { text: res } : res
-        log_response(res)
-        res
+
+        # Get app's system prompt and tools if app is specified and available
+        app_system_prompt = nil
+        app_tools = nil
+        if opts[:app] && defined?(APPS) && APPS.is_a?(Hash) && APPS[opts[:app]]
+          app = APPS[opts[:app]]
+          app_system_prompt = app.settings['initial_prompt'] || app.settings[:initial_prompt]
+          # Extract tool definitions for providers that support them
+          raw_tools = app.settings['tools'] || app.settings[:tools]
+          app_tools = extract_tool_definitions(raw_tools)
+        end
+
+        # Build initial messages
+        messages = build_messages_for_provider(prompt, app_system_prompt)
+
+        current_turn = 0
+        last_response = nil
+
+        while current_turn < max_turns
+          current_turn += 1
+          options = build_options_from_messages(messages, app_system_prompt)
+
+          # Add tool definitions for providers that support tool calling
+          if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek perplexity].include?(@provider)
+            # Deduplicate tools by name
+            unique_tools = app_tools.uniq { |t| t['name'] || t[:name] }
+            options[:tools] = unique_tools
+            if ENV['DEBUG']
+              tool_names = unique_tools.map { |t| t['name'] || t[:name] }.join(', ')
+              puts "  [tools] Passing #{unique_tools.length} tool(s) to #{@provider}: #{tool_names}"
+            end
+          end
+
+          throttle!
+          log_request(kind: 'chat', app: opts[:app], prompt: (prompt if prompt && !prompt.empty?), messages: options[:messages])
+          res = request_with_retry { helper.send_query(options) }
+          # Normalize to hash with :text
+          res = res.is_a?(String) ? { text: res } : res
+          log_response(res)
+          last_response = res
+
+          # If response contains tool calls, return immediately
+          # Tool calls are valid responses that should be evaluated by the test
+          if res[:tool_calls] && res[:tool_calls].any?
+            puts "  [tool_call] Turn #{current_turn}: Model made #{res[:tool_calls].length} tool call(s)" if ENV['DEBUG']
+            break
+          end
+
+          # If we've reached max turns or there's an error, stop
+          break if current_turn >= max_turns
+          break if res[:text].nil? || res[:text].empty?
+          break if res[:text].to_s.include?('API Error')
+
+          # Check if the response is asking for clarification
+          if needs_followup?(res[:text])
+            # Add assistant response and user followup to messages
+            # IMPORTANT: Use string keys to match provider helpers
+            followup = followup_message
+            puts "  [followup] Turn #{current_turn}: AI asked for details, responding with: #{followup[0..50]}..." if ENV['DEBUG']
+            messages << { "role" => "assistant", "content" => res[:text] }
+            messages << { "role" => "user", "content" => followup }
+          else
+            # Got a substantive response, we're done
+            puts "  [followup] Turn #{current_turn}: Got substantive response (#{res[:text].to_s.length} chars)" if ENV['DEBUG']
+            break
+          end
+        end
+
+        last_response
       end
+    end
+
+    # Extract tool definitions from app settings in a format suitable for the provider
+    def extract_tool_definitions(raw_tools)
+      return [] unless raw_tools
+
+      # Handle Gemini format with function_declarations
+      if raw_tools.is_a?(Hash) && raw_tools['function_declarations']
+        return raw_tools['function_declarations']
+      end
+
+      # Handle array of tool definitions
+      if raw_tools.is_a?(Array)
+        return raw_tools.map do |tool|
+          if tool.is_a?(Hash)
+            # Handle OpenAI/Grok format: { type: "function", function: { name: "...", ... } }
+            if tool['function'] || tool[:function]
+              func = tool['function'] || tool[:function]
+              {
+                'name' => func['name'] || func[:name],
+                'description' => func['description'] || func[:description] || '',
+                'parameters' => func['parameters'] || func[:parameters] || { 'type' => 'object', 'properties' => {} }
+              }
+            else
+              # Simple format: { name: "...", description: "...", parameters: {...} }
+              {
+                'name' => tool['name'] || tool[:name],
+                'description' => tool['description'] || tool[:description] || '',
+                'parameters' => tool['parameters'] || tool[:parameters] || { 'type' => 'object', 'properties' => {} }
+              }
+            end
+          else
+            nil
+          end
+        end.compact
+      end
+
+      []
+    end
+
+    # Check if the response is asking for clarification/details
+    def needs_followup?(response_text)
+      return false if response_text.nil? || response_text.empty?
+
+      # Patterns that indicate the AI is asking for more information
+      clarification_patterns = [
+        /what.*would you like/i,
+        /could you.*provide/i,
+        /could you.*tell me/i,
+        /can you.*specify/i,
+        /please.*provide/i,
+        /please.*tell me/i,
+        /what.*prefer/i,
+        /do you.*want/i,
+        /would you.*like me to/i,
+        /let me know/i,
+        /more details/i,
+        /more information/i,
+        /clarify/i,
+        /specify/i,
+        /which.*option/i,
+        /何か.*ありますか/,
+        /教えて.*ください/,
+        /お知らせください/,
+        /ご希望/,
+        /詳細.*教えて/
+      ]
+
+      # Check if response is short AND matches clarification patterns
+      # (Long responses with these phrases might still be substantive)
+      is_short = response_text.length < 500
+      has_clarification = clarification_patterns.any? { |p| response_text.match?(p) }
+
+      is_short && has_clarification
+    end
+
+    # Message to send when following up on a clarification request
+    def followup_message
+      [
+        "おまかせでお願いします。適当に決めてください。",
+        "Please proceed with your best judgment. Use reasonable defaults.",
+        "Go ahead with whatever you think is best."
+      ].sample
+    end
+
+    # Build initial messages array for the conversation
+    # IMPORTANT: Use string keys ("role", "content") to match provider helpers
+    def build_messages_for_provider(prompt, system_prompt)
+      preface = system_prompt || "Respond directly and concisely to the user's request."
+
+      case @provider
+      when 'anthropic'
+        # For Anthropic, system is separate - just return user messages
+        [{ "role" => "user", "content" => prompt }]
+      else
+        # For other providers, include system message
+        [
+          { "role" => "system", "content" => preface },
+          { "role" => "user", "content" => prompt }
+        ]
+      end
+    end
+
+    # Build options from messages array
+    # Note: messages array uses string keys ("role", "content")
+    def build_options_from_messages(messages, system_prompt)
+      preface = system_prompt || "Respond directly and concisely to the user's request."
+      opts = {}
+
+      case @provider
+      when 'anthropic'
+        opts[:system] = preface
+        opts[:messages] = messages
+      when 'cohere'
+        opts[:preamble] = preface
+        # Remove system messages for Cohere (use string key to match message format)
+        opts[:messages] = messages.reject { |m| m["role"] == "system" }
+      when 'gemini'
+        opts[:messages] = messages
+        # Pass tool definitions if available - allows testing tool-calling behavior
+      else
+        opts[:messages] = messages
+      end
+
+      # Apply temperature if set
+      if ENV.key?('API_TEMPERATURE') && !ENV['API_TEMPERATURE'].to_s.strip.empty?
+        opts[:temperature] = ENV['API_TEMPERATURE'].to_f
+      end
+
+      opts
     end
 
     def chat_messages(messages, **opts)
@@ -344,8 +540,10 @@ module ProviderMatrixHelper
     end
   
     # Provider-specific option builder
-    def build_options(prompt:, messages: nil, websearch: false)
-      preface = "Ignore any missing or prior context. Respond directly and concisely."
+    # IMPORTANT: Use string keys ("role", "content") to match provider helpers
+    def build_options(prompt:, messages: nil, websearch: false, system_prompt: nil)
+      # Use app's system prompt if provided, otherwise use a simple preface
+      preface = system_prompt || "Respond directly and concisely to the user's request."
       opts = {}
       if messages.is_a?(Array)
         opts[:messages] = messages
@@ -354,19 +552,56 @@ module ProviderMatrixHelper
         when 'anthropic'
           # Claude expects system at top-level, messages without system role
           opts[:system] = preface
-          opts[:messages] = [ { role: 'user', content: prompt } ]
+          opts[:messages] = [{ "role" => "user", "content" => prompt }]
         when 'gemini'
-          # Keep simple user message; default to no reasoning param unless explicitly enabled
-          opts[:messages] = [ { role: 'user', content: prompt } ]
+          # Gemini: use system message (GeminiHelper converts it to user message internally)
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
           # Conditionally set reasoning_effort only if requested via env
           requested_reasoning = (ENV['GEMINI_REASONING'] || ENV['REASONING_EFFORT']).to_s.strip
           opts[:reasoning_effort] = requested_reasoning unless requested_reasoning.empty?
           # Allow larger/default max tokens; configurable via env overrides
           max_tokens = (ENV['GEMINI_MAX_TOKENS'] || ENV['API_MAX_TOKENS'] || '1024').to_i
           opts[:max_tokens] = max_tokens if max_tokens > 0
+        when 'openai'
+          # OpenAI: use system message
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
+        when 'mistral'
+          # Mistral: use system message
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
+        when 'deepseek'
+          # DeepSeek: use system message
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
+        when 'cohere'
+          # Cohere: use preamble
+          opts[:preamble] = preface
+          opts[:messages] = [{ "role" => "user", "content" => prompt }]
+        when 'xai', 'grok'
+          # xAI/Grok: use system message
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
+        when 'perplexity'
+          # Perplexity: use system message
+          opts[:messages] = [
+            { "role" => "system", "content" => preface },
+            { "role" => "user", "content" => prompt }
+          ]
         else
-          # Default providers: user only with preface merged
-          opts[:messages] = [ { role: 'user', content: "#{preface} #{prompt}" } ]
+          # Default: include system context in user message
+          opts[:messages] = [{ "role" => "user", "content" => "#{preface}\n\n#{prompt}" }]
         end
       end
       opts[:websearch] = true if websearch

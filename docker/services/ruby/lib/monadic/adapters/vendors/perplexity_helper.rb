@@ -252,7 +252,28 @@ module PerplexityHelper
       "temperature" => options["temperature"] || 0.7,
       "messages" => messages
     }
-    
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      body["tools"] = options["tools"].map do |tool|
+        if tool["type"] == "function" && tool["function"]
+          # Already in OpenAI format
+          tool
+        else
+          # Convert to OpenAI/Perplexity format
+          {
+            "type" => "function",
+            "function" => {
+              "name" => tool["name"] || tool[:name],
+              "description" => tool["description"] || tool[:description] || "",
+              "parameters" => tool["parameters"] || tool[:parameters] || { "type" => "object", "properties" => {} }
+            }
+          }
+        end
+      end
+      body["tool_choice"] = "auto"
+    end
+
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
@@ -279,7 +300,25 @@ module PerplexityHelper
     if response && response.status && response.status.success?
       begin
         parsed_response = JSON.parse(response.body)
-        return parsed_response.dig("choices", 0, "message", "content") || Monadic::Utils::ErrorFormatter.parsing_error(
+        message = parsed_response.dig("choices", 0, "message")
+
+        # Check for tool calls in the response
+        if message && message["tool_calls"] && message["tool_calls"].any?
+          tool_calls = message["tool_calls"].map do |tc|
+            {
+              "name" => tc.dig("function", "name"),
+              "args" => begin
+                JSON.parse(tc.dig("function", "arguments") || "{}")
+              rescue
+                {}
+              end
+            }
+          end
+          text_content = message["content"] || ""
+          return { text: text_content, tool_calls: tool_calls }
+        end
+
+        return message&.[]("content") || Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",
             message: "No content in response"
           )

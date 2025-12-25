@@ -45,11 +45,92 @@ require_relative '../lib/monadic/app'
 require_relative '../lib/monadic/core'
 require_relative '../lib/monadic/utils/selenium_helper'
 require_relative '../lib/monadic/dsl'
-require_relative '../lib/monadic/adapters/vendors/grok_helper'
 
-# Re-initialize APPS after loading core files
+# Load all vendor helpers for provider matrix tests
+require_relative '../lib/monadic/adapters/vendors/openai_helper'
+require_relative '../lib/monadic/adapters/vendors/claude_helper'
+require_relative '../lib/monadic/adapters/vendors/gemini_helper'
+require_relative '../lib/monadic/adapters/vendors/grok_helper'
+require_relative '../lib/monadic/adapters/vendors/mistral_helper'
+require_relative '../lib/monadic/adapters/vendors/cohere_helper'
+require_relative '../lib/monadic/adapters/vendors/perplexity_helper'
+require_relative '../lib/monadic/adapters/vendors/deepseek_helper'
+require_relative '../lib/monadic/adapters/vendors/ollama_helper'
+
+# App loader module for tests
+module TestAppLoader
+  @apps_loaded = false
+
+  def self.load_all_apps
+    return if @apps_loaded
+
+    app_base_dir = File.expand_path('../apps', __dir__)
+
+    # Collect all app files (rb first, then mdsl)
+    app_files = Dir.glob(File.join(app_base_dir, '**/*.{rb,mdsl}')).sort_by do |f|
+      [File.extname(f) == '.rb' ? 0 : 1, f]
+    end
+
+    loaded_count = 0
+    app_files.each do |file|
+      basename = File.basename(file)
+      next if basename.start_with?('_')  # Skip files starting with underscore
+      next if file.include?('/test/')    # Skip test directories
+
+      begin
+        MonadicDSL::Loader.load(file)
+        loaded_count += 1
+      rescue => e
+        # Log but continue - some apps may have missing dependencies
+        warn "Test loader: Could not load #{basename}: #{e.message}" if ENV['DEBUG']
+      end
+    end
+
+    # Populate APPS hash by instantiating all MonadicApp subclasses
+    # This mimics what init_apps() does in lib/monadic.rb
+    populate_apps_hash
+
+    @apps_loaded = true
+    puts "TestAppLoader: Loaded #{loaded_count} app files, APPS now has #{APPS.keys.size} entries" if ENV['DEBUG']
+  end
+
+  # Populate APPS hash from MonadicApp subclasses (simplified version of init_apps)
+  def self.populate_apps_hash
+    klass = Object.const_get("MonadicApp")
+
+    klass.subclasses.each do |app_class|
+      begin
+        app = app_class.new
+        class_settings = app_class.instance_variable_get(:@settings) || {}
+
+        # Use ActiveSupport::HashWithIndifferentAccess if available, otherwise regular Hash
+        app.settings = if defined?(ActiveSupport::HashWithIndifferentAccess)
+                         ActiveSupport::HashWithIndifferentAccess.new(class_settings)
+                       else
+                         class_settings.transform_keys(&:to_s)
+                       end
+
+        app_name = app.settings['app_name'] || app.settings[:app_name]
+
+        # Skip apps with invalid app_name
+        next if app_name.nil? || app_name.to_s.strip.empty? || app_name.to_s == "undefined"
+
+        APPS[app_name] = app
+        puts "  Registered app: #{app_name}" if ENV['DEBUG']
+      rescue => e
+        warn "Test loader: Could not instantiate #{app_class.name}: #{e.message}" if ENV['DEBUG']
+      end
+    end
+  end
+
+  def self.loaded?
+    @apps_loaded
+  end
+end
+
+# Load minimal apps by default (for backward compatibility)
 unless APPS.any?
-  # Load Jupyter Notebook Grok app for testing
+  # Load Jupyter Notebook Grok app for basic testing
   mdsl_path = File.expand_path('../apps/jupyter_notebook/jupyter_notebook_grok.mdsl', __dir__)
   if File.exist?(mdsl_path)
     require_relative '../apps/jupyter_notebook/jupyter_notebook_tools'
@@ -104,10 +185,17 @@ RSpec.configure do |config|
   # Automatically start containers for integration and E2E tests
   config.before(:suite) do
     # Only start containers if running integration or E2E tests
-    if RSpec.world.filtered_examples.values.flatten.any? { |ex| 
-         ex.metadata[:integration] || ex.metadata[:e2e] 
+    if RSpec.world.filtered_examples.values.flatten.any? { |ex|
+         ex.metadata[:integration] || ex.metadata[:e2e]
        }
       DockerContainerManager.ensure_containers_running
+    end
+
+    # Load all apps for matrix tests
+    if RSpec.world.filtered_examples.values.flatten.any? { |ex|
+         ex.metadata[:matrix] || ex.metadata[:tool_tests]
+       }
+      TestAppLoader.load_all_apps
     end
   end
   

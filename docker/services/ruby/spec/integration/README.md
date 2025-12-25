@@ -1,6 +1,6 @@
-# Docker Integration Tests
+# Integration Tests
 
-This directory contains integration tests that verify the interaction between Monadic Chat and Docker containers.
+This directory contains integration tests that verify the interaction between Monadic Chat components, including Docker containers and API providers.
 
 ## Prerequisites
 
@@ -10,88 +10,133 @@ This directory contains integration tests that verify the interaction between Mo
    ./docker/monadic.sh build
    ./docker/monadic.sh start
    ```
+3. API keys configured in `~/monadic/config/env` for API tests
 
-## Running the Tests
+## Test Structure
 
-### Run all integration tests:
+### Provider Matrix Tests (`provider_matrix/`)
+
+The main comprehensive test suite for all providers and apps:
+
 ```bash
-rake spec_integration
+# Run with specific providers
+PROVIDERS=openai,anthropic RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_all_apps_spec.rb
+
+# Run all configured providers
+RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_all_apps_spec.rb
 ```
 
-### Run only Docker-specific tests:
-```bash
-rake spec_docker
-```
+**Features:**
+- Tests all provider × app combinations (OpenAI, Anthropic, Gemini, xAI, Mistral, Cohere, DeepSeek, Perplexity)
+- Uses ResponseEvaluator for AI-based response validation
+- Validates both text responses and tool calls
+- Detects runtime errors in responses
 
-### Run specific test files:
+### Docker Infrastructure Tests
+
+- `docker_infrastructure_spec.rb` - Container communication and health checks
+- `flask_app_client_docker_spec.rb` - Python Flask container integration
+
+### Feature-Specific Tests
+
+- `jupyter_*.rb` - Jupyter Notebook functionality
+- `voice_*.rb` - Voice chat and TTS/STT integration
+- `selenium_*.rb` - Browser automation tests
+- `pgvector_*.rb` - Vector database integration
+- `websocket_*.rb` - WebSocket communication
+
+### API Tests (`api_media/`)
+
+Media generation tests (requires `RUN_MEDIA=true`):
+- `image_generation_all_providers_spec.rb`
+- `video_generation_openai_spec.rb`
+- `voice_pipeline_spec.rb`
+
+## Running Tests
+
+### Quick Start
+
 ```bash
 cd docker/services/ruby
-bundle exec rspec spec/integration/docker_integration_spec.rb
+
+# Run all integration tests (no API calls)
+bundle exec rspec spec/integration/
+
+# Run with API calls
+RUN_API=true bundle exec rspec spec/integration/
+
+# Run provider matrix only
+PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/provider_matrix/
 ```
 
-## Test Coverage
+### Using Rake Tasks
 
-### docker_integration_spec.rb
-- Basic container communication
-- Python code execution
-- File sharing between containers
-- Error handling
+```bash
+# Standard integration test run
+rake spec_integration
 
-### app_docker_integration_spec.rb
-- Code Interpreter functionality
-- Data science libraries (pandas, matplotlib, numpy)
-- File processing tools
-- Multi-container workflows
+# With specific providers
+rake test:profile[ci]
+```
 
-### container_helpers_integration_spec.rb
-- PythonContainerHelper methods
-- BashCommandHelper methods
-- ReadWriteHelper methods
-- Cross-helper integration
+### Environment Variables
 
-### pgvector_integration_spec.rb
-- PostgreSQL/pgvector connectivity (placeholder)
-- Vector operations (placeholder)
-- Embedding storage (placeholder)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RUN_API` | Enable API tests | `false` |
+| `PROVIDERS` | Comma-separated provider list | all configured |
+| `RUN_MEDIA` | Enable media generation tests | `false` |
+| `DEBUG` | Enable debug output | `false` |
 
-## Writing New Docker Integration Tests
+## Writing New Integration Tests
 
-When writing new Docker integration tests:
+### Provider Matrix Tests
 
-1. Always check if Docker is available:
-   ```ruby
-   before(:all) do
-     skip "Docker tests require Docker environment" unless docker_available?
-   end
-   ```
+Add new apps to `APP_TEST_CONFIGS` in `all_providers_all_apps_spec.rb`:
 
-2. Use helper methods for container interaction:
-   ```ruby
-   result = execute_in_container(
-     code: "print('Hello')",
-     command: "python",
-     container: "python"
-   )
-   ```
+```ruby
+'MyNewApp' => {
+  prompt: 'Test prompt for my app.',
+  expectation: 'The AI responded appropriately'
+}
+```
 
-3. Clean up generated files:
-   ```ruby
-   # Cleanup
-   File.delete(test_file) if File.exist?(test_file)
-   ```
+### Docker Integration Tests
 
-4. Test both success and failure cases
+Always check if Docker is available:
+
+```ruby
+before(:all) do
+  skip "Docker tests require Docker environment" unless docker_available?
+end
+```
+
+### Using ResponseEvaluator
+
+For AI-based response validation:
+
+```ruby
+result = RE.evaluate(
+  response: response_text,
+  expectation: 'The AI provided helpful information',
+  prompt: original_prompt,
+  criteria: 'Response quality'
+)
+expect(result.match).to be(true)
+```
 
 ## Troubleshooting
 
 ### Tests are skipped
 - Ensure Docker is running: `docker ps`
-- Ensure containers are running: `./docker/monadic.sh status`
+- Check API keys: `grep API_KEY ~/monadic/config/env`
+- Verify `RUN_API=true` is set for API tests
 
-### Permission errors
-- Check file permissions in ~/monadic/data
-- Ensure current user has Docker permissions
+### Provider not found
+- Check provider is configured in env file
+- Verify model availability with provider
 
-### Container not found
-- Verify container names match the pattern: `monadic-chat-{service}-container`
-- Check containers are running: `docker ps | grep monadic`
+### Timeout errors
+- Increase timeout for slow providers
+- Check network connectivity
+- Consider rate limiting

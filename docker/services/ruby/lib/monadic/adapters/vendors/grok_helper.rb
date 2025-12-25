@@ -230,7 +230,29 @@ module GrokHelper
     if body["messages"].empty?
       body["messages"] << { "role" => "user", "content" => [ { "type" => "text", "text" => "Hello" } ] }
     end
-   
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      # Convert to OpenAI/Grok format if needed
+      body["tools"] = options["tools"].map do |tool|
+        if tool["function"]
+          # Already in OpenAI format
+          tool
+        else
+          # Convert from simple format to OpenAI format
+          {
+            "type" => "function",
+            "function" => {
+              "name" => tool["name"] || tool[:name],
+              "description" => tool["description"] || tool[:description] || "",
+              "parameters" => tool["parameters"] || tool[:parameters] || { "type" => "object", "properties" => {} }
+            }
+          }
+        end
+      end
+      body["tool_choice"] = "auto"
+    end
+
     # Set API endpoint
     target_uri = API_ENDPOINT + "/chat/completions"
 
@@ -251,6 +273,24 @@ module GrokHelper
       begin
         parsed = JSON.parse(res.body.to_s)
         if parsed.is_a?(Hash)
+          message = parsed.dig("choices", 0, "message")
+
+          # Check for tool calls in the response
+          if message && message["tool_calls"] && message["tool_calls"].any?
+            tool_calls = message["tool_calls"].map do |tc|
+              {
+                "name" => tc.dig("function", "name"),
+                "args" => begin
+                  JSON.parse(tc.dig("function", "arguments") || "{}")
+                rescue
+                  {}
+                end
+              }
+            end
+            text_content = message["content"] || ""
+            return { text: text_content, tool_calls: tool_calls }
+          end
+
           return parsed.dig("choices", 0, "message", "content") || parsed.dig("message", "content") || parsed["content"] || parsed.to_s
         else
           return parsed.to_s

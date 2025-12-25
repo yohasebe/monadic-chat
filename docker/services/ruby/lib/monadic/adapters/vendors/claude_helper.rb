@@ -343,6 +343,25 @@ module ClaudeHelper
       # ignore
     end
 
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      # Convert to Anthropic format
+      body["tools"] = options["tools"].map do |tool|
+        if tool["input_schema"]
+          # Already in Anthropic format
+          tool
+        else
+          # Convert from simple/OpenAI format to Anthropic format
+          func = tool["function"] || tool
+          {
+            "name" => func["name"] || func[:name],
+            "description" => func["description"] || func[:description] || "",
+            "input_schema" => func["parameters"] || func[:parameters] || { "type" => "object", "properties" => {} }
+          }
+        end
+      end
+    end
+
     # Set API endpoint
     target_uri = "#{API_ENDPOINT}/messages"
 
@@ -362,9 +381,25 @@ module ClaudeHelper
     if res && res.status && res.status.success?
       begin
         parsed_response = JSON.parse(res.body)
-        
+
+        # Check for tool calls in the response (Anthropic uses type: "tool_use")
+        if parsed_response["content"] && parsed_response["content"].is_a?(Array)
+          tool_use_blocks = parsed_response["content"].select { |item| item["type"] == "tool_use" }
+          if tool_use_blocks.any?
+            tool_calls = tool_use_blocks.map do |tc|
+              {
+                "name" => tc["name"],
+                "args" => tc["input"] || {}
+              }
+            end
+            text_blocks = parsed_response["content"].select { |item| item["type"] == "text" }
+            text_content = text_blocks.map { |block| block["text"] }.join("\n")
+            return { text: text_content, tool_calls: tool_calls }
+          end
+        end
+
         # Extract content from response - try all known formats
-        
+
         # Format 1: Direct content array in response root
         if parsed_response["content"] && parsed_response["content"].is_a?(Array)
           text_blocks = parsed_response["content"].select { |item| item["type"] == "text" }

@@ -435,10 +435,32 @@ module OpenAIHelper
     if options["response_format"] || options[:response_format]
       response_format = options["response_format"] || options[:response_format]
       body["response_format"] = response_format.is_a?(Hash) ? response_format : { "type" => "json_object" }
-      
+
       DebugHelper.debug("Using response format: #{body['response_format'].inspect}", "api")
     end
-    
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      # Convert to OpenAI format if needed
+      body["tools"] = options["tools"].map do |tool|
+        if tool["type"] == "function" && tool["function"]
+          # Already in OpenAI format
+          tool
+        else
+          # Convert from simple format to OpenAI format
+          {
+            "type" => "function",
+            "function" => {
+              "name" => tool["name"] || tool[:name],
+              "description" => tool["description"] || tool[:description] || "",
+              "parameters" => tool["parameters"] || tool[:parameters] || { "type" => "object", "properties" => {} }
+            }
+          }
+        end
+      end
+      body["tool_choice"] = "auto"
+    end
+
     # Set API endpoint
     target_uri = API_ENDPOINT + "/chat/completions"
 
@@ -459,7 +481,25 @@ module OpenAIHelper
       # Properly read response body content
       response_body = res.body.respond_to?(:read) ? res.body.read : res.body.to_s
       parsed_response = JSON.parse(response_body)
-      return parsed_response.dig("choices", 0, "message", "content")
+      message = parsed_response.dig("choices", 0, "message")
+
+      # Check for tool calls in the response
+      if message && message["tool_calls"] && message["tool_calls"].any?
+        tool_calls = message["tool_calls"].map do |tc|
+          {
+            "name" => tc.dig("function", "name"),
+            "args" => begin
+              JSON.parse(tc.dig("function", "arguments") || "{}")
+            rescue
+              {}
+            end
+          }
+        end
+        text_content = message["content"] || ""
+        return { text: text_content, tool_calls: tool_calls }
+      end
+
+      return message["content"]
     else
       # Properly read error response body content
       error_body = res && res.body ? (res.body.respond_to?(:read) ? res.body.read : res.body.to_s) : nil

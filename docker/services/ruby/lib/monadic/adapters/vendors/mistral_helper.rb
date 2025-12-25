@@ -263,7 +263,29 @@ module MistralHelper
       # For non-reasoning models, use temperature
       body["temperature"] = options["temperature"] || 0.7
     end
-    
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      # Convert to Mistral/OpenAI format if needed
+      body["tools"] = options["tools"].map do |tool|
+        if tool["type"] == "function" && tool["function"]
+          # Already in OpenAI format
+          tool
+        else
+          # Convert from simple format to OpenAI format
+          {
+            "type" => "function",
+            "function" => {
+              "name" => tool["name"] || tool[:name],
+              "description" => tool["description"] || tool[:description] || "",
+              "parameters" => tool["parameters"] || tool[:parameters] || { "type" => "object", "properties" => {} }
+            }
+          }
+        end
+      end
+      body["tool_choice"] = "auto"
+    end
+
     # Make request
     target_uri = "#{API_ENDPOINT}/chat/completions"
     http = HTTP.headers(headers)
@@ -296,11 +318,29 @@ module MistralHelper
         end
         
         # Standard OpenAI-compatible format
-        if parsed_response["choices"] && 
-           parsed_response["choices"][0] && 
+        if parsed_response["choices"] &&
+           parsed_response["choices"][0] &&
            parsed_response["choices"][0]["message"]
-          
-          return parsed_response["choices"][0]["message"]["content"].to_s
+
+          message = parsed_response["choices"][0]["message"]
+
+          # Check for tool calls in the response
+          if message["tool_calls"] && message["tool_calls"].any?
+            tool_calls = message["tool_calls"].map do |tc|
+              {
+                "name" => tc.dig("function", "name"),
+                "args" => begin
+                  JSON.parse(tc.dig("function", "arguments") || "{}")
+                rescue
+                  {}
+                end
+              }
+            end
+            text_content = message["content"] || ""
+            return { text: text_content, tool_calls: tool_calls }
+          end
+
+          return message["content"].to_s
         end
         
         return Monadic::Utils::ErrorFormatter.parsing_error(

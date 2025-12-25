@@ -603,11 +603,23 @@ module GeminiHelper
     
     # Add messages to body
     body["contents"] = formatted_messages
-    
+
+    # Add tool definitions if provided (for testing tool-calling apps)
+    if options["tools"] && options["tools"].any?
+      body["tools"] = [{
+        "function_declarations" => options["tools"]
+      }]
+      body["toolConfig"] = {
+        "functionCallingConfig" => {
+          "mode" => "AUTO"
+        }
+      }
+    end
+
     # Use the model provided directly - trust default_model_for_provider in AI User Agent
     # Log the model being used
     # Model details are logged to dedicated log files
-    
+
     # Set up API endpoint - use v1beta for thinking models, v1alpha for others
     endpoint = is_thinking_model ? "https://generativelanguage.googleapis.com/v1beta" : API_ENDPOINT
     target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
@@ -667,20 +679,34 @@ module GeminiHelper
           # 1. Check for parts array structure (Gemini 1.5 style)
           if content["parts"]
             text_parts = []
+            function_calls = []
+
             content["parts"].each do |part|
               # Skip thinking parts for non-streaming response
               next if part["thought"] == true
               # Also skip modelThinking parts
               next if part["modelThinking"]
-              
+
+              # Check for function calls (tool invocations)
+              if part["functionCall"]
+                function_calls << part["functionCall"]
               # Handle both part["text"] and part itself being a hash with "text" key
-              if part["text"]
+              elsif part["text"]
                 text_parts << part["text"]
               elsif part.is_a?(Hash) && part.key?("text")
                 text_parts << part["text"]
               end
             end
-            
+
+            # If there are function calls, return them as a structured response
+            # This allows tests to evaluate whether tool calls are appropriate
+            if function_calls.any?
+              return {
+                text: text_parts.join(" ").strip,
+                tool_calls: function_calls
+              }
+            end
+
             result = text_parts.join(" ").strip
 
             # Handle ReAct format output from Gemini 3 models

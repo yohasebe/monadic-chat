@@ -1004,6 +1004,7 @@ end
 # Provider Matrix Tests
 # =============================================================================
 # Comprehensive tests for all AI providers × all apps
+# Tool calls are intercepted - no actual API costs for media generation
 #
 # Usage:
 #   rake matrix                           # Run with all configured providers
@@ -1013,7 +1014,6 @@ end
 # Environment variables:
 #   PROVIDERS=openai,anthropic   # Comma-separated list of providers to test
 #   DEBUG=true                   # Enable debug output
-#   RUN_MEDIA=true              # Include media generation tests
 # =============================================================================
 
 desc "Run Provider Matrix tests. Usage: rake matrix[providers] (e.g., rake matrix[openai,anthropic])"

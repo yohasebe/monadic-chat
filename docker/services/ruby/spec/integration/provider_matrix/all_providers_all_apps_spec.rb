@@ -145,14 +145,15 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
       skip_ai_evaluation: true  # Just verify non-empty response without errors
     },
 
-    # Media apps (description only, no actual generation)
+    # Media apps - tool calls are intercepted, no actual generation occurs
+    # Tests verify the AI attempts to use generate_image/generate_video tools correctly
     'ImageGenerator' => {
-      prompt: 'Describe a simple icon concept.',
-      expectation: 'The AI described an image or icon concept'
+      prompt: 'Generate a simple red circle icon.',
+      expectation: 'The AI attempted to generate an image (tool call or description)'
     },
     'VideoGenerator' => {
-      prompt: 'Describe a 3-second video concept.',
-      expectation: 'The AI described a video concept'
+      prompt: 'Generate a 3-second video of a bouncing ball.',
+      expectation: 'The AI attempted to generate a video (tool call or description)'
     },
 
     # Complex apps
@@ -174,13 +175,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     MonadicHelp
   ].freeze
 
-  # Media generation apps (skipped unless RUN_MEDIA=true)
-  # These apps use external APIs that may incur costs or have rate limits
-  MEDIA_APPS = %w[
-    ImageGenerator
-    VideoGenerator
-  ].freeze
-
   describe 'Basic Response Matrix' do
     PROVIDER_CONFIG.each do |provider_key, config|
       context "with #{provider_key} provider" do
@@ -192,7 +186,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
           it "#{app_name} returns valid response", :aggregate_failures do
             require_run_api!
             skip 'OPENAI_API_KEY not set for evaluation' unless ENV['OPENAI_API_KEY']
-            skip "Media app #{app_name} - set RUN_MEDIA=true to test" if MEDIA_APPS.include?(app_base) && ENV['RUN_MEDIA'] != 'true'
             skip "App #{app_name} not available" unless app_exists?(app_name)
             skip "Provider #{provider_key} not configured" unless provider_available?(provider_key)
 

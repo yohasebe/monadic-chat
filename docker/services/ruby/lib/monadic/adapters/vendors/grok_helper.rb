@@ -1261,7 +1261,8 @@ module GrokHelper
               texts[id] ||= json
               choice = texts[id]["choices"][0]
               choice["message"] ||= choice["delta"].dup
-              choice["message"]["content"] ||= ""
+              # Use String.new to create mutable string (file has frozen_string_literal: true)
+              choice["message"]["content"] ||= String.new
 
               # Check for reasoning_content (Grok 3 feature)
               if reasoning = json.dig("choices", 0, "delta", "reasoning_content")

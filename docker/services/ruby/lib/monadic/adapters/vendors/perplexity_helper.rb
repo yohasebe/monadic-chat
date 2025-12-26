@@ -997,10 +997,25 @@ module PerplexityHelper
 
           if delta && delta["content"]
             id = json["id"]
+            is_new_response = texts[id].nil?
             texts[id] ||= json
             choice = texts[id]["choices"][0]
-            choice["message"] ||= delta.dup
-            choice["message"]["content"] ||= ""
+
+            # Build message structure from delta stream only.
+            # Note: Perplexity API pre-populates both message.content and delta.content
+            # in the first chunk with identical values. Other APIs (OpenAI, Grok, etc.)
+            # only send delta.role in the first chunk.
+            # To handle both patterns consistently, we always initialize a fresh message
+            # object on the first chunk, ensuring content is built from deltas only.
+            # Use String.new to create mutable strings (file has frozen_string_literal: true)
+            if is_new_response
+              choice["message"] = {
+                "role" => delta["role"] || choice.dig("message", "role") || "assistant",
+                "content" => String.new
+              }
+            else
+              choice["message"] ||= { "role" => "assistant", "content" => String.new }
+            end
 
             # Handle thinking content for reasoning models
             if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])

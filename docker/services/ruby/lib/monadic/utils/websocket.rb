@@ -601,7 +601,6 @@ module WebSocketHelper
           apps[k][p] = m ? m.to_s : nil
         end
       end
-      v.api_key = settings.api_key if v.respond_to?(:api_key=) && settings.respond_to?(:api_key)
 
       # Track size of this app's data
       if CONFIG["EXTRA_LOGGING"]

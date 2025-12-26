@@ -147,9 +147,12 @@ RSpec.describe "ElevenLabs STT Integration" do
 
       # Simulate the calculation logic
       result = if model.start_with?("scribe")
-        return nil unless res["logprobs"].is_a?(Array) && !res["logprobs"].empty?
-        avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
-        Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+        if res["logprobs"].is_a?(Array) && !res["logprobs"].empty?
+          avg_logprobs = res["logprobs"].map { |s| s["logprob"].to_f }
+          Math.exp(avg_logprobs.sum / avg_logprobs.size).round(2)
+        else
+          nil
+        end
       end
 
       expect(result).to be_nil

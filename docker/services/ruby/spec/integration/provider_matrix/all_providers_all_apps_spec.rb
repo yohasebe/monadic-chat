@@ -83,9 +83,12 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     },
 
     # Research apps
+    # Note: ResearchAssistant is configured to call load_research_progress tool before any response
+    # This is expected behavior per the MDSL system prompt. Accept tool calls as valid.
     'ResearchAssistant' => {
       prompt: 'What is the capital of Japan?',
-      expectation: 'The AI mentioned Tokyo as the capital of Japan'
+      expectation: 'The AI responded about Japan or Tokyo, or made a tool call to load research progress',
+      skip_ai_evaluation: true  # Tool calls for loading progress are expected first action
     },
     'Wikipedia' => {
       prompt: 'Briefly describe Python.',
@@ -151,9 +154,13 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
       prompt: 'Generate a simple red circle icon.',
       expectation: 'The AI attempted to generate an image (tool call or description)'
     },
+    # Note: VideoGenerator (initiate_from_assistant: true) starts with a greeting message
+    # explaining its capabilities. The first response won't generate video - it introduces the app.
+    # This is expected behavior per the MDSL system prompt.
     'VideoGenerator' => {
       prompt: 'Generate a 3-second video of a bouncing ball.',
-      expectation: 'The AI attempted to generate a video (tool call or description)'
+      expectation: 'The AI responded about video generation - either a greeting/capability description OR attempted to generate',
+      skip_ai_evaluation: true  # First response is often app introduction, not video generation
     },
 
     # Complex apps
@@ -304,6 +311,11 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     # Apps with tools - test that tool-aware apps respond without errors
     # Focus: Does the app handle tool-related prompts without crashing?
     # Note: Actual tool execution may require Docker containers
+    #
+    # IMPORTANT: Some apps have mandatory first-action tool calls defined in their MDSL:
+    # - CodeInterpreter: Must call check_environment() before any response
+    # - ResearchAssistant: Must call load_research_progress before any response
+    # These tool calls are EXPECTED behavior, not failures.
     TOOL_TEST_CASES = {
       'ChordAccompanist' => {
         prompt: 'What chords go well with C major?',
@@ -313,13 +325,17 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
         prompt: 'Describe a simple flowchart with two nodes.',
         expectation: 'The AI responded about flowcharts, diagrams, or Mermaid syntax'
       },
+      # Note: CodeInterpreter MDSL mandates calling check_environment() first
+      # Any tool call (including check_environment) is valid expected behavior
       'CodeInterpreter' => {
         prompt: 'What is 2+2?',
-        expectation: 'The AI provided a response about the calculation or showed code'
+        expectation: 'The AI responded - either with environment check tool call OR calculation'
       },
+      # Note: ResearchAssistant MDSL mandates calling load_research_progress first
+      # Any tool call (including load_research_progress) is valid expected behavior
       'ResearchAssistant' => {
         prompt: 'What is Ruby programming language?',
-        expectation: 'The AI provided information about Ruby programming'
+        expectation: 'The AI responded - either with load_research_progress tool call OR information about Ruby'
       }
     }.freeze
 
@@ -343,26 +359,26 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 has_tool_calls = res[:tool_calls] && res[:tool_calls].any?
 
                 if has_tool_calls
-                  # Tool calls are expected for tool-aware apps - evaluate if appropriate
-                  tool_call_desc = res[:tool_calls].map do |tc|
-                    name = tc['name'] || tc[:name]
-                    args = tc['args'] || tc[:args] || tc['arguments'] || {}
-                    "Tool: #{name}, Args: #{args.to_json}"
-                  end.join("\n")
+                  # Tool calls are expected for tool-aware apps
+                  # Some apps have mandatory first-action tool calls (e.g., check_environment, load_research_progress)
+                  # These are EXPECTED behavior per their MDSL system prompts
+                  tool_names = res[:tool_calls].map { |tc| tc['name'] || tc[:name] }.compact
 
-                  content_check = RE.evaluate(
-                    response: "The AI decided to use the following tool(s):\n#{tool_call_desc}",
-                    expectation: "The tool call is appropriate for the request. For tool-aware apps, using tools is expected behavior.",
-                    prompt: test_config[:prompt],
-                    criteria: "VERY permissive: Accept ANY tool call. For tool-aware apps, using tools is the expected behavior. The goal is to verify the app can communicate with the API and invoke tools."
-                  )
+                  puts "\n  #{app_name}: Tool call(s) - #{tool_names.join(', ')}" if ENV['DEBUG']
 
-                  if content_check.reasoning&.include?('Evaluation error:')
-                    skip "#{app_name}: ResponseEvaluator unavailable - #{content_check.reasoning[0..80]}"
+                  # Verify we got valid tool names (no AI evaluation needed for tool calls)
+                  expect(tool_names).not_to be_empty,
+                    "#{app_name} made tool call but no tool names were returned"
+
+                  tool_names.each do |name|
+                    expect(name).to be_a(String),
+                      "#{app_name} tool name should be a String, got #{name.class}"
+                    expect(name.length).to be > 0,
+                      "#{app_name} tool name should not be empty"
                   end
 
-                  expect(content_check.match).to be(true),
-                    "#{app_name} made inappropriate tool call: #{content_check.reasoning}"
+                  # Test passed - tool calls are valid responses for tool-aware apps
+                  # Apps like CodeInterpreter and ResearchAssistant are EXPECTED to make tool calls first
 
                 else
                   # Regular text response

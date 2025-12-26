@@ -634,7 +634,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
+    "tool_capability": false
   },
   "c4ai-aya-expanse-32b": {
     "context_window" : [1, 128000],
@@ -643,7 +643,7 @@ const modelSpec = {
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true
+    "tool_capability": false
   },
   "command-r-08-2024": {
     "context_window" : [1, 128000],

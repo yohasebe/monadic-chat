@@ -419,22 +419,24 @@ function getDefaultModelForApp(appConfig, availableModels) {
   
   // Check if provider shows all models (like OpenAI)
   if (providerConfig.showAllModels) {
-    // Prefer the first MDSL model if available
-    if (appConfig["models"] && appConfig["models"].length > 0) {
+    // IMPORTANT: Check single model first - this is the MDSL-specified default
+    // appConfig["models"] may contain all provider models from API, not just MDSL models
+    if (appConfig["model"]) {
+      return appConfig["model"]; // Use MDSL-specified model as default
+    } else if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
-      return mdslModels[0]; // Use first MDSL model as default
-    } else if (appConfig["model"]) {
-      return appConfig["model"]; // Use single specified model
+      return mdslModels[0]; // Use first from models list
     } else {
       return availableModels[0]; // Fallback to first available
     }
   } else {
     // For providers that show only MDSL models
-    if (appConfig["models"] && appConfig["models"].length > 0) {
+    // Check single model first for consistency
+    if (appConfig["model"]) {
+      return appConfig["model"];
+    } else if (appConfig["models"] && appConfig["models"].length > 0) {
       let mdslModels = JSON.parse(appConfig["models"]);
       return mdslModels[0];
-    } else if (appConfig["model"]) {
-      return appConfig["model"];
     } else {
       return availableModels[1] || availableModels[0]; // Skip disabled option if present
     }

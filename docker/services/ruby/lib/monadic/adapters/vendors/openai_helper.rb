@@ -2155,6 +2155,63 @@ module OpenAIHelper
       result["choices"][0]["finish_reason"] = finish_reason
       [result]
     else
+      # Check for JupyterNotebook app fallback handling
+      app_name = obj["app_name"].to_s
+      if app_name.include?("JupyterNotebook") && app_name.include?("OpenAI")
+        tool_results = session[:parameters]["tool_results"] || []
+        has_successful_jupyter_result = tool_results.any? do |r|
+          content = r.dig("functionResponse", "response", "content")
+          content.is_a?(String) && !content.include?("ERRORS DETECTED") && (
+            content.include?("executed successfully") ||
+            content.include?("Notebook") && content.include?("created successfully") ||
+            content.include?("Cells added to notebook")
+          )
+        end
+
+        if has_successful_jupyter_result
+          # Extract notebook link from tool results
+          notebook_info = tool_results.find do |r|
+            content = r.dig("functionResponse", "response", "content")
+            content.is_a?(String) && content.include?(".ipynb")
+          end
+          notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
+
+          success_msg = "Notebook created and executed successfully."
+          if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
+            link = $1
+            filename = link.split("/").last
+            success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
+          end
+
+          res = { "type" => "fragment", "content" => success_msg }
+          block&.call res
+          res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+          block&.call res
+          return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+        else
+          # Jupyter app but no successful result - check for errors
+          notebook_error_result = tool_results.find do |r|
+            content = r.dig("functionResponse", "response", "content")
+            content.is_a?(String) && content.include?("ERRORS DETECTED")
+          end
+
+          if notebook_error_result
+            error_content = notebook_error_result.dig("functionResponse", "response", "content")
+            if error_content =~ /⚠️\s*ERRORS DETECTED.*?(?=\n\nAccess the notebook|$)/m
+              error_summary = $&
+            else
+              error_summary = "Notebook execution errors occurred."
+            end
+            error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}"
+            res = { "type" => "fragment", "content" => error_msg }
+            block&.call res
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+          end
+        end
+      end
+
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       [res]

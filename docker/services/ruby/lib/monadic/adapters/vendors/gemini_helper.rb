@@ -2074,11 +2074,21 @@ module GeminiHelper
               tool_results = session[:parameters]["tool_results"] || []
               has_successful_jupyter_result = tool_results.any? do |r|
                 content = r.dig("functionResponse", "response", "content")
-                content.is_a?(String) && (
-                  content.include?("executed successfully") ||
-                  content.include?("Notebook") && content.include?("created successfully") ||
-                  content.include?("Cells added to notebook")
-                )
+                # Check for success indicators but exclude if errors were detected
+                content.is_a?(String) &&
+                  !content.include?("ERRORS DETECTED") &&
+                  !content.include?("Error:") &&
+                  (
+                    content.include?("executed successfully") ||
+                    content.include?("Notebook") && content.include?("created successfully") ||
+                    content.include?("Cells added to notebook")
+                  )
+              end
+
+              # Also check if run_jupyter succeeded (JupyterLab is running)
+              has_jupyter_running = tool_results.any? do |r|
+                content = r.dig("functionResponse", "response", "content")
+                content.is_a?(String) && content.include?("JupyterLab is running")
               end
 
               if has_successful_jupyter_result
@@ -2091,17 +2101,44 @@ module GeminiHelper
                 notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
 
                 # Generate a success message
-                success_msg = "ノートブックの作成と実行が完了しました。"
+                success_msg = "Notebook created and executed successfully."
                 if notebook_content.include?("http://")
                   # Extract the link from the content
                   if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
                     link = $1
                     filename = link.split("/").last
-                    success_msg += "\n\n<a href='#{link}' target='_blank'>#{filename}</a> でアクセスできます。"
+                    success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
                   end
                 end
 
                 res = { "type" => "message", "content" => success_msg, "finish_reason" => "stop" }
+                block&.call res
+                return [res]
+              end
+
+              # Check if there were notebook errors that the model was trying to investigate
+              notebook_error_result = tool_results.find do |r|
+                content = r.dig("functionResponse", "response", "content")
+                content.is_a?(String) && content.include?("ERRORS DETECTED")
+              end
+
+              if notebook_error_result
+                # There were notebook execution errors - provide the error info to the user
+                error_content = notebook_error_result.dig("functionResponse", "response", "content")
+                # Extract just the error portion for display
+                if error_content =~ /⚠️\s*ERRORS DETECTED.*?(?=\n\nAccess the notebook|$)/m
+                  error_summary = $&
+                else
+                  error_summary = "Notebook execution errors occurred."
+                end
+                res = { "type" => "message", "content" => "Errors occurred during notebook execution.\n\n#{error_summary}\n\nPlease check the notebook directly or try again.", "finish_reason" => "stop" }
+                block&.call res
+                return [res]
+              end
+
+              # Check if JupyterLab was started successfully - provide a helpful message
+              if has_jupyter_running
+                res = { "type" => "message", "content" => "JupyterLab is ready. Please describe the notebook you'd like to create or try your request again.", "finish_reason" => "stop" }
                 block&.call res
                 return [res]
               end
@@ -2397,6 +2434,62 @@ module GeminiHelper
         res = { "type" => "fragment", "content" => fallback_greeting }
         block&.call res
         result = [fallback_greeting]
+      elsif app_name.include?("JupyterNotebook") && app_name.include?("Gemini")
+        # Check if there were successful tool results for Jupyter
+        tool_results = session[:parameters]["tool_results"] || []
+        has_successful_jupyter_result = tool_results.any? do |r|
+          content = r.dig("functionResponse", "response", "content")
+          content.is_a?(String) && !content.include?("ERRORS DETECTED") && (
+            content.include?("executed successfully") ||
+            content.include?("Notebook") && content.include?("created successfully") ||
+            content.include?("Cells added to notebook")
+          )
+        end
+
+        if has_successful_jupyter_result
+          # Extract notebook link from tool results
+          notebook_info = tool_results.find do |r|
+            content = r.dig("functionResponse", "response", "content")
+            content.is_a?(String) && content.include?(".ipynb")
+          end
+          notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
+
+          success_msg = "Notebook created and executed successfully."
+          if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
+            link = $1
+            filename = link.split("/").last
+            success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
+          end
+
+          res = { "type" => "fragment", "content" => success_msg }
+          block&.call res
+          result = [success_msg]
+        else
+          # Jupyter app but no successful result - check for errors
+          notebook_error_result = tool_results.find do |r|
+            content = r.dig("functionResponse", "response", "content")
+            content.is_a?(String) && content.include?("ERRORS DETECTED")
+          end
+
+          if notebook_error_result
+            error_content = notebook_error_result.dig("functionResponse", "response", "content")
+            if error_content =~ /⚠️\s*ERRORS DETECTED.*?(?=\n\nAccess the notebook|$)/m
+              error_summary = $&
+            else
+              error_summary = "Notebook execution errors occurred."
+            end
+            error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}"
+            res = { "type" => "fragment", "content" => error_msg }
+            block&.call res
+            result = [error_msg]
+          else
+            # No successful result and no error - provide generic message
+            fallback_msg = "JupyterLab is ready. Please describe the notebook you'd like to create or the task you want to accomplish."
+            res = { "type" => "fragment", "content" => fallback_msg }
+            block&.call res
+            result = [fallback_msg]
+          end
+        end
       else
         # Only show error message when no text AND no tool calls
         # Don't store error messages as valid assistant responses
@@ -2751,13 +2844,13 @@ module GeminiHelper
           end
           notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
 
-          # Generate a success message in Japanese
-          success_msg = "セルの追加と実行が完了しました。"
+          # Generate a success message
+          success_msg = "Cells added and executed successfully."
           if notebook_content.include?("http://")
             if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
               link = $1
               filename = link.split("/").last
-              success_msg += "\n\n<a href='#{link}' target='_blank'>#{filename}</a> でアクセスできます。"
+              success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
             end
           end
 

@@ -780,36 +780,6 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true
   },
-  // Experimental models
-  "gemini-2.5-pro-exp": {
-    "context_window" : [1, 1000000],
-    "max_output_tokens" : [1, 64000],
-    "thinking_budget": {
-      "min": 128,
-      "max": 32768,
-      "can_disable": false,
-      "presets": {
-        "none": 128,
-        "low": 5000,
-        "medium": 20000,
-        "high": 28000
-      }
-    },
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-2.0-pro-exp": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf": true
-  },
   // Flash models
   "gemini-2.0-flash": {
     "context_window" : [1, 1048576],
@@ -848,15 +818,6 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true
-  },
-  "mistral-vibe-cli-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 128000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
   },
   "mistral-ocr-latest": {
     "max_output_tokens" : [1, 32768],

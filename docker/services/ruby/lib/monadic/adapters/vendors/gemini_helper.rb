@@ -2065,12 +2065,133 @@ module GeminiHelper
             when "CITATION"
               finish_reason = "recitation"
             when "MALFORMED_FUNCTION_CALL"
-              # Gemini returned a malformed function call - this can happen when:
-              # 1. toolConfig mode is NONE but model still tries to call a function
-              # 2. Model generates invalid function call syntax
-              # 3. Tools were removed for should_stop but model still tries to call functions
-              # Check if this is a Jupyter app where tools were successfully completed
-              # In this case, the malformed call is likely because we disabled tools after success
+              # Gemini returned a malformed function call - try to parse and execute it from finishMessage
+              finish_message = candidate["finishMessage"]
+
+              if finish_message && finish_message.include?("call:")
+                # Try to parse the malformed function call from finishMessage
+                # Format: "Malformed function call: call:function_name(args...)"
+                begin
+                  if finish_message =~ /call:(\w+)\((.*)\)\s*$/m
+                    func_name = $1
+                    args_str = $2
+
+                    if CONFIG["EXTRA_LOGGING"]
+                      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                      extra_log.puts "\n[#{Time.now}] [MALFORMED_FUNCTION_CALL Recovery]"
+                      extra_log.puts "  Function: #{func_name}"
+                      extra_log.puts "  Args string length: #{args_str.length}"
+                      extra_log.close
+                    end
+
+                    # Parse the arguments - format is like: cells=[...], filename="..."
+                    parsed_args = {}
+
+                    # Extract cells array if present - use bracket matching for nested JSON
+                    if args_str.include?("cells=") || args_str.include?("cells =")
+                      # Find the start of the cells array
+                      cells_start = args_str.index(/cells\s*=\s*\[/)
+                      if cells_start
+                        # Find the opening bracket
+                        bracket_start = args_str.index("[", cells_start)
+                        if bracket_start
+                          # Track bracket depth to find matching close bracket
+                          depth = 0
+                          bracket_end = nil
+                          (bracket_start...args_str.length).each do |i|
+                            case args_str[i]
+                            when "["
+                              depth += 1
+                            when "]"
+                              depth -= 1
+                              if depth == 0
+                                bracket_end = i
+                                break
+                              end
+                            end
+                          end
+
+                          if bracket_end
+                            cells_json = args_str[bracket_start..bracket_end]
+                            begin
+                              parsed_args[:cells] = JSON.parse(cells_json)
+                            rescue JSON::ParserError => e
+                              if CONFIG["EXTRA_LOGGING"]
+                                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                                extra_log.puts "  JSON parse error: #{e.message}"
+                                extra_log.puts "  Cells JSON (first 500 chars): #{cells_json[0..500]}"
+                                extra_log.close
+                              end
+                            end
+                          end
+                        end
+                      end
+                    end
+
+                    # Extract filename if present
+                    if args_str =~ /filename\s*=\s*"([^"]+)"/
+                      parsed_args[:filename] = $1
+                    elsif args_str =~ /filename\s*=\s*'([^']+)'/
+                      parsed_args[:filename] = $1
+                    end
+
+                    # Execute the function if we have valid args
+                    if parsed_args[:cells] && parsed_args[:filename] && func_name == "add_jupyter_cells"
+                      if CONFIG["EXTRA_LOGGING"]
+                        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                        extra_log.puts "  Executing recovered function call..."
+                        extra_log.puts "  Filename: #{parsed_args[:filename]}"
+                        extra_log.puts "  Cells count: #{parsed_args[:cells].length}"
+                        extra_log.close
+                      end
+
+                      # Execute the function
+                      begin
+                        result = app.send(:add_jupyter_cells,
+                          filename: parsed_args[:filename],
+                          cells: parsed_args[:cells],
+                          run: true,
+                          session: session
+                        )
+
+                        # Send success message
+                        success_msg = "Cells added successfully to notebook.\n\n"
+                        if result.is_a?(String) && result.include?("http://")
+                          if result =~ /(http:\/\/[^\s]+\.ipynb)/
+                            link = $1
+                            filename = link.split("/").last
+                            success_msg += "Access it at: <a href='#{link}' target='_blank'>#{filename}</a>"
+                          end
+                        else
+                          success_msg += result.to_s
+                        end
+
+                        res = { "type" => "fragment", "content" => success_msg }
+                        block&.call res
+                        res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                        block&.call res
+                        return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
+                      rescue StandardError => e
+                        if CONFIG["EXTRA_LOGGING"]
+                          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                          extra_log.puts "  Function execution failed: #{e.message}"
+                          extra_log.close
+                        end
+                        # Fall through to error handling
+                      end
+                    end
+                  end
+                rescue StandardError => e
+                  if CONFIG["EXTRA_LOGGING"]
+                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                    extra_log.puts "  Failed to parse malformed function call: #{e.message}"
+                    extra_log.close
+                  end
+                  # Fall through to existing handling
+                end
+              end
+
+              # Existing handling for cases where we couldn't recover from the malformed call
               tool_results = session[:parameters]["tool_results"] || []
               has_successful_jupyter_result = tool_results.any? do |r|
                 content = r.dig("functionResponse", "response", "content")

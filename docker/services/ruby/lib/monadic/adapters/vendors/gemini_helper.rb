@@ -2166,8 +2166,23 @@ module GeminiHelper
                           success_msg += result.to_s
                         end
 
+                        # Send fragment first
                         res = { "type" => "fragment", "content" => success_msg }
                         block&.call res
+
+                        # Send HTML response to complete the message card
+                        html_res = {
+                          "type" => "html",
+                          "content" => {
+                            "role" => "assistant",
+                            "text" => success_msg,
+                            "html" => "<p>#{success_msg.gsub("\n", "<br>")}</p>",
+                            "lang" => "en",
+                            "mid" => SecureRandom.hex(4)
+                          }
+                        }
+                        block&.call html_res
+
                         res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                         block&.call res
                         return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
@@ -2232,9 +2247,26 @@ module GeminiHelper
                   end
                 end
 
-                res = { "type" => "message", "content" => success_msg, "finish_reason" => "stop" }
+                # Send fragment first
+                res = { "type" => "fragment", "content" => success_msg }
                 block&.call res
-                return [res]
+
+                # Send HTML response to complete the message card
+                html_res = {
+                  "type" => "html",
+                  "content" => {
+                    "role" => "assistant",
+                    "text" => success_msg,
+                    "html" => "<p>#{success_msg.gsub("\n", "<br>")}</p>",
+                    "lang" => "en",
+                    "mid" => SecureRandom.hex(4)
+                  }
+                }
+                block&.call html_res
+
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
               end
 
               # Check if there were notebook errors that the model was trying to investigate
@@ -2252,22 +2284,75 @@ module GeminiHelper
                 else
                   error_summary = "Notebook execution errors occurred."
                 end
-                res = { "type" => "message", "content" => "Errors occurred during notebook execution.\n\n#{error_summary}\n\nPlease check the notebook directly or try again.", "finish_reason" => "stop" }
+                error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}\n\nPlease check the notebook directly or try again."
+
+                # Send fragment first
+                res = { "type" => "fragment", "content" => error_msg }
                 block&.call res
-                return [res]
+
+                # Send HTML response to complete the message card
+                html_res = {
+                  "type" => "html",
+                  "content" => {
+                    "role" => "assistant",
+                    "text" => error_msg,
+                    "html" => "<p>#{error_msg.gsub("\n", "<br>")}</p>",
+                    "lang" => "en",
+                    "mid" => SecureRandom.hex(4)
+                  }
+                }
+                block&.call html_res
+
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
               end
 
               # Check if JupyterLab was started successfully - provide a helpful message
               if has_jupyter_running
-                res = { "type" => "message", "content" => "JupyterLab is ready. Please describe the notebook you'd like to create or try your request again.", "finish_reason" => "stop" }
+                ready_msg = "JupyterLab is ready. Please describe the notebook you'd like to create or try your request again."
+
+                # Send fragment first
+                res = { "type" => "fragment", "content" => ready_msg }
                 block&.call res
-                return [res]
+
+                # Send HTML response to complete the message card
+                html_res = {
+                  "type" => "html",
+                  "content" => {
+                    "role" => "assistant",
+                    "text" => ready_msg,
+                    "html" => "<p>#{ready_msg}</p>",
+                    "lang" => "en",
+                    "mid" => SecureRandom.hex(4)
+                  }
+                }
+                block&.call html_res
+
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => ready_msg } }] }]
               end
 
               # Send an error response to inform the user/system
-              res = { "type" => "error", "content" => "The model attempted an invalid function call. This may be a temporary issue. Please try again." }
+              error_msg = "The model attempted an invalid function call. This may be a temporary issue. Please try again."
+
+              # Send HTML response to complete the message card
+              html_res = {
+                "type" => "html",
+                "content" => {
+                  "role" => "assistant",
+                  "text" => error_msg,
+                  "html" => "<p>#{error_msg}</p>",
+                  "lang" => "en",
+                  "mid" => SecureRandom.hex(4)
+                }
+              }
+              block&.call html_res
+
+              res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
               block&.call res
-              return [res]
+              return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
             else
               finish_reason = nil
             end

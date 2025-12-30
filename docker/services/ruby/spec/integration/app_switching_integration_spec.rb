@@ -8,6 +8,11 @@ RSpec.describe 'App Switching Integration', type: :integration do
   # Include the WebSocketHelper methods for testing
   include WebSocketHelper
 
+  # Load all apps to ensure Voice Chat and other apps are available
+  before(:all) do
+    TestAppLoader.load_all_apps
+  end
+
   let(:mock_session) do
     {
       "parameters" => {},  # Use string keys to match WebSocketHelper expectations
@@ -44,8 +49,14 @@ RSpec.describe 'App Switching Integration', type: :integration do
           auto_speech easy_submit initiate_from_assistant
           mathjax mermaid abc monadic
           pdf_vector_storage websearch
-          jupyter image_generation video
+          jupyter video
         ]
+
+        # Flags that can be boolean OR specific string values
+        # image_generation can be: true, false, "upload_only", "disabled"
+        multi_value_flags = {
+          'image_generation' => [TrueClass, FalseClass, NilClass, 'upload_only', 'disabled']
+        }
 
         apps_data.each do |app_name, app_settings|
           boolean_flags.each do |flag|
@@ -59,6 +70,22 @@ RSpec.describe 'App Switching Integration', type: :integration do
             # Specifically check it's not a string "true" or "false"
             expect(value).not_to eq('true')
             expect(value).not_to eq('false')
+          end
+
+          # Check multi-value flags
+          multi_value_flags.each do |flag, allowed_values|
+            next unless app_settings.key?(flag)
+
+            value = app_settings[flag]
+            valid = allowed_values.any? do |allowed|
+              if allowed.is_a?(Class)
+                value.is_a?(allowed)
+              else
+                value == allowed
+              end
+            end
+            expect(valid).to be(true),
+                   "#{app_name}[#{flag}] should be one of #{allowed_values.inspect}, got #{value.inspect}"
           end
         end
       end
@@ -174,12 +201,20 @@ RSpec.describe 'App Switching Integration', type: :integration do
 
       # Collect all unique feature flags across apps
       all_flags = apps_data.flat_map { |_, settings| settings.keys }.uniq
+
+      # Pure boolean flags
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
         mathjax mermaid abc monadic
         pdf_vector_storage websearch
-        jupyter image_generation video
+        jupyter video
       ]
+
+      # Flags that can be boolean OR specific string values
+      # image_generation can be: true, false, "upload_only", "disabled"
+      multi_value_flags = {
+        'image_generation' => [TrueClass, FalseClass, NilClass, 'upload_only', 'disabled']
+      }
 
       # Check that boolean flags are consistently boolean type
       boolean_flags.each do |flag|
@@ -199,11 +234,12 @@ RSpec.describe 'App Switching Integration', type: :integration do
 
       apps_data = prepare_apps_data
 
+      # Pure boolean flags (image_generation excluded - can be "upload_only", "disabled")
       boolean_flags = %w[
         auto_speech easy_submit initiate_from_assistant
         mathjax mermaid abc monadic
         pdf_vector_storage websearch
-        jupyter image_generation video
+        jupyter video
       ]
 
       # This is the critical test - no feature flag should be "true" or "false" string

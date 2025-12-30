@@ -2065,148 +2065,46 @@ module GeminiHelper
             when "CITATION"
               finish_reason = "recitation"
             when "MALFORMED_FUNCTION_CALL"
-              # Gemini returned a malformed function call - try to parse and execute it from finishMessage
+              # Gemini returned a malformed function call
+              # Log the error for debugging (do NOT attempt to parse finishMessage text - it's unreliable)
               finish_message = candidate["finishMessage"]
-
-              if finish_message && finish_message.include?("call:")
-                # Try to parse the malformed function call from finishMessage
-                # Format: "Malformed function call: call:function_name(args...)"
-                begin
-                  if finish_message =~ /call:(\w+)\((.*)\)\s*$/m
-                    func_name = $1
-                    args_str = $2
-
-                    if CONFIG["EXTRA_LOGGING"]
-                      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                      extra_log.puts "\n[#{Time.now}] [MALFORMED_FUNCTION_CALL Recovery]"
-                      extra_log.puts "  Function: #{func_name}"
-                      extra_log.puts "  Args string length: #{args_str.length}"
-                      extra_log.close
-                    end
-
-                    # Parse the arguments - format is like: cells=[...], filename="..."
-                    parsed_args = {}
-
-                    # Extract cells array if present - use bracket matching for nested JSON
-                    if args_str.include?("cells=") || args_str.include?("cells =")
-                      # Find the start of the cells array
-                      cells_start = args_str.index(/cells\s*=\s*\[/)
-                      if cells_start
-                        # Find the opening bracket
-                        bracket_start = args_str.index("[", cells_start)
-                        if bracket_start
-                          # Track bracket depth to find matching close bracket
-                          depth = 0
-                          bracket_end = nil
-                          (bracket_start...args_str.length).each do |i|
-                            case args_str[i]
-                            when "["
-                              depth += 1
-                            when "]"
-                              depth -= 1
-                              if depth == 0
-                                bracket_end = i
-                                break
-                              end
-                            end
-                          end
-
-                          if bracket_end
-                            cells_json = args_str[bracket_start..bracket_end]
-                            begin
-                              parsed_args[:cells] = JSON.parse(cells_json)
-                            rescue JSON::ParserError => e
-                              if CONFIG["EXTRA_LOGGING"]
-                                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                                extra_log.puts "  JSON parse error: #{e.message}"
-                                extra_log.puts "  Cells JSON (first 500 chars): #{cells_json[0..500]}"
-                                extra_log.close
-                              end
-                            end
-                          end
-                        end
-                      end
-                    end
-
-                    # Extract filename if present
-                    if args_str =~ /filename\s*=\s*"([^"]+)"/
-                      parsed_args[:filename] = $1
-                    elsif args_str =~ /filename\s*=\s*'([^']+)'/
-                      parsed_args[:filename] = $1
-                    end
-
-                    # Execute the function if we have valid args
-                    if parsed_args[:cells] && parsed_args[:filename] && func_name == "add_jupyter_cells"
-                      if CONFIG["EXTRA_LOGGING"]
-                        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                        extra_log.puts "  Executing recovered function call..."
-                        extra_log.puts "  Filename: #{parsed_args[:filename]}"
-                        extra_log.puts "  Cells count: #{parsed_args[:cells].length}"
-                        extra_log.close
-                      end
-
-                      # Execute the function
-                      begin
-                        result = app.send(:add_jupyter_cells,
-                          filename: parsed_args[:filename],
-                          cells: parsed_args[:cells],
-                          run: true,
-                          session: session
-                        )
-
-                        # Send success message
-                        success_msg = "Cells added successfully to notebook.\n\n"
-                        if result.is_a?(String) && result.include?("http://")
-                          if result =~ /(http:\/\/[^\s]+\.ipynb)/
-                            link = $1
-                            filename = link.split("/").last
-                            success_msg += "Access it at: <a href='#{link}' target='_blank'>#{filename}</a>"
-                          end
-                        else
-                          success_msg += result.to_s
-                        end
-
-                        # Send fragment first
-                        res = { "type" => "fragment", "content" => success_msg }
-                        block&.call res
-
-                        # Send HTML response to complete the message card
-                        html_res = {
-                          "type" => "html",
-                          "content" => {
-                            "role" => "assistant",
-                            "text" => success_msg,
-                            "html" => "<p>#{success_msg.gsub("\n", "<br>")}</p>",
-                            "lang" => "en",
-                            "mid" => SecureRandom.hex(4)
-                          }
-                        }
-                        block&.call html_res
-
-                        res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                        block&.call res
-                        return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
-                      rescue StandardError => e
-                        if CONFIG["EXTRA_LOGGING"]
-                          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                          extra_log.puts "  Function execution failed: #{e.message}"
-                          extra_log.close
-                        end
-                        # Fall through to error handling
-                      end
-                    end
-                  end
-                rescue StandardError => e
-                  if CONFIG["EXTRA_LOGGING"]
-                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                    extra_log.puts "  Failed to parse malformed function call: #{e.message}"
-                    extra_log.close
-                  end
-                  # Fall through to existing handling
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts "\n[#{Time.now}] [MALFORMED_FUNCTION_CALL]"
+                  log.puts "  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
+                  log.puts "  Note: Not attempting text parsing - checking session tool_results instead"
                 end
               end
 
+              # If fragments were already streamed, just complete the stream
+              # Don't send additional messages which would create duplicate message cards
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                  log.puts("[#{Time.now}] [DEBUG] MALFORMED_FUNCTION_CALL fallback: fragment_sequence=#{fragment_sequence}, texts.length=#{texts.length}, call_depth=#{call_depth}")
+                end
+              end
+              if fragment_sequence > 0
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
+              end
+
+              # CRITICAL: If call_depth > 0, tools were already executed in a previous call
+              # and their results are already in the session. Don't generate a duplicate success message.
+              # Just complete the stream silently and let the tool results speak for themselves.
+              if call_depth > 0
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] MALFORMED_FUNCTION_CALL fallback: Skipping message generation (call_depth=#{call_depth})")
+                  end
+                end
+                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+                block&.call res
+                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
+              end
+
               # Existing handling for cases where we couldn't recover from the malformed call
+              # and no text was streamed (only for call_depth == 0)
               tool_results = session[:parameters]["tool_results"] || []
               has_successful_jupyter_result = tool_results.any? do |r|
                 content = r.dig("functionResponse", "response", "content")
@@ -2217,7 +2115,7 @@ module GeminiHelper
                   (
                     content.include?("executed successfully") ||
                     content.include?("Notebook") && content.include?("created successfully") ||
-                    content.include?("Cells added to notebook")
+                    content.include?("cells have been added") || content.include?("Cells added to notebook")
                   )
               end
 
@@ -2236,8 +2134,12 @@ module GeminiHelper
                 end
                 notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
 
-                # Generate a success message
-                success_msg = "Notebook created and executed successfully."
+                # Determine appropriate message based on tool result content
+                if notebook_content.include?("cells have been added") || notebook_content.include?("Cells added to notebook")
+                  success_msg = "Cells added to notebook successfully."
+                else
+                  success_msg = "Notebook created and executed successfully."
+                end
                 if notebook_content.include?("http://")
                   # Extract the link from the content
                   if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
@@ -2247,23 +2149,8 @@ module GeminiHelper
                   end
                 end
 
-                # Send fragment first
-                res = { "type" => "fragment", "content" => success_msg }
-                block&.call res
-
-                # Send HTML response to complete the message card
-                html_res = {
-                  "type" => "html",
-                  "content" => {
-                    "role" => "assistant",
-                    "text" => success_msg,
-                    "html" => "<p>#{success_msg.gsub("\n", "<br>")}</p>",
-                    "lang" => "en",
-                    "mid" => SecureRandom.hex(4)
-                  }
-                }
-                block&.call html_res
-
+                # Return response via normal structure - let websocket.rb handle HTML rendering
+                # Do NOT send html via callback as that causes duplicate messages
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
@@ -2286,23 +2173,7 @@ module GeminiHelper
                 end
                 error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}\n\nPlease check the notebook directly or try again."
 
-                # Send fragment first
-                res = { "type" => "fragment", "content" => error_msg }
-                block&.call res
-
-                # Send HTML response to complete the message card
-                html_res = {
-                  "type" => "html",
-                  "content" => {
-                    "role" => "assistant",
-                    "text" => error_msg,
-                    "html" => "<p>#{error_msg.gsub("\n", "<br>")}</p>",
-                    "lang" => "en",
-                    "mid" => SecureRandom.hex(4)
-                  }
-                }
-                block&.call html_res
-
+                # Return response via normal structure - let websocket.rb handle HTML rendering
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
@@ -2312,23 +2183,7 @@ module GeminiHelper
               if has_jupyter_running
                 ready_msg = "JupyterLab is ready. Please describe the notebook you'd like to create or try your request again."
 
-                # Send fragment first
-                res = { "type" => "fragment", "content" => ready_msg }
-                block&.call res
-
-                # Send HTML response to complete the message card
-                html_res = {
-                  "type" => "html",
-                  "content" => {
-                    "role" => "assistant",
-                    "text" => ready_msg,
-                    "html" => "<p>#{ready_msg}</p>",
-                    "lang" => "en",
-                    "mid" => SecureRandom.hex(4)
-                  }
-                }
-                block&.call html_res
-
+                # Return response via normal structure - let websocket.rb handle HTML rendering
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => ready_msg } }] }]
@@ -2337,19 +2192,7 @@ module GeminiHelper
               # Send an error response to inform the user/system
               error_msg = "The model attempted an invalid function call. This may be a temporary issue. Please try again."
 
-              # Send HTML response to complete the message card
-              html_res = {
-                "type" => "html",
-                "content" => {
-                  "role" => "assistant",
-                  "text" => error_msg,
-                  "html" => "<p>#{error_msg}</p>",
-                  "lang" => "en",
-                  "mid" => SecureRandom.hex(4)
-                }
-              }
-              block&.call html_res
-
+              # Return response via normal structure - let websocket.rb handle HTML rendering
               res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
               block&.call res
               return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
@@ -2642,13 +2485,18 @@ module GeminiHelper
         result = [fallback_greeting]
       elsif app_name.include?("JupyterNotebook") && app_name.include?("Gemini")
         # Check if there were successful tool results for Jupyter
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [DEBUG] texts.empty? fallback: JupyterNotebook Gemini branch entered")
+          end
+        end
         tool_results = session[:parameters]["tool_results"] || []
         has_successful_jupyter_result = tool_results.any? do |r|
           content = r.dig("functionResponse", "response", "content")
           content.is_a?(String) && !content.include?("ERRORS DETECTED") && (
             content.include?("executed successfully") ||
             content.include?("Notebook") && content.include?("created successfully") ||
-            content.include?("Cells added to notebook")
+            content.include?("cells have been added") || content.include?("Cells added to notebook")
           )
         end
 
@@ -2808,6 +2656,83 @@ module GeminiHelper
           # This will let the actual result from the generate_video_with_veo function be displayed
           if tool_result_content.empty? && !tool_calls.any? { |tc| tc["name"] == "generate_video_with_veo" || tc["name"] == "generate_image_with_gemini" }
             tool_result_content = "[No additional content received from function call]"
+          end
+
+          # For Jupyter tools, if we got the generic message, extract notebook info from session tool_results
+          jupyter_tools = %w[
+            create_and_populate_jupyter_notebook add_jupyter_cells create_jupyter_notebook
+            get_jupyter_cells_with_results delete_jupyter_cell update_jupyter_cell
+            insert_jupyter_cells move_jupyter_cell restart_jupyter_kernel run_jupyter
+          ]
+          is_jupyter_tool = tool_calls.any? { |tc| jupyter_tools.include?(tc["name"]) }
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts "[#{Time.now}] [Jupyter Debug] is_jupyter_tool=#{is_jupyter_tool}, tool_result_content='#{tool_result_content[0..100]}'"
+              log.puts "[#{Time.now}] [Jupyter Debug] tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}"
+            end
+          end
+
+          if is_jupyter_tool && tool_result_content == "[No additional content received from function call]"
+            # Extract notebook info from session tool_results (populated by process_functions)
+            session_tool_results = session[:parameters]["tool_results"] || []
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                log.puts "[#{Time.now}] [Jupyter Debug] session_tool_results count=#{session_tool_results.length}"
+                session_tool_results.each_with_index do |r, idx|
+                  content = r.dig("functionResponse", "response", "content").to_s[0..200]
+                  log.puts "[#{Time.now}] [Jupyter Debug] result[#{idx}]: #{content}"
+                end
+              end
+            end
+
+            # Find the most recent Jupyter tool result
+            jupyter_result = session_tool_results.reverse.find do |r|
+              content = r.dig("functionResponse", "response", "content")
+              next false unless content.is_a?(String)
+              # Match various Jupyter tool result patterns
+              content.include?(".ipynb") ||
+                content.include?("cells have been added") ||
+                content.include?("Cells added") ||
+                content.include?("JupyterLab") ||
+                content.include?("Cell ") ||  # For delete/update cell results
+                content.start_with?("[{")     # For get_jupyter_cells_with_results (returns JSON array)
+            end
+
+            if jupyter_result
+              jupyter_content = jupyter_result.dig("functionResponse", "response", "content")
+
+              # Determine the type of operation and build appropriate message
+              success_msg = nil
+              if jupyter_content.include?("created successfully") || (jupyter_content.include?("Notebook") && jupyter_content.include?("created"))
+                success_msg = "Notebook created successfully."
+              elsif jupyter_content.include?("cells have been added") || jupyter_content.include?("Cells added")
+                success_msg = "Cells added to notebook successfully."
+              elsif jupyter_content.include?("deleted successfully")
+                success_msg = "Cell deleted successfully."
+              elsif jupyter_content.include?("updated successfully")
+                success_msg = "Cell updated successfully."
+              elsif jupyter_content.include?("JupyterLab is running")
+                success_msg = "JupyterLab is running."
+              elsif jupyter_content.include?("kernel") && jupyter_content.include?("restart")
+                success_msg = "Kernel restarted successfully."
+              elsif jupyter_content.start_with?("[{") || jupyter_content.include?('"cell_type"')
+                # This is get_jupyter_cells_with_results output - use it directly
+                tool_result_content = jupyter_content
+                success_msg = nil  # Don't override with a generic message
+              end
+
+              if success_msg
+                # Extract notebook link if present
+                if jupyter_content =~ /(http:\/\/[^\s]+\.ipynb)/
+                  link = $1
+                  filename = link.split("/").last
+                  success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
+                end
+                tool_result_content = success_msg
+              end
+            end
           end
           
           # Clean up any "No response" messages that might be in the results
@@ -3027,7 +2952,7 @@ module GeminiHelper
           content.is_a?(String) && (
             content.include?("executed successfully") ||
             content.include?("Notebook") && content.include?("created successfully") ||
-            content.include?("Cells added to notebook")
+            content.include?("cells have been added") || content.include?("Cells added to notebook")
           )
         end
 

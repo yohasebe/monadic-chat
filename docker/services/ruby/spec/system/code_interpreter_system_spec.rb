@@ -38,21 +38,28 @@ RSpec.describe "Code Interpreter System Tests", type: :system do
     it "has correct parameter names for fetch tools in all Code Interpreters" do
       code_interpreter_files.each do |file|
         content = File.read(file)
-        
-        # Check fetch_text_from_file parameter
-        if content.include?('fetch_text_from_file')
+
+        # Apps can either define tools explicitly OR import from shared tools
+        # If using import_shared_tools :file_reading, the tools are provided by the shared module
+        uses_shared_file_reading = content.include?('import_shared_tools :file_reading')
+
+        # Check fetch_text_from_file parameter (only if explicitly defined, not imported)
+        if content.include?('define_tool "fetch_text_from_file"')
           expect(content).to include('parameter :file,')
           expect(content).not_to include('parameter :file_path,')
+        elsif content.include?('fetch_text_from_file') && !uses_shared_file_reading
+          # If tool is mentioned but not defined and not imported, that's an error
+          expect(content).to include('parameter :file,').or include('import_shared_tools :file_reading')
         end
-        
-        # Check fetch_text_from_pdf parameter  
-        if content.include?('fetch_text_from_pdf')
+
+        # Check fetch_text_from_pdf parameter (only if explicitly defined)
+        if content.include?('define_tool "fetch_text_from_pdf"')
           expect(content).to include('parameter :pdf,')
           expect(content).not_to include('parameter :pdf_path,')
         end
-        
-        # Check fetch_text_from_office parameter
-        if content.include?('fetch_text_from_office')
+
+        # Check fetch_text_from_office parameter (only if explicitly defined)
+        if content.include?('define_tool "fetch_text_from_office"')
           expect(content).to include('parameter :file,')
           expect(content).not_to include('parameter :office_path,')
         end

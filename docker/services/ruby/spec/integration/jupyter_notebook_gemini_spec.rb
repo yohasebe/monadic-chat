@@ -234,11 +234,15 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "includes natural language response instructions" do
         system_prompt = app_instance.settings[:initial_prompt]
-        
-        # Should have natural language response format
-        expect(system_prompt).to include("Provide clear, natural language responses")
-        expect(system_prompt).to include("http://localhost:8889/lab/tree/")
-        
+
+        # Should have response format instructions with mandatory link display
+        expect(system_prompt).to include("Response Format")
+        expect(system_prompt).to include("MANDATORY")
+        expect(system_prompt).to include("clickable notebook link")
+
+        # Should have link format examples
+        expect(system_prompt).to match(/http:\/\/127\.0\.0\.1:8889\/lab\/tree\//)
+
         # Should not have JSON context instructions
         expect(system_prompt).not_to include("context.link")
       end

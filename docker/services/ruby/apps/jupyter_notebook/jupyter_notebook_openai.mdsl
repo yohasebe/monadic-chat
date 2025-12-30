@@ -125,6 +125,20 @@ app "JupyterNotebookOpenAI" do
     - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
     - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
 
+    ## Response Format (CRITICAL)
+
+    **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
+    you MUST ALWAYS include the clickable notebook link in your response.
+
+    Example responses:
+    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
+    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
+
+    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
+
+    NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
+    The user needs the link to access the notebook in JupyterLab.
+
     ## Using OpenAI Code Agent
     For complex coding tasks in notebooks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
     This specialized model excels at:

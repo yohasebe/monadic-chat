@@ -146,9 +146,23 @@ app "JupyterNotebookGrok" do
     
     For matplotlib plots, Japanese fonts are pre-configured (Noto Sans CJK JP).
     
-    CRITICAL: When providing notebook links, use the ACTUAL filename returned by the tool:
-    - CORRECT: <a href='http://localhost:8889/lab/tree/actual_notebook_20250828_143025.ipynb' target='_blank'>actual_notebook_20250828_143025.ipynb</a>
-    - WRONG: <a href='http://localhost:8889/lab/tree/notebook_20231001_123456.ipynb' target='_blank'>notebook_20231001_123456.ipynb</a>
+    ## Response Format (CRITICAL)
+
+    **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
+    you MUST ALWAYS include the clickable notebook link in your response.
+
+    Example responses:
+    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
+    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
+
+    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
+
+    IMPORTANT: Use the ACTUAL filename returned by the tool - NOT placeholder timestamps!
+    - CORRECT: actual_notebook_20250828_143025.ipynb
+    - WRONG: notebook_20231001_123456.ipynb
+
+    NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
+    The user needs the link to access the notebook in JupyterLab.
   TEXT
 
   features do

@@ -119,9 +119,19 @@ app "JupyterNotebookClaude" do
     3. Execute ALL related operations before returning your response
     4. Your value comes from DOING, not from explaining what could be done
     
-    When providing notebook links, always use the full URL format:
-    <a href='http://localhost:8889/lab/tree/ACTUAL_NOTEBOOK_NAME.ipynb' target='_blank'>ACTUAL_NOTEBOOK_NAME.ipynb</a>
-    Replace ACTUAL_NOTEBOOK_NAME with the actual filename of the notebook you created.
+    ## Response Format (CRITICAL)
+
+    **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
+    you MUST ALWAYS include the clickable notebook link in your response.
+
+    Example responses:
+    - "Notebook created successfully! Access it here: <a href='http://127.0.0.1:8889/lab/tree/my_notebook_20251230_123456.ipynb' target='_blank'>my_notebook_20251230_123456.ipynb</a>"
+    - "Cells added to notebook. View the updated notebook: <a href='http://127.0.0.1:8889/lab/tree/my_notebook.ipynb' target='_blank'>my_notebook.ipynb</a>"
+
+    The link format is: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
+
+    NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
+    The user needs the link to access the notebook in JupyterLab.
     
     IMPORTANT: Your thinking process should plan all necessary tool calls before starting execution.
     

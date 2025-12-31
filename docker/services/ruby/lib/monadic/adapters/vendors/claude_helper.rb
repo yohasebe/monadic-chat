@@ -1214,6 +1214,23 @@ module ClaudeHelper
         body["tools"] = final_tools.map { |t| ClaudeHelper.convert_tool_to_claude_format(t) }
       end
 
+      # Add code execution tool if Skills are specified (required for Skills beta)
+      # This is also needed when processing tool results
+      if app_skills && app_skills.is_a?(Array) && !app_skills.empty?
+        code_execution_tool = {
+          "type" => "code_execution_20250825",
+          "name" => "code_execution"
+        }
+        body["tools"] ||= []
+        body["tools"] << code_execution_tool
+
+        if CONFIG["EXTRA_LOGGING"]
+          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+          extra_log.puts("[#{Time.now}] Claude: code_execution_20250825 tool added for Skills (tool result path)")
+          extra_log.close
+        end
+      end
+
       # Log for debugging
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -2225,7 +2242,14 @@ module ClaudeHelper
 
   # Save file to documents directory
   def save_to_documents(file_data, filename)
-    docs_dir = File.join(Dir.home, "monadic", "data", "documents")
+    # Use the correct base path depending on environment
+    base_path = if Monadic::Utils::Environment.in_container?
+                  MonadicApp::SHARED_VOL
+                else
+                  MonadicApp::LOCAL_SHARED_VOL
+                end
+
+    docs_dir = File.join(base_path, "documents")
     FileUtils.mkdir_p(docs_dir) unless File.directory?(docs_dir)
 
     file_path = File.join(docs_dir, filename)

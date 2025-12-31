@@ -974,10 +974,12 @@ module GeminiHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    # Reset call_depth counter for each new user turn
+    # Reset call_depth counter and tool_results for each new user turn
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      # Clear tool_results from previous turn to prevent stale data affecting termination logic
+      session[:parameters]["tool_results"] = []
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1581,15 +1583,16 @@ module GeminiHelper
     end
 
     if role == "tool"
-      # Add tool results as a user message to continue the conversation
+      # Add tool results as function responses to continue the conversation
+      # Gemini API requires functionResponse format, not plain text
       parts = obj["tool_results"].map { |result|
-        { "text" => result.dig("functionResponse", "response", "content") }
-      }.filter { |part| part["text"] }
+        result["functionResponse"] ? { "functionResponse" => result["functionResponse"] } : nil
+      }.compact
 
       if parts.any?
-        # Add tool results as a new user message to prompt the model for a response
+        # Add tool results with role "function" (Gemini's expected format for function responses)
         body["contents"] << {
-          "role" => "user",
+          "role" => "function",
           "parts" => parts
         }
       end
@@ -1601,11 +1604,17 @@ module GeminiHelper
       is_thinking_model = obj["model"] && obj["model"].include?("2.5")
       
       # Check if this is a Jupyter app that needs multiple tool calls
-      is_jupyter_app = app.to_s.include?("jupyter") || 
+      is_jupyter_app = app.to_s.include?("jupyter") ||
                        (session[:parameters]["app_name"] && session[:parameters]["app_name"].to_s.include?("Jupyter"))
-      
+
       # Check what tools have been called so far
       tool_names = obj["tool_results"].map { |r| r.dig("functionResponse", "name") }.compact
+
+      if CONFIG["EXTRA_LOGGING"] && is_jupyter_app
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts "[#{Time.now}] [Jupyter Termination Check] role=tool, tool_names=#{tool_names.inspect}"
+        end
+      end
 
       # For Gemini 2.5 thinking models, we now know they support function calling
       # according to the official documentation
@@ -1645,11 +1654,9 @@ module GeminiHelper
           should_stop = true
         end
 
-        # For add_jupyter_cells alone (not combined with create_and_populate),
-        # allow the operation to complete and return to user
-        # This is the expected case when user asks to add cells to existing notebook
-        if action_tool_names == ["add_jupyter_cells"]
-          # Single add_jupyter_cells call - stop after this to show results
+        # If cells were added (either alone or after notebook creation), stop to show results
+        # This covers: run_jupyter + create + add_cells, or just add_cells to existing notebook
+        if has_cell_operations
           should_stop = true
         end
 
@@ -1659,8 +1666,17 @@ module GeminiHelper
         end
 
         # Stop if we've made too many ACTION calls (info calls don't count)
-        if action_tool_count >= 5  # Allow enough calls for create + add cells + potential fixes
+        # Limit to 3 to prevent infinite loops: typical flow is run_jupyter + create + add_cells
+        if action_tool_count >= 3
           should_stop = true
+        end
+
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[#{Time.now}] [Jupyter Termination] action_tool_names=#{action_tool_names.inspect}"
+            log.puts "[#{Time.now}] [Jupyter Termination] has_cell_operations=#{has_cell_operations}, has_execution=#{has_execution}, action_tool_count=#{action_tool_count}"
+            log.puts "[#{Time.now}] [Jupyter Termination] should_stop=#{should_stop}"
+          end
         end
 
         if should_stop
@@ -2049,9 +2065,8 @@ module GeminiHelper
               text_parts = content_check&.dig("parts")&.select { |p| p["text"] && !p["text"].empty? } || []
 
               if text_parts.empty?
-                # Thinking consumed all tokens, no actual text output
-                # Return a helpful error message
-                res = { "type" => "error", "content" => "The model's thinking process used all available tokens. The notebook was created successfully, but no summary could be generated. Please check the notebook directly." }
+                # Thinking consumed all tokens - return error
+                res = { "type" => "error", "content" => "The model's thinking process used all available tokens. Please try again with a simpler request." }
                 block&.call res
                 return [res]
               end
@@ -2066,133 +2081,24 @@ module GeminiHelper
               finish_reason = "recitation"
             when "MALFORMED_FUNCTION_CALL"
               # Gemini returned a malformed function call
-              # Log the error for debugging (do NOT attempt to parse finishMessage text - it's unreliable)
-              finish_message = candidate["finishMessage"]
+              # With gemini-3-pro-preview as default, this should rarely occur
               if CONFIG["EXTRA_LOGGING"]
+                finish_message = candidate["finishMessage"]
                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                   log.puts "\n[#{Time.now}] [MALFORMED_FUNCTION_CALL]"
                   log.puts "  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
-                  log.puts "  Note: Not attempting text parsing - checking session tool_results instead"
                 end
               end
 
-              # If fragments were already streamed, just complete the stream
-              # Don't send additional messages which would create duplicate message cards
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] MALFORMED_FUNCTION_CALL fallback: fragment_sequence=#{fragment_sequence}, texts.length=#{texts.length}, call_depth=#{call_depth}")
-                end
-              end
+              # If fragments were already streamed, complete the stream
               if fragment_sequence > 0
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => texts.join } }] }]
               end
 
-              # CRITICAL: If call_depth > 0, tools were already executed in a previous call
-              # and their results are already in the session. Don't generate a duplicate success message.
-              # Just complete the stream silently and let the tool results speak for themselves.
-              if call_depth > 0
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts("[#{Time.now}] [DEBUG] MALFORMED_FUNCTION_CALL fallback: Skipping message generation (call_depth=#{call_depth})")
-                  end
-                end
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "" } }] }]
-              end
-
-              # Existing handling for cases where we couldn't recover from the malformed call
-              # and no text was streamed (only for call_depth == 0)
-              tool_results = session[:parameters]["tool_results"] || []
-              has_successful_jupyter_result = tool_results.any? do |r|
-                content = r.dig("functionResponse", "response", "content")
-                # Check for success indicators but exclude if errors were detected
-                content.is_a?(String) &&
-                  !content.include?("ERRORS DETECTED") &&
-                  !content.include?("Error:") &&
-                  (
-                    content.include?("executed successfully") ||
-                    content.include?("Notebook") && content.include?("created successfully") ||
-                    content.include?("cells have been added") || content.include?("Cells added to notebook")
-                  )
-              end
-
-              # Also check if run_jupyter succeeded (JupyterLab is running)
-              has_jupyter_running = tool_results.any? do |r|
-                content = r.dig("functionResponse", "response", "content")
-                content.is_a?(String) && content.include?("JupyterLab is running")
-              end
-
-              if has_successful_jupyter_result
-                # The notebook was created/updated successfully, just return a success message
-                # Extract notebook info from tool results for a helpful message
-                notebook_info = tool_results.find do |r|
-                  content = r.dig("functionResponse", "response", "content")
-                  content.is_a?(String) && content.include?(".ipynb")
-                end
-                notebook_content = notebook_info&.dig("functionResponse", "response", "content") || ""
-
-                # Determine appropriate message based on tool result content
-                if notebook_content.include?("cells have been added") || notebook_content.include?("Cells added to notebook")
-                  success_msg = "Cells added to notebook successfully."
-                else
-                  success_msg = "Notebook created and executed successfully."
-                end
-                if notebook_content.include?("http://")
-                  # Extract the link from the content
-                  if notebook_content =~ /(http:\/\/[^\s]+\.ipynb)/
-                    link = $1
-                    filename = link.split("/").last
-                    success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
-                  end
-                end
-
-                # Return response via normal structure - let websocket.rb handle HTML rendering
-                # Do NOT send html via callback as that causes duplicate messages
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => success_msg } }] }]
-              end
-
-              # Check if there were notebook errors that the model was trying to investigate
-              notebook_error_result = tool_results.find do |r|
-                content = r.dig("functionResponse", "response", "content")
-                content.is_a?(String) && content.include?("ERRORS DETECTED")
-              end
-
-              if notebook_error_result
-                # There were notebook execution errors - provide the error info to the user
-                error_content = notebook_error_result.dig("functionResponse", "response", "content")
-                # Extract just the error portion for display
-                if error_content =~ /⚠️\s*ERRORS DETECTED.*?(?=\n\nAccess the notebook|$)/m
-                  error_summary = $&
-                else
-                  error_summary = "Notebook execution errors occurred."
-                end
-                error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}\n\nPlease check the notebook directly or try again."
-
-                # Return response via normal structure - let websocket.rb handle HTML rendering
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
-              end
-
-              # Check if JupyterLab was started successfully - provide a helpful message
-              if has_jupyter_running
-                ready_msg = "JupyterLab is ready. Please describe the notebook you'd like to create or try your request again."
-
-                # Return response via normal structure - let websocket.rb handle HTML rendering
-                res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-                block&.call res
-                return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => ready_msg } }] }]
-              end
-
-              # Send an error response to inform the user/system
-              error_msg = "The model attempted an invalid function call. This may be a temporary issue. Please try again."
-
-              # Return response via normal structure - let websocket.rb handle HTML rendering
+              # Return error message
+              error_msg = "The model attempted an invalid function call. Please try again or switch to a different model."
               res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
               block&.call res
               return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
@@ -2598,6 +2504,28 @@ module GeminiHelper
         ) }]
       end
 
+      # Early termination check for Jupyter apps - prevent duplicate tool processing
+      app_name = session[:parameters]["app_name"].to_s
+      if app_name.include?("Jupyter")
+        existing_tool_results = session[:parameters]["tool_results"] || []
+        existing_tool_names = existing_tool_results.map { |r| r.dig("functionResponse", "name") }.compact
+
+        # If we've already processed cell operations, skip further tool calls
+        jupyter_cell_tools = ["add_jupyter_cells", "update_jupyter_cell", "delete_jupyter_cell"]
+        if existing_tool_names.any? { |name| jupyter_cell_tools.include?(name) }
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts "[#{Time.now}] [Jupyter Early Termination] Skipping tool calls - cell operations already completed"
+              log.puts "[#{Time.now}] [Jupyter Early Termination] existing_tool_names=#{existing_tool_names.inspect}"
+              log.puts "[#{Time.now}] [Jupyter Early Termination] new tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}"
+            end
+          end
+          # Return result without processing more tools
+          final_content = result.any? ? result.join("") : "Notebook operations completed."
+          return [{ "choices" => [{ "message" => { "content" => final_content } }] }]
+        end
+      end
+
       begin
         # Check if this is a Math Tutor run_code call
         is_math_tutor_code = (session[:parameters]["app_name"].to_s.include?("MathTutor") || 
@@ -2877,7 +2805,7 @@ module GeminiHelper
       
       # Check if the entire response is a single Markdown code block and unwrap it
       final_content = unwrap_single_markdown_code_block(final_content)
-      
+
       # Append URL context metadata HTML if present
       if @url_context_html
         final_content += "\n\n" + @url_context_html

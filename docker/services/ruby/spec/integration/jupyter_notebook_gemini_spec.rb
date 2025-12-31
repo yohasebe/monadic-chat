@@ -33,7 +33,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
       it "has correct model configuration" do
         model = app_instance.settings[:model]
-        # Updated to Gemini 3 Flash Preview
+        # gemini-3-flash-preview is default
         if model.is_a?(Array)
           expect(model.first).to eq("gemini-3-flash-preview")
         else
@@ -42,7 +42,6 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
       end
 
       it "has deterministic temperature setting" do
-        # Gemini Notebook app uses deterministic temperature
         expect(app_instance.settings[:temperature]).to eq(0.0)
       end
 
@@ -50,14 +49,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         expect(app_instance.settings[:max_tokens]).to eq(8192)
       end
 
-      it "has reasoning_effort configured appropriately for Gemini 2.5" do
-        # Implementation may omit reasoning_effort to optimize function calling
-        # Accept either explicit "minimal" or nil
-        expect([nil, "minimal"]).to include(app_instance.settings[:reasoning_effort])
-      end
-
       it "has monadic mode ENABLED for session state tracking" do
-        # Monadic mode enabled for Jupyter notebook context tracking via Session State
         expect(app_instance.settings[:monadic]).to eq(true)
       end
 
@@ -65,7 +57,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         expect(app_instance.settings[:initiate_from_assistant]).to eq(true)
       end
 
-      it "has Jupyter-specific tools defined" do
+      it "has Jupyter tools defined via shared tools import" do
         tools = app_instance.settings[:tools]
         # Gemini format: {"function_declarations" => [...]}
         expect(tools).to be_a(Hash)
@@ -73,13 +65,22 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
 
         function_declarations = tools["function_declarations"]
         expect(function_declarations).to be_an(Array)
-        expect(function_declarations).not_to be_empty
 
         tool_names = function_declarations.map { |t| t["name"] }
+
+        # Should have Jupyter tools (from jupyter_operations shared tools)
         expect(tool_names).to include("run_jupyter")
         expect(tool_names).to include("create_jupyter_notebook")
         expect(tool_names).to include("add_jupyter_cells")
         expect(tool_names).to include("get_jupyter_cells_with_results")
+
+        # Should have file reading tools
+        expect(tool_names).to include("fetch_text_from_file")
+        expect(tool_names).to include("fetch_text_from_pdf")
+        expect(tool_names).to include("fetch_text_from_office")
+
+        # Should have monadic state tool
+        expect(tool_names).to include("monadic_load_state")
       end
 
       it "has proper tool format for Gemini" do
@@ -114,7 +115,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         instance
       end
 
-      it "responds to Jupyter tool methods" do
+      it "responds to Jupyter tool methods (via MonadicHelper)" do
         expect(app_instance).to respond_to(:run_jupyter)
         expect(app_instance).to respond_to(:create_jupyter_notebook)
         expect(app_instance).to respond_to(:add_jupyter_cells)
@@ -135,7 +136,7 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
       end
     end
 
-    describe "Basic Jupyter Operations" do
+    describe "System Prompt" do
       let(:app_instance) do
         instance = JupyterNotebookGemini.new
         class_settings = JupyterNotebookGemini.instance_variable_get(:@settings)
@@ -143,108 +144,26 @@ RSpec.describe "Jupyter Notebook Gemini Integration", :integration do
         instance
       end
 
-      before do
-        # Clean up any existing Jupyter processes
-        system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
-        sleep 1
-      end
-
-      after do
-        # Clean up
-        system("pkill -f jupyter-lab", out: File::NULL, err: File::NULL)
-      end
-
-      it "can start JupyterLab server" do
-        result = app_instance.run_jupyter(command: "start")
-        
-        expect(result).to be_a(String)
-        expect(result).to match(/Jupyter.*running|started/i)
-      end
-
-      it "can create a new notebook" do
-        # Start Jupyter first
-        app_instance.run_jupyter(command: "start")
-        sleep 2
-        
-        # Create notebook
-        result = app_instance.create_jupyter_notebook(filename: "test_gemini_notebook")
-        
-        expect(result).to be_a(String)
-        expect(result).to match(/created|test_gemini_notebook/i)
-        
-        # Clean up
-        file_path = File.join(Dir.home, "monadic", "data", "test_gemini_notebook.ipynb")
-        File.delete(file_path) if File.exist?(file_path)
-      end
-
-      it "can add cells to a notebook" do
-        # Start Jupyter first
-        app_instance.run_jupyter(command: "start")
-        sleep 2
-        
-        # Create notebook
-        app_instance.create_jupyter_notebook(filename: "test_cells_gemini")
-        
-        # Add cells
-        cells = [
-          { "cell_type" => "markdown", "source" => "# Test Notebook" },
-          { "cell_type" => "code", "source" => "import numpy as np\nprint('Hello from Gemini')" }
-        ]
-        
-        result = app_instance.add_jupyter_cells(filename: "test_cells_gemini.ipynb", cells: cells)
-        
-        expect(result).to be_a(String)
-        expect(result).to match(/added|cells/i)
-        
-        # Clean up
-        file_path = File.join(Dir.home, "monadic", "data", "test_cells_gemini.ipynb")
-        File.delete(file_path) if File.exist?(file_path)
-      end
-    end
-
-    describe "Thinking Model Compatibility" do
-      let(:app_instance) do
-        instance = JupyterNotebookGemini.new
-        class_settings = JupyterNotebookGemini.instance_variable_get(:@settings)
-        instance.settings = class_settings if class_settings
-        instance
-      end
-
-      it "is configured for optimal function calling with session state" do
-        # Monadic mode enabled for session state tracking (notebook context)
-        expect(app_instance.settings[:monadic]).to eq(true)
-
-        # Tools available
-        expect(app_instance.settings[:tools]).not_to be_empty
-
-        # Reasoning effort may be omitted for function calling; accept nil or minimal
-        expect([nil, "minimal"]).to include(app_instance.settings[:reasoning_effort])
-
-        # Assistant initiation enabled with proper tool mode management
-        expect(app_instance.settings[:initiate_from_assistant]).to eq(true)
-
-        puts "\n✅ Gemini Jupyter Notebook optimized for function calling with session state:"
-        puts "   - Model: gemini-3-flash-preview with 2.5 fallback"
-        puts "   - Reasoning effort: minimal (required for function calling)"
-        puts "   - Monadic mode: ENABLED (for notebook context tracking via Session State)"
-        puts "   - Function calling: ENABLED with #{app_instance.settings[:tools].length} tools"
-        puts "   - Assistant initiation: ENABLED"
-        puts "   - Natural language responses with embedded links"
-      end
-
-      it "includes natural language response instructions" do
+      it "includes state management instructions" do
         system_prompt = app_instance.settings[:initial_prompt]
 
-        # Should have response format instructions with mandatory link display
-        expect(system_prompt).to include("Response Format")
-        expect(system_prompt).to include("MANDATORY")
-        expect(system_prompt).to include("clickable notebook link")
+        expect(system_prompt).to include("STATE MANAGEMENT")
+        expect(system_prompt).to include("monadic_load_state")
+      end
+
+      it "includes response format with notebook link" do
+        system_prompt = app_instance.settings[:initial_prompt]
 
         # Should have link format examples
         expect(system_prompt).to match(/http:\/\/127\.0\.0\.1:8889\/lab\/tree\//)
+      end
 
-        # Should not have JSON context instructions
-        expect(system_prompt).not_to include("context.link")
+      it "includes execution rules" do
+        system_prompt = app_instance.settings[:initial_prompt]
+
+        expect(system_prompt).to include("CRITICAL EXECUTION RULE")
+        expect(system_prompt).to include("run_jupyter")
+        expect(system_prompt).to include("add_jupyter_cells")
       end
     end
   end

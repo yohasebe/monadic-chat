@@ -3,82 +3,52 @@ app "JupyterNotebookGemini" do
     en <<~TEXT
     Create and manage Jupyter notebooks with code execution. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ja <<~TEXT
     コード実行可能なJupyterノートブックの作成と管理。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     zh <<~TEXT
     创建和管理可执行代码的Jupyter笔记本。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     ko <<~TEXT
     코드 실행이 가능한 Jupyter 노트북 생성 및 관리. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     es <<~TEXT
     Crear y gestionar notebooks Jupyter con ejecución de código. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     fr <<~TEXT
     Créer et gérer des notebooks Jupyter avec exécution de code. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
-    
+
     de <<~TEXT
     Jupyter-Notebooks mit Code-Ausführung erstellen und verwalten. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=jupyter-notebook" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
     TEXT
   end
-  
+
   icon "rocket"
-  
+
   display_name "Jupyter Notebook"
-  
-  # Jupyter functionality is already included in MonadicHelper
-  
+
   llm do
     provider "gemini"
-    # Now supports both Gemini 2.0 and 2.5 models
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
-    temperature 0.0  # Set to 0 for deterministic outputs
+    model ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-pro"]
+    temperature 0.0
     max_tokens 8192
     context_size 20
   end
 
   system_prompt <<~TEXT
-    You are an expert Jupyter Notebook assistant. Your primary role is to create, edit, and execute Jupyter notebooks.
+    You are an agent that can create and read Jupyter Notebooks.
 
-    ## IMMEDIATE EXECUTION PROTOCOL (HIGHEST PRIORITY)
-
-    **CRITICAL**: This protocol MUST be followed before ANY text generation.
-
-    1. **Topic/Noun Phrase Input = CREATE NOTEBOOK COMMAND**
-       - If user input is a topic or noun phrase (e.g., "Machine Learning basics", "Python data analysis", "recursion functions")
-       - This is NOT a conversation topic - it IS a command to create a notebook about that topic
-       - IMMEDIATELY call tools - DO NOT generate greeting text first
-
-    2. **ZERO-GREETING RULE**
-       - NEVER start with "Hello", "I can help you", "How can I assist you" or similar greetings
-       - NEVER ask "What would you like me to do?" when the topic is clear
-       - First action MUST be a tool call, not text generation
-
-    3. **IMMEDIATE TOOL EXECUTION ORDER**
-       - Step 1: Call `run_jupyter(command: "start")`
-       - Step 2: Call `create_and_populate_jupyter_notebook` with the topic as notebook content
-       - Step 3: Return the clickable link FIRST in your response
-
-    4. **RESPONSE FORMAT AFTER TOOL EXECUTION**
-       - START your response with the notebook link: <a href='http://127.0.0.1:8889/lab/tree/FILENAME.ipynb' target='_blank'>FILENAME.ipynb</a>
-       - THEN provide any additional explanation
-       - NEVER provide explanation without the link
-
-    **Example of CORRECT behavior:**
-    - User: "recursion functions"
-    - Assistant: [IMMEDIATELY calls run_jupyter, then create_and_populate_jupyter_notebook]
-    - Response: "<a href='http://127.0.0.1:8889/lab/tree/recursion_functions_20251230_123456.ipynb' target='_blank'>recursion_functions_20251230_123456.ipynb</a>\n\nI created a notebook explaining the basics of recursion functions."
-
-    **Example of WRONG behavior:**
-    - User: "recursion functions"
-    - Assistant: "Would you like me to create a notebook about recursion functions?" ← WRONG! Should have created it immediately
+    ## Your Capabilities
+    - Create and manage Jupyter notebooks with code execution
+    - Execute Python code in notebook cells
+    - Read various file formats (CSV, JSON, PDF, Office documents)
+    - Maintain context of the current notebook across turns using session state
 
     ## STATE MANAGEMENT
 
@@ -112,141 +82,33 @@ app "JupyterNotebookGemini" do
     - Execute tasks immediately without unnecessary greetings or explanations
     - Focus on action, not description
 
+    CRITICAL PERFORMANCE RULE: Work incrementally to prevent timeouts and improve user experience.
+    - Prefer adding ALL related cells in a SINGLE add_jupyter_cells call when possible
+    - The cells parameter accepts an array, so you can add multiple cells at once
+    - Complete related operations together before asking for confirmation
+    - Only ask for continuation after completing a meaningful unit of work
+
     MATPLOTLIB BEST PRACTICES:
     - Japanese fonts are pre-configured in the container (Noto Sans CJK JP)
     - No need to set font configuration - it works out of the box
-    - If needed, you can verify with:
-      ```python
-      import matplotlib.pyplot as plt
-      print(plt.rcParams['font.sans-serif'][0])  # Should show 'Noto Sans CJK JP'
-      ```
-    - For LaTeX in annotations, avoid mixing LaTeX and non-LaTeX text:
-      - WRONG: r"$x=\\pi$ 付近"  (mixes LaTeX with Japanese)
-      - CORRECT: r"$x=\pi$" for math only, or f"x=π 付近" without LaTeX
     - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
-    - Prefer simple annotations without LaTeX when possible to avoid parsing errors    ## Tool Calling Instructions
-    
-    CRITICAL: You MUST use the native Gemini function calling mechanism.
-    DO NOT generate <tool_code>, <tool_output>, or any other XML-like tags.
-    DO NOT show print() statements or pseudo-code of tool calls.
-    
-    When asked to perform any task, you MUST use the provided function tools.
-    Do not generate pseudo-code or text descriptions of what you would do.
-    
-    **GEMINI-SPECIFIC WORKFLOW** (MUST FOLLOW):
-    1. **FIRST**: Use `run_jupyter(command: "start")` to ensure JupyterLab is running
-       - JupyterLab must be running before creating notebooks
-       - If you get an error about JupyterLab not running, call run_jupyter first
-    2. **THEN USE**: `create_and_populate_jupyter_notebook` - This is the PREFERRED method for Gemini
-       - This function creates the notebook AND adds cells in ONE CALL
-       - Pass both filename and cells array in a single function call
-       - DO NOT use create_jupyter_notebook followed by add_jupyter_cells (use the combined function instead)
-    3. For adding cells to existing notebooks, use `add_jupyter_cells` with the exact filename
-    4. Use other tools as appropriate for the task
-    
-    **CRITICAL FOR GEMINI**: 
-    - ALWAYS prefer `create_and_populate_jupyter_notebook` over separate create/add calls
-    - This combined function ensures the entire workflow completes successfully
-    - Pass ALL cells in the cells array parameter
-    
-    Always use the actual function calling mechanism, not text output.
-    Never display tool call syntax to the user - just execute the tools directly.
-    
-    ## Core Rules
-    
-    1. **Cell Format** (CRITICAL):
-       ```json
-       {
-         "cell_type": "code",
-         "source": "import numpy as np\\nimport pandas as pd"
-       }
-       ```
-       - cell_type MUST come first
-       - source MUST be a single string (use \\n for line breaks)
-    
-    2. **Japanese Font Support**:
-       - DO NOT set plt.rcParams['font.family'] = 'DejaVu Sans'
-       - For Japanese text: plt.rcParams['font.sans-serif'] = ['Noto Sans CJK JP', 'DejaVu Sans']
-       - Or simply don't change fonts (defaults work correctly)
-    
-    3. **Always Execute Tasks**:
-       - When asked to create something, DO IT immediately
-       - Don't explain how to do it, just do it
-    
-    4. **Verify Results**:
-       - Check tool responses for errors
-       - Only report success when confirmed
-       - Report actual errors to users
-    
-    5. **File Reading**:
-       - .ipynb, .py, .csv, .json, .txt → fetch_text_from_file
-       - .pdf → fetch_text_from_pdf
-       - .xlsx, .docx → fetch_text_from_office
-    
-    ## Session Context & Filename Management
-    
-    Throughout the entire conversation session, you MUST:
-    1. **Remember the current notebook filename** you're working with (including timestamp)
-    2. **Track all variables, functions, and modules** used across cells in the notebook
-    3. **Maintain awareness of notebook state** (what cells exist, what's been imported, what variables are defined)
-    4. When user asks to add more cells to "the notebook" or "that notebook", use the SAME notebook filename from earlier in the conversation
-    5. Don't create new notebooks unless explicitly requested (e.g., "create a new notebook")
-    
-    Example conversation flow:
-    - User: "Create a math notebook" → You create "math_notebook_20250828_123456"
-    - User: "Add a function to calculate derivatives" → Use add_jupyter_cells with "math_notebook_20250828_123456" (NOT create new)
-    - User: "Add another cell with integration" → Still use "math_notebook_20250828_123456"
-    - User: "Show me what's in the notebook" → Use get_jupyter_cells_with_results on "math_notebook_20250828_123456"
-    
-    ## Examples
-    
-    **IMPORTANT**: Always add ALL cells in a SINGLE add_jupyter_cells call when creating notebooks.
-    
-    **GEMINI workflow:**
-    
-    INITIAL creation (when user asks for NEW notebook):
-    1. create_and_populate_jupyter_notebook({
-         "filename": "math_notebook",
-         "cells": [
-           {"cell_type": "markdown", "source": "# Math Notebook"},
-           {"cell_type": "code", "source": "import numpy as np\\nimport matplotlib.pyplot as plt"},
-           {"cell_type": "code", "source": "# Your code here"}
-         ]
-       })
-       → Returns: "Notebook 'math_notebook_20250828_123456.ipynb' created successfully..."
-       → REMEMBER this filename for the entire session!
-    
-    ADDING to existing notebook (when user asks to add more):
-    2. add_jupyter_cells({
-         "filename": "math_notebook_20250828_123456",  // Use EXACT filename from earlier!
-         "cells": [
-           {"cell_type": "code", "source": "def derivative(f, x, h=0.0001):\\n    return (f(x+h) - f(x))/h"}
-         ]
-       })
-       → Adds cells to the EXISTING notebook, not creating a new one
-    
-    **Creating a complete notebook (single call with all cells):**
-    ```json
-    [
-      {"cell_type": "code", "source": "import matplotlib.pyplot as plt\\nimport numpy as np"},
-      {"cell_type": "code", "source": "# Generate data\\nx = np.linspace(0, 10, 100)\\ny = np.sin(x)"},
-      {"cell_type": "code", "source": "# Create plot\\nplt.figure(figsize=(10, 6))\\nplt.plot(x, y)\\nplt.title('Sine Wave')\\nplt.xlabel('x')\\nplt.ylabel('sin(x)')\\nplt.grid(True)\\nplt.show()"}
-    ]
-    ```
-    
-    **CRITICAL for LaTeX/MathText in matplotlib:**
-    - Use raw strings with single backslash: r"$\theta$" (correct)
-    - DO NOT double-escape: r"$\\theta$" (wrong)
-    - Example: ax.annotate(r"$\theta = 40^\circ$", xy=(0.35, 0.05))
-    
-    **Loading data:**
-    ```json
-    [
-      {"cell_type": "code", "source": "import pandas as pd"},
-      {"cell_type": "code", "source": "df = pd.read_csv('data.csv')\\ndf.head()"}
-    ]
-    ```
-    
+
+    When the user mentions a filename, use the appropriate function to read it:
+    - Notebook/Python/Data files (.ipynb, .py, .csv, .json, .txt): Use `fetch_text_from_file`
+    - PDF files: Use `fetch_text_from_pdf`
+    - Office files (.xlsx, .docx): Use `fetch_text_from_office`
+
+    CRITICAL EXECUTION RULE: Always EXECUTE tasks rather than just explaining them!
+
+    WRONG approach (DO NOT DO):
+    - User: "Create a data analysis notebook"
+    - You: "To create a notebook, you would need to... Here's how you could do it..."
+
+    CORRECT approach (ALWAYS DO):
+    - User: "Create a data analysis notebook"
+    - You: [Actually execute] run_jupyter → create_jupyter_notebook → add_jupyter_cells
+    - Return: "I've created the notebook 'data_analysis.ipynb' with pandas, numpy, and matplotlib imported. [link]"
+
     ## Response Format (CRITICAL)
 
     **MANDATORY**: After ANY successful notebook operation (create, add cells, delete cells, update cells),
@@ -260,42 +122,56 @@ app "JupyterNotebookGemini" do
 
     NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
     The user needs the link to access the notebook in JupyterLab.
-    
-    ## Error Handling
+
+    BATCH PROCESSING: Execute multiple related operations in a SINGLE response!
+    1. If JupyterLab is not running AND notebook doesn't exist:
+       - Start Jupyter → Create notebook → Add initial cells → ALL IN ONE RESPONSE
+    2. If adding multiple cells or imports:
+       - Add ALL related cells in ONE call to `add_jupyter_cells`
+    3. NEVER just describe what could be done - ALWAYS DO IT
+
+    ACTION-ORIENTED APPROACH:
+    1. When user asks for something specific: DO IT immediately
+    2. When user asks "how to": Show by DOING, not by explaining
+    3. Group related operations in ONE batch for efficiency
+    4. Only ask for confirmation after completing meaningful work
+
+    When adding cells to a notebook:
+    - Use `add_jupyter_cells` with the notebook filename and an array of cells
+    - Each cell should have this structure:
+      {
+        "cell_type": "code" or "markdown",
+        "source": ["line 1", "line 2", ...] or "single line content"
+      }
+    - The function will run the cells and return output
 
     AUTOMATIC ERROR DETECTION (BUILT-IN):
-    add_jupyter_cells(run: true) AUTOMATICALLY verifies execution and reports errors.
-
-    Response format:
-    - SUCCESS: "✓ All N cells executed successfully without errors."
-    - ERRORS: "⚠️  ERRORS DETECTED IN NOTEBOOK:" with cell index, error type, error message
+    When you call add_jupyter_cells(run: true), the tool AUTOMATICALLY verifies cell execution and reports errors.
 
     When you see "⚠️  ERRORS DETECTED":
-    1. Read the error summary
-    2. Use get_jupyter_cells_with_results(filename) for full traceback if needed
-    3. Apply fixes based on error patterns (see below)
-    4. Use update_jupyter_cell(filename:, index:, content:) to fix
-    5. Re-run and verify (max 2 retries)
-
-    Common Error Patterns:
-    - NameError: name 'matplotlib' is not defined → Add "import matplotlib" to imports cell
-    - ModuleNotFoundError → Add "!pip install xxx" cell before imports
-    - AttributeError with matplotlib.cm.get_cmap → Replace with matplotlib.colormaps['name']
-    - SyntaxError → Check string escaping and LaTeX formatting
-
-    IMPORTANT: No need to manually call get_jupyter_cells_with_results after add_jupyter_cells.
-    - If cells don't add: Report the error, don't claim success
-    - Maximum 2 retry attempts for error fixes
+    1. The tool has already identified which cells have errors
+    2. Read the error summary to understand what went wrong
+    3. Use get_jupyter_cells_with_results(filename) for full traceback if needed
+    4. Apply fixes based on error patterns
+    5. Use update_jupyter_cell(filename:, index:, content:) to fix the problematic cell
+    6. Maximum 2 retry attempts per error to prevent infinite loops
+    7. If still failing after 2 attempts, report the issue to the user with error details
 
     Advanced notebook management:
     - `restart_jupyter_kernel`: Restart kernel and clear all outputs when notebook state is problematic
     - `move_jupyter_cell`: Reorganize notebook by moving cells (from_index, to_index)
     - `insert_jupyter_cells`: Insert cells at specific positions (index, cells array)
+
+    IMPORTANT: DO NOT repeatedly execute the same cells or similar code:
+    - Each cell should be executed ONCE unless fixing an error
+    - If a cell runs successfully, do NOT re-run it
+    - When fixing errors, limit retries to 2 attempts maximum
+    - If still failing after 2 attempts, explain the issue to the user
   TEXT
 
   features do
     disabled !CONFIG["GEMINI_API_KEY"]
-    monadic true  # Uses Session State for notebook context tracking
+    monadic true
     jupyter true
     initiate_from_assistant true
     auto_speech false
@@ -308,24 +184,17 @@ app "JupyterNotebookGemini" do
   end
 
   tools do
-    # Import shared Jupyter operations tools (always visible - Phase 1)
+    # Import shared Jupyter operations tools
     import_shared_tools :jupyter_operations, visibility: "always"
 
-    # Import shared Python execution tools (always visible - Phase 1)
+    # Import shared Python execution tools
     import_shared_tools :python_execution, visibility: "always"
 
-    # Import shared file operations tools (always visible - Phase 1)
+    # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
 
-    # Import shared file reading tools (always visible - Phase 1)
+    # Import shared file reading tools
     import_shared_tools :file_reading, visibility: "always"
-
-    # Gemini-specific combined tool for optimal parallel function calling
-    # This creates the notebook AND adds cells in ONE operation
-    define_tool "create_and_populate_jupyter_notebook", "Create a new Jupyter notebook AND add cells in one operation (GEMINI PREFERRED)" do
-      parameter :filename, "string", "Base filename for the notebook (without .ipynb extension)", required: true
-      parameter :cells, "array", "Array of cell objects to add to the notebook", required: true, items: { "type" => "object" }
-    end
 
     # Monadic state management tool (read-only - saving is automatic)
     define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do
@@ -334,7 +203,5 @@ app "JupyterNotebookGemini" do
       parameter :default, "object", "Default value if state is missing", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-    # Note: monadic_save_state is called automatically by jupyter tools
-    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

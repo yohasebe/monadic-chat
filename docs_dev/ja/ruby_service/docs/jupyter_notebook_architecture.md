@@ -17,54 +17,33 @@
 | プロバイダー | Monadicモード | 理由 |
 |----------|--------------|--------|
 | OpenAI | `true` | JSON構造とツール実行の両方をサポート |
-| Claude | `false` | 思考ブロックがJSON構造と競合 |
-| Gemini | `false` | 関数呼び出しまたは構造化出力のいずれかを選択する必要がある |
-| xAI Grok | `false` | ツール実行でmonadicモードを使用できない |
+| Claude | `true` | Session Stateでノートブックコンテキストを追跡 |
+| Gemini | `true` | Session Stateでノートブックコンテキストを追跡 |
+| xAI Grok | `true` | Session Stateでノートブックコンテキストを追跡 |
+
+> **注記（2025-12-31更新）**: すべてのプロバイダーは`monadic_load_state`ツールによる一貫したセッション状態管理のため`monadic true`を使用するようになりました。
 
 ## セッションコンテキスト管理
 
-### 問題（2025-08-28発見）
+### 現在の実装（2025-12-31更新）
 
-Non-monadicプロバイダー（Claude、Gemini、Grok）は次のような問題を経験していました：
+すべてのプロバイダーは自動セッション状態管理のために`monadic true`と`monadic_load_state`ツールを使用するようになりました。
+
+ノートブックコンテキストはJupyterツールによって自動的に保存され、以下を使用して取得できます：
+```ruby
+monadic_load_state(app: "JupyterNotebook...", key: "context")
+# 返す: {jupyter_running: true, notebook_created: true, notebook_filename: "example.ipynb", link: "..."}
+```
+
+### 歴史的背景（2025-08-28）
+
+以前、Non-monadicプロバイダーは次のような問題を経験していました：
 1. ユーザーがノートブックを作成（例：`math_notebook_20250828_123456`）
 2. ユーザーがノートブックにセルを追加するように依頼
 3. AIが既存のノートブックに追加する代わりに新しいノートブックを作成
-4. 根本原因：セッションコンテキスト追跡の指示が欠落
+4. 根本原因：セッションコンテキスト追跡の欠如
 
-### 解決策
-
-#### Monadicプロバイダー（OpenAI）の場合
-
-特別な処理は不要です。JSON構造が自動的に維持します：
-```json
-{
-  "context": {
-    "current_notebook": "math_notebook_20250828_123456",
-    "imported_modules": ["numpy", "matplotlib"],
-    "defined_functions": ["calculate_derivative", "plot_graph"]
-  }
-}
-```
-
-#### Non-Monadicプロバイダー（Claude、Gemini、Grok）の場合
-
-システムプロンプトで明示的に指示する必要があります：
-
-```markdown
-## セッションコンテキスト追跡（重要）
-
-会話セッション全体を通じて、次のことを行う必要があります：
-1. **作業中の現在のノートブックファイル名を記憶する**（タイムスタンプを含む）
-2. **セル間で使用されるすべての変数、関数、モジュールを追跡する**
-3. **ノートブックの状態を認識し続ける**（どのセルが存在するか、何がインポートされたか）
-4. ユーザーがさらにセルを追加するように依頼した場合は、以前の同じノートブックファイル名を使用
-5. 明示的に要求されない限り、新しいノートブックを作成しない
-
-会話フローの例：
-- ユーザー：「数学ノートブックを作成」→ あなたは"math_notebook_20250828_123456"を作成
-- ユーザー：「微分を計算する関数を追加」→ "math_notebook_20250828_123456"でadd_jupyter_cellsを使用
-- ユーザー：「今度は積分関数を追加」→ まだ"math_notebook_20250828_123456"を使用
-```
+これは、すべてのプロバイダーを共有`monadic_load_state`ツールとともに`monadic true`を使用するように変換することで解決されました。
 
 ## プロバイダー固有の実装
 
@@ -76,23 +55,25 @@ Non-monadicプロバイダー（Claude、Gemini、Grok）は次のような問�
 
 ### Claude
 - **ファイル**：`jupyter_notebook_claude.mdsl`
-- **Monadic**：`false`
-- **コンテキスト追跡**：明示的な指示：「セッション全体で使用される変数、関数、モジュールを追跡する」
+- **Monadic**：`true`
+- **コンテキスト追跡**：`monadic_load_state`ツールによる自動追跡
 - **特別な処理**：API呼び出しを減らすためのバッチ処理
 
 ### Gemini
 - **ファイル**：`jupyter_notebook_gemini.mdsl`
-- **Monadic**：`false`
-- **コンテキスト追跡**：明示的な指示を追加（2025-08-28）
+- **Monadic**：`true`
+- **コンテキスト追跡**：`monadic_load_state`ツールによる自動追跡
 - **特別な処理**：
-  - 初期作成のための結合関数`create_and_populate_jupyter_notebook`
-  - 1ターンで複数の連続関数呼び出しを行うことができない
+  - ユーザーターン開始時にツール結果をクリア（堅牢性向上）
+  - Jupyterセル操作のための早期終了チェック
 
 ### xAI Grok
 - **ファイル**：`jupyter_notebook_grok.mdsl`
-- **Monadic**：`false`
-- **コンテキスト追跡**：明示的な指示を追加（2025-08-28）
-- **特別な処理**：各レスポンスの最後にステータスブロックが必要
+- **Monadic**：`true`
+- **コンテキスト追跡**：`monadic_load_state`ツールによる自動追跡
+- **特別な処理**：
+  - 作成+セル追加を統合した`create_and_populate_jupyter_notebook`を使用
+  - ユーザーターン開始時に関数戻り値をクリア（堅牢性向上）
 
 ## 共通パターン
 
@@ -159,21 +140,24 @@ create_jupyter_notebook("math_notebook")
 
 ### プロバイダー固有のテスト
 
-- `spec/integration/jupyter_notebook_openai_spec.rb`
-- `spec/integration/jupyter_notebook_claude_spec.rb`
-- `spec/integration/jupyter_notebook_gemini_spec.rb`
-- `spec/integration/jupyter_notebook_grok_spec.rb`
+**マトリックステスト（全プロバイダー）：**
+- `spec/integration/provider_matrix/all_providers_all_apps_spec.rb` - すべてのプロバイダー × アプリ組み合わせのスモークテスト
+
+**個別テスト：**
+- `spec/integration/jupyter_notebook_gemini_spec.rb` - Gemini固有のテスト
+- `spec/e2e/jupyter_notebook_grok_spec.rb` - Grok固有のテスト
+- `spec/integration/jupyter_notebook_operations_spec.rb` - 共有操作テスト
+- `spec/unit/adapters/jupyter_helper_spec.rb` - jupyter_helper.rbのユニットテスト
 
 ## 学んだ教訓
 
-1. **明示的が優れている**：Non-monadicプロバイダーには明示的なコンテキスト追跡指示が必要
-2. **プロバイダーの制限**：一部のプロバイダー（Gemini）は複数のツール呼び出しを連鎖できない
-3. **回避策**：結合関数は連続呼び出しの制限を克服できる
+1. **統一されたモードが優れている**：すべてのプロバイダーを`monadic true`に標準化することでコンテキスト管理が簡素化された
+2. **堅牢性機能が重要**：ターン開始時のツール結果クリアと早期終了チェックにより重複処理を防止
+3. **共有ツールの活用**：`jupyter_operations`共有ツールにより一貫したインターフェースを提供
 4. **テストが重要**：セッションコンテキストの問題はマルチターン会話でのみ現れる
 
-## 将来の改善
+## 最近の改善（2025-12-31）
 
-1. **統合コンテキストマネージャー**：Non-monadicプロバイダー向けの共有コンテキスト管理システムを作成
-2. **自動フォールバック**：コンテキストが失われたときを検出し、自動的に回復
-3. **セッション永続性**：セッション間でノートブックコンテキストを保存
-4. **プロバイダー抽象化**：共通のインターフェースの背後にプロバイダー固有の癖を隠す
+1. **統一モナディックモード**：すべてのプロバイダーが`monadic true`を使用
+2. **堅牢性機能**：GeminiとGrokにツール結果クリアと早期終了チェックを追加
+3. **パターンマッチング修正**：Grokのリンク表示問題を解決

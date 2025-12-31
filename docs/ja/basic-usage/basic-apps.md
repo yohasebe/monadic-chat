@@ -14,17 +14,17 @@
 | アプリ | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
 |-------|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | | | ✅ | ✅ | | | |
+| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Language Practice Plus | ✅ | | | | | | | | |
+| Language Practice Plus | ✅ | ✅ | | | | | | | |
 | Translate | ✅ | | ✅ | | | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | | |
-| Novel Writer | ✅ | | | | | | | | |
+| Novel Writer | ✅ | | | | | | ✅ | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
 | Video Generator | ✅ | | | | ✅ | | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -40,6 +40,9 @@
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
+| Auto Forge | ✅ | ✅ | | | | ✅ | | | |
+| Chord Accompanist | | ✅ | | | | | | | |
+| Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## プロバイダー機能概要
@@ -468,3 +471,49 @@ Jupyter Notebookの対応プロバイダーは冒頭の表を参照してくだ�
 Monadic Chat用のAI駆動ヘルプアシスタントです。プロジェクトのドキュメントに基づいて、機能、使用方法、トラブルシューティングについての質問に任意の言語で文脈に応じた支援を提供します。
 
 ヘルプシステムは、英語のドキュメントから作成された事前構築されたナレッジベースを使用します。質問をすると、関連情報を検索し、公式ドキュメントに基づいて正確な回答を提供します。ヘルプシステムのアーキテクチャの詳細については、[ヘルプシステム](../advanced-topics/help-system.md)を参照してください。
+
+## 特殊アプリ :id=specialized-apps
+
+### Auto Forge (Artifact Builder) :id=auto-forge
+
+![Auto Forge app icon](../assets/icons/auto-forge.png ':size=40')
+
+AIオーケストレーションを通じて、完全なWebアプリケーションやコマンドラインツールを自律的に作成します。Auto Forge（「Artifact Builder」として販売）は、外部依存関係なしに単一ファイルのHTMLアプリケーションまたはスタンドアロンスクリプトを生成します。
+
+**主な機能：**
+- **自律的計画**: AIが要件を分析し、詳細な実装計画を作成
+- **単一ファイル出力**: Webアプリは単一のHTMLファイルとして、CLIツールはスタンドアロンスクリプトとして出力
+- **プロジェクト管理**: タイムスタンプとUnicode名をサポートした自動整理
+- **オプションのデバッグ**: WebアプリケーションのSeleniumベースの自動テスト
+
+詳細なドキュメントは[Auto Forge](../apps/auto_forge.md)を参照してください。
+
+Auto Forgeの対応プロバイダーは冒頭の表を参照してください。
+
+### Chord Accompanist :id=chord-accompanist
+
+![Chord Accompanist app icon](../assets/icons/music.png ':size=40')
+
+ABC記法でコード伴奏パターンを生成します。AIはジャンル、テンポ、楽器編成、コード進行などの指定に基づいて伴奏アレンジを作成します。
+
+**主な機能：**
+- **複数のジャンル**: ジャズ、ボサノバ、ポップ、ロックなど
+- **ABC記法出力**: レンダリングおよび再生可能な標準音楽記法
+- **コード検証**: コード進行の音楽理論検証機能内蔵
+- **カスタマイズ可能なパターン**: テンポ、拍子、キー、楽器編成を指定可能
+
+Chord Accompanistは現在Claudeで利用可能です。
+
+### Document Generator :id=document-generator
+
+![Document Generator app icon](../assets/icons/document-generator.png ':size=40')
+
+AIを使用してOfficeドキュメントを生成します。Excel、PowerPoint、Word、PDFなど。ファイルは共有フォルダに自動保存されます。
+
+**主な機能：**
+- **Excel (.xlsx)**: データテーブル、チャート、数式、複数シート
+- **PowerPoint (.pptx)**: ビジュアルレイアウトを備えたプロフェッショナルなスライド
+- **Word (.docx)**: 見出し、リスト、表を含むフォーマット済みドキュメント
+- **PDF**: 適切なフォーマットのプロフェッショナルなドキュメント
+
+Document Generatorは現在Claudeで利用可能です。

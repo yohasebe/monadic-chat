@@ -256,7 +256,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Language Practice Plus (1 provider: OpenAI)
+### Language Practice Plus (2 providers: Claude, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -274,7 +274,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Math Tutor (4 providers: Claude, Gemini, Grok, OpenAI)
+### Math Tutor (7 providers: Claude, Cohere, DeepSeek, Gemini, Grok, Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -301,7 +301,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Novel Writer (1 provider: OpenAI)
+### Novel Writer (2 providers: Mistral, OpenAI)
 
 | Field | Details |
 |-------|---------|

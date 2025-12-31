@@ -14,17 +14,17 @@ The table below shows which apps are available for which AI model providers.
 | App | OpenAI | Claude | Cohere | DeepSeek | Google Gemini | xAI Grok | Mistral | Perplexity | Ollama |
 |-----|:------:|:------:|:------:|:--------:|:------:|:----:|:-------:|:----------:|:------:|
 | Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Chat Plus | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | ✅ |
 | Voice Chat | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Wikipedia | ✅ | | | | | | | | |
-| Math Tutor | ✅ | ✅ | | | ✅ | ✅ | | | |
+| Math Tutor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Second Opinion | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
+| Research Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Language Practice | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Language Practice Plus | ✅ | | | | | | | | |
+| Language Practice Plus | ✅ | ✅ | | | | | | | |
 | Translate | ✅ | | ✅ | | | | | | |
 | Voice Interpreter | ✅ | | ✅ | | | | | | |
-| Novel Writer | ✅ | | | | | | | | |
+| Novel Writer | ✅ | | | | | | ✅ | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
 | Video Generator | ✅ | | | | ✅ | | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
@@ -40,6 +40,9 @@ The table below shows which apps are available for which AI model providers.
 | Code Interpreter | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | | |
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
+| Auto Forge | ✅ | ✅ | | | | ✅ | | | |
+| Chord Accompanist | | ✅ | | | | | | | |
+| Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
 ## Provider Capabilities Overview
@@ -514,3 +517,49 @@ Jupyter Notebook is available for the providers shown in the availability table.
 Get help with Monadic Chat from this AI-powered assistant. It provides contextual assistance based on the project's official documentation, answering questions about features, usage, and troubleshooting in any language.
 
 The help system uses a pre-built knowledge base created from the English documentation. When you ask a question, it searches this knowledge base to provide an accurate, relevant answer. For more details on the architecture, see the [Help System](../advanced-topics/help-system.md) documentation.
+
+## Specialized Apps :id=specialized-apps
+
+### Auto Forge (Artifact Builder) :id=auto-forge
+
+![Auto Forge app icon](../assets/icons/auto-forge.png ':size=40')
+
+Create complete web applications and command-line tools autonomously through AI orchestration. Auto Forge (marketed as "Artifact Builder") generates single-file HTML applications or standalone scripts without external dependencies.
+
+**Key Features:**
+- **Autonomous planning**: AI analyzes requirements and creates detailed implementation plans
+- **Single-file output**: Web apps ship as a single HTML file; CLI tools as standalone scripts
+- **Project management**: Automatic organization with timestamps and Unicode name support
+- **Optional debugging**: Selenium-based automated testing for web applications
+
+For detailed documentation, see [Auto Forge](../apps/auto_forge.md).
+
+Auto Forge is available for the providers shown in the availability table.
+
+### Chord Accompanist :id=chord-accompanist
+
+![Chord Accompanist app icon](../assets/icons/music.png ':size=40')
+
+Generate chord accompaniment patterns in ABC notation. The AI creates accompaniment arrangements based on your specifications including genre, tempo, instrumentation, and chord progressions.
+
+**Key Features:**
+- **Multiple genres**: Jazz, bossa nova, pop, rock, and more
+- **ABC notation output**: Standard music notation that can be rendered and played
+- **Chord validation**: Built-in music theory validation for chord progressions
+- **Customizable patterns**: Specify tempo, time signature, key, and instrumentation
+
+Chord Accompanist is currently available for Claude.
+
+### Document Generator :id=document-generator
+
+![Document Generator app icon](../assets/icons/document-generator.png ':size=40')
+
+Generate Office documents using AI, including Excel spreadsheets, PowerPoint presentations, Word documents, and PDFs. Files are automatically saved to your shared folder.
+
+**Key Features:**
+- **Excel (.xlsx)**: Data tables, charts, formulas, multiple sheets
+- **PowerPoint (.pptx)**: Professional slides with visual layouts
+- **Word (.docx)**: Formatted documents with headings, lists, tables
+- **PDF**: Professional documents with proper formatting
+
+Document Generator is currently available for Claude.

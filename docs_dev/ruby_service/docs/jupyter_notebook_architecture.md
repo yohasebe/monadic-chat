@@ -17,54 +17,33 @@ Different AI providers have different approaches to maintaining conversation con
 | Provider | Monadic Mode | Reason |
 |----------|--------------|--------|
 | OpenAI | `true` | Supports both JSON structure and tool execution |
-| Claude | `false` | Thinking blocks conflict with JSON structure |
-| Gemini | `false` | Must choose between function calling OR structured output |
-| xAI Grok | `false` | Cannot use monadic mode with tool execution |
+| Claude | `true` | Uses Session State for notebook context tracking |
+| Gemini | `true` | Uses Session State for notebook context tracking |
+| xAI Grok | `true` | Uses Session State for notebook context tracking |
+
+> **Note (Updated 2025-12-31)**: All providers now use `monadic true` for consistent session state management via `monadic_load_state` tool.
 
 ## Session Context Management
 
-### The Problem (Discovered 2025-08-28)
+### Current Implementation (Updated 2025-12-31)
 
-Non-monadic providers (Claude, Gemini, Grok) were experiencing issues where:
+All providers now use `monadic true` with the `monadic_load_state` tool for automatic session state management.
+
+The notebook context is automatically saved by Jupyter tools and can be retrieved using:
+```ruby
+monadic_load_state(app: "JupyterNotebook...", key: "context")
+# Returns: {jupyter_running: true, notebook_created: true, notebook_filename: "example.ipynb", link: "..."}
+```
+
+### Historical Context (2025-08-28)
+
+Previously, non-monadic providers experienced issues where:
 1. User creates a notebook (e.g., `math_notebook_20250828_123456`)
 2. User asks to add cells to the notebook
 3. AI creates a NEW notebook instead of adding to the existing one
-4. Root cause: Missing session context tracking instructions
+4. Root cause: Missing session context tracking
 
-### The Solution
-
-#### For Monadic Providers (OpenAI)
-
-No special handling needed. The JSON structure automatically maintains:
-```json
-{
-  "context": {
-    "current_notebook": "math_notebook_20250828_123456",
-    "imported_modules": ["numpy", "matplotlib"],
-    "defined_functions": ["calculate_derivative", "plot_graph"]
-  }
-}
-```
-
-#### For Non-Monadic Providers (Claude, Gemini, Grok)
-
-Must explicitly instruct in system prompt:
-
-```markdown
-## Session Context Tracking (CRITICAL)
-
-Throughout the entire conversation session, you MUST:
-1. **Remember the current notebook filename** you're working with (including timestamp)
-2. **Track all variables, functions, and modules** used across cells
-3. **Maintain awareness of notebook state** (what cells exist, what's been imported)
-4. When user asks to add more cells, use the SAME notebook filename from earlier
-5. Don't create new notebooks unless explicitly requested
-
-Example conversation flow:
-- User: "Create a math notebook" → You create "math_notebook_20250828_123456"
-- User: "Add a function to calculate derivatives" → Use add_jupyter_cells with "math_notebook_20250828_123456"
-- User: "Now add integration functions" → Still use "math_notebook_20250828_123456"
-```
+This was resolved by converting all providers to use `monadic true` with shared `monadic_load_state` tool.
 
 ## Provider-Specific Implementations
 
@@ -76,23 +55,25 @@ Example conversation flow:
 
 ### Claude
 - **File**: `jupyter_notebook_claude.mdsl`
-- **Monadic**: `false`
-- **Context Tracking**: Explicit instruction: "Track variables, functions, and modules used across the session"
+- **Monadic**: `true`
+- **Context Tracking**: Automatic via `monadic_load_state` tool
 - **Special Handling**: Batch processing to reduce API calls
 
 ### Gemini
 - **File**: `jupyter_notebook_gemini.mdsl`
-- **Monadic**: `false`
-- **Context Tracking**: Added explicit instructions (2025-08-28)
-- **Special Handling**: 
-  - Combined function `create_and_populate_jupyter_notebook` for initial creation
-  - Cannot make multiple sequential function calls in one turn
+- **Monadic**: `true`
+- **Context Tracking**: Automatic via `monadic_load_state` tool
+- **Special Handling**:
+  - Tool results cleared at user turn start (robustness)
+  - Early termination check for Jupyter cell operations
 
 ### xAI Grok
 - **File**: `jupyter_notebook_grok.mdsl`
-- **Monadic**: `false`
-- **Context Tracking**: Added explicit instructions (2025-08-28)
-- **Special Handling**: Status block required at end of each response
+- **Monadic**: `true`
+- **Context Tracking**: Automatic via `monadic_load_state` tool
+- **Special Handling**:
+  - Uses `create_and_populate_jupyter_notebook` for combined creation + cells
+  - Function returns cleared at user turn start (robustness)
 
 ## Common Patterns
 
@@ -159,14 +140,24 @@ Maximum 2 retry attempts to prevent infinite loops:
 
 ### Provider-Specific Tests
 
-- `spec/integration/jupyter_notebook_openai_spec.rb`
-- `spec/integration/jupyter_notebook_claude_spec.rb`
-- `spec/integration/jupyter_notebook_gemini_spec.rb`
-- `spec/integration/jupyter_notebook_grok_spec.rb`
+**Matrix Test (All Providers):**
+- `spec/integration/provider_matrix/all_providers_all_apps_spec.rb` - Smoke tests for all provider × app combinations
+
+**Individual Tests:**
+- `spec/integration/jupyter_notebook_gemini_spec.rb` - Gemini-specific tests
+- `spec/e2e/jupyter_notebook_grok_spec.rb` - Grok-specific tests
+- `spec/integration/jupyter_notebook_operations_spec.rb` - Shared operations tests
+- `spec/unit/adapters/jupyter_helper_spec.rb` - Unit tests for jupyter_helper.rb
 
 ## Lessons Learned
 
-1. **Explicit is Better**: Non-monadic providers need explicit context tracking instructions
-2. **Provider Limitations**: Some providers (Gemini) cannot chain multiple tool calls
-3. **Workarounds**: Combined functions can overcome sequential call limitations
+1. **Unified Mode is Better**: Standardizing all providers to `monadic true` simplified context management
+2. **Robustness Features Matter**: Tool result clearing at turn start and early termination checks prevent duplicate processing
+3. **Shared Tools Work Well**: `jupyter_operations` shared tools provide consistent interface across providers
 4. **Testing Critical**: Session context issues only appear in multi-turn conversations
+
+## Recent Improvements (2025-12-31)
+
+1. **Unified Monadic Mode**: All providers now use `monadic true`
+2. **Robustness Features**: Added tool result clearing and early termination checks for Gemini and Grok
+3. **Pattern Matching Fixes**: Fixed Grok's notebook link display issue

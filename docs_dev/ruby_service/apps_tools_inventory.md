@@ -133,6 +133,38 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
+### 9. session_context
+**Module:** `MonadicSharedTools::SessionContext`
+**Default Visibility:** Always
+**Description:** On-demand context tracking for conversational AI apps with server-side storage
+
+**Tools:**
+- `get_context` - Get current conversation context (topics, people, notes)
+- `update_context` - Update conversation context with new information
+
+**Features:**
+- Normal text responses by default (faster, fewer tokens)
+- Server-side context storage (reliable, persistent within session)
+- Real-time sidebar display via WebSocket
+- User can edit context directly in the sidebar
+
+**Default PTD Hint:** "Call request_tool(\"session_context\") when you need to track or update conversation context."
+
+---
+
+### 10. monadic_session_state (Internal)
+**Module:** `Monadic::SharedTools::MonadicSessionState`
+**Default Visibility:** N/A (used internally by other modules)
+**Description:** Low-level session state storage with versioning metadata
+
+**Tools:**
+- `monadic_load_state` - Load state from session for a given app/key
+- `monadic_save_state` - Save state into session with version/updated_at metadata
+
+**Note:** This is an internal module used by `session_context` and Jupyter apps for state persistence. Not typically imported directly by apps.
+
+---
+
 ## App-by-App Tools Inventory
 
 ### Auto Forge (3 providers: Claude, Grok, OpenAI)

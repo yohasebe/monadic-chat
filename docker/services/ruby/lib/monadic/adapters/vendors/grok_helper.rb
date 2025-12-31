@@ -319,10 +319,13 @@ module GrokHelper
 
   # Connect to OpenAI API and get a response
   def api_request(role, session, call_depth: 0, disable_streaming: false, &block)
-    # Reset call_depth counter for each new user turn
+    # Reset call_depth counter and tool state for each new user turn
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      # Clear tool results from previous turn to prevent stale data
+      session[:parameters]["function_returns"] = nil
+      session[:parameters]["assistant_tool_calls"] = nil
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1461,10 +1464,15 @@ module GrokHelper
       case result["name"]
       when "create_jupyter_notebook"
         if result["content"].include?("created successfully")
-          if result["content"] =~ /Notebook '([^']+)' created successfully/
+          # Match format: "Notebook filename.ipynb created successfully. Access it at: URL"
+          if result["content"] =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
             notebook_filename = $1
             response_parts << "✅ Created notebook: **#{notebook_filename}**"
-            response_parts << "📎 <a href=\"http://localhost:8889/lab/tree/#{notebook_filename}\" target=\"_blank\">Open #{notebook_filename} in JupyterLab</a>"
+            response_parts << "📎 <a href=\"http://127.0.0.1:8889/lab/tree/#{notebook_filename}\" target=\"_blank\">Open #{notebook_filename} in JupyterLab</a>"
+          elsif result["content"].include?("Access it at:")
+            # URL is already in the response, just format it nicely
+            response_parts << "✅ Notebook created successfully"
+            response_parts << result["content"].split("Access it at:").last.strip
           else
             response_parts << result["content"]
           end
@@ -1474,6 +1482,15 @@ module GrokHelper
         
       when "add_jupyter_cells"
         response_parts << "✅ Added cells to the notebook"
+        # Extract notebook URL if present in the result
+        if result["content"] =~ /Access the notebook at:\s*(http[^\s]+)/
+          notebook_url = $1
+          response_parts << "📎 <a href=\"#{notebook_url}\" target=\"_blank\">Open notebook in JupyterLab</a>"
+        elsif result["content"] =~ /(\S+\.ipynb)/
+          # Fallback: extract filename and construct URL
+          notebook_filename = $1
+          response_parts << "📎 <a href=\"http://127.0.0.1:8889/lab/tree/#{notebook_filename}\" target=\"_blank\">Open #{notebook_filename} in JupyterLab</a>"
+        end
         
       when "run_jupyter"
         if result["content"].include?("started")
@@ -1670,16 +1687,16 @@ module GrokHelper
         
         # CRITICAL: If this is create_jupyter_notebook OR create_and_populate_jupyter_notebook, 
         # extract the actual filename with timestamp and store it in session
-        if (function_name == "create_jupyter_notebook" || function_name == "create_and_populate_jupyter_notebook") && 
+        if (function_name == "create_jupyter_notebook" || function_name == "create_and_populate_jupyter_notebook") &&
            function_return.include?("created successfully")
           # Extract actual notebook filename with timestamp
-          if function_return =~ /Notebook '([^']+)' created successfully/
+          # Match format: "Notebook filename.ipynb created successfully" (without quotes)
+          if function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
             actual_notebook_name = $1
             # Store in session for subsequent tool calls
             obj["current_notebook_filename"] = actual_notebook_name
-            obj["current_notebook_link"] = "<a href='http://localhost:8889/lab/tree/#{actual_notebook_name}' target='_blank'>Open #{actual_notebook_name}</a>"
-            
-            
+            obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{actual_notebook_name}' target='_blank'>Open #{actual_notebook_name}</a>"
+
             if CONFIG["EXTRA_LOGGING"]
               extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
               extra_log.puts("\n[#{Time.now}] Stored notebook name from #{function_name}: #{actual_notebook_name}")
@@ -1814,16 +1831,27 @@ module GrokHelper
     # Build a helpful response that includes actual results
     response_content = build_tool_response(tool_results)
     
-    # Check if this is an image generation that we've already built a complete response for
+    # Check if this is an image generation or Jupyter operation that we've already built a complete response for
     has_image_generation = tool_results.any? { |r| r["name"] == "generate_image_with_grok" }
+    has_jupyter_operation = tool_results.any? { |r|
+      %w[create_jupyter_notebook add_jupyter_cells create_and_populate_jupyter_notebook].include?(r["name"])
+    }
     skip_api_call = false
-    
+
     if has_image_generation && response_content.include?("<img")
       # We have a complete HTML response for image generation, no need to call Grok
       skip_api_call = true
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete image response")
+        extra_log.close
+      end
+    elsif has_jupyter_operation && response_content.include?("<a href=")
+      # We have a complete response with notebook link, no need to call Grok
+      skip_api_call = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete Jupyter response with link")
         extra_log.close
       end
     end

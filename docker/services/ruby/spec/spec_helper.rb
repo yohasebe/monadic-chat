@@ -191,9 +191,9 @@ RSpec.configure do |config|
       DockerContainerManager.ensure_containers_running
     end
 
-    # Load all apps for matrix tests
+    # Load all apps for matrix tests and artifact tests
     if RSpec.world.filtered_examples.values.flatten.any? { |ex|
-         ex.metadata[:matrix] || ex.metadata[:tool_tests]
+         ex.metadata[:matrix] || ex.metadata[:tool_tests] || ex.metadata[:artifacts]
        }
       TestAppLoader.load_all_apps
     end

@@ -602,9 +602,12 @@ module DeepSeekHelper
                   fragment = delta["content"].to_s
                   choice["message"]["content"] << fragment
 
-                  # Check if DeepSeek is outputting function calls as text
-                  if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
-                    # DeepSeek is outputting function calls as text, don't send fragments
+                  # Check if DeepSeek is outputting function calls as text (DSML or JSON format)
+                  if choice["message"]["content"].include?("<｜DSML｜") || choice["message"]["content"].include?("<|DSML|")
+                    # DeepSeek is outputting function calls in DSML format, don't send fragments
+                    # We'll handle this after the full message is received
+                  elsif choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
+                    # DeepSeek is outputting function calls as JSON text, don't send fragments
                     # We'll handle this after the full message is received
                   elsif is_json
                     # Suppress fragments for json mode only - content will be processed after completion
@@ -694,13 +697,64 @@ module DeepSeekHelper
     text_result = texts.empty? ? nil : texts.first[1]
 
     if text_result
-      # Check if DeepSeek has output function calls as text
-      if text_result.dig("choices", 0, "message", "content") =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
+      content = text_result.dig("choices", 0, "message", "content") || ""
+
+      # Check if DeepSeek has output function calls in DSML format
+      # Format: <｜DSML｜function_calls><｜DSML｜invoke name="..."><｜DSML｜param name="...">value</｜DSML｜/param></｜DSML｜/invoke></｜DSML｜/function_calls>
+      if content.include?("<｜DSML｜") || content.include?("<|DSML|")
+        DebugHelper.debug("DeepSeek: Detected DSML format in response", category: :api, level: :debug)
+
+        # Parse DSML function calls
+        tool_calls = []
+
+        # Match invoke blocks - handle both ｜ and | characters
+        content.scan(/<[｜|]DSML[｜|]invoke\s+name="([^"]+)">(.*?)<[｜|]DSML[｜|]\/invoke>/m) do |name, params_block|
+          arguments = {}
+
+          # Parse parameters
+          params_block.scan(/<[｜|]DSML[｜|]param\s+name="([^"]+)">(.*?)<[｜|]DSML[｜|]\/param>/m) do |param_name, param_value|
+            # Try to parse as JSON, otherwise use as string
+            begin
+              arguments[param_name] = JSON.parse(param_value.strip)
+            rescue JSON::ParserError
+              arguments[param_name] = param_value.strip
+            end
+          end
+
+          tool_calls << {
+            "id" => "call_#{SecureRandom.hex(8)}",
+            "type" => "function",
+            "function" => {
+              "name" => name,
+              "arguments" => JSON.generate(arguments)
+            }
+          }
+        end
+
+        if tool_calls.any?
+          text_result["choices"][0]["message"]["tool_calls"] = tool_calls
+
+          # Remove DSML content from the response
+          clean_content = content.gsub(/<[｜|]DSML[｜|]function_calls>.*?<[｜|]DSML[｜|]\/function_calls>/m, "").strip
+          text_result["choices"][0]["message"]["content"] = clean_content
+
+          # Set finish reason to function_call
+          text_result["choices"][0]["finish_reason"] = "function_call"
+          finish_reason = "function_call"
+
+          # Add to tools for processing
+          tid = tool_calls.first["id"]
+          tools[tid] = text_result
+
+          DebugHelper.debug("DeepSeek: Converted #{tool_calls.length} DSML function call(s) to tool call format", category: :api, level: :debug)
+        end
+      # Also check for JSON format function calls (legacy handling for websearch)
+      elsif content =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
         json_match = $1
         begin
           # Parse the function call from text
           func_call = JSON.parse(json_match)
-          
+
           # Convert text-based function call to proper tool call format
           if func_call["name"] && func_call["arguments"]
             text_result["choices"][0]["message"]["tool_calls"] = [{
@@ -711,19 +765,19 @@ module DeepSeekHelper
                 "arguments" => func_call["arguments"].is_a?(String) ? func_call["arguments"] : JSON.generate(func_call["arguments"])
               }
             }]
-            
+
             # Remove the JSON block from the content
-            text_result["choices"][0]["message"]["content"] = text_result["choices"][0]["message"]["content"].gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
-            
+            text_result["choices"][0]["message"]["content"] = content.gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
+
             # Set finish reason to function_call
             text_result["choices"][0]["finish_reason"] = "function_call"
             finish_reason = "function_call"
-            
+
             # Add to tools for processing
             tid = text_result["choices"][0]["message"]["tool_calls"][0]["id"]
             tools[tid] = text_result
-            
-            DebugHelper.debug("DeepSeek: Converted text function call to tool call format", category: :api, level: :debug)
+
+            DebugHelper.debug("DeepSeek: Converted JSON text function call to tool call format", category: :api, level: :debug)
           end
         rescue JSON::ParserError => e
           DebugHelper.debug("DeepSeek: Failed to parse function call from text: #{e.message}", category: :api, level: :debug)

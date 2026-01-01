@@ -2410,6 +2410,15 @@ module WebSocketHelper
                   end
 
                   # Find the last user message from session messages
+                  if CONFIG && CONFIG["EXTRA_LOGGING"]
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: messages count=#{messages.length}")
+                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: messages roles=#{messages.map { |m| m['role'] }.inspect}")
+                      if messages.any?
+                        log.puts("[#{Time.now}] [ContextExtractor] DEBUG: first message keys=#{messages.first&.keys&.inspect}")
+                      end
+                    end
+                  end
                   user_messages = messages.select { |m| m["role"] == "user" }
                   last_user_message = user_messages.last
                   # Support both "text" and "content" keys for user messages
@@ -2425,6 +2434,9 @@ module WebSocketHelper
 
                   if CONFIG && CONFIG["EXTRA_LOGGING"]
                     File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message keys=#{last_user_message&.keys&.inspect}")
+                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message['text']=#{last_user_message&.dig('text')&.inspect&.slice(0, 100)}")
+                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message['content'] class=#{last_user_message&.dig('content')&.class}")
                       log.puts("[#{Time.now}] [ContextExtractor] user_text length=#{user_text.length}, final_text length=#{final_text.to_s.length}")
                       log.puts("[#{Time.now}] [ContextExtractor] user_text empty?=#{user_text.empty?}, final_text empty?=#{final_text.to_s.empty?}")
                     end
@@ -2811,6 +2823,18 @@ module WebSocketHelper
             # Use o200k_base encoding for most LLMs
             token_count_thread = initialize_token_counting(message_text, "o200k_base")
             Thread.current[:token_count_thread] = token_count_thread
+
+            # Add user message to session for context extraction
+            params = get_session_params
+            user_message_data = {
+              "mid" => SecureRandom.hex(4),
+              "role" => "user",
+              "text" => message_text,
+              "app_name" => params["app_name"],
+              "active" => true
+            }
+            session[:messages] << user_message_data
+            sync_session_state!
           end
 
           # Extract TTS parameters if auto_speech is enabled

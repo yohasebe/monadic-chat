@@ -993,8 +993,9 @@ module DeepSeekHelper
                   end
 
                   # Track DSML block state based on accumulated content
+                  # Detect early: as soon as we see any DSML marker pattern, set the flag
                   accumulated_content = choice["message"]["content"] || ""
-                  if accumulated_content.include?("<｜DSML｜function_calls>") && !in_dsml_block
+                  if !in_dsml_block && (accumulated_content.include?("｜DSML｜") || fragment.include?("｜DSML｜"))
                     in_dsml_block = true
                     DebugHelper.debug("DeepSeek: Entered DSML function call block, suppressing fragments", category: :api, level: :info)
                     # Notify client that we're processing function calls
@@ -1006,10 +1007,15 @@ module DeepSeekHelper
                   # Note: We check for function call patterns after streaming completes,
                   # not during streaming, to avoid blocking normal text fragments
                   # Filter out: <｜...｜> markers AND <｜DSML｜...> tags AND content inside DSML blocks
-                  is_dsml_content = fragment.include?("｜DSML｜") || fragment.include?("</｜DSML｜")
+                  # Also filter fullwidth vertical line (｜) which is part of DSML format
+                  is_dsml_content = fragment.include?("｜DSML｜") || fragment.include?("</｜DSML｜") || fragment.include?("｜")
                   is_special_marker = fragment.match?(/<｜[^｜]+｜>/)
 
-                  if fragment.length > 0 && !is_special_marker && !is_dsml_content && !in_dsml_block
+                  # Additional check: if accumulated content suggests we're building a DSML block
+                  # (ends with < or contains partial DSML markers), suppress the fragment
+                  building_dsml = accumulated_content.end_with?("<") || accumulated_content.include?("<｜")
+
+                  if fragment.length > 0 && !is_special_marker && !is_dsml_content && !in_dsml_block && !building_dsml
                     # Don't send special markers, DSML function calls, or content inside DSML blocks as fragments
                     res = {
                       "type" => "fragment",
@@ -1162,14 +1168,15 @@ module DeepSeekHelper
             arguments[param_name] = param_value
           end
 
-          if function_name && !arguments.empty?
+          if function_name
             # Convert DSML-based function call to proper tool call format
+            # Note: arguments can be empty for parameterless tools like load_learning_progress
             tool_call = {
               "id" => "call_#{SecureRandom.hex(8)}",
               "type" => "function",
               "function" => {
                 "name" => function_name,
-                "arguments" => JSON.generate(arguments)
+                "arguments" => arguments.empty? ? "{}" : JSON.generate(arguments)
               }
             }
 

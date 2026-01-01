@@ -329,7 +329,10 @@ module DeepSeekHelper
     body["temperature"] = temperature
 
     # Determine if we need to add JSON format instruction (required for monadic/json mode)
-    needs_json_prompt = obj["monadic"] || obj["json"]
+    # Handle both string "true" and boolean true values
+    is_monadic = obj["monadic"].to_s == "true"
+    is_json = obj["json"].to_s == "true"
+    needs_json_prompt = is_monadic || is_json
 
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
@@ -418,7 +421,9 @@ module DeepSeekHelper
         msg
       end
     else
-      if obj["monadic"] || obj["json"]
+      # Only set response_format for non-tool-response calls
+      # Tool responses should not require JSON format as the model needs flexibility
+      if (is_monadic || is_json) && role != "tool"
         body["response_format"] ||= { "type" => "json_object" }
       end
     end
@@ -497,6 +502,10 @@ module DeepSeekHelper
     end
 
     obj = session[:parameters]
+
+    # Define monadic/json mode flags for consistent checking
+    is_monadic = obj["monadic"].to_s == "true"
+    is_json = obj["json"].to_s == "true"
 
     buffer = String.new.force_encoding("UTF-8")
     texts = {}
@@ -595,7 +604,7 @@ module DeepSeekHelper
                   if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
                     # DeepSeek is outputting function calls as text, don't send fragments
                     # We'll handle this after the full message is received
-                  elsif obj["monadic"] || obj["json"]
+                  elsif is_monadic || is_json
                     # Suppress fragments for monadic/json mode - content will be processed after completion
                     # The raw JSON fragments should not be shown to the user
                   elsif fragment.length > 0
@@ -718,7 +727,7 @@ module DeepSeekHelper
         end
       end
       
-      if obj["monadic"]
+      if is_monadic
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?
           message = choice["message"]["content"]

@@ -595,6 +595,9 @@ module DeepSeekHelper
                   if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
                     # DeepSeek is outputting function calls as text, don't send fragments
                     # We'll handle this after the full message is received
+                  elsif obj["monadic"] || obj["json"]
+                    # Suppress fragments for monadic/json mode - content will be processed after completion
+                    # The raw JSON fragments should not be shown to the user
                   elsif fragment.length > 0
                     res = {
                       "type" => "fragment",
@@ -717,17 +720,39 @@ module DeepSeekHelper
       
       if obj["monadic"]
         choice = text_result["choices"][0]
-        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop"
+        if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?
           message = choice["message"]["content"]
           # monadic_map returns JSON string, but we need the actual content
           modified = APPS[app].monadic_map(message)
-          # Parse the JSON and extract the message field
+          # Parse the JSON and extract the message/response field
           begin
             parsed = JSON.parse(modified)
-            choice["message"]["content"] = parsed["message"] || modified
+            # Check for common response field names
+            extracted_content = parsed["message"] || parsed["response"] || parsed["text"] || modified
+            choice["message"]["content"] = extracted_content
+
+            # Send the processed content as a single fragment to the UI
+            # (since we suppressed streaming fragments for monadic mode)
+            res = {
+              "type" => "fragment",
+              "content" => extracted_content,
+              "index" => 0,
+              "timestamp" => Time.now.to_f,
+              "is_first" => true
+            }
+            block&.call res
           rescue JSON::ParserError
             # If parsing fails, use the original modified value
             choice["message"]["content"] = modified
+            # Send the raw content as fragment
+            res = {
+              "type" => "fragment",
+              "content" => modified,
+              "index" => 0,
+              "timestamp" => Time.now.to_f,
+              "is_first" => true
+            }
+            block&.call res
           end
         end
       end

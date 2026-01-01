@@ -46,12 +46,12 @@ RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
         notes: []
       }
     },
-    japanese: {
-      user_message: "東京に住んでいる田中さんと来週会議があります。",
-      assistant_response: "田中さんとの会議ですね。東京でのミーティングの準備をお手伝いしましょうか？",
+    business: {
+      user_message: "I have a meeting with Dr. Smith next week to discuss the quarterly report.",
+      assistant_response: "I'll help you prepare for the meeting with Dr. Smith. Would you like me to summarize the key points from the quarterly report?",
       expected_fields: {
-        topics: ['会議', 'ミーティング'],
-        people: ['田中'],
+        topics: ['meeting', 'quarterly report'],
+        people: ['Dr. Smith'],
         notes: []
       }
     }
@@ -131,9 +131,9 @@ RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
             "#{provider} should extract at least some context from the conversation"
         end
 
-        it "extracts context from Japanese conversation" do
-          test_data = TEST_CONVERSATIONS[:japanese]
-          session = { messages: [], runtime_settings: { language: 'ja' } }
+        it "extracts context from business conversation" do
+          test_data = TEST_CONVERSATIONS[:business]
+          session = { messages: [], runtime_settings: { language: 'en' } }
 
           result = extract_context(
             session,
@@ -142,16 +142,16 @@ RSpec.describe 'ContextExtractorAgent API Integration', :api, :integration do
             provider
           )
 
-          expect(result).to be_a(Hash), "Expected Hash result from #{provider} for Japanese"
+          expect(result).to be_a(Hash), "Expected Hash result from #{provider} for business context"
 
           # Check structure
           has_topics = result.key?('topics') || result.key?(:topics)
           has_people = result.key?('people') || result.key?(:people)
-          expect(has_topics).to be(true), "#{provider} Japanese result should have topics field"
-          expect(has_people).to be(true), "#{provider} Japanese result should have people field"
+          expect(has_topics).to be(true), "#{provider} business result should have topics field"
+          expect(has_people).to be(true), "#{provider} business result should have people field"
 
           if ENV['DEBUG']
-            puts "\n  [#{provider}] Japanese context extraction:"
+            puts "\n  [#{provider}] Business context extraction:"
             puts "    topics: #{result['topics'] || result[:topics]}"
             puts "    people: #{result['people'] || result[:people]}"
           end

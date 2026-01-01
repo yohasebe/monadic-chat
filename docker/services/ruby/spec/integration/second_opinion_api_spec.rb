@@ -80,26 +80,29 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
   }.freeze
 
   # Test case that requires detailed evaluation (to test max_tokens)
+  # Uses a health/nutrition topic that requires nuanced analysis
   DETAILED_TEST_CASE = {
     user_query: <<~QUERY,
-      インドのまともなホテルに泊まる場合、シャワーの水が口に入っても気にすることはないですか？
-      旅行中の健康管理について詳しく教えてください。
+      I've been considering switching to a plant-based diet for health reasons.
+      What are the key nutritional considerations I should be aware of?
+      Please provide detailed guidance on maintaining proper nutrition.
     QUERY
     agent_response: <<~RESPONSE
-      インドでの水道水の安全性について、高級ホテルであっても注意が必要です。
+      Switching to a plant-based diet can offer many health benefits when done properly.
 
-      ## 主なリスク
-      1. 水道水には細菌や寄生虫が含まれている可能性がある
-      2. シャワー中に口に入る少量の水でも胃腸障害を引き起こす可能性がある
-      3. 歯磨きにも水道水の使用は避けるべき
+      ## Key Nutritional Considerations
+      1. Protein sources: Combine legumes, nuts, seeds, and whole grains for complete amino acids
+      2. Vitamin B12: This is primarily found in animal products, so supplementation is often necessary
+      3. Iron: Plant-based iron (non-heme) is less easily absorbed; pair with vitamin C for better absorption
+      4. Omega-3 fatty acids: Consider algae-based supplements or include flaxseeds and walnuts
 
-      ## 推奨事項
-      - ボトル入りの水のみを飲料・歯磨きに使用
-      - シャワー中は口を閉じる
-      - ペプシ（経口補水液）を携帯する
-      - 予防接種を事前に受ける
+      ## Recommendations
+      - Plan meals to include diverse protein sources
+      - Consider regular blood tests to monitor nutrient levels
+      - Consult with a registered dietitian for personalized guidance
+      - Gradually transition rather than making sudden changes
 
-      WHOやCDCのガイドラインでも、インドでの水道水の直接摂取は推奨されていません。
+      Research from major health organizations supports well-planned plant-based diets as nutritionally adequate.
     RESPONSE
   }.freeze
 

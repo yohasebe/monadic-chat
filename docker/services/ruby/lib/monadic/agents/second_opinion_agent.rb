@@ -56,12 +56,13 @@ module SecondOpinionAgent
         "content" => user_message_content
       }
     ]
-    
-    # Let each provider use its own default max_tokens
-    # Don't specify max_tokens here - providers will use their defaults
+
+    # Set adequate max_tokens for detailed second opinion responses
+    # 2000 tokens allows for thorough evaluation with comments, validity, and reasoning
     parameters = {
       "messages" => messages,
-      "model" => target_model
+      "model" => target_model,
+      "max_tokens" => 2000
     }
     
     # Delegate reasoning configuration to the provider implementation

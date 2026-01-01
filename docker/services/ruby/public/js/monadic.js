@@ -44,10 +44,17 @@ function sanitizeParamsForSync(source) {
   // Sync checkbox states to ensure params reflect current UI state
   // This prevents stale values from being broadcast
   if (typeof $ !== 'undefined') {
+    // Boolean checkboxes
     clone.websearch = $("#websearch").prop("checked") || false;
     clone.easy_submit = $("#check-easy-submit").prop("checked") || false;
     clone.auto_speech = $("#check-auto-speech").prop("checked") || false;
     clone.mathjax = $("#mathjax").prop("checked") || false;
+    clone.initiate_from_assistant = $("#initiate-from-assistant").prop("checked") || false;
+
+    // Only sync prompt_caching if the checkbox is enabled (not all models support it)
+    if (!$("#prompt-caching").prop("disabled")) {
+      clone.prompt_caching = $("#prompt-caching").prop("checked") || false;
+    }
 
     // Handle toggle-controlled values
     // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
@@ -67,6 +74,20 @@ function sanitizeParamsForSync(source) {
       const contextSizeVal = $("#context-size").val();
       if (contextSizeVal) {
         clone.context_size = parseInt(contextSizeVal) || contextSizeVal;
+      }
+    }
+
+    // Sync current model selection
+    const currentModel = $("#model").val();
+    if (currentModel) {
+      clone.model = currentModel;
+    }
+
+    // Sync reasoning effort if enabled
+    if (!$("#reasoning-effort").prop("disabled")) {
+      const reasoningVal = $("#reasoning-effort").val();
+      if (reasoningVal) {
+        clone.reasoning_effort = reasoningVal;
       }
     }
   }

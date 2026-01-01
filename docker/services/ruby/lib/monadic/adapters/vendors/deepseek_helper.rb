@@ -147,8 +147,24 @@ module DeepSeekHelper
           # Deep clone the tool
           strict_tool = JSON.parse(JSON.generate(tool))
 
-          # Check if tool has parameters with properties
+          # Remove auto-provided parameters (like "session") that have type "object" with no nested properties
+          # These are system-injected and shouldn't be visible to the LLM
           params = strict_tool.dig("function", "parameters")
+          if params && params["properties"]
+            # Filter out object-type parameters without nested properties (auto-provided session objects)
+            params["properties"].reject! do |prop_name, prop_schema|
+              prop_schema["type"] == "object" && !prop_schema["properties"]
+            end
+
+            # Also remove from required array if present
+            if params["required"]
+              params["required"].reject! do |prop_name|
+                !params["properties"].key?(prop_name)
+              end
+            end
+          end
+
+          # Check if tool has parameters with properties after filtering
           has_properties = params && params["properties"] && !params["properties"].empty?
 
           # Only apply strict mode to tools that have parameters with properties
@@ -173,10 +189,17 @@ module DeepSeekHelper
     end
     
     # Recursively ensure schema meets strict mode requirements
-    def ensure_strict_schema(schema)
+    def ensure_strict_schema(schema, parent_properties = nil, prop_name = nil)
       return unless schema.is_a?(Hash)
 
       if schema["type"] == "object"
+        # If this is a nested object without properties, remove it from parent
+        # DeepSeek doesn't accept object types without properties defined
+        if !schema["properties"] && parent_properties && prop_name
+          parent_properties.delete(prop_name)
+          return
+        end
+
         # STRICT MODE REQUIREMENT: All object properties must be required
         schema["additionalProperties"] = false
 
@@ -187,13 +210,13 @@ module DeepSeekHelper
         if schema["properties"].empty?
           schema["required"] = []
         else
-          # Set ALL properties as required (strict mode requirement)
-          schema["required"] = schema["properties"].keys
-
-          # Recursively process nested schemas
-          schema["properties"].each do |prop_name, prop_schema|
-            ensure_strict_schema(prop_schema)
+          # Recursively process nested schemas first (so we can remove invalid ones)
+          schema["properties"].each do |nested_name, nested_schema|
+            ensure_strict_schema(nested_schema, schema["properties"], nested_name)
           end
+
+          # Set ALL remaining properties as required (strict mode requirement)
+          schema["required"] = schema["properties"].keys
         end
       elsif schema["type"] == "array" && schema["items"]
         # Process array items schema

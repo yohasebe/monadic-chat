@@ -840,6 +840,8 @@ module DeepSeekHelper
     usage_prompt_tokens = nil
     usage_completion_tokens = nil
     usage_total_tokens = nil
+    # Track DSML function call blocks - suppress fragment output when inside
+    in_dsml_block = false
 
     chunk_count = 0
     res.each do |chunk|
@@ -950,11 +952,25 @@ module DeepSeekHelper
                     end
                   end
 
-                  # Send fragments unless they contain special markers
+                  # Track DSML block state based on accumulated content
+                  accumulated_content = choice["message"]["content"] || ""
+                  if accumulated_content.include?("<｜DSML｜function_calls>") && !in_dsml_block
+                    in_dsml_block = true
+                    DebugHelper.debug("DeepSeek: Entered DSML function call block, suppressing fragments", category: :api, level: :info)
+                    # Notify client that we're processing function calls
+                    res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+                    block&.call res
+                  end
+
+                  # Send fragments unless they contain special markers or we're inside a DSML block
                   # Note: We check for function call patterns after streaming completes,
                   # not during streaming, to avoid blocking normal text fragments
-                  if fragment.length > 0 && !fragment.match?(/<｜[^｜]+｜>/)
-                    # Don't send special markers as fragments
+                  # Filter out: <｜...｜> markers AND <｜DSML｜...> tags AND content inside DSML blocks
+                  is_dsml_content = fragment.include?("｜DSML｜") || fragment.include?("</｜DSML｜")
+                  is_special_marker = fragment.match?(/<｜[^｜]+｜>/)
+
+                  if fragment.length > 0 && !is_special_marker && !is_dsml_content && !in_dsml_block
+                    # Don't send special markers, DSML function calls, or content inside DSML blocks as fragments
                     res = {
                       "type" => "fragment",
                       "content" => fragment,
@@ -1089,7 +1105,67 @@ module DeepSeekHelper
           DebugHelper.debug("DeepSeek: Failed to parse function call from text: #{e.message}", category: :api, level: :debug)
         end
       end
-      
+
+      # Handle DeepSeek DSML format function calls: <｜DSML｜function_calls>...<｜DSML｜invoke name="...">...
+      content = text_result.dig("choices", 0, "message", "content")
+      if content && content.include?("<｜DSML｜function_calls>")
+        DebugHelper.debug("DeepSeek: Detected DSML format function call", category: :api, level: :info)
+
+        # Extract all invoke blocks
+        invoke_pattern = /<｜DSML｜invoke\s+name="([^"]+)">\s*(.*?)\s*<\/｜DSML｜invoke>/m
+        content.scan(invoke_pattern) do |function_name, params_block|
+          # Extract parameters
+          param_pattern = /<｜DSML｜parameter\s+name="([^"]+)"[^>]*>(.*?)<\/｜DSML｜parameter>/m
+          arguments = {}
+
+          params_block.scan(param_pattern) do |param_name, param_value|
+            arguments[param_name] = param_value
+          end
+
+          if function_name && !arguments.empty?
+            # Convert DSML-based function call to proper tool call format
+            tool_call = {
+              "id" => "call_#{SecureRandom.hex(8)}",
+              "type" => "function",
+              "function" => {
+                "name" => function_name,
+                "arguments" => JSON.generate(arguments)
+              }
+            }
+
+            text_result["choices"][0]["message"]["tool_calls"] ||= []
+            text_result["choices"][0]["message"]["tool_calls"] << tool_call
+
+            DebugHelper.debug("DeepSeek: Converted DSML function call '#{function_name}' with args: #{arguments.keys.join(', ')}", category: :api, level: :info)
+
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts "[#{Time.now}] DeepSeek: Converted DSML function call '#{function_name}'"
+                f.puts "  Arguments: #{arguments.keys.join(', ')}"
+              end
+            end
+          end
+        end
+
+        # If we found tool calls, update state
+        if text_result.dig("choices", 0, "message", "tool_calls")&.any?
+          # Remove the DSML block from the content (keep any preceding text)
+          cleaned_content = content.gsub(/<｜DSML｜function_calls>.*?<\/｜DSML｜function_calls>/m, "").strip
+          text_result["choices"][0]["message"]["content"] = cleaned_content
+
+          # Set finish reason to function_call
+          text_result["choices"][0]["finish_reason"] = "function_call"
+          finish_reason = "function_call"
+
+          # Add to tools for processing
+          text_result["choices"][0]["message"]["tool_calls"].each do |tc|
+            tools[tc["id"]] = text_result
+          end
+
+          DebugHelper.debug("DeepSeek: Successfully parsed #{text_result["choices"][0]["message"]["tool_calls"].size} DSML function call(s)", category: :api, level: :info)
+        end
+      end
+
     end
 
     # If we have tool calls, ignore the finish_reason from streaming

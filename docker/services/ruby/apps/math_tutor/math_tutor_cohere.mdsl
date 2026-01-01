@@ -7,7 +7,7 @@ app "MathTutorCohere" do
 
   llm do
     provider "cohere"
-    model "command-a-03-2025"
+    model "command-a-reasoning-08-2025"
     temperature 0.0
     context_size 25
   end

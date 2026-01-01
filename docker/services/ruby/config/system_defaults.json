@@ -7,7 +7,7 @@
       "model": "claude-sonnet-4-5-20250929"
     },
     "cohere": {
-      "model": "command-a-03-2025"
+      "model": "command-a-reasoning-08-2025"
     },
     "gemini": {
       "model": "gemini-3-flash-preview"

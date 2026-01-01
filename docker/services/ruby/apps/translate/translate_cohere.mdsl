@@ -91,7 +91,7 @@ app "TranslateCohere" do
   
   llm do
     provider "cohere"
-    model "command-a-03-2025"  # Using general model with tool support (translate model lacks tool capability)
+    model "command-a-reasoning-08-2025"  # Using general model with tool support (translate model lacks tool capability)
     temperature 0.2
     context_size 15
   end

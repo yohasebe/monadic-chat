@@ -79,7 +79,7 @@ app "ResearchAssistantCohere" do
 
   llm do
     provider "cohere"
-    model "command-a-03-2025"
+    model "command-a-reasoning-08-2025"
     context_size 30
   end
 

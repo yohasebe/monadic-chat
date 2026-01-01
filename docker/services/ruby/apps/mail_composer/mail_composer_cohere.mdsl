@@ -48,7 +48,7 @@ app "MailComposerCohere" do
   
   llm do
     provider "cohere"
-    model "command-a-03-2025"
+    model "command-a-reasoning-08-2025"
     temperature 0.3
   end
   

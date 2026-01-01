@@ -374,7 +374,9 @@ module ContextExtractorAgent
         }
       ],
       "generationConfig" => {
-        "maxOutputTokens" => is_thinking_model ? 2000 : 500
+        # 1000 tokens for regular models to ensure complete JSON responses
+        # 2000 tokens for thinking models which include reasoning
+        "maxOutputTokens" => is_thinking_model ? 2000 : 1000
       }
     }
 

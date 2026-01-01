@@ -2412,7 +2412,16 @@ module WebSocketHelper
                   # Find the last user message from session messages
                   user_messages = messages.select { |m| m["role"] == "user" }
                   last_user_message = user_messages.last
-                  user_text = last_user_message&.dig("text") || ""
+                  # Support both "text" and "content" keys for user messages
+                  user_text = if last_user_message
+                    last_user_message["text"] ||
+                    last_user_message[:text] ||
+                    (last_user_message["content"].is_a?(String) ? last_user_message["content"] : nil) ||
+                    (last_user_message["content"].is_a?(Array) ? last_user_message["content"].map { |c| c.is_a?(Hash) ? (c["text"] || c[:text]) : c.to_s }.compact.join("\n") : nil) ||
+                    ""
+                  else
+                    ""
+                  end
 
                   if CONFIG && CONFIG["EXTRA_LOGGING"]
                     File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|

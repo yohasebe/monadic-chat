@@ -1358,6 +1358,12 @@ module CohereHelper
           DebugHelper.debug("Cohere: No tools enabled", category: :api, level: :debug)
         end
       end
+
+      # Set tool_choice to encourage tool usage when tools are present
+      # Cohere supports: "REQUIRED" (force), "NONE" (prevent), or omit for auto
+      if body["tools"] && !body["tools"].empty?
+        body["tool_choice"] = "auto"
+      end
     end # end of role != "tool"
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice

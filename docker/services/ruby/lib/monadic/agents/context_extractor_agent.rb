@@ -377,15 +377,24 @@ module ContextExtractorAgent
   def call_cohere_api(model, system_message, api_key)
     uri = URI.parse(API_ENDPOINTS["cohere"])
 
+    # Check if this is a reasoning/thinking model
+    is_reasoning_model = model.to_s.include?("reasoning") || model.to_s.include?("command-a")
+
     request_body = {
       "model" => model,
       "messages" => [
         { "role" => "system", "content" => system_message },
         { "role" => "user", "content" => "Extract context and return JSON only." }
       ],
-      "max_tokens" => 500,
-      "temperature" => 0.3
+      "max_tokens" => 500
     }
+
+    # Reasoning models don't support temperature, but require thinking parameter
+    if is_reasoning_model
+      request_body["thinking"] = { "type" => "enabled" }
+    else
+      request_body["temperature"] = 0.3
+    end
 
     response = make_http_request(uri, request_body, {
       "Authorization" => "Bearer #{api_key}",

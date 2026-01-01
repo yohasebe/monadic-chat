@@ -869,7 +869,7 @@ module MonadicDSL
           define_tool spec.name, spec.description do
             # Add parameters
             spec.parameters.each do |param|
-              parameter param[:name], param[:type], param[:description], required: param[:required]
+              parameter param[:name], param[:type], param[:description], required: param[:required], items: param[:items]
             end
 
             # Set visibility

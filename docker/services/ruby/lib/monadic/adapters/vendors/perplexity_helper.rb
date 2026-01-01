@@ -1377,6 +1377,12 @@ module PerplexityHelper
         memo
       end
 
+      # Inject session for tools that need it (e.g., monadic state tools)
+      method_obj = APPS[app].method(function_name.to_sym) rescue nil
+      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+        argument_hash[:session] = session
+      end
+
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
 

@@ -1124,6 +1124,12 @@ module MistralHelper
           args_hash[k.to_sym] = v
         end
 
+        # Inject session for tools that need it (e.g., monadic state tools)
+        method_obj = APPS[app].method(function_name.to_sym) rescue nil
+        if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+          args_hash[:session] = session
+        end
+
         # Call the function
         begin
           if args_hash.empty?

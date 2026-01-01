@@ -555,6 +555,75 @@ The following apps use Session State for context management:
 | Voice Interpreter | Translation context |
 | Language Practice Plus | Language learning feedback |
 
+### Context Schema (Session Context)
+
+While Session State Apps use explicit tool calls for context management, you can also enable **automatic context extraction** using the `context_schema` block. This feature extracts key information from conversations and displays it in the sidebar panel.
+
+> **Note**: For complete documentation on Session Context, see the [Session Context](session-context.md) guide.
+
+#### Basic Usage
+
+```ruby
+app "MyAppOpenAI" do
+  features do
+    monadic true  # Required for context_schema
+  end
+
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics",
+          description: "Main subjects discussed in conversation"
+    field :people, icon: "fa-users", label: "People",
+          description: "Names of people mentioned"
+    field :notes, icon: "fa-sticky-note", label: "Notes",
+          description: "Important facts and preferences to remember"
+  end
+end
+```
+
+#### Field Definition
+
+Each field in `context_schema` accepts the following options:
+
+| Option | Type | Required | Description |
+|--------|------|----------|-------------|
+| `name` | Symbol | Yes | Field identifier (first argument, e.g., `:topics`) |
+| `icon` | String | No | FontAwesome icon class (e.g., `"fa-tags"`) |
+| `label` | String | No | Display name in sidebar (defaults to titleized name) |
+| `description` | String | Yes | Guides the extraction agent on what to extract |
+
+#### Default Schema
+
+If no `context_schema` block is provided but `monadic true` is set, the app uses the default schema:
+
+- **Topics**: Main subjects discussed
+- **People**: Names of people mentioned
+- **Notes**: Important facts to remember
+
+#### Custom Schema Example
+
+```ruby
+# For a Code Review app
+context_schema do
+  field :files_reviewed, icon: "fa-file-code", label: "Files",
+        description: "Source code files that were reviewed"
+  field :issues, icon: "fa-bug", label: "Issues",
+        description: "Bugs and code problems identified"
+  field :suggestions, icon: "fa-lightbulb", label: "Suggestions",
+        description: "Improvement recommendations"
+end
+```
+
+#### Session State vs Session Context
+
+| Feature | Session State | Session Context |
+|---------|---------------|-----------------|
+| **Mechanism** | Explicit tool calls (`load_context`, `save_context`) | Automatic background extraction |
+| **Control** | Full control over when/what to save | Automatic after each response |
+| **Configuration** | Tool definitions | `context_schema` block |
+| **Use Case** | Complex state management | Simple context tracking |
+
+Both features require `monadic true` and can be used together in the same app.
+
 ### Provider-Specific Adapters
 
 The DSL automatically formats function definitions appropriately for different AI providers, handling the specific requirements and formats for each model provider:

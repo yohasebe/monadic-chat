@@ -64,8 +64,7 @@ module DeepSeekHelper
               description: "url of the web page."
             }
           },
-          required: ["url"],
-          additionalProperties: false
+          required: ["url"]
         }
       }
     },
@@ -84,14 +83,10 @@ module DeepSeekHelper
             },
             n: {
               type: "integer",
-              description: "number of results to return (default: 3).",
-              minimum: 1,
-              maximum: 10,
-              default: 3
+              description: "number of results to return (default: 3)."
             }
           },
-          required: ["query"],
-          additionalProperties: false
+          required: ["query"]
         }
       }
     }

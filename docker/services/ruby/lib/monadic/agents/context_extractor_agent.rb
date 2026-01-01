@@ -385,15 +385,17 @@ module ContextExtractorAgent
       "messages" => [
         { "role" => "system", "content" => system_message },
         { "role" => "user", "content" => "Extract context and return JSON only." }
-      ],
-      "max_tokens" => 500
+      ]
     }
 
     # Reasoning models don't support temperature, but require thinking parameter
+    # Also need more tokens for thinking + text output
     if is_reasoning_model
       request_body["thinking"] = { "type" => "enabled" }
+      request_body["max_tokens"] = 2000  # More tokens for thinking + text
     else
       request_body["temperature"] = 0.3
+      request_body["max_tokens"] = 500
     end
 
     if CONFIG && CONFIG["EXTRA_LOGGING"]

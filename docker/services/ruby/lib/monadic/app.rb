@@ -596,7 +596,7 @@ class MonadicApp
   end
 
 
-  def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully")
+  def run_code(code: nil, command: nil, extension: nil, success: "The code has been executed successfully", session: nil)
     return "Error: code, command, and extension are required." if !code || !command || !extension
 
     send_code(code: code, command: command, extension: extension, success: success)

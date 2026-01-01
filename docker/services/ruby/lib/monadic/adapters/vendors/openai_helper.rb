@@ -439,6 +439,11 @@ module OpenAIHelper
       DebugHelper.debug("Using response format: #{body['response_format'].inspect}", "api")
     end
 
+    # Add max_tokens if specified
+    if options["max_tokens"]
+      body["max_tokens"] = options["max_tokens"].to_i
+    end
+
     # Add tool definitions if provided (for testing tool-calling apps)
     if options["tools"] && options["tools"].any?
       # Convert to OpenAI format if needed

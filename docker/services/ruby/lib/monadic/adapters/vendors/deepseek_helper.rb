@@ -239,22 +239,19 @@ module DeepSeekHelper
 
     # Check if strict mode should be enabled
     def use_strict_mode?(obj)
-      # Enable strict mode for deepseek-chat model when function calling is used
-      # Can be controlled via configuration or per-request parameter
-      model = obj["model"] || DeepSeekHelper.get_default_model
-      
-      # Check if explicitly disabled
-      return false if obj["strict_function_calling"] == false
-      
-      # Check if explicitly enabled via config
+      # DeepSeek strict mode has complex requirements that are incompatible with
+      # Monadic Chat's tool definitions:
+      # - Objects must have properties (session params don't)
+      # - Arrays must have items field (most MDSL arrays don't)
+      # - All tools must be strict or non-strict (no mixing)
+      #
+      # Strict mode is DISABLED by default. Enable only via explicit config.
+      # The DSML format fallback in process_json_data handles tool calls as text.
+
+      # Only enable if explicitly requested via config
       return true if CONFIG["DEEPSEEK_STRICT_MODE"] == true
-      
-      # Enable by default for deepseek-chat model
-      # NOTE: Special markers like <｜tool▁call▁end｜> are part of the response format
-      # and will be cleaned up in the response processing
-      return true if model.include?("deepseek-chat")
-      
-      # Disabled for deepseek-reasoner as it doesn't support function calling
+
+      # Disabled by default for all models
       false
     end
 

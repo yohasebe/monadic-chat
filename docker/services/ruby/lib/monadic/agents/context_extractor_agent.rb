@@ -430,22 +430,10 @@ module ContextExtractorAgent
       request_body["max_tokens"] = 500
     end
 
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Cohere request body: #{request_body.inspect}")
-      end
-    end
-
     response = make_http_request(uri, request_body, {
       "Authorization" => "Bearer #{api_key}",
       "Content-Type" => "application/json"
     })
-
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Cohere response: #{response&.slice(0, 500) || 'nil'}")
-      end
-    end
 
     return nil unless response
 
@@ -454,20 +442,11 @@ module ContextExtractorAgent
     # For reasoning models, content array may have thinking first, then text
     # Find the text content item
     content_array = data.dig("message", "content")
-    result = nil
     if content_array.is_a?(Array)
       text_item = content_array.find { |item| item["type"] == "text" }
-      result = text_item["text"] if text_item
+      return text_item["text"] if text_item
     end
-
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [ContextExtractor] Cohere content types: #{content_array&.map { |c| c['type'] }&.inspect}")
-        log.puts("[#{Time.now}] [ContextExtractor] Cohere parsed result: #{result&.slice(0, 200) || 'nil'}")
-      end
-    end
-
-    result
+    nil
   rescue StandardError => e
     if CONFIG && CONFIG["EXTRA_LOGGING"]
       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|

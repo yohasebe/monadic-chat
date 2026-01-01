@@ -1899,12 +1899,6 @@ module WebSocketHelper
             extra_log.close
           end
 
-          # Debug logging for research assistant apps
-          if CONFIG["EXTRA_LOGGING"] && obj["app_name"] && (obj["app_name"].include?("Perplexity") || obj["app_name"].include?("DeepSeek"))
-            puts "[DEBUG WebSocket] Received message type: #{msg.inspect}"
-            puts "[DEBUG WebSocket] App name from obj: #{obj["app_name"]}"
-          end
-
       case msg
       when "TTS"
           # Get session ID for targeted broadcasting
@@ -2381,14 +2375,6 @@ module WebSocketHelper
               # Context extraction for monadic apps (automatic context tracking)
               # This runs AFTER the response is sent to the user, in a background thread
               # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
-
-              # Debug: Log params["monadic"] value before the check
-              if CONFIG && CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [ContextExtractor] DEBUG: params['monadic']=#{params["monadic"].inspect}, params keys=#{params.keys.take(10).inspect}")
-                end
-              end
-
               if params["monadic"]
                 begin
                   if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -2410,15 +2396,6 @@ module WebSocketHelper
                   end
 
                   # Find the last user message from session messages
-                  if CONFIG && CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: messages count=#{messages.length}")
-                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: messages roles=#{messages.map { |m| m['role'] }.inspect}")
-                      if messages.any?
-                        log.puts("[#{Time.now}] [ContextExtractor] DEBUG: first message keys=#{messages.first&.keys&.inspect}")
-                      end
-                    end
-                  end
                   user_messages = messages.select { |m| m["role"] == "user" }
                   last_user_message = user_messages.last
                   # Support both "text" and "content" keys for user messages
@@ -2430,16 +2407,6 @@ module WebSocketHelper
                     ""
                   else
                     ""
-                  end
-
-                  if CONFIG && CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message keys=#{last_user_message&.keys&.inspect}")
-                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message['text']=#{last_user_message&.dig('text')&.inspect&.slice(0, 100)}")
-                      log.puts("[#{Time.now}] [ContextExtractor] DEBUG: last_user_message['content'] class=#{last_user_message&.dig('content')&.class}")
-                      log.puts("[#{Time.now}] [ContextExtractor] user_text length=#{user_text.length}, final_text length=#{final_text.to_s.length}")
-                      log.puts("[#{Time.now}] [ContextExtractor] user_text empty?=#{user_text.empty?}, final_text empty?=#{final_text.to_s.empty?}")
-                    end
                   end
 
                   # Capture session data for thread (avoid closure issues)
@@ -2912,16 +2879,7 @@ module WebSocketHelper
 
             app_name = obj["app_name"]
             app_obj = APPS[app_name]
-            
-            # Debug logging for troubleshooting
-            if CONFIG["EXTRA_LOGGING"] && app_name && (app_name.include?("Perplexity") || app_name.include?("DeepSeek"))
-              puts "[DEBUG WebSocket] Processing message for app: #{app_name}"
-              puts "[DEBUG WebSocket] App object found: #{!app_obj.nil?}"
-              puts "[DEBUG WebSocket] ChatPlusPerplexity exists: #{APPS.key?("ChatPlusPerplexity")}"
-              puts "[DEBUG WebSocket] All Chat Plus apps: #{APPS.keys.select { |k| k.include?("ChatPlus") }}"
-              puts "[DEBUG WebSocket] Total apps count: #{APPS.keys.length}"
-            end
-            
+
             unless app_obj
               error_msg = "App '#{app_name}' not found in APPS"
               puts "[ERROR] #{error_msg}"

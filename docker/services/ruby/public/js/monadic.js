@@ -41,6 +41,35 @@ function sanitizeParamsForSync(source) {
     const currentApp = $("#apps").val();
     if (currentApp) clone.app_name = currentApp;
   }
+  // Sync checkbox states to ensure params reflect current UI state
+  // This prevents stale values from being broadcast
+  if (typeof $ !== 'undefined') {
+    clone.websearch = $("#websearch").prop("checked") || false;
+    clone.easy_submit = $("#check-easy-submit").prop("checked") || false;
+    clone.auto_speech = $("#check-auto-speech").prop("checked") || false;
+    clone.mathjax = $("#mathjax").prop("checked") || false;
+
+    // Handle toggle-controlled values
+    // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
+    if (!$("#max-tokens-toggle").prop("checked")) {
+      delete clone.max_tokens;
+    } else {
+      const maxTokensVal = $("#max-tokens").val();
+      if (maxTokensVal) {
+        clone.max_tokens = parseInt(maxTokensVal) || maxTokensVal;
+      }
+    }
+
+    // If context-size-toggle is OFF, don't include context_size (use default)
+    if (!$("#context-size-toggle").prop("checked")) {
+      delete clone.context_size;
+    } else {
+      const contextSizeVal = $("#context-size").val();
+      if (contextSizeVal) {
+        clone.context_size = parseInt(contextSizeVal) || contextSizeVal;
+      }
+    }
+  }
   return clone;
 }
 
@@ -2044,6 +2073,10 @@ $(function () {
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
     }
+    // Update toggle button text
+    if (typeof window.updateToggleButtonText === 'function') {
+      window.updateToggleButtonText();
+    }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('auto_speech_toggle');
     }
@@ -2059,6 +2092,10 @@ $(function () {
     const selectedApp = $("#apps").val();
     if (selectedApp && typeof window.updateAppBadges === 'function') {
       window.updateAppBadges(selectedApp);
+    }
+    // Update toggle button text
+    if (typeof window.updateToggleButtonText === 'function') {
+      window.updateToggleButtonText();
     }
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('easy_submit_toggle');
@@ -2364,36 +2401,28 @@ $(function () {
     }
   };
   
-  // Toggle all interaction checkboxes
-  $("#interaction-toggle-all").on("click", function () {
+  // Toggle all interaction checkboxes - use event delegation for reliability
+  $(document).on("click", "#interaction-toggle-all", function () {
     const autoSpeechChecked = $("#check-auto-speech").prop("checked");
     const easySubmitChecked = $("#check-easy-submit").prop("checked");
 
     // If any checkbox is unchecked, check all. Otherwise, uncheck all.
     const shouldCheck = !autoSpeechChecked || !easySubmitChecked;
 
-    $("#check-auto-speech").prop("checked", shouldCheck);
-    $("#check-easy-submit").prop("checked", shouldCheck);
-
-    // Update params
-    params["auto_speech"] = shouldCheck;
-    params["easy_submit"] = shouldCheck;
+    // Suppress broadcasts during toggle to prevent state reset from server sync
+    window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
+    try {
+      // Set checkbox values and trigger change events to update params
+      $("#check-auto-speech").prop("checked", shouldCheck).trigger("change");
+      $("#check-easy-submit").prop("checked", shouldCheck).trigger("change");
+    } finally {
+      window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
+    }
 
     // Update the button text after toggling
     window.updateToggleButtonText();
+  });
 
-    // Update badges to reflect toggle state
-    const selectedApp = $("#apps").val();
-    if (selectedApp && typeof window.updateAppBadges === 'function') {
-      window.updateAppBadges(selectedApp);
-    }
-  });
-  
-  // Update toggle button text when individual checkboxes change
-  $("#check-auto-speech, #check-easy-submit").on("change", function() {
-    window.updateToggleButtonText();
-  });
-  
   // Initialize toggle button text on page load
   $(document).ready(function() {
     window.updateToggleButtonText();

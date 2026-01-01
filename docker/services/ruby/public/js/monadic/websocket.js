@@ -4498,6 +4498,14 @@ let loadedApp = "Chat";
 
         const fromParamUpdate = data["from_param_update"] === true;
 
+        // Skip full loadParams for param sync updates from the same session
+        // These are echoes of our own changes and shouldn't reset UI state
+        if (fromParamUpdate) {
+          // Just update the local params object without resetting UI
+          Object.assign(params, data["content"]);
+          break;
+        }
+
         if (data["from_import"]) {
           setAutoSpeechSuppressed(true, { reason: 'parameters import' });
           if (typeof window !== 'undefined') {

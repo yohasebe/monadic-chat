@@ -358,12 +358,12 @@ RSpec.describe AIUserAgent do
     it 'handles various provider names' do
       # These values should match system_defaults.json provider_defaults
       providers_and_defaults = {
-        "gemini" => "gemini-2.5-flash",
+        "gemini" => "gemini-3-flash-preview",
         "mistral" => "mistral-large-latest",
         "grok" => "grok-4-1-fast-non-reasoning",
-        "perplexity" => "sonar-reasoning-pro",  # Matches system_defaults.json
+        "perplexity" => "sonar-reasoning-pro",
         "deepseek" => "deepseek-chat",
-        "cohere" => "command-a-03-2025"
+        "cohere" => "command-a-reasoning-08-2025"
       }
 
       stub_const('CONFIG', {})

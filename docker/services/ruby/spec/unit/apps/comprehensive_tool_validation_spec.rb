@@ -349,13 +349,24 @@ RSpec.describe 'Comprehensive Tool Validation' do
   end
 
   describe 'Helper Module Consistency' do
+    # This test only applies to apps with Ruby class files (not MDSL-only apps)
     APPS_WITH_CUSTOM_TOOLS.each do |app_name, config|
       context "#{app_name}" do
         config[:providers].each do |provider|
-          it "#{provider} version includes correct helper module" do
-            app_file = find_app_class_file(app_name, provider)
-            skip "No app class file found" unless app_file
+          # Pre-check: only create test if Ruby class file exists
+          app_base = File.expand_path('../../../apps', __dir__)
+          provider_suffix = provider.downcase
+          patterns = [
+            File.join(app_base, app_name, "*_#{provider_suffix}.rb"),
+            File.join(app_base, app_name, "#{app_name}_#{provider_suffix}.rb")
+          ]
+          class_files = patterns.flat_map { |p| Dir.glob(p) }.reject { |f| f.include?('_tools') }
 
+          # Only create test if Ruby class file exists
+          next if class_files.empty?
+
+          it "#{provider} version includes correct helper module" do
+            app_file = class_files.first
             content = File.read(app_file)
             expected_helper = provider_to_helper(provider)
 
@@ -365,6 +376,58 @@ RSpec.describe 'Comprehensive Tool Validation' do
 
             expect(has_helper).to be(true),
               "#{app_name} #{provider} should include #{expected_helper}"
+          end
+        end
+      end
+    end
+  end
+
+  describe 'MDSL Provider Configuration' do
+    # Validate that MDSL-defined apps specify the correct provider
+    APPS_WITH_CUSTOM_TOOLS.each do |app_name, config|
+      context "#{app_name}" do
+        config[:providers].each do |provider|
+          # Find MDSL file for this provider
+          app_base = File.expand_path('../../../apps', __dir__)
+          provider_suffix = provider.downcase
+          mdsl_pattern = File.join(app_base, app_name, "*_#{provider_suffix}.mdsl")
+          mdsl_files = Dir.glob(mdsl_pattern)
+
+          # Only create test if MDSL file exists
+          next if mdsl_files.empty?
+
+          it "#{provider} MDSL specifies correct provider" do
+            mdsl_file = mdsl_files.first
+            content = File.read(mdsl_file)
+
+            # Check that the MDSL includes the correct provider specification
+            # MDSL format: provider "openai" or provider "OpenAI" (case-insensitive)
+            expected_patterns = case provider.downcase
+            when 'openai'
+              [/provider\s+["']openai["']/i, /include\s+OpenAIHelper/]
+            when 'claude'
+              [/provider\s+["']anthropic["']/i, /provider\s+["']claude["']/i, /include\s+ClaudeHelper/]
+            when 'gemini'
+              [/provider\s+["']gemini["']/i, /provider\s+["']google["']/i, /include\s+GeminiHelper/]
+            when 'grok'
+              [/provider\s+["']grok["']/i, /provider\s+["']xai["']/i, /include\s+GrokHelper/]
+            when 'mistral'
+              [/provider\s+["']mistral["']/i, /include\s+MistralHelper/]
+            when 'cohere'
+              [/provider\s+["']cohere["']/i, /include\s+CohereHelper/]
+            when 'deepseek'
+              [/provider\s+["']deepseek["']/i, /include\s+DeepSeekHelper/]
+            when 'perplexity'
+              [/provider\s+["']perplexity["']/i, /include\s+PerplexityHelper/]
+            when 'ollama'
+              [/provider\s+["']ollama["']/i, /include\s+OllamaHelper/]
+            else
+              []
+            end
+
+            has_provider = expected_patterns.any? { |pattern| content.match?(pattern) }
+            expect(has_provider).to be(true),
+              "#{app_name} #{provider} MDSL should specify provider correctly. Checked patterns: #{expected_patterns.inspect}"
           end
         end
       end
@@ -407,13 +470,26 @@ RSpec.describe 'Comprehensive Tool Validation' do
 
   def find_tools_file(app_name, provider)
     provider_suffix = provider.downcase
-    patterns = [
+
+    # First, look for dedicated tools files
+    tools_patterns = [
       File.join(app_base_dir, app_name, "*#{provider_suffix}*_tools.rb"),
       File.join(app_base_dir, app_name, "*_tools.rb")
     ]
 
-    patterns.each do |pattern|
+    tools_patterns.each do |pattern|
       files = Dir.glob(pattern)
+      return files.first if files.any?
+    end
+
+    # Fallback: look in the main class file (some apps define tools there)
+    class_patterns = [
+      File.join(app_base_dir, app_name, "#{app_name}_#{provider_suffix}.rb"),
+      File.join(app_base_dir, app_name, "*_#{provider_suffix}.rb")
+    ]
+
+    class_patterns.each do |pattern|
+      files = Dir.glob(pattern).reject { |f| f.include?('_tools') }
       return files.first if files.any?
     end
 

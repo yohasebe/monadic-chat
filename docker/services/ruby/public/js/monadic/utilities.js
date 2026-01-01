@@ -1959,7 +1959,6 @@ $(document).ready(function() {
       window.SessionState.app.current = selectedApp;
       window.lastApp = selectedApp;
       window.SessionState.save();
-      console.log('[App Change] Saved to SessionState:', selectedApp);
     }
 
     setTimeout(function() {
@@ -1974,10 +1973,8 @@ $(document).ready(function() {
         // Get context_schema from app settings if defined
         const contextSchema = apps[selectedApp]["context_schema"] || null;
         ContextPanel.show(selectedApp, contextSchema);
-        console.log('[App Change] Context panel shown for monadic app:', selectedApp, 'schema:', contextSchema);
       } else {
         ContextPanel.hide();
-        console.log('[App Change] Context panel hidden for non-monadic app:', selectedApp);
       }
     }
   });

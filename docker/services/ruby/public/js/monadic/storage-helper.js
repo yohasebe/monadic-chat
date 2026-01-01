@@ -28,7 +28,6 @@ const StorageHelper = {
           // Retry once after cleanup
           try {
             localStorage.setItem(key, value);
-            console.info('[StorageHelper] Successfully stored after cleanup');
             return true;
           } catch (e2) {
             console.error('[StorageHelper] Failed even after cleanup:', e2);
@@ -106,13 +105,10 @@ const StorageHelper = {
       keysToRemove.forEach(key => {
         try {
           localStorage.removeItem(key);
-          console.info('[StorageHelper] Removed non-critical item:', key);
         } catch (e) {
           console.warn('[StorageHelper] Failed to remove item:', key, e);
         }
       });
-
-      console.info(`[StorageHelper] Cleared ${keysToRemove.length} non-critical items`);
     } catch (e) {
       console.error('[StorageHelper] Error during cleanup:', e);
     }

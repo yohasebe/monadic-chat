@@ -46,7 +46,6 @@ const ContextPanel = {
     if (cancelBtn) cancelBtn.style.display = "none";
 
     this.bindEvents();
-    console.log("[ContextPanel] Initialized");
   },
 
   /**
@@ -100,7 +99,6 @@ const ContextPanel = {
       const userCardBody = document.querySelector(`#discourse .card[data-turn="${turn}"]:not(#temp-card) .role-user`);
       if (userCardBody) {
         targetCard = userCardBody.closest('.card');
-        console.log(`[ContextPanel] Assistant card for Turn ${turn} not found, falling back to user card`);
       }
     }
 
@@ -113,8 +111,6 @@ const ContextPanel = {
       setTimeout(() => {
         targetCard.classList.remove('context-highlight');
       }, 2000);
-
-      console.log(`[ContextPanel] Scrolled to Turn ${turn}`);
     } else {
       console.warn(`[ContextPanel] Turn ${turn} not found`);
     }

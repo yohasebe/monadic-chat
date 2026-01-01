@@ -28,13 +28,7 @@
         JSON.stringify(models[key]) !== JSON.stringify(staticModelSpec[key])
       );
       
-      if (newModels.length > 0) {
-        console.log(`[Model Loader] Loaded ${newModels.length} custom models:`, newModels);
-      }
-      
-      if (modifiedModels.length > 0) {
-        console.log(`[Model Loader] Modified ${modifiedModels.length} existing models:`, modifiedModels);
-      }
+      // Custom model loading is now silent (logs removed for production)
       
       return models;
       

@@ -308,12 +308,9 @@ function openMaskEditor(imageData) {
         mask_for: imageData.title // Reference to the original image
       };
       
-      console.log("Saving mask image...");
-      
       // Add mask to images array so it gets sent with the message
       // This ensures it's saved to the shared folder like other images
       images.push(window.currentMaskData);
-      console.log("Mask added to images:", maskFilename);
       
       // Show success alert
       const maskCreatedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.maskCreated') : 'Mask created for';
@@ -374,7 +371,6 @@ function openMaskEditor(imageData) {
         const indexToRemove = images.findIndex(img => img.title === maskFilename);
         if (indexToRemove !== -1) {
           images.splice(indexToRemove, 1);
-          console.log("Mask removed from images array:", maskFilename);
         }
         
         // Clear global mask data

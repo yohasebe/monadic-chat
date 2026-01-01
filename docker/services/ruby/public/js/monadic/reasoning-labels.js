@@ -9,7 +9,6 @@ class ReasoningLabels {
     
     // Get language from UI
     const lang = window.webUIi18n && window.webUIi18n.currentLanguage || 'en';
-    console.log(`[ReasoningLabels] Getting label for provider=${provider}, model=${model}, lang=${lang}`);
     
     const labels = {
       'en': {

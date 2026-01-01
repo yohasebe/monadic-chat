@@ -70,7 +70,6 @@
    */
   function clearAll() {
     elementCache.clear();
-    console.log('DOM cache cleared');
   }
   
   /**
@@ -121,8 +120,6 @@
     commonSelectors.forEach(selector => {
       get(selector);
     });
-    
-    console.log(`DOM cache initialized with ${commonSelectors.length} elements`);
   }
   
   /**

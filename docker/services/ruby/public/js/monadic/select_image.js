@@ -333,7 +333,6 @@ function updateFileDisplay(files) {
         const maskIndex = images.findIndex(img => img.title === maskToRemove);
         if (maskIndex !== -1) {
           images.splice(maskIndex, 1);
-          console.log("Mask removed from images array:", maskToRemove);
         }
       }
       window.currentMaskData = null;

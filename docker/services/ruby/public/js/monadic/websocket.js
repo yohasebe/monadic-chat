@@ -36,7 +36,6 @@ function closeCurrentWebSocket() {
       ws.onmessage = null;
 
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        console.log('[WebSocket] Closing old connection before creating new one');
         ws.close(1000, 'Creating new connection');
       }
     } catch (e) {
@@ -507,7 +506,7 @@ document.addEventListener("keydown", function (event) {
     if (message.value.trim() !== "") {
       event.preventDefault();
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-        console.log('[Send] Ignoring auto-submit: tab is not foreground');
+        // Ignore auto-submit when tab is not in foreground
       } else {
         $("#send").click();
       }
@@ -868,8 +867,12 @@ window.handleFragmentMessage = function(fragment) {
 };
 
 // Debug function to check streaming fragment issues after a response
-// Usage: window.debugFragmentSummary() in browser console
+// Usage: window.debugFragments = true; window.debugFragmentSummary()
 window.debugFragmentSummary = function() {
+  if (!window.debugFragments) {
+    console.log('Enable debug mode first: window.debugFragments = true');
+    return;
+  }
   console.log('=== Fragment Debug Summary ===');
   console.log('Last processed sequence:', window._lastProcessedSequence);
   console.log('Last processed index:', window._lastProcessedIndex);
@@ -898,7 +901,9 @@ window.resetFragmentDebug = function() {
   window._sequenceGaps = [];
   window._skippedFragments = [];
   window._lastFragmentTime = null;
-  console.log('[Fragment Debug] Tracking reset');
+  if (window.debugFragments) {
+    console.log('[Fragment Debug] Tracking reset');
+  }
 };
 
 // Make defaultApp globally available
@@ -2676,7 +2681,7 @@ function connect_websocket(callback) {
     const host = window.location.hostname;
     const port = window.location.port || '4567';
     wsUrl = `ws://${host}:${port}`;
-    console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
+    if (window.debugWebSocket) console.log(`[WebSocket] Using hostname from browser: ${wsUrl}`);
   }
 
   if (tabId) {
@@ -2684,7 +2689,7 @@ function connect_websocket(callback) {
     wsUrl = `${wsUrl}${separator}tab_id=${encodeURIComponent(tabId)}`;
   }
 
-  console.log(`[WebSocket] Connecting to: ${wsUrl}`);
+  if (window.debugWebSocket) console.log(`[WebSocket] Connecting to: ${wsUrl}`);
   const ws = new WebSocket(wsUrl);
 
 // Tracks which app was loaded from server parameters/import. Keep empty by default.
@@ -2697,12 +2702,12 @@ let loadedApp = "Chat";
     // If we have a saved app, restore it to window.lastApp
     if (window.SessionState.app && window.SessionState.app.current) {
       window.lastApp = window.SessionState.app.current;
-      console.log('[Session Restore] Restored lastApp from SessionState:', window.lastApp);
+      if (window.debugWebSocket) console.log('[Session Restore] Restored lastApp from SessionState:', window.lastApp);
     }
   }
 
   ws.onopen = function () {
-    console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
+    if (window.debugWebSocket) console.log(`[WebSocket] Connection established successfully to ${wsUrl}`);
     // Update state if available
     if (window.UIState) {
       window.UIState.set('wsConnected', true);
@@ -2726,7 +2731,7 @@ let loadedApp = "Chat";
     // Detect browser/device capabilities for audio handling
     const runningOnFirefox = navigator.userAgent.indexOf('Firefox') !== -1;
 
-    console.log(`[Device Detection] Details - hasMediaSourceSupport: ${hasMediaSourceSupport}, isIOS: ${isIOS}, isIPad: ${isIPad}, isMobileIOS: ${isMobileIOS}, Firefox: ${runningOnFirefox}`);
+    if (window.debugWebSocket) console.log(`[Device Detection] Details - hasMediaSourceSupport: ${hasMediaSourceSupport}, isIOS: ${isIOS}, isIPad: ${isIPad}, isMobileIOS: ${isMobileIOS}, Firefox: ${runningOnFirefox}`);
 
     // Setup media handling based on browser capabilities
     if (hasMediaSourceSupport && !isMobileIOS) {
@@ -3642,10 +3647,10 @@ let loadedApp = "Chat";
         if (data.text_direction) {
           if (data.text_direction === "rtl") {
             $("body").addClass("rtl-messages");
-            console.log("RTL messages enabled for:", data.language);
+            if (window.debugWebSocket) console.log("RTL messages enabled for:", data.language);
           } else {
             $("body").removeClass("rtl-messages");
-            console.log("LTR messages enabled for:", data.language);
+            if (window.debugWebSocket) console.log("LTR messages enabled for:", data.language);
           }
         }
         break;
@@ -4832,10 +4837,10 @@ let loadedApp = "Chat";
 
           if ($("#check-easy-submit").is(":checked")) {
             if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-          console.log('[Send] Ignoring auto-submit: tab is not foreground');
-        } else {
-          $("#send").click();
-        }
+              if (window.debugWebSocket) console.log('[Send] Ignoring auto-submit: tab is not foreground');
+            } else {
+              $("#send").click();
+            }
           }
           const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
           setAlert(`<i class='fa-solid fa-circle-check'></i> ${voiceFinishedText}`, "secondary");
@@ -5034,7 +5039,7 @@ let loadedApp = "Chat";
             console.error('Failed to rebuild selectors from apps data:', e);
           }
         }
-        console.log('[INFO-END] Exiting info handler');
+        if (window.debugWebSocket) console.log('[INFO-END] Exiting info handler');
         break;
       }
       case "pdf_titles": {
@@ -5101,7 +5106,7 @@ let loadedApp = "Chat";
       }
       case "past_messages": {
         const serverMessages = Array.isArray(data["content"]) ? data["content"] : [];
-        console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
+        if (window.debugWebSocket) console.log(`[Session] Rendering past_messages (count=${serverMessages.length})`);
 
         if (data["from_import"]) {
           setAutoSpeechSuppressed(true, { reason: 'past_messages import' });
@@ -6115,7 +6120,7 @@ let loadedApp = "Chat";
             // Auto Speech enabled, TTS not started yet, and tab is foreground
             // CRITICAL: Set autoSpeechActive flag so that html message handler knows to trigger TTS
             window.autoSpeechActive = true;
-            console.log('[streaming_complete] Set window.autoSpeechActive = true (spinner will show when TTS starts)');
+            if (window.debugWebSocket) console.log('[streaming_complete] Set window.autoSpeechActive = true (spinner will show when TTS starts)');
 
             // NOTE: Do NOT show "Processing audio" spinner here.
             // The spinner should ONLY be shown when the actual TTS API call is made (PLAY_TTS message sent).
@@ -6379,7 +6384,7 @@ function reconnect_websocket(currentWs, callback) {
   } catch (_) {}
   // Prevent multiple reconnection attempts for the same WebSocket
   if (currentWs && currentWs._isReconnecting) {
-    console.log("Already attempting to reconnect, skipping duplicate attempt");
+    if (window.debugWebSocket) console.log("Already attempting to reconnect, skipping duplicate attempt");
     return;
   }
 
@@ -6480,7 +6485,7 @@ function reconnect_websocket(currentWs, callback) {
 
       case WebSocket.CLOSING:
         // Wait for socket to fully close before reconnecting
-        console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
+        if (window.debugWebSocket) console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
         reconnectionTimer = setTimeout(() => {
           if (currentWs) {
             currentWs._isReconnecting = false; // Reset flag before next attempt
@@ -6491,7 +6496,7 @@ function reconnect_websocket(currentWs, callback) {
 
       case WebSocket.CONNECTING:
         // Socket is still trying to connect, wait a bit before checking again
-        console.log(`Socket is connecting. Checking again in ${delay}ms.`);
+        if (window.debugWebSocket) console.log(`Socket is connecting. Checking again in ${delay}ms.`);
         reconnectionTimer = setTimeout(() => {
           if (currentWs) {
             currentWs._isReconnecting = false; // Reset flag before next attempt
@@ -6551,7 +6556,7 @@ function handleVisibilityChange() {
       // Always reset TTS flags and hide stale spinners on visibility change
       // Note: We intentionally do NOT restore spinner here to prevent stale "Processing audio" after sleep/wake
       // If actual processing is happening, the processing code will show/update the spinner appropriately
-      console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
+      if (window.debugWebSocket) console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
 
       // Reset TTS flags to "completed" state to prevent stale audio processing
       window.autoSpeechActive = false;
@@ -6591,7 +6596,7 @@ function handleVisibilityChange() {
                                    spinnerText.toLowerCase().includes('audio');
 
         if (isProcessingAudio && !stillProcessing) {
-          console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
+          if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
           $("#monadic-spinner").hide();
           $("#monadic-spinner")
             .find("span i")
@@ -6611,7 +6616,7 @@ function handleVisibilityChange() {
 
       // Prevent duplicate connection attempts during rapid visibility changes
       if (isConnecting) {
-        console.log('[handleVisibilityChange] Connection attempt already in progress, skipping');
+        if (window.debugWebSocket) console.log('[handleVisibilityChange] Connection attempt already in progress, skipping');
         return;
       }
 

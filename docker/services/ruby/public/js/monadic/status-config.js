@@ -145,7 +145,4 @@
     getBorderColor
   };
 
-  // Log initialization
-  console.log('[StatusConfig] Initialized with status types:', Object.keys(STATUS_CONFIG));
-
 })(window);

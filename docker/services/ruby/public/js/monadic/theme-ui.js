@@ -14,8 +14,6 @@
       return;
     }
 
-    console.log('[ThemeUI] Initializing theme UI controls');
-
     const themeSystemBtn = document.getElementById('theme-system');
     const themeLightBtn = document.getElementById('theme-light');
     const themeDarkBtn = document.getElementById('theme-dark');
@@ -27,21 +25,18 @@
 
     // Set up event listeners
     themeSystemBtn.addEventListener('click', () => {
-      console.log('[ThemeUI] System theme selected');
       window.themeManager.setTheme('system').then(() => {
         updateButtonStates('system');
       });
     });
 
     themeLightBtn.addEventListener('click', () => {
-      console.log('[ThemeUI] Light theme selected');
       window.themeManager.setTheme('light').then(() => {
         updateButtonStates('light');
       });
     });
 
     themeDarkBtn.addEventListener('click', () => {
-      console.log('[ThemeUI] Dark theme selected');
       window.themeManager.setTheme('dark').then(() => {
         updateButtonStates('dark');
       });
@@ -73,8 +68,6 @@
       const currentThemeSource = window.themeManager.getThemeSource();
       updateButtonStates(currentThemeSource);
     });
-
-    console.log('[ThemeUI] Theme UI controls initialized');
   }
 
   // Initialize when DOM is ready

@@ -547,12 +547,16 @@ module MonadicDSL
             type: param[:type],
             description: param[:description]
           }
+          # Add items specification for array types (required by many LLM APIs)
+          if param[:type] == "array" && param[:items]
+            properties[name][:items] = param[:items]
+          end
           properties[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
         end
         properties
       end
     end
-    
+
     class GeminiFormatter
       def format(tool)
         {
@@ -615,12 +619,16 @@ module MonadicDSL
             type: param[:type],
             description: param[:description]
           }
+          # Add items specification for array types
+          if param[:type] == "array" && param[:items]
+            props[name][:items] = param[:items]
+          end
           props[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
         end
         props
       end
     end
-    
+
     class DeepSeekFormatter
       def format(tool)
         {
@@ -638,7 +646,7 @@ module MonadicDSL
       end
 
       private
-      
+
       def format_properties(tool)
         props = {}
         tool.parameters.each do |name, param|
@@ -646,6 +654,10 @@ module MonadicDSL
             type: param[:type],
             description: param[:description]
           }
+          # Add items specification for array types
+          if param[:type] == "array" && param[:items]
+            props[name][:items] = param[:items]
+          end
           props[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
         end
         props
@@ -677,6 +689,10 @@ module MonadicDSL
             type: param[:type],
             description: param[:description]
           }
+          # Add items specification for array types
+          if param[:type] == "array" && param[:items]
+            props[name][:items] = param[:items]
+          end
           props[name][:enum] = tool.enum_values[name] if tool.enum_values[name]
         end
         props

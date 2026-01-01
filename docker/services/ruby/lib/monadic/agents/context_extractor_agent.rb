@@ -279,6 +279,9 @@ module ContextExtractorAgent
       ]
     }
 
+    # Check for reasoning/thinking models
+    is_deepseek_reasoner = provider == "deepseek" && model.to_s.include?("reasoner")
+
     # Handle OpenAI-specific parameters based on model
     if provider == "openai"
       request_body["max_completion_tokens"] = 500
@@ -291,8 +294,12 @@ module ContextExtractorAgent
         # Other OpenAI models (gpt-4.1, etc.) support temperature
         request_body["temperature"] = 0.3
       end
+    elsif is_deepseek_reasoner
+      # DeepSeek reasoner needs more tokens for reasoning + response
+      request_body["max_tokens"] = 2000
+      # Don't set temperature for reasoner models
     else
-      # Other providers (xAI, Mistral, DeepSeek) use max_tokens and temperature
+      # Other providers (xAI, Mistral, regular DeepSeek) use max_tokens and temperature
       request_body["max_tokens"] = 500
       request_body["temperature"] = 0.3
     end
@@ -305,6 +312,7 @@ module ContextExtractorAgent
     return nil unless response
 
     data = JSON.parse(response)
+    # DeepSeek reasoner returns reasoning_content separately, content has the actual response
     data.dig("choices", 0, "message", "content")
   rescue StandardError => e
     puts "[ContextExtractor] OpenAI-compatible API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -315,6 +323,8 @@ module ContextExtractorAgent
   def call_anthropic_api(model, system_message, api_key)
     uri = URI.parse(API_ENDPOINTS["anthropic"])
 
+    # Note: For context extraction, we don't enable extended thinking
+    # as it's a simple task and would add unnecessary latency/cost
     request_body = {
       "model" => model,
       "system" => system_message,
@@ -334,8 +344,14 @@ module ContextExtractorAgent
     return nil unless response
 
     data = JSON.parse(response)
-    content = data.dig("content", 0)
-    content["text"] if content && content["type"] == "text"
+    # Handle both regular and extended thinking responses
+    # Extended thinking has thinking blocks before text
+    content_array = data["content"]
+    if content_array.is_a?(Array)
+      text_item = content_array.find { |item| item["type"] == "text" }
+      return text_item["text"] if text_item
+    end
+    nil
   rescue StandardError => e
     puts "[ContextExtractor] Anthropic API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     nil
@@ -346,6 +362,9 @@ module ContextExtractorAgent
     endpoint = API_ENDPOINTS["gemini"] % { model: model }
     uri = URI.parse("#{endpoint}?key=#{api_key}")
 
+    # Check for thinking models (e.g., gemini-2.0-flash-thinking-exp)
+    is_thinking_model = model.to_s.include?("thinking")
+
     request_body = {
       "contents" => [
         {
@@ -355,10 +374,12 @@ module ContextExtractorAgent
         }
       ],
       "generationConfig" => {
-        "maxOutputTokens" => 500,
-        "temperature" => 0.3
+        "maxOutputTokens" => is_thinking_model ? 2000 : 500
       }
     }
+
+    # Don't set temperature for thinking models
+    request_body["generationConfig"]["temperature"] = 0.3 unless is_thinking_model
 
     response = make_http_request(uri, request_body, {
       "Content-Type" => "application/json"
@@ -367,7 +388,18 @@ module ContextExtractorAgent
     return nil unless response
 
     data = JSON.parse(response)
-    data.dig("candidates", 0, "content", "parts", 0, "text")
+    # Gemini thinking models may have multiple parts (thought + text)
+    # Find the last text part (thinking comes first if present)
+    parts = data.dig("candidates", 0, "content", "parts")
+    if parts.is_a?(Array) && parts.any?
+      # For thinking models, the actual response is typically the last part
+      # or the part without "thought" key
+      text_parts = parts.select { |p| p["text"] && !p.key?("thought") }
+      return text_parts.last["text"] if text_parts.any?
+      # Fallback to last part's text
+      return parts.last["text"] if parts.last["text"]
+    end
+    nil
   rescue StandardError => e
     puts "[ContextExtractor] Gemini API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     nil

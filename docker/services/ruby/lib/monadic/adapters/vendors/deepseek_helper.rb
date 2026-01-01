@@ -328,11 +328,13 @@ module DeepSeekHelper
 
     body["temperature"] = temperature
 
-    # Determine if we need to add JSON format instruction (required for monadic/json mode)
+    # Determine if we need to add JSON format instruction
     # Handle both string "true" and boolean true values
+    # Note: monadic mode does NOT require JSON format - it uses tools for state management
+    # Only explicit json mode requires JSON format
     is_monadic = obj["monadic"].to_s == "true"
     is_json = obj["json"].to_s == "true"
-    needs_json_prompt = is_monadic || is_json
+    needs_json_prompt = is_json  # Only json mode needs JSON format, not monadic
 
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
@@ -421,9 +423,9 @@ module DeepSeekHelper
         msg
       end
     else
-      # Only set response_format for non-tool-response calls
-      # Tool responses should not require JSON format as the model needs flexibility
-      if (is_monadic || is_json) && role != "tool"
+      # Only set response_format for explicit json mode (not monadic mode)
+      # Monadic apps use tools for state management, not JSON response format
+      if is_json && role != "tool"
         body["response_format"] ||= { "type" => "json_object" }
       end
     end
@@ -604,9 +606,10 @@ module DeepSeekHelper
                   if choice["message"]["content"] =~ /```json\s*\n?\s*\{.*"name"\s*:\s*"(tavily_search|tavily_fetch)"/m
                     # DeepSeek is outputting function calls as text, don't send fragments
                     # We'll handle this after the full message is received
-                  elsif is_monadic || is_json
-                    # Suppress fragments for monadic/json mode - content will be processed after completion
+                  elsif is_json
+                    # Suppress fragments for json mode only - content will be processed after completion
                     # The raw JSON fragments should not be shown to the user
+                    # Note: monadic mode uses normal streaming since responses are natural language
                   elsif fragment.length > 0
                     res = {
                       "type" => "fragment",
@@ -727,21 +730,21 @@ module DeepSeekHelper
         end
       end
       
-      if is_monadic
+      # Process JSON responses only for explicit json mode (not monadic mode)
+      # Monadic mode uses tools for state management and returns natural language
+      if is_json
         choice = text_result["choices"][0]
         if choice["finish_reason"] == "length" || choice["finish_reason"] == "stop" || choice["finish_reason"].nil?
           message = choice["message"]["content"]
-          # monadic_map returns JSON string, but we need the actual content
-          modified = APPS[app].monadic_map(message)
           # Parse the JSON and extract the message/response field
           begin
-            parsed = JSON.parse(modified)
+            parsed = JSON.parse(message)
             # Check for common response field names
-            extracted_content = parsed["message"] || parsed["response"] || parsed["text"] || modified
+            extracted_content = parsed["message"] || parsed["response"] || parsed["text"] || message
             choice["message"]["content"] = extracted_content
 
             # Send the processed content as a single fragment to the UI
-            # (since we suppressed streaming fragments for monadic mode)
+            # (since we suppressed streaming fragments for json mode)
             res = {
               "type" => "fragment",
               "content" => extracted_content,
@@ -751,12 +754,11 @@ module DeepSeekHelper
             }
             block&.call res
           rescue JSON::ParserError
-            # If parsing fails, use the original modified value
-            choice["message"]["content"] = modified
+            # If parsing fails, use the original content
             # Send the raw content as fragment
             res = {
               "type" => "fragment",
-              "content" => modified,
+              "content" => message,
               "index" => 0,
               "timestamp" => Time.now.to_f,
               "is_first" => true

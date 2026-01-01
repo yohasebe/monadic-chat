@@ -89,6 +89,8 @@ app "ChatPlusOllama" do
   end
 
   tools do
+    # Import shared session context tools for sidebar context panel
+    import_shared_tools :session_context, visibility: "always"
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
   end

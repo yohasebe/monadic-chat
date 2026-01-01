@@ -2030,6 +2030,12 @@ module ClaudeHelper
       # wait for the app instance is ready up to 10 seconds
       app_instance = APPS[app]
 
+      # Inject session for tools that need it (e.g., monadic state tools)
+      method_obj = app_instance.method(tool_name.to_sym) rescue nil
+      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+        argument_hash[:session] = session
+      end
+
       begin
         if argument_hash.empty?
           tool_return = app_instance.send(tool_name.to_sym)

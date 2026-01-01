@@ -138,7 +138,7 @@ module DeepSeekHelper
     # Convert tools to strict mode format
     def convert_to_strict_tools(tools)
       return nil if tools.nil? || tools.empty?
-      
+
       tools.map do |tool|
         # Skip if already has strict property
         if tool.dig(:function, :strict) || tool.dig("function", "strict")
@@ -146,17 +146,27 @@ module DeepSeekHelper
         else
           # Deep clone the tool
           strict_tool = JSON.parse(JSON.generate(tool))
-          
-          # Add strict: true
+
+          # Check if tool has parameters with properties
+          params = strict_tool.dig("function", "parameters")
+          has_properties = params && params["properties"] && !params["properties"].empty?
+
+          # Only apply strict mode to tools that have parameters with properties
+          # DeepSeek rejects empty properties objects in strict mode
           if strict_tool["function"]
-            strict_tool["function"]["strict"] = true
-            
-            # Ensure parameters meet strict mode requirements
-            if strict_tool["function"]["parameters"]
+            if has_properties
+              strict_tool["function"]["strict"] = true
               ensure_strict_schema(strict_tool["function"]["parameters"])
+            else
+              # For parameterless tools, remove empty parameters object entirely
+              # DeepSeek doesn't accept empty properties in strict mode
+              if params && params["properties"]&.empty?
+                strict_tool["function"].delete("parameters")
+              end
+              # Don't set strict: true for parameterless tools
             end
           end
-          
+
           strict_tool
         end
       end
@@ -165,15 +175,21 @@ module DeepSeekHelper
     # Recursively ensure schema meets strict mode requirements
     def ensure_strict_schema(schema)
       return unless schema.is_a?(Hash)
-      
+
       if schema["type"] == "object"
         # STRICT MODE REQUIREMENT: All object properties must be required
         schema["additionalProperties"] = false
-        
-        # Set ALL properties as required (strict mode requirement)
-        if schema["properties"]
+
+        # Ensure properties object exists (DeepSeek requires it even if empty)
+        schema["properties"] ||= {}
+
+        # If properties is empty, ensure required is also empty array
+        if schema["properties"].empty?
+          schema["required"] = []
+        else
+          # Set ALL properties as required (strict mode requirement)
           schema["required"] = schema["properties"].keys
-          
+
           # Recursively process nested schemas
           schema["properties"].each do |prop_name, prop_schema|
             ensure_strict_schema(prop_schema)

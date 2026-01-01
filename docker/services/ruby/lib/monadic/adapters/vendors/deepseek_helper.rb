@@ -218,7 +218,11 @@ module DeepSeekHelper
           # Set ALL remaining properties as required (strict mode requirement)
           schema["required"] = schema["properties"].keys
         end
-      elsif schema["type"] == "array" && schema["items"]
+      elsif schema["type"] == "array"
+        # DeepSeek requires items field for arrays - add default if missing
+        unless schema["items"]
+          schema["items"] = { "type" => "string" }
+        end
         # Process array items schema
         ensure_strict_schema(schema["items"])
       elsif schema["anyOf"]

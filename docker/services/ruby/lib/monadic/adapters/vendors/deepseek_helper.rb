@@ -58,6 +58,12 @@ module DeepSeekHelper
     }
   ]
 
+  # JSON format instruction for monadic mode (required by DeepSeek API)
+  JSON_FORMAT_PROMPT = <<~TEXT
+
+    IMPORTANT: You must respond in valid JSON format. Your response should be a properly formatted JSON object.
+  TEXT
+
   WEBSEARCH_PROMPT = <<~TEXT
 
     IMPORTANT: You have access to web search functions. You MUST use these functions when users ask questions requiring current information or web research.
@@ -322,11 +328,19 @@ module DeepSeekHelper
 
     body["temperature"] = temperature
 
+    # Determine if we need to add JSON format instruction (required for monadic/json mode)
+    needs_json_prompt = obj["monadic"] || obj["json"]
+
     system_message_modified = false
     body["messages"] = context.compact.map do |msg|
-      if websearch && !system_message_modified && msg["role"] == "system" 
+      if !system_message_modified && msg["role"] == "system"
         system_message_modified = true
-        { "role" => msg["role"], "content" => msg["text"] + "\n\n---\n\n" + WEBSEARCH_PROMPT }
+        content = msg["text"]
+        # Add websearch prompt if enabled
+        content += "\n\n---\n\n" + WEBSEARCH_PROMPT if websearch
+        # Add JSON format prompt if monadic/json mode (required by DeepSeek API)
+        content += "\n\n---\n\n" + JSON_FORMAT_PROMPT if needs_json_prompt
+        { "role" => msg["role"], "content" => content }
       else
         { "role" => msg["role"], "content" => msg["text"] }
       end

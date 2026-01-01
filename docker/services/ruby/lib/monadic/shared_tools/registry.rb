@@ -485,19 +485,22 @@ module MonadicSharedTools
                 name: :topics,
                 type: "array",
                 description: "Topics to add to context (e.g., ['AI', 'Ruby programming'])",
-                required: false
+                required: false,
+                items: { type: "string" }
               },
               {
                 name: :people,
                 type: "array",
                 description: "People to add to context (e.g., ['John - project manager'])",
-                required: false
+                required: false,
+                items: { type: "string" }
               },
               {
                 name: :notes,
                 type: "array",
                 description: "Notes to add to context (e.g., ['User prefers Python'])",
-                required: false
+                required: false,
+                items: { type: "string" }
               },
               {
                 name: :replace,
@@ -515,19 +518,22 @@ module MonadicSharedTools
                 name: :topics,
                 type: "array",
                 description: "Topics to remove from context",
-                required: false
+                required: false,
+                items: { type: "string" }
               },
               {
                 name: :people,
                 type: "array",
                 description: "People to remove from context",
-                required: false
+                required: false,
+                items: { type: "string" }
               },
               {
                 name: :notes,
                 type: "array",
                 description: "Notes to remove from context",
-                required: false
+                required: false,
+                items: { type: "string" }
               }
             ]
           },

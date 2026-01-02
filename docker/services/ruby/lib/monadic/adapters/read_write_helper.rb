@@ -4,13 +4,21 @@ module MonadicHelper
   # Validate file path is within allowed directories
   def validate_file_path(file_path)
     return nil if file_path.nil? || file_path.empty?
-    
+
     # Get the data directory path
     data_dir = Monadic::Utils::Environment.data_path
-    
+
     begin
+      # Handle both absolute and relative paths
+      # (Same logic as file_operations.rb read_file_from_shared_folder)
+      full_path = if file_path.start_with?('/')
+                    file_path
+                  else
+                    File.join(data_dir, file_path)
+                  end
+
       # Normalize and expand paths
-      expanded_file = File.expand_path(file_path)
+      expanded_file = File.expand_path(full_path)
       expanded_data_dir = File.expand_path(data_dir)
       
       # If file exists, resolve symlinks with realpath

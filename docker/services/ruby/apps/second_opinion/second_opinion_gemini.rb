@@ -4,11 +4,11 @@ class SecondOpinionGemini < MonadicApp
   
   # Check if a model is reasoning-based for Gemini
   # @param model [String] The model name to check
-  # @return [Boolean] true if the model uses reasoning_effort parameter
+  # @return [Boolean] true if the model uses reasoning_effort/thinking_level parameter
   def self.is_reasoning_model?(model)
     return false if model.nil?
-    # Gemini 2.5 models and thinking models use reasoning_effort
-    !!(model =~ /(thinking|gemini-2\.5)/i)
+    # Gemini 3+ uses thinking_level, Gemini 2.5 uses reasoning_effort
+    !!(model =~ /(thinking|gemini-[23]\.)/i)
   end
   
   # Configure parameters for reasoning models
@@ -18,7 +18,7 @@ class SecondOpinionGemini < MonadicApp
   def configure_reasoning_params(parameters, model)
     if self.class.is_reasoning_model?(model)
       # Use minimal or none for second opinions to avoid token exhaustion
-      # Gemini 2.5 flash supports none (0 tokens), but pro requires minimum 128
+      # Flash models support none (0 tokens), but pro requires minimum 128
       if model =~ /flash(?!-lite)/i
         parameters["reasoning_effort"] = "none"  # Disable thinking for Gemini Flash
       else

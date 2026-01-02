@@ -3747,7 +3747,7 @@ module GeminiHelper
       api_key = CONFIG["GEMINI_API_KEY"]
       return { success: false, error: "GEMINI_API_KEY not configured" }.to_json unless api_key
       
-      # For editing operations, force use of Gemini model (Imagen3 doesn't support editing)
+      # For editing operations, force use of Gemini model (Imagen doesn't support editing)
       if operation == "edit"
         model = "gemini"
       end
@@ -3983,7 +3983,7 @@ module GeminiHelper
   end
 
 
-  # Direct Imagen 3 API implementation
+  # Direct Imagen API implementation (supports imagen3, imagen4, imagen4-ultra, imagen4-fast)
   def generate_image_with_imagen_direct(prompt:, aspect_ratio: "1:1", sample_count: 1, person_generation: "ALLOW_ADULT", model: "imagen4-fast")
     require 'net/http'
     require 'json'
@@ -4015,7 +4015,7 @@ module GeminiHelper
       image_model = IMAGE_GENERATION_MODELS[model] || IMAGE_GENERATION_MODEL
       # system_info: Using image_model #{image_model} for generation
 
-      # Make API request to Imagen 3
+      # Make API request to Imagen
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{image_model}:predict?key=#{api_key}")
 
       request = Net::HTTP::Post.new(uri)
@@ -4029,7 +4029,7 @@ module GeminiHelper
       if response.code == '200'
         result = JSON.parse(response.body)
         
-        # Process Imagen 3 response
+        # Process Imagen response
         if result["predictions"] && !result["predictions"].empty?
           prediction = result["predictions"].first
           
@@ -4070,7 +4070,7 @@ module GeminiHelper
       end
       
     rescue StandardError => e
-      return { success: false, error: "Error with Imagen 3: #{e.message}" }.to_json
+      return { success: false, error: "Error with Imagen: #{e.message}" }.to_json
     end
   end
 end

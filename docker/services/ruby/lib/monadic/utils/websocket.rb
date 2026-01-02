@@ -787,7 +787,7 @@ module WebSocketHelper
     end
     
     # Send Gemini voices if API key is available
-    # Full list of 30 voices from Gemini 2.5 TTS API
+    # Full list of 30 voices from Gemini TTS API
     if CONFIG["GEMINI_API_KEY"]
       gemini_voices = [
         { "voice_id" => "zephyr", "name" => "Zephyr" },

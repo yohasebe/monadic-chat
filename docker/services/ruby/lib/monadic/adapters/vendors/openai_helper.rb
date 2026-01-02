@@ -1481,7 +1481,7 @@ module OpenAIHelper
       responses_body = {
         "model" => body["model"],
         "input" => input_messages,
-        "stream" => body["stream"] || false,  # Default to false for responses API (o3-pro doesn't support streaming yet)
+        "stream" => body["stream"] || false,  # Default to false for responses API (some reasoning models may not support streaming)
         "store" => true  # Enable storage to persist reasoning content for multi-turn conversations
       }
       

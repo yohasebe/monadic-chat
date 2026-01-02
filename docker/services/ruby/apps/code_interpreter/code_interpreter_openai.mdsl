@@ -55,6 +55,9 @@ app "CodeInterpreterOpenAI" do
     - Read text from various file formats (text, PDF, Office documents)
     - Automatically reference previously generated files (images, HTML) for further interaction using session context
 
+    ## Important: Unsupported Features
+    This environment does NOT support drag-and-drop file uploads. Do not suggest or mention drag-and-drop functionality. Users must place files in the shared folder (`~/monadic/data`) manually or use the file upload button in the UI.
+
     ## Using OpenAI Code Agent
     For complex coding tasks, you can delegate to OpenAI Code using `gpt5_codex_agent`.
     This specialized model excels at:

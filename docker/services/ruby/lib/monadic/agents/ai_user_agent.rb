@@ -48,51 +48,22 @@ module AIUserAgent
     model = default_model_for_provider(provider)
     
     # Model details are logged to dedicated log files
-    
-    # Create conversation context for the API
-    # Note: For Perplexity, context is handled differently by the helper
-    context = []
-    unless provider == "perplexity"
-      conversation_messages.each do |m|
-        context << {
-          "role" => m["role"],
-          "content" => extract_content(m["text"], params["monadic"])
-        }
-      end
-    end
-    
-    # Add system message at the beginning (some APIs handle this differently)
-    # Handle system message based on provider
-    if provider == "anthropic"
-      system_option = { "system" => system_message }
-      # Don't add to context for Anthropic
-    elsif provider == "perplexity"
-      system_option = {}
-      # For Perplexity, add as first user message since they require last message to be user
-      context.unshift({ "role" => "user", "content" => "System instructions: " + system_message })
-    else
-      system_option = {}
-      # For other providers like OpenAI, use standard "system" role
-      # Note: Cohere helper will convert roles properly in its send_query method
-      context.unshift({ "role" => "system", "content" => system_message })
-    end
-    
-    # Instead of sending all previous messages, we'll only use the system message which contains
-    # all the necessary context and instructions
-    
-    # Create a focused message array with just system message that contains all context
+
+    # Build focused_messages and system_option based on provider
+    # Note: The system_message already contains the formatted conversation history
     focused_messages = []
-    
-    # Add system message - use either the specialized format for Anthropic or standard format for others
+
     if provider == "anthropic"
-      # For Anthropic, we need at least one user message
-      # Add a simple prompt to trigger the AI user response
-      focused_messages << { 
-        "role" => "user", 
-        "content" => "Based on the conversation context provided in the system message, what would be the most natural next response from the user?" 
+      # Anthropic uses a separate "system" parameter instead of a system role message
+      system_option = { "system" => system_message }
+      # Anthropic requires at least one user message
+      focused_messages << {
+        "role" => "user",
+        "content" => "Based on the conversation context provided in the system message, what would be the most natural next response from the user?"
       }
     else
-      # For other providers, add as a system message
+      # For other providers (OpenAI, Perplexity, Cohere, etc.), use standard system role
+      system_option = {}
       focused_messages << { "role" => "system", "content" => system_message }
     end
     

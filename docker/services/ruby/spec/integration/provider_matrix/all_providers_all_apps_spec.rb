@@ -13,6 +13,7 @@
 
 require 'spec_helper'
 require_relative '../../support/provider_matrix_helper'
+require_relative '../../support/response_evaluator'
 
 RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   include ProviderMatrixHelper
@@ -278,76 +279,35 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 # Basic structure validation
                 expect(res).to be_a(Hash), "Expected Hash response from #{app_name}"
 
-                # Check if response contains tool calls (valid for tool-using apps)
-                # Also check for string keys since some helpers use string keys
-                tool_calls = res[:tool_calls] || res['tool_calls'] || []
-                has_tool_calls = tool_calls.is_a?(Array) && tool_calls.any?
+                # Use two-stage evaluation
+                evaluation_context = {
+                  purpose: test_config[:expectation],
+                  provider: provider_key
+                }
 
-                if has_tool_calls
-                  # Tool calls are valid responses for tool-using apps
-                  # We simply verify that:
-                  # 1. The model made a valid tool call (not an error)
-                  # 2. Tool names are non-empty strings
-                  # The actual "appropriateness" of tool choice is less important since
-                  # we're testing API communication, not business logic
-                  tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+                result = ResponseEvaluator.evaluate(
+                  res,
+                  app_name,
+                  test_config[:prompt],
+                  evaluation_context
+                )
 
-                  puts "\n  #{app_name}: Tool call(s) - #{tool_names.join(', ')}" if ENV['DEBUG']
-
-                  # Verify we got valid tool names
-                  expect(tool_names).not_to be_empty,
-                    "#{app_name} made tool call but no tool names were returned"
-
-                  tool_names.each do |name|
-                    expect(name).to be_a(String),
-                      "#{app_name} tool name should be a String, got #{name.class}"
-                    expect(name.length).to be > 0,
-                      "#{app_name} tool name should not be empty"
-                  end
-
-                  # Test passed - tool calls are valid responses
-                  # The model successfully communicated with the API and invoked tools
-
-                else
-                  # Regular text response (support both symbol and string keys)
+                # Log evaluation result
+                if ENV['DEBUG']
                   response_text = res[:text] || res['text']
-
-                  # Handle nil or empty response
-                  if response_text.nil? || (response_text.is_a?(String) && response_text.strip.empty?)
-                    # Check if response contains an error message
-                    error_msg = res[:error] || res['error'] || 'No text response received'
-                    # Include full response for debugging
-                    fail "#{app_name} returned nil/empty response: #{error_msg}. Full response: #{res.inspect[0..500]}"
+                  tool_calls = res[:tool_calls] || res['tool_calls'] || []
+                  if tool_calls.any?
+                    tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+                    puts "\n  #{app_name}: #{result} (tools: #{tool_names.join(', ')})"
+                  else
+                    puts "\n  #{app_name}: #{result} (#{response_text.to_s.length} chars)"
                   end
-
-                  expect(response_text).to be_a(String), "Expected String text from #{app_name}, got #{response_text.class}"
-                  expect(response_text.length).to be > 0, "Expected non-empty response from #{app_name}"
-
-                  # Check for runtime errors using pattern matching
-                  error_patterns = [
-                    /undefined method ['`]/i,
-                    /NoMethodError:/,
-                    /NameError:/,
-                    /TypeError:/,
-                    /ArgumentError:/,
-                    /SyntaxError:/,
-                    /LoadError:/,
-                    /`rescue in.*'/,
-                    /from .*\.rb:\d+:in/
-                  ]
-                  has_runtime_errors = error_patterns.any? { |pattern| response_text.match?(pattern) }
-
-                  expect(has_runtime_errors).to be(false),
-                    "#{app_name} appears to have runtime errors in response:\n#{response_text[0..500]}"
-
-                  # Smoke test: just verify we got a non-empty response without errors
-                  # AI evaluation is skipped to avoid false negatives from overly strict criteria
-                  # The goal is only to verify the app responded without crashing
-                  expect(response_text.length).to be > 5,
-                    "#{app_name} response too short: #{response_text}"
-
-                  puts "\n  #{app_name}: OK (#{response_text.length} chars)" if ENV['DEBUG']
                 end
+
+                # Assert evaluation passed
+                expect(result.pass?).to be(true),
+                  "#{app_name} evaluation failed: #{result.reason}\n" \
+                  "Response: #{(res[:text] || res['text']).to_s[0..300]}"
 
               rescue Timeout::Error => e
                 skip "#{app_name}: Timeout - #{e.message[0..50]}"
@@ -423,65 +383,38 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 # Use max_turns: 3 to allow follow-up when AI asks clarifying questions
                 res = p.chat(test_config[:prompt], app: app_name, timeout: 120, max_turns: 3)
 
-                # Check if response contains tool calls (support both symbol and string keys)
-                tool_calls = res[:tool_calls] || res['tool_calls'] || []
-                has_tool_calls = tool_calls.is_a?(Array) && tool_calls.any?
+                # Basic structure validation
+                expect(res).to be_a(Hash), "Expected Hash response from #{app_name}"
 
-                if has_tool_calls
-                  # Tool calls are expected for tool-aware apps
-                  # Some apps have mandatory first-action tool calls (e.g., check_environment, load_research_progress)
-                  # These are EXPECTED behavior per their MDSL system prompts
-                  tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+                # Use two-stage evaluation
+                evaluation_context = {
+                  purpose: test_config[:expectation],
+                  provider: provider_key
+                }
 
-                  puts "\n  #{app_name}: Tool call(s) - #{tool_names.join(', ')}" if ENV['DEBUG']
+                result = ResponseEvaluator.evaluate(
+                  res,
+                  app_name,
+                  test_config[:prompt],
+                  evaluation_context
+                )
 
-                  # Verify we got valid tool names (no AI evaluation needed for tool calls)
-                  expect(tool_names).not_to be_empty,
-                    "#{app_name} made tool call but no tool names were returned"
-
-                  tool_names.each do |name|
-                    expect(name).to be_a(String),
-                      "#{app_name} tool name should be a String, got #{name.class}"
-                    expect(name.length).to be > 0,
-                      "#{app_name} tool name should not be empty"
-                  end
-
-                  # Test passed - tool calls are valid responses for tool-aware apps
-                  # Apps like CodeInterpreter and ResearchAssistant are EXPECTED to make tool calls first
-
-                else
-                  # Regular text response (support both symbol and string keys)
+                # Log evaluation result
+                if ENV['DEBUG']
                   response_text = res[:text] || res['text']
-
-                  # Handle nil or empty response
-                  if response_text.nil? || (response_text.is_a?(String) && response_text.strip.empty?)
-                    error_msg = res[:error] || res['error'] || 'No text response received'
-                    fail "#{app_name} returned nil/empty response: #{error_msg}. Full response: #{res.inspect[0..500]}"
+                  tool_calls = res[:tool_calls] || res['tool_calls'] || []
+                  if tool_calls.any?
+                    tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+                    puts "\n  #{app_name} (tool): #{result} (tools: #{tool_names.join(', ')})"
+                  else
+                    puts "\n  #{app_name} (tool): #{result} (#{response_text.to_s.length} chars)"
                   end
-
-                  # Check for runtime errors
-                  error_patterns = [
-                    /undefined method ['`]/i,
-                    /NoMethodError:/,
-                    /NameError:/,
-                    /TypeError:/,
-                    /ArgumentError:/,
-                    /SyntaxError:/,
-                    /LoadError:/,
-                    /`rescue in.*'/,
-                    /from .*\.rb:\d+:in/
-                  ]
-                  has_runtime_errors = error_patterns.any? { |pattern| response_text.match?(pattern) }
-
-                  expect(has_runtime_errors).to be(false),
-                    "#{app_name} has errors in response:\n#{response_text[0..300]}"
-
-                  # Smoke test: verify non-empty response without errors
-                  expect(response_text.length).to be > 5,
-                    "#{app_name} response too short: #{response_text}"
-
-                  puts "\n  #{app_name}: OK (#{response_text.length} chars)" if ENV['DEBUG']
                 end
+
+                # Assert evaluation passed
+                expect(result.pass?).to be(true),
+                  "#{app_name} evaluation failed: #{result.reason}\n" \
+                  "Response: #{(res[:text] || res['text']).to_s[0..300]}"
 
               rescue Timeout::Error => e
                 skip "#{app_name}: Timeout - #{e.message[0..50]}"
@@ -508,7 +441,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     # Test design:
     # - Mirror actual app behavior: system prompt only, no user message
     # - Each provider helper automatically adds the appropriate trigger message
-    # - Verify the app responds without errors (smoke test)
+    # - Verify the app responds with a valid introduction
 
     PROVIDER_CONFIG.each do |provider_key, config|
       # Skip generating tests for providers not in ENABLED_PROVIDERS
@@ -536,46 +469,35 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 # Basic structure validation
                 expect(res).to be_a(Hash), "Expected Hash response from #{app_name}"
 
-                # Check if response contains tool calls (valid for some apps like CodeInterpreter)
-                has_tool_calls = res[:tool_calls] && res[:tool_calls].any?
+                # Use two-stage evaluation for initial messages
+                evaluation_context = {
+                  purpose: "Generate an appropriate initial greeting or introduction for the #{app_base} app",
+                  provider: provider_key,
+                  is_initial_message: true
+                }
+                result = ResponseEvaluator.evaluate(
+                  res,
+                  app_name,
+                  "(initial message)",
+                  evaluation_context
+                )
 
-                if has_tool_calls
-                  # Tool calls are acceptable for initiate_from_assistant apps
-                  # Some apps may call tools like check_environment() first
-                  tool_names = res[:tool_calls].map { |tc| tc['name'] || tc[:name] }.compact
-
-                  puts "\n  #{app_name} (initial): Tool call(s) - #{tool_names.join(', ')}" if ENV['DEBUG']
-
-                  # Verify we got valid tool names
-                  expect(tool_names).not_to be_empty,
-                    "#{app_name} made tool call but no tool names were returned"
-                else
-                  # Regular text response - verify it's non-empty and error-free
-                  expect(res[:text]).to be_a(String), "Expected String text from #{app_name}"
-                  expect(res[:text].length).to be > 0, "Expected non-empty response from #{app_name}"
-
-                  response_text = res[:text]
-
-                  # Check for runtime errors
-                  error_patterns = [
-                    /undefined method ['`]/i,
-                    /NoMethodError:/,
-                    /NameError:/,
-                    /TypeError:/,
-                    /ArgumentError:/,
-                    /SyntaxError:/,
-                    /LoadError:/,
-                    /`rescue in.*'/,
-                    /from .*\.rb:\d+:in/
-                  ]
-                  has_runtime_errors = error_patterns.any? { |pattern| response_text.match?(pattern) }
-
-                  expect(has_runtime_errors).to be(false),
-                    "#{app_name} appears to have runtime errors in initial message:\n#{response_text[0..500]}"
-
-                  # Log response for debugging
-                  puts "\n  #{app_name} (initial): #{response_text.length} chars" if ENV['DEBUG']
+                # Log evaluation result
+                if ENV['DEBUG']
+                  response_text = res[:text] || res['text']
+                  tool_calls = res[:tool_calls] || res['tool_calls'] || []
+                  if tool_calls.any?
+                    tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+                    puts "\n  #{app_name} (initial): #{result} (tools: #{tool_names.join(', ')})"
+                  else
+                    puts "\n  #{app_name} (initial): #{result} (#{response_text.to_s.length} chars)"
+                  end
                 end
+
+                # Assert evaluation passed
+                expect(result.pass?).to be(true),
+                  "#{app_name} initial message evaluation failed: #{result.reason}\n" \
+                  "Response: #{(res[:text] || res['text']).to_s[0..300]}"
 
               rescue Timeout::Error => e
                 skip "#{app_name}: Timeout - #{e.message[0..50]}"

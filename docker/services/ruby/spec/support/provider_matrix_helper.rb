@@ -364,22 +364,30 @@ module ProviderMatrixHelper
 
         case @provider
         when 'anthropic'
-          # Claude: system as separate parameter, empty messages array
+          # Claude: system as separate parameter, needs at least one message
           options[:system] = app_system_prompt || "You are a helpful assistant."
-          options[:messages] = []
+          # Claude API requires at least one message - use a minimal trigger
+          options[:messages] = [{ "role" => "user", "content" => "Please introduce yourself and explain what you can help with." }]
           options[:initiate_from_assistant] = true
         when 'cohere'
-          # Cohere: preamble, empty messages
+          # Cohere: preamble, needs at least one message
           options[:preamble] = app_system_prompt || "You are a helpful assistant."
-          options[:messages] = []
+          options[:messages] = [{ "role" => "user", "content" => "Please introduce yourself." }]
           options[:initiate_from_assistant] = true
         when 'gemini'
-          # Gemini: system message only, helper will add "Hello"
-          options[:messages] = [{ "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." }]
+          # Gemini: system message + user trigger
+          options[:messages] = [
+            { "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." },
+            { "role" => "user", "content" => "Please introduce yourself." }
+          ]
           options[:initiate_from_assistant] = true
         else
-          # Other providers: system message only
-          options[:messages] = [{ "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." }]
+          # Other providers: system message + user trigger
+          # Most APIs require at least one user message
+          options[:messages] = [
+            { "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." },
+            { "role" => "user", "content" => "Please introduce yourself and explain what you can help with." }
+          ]
           options[:initiate_from_assistant] = true
         end
 

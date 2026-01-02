@@ -658,7 +658,7 @@ OPTIONS
     echo "[ERROR] Health verification failed; keeping current image" | tee -a "${build_log}"
     "${DOCKER}" rmi "${temp_tag}" >/dev/null 2>&1 || true
     echo "[BUILD_COMPLETE] failed"
-    echo "Please check the following log files under: ${run_dir}"
+    echo "Please check the following log files under: ${logs_dir}"
     release_build_lock
     return 1
   fi
@@ -671,7 +671,7 @@ OPTIONS
   echo "[POST_SETUP_LOG] ${post_log}"
   echo "[HEALTH_JSON] ${health_json}"
   echo "[META_JSON] ${meta_json}"
-  echo "Build logs are available under: ${run_dir}"
+  echo "Build logs are available under: ${logs_dir}"
   echo "[BUILD_COMPLETE] success"
 
   # Save container version information to prevent unnecessary full rebuilds on next start

@@ -44,7 +44,6 @@ function closeCurrentWebSocket() {
     ws = null;
   }
 }
-let model_options;
 let initialLoadComplete = false; // Flag to track initial load
 if (typeof window.skipAssistantInitiation === 'undefined') {
   window.skipAssistantInitiation = false;

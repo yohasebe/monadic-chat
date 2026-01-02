@@ -60,9 +60,13 @@ RUN echo "deb [arch=$(dpkg --print-architecture) \
          $(lsb_release -cs) stable" | \
          tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
-    docker-ce docker-ce-cli containerd.io docker-compose-plugin
+# Refresh package list and install Docker components
+# Using apt-get update to ensure latest versions are available
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    docker-ce docker-ce-cli containerd.io docker-compose-plugin && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV WORKSPACE="/monadic"
 WORKDIR $WORKSPACE

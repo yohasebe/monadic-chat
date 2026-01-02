@@ -391,11 +391,18 @@ RSpec.describe "Office Text Extraction Integration", :integration do
 
     allow(Monadic::Utils::Environment).to receive(:in_container?).and_return(false)
     allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_dir)
+
+    # Copy fixture files to data_dir for Docker container access
+    FileUtils.mkdir_p(data_dir)
+    %w[test_document.docx test_spreadsheet.xlsx test_presentation.pptx].each do |file|
+      src = File.join(fixtures_dir, file)
+      dst = File.join(data_dir, file)
+      FileUtils.cp(src, dst) if File.exist?(src) && !File.exist?(dst)
+    end
   end
 
   describe "real file extraction" do
     it "extracts text from real DOCX file" do
-      # The fixture files should already be in data_dir from setup
       file_path = File.join(data_dir, 'test_document.docx')
       skip "Test file not found: #{file_path}" unless File.exist?(file_path)
 

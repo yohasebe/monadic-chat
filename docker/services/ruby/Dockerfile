@@ -4,8 +4,8 @@ FROM ruby:3.4.7-slim-bookworm AS build
 ARG PROJECT_TAG="monadic-chat"
 LABEL project=$PROJECT_TAG
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     build-essential wget curl git pandoc \
     ca-certificates gnupg lsb-release \
     postgresql postgresql-contrib libpq-dev \
@@ -34,8 +34,8 @@ LABEL project=$PROJECT_TAG
 ARG GEMS_FINGERPRINT=""
 LABEL com.monadic.gems_hash=$GEMS_FINGERPRINT
 
-RUN apt update && \
-    apt install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
     # Add ImageMagick runtime libraries needed by RMagick gem

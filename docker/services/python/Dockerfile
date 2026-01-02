@@ -62,7 +62,7 @@ RUN uv pip install --no-cache \
       lxml pygraphviz graphviz pydotplus networkx pyvis \
       svgwrite cairosvg tinycss cssselect pygal \
       pyecharts pyecharts-snapshot \
-      opencv-python moviepy==2.0.0.dev2
+      opencv-python moviepy
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi

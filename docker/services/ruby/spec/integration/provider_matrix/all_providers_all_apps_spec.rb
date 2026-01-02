@@ -112,112 +112,93 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     },
 
     # Creative apps
-    # Note: NovelWriter is designed for long-form creative writing - it naturally generates elaborate narratives
     'NovelWriter' => {
       prompt: 'Start a story about a hero.',
-      expectation: 'The AI returned ANY creative text or narrative content - detailed stories, character development, plot outlines are ALL expected behavior for a novel writing app'
+      expectation: 'Creative text or narrative content'
     },
-    # Note: MailComposer may ask clarifying questions before composing - this is correct behavior
     'MailComposer' => {
       prompt: 'Write a thank you message for helping me move.',
-      expectation: 'The AI responded with any text related to messages or email composition',
-      skip_ai_evaluation: true  # Just verify non-empty response without errors
+      expectation: 'Text related to messages or email composition'
     },
     'SpeechDraftHelper' => {
       prompt: 'Write an opening for a graduation speech.',
-      expectation: 'The AI responded about a speech (either wrote one or asked for details)'
+      expectation: 'Response about a speech'
     },
     'DocumentGenerator' => {
       prompt: 'Create a memo about the team meeting on Friday.',
-      expectation: 'The AI responded about creating a memo (either created one or asked for details)'
+      expectation: 'Response about creating a memo'
     },
 
     # Research apps
-    # Note: ResearchAssistant is configured to call load_research_progress tool before any response
-    # This is expected behavior per the MDSL system prompt. Accept tool calls as valid.
     'ResearchAssistant' => {
       prompt: 'What is the capital of Japan?',
-      expectation: 'The AI responded about Japan or Tokyo, or made a tool call to load research progress',
-      skip_ai_evaluation: true  # Tool calls for loading progress are expected first action
+      expectation: 'Response about Japan or Tokyo, or tool call'
     },
     'Wikipedia' => {
       prompt: 'Briefly describe Python.',
-      expectation: 'The AI described Python programming language'
+      expectation: 'Description of Python programming language'
     },
     'Translate' => {
       prompt: 'Translate "hello" to French.',
-      expectation: 'The AI provided "bonjour" or a French translation'
+      expectation: 'French translation'
     },
 
     # Visualization apps
     'MermaidGrapher' => {
       prompt: 'Describe a simple flowchart concept.',
-      expectation: 'The AI described a flowchart or diagram concept'
+      expectation: 'Flowchart or diagram concept'
     },
     'DrawIOGrapher' => {
       prompt: 'Describe a simple diagram concept.',
-      expectation: 'The AI described a diagram concept'
+      expectation: 'Diagram concept'
     },
     'ConceptVisualizer' => {
       prompt: 'Describe how to visualize "tree".',
-      expectation: 'The AI described a visualization approach'
+      expectation: 'Visualization approach'
     },
     'SyntaxTree' => {
       prompt: 'Parse: The cat sat.',
-      expectation: 'The AI analyzed the sentence structure'
+      expectation: 'Sentence structure analysis'
     },
 
     # Education apps
     'MathTutor' => {
       prompt: 'What is 5 times 6?',
-      expectation: 'The AI provided the answer 30'
+      expectation: 'The answer 30'
     },
-    # Note: LanguagePractice is designed to encourage practice, not give direct answers
-    # Skip AI evaluation because the app may respond with related but not exact translations
     'LanguagePractice' => {
       prompt: 'How do you say "thank you" in Spanish?',
-      expectation: 'The AI responded with ANY text related to Spanish or languages',
-      skip_ai_evaluation: true  # Just verify non-empty response without errors
+      expectation: 'Response about Spanish or languages'
     },
-    # Note: LanguagePracticePlus may use tools for TTS or other functions, and may check context first
     'LanguagePracticePlus' => {
       prompt: 'Teach me to count to 3 in Italian.',
-      expectation: 'The AI returned ANY response - teaching numbers, checking context, explaining the learning process, tool calls for TTS, or any language-related text indicates the app is working'
+      expectation: 'Language-related response'
     },
 
     # Specialized apps
     'ChordAccompanist' => {
       prompt: 'What chords work with C major?',
-      expectation: 'The AI mentioned chords that work with C major'
+      expectation: 'Chords that work with C major'
     },
-    # Note: SecondOpinion is designed to consult another AI, so explaining that process IS the expected behavior
-    # Use skip_ai_evaluation because the app's purpose is to explain the consultation process, not to directly answer
     'SecondOpinion' => {
       prompt: 'Get a second opinion on whether water is wet.',
-      expectation: 'The AI returned ANY response about the consultation process',
-      skip_ai_evaluation: true  # Just verify non-empty response without errors
+      expectation: 'Response about the consultation process'
     },
 
-    # Media apps - tool calls are intercepted, no actual generation occurs
-    # Tests verify the AI attempts to use generate_image/generate_video tools correctly
+    # Media apps
     'ImageGenerator' => {
       prompt: 'Generate a simple red circle icon.',
-      expectation: 'The AI attempted to generate an image (tool call or description)'
+      expectation: 'Image generation attempt (tool call or description)'
     },
-    # Note: VideoGenerator (initiate_from_assistant: true) starts with a greeting message
-    # explaining its capabilities. The first response won't generate video - it introduces the app.
-    # This is expected behavior per the MDSL system prompt.
     'VideoGenerator' => {
       prompt: 'Generate a 3-second video of a bouncing ball.',
-      expectation: 'The AI responded about video generation - either a greeting/capability description OR attempted to generate',
-      skip_ai_evaluation: true  # First response is often app introduction, not video generation
+      expectation: 'Video generation response'
     },
 
     # Complex apps
-    # Note: AutoForge may ask for project details before describing a concept
     'AutoForge' => {
       prompt: 'Describe a simple web page concept.',
-      expectation: 'The AI responded about web pages (either described a concept or asked for project details)'
+      expectation: 'Response about web pages'
     },
 
     # Help app
@@ -329,34 +310,23 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   end
 
   describe 'Tool Invocation Matrix' do
-    # Apps with tools - test that tool-aware apps respond without errors
-    # Focus: Does the app handle tool-related prompts without crashing?
-    # Note: Actual tool execution may require Docker containers
-    #
-    # IMPORTANT: Some apps have mandatory first-action tool calls defined in their MDSL:
-    # - CodeInterpreter: Must call check_environment() before any response
-    # - ResearchAssistant: Must call load_research_progress before any response
-    # These tool calls are EXPECTED behavior, not failures.
+    # Test tool-aware apps respond without errors (tool calls are valid responses)
     TOOL_TEST_CASES = {
       'ChordAccompanist' => {
         prompt: 'What chords go well with C major?',
-        expectation: 'The AI responded about chords, music theory, or chord progressions'
+        expectation: 'Response about chords or music theory'
       },
       'MermaidGrapher' => {
         prompt: 'Describe a simple flowchart with two nodes.',
-        expectation: 'The AI responded about flowcharts, diagrams, or Mermaid syntax'
+        expectation: 'Response about flowcharts or diagrams'
       },
-      # Note: CodeInterpreter MDSL mandates calling check_environment() first
-      # Any tool call (including check_environment) is valid expected behavior
       'CodeInterpreter' => {
         prompt: 'What is 2+2?',
-        expectation: 'The AI responded - either with environment check tool call OR calculation'
+        expectation: 'Calculation or tool call'
       },
-      # Note: ResearchAssistant MDSL mandates calling load_research_progress first
-      # Any tool call (including load_research_progress) is valid expected behavior
       'ResearchAssistant' => {
         prompt: 'What is Ruby programming language?',
-        expectation: 'The AI responded - either with load_research_progress tool call OR information about Ruby'
+        expectation: 'Information about Ruby or tool call'
       }
     }.freeze
 
@@ -435,14 +405,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   end
 
   describe 'Initial Message Matrix (initiate_from_assistant apps)' do
-    # Apps with initiate_from_assistant: true should generate an initial greeting/introduction
-    # without requiring a specific user task prompt.
-    #
-    # Test design:
-    # - Mirror actual app behavior: system prompt only, no user message
-    # - Each provider helper automatically adds the appropriate trigger message
-    # - Verify the app responds with a valid introduction
-
+    # Test apps that initiate conversation (initiate_from_assistant: true)
     PROVIDER_CONFIG.each do |provider_key, config|
       # Skip generating tests for providers not in ENABLED_PROVIDERS
       next unless ENABLED_PROVIDERS.include?(provider_key)

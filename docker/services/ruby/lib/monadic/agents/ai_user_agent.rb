@@ -50,21 +50,15 @@ module AIUserAgent
     # Model details are logged to dedicated log files
     
     # Create conversation context for the API
+    # Note: For Perplexity, context is handled differently by the helper
     context = []
-    conversation_messages.each do |m|
-      context << {
-        "role" => m["role"],
-        "content" => extract_content(m["text"], params["monadic"])
-      }
-    end
-    
-    # For Perplexity, we'll use a simplified approach
-    # The actual message formatting will be handled by perplexity_helper.rb using the ai_user_system_message
-    if provider == "perplexity"
-      # We don't need to do complex formatting here anymore 
-      # Just ensure we have the conversation context in the system message
-      # The helper will handle the rest
-      context = []
+    unless provider == "perplexity"
+      conversation_messages.each do |m|
+        context << {
+          "role" => m["role"],
+          "content" => extract_content(m["text"], params["monadic"])
+        }
+      end
     end
     
     # Add system message at the beginning (some APIs handle this differently)

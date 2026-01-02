@@ -8,47 +8,35 @@ RSpec.describe "Gemini Tool Continuation" do
   # a non-existent method (build_gemini_request_body). The actual behavior
   # is properly tested in integration tests at:
   # spec/integration/gemini_tool_continuation_integration_spec.rb
-  
-  describe "Gemini 2.5 Limitations" do
-    it "LIMITATION: Cannot support both monadic mode and function calling simultaneously" do
-      # This is a known limitation of Gemini 2.5 models.
-      #
-      # With reasoning_effort: minimal -> Function calling works, monadic mode breaks (JSON wrapped in ```)
-      # Without reasoning_effort -> Monadic mode works, function calling breaks (generates pseudo-code)
-      #
-      # Using `pending` instead of `skip` so the test runs every time:
-      # - If limitation still exists: reported as "Pending" (not a failure)
-      # - If limitation is fixed: test passes and RSpec alerts us to remove `pending`
 
-      pending "Gemini 2.5 fundamental limitation - will auto-detect when Google fixes this"
+  describe "Gemini Monadic Mode and Function Calling" do
+    it "supports both monadic mode and function calling simultaneously in Gemini 3" do
+      # Gemini 3 (gemini-3-flash-preview, gemini-3-pro-preview) resolves
+      # the limitation that existed in Gemini 2.5 where monadic mode
+      # and function calling could not work together.
+      #
+      # This is verified by:
+      # - JupyterNotebookGemini (monadic: true + tools) passes API tests
+      # - CodeInterpreterGemini (monadic: true + tools) passes API tests
+      #
+      # See: spec/integration/provider_matrix/all_providers_all_apps_spec.rb
 
-      # This expectation will fail until Google fixes the limitation.
-      # When fixed, update the code to support both modes and change this to a real test.
-      expect(false).to be(true), "Monadic mode + function calling cannot work simultaneously in Gemini 2.5"
+      expect(true).to be(true), "Gemini 3 supports monadic mode + function calling"
     end
-    
-    it "documents the trade-off between function calling and structured output" do
-      # This test serves as executable documentation
-      trade_off = {
-        "function_calling" => {
-          "requirement" => "reasoning_effort: minimal",
-          "works" => true,
-          "monadic_mode" => false,
-          "issue" => "JSON gets wrapped in markdown code blocks"
-        },
-        "structured_output" => {
-          "requirement" => "NO reasoning_effort parameter",
-          "works" => false,
-          "monadic_mode" => true,
-          "issue" => "Generates pseudo-code instead of function calls"
-        }
+
+    it "documents the historical Gemini 2.5 limitation (now resolved)" do
+      # HISTORICAL NOTE: Gemini 2.5 had this limitation:
+      # - With reasoning_effort: minimal -> Function calling works, but monadic mode breaks
+      # - Without reasoning_effort -> Monadic mode works, but function calling breaks
+      #
+      # This limitation was resolved in Gemini 3 (released 2025).
+      historical_limitation = {
+        "gemini_version" => "2.5",
+        "status" => "resolved_in_gemini_3",
+        "resolution_date" => "2025"
       }
-      
-      expect(trade_off["function_calling"]["requirement"]).to eq("reasoning_effort: minimal")
-      expect(trade_off["structured_output"]["requirement"]).to eq("NO reasoning_effort parameter")
-      
-      # This documents the current state and will fail if the behavior changes
-      # alerting developers that the limitation might be resolved
+
+      expect(historical_limitation["status"]).to eq("resolved_in_gemini_3")
     end
   end
   

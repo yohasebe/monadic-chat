@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False
 app.config['JSONIFY_MIMETYPE'] = 'application/json;charset=utf-8'
 
-default_model = 'gpt-3.5-turbo'
+default_model = 'gpt-4o'
 
 # Function to dynamically load model_to_encoding_map from tiktoken/model.py
 def load_model_to_encoding_map():
@@ -115,7 +115,7 @@ def get_tokens_sequence():
 def decode_tokens():
     data = request.json
     tokens_str = data.get('tokens', '')
-    model_name = data.get('model_name', 'gpt-3.5-turbo')
+    model_name = data.get('model_name', 'gpt-4o')
     encoding_name = model_to_encoding_map[model_name]
     tokens = list(map(int, tokens_str.replace(",", " ").split()))
     # Use cached encoding

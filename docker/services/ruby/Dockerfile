@@ -39,7 +39,7 @@ RUN apt update && \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
     # Add ImageMagick runtime libraries needed by RMagick gem
-    # Uncommend to use RSyntaxTree
+    # Uncomment to use RSyntaxTree
     # imagemagick libmagickwand-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

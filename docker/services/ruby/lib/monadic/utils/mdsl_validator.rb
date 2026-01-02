@@ -38,8 +38,10 @@ module Monadic
         
         def validate_openai_reasoning(config, spec, errors, warnings)
           if config[:reasoning_effort]
-            if spec[:reasoning_effort]
-              valid_values = spec[:reasoning_effort].first if spec[:reasoning_effort].is_a?(Array)
+            # Use string key since spec is loaded from JSON
+            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
+            if spec_reasoning
+              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
               unless valid_values&.include?(config[:reasoning_effort])
                 errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for OpenAI model. Valid values: #{valid_values&.join(', ')}"
               end
@@ -80,8 +82,10 @@ module Monadic
         
         def validate_grok_reasoning(config, spec, errors, warnings)
           if config[:reasoning_effort]
-            if spec[:reasoning_effort]
-              valid_values = spec[:reasoning_effort].first if spec[:reasoning_effort].is_a?(Array)
+            # Use string key since spec is loaded from JSON
+            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
+            if spec_reasoning
+              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
               unless valid_values&.include?(config[:reasoning_effort])
                 errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for xAI model. Valid values: #{valid_values&.join(', ')}"
               end
@@ -103,8 +107,10 @@ module Monadic
         
         def validate_perplexity_reasoning(config, spec, errors, warnings)
           if config[:reasoning_effort]
-            if spec[:reasoning_effort]
-              valid_values = spec[:reasoning_effort].first if spec[:reasoning_effort].is_a?(Array)
+            # Use string key since spec is loaded from JSON
+            spec_reasoning = spec["reasoning_effort"] || spec[:reasoning_effort]
+            if spec_reasoning
+              valid_values = spec_reasoning.first if spec_reasoning.is_a?(Array)
               unless valid_values&.include?(config[:reasoning_effort])
                 errors << "Invalid reasoning_effort '#{config[:reasoning_effort]}' for Perplexity model. Valid values: #{valid_values&.join(', ')}"
               end

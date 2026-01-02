@@ -87,24 +87,17 @@ module PerplexityHelper
       "Authorization" => "Bearer #{api_key}"
     }
     
-    # Special handling for AI User requests (similar to Claude)
-    if options["ai_user_system_message"] 
-      # For AI User, create a simplified sequence that works reliably
+    # Special handling for AI User requests
+    # Perplexity models refuse explicit role-playing, so reframe as text completion
+    if options["ai_user_system_message"]
+      # Extract just the conversation context without the full AI User prompt
+      context = options["ai_user_system_message"]
+
+      # Create a text completion task that doesn't trigger role-play refusal
       simple_messages = [
-        # First, always start with a user message (required by Perplexity)
         {
           "role" => "user",
-          "content" => "I need you to respond as if you were the user in a conversation."
-        },
-        # Then add an assistant message
-        {
-          "role" => "assistant", 
-          "content" => "I understand. I'll simulate natural user responses based on the conversation context."
-        },
-        # Finally add another user message with instructions (this ensures last message is user)
-        {
-          "role" => "user",
-          "content" => "Based on this conversation context: \"#{options["ai_user_system_message"]}\", provide a natural response as if you were the user. Keep it conversational and authentic."
+          "content" => "Complete this conversation by writing the next message from the human participant. Output ONLY the message text, nothing else.\n\nConversation:\n#{context}\n\nHuman's next message:"
         }
       ]
       
@@ -141,10 +134,13 @@ module PerplexityHelper
       if response && response.status && response.status.success?
         begin
           parsed_response = JSON.parse(response.body)
-          return parsed_response.dig("choices", 0, "message", "content") || Monadic::Utils::ErrorFormatter.parsing_error(
+          content = parsed_response.dig("choices", 0, "message", "content") || ""
+          # Strip <think> tags from AI User response (reasoning models include thinking blocks)
+          content = content.gsub(%r{<think>.*?</think>\s*}m, '').strip
+          return content.empty? ? Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",
             message: "No content in response"
-          )
+          ) : content
         rescue => e
           return Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",

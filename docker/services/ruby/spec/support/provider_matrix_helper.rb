@@ -334,6 +334,74 @@ module ProviderMatrixHelper
       chat('', **opts.merge(messages: messages))
     end
 
+    # Get initial assistant message for apps with initiate_from_assistant: true
+    # These apps should generate an introduction without a real user prompt.
+    # This mirrors actual app behavior: system prompt only, no user message.
+    # Each provider helper automatically adds a minimal trigger message as needed.
+    # @param app [String] The app name
+    # @param timeout [Integer] Request timeout
+    # @return [Hash] Response hash with :text and optionally :tool_calls
+    def initial_message(app:, timeout: nil)
+      timeout ||= @timeout
+
+      Timeout.timeout(timeout) do
+        helper = helper_for(@provider)
+
+        # Get app's system prompt and tools if available
+        app_system_prompt = nil
+        app_tools = nil
+        if defined?(APPS) && APPS.is_a?(Hash) && APPS[app]
+          app_obj = APPS[app]
+          app_system_prompt = app_obj.settings['initial_prompt'] || app_obj.settings[:initial_prompt]
+          raw_tools = app_obj.settings['tools'] || app_obj.settings[:tools]
+          app_tools = extract_tool_definitions(raw_tools)
+        end
+
+        # Build options with system prompt only (no user message)
+        # This mirrors actual initiate_from_assistant behavior
+        # Each provider helper will add the appropriate trigger message
+        options = {}
+
+        case @provider
+        when 'anthropic'
+          # Claude: system as separate parameter, empty messages array
+          options[:system] = app_system_prompt || "You are a helpful assistant."
+          options[:messages] = []
+          options[:initiate_from_assistant] = true
+        when 'cohere'
+          # Cohere: preamble, empty messages
+          options[:preamble] = app_system_prompt || "You are a helpful assistant."
+          options[:messages] = []
+          options[:initiate_from_assistant] = true
+        when 'gemini'
+          # Gemini: system message only, helper will add "Hello"
+          options[:messages] = [{ "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." }]
+          options[:initiate_from_assistant] = true
+        else
+          # Other providers: system message only
+          options[:messages] = [{ "role" => "system", "content" => app_system_prompt || "You are a helpful assistant." }]
+          options[:initiate_from_assistant] = true
+        end
+
+        # Add tool definitions if available
+        if app_tools && app_tools.any? && %w[openai anthropic gemini xai grok mistral cohere deepseek perplexity].include?(@provider)
+          unique_tools = app_tools.uniq { |t| t['name'] || t[:name] }
+          options[:tools] = unique_tools
+          if ENV['DEBUG']
+            tool_names = unique_tools.map { |t| t['name'] || t[:name] }.join(', ')
+            puts "  [initial_message] Passing #{unique_tools.length} tool(s) to #{@provider}: #{tool_names}"
+          end
+        end
+
+        throttle!
+        log_request(kind: 'initial_message', app: app, prompt: '(initiate_from_assistant)', messages: options[:messages])
+        res = request_with_retry { helper.send_query(options) }
+        res = res.is_a?(String) ? { text: res } : res
+        log_response(res)
+        res
+      end
+    end
+
     # Encourage native/assisted web search where provider supports it
     def web_search(query, **opts)
       Timeout.timeout(@timeout) do

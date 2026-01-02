@@ -257,11 +257,91 @@ module CohereHelper
       "content-type" => "application/json",
       "Authorization" => "Bearer #{api_key}"
     }
-    
-    # Use the model provided directly - trust default_model_for_provider in AI User Agent
-    # Log the model being used
-    # Model details are logged to dedicated log files
-    
+
+    # Special handling for AI User requests
+    # Reframe as text completion to avoid role-play refusal
+    if options["ai_user_system_message"]
+      context = options["ai_user_system_message"]
+
+      # Create a text completion task
+      simple_messages = [
+        {
+          "role" => "user",
+          "content" => [{ "type" => "text", "text" => "Complete this conversation by writing the next message from the human participant. Output ONLY the message text, nothing else.\n\nConversation:\n#{context}\n\nHuman's next message:" }]
+        }
+      ]
+
+      # Prepare simple request body (omit temperature for thinking models)
+      is_thinking_model = CohereHelper.is_thinking_model?(model) rescue false
+      body = {
+        "model" => model,
+        "max_tokens" => options["max_tokens"] || 1000,
+        "messages" => simple_messages,
+        "stream" => false
+      }
+      body["temperature"] = options["temperature"] || 0.7 unless is_thinking_model
+
+      # Make API request directly
+      target_uri = "#{API_ENDPOINT}/chat"
+      http = HTTP.headers(headers)
+
+      response = nil
+      MAX_RETRIES.times do
+        begin
+          response = http.timeout(
+            connect: open_timeout,
+            write: write_timeout,
+            read: read_timeout
+          ).post(target_uri, json: body)
+
+          break if response && response.status && response.status.success?
+        rescue StandardError
+          # Continue to next retry
+        end
+
+        sleep RETRY_DELAY
+      end
+
+      # Process response
+      if response && response.status && response.status.success?
+        begin
+          parsed_response = JSON.parse(response.body)
+          # Extract text from Cohere v2 API response format
+          if parsed_response["message"] && parsed_response["message"]["content"].is_a?(Array)
+            text_items = parsed_response["message"]["content"].select { |item| item["type"] == "text" }
+            if text_items.any?
+              return text_items.map { |item| item["text"] }.join("\n")
+            end
+          end
+          return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Cohere",
+            message: "No content in AI User response"
+          )
+        rescue => e
+          return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Cohere",
+            message: e.message
+          )
+        end
+      else
+        begin
+          error_data = response && response.body ? JSON.parse(response.body) : {}
+          error_message = error_data["message"] || "Unknown error"
+          return Monadic::Utils::ErrorFormatter.api_error(
+            provider: "Cohere",
+            message: error_message,
+            code: response&.status&.code
+          )
+        rescue => e
+          return Monadic::Utils::ErrorFormatter.parsing_error(
+            provider: "Cohere",
+            message: "Failed to parse error response"
+          )
+        end
+      end
+    end
+
+    # Regular non-AI User conversation processing
     # Format messages for Cohere API
     messages = []
     
@@ -414,11 +494,22 @@ module CohereHelper
               end
             }
           end
-          # Get text content if any
+          # Get text content if any (including thinking content for reasoning models)
           text_content = ""
           if result["message"]["content"].is_a?(Array)
+            # First try to get text items
             text_items = result["message"]["content"].select { |item| item["type"] == "text" }
-            text_content = text_items.map { |item| item["text"] }.join("\n") if text_items.any?
+            if text_items.any?
+              text_content = text_items.map { |item| item["text"] }.join("\n")
+            else
+              # For reasoning models, thinking content may be the only content
+              # Extract the actual thinking text as the response
+              thinking_items = result["message"]["content"].select { |item| item["type"] == "thinking" }
+              if thinking_items.any?
+                # Extract the thinking text from reasoning models
+                text_content = thinking_items.map { |item| item["thinking"] }.compact.join("\n")
+              end
+            end
           end
           return { text: text_content, tool_calls: tool_calls }
         end
@@ -429,6 +520,11 @@ module CohereHelper
           text_items = result["message"]["content"].select { |item| item["type"] == "text" }
           if text_items.any?
             return text_items.map { |item| item["text"] }.join("\n")
+          end
+          # Check for thinking-only responses (reasoning models)
+          thinking_items = result["message"]["content"].select { |item| item["type"] == "thinking" }
+          if thinking_items.any?
+            return thinking_items.map { |item| item["thinking"] }.compact.join("\n")
           end
         end
         

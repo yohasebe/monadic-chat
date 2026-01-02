@@ -57,9 +57,10 @@ module AIUserAgent
       # Anthropic uses a separate "system" parameter instead of a system role message
       system_option = { "system" => system_message }
       # Anthropic requires at least one user message
+      # Be explicit: output ONLY the message, no explanation or options
       focused_messages << {
         "role" => "user",
-        "content" => "Based on the conversation context provided in the system message, what would be the most natural next response from the user?"
+        "content" => "Generate the next user message. Output ONLY the message text itself - no options, no explanations, no analysis. Just the single message the user would type."
       }
     else
       # For other providers (OpenAI, Perplexity, Cohere, etc.), use standard system role
@@ -95,10 +96,12 @@ module AIUserAgent
       # If lookup fails, skip setting reasoning_effort
     end
 
-    # Anthropic: if model supports thinking but no reasoning_effort is present, set a default label
+    # Anthropic: for AI User, skip thinking entirely to keep responses fast and simple
+    # AI User task is straightforward and doesn't benefit from extended thinking
     begin
-      if provider.to_s.downcase.include?("anthropic") && Monadic::Utils::ModelSpec.supports_thinking?(model)
-        options["reasoning_effort"] ||= "medium"
+      if provider.to_s.downcase.include?("anthropic")
+        # Don't set reasoning_effort - let the helper use non-thinking path
+        options.delete("reasoning_effort")
       end
     rescue StandardError
       # Ignore lookup errors
@@ -123,16 +126,14 @@ module AIUserAgent
     rescue StandardError
     end
 
-    # Perplexity: if spec exposes reasoning_effort, use its default; else prefer 'low'
+    # Perplexity: use non-reasoning model for AI User to avoid role-play refusal
+    # Sonar reasoning models are strongly tuned as search assistants and refuse role-playing
     begin
       if provider.to_s.downcase.include?("perplexity")
-        eff = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
-        if eff && eff[:options].is_a?(Array) && !eff[:options].empty?
-          defv = eff[:default]
-          options["reasoning_effort"] ||= (eff[:options].include?(defv) ? defv : eff[:options].first)
-        else
-          options["reasoning_effort"] ||= "low"
-        end
+        # Override to non-reasoning model for AI User
+        model = "sonar-pro"
+        options["model"] = model
+        # Don't set reasoning_effort for non-reasoning models
       end
     rescue StandardError
     end

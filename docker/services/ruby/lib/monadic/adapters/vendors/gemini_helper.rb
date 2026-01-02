@@ -21,28 +21,22 @@ end
 
 # GeminiHelper Module - Interface for Google's Gemini AI Models
 #
-# IMPORTANT NOTES ON GEMINI 2.5 MODELS:
-# 
-# 1. Function Calling vs Structured Output Trade-off:
-#    - Gemini 2.5 models cannot simultaneously support function calling and structured JSON output
-#    - For function calling: MUST use `reasoning_effort: minimal`
-#    - For structured JSON (monadic mode): MUST NOT use reasoning_effort parameter
-#    
-# 2. Tool Management Strategy:
-#    - Info-gathering tools (read-only) are separated from action tools
-#    - Info tools: get_jupyter_cells_with_results, list_jupyter_notebooks (no call limits)
-#    - Action tools: create_jupyter_notebook, run_jupyter, add_jupyter_cells (limited to 5 calls)
-#    - This prevents exhausting tool call limits with read operations
+# GEMINI MODEL VERSIONS:
 #
-# 3. Reasoning Effort Configuration:
-#    - "minimal": Required for function calling with Gemini 2.5 models
-#    - Omit parameter: Required for structured JSON output (monadic mode)
-#    - Cannot have both: Choose based on app requirements
+# Gemini 3 (gemini-3-flash-preview, gemini-3-pro-preview):
+#   - Full support for monadic mode + function calling simultaneously
+#   - No special workarounds required
+#   - Default model for all Gemini apps
 #
-# 4. Known Issues and Solutions:
-#    - JSON wrapped in markdown: Remove reasoning_effort and add explicit instructions
-#    - Function calls not working: Add reasoning_effort: minimal
-#    - Tool call limits: Separate info tools from action tools
+# Gemini 2.5 (gemini-2.5-flash, gemini-2.5-pro) - Legacy Support:
+#   - Has limitation: cannot support function calling and structured JSON output simultaneously
+#   - Workaround code is preserved below for backward compatibility
+#   - For function calling: uses `reasoning_effort: minimal`
+#   - For structured JSON (monadic mode): omits reasoning_effort parameter
+#
+# Tool Management Strategy:
+#   - Info-gathering tools (read-only) are separated from action tools
+#   - This prevents exhausting tool call limits with read operations
 #
 module GeminiHelper
   include BaseVendorHelper
@@ -492,7 +486,7 @@ module GeminiHelper
       end
     end
     
-    # Gemini 2.5 thinking budget (reasoning_effort)
+    # Thinking budget via reasoning_effort (for models with thinking_budget support)
     if !is_thinking_model && (options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
       is_thinking_model = true
       if CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -526,7 +520,7 @@ module GeminiHelper
         "level" => thinking_level
       }
     elsif is_thinking_model
-      # For thinking models with budget (Gemini 2.5)
+      # For models with thinking budget (configure via reasoning_effort)
       reasoning_effort = options["reasoning_effort"] || "low"
       user_max_tokens = options["max_tokens"] || 800
       
@@ -1177,7 +1171,7 @@ module GeminiHelper
           "thinkingBudget" => budget_tokens,
           "includeThoughts" => false
         }
-      # Thinking budget (Gemini 2.5)
+      # Thinking budget (for models with thinking_budget support)
       elsif is_thinking_model && reasoning_effort
         model = obj["model"]
         
@@ -1600,9 +1594,9 @@ module GeminiHelper
       # For most apps, we want to stop tool calling after processing results
       # to prevent infinite loops. However, some apps may need multiple sequential calls.
       
-      # Check if this is a thinking model (Gemini 2.5)
-      is_thinking_model = obj["model"] && obj["model"].include?("2.5")
-      
+      # Check if this is a legacy Gemini 2.5 model (for backward compatibility)
+      is_legacy_gemini = obj["model"] && obj["model"].include?("2.5")
+
       # Check if this is a Jupyter app that needs multiple tool calls
       is_jupyter_app = app.to_s.include?("jupyter") ||
                        (session[:parameters]["app_name"] && session[:parameters]["app_name"].to_s.include?("Jupyter"))
@@ -1616,8 +1610,8 @@ module GeminiHelper
         end
       end
 
-      # For Gemini 2.5 thinking models, we now know they support function calling
-      # according to the official documentation
+      # Gemini 3+ fully supports function calling with monadic mode
+      # Gemini 2.5 also supports function calling (with some workarounds)
       if is_jupyter_app
         # Separate information-gathering tools from action tools
         info_tools = ["get_jupyter_cells_with_results", "list_jupyter_notebooks"]

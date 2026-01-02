@@ -18,18 +18,6 @@
       }
       
       const models = await response.json();
-      
-      // Log if custom models were loaded
-      const staticKeys = Object.keys(staticModelSpec);
-      const loadedKeys = Object.keys(models);
-      const newModels = loadedKeys.filter(key => !staticKeys.includes(key));
-      const modifiedModels = staticKeys.filter(key => 
-        loadedKeys.includes(key) && 
-        JSON.stringify(models[key]) !== JSON.stringify(staticModelSpec[key])
-      );
-      
-      // Custom model loading is now silent (logs removed for production)
-      
       return models;
       
     } catch (error) {

@@ -160,7 +160,7 @@ module CohereHelper
             end
           rescue => e
             # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["DEBUG"]
+            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
           end
           
           $MODELS[:cohere] = api_models.sort
@@ -222,7 +222,7 @@ module CohereHelper
             end
           rescue => e
             # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["DEBUG"]
+            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
           end
           
           $MODELS[:cohere] = api_models.sort

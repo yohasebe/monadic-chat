@@ -2,7 +2,7 @@
 // Read image/PDF file contents 
 //////////////////////////////
 
-// Notice that PDF is only for Anthropic Claude models (Nov 2024)
+// PDF support depends on model capability (supports_pdf_upload in model_spec)
 
 const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory

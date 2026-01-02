@@ -183,13 +183,6 @@ let failedSequences = new Set(); // Track sequences that failed to play
 const SEQUENCE_TIMEOUT_MS = 3000; // Check for missing segments every 3 seconds
 const MAX_SEQUENCE_RETRIES = 10; // Maximum number of retries before giving up on a segment (30s total)
 
-// Tab foreground tracking (deprecated - using document.visibilityState now)
-// Kept for backward compatibility but not actively used
-let tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
-function updateTabForegroundState() {
-  tabIsForeground = typeof document === 'undefined' ? true : !document.hidden;
-}
-
 // Auto Speech completion tracking
 let textResponseCompleted = false; // Track if text response finished
 let ttsPlaybackStarted = false; // Track if TTS playback started (audio is actually playing)

@@ -21,7 +21,7 @@ class FlaskAppClient
                "http://#{host}:#{PYTHON_PORT}"
              end
 
-  def initialize(model_name = "gpt-3.5-turbo")
+  def initialize(model_name = "gpt-4.1")
     @model_name = model_name
     # Attempt to warm up the encodings on initialization
     warmup_encodings

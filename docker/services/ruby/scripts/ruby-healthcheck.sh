@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lightweight healthcheck for the Ruby (Sinatra/Thin) container
+# Lightweight healthcheck for the Ruby (Falcon) container
 # Returns 0 when the HTTP endpoint is reachable, non‑zero otherwise.
 
 set -e
@@ -11,7 +11,7 @@ if curl -fsS "$URL" >/dev/null 2>&1; then
   exit 0
 fi
 
-# As a fallback, give Thin a very short grace period
+# As a fallback, give Falcon a very short grace period
 sleep 1
 if curl -fsS "$URL" >/dev/null 2>&1; then
   exit 0

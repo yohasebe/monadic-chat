@@ -32,21 +32,21 @@
 - Python環境とパッケージのチェック
 - 計算ライブラリへのアクセス（NumPy、Pandasなど）
 
-**このツールを使用するアプリ**: Python Coder、Code Runner
+**このツールを使用するアプリ**: Code Interpreter、Jupyter Notebook
 
 #### ファイル操作（3ツール）
 - 共有フォルダへのファイル書き込み
 - 共有フォルダ内のファイル一覧表示
 - 共有フォルダからのファイル削除
 
-**このツールを使用するアプリ**: Chat Plus、Code Runner、Jupyter Notebook
+**このツールを使用するアプリ**: Chat Plus、Code Interpreter、Jupyter Notebook
 
 #### ファイル読み込み（3ツール）
 - 共有フォルダからのテキストファイル読み込み
 - PDFファイルからのテキスト抽出
 - Officeドキュメント（Word、Excel、PowerPoint）からのテキスト抽出
 
-**このツールを使用するアプリ**: Research Assistant、Document Analyzer、Chat Plus
+**このツールを使用するアプリ**: Research Assistant、Content Reader、Chat Plus
 
 ### 条件付き利用可能
 

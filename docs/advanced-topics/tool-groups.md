@@ -32,21 +32,21 @@ These tool groups are always available and don't require additional setup:
 - Check Python environment and packages
 - Access computational libraries (NumPy, Pandas, etc.)
 
-**Apps using this**: Python Coder, Code Runner
+**Apps using this**: Code Interpreter, Jupyter Notebook
 
 #### File Operations (3 tools)
 - Write files to shared folder
 - List files in shared folder
 - Delete files from shared folder
 
-**Apps using this**: Chat Plus, Code Runner, Jupyter Notebook
+**Apps using this**: Chat Plus, Code Interpreter, Jupyter Notebook
 
 #### File Reading (3 tools)
 - Read text files from shared folder
 - Extract text from PDF files
 - Extract text from Office documents (Word, Excel, PowerPoint)
 
-**Apps using this**: Research Assistant, Document Analyzer, Chat Plus
+**Apps using this**: Research Assistant, Content Reader, Chat Plus
 
 ### Conditionally Available
 

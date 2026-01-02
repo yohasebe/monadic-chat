@@ -166,3 +166,41 @@ Adjust the playback speed of synthesized speech (0.7 to 1.2).
 This displays a list of PDFs uploaded by clicking the `Import PDF` button. You can give a unique display name to the file when uploading a PDF. If not specified, the original file name is used. Multiple PDF files can be uploaded. Clicking the trash can icon to the right of the PDF file display name will discard the contents of that PDF file.
 
 !> **Warning:** PDF files are converted to text embeddings and stored according to your selected storage mode. For Local Storage mode (PGVector), the database will be cleared when the Docker container is rebuilt or when Monadic Chat is updated. Use the `Export Document DB` feature to back up and restore your data. For more information about storage modes, see [PDF Storage Modes](./pdf_storage.md).
+
+## AI User Feature :id=ai-user-feature
+
+The AI User feature allows an AI to generate simulated user responses in a conversation. This enables automated conversation continuation where the AI plays the role of the user, creating follow-up messages based on the conversation context.
+
+### How It Works
+
+When you click the **AI User** button (robot icon) in the message input area, the selected AI provider generates a response as if it were the user. The AI analyzes the recent conversation history and produces a natural follow-up question or comment that a human user might make.
+
+### Configuration
+
+**AI User Provider**<br />
+Select which AI provider generates the simulated user responses. This can be different from the main conversation's AI provider. Available providers depend on which API keys you have configured:
+- OpenAI
+- Claude (Anthropic)
+- Gemini (Google)
+- Mistral
+- Cohere
+- Perplexity
+- Grok (xAI)
+- DeepSeek
+
+**Initial Prompt for AI-User**<br />
+Customize the system prompt that guides how the AI generates user responses. You can modify this to adjust the personality, focus areas, or response style of the simulated user.
+
+### Use Cases
+
+- **Hands-free conversation**: Continue a conversation without typing, useful during multitasking
+- **Exploration**: Let the AI explore topics by generating follow-up questions automatically
+- **Testing**: Test how an assistant handles various user inputs
+- **Learning**: Observe how an AI might naturally continue a conversation on a topic
+
+### Tips
+
+- The AI User considers the last 5 messages of conversation history when generating responses
+- For best results, start with a clear topic or question before using AI User
+- You can use AI User multiple times in succession to create an extended automated conversation
+- The generated message appears in the input field, allowing you to review and edit before sending

@@ -8,6 +8,7 @@ app "MathTutorGemini" do
   llm do
     provider "gemini"
     model ["gemini-3-flash-preview", "gemini-2.5-flash"]
+    reasoning_effort "low"
     temperature 0.0
     max_tokens 8192
     context_size 25

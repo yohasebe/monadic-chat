@@ -44,6 +44,7 @@ app "CodingAssistantGemini" do
   llm do
     provider "gemini"
     model ["gemini-3-flash-preview", "gemini-2.5-flash"]
+    reasoning_effort "low"
     temperature 0.0
   end
   

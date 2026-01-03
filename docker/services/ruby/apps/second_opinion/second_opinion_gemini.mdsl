@@ -40,7 +40,7 @@ app "SecondOpinionGemini" do
     provider "gemini"
     model ["gemini-3-flash-preview", "gemini-2.5-flash"]
     temperature 0.0
-    reasoning_effort "minimal"
+    reasoning_effort "low"
   end
 
   system_prompt <<~TEXT

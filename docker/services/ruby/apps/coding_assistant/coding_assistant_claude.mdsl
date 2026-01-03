@@ -46,6 +46,7 @@ app "CodingAssistantClaude" do
   llm do
     provider "anthropic"
     model "claude-sonnet-4-5-20250929"
+    reasoning_effort "low"
     temperature 0.0
   end
   

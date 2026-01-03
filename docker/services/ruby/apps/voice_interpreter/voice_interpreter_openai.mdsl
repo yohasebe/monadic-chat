@@ -36,7 +36,7 @@ app "VoiceInterpreterOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5.2", "gpt-5.1", "gpt-4.1-mini"]
-    reasoning_effort "minimal"
+    reasoning_effort "none"
     temperature 0.0
     context_size 20
   end

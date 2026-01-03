@@ -46,6 +46,7 @@ app "ChatCohere" do
   llm do
     provider "cohere"
     model "command-a-reasoning-08-2025"
+    reasoning_effort "disabled"
   end
   
   display_name "Chat"

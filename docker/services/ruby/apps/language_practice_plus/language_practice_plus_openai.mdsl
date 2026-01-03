@@ -108,6 +108,7 @@ app "LanguagePracticePlusOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
+    reasoning_effort "none"
     temperature 0.4
     context_size 30
   end

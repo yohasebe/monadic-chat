@@ -49,6 +49,7 @@ app "MailComposerCohere" do
   llm do
     provider "cohere"
     model "command-a-reasoning-08-2025"
+    reasoning_effort "disabled"
     temperature 0.3
   end
   

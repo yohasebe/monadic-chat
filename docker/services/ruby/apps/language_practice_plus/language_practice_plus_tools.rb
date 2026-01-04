@@ -3,15 +3,18 @@
 # Language Practice Plus tools using Monadic Session State mechanism.
 # Manages language learning context (target language, advice) without embedding JSON in responses.
 # Uses tts_target to extract message for TTS from save_response tool.
+# Uses ContextPanelHelper to update the sidebar Context Panel.
 
 module LanguagePracticePlusTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
+  include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "language_practice_context"
 
   # Save response and context to session state.
   # The "message" parameter is extracted for TTS via tts_target feature.
+  # Language advice is also displayed in the Context Panel (mapped to "tips" field).
   #
   # @param message [String] Response message to the user (used for TTS)
   # @param target_lang [String] Target language being practiced
@@ -27,7 +30,15 @@ module LanguagePracticePlusTools
       last_message: message
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    # Save to session state (for persistence)
+    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+
+    # Update Context Panel with language advice (mapped to "tips" field in context_schema)
+    if language_advice&.any?
+      add_to_context_panel(field: :tips, items: language_advice, session: session)
+    end
+
+    result
   end
 
   # Load language practice context from session state.

@@ -132,13 +132,13 @@ RSpec.describe SecondOpinionAgent do
       before do
         require_relative "../../../apps/second_opinion/second_opinion_claude"
         require_relative "../../../apps/second_opinion/second_opinion_cohere"
-        require_relative "../../../apps/second_opinion/second_opinion_perplexity"
+        require_relative "../../../apps/second_opinion/second_opinion_grok"
       end
-      
+
       it "returns false for providers without reasoning models" do
         expect(SecondOpinionClaude.is_reasoning_model?("claude-sonnet-4-5-20250929")).to be false
         expect(SecondOpinionCohere.is_reasoning_model?("command-r")).to be false
-        expect(SecondOpinionPerplexity.is_reasoning_model?("sonar")).to be false
+        expect(SecondOpinionGrok.is_reasoning_model?("grok-4-1")).to be false
       end
     end
     

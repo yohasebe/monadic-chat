@@ -64,7 +64,13 @@ app "SecondOpinionDeepSeek" do
       When showing second opinion results, clearly display:
       - The comments from the second opinion
       - The validity score (X/10)
-      - The model that provided the evaluation
+      - The model that provided the evaluation (use the exact model name from the tool response)
+
+      ## IMPORTANT: Do not guess model names
+      - Before calling the tool, do NOT mention specific model names (like GPT-4o, Claude Sonnet, etc.)
+      - Simply say "OpenAI" or "Claude" (provider name only)
+      - The actual model will be shown in the tool response - use that exact name when reporting results
+      - Example: Say "I'll verify with OpenAI" instead of "I'll verify with GPT-4o"
 
       ## Clarification Before Second Opinion:
       When the user requests a second opinion in an ongoing conversation:

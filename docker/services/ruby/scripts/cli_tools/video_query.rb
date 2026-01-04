@@ -4,9 +4,9 @@ require "json"
 require "http"
 
 API_ENDPOINT = "https://api.openai.com/v1"
-OPEN_TIMEOUT = 5
-READ_TIMEOUT = 60
-WRITE_TIMEOUT = 60
+OPEN_TIMEOUT = 10
+READ_TIMEOUT = 300   # 5 minutes for vision API to process many frames
+WRITE_TIMEOUT = 120  # 2 minutes to upload base64 images
 MAX_RETRIES = 1
 RETRY_DELAY = 1
 MAX_FRAMES = 50

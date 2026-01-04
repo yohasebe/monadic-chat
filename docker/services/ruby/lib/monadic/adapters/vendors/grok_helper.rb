@@ -12,7 +12,8 @@ require "json"
 module GrokHelper
   include InteractionUtils
   include FunctionCallErrorHandler
-  MAX_FUNC_CALLS = 20  # Balanced for Grok-4
+  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
+  MAX_FUNC_CALLS = 50
   API_ENDPOINT = "https://api.x.ai/v1"
   # ENV key for emergency override
   GROK_LEGACY_MODE_ENV = "GROK_LEGACY_MODE"
@@ -469,7 +470,19 @@ module GrokHelper
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res
-        session[:messages] << res["content"]
+
+        # Check if this user message was already added by websocket.rb (for context extraction)
+        # to avoid duplicate consecutive user messages that cause API errors
+        existing_msg = session[:messages].find do |m|
+          m["role"] == "user" && m["text"] == obj["message"]
+        end
+
+        if existing_msg
+          # Update existing message with additional fields instead of adding new one
+          existing_msg.merge!(res["content"])
+        else
+          session[:messages] << res["content"]
+        end
       end
     end
 
@@ -590,10 +603,15 @@ module GrokHelper
     end
     
     # Include tools based on role and availability
-    # When role is "tool" (sending tool results back), don't include tools to prevent infinite loops
+    # When role is "tool" (sending tool results back), we still need to include tools
+    # so the model can make follow-up tool calls (e.g., generate_application after validate_specification)
+    # We just don't force tool_choice to ensure the model can respond naturally
     if role == "tool"
-      body.delete("tools")
-      body.delete("tool_choice")
+      # Include tools but use "auto" for tool_choice to allow natural response or follow-up tool calls
+      if app_tools && !app_tools.empty?
+        body["tools"] = app_tools
+        body["tool_choice"] = "auto"
+      end
     elsif obj["tools"] && !obj["tools"].empty?
       # Use app tools if available, otherwise fallback to empty array
       body["tools"] = app_tools || []
@@ -1049,7 +1067,17 @@ module GrokHelper
     unless res.status.success?
       begin
         error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
-        
+
+        # Log the full error response for debugging
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[#{Time.now}] [Grok] API Error Response:"
+            log.puts "  Status: #{res.status.code}"
+            log.puts "  Body: #{res.body.to_s[0..2000]}"
+            log.puts "  Parsed: #{error_data.inspect}"
+          end
+        end
+
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "xAI",
           message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
@@ -1882,7 +1910,7 @@ module GrokHelper
         extra_log.puts("  Streaming disabled for tool result processing")
         extra_log.close
       end
-      
+
       new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
     end
     
@@ -2001,17 +2029,23 @@ module GrokHelper
     
     # If Grok returns empty or inadequate response after tool execution, provide a fallback
     content_check = new_results.dig(0, "choices", 0, "message", "content").to_s.strip if new_results
+    tool_calls_check = new_results.dig(0, "choices", 0, "message", "tool_calls") if new_results
     is_inadequate = false
-    
+
     # Check if response is empty or just echoing the prompt
-    if new_results.nil? || new_results.empty? || !content_check || content_check.empty?
+    # BUT: if there are tool_calls, the response is valid (model wants to call another tool)
+    if new_results.nil? || new_results.empty?
       is_inadequate = true
-    elsif obj["current_image_filename"] && !content_check.include?("<img") && !content_check.include?("generated_image")
-      # For image generation, if the response doesn't contain image HTML, it's inadequate
+    elsif (!content_check || content_check.empty?) && (!tool_calls_check || tool_calls_check.empty?)
+      # Empty content AND no tool calls = inadequate
+      is_inadequate = true
+    elsif obj["current_image_filename"] && !content_check.include?("<img") && !content_check.include?("generated_image") && (!tool_calls_check || tool_calls_check.empty?)
+      # For image generation, if the response doesn't contain image HTML AND no tool calls, it's inadequate
+      # But if there are tool calls (like generate_image_with_grok), let it proceed
       is_inadequate = true
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Grok response missing image HTML, using fallback")
+        extra_log.puts("\n[#{Time.now}] Grok response missing image HTML and no tool calls, using fallback")
         extra_log.close
       end
     end

@@ -35,6 +35,7 @@ app "CodeInterpreterCohere" do
 
   llm do
     provider "cohere"
+    # Use reasoning model for better tool handling and code execution decisions
     model "command-a-reasoning-08-2025"
     temperature 0.0
   end

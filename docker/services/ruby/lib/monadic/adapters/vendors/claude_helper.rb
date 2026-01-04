@@ -17,7 +17,8 @@ module ClaudeHelper
   include ErrorPatternDetector
   include FunctionCallErrorHandler
   include MonadicPerformance
-  MAX_FUNC_CALLS = 20
+  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
+  MAX_FUNC_CALLS = 50
   API_ENDPOINT = "https://api.anthropic.com/v1"
   MAX_RETRIES = 5
   RETRY_DELAY = 2
@@ -315,33 +316,8 @@ module ClaudeHelper
       }]
     end
     
-    # Enable thinking for AI User when requested and supported
-    begin
-      supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(model)
-      effort = options["reasoning_effort"]
-      if supports_thinking && effort && effort != "none"
-        # Map effort -> budget fraction similar to api_request
-        user_max_tokens = max_tokens_value.to_i
-        case effort
-        when "minimal"
-          budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
-        when "low"
-          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
-        when "medium"
-          budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
-        when "high"
-          budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
-        else
-          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
-        end
-        # Ensure budget below max_tokens
-        budget_tokens = (user_max_tokens * 0.8).to_i if budget_tokens >= user_max_tokens
-        body["temperature"] = 1
-        body["thinking"] = { "type": "enabled", "budget_tokens": budget_tokens }
-      end
-    rescue StandardError
-      # ignore
-    end
+    # NOTE: Thinking/reasoning is intentionally disabled for AI User messages
+    # AI User responses should be quick and simple, not requiring extended reasoning
 
     # Add tool definitions if provided (for testing tool-calling apps)
     if options["tools"] && options["tools"].any?
@@ -638,7 +614,20 @@ module ClaudeHelper
 
       res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
       block&.call res
-      session[:messages] << res["content"]
+
+      # Check if this user message was already added by websocket.rb (for context extraction)
+      # to avoid duplicate consecutive user messages that cause API errors
+      existing_msg = session[:messages].find do |m|
+        m["role"] == "user" && m["text"] == obj["message"]
+      end
+
+      if existing_msg
+        # Update existing message with additional fields instead of adding new one
+        existing_msg.merge!(res["content"])
+      else
+        session[:messages] << res["content"]
+      end
+
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("[#{Time.now}] Claude: user message pushed early (mid=#{request_id})")
@@ -1808,7 +1797,11 @@ module ClaudeHelper
 
       # If process_functions returns empty array (all server_tool_use),
       # continue to normal completion. Otherwise return the result.
-      return result unless result.empty?
+      # If result is nil or empty, continue to regular text processing
+      # This can happen when:
+      # 1. All tools were server_tool_use (returns [])
+      # 2. Claude returned with just end_turn after tool results (returns nil)
+      return result unless result.nil? || result.empty?
 
       # Process regular text response (or continue after server_tool_use)
     end
@@ -1925,6 +1918,26 @@ module ClaudeHelper
           end
         end
       end
+
+      # Claude returned end_turn with no content after tool processing
+      # This is valid when the tool result was sufficient (e.g., save_response in Language Practice Plus)
+
+      # Check if a tool extracted TTS text that should be displayed
+      # This happens when apps use tts_target to capture response text from tool parameters
+      tts_text = session[:tts_text]
+      response_content = ""
+
+      if tts_text && !tts_text.to_s.strip.empty?
+        response_content = tts_text.to_s
+        # Send the text as a fragment for UI display
+        res = { "type" => "fragment", "content" => response_content }
+        block&.call res
+      end
+
+      # Send completion message
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => finish_reason || "stop", "message" => { "content" => response_content } }] }]
     end
   end
 

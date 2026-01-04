@@ -43,9 +43,16 @@ class PDF2Text
     stdout, stderr, status = Open3.capture3(docker_command)
     if status.success?
       begin
+        # Filter out any non-JSON content before the opening brace
+        # pymupdf4llm may print warnings like "Consider using pymupdf_layout..." to stdout
+        json_start = stdout.index("{")
+        if json_start && json_start > 0
+          DebugHelper.debug("Filtered #{json_start} bytes of non-JSON prefix from pdf2txt.py output", category: :app, level: :info) if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          stdout = stdout[json_start..]
+        end
         JSON.parse(stdout)
       rescue JSON::ParserError => e
-        DebugHelper.debug("Invalid JSON from pdf2txt.py: #{stdout[0..200]}", "app", level: :error)
+        DebugHelper.debug("Invalid JSON from pdf2txt.py: #{stdout[0..200]}", category: :app, level: :error)
         raise "PDF extraction returned invalid JSON format"
       end
     else
@@ -68,7 +75,7 @@ class PDF2Text
         @text_data += "#{text}\n"
       end
     rescue NoMethodError => e
-      DebugHelper.debug("Invalid PDF structure: #{e.message}", "app", level: :error)
+      DebugHelper.debug("Invalid PDF structure: #{e.message}", category: :app, level: :error)
       raise "PDF file appears to be corrupted or empty"
     end
 

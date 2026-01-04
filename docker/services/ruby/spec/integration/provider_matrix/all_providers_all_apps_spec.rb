@@ -432,6 +432,36 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 # Basic structure validation
                 expect(res).to be_a(Hash), "Expected Hash response from #{app_name}"
 
+                # Check for tool loop error patterns in response text
+                response_text = res[:text] || res['text'] || ''
+                tool_loop_patterns = [
+                  /Maximum function call depth exceeded/i,
+                  /maximum.*tool.*calls.*exceeded/i,
+                  /too many function calls/i
+                ]
+                tool_loop_patterns.each do |pattern|
+                  expect(response_text).not_to match(pattern),
+                    "#{app_name} initial message contains tool loop error: #{response_text[0..200]}. " \
+                    "This indicates the system prompt has aggressive mandatory tool usage that causes infinite loops."
+                end
+
+                # Check tool calls for risky patterns
+                tool_calls = res[:tool_calls] || res['tool_calls'] || []
+                if tool_calls.any?
+                  tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
+
+                  # Risky tools that shouldn't be called in initial messages
+                  risky_tools = %w[save_research_progress save_learning_progress save_novel_context
+                                   save_response save_context add_finding add_research_topics
+                                   add_sources update_progress]
+                  risky_called = tool_names & risky_tools
+
+                  expect(risky_called).to be_empty,
+                    "#{app_name} initial message calls risky tool(s): #{risky_called.join(', ')}. " \
+                    "Initial messages should not call save/update tools. " \
+                    "Fix the system prompt to have an explicit initial greeting exception."
+                end
+
                 # Use two-stage evaluation for initial messages
                 evaluation_context = {
                   purpose: "Generate an appropriate initial greeting or introduction for the #{app_base} app",
@@ -447,8 +477,6 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
 
                 # Log evaluation result
                 if ENV['DEBUG']
-                  response_text = res[:text] || res['text']
-                  tool_calls = res[:tool_calls] || res['tool_calls'] || []
                   if tool_calls.any?
                     tool_names = tool_calls.map { |tc| tc['name'] || tc[:name] }.compact
                     puts "\n  #{app_name} (initial): #{result} (tools: #{tool_names.join(', ')})"
@@ -460,15 +488,24 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
                 # Assert evaluation passed
                 expect(result.pass?).to be(true),
                   "#{app_name} initial message evaluation failed: #{result.reason}\n" \
-                  "Response: #{(res[:text] || res['text']).to_s[0..300]}"
+                  "Response: #{response_text.to_s[0..300]}"
 
               rescue Timeout::Error => e
-                skip "#{app_name}: Timeout - #{e.message[0..50]}"
+                # Timeout could indicate infinite tool loop - flag for review
+                fail "#{app_name}: Timeout during initial message generation. " \
+                     "This may indicate an infinite tool call loop in the system prompt. " \
+                     "Original error: #{e.message[0..100]}"
               rescue StandardError => e
                 expect(e.message).not_to include('undefined method'),
                   "#{app_name} raised undefined method error: #{e.message}"
 
-                if e.message.include?('timeout') || e.message.include?('rate limit') || e.message.include?('execution expired')
+                # Check for tool loop indicators in error message
+                if e.message.match?(/Maximum function call depth|too many.*function.*calls/i)
+                  fail "#{app_name}: Tool loop detected - #{e.message[0..150]}. " \
+                       "Fix the system prompt to prevent mandatory tool usage in initial messages."
+                end
+
+                if e.message.include?('rate limit') || e.message.include?('execution expired')
                   skip "#{app_name}: #{e.message[0..50]}"
                 else
                   raise e

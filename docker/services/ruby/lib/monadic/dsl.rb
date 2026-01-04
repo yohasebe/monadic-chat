@@ -12,6 +12,7 @@ require_relative 'shared_tools/jupyter_operations'
 require_relative 'shared_tools/web_automation'
 require_relative 'shared_tools/content_analysis_openai'
 require_relative 'shared_tools/session_context'
+require_relative 'shared_tools/context_panel_helper'
 
 # Add the app method to top-level scope to enable the simplified DSL
 def app(name, &block)

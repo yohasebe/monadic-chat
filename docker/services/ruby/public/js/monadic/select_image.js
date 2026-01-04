@@ -378,11 +378,19 @@ function updateFileDisplay(files) {
   });
 }
 
+// Clear all images and mask data - call when switching apps
+function clearAllImages() {
+  images = [];
+  currentMaskData = null;
+  updateFileDisplay(images);
+}
+
 // Export functions to window for browser environment
 window.fileToBase64 = fileToBase64;
 window.imageToBase64 = imageToBase64;
 window.updateFileDisplay = updateFileDisplay;
 window.limitImageCount = limitImageCount;
+window.clearAllImages = clearAllImages;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {

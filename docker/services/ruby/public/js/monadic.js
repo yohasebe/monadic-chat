@@ -652,24 +652,9 @@ $(function () {
       const currentModel = $("#model").val();
       const model = ssotModel || currentModel;
       if (model && providerName) {
-        // Compute reasoning effort default for this provider/model when supported
-        let effortSuffix = '';
-        try {
-          if (window.ReasoningMapper) {
-            // Map provider value to display name expected by ReasoningMapper
-            const map = { openai:'OpenAI', anthropic:'Anthropic', gemini:'Google', cohere:'Cohere', mistral:'Mistral', deepseek:'DeepSeek', grok:'xAI', perplexity:'Perplexity' };
-            const provDisplay = map[provider] || providerName;
-            if (ReasoningMapper.isSupported(provDisplay, model)) {
-              const opts = ReasoningMapper.getAvailableOptions(provDisplay, model) || [];
-              let defv = ReasoningMapper.getDefaultValue(provDisplay, model);
-              if (!defv || (opts.length && !opts.includes(defv))) {
-                defv = opts[0] || null;
-              }
-              if (defv) effortSuffix = ' - ' + defv;
-            }
-          }
-        } catch(_) {}
-        $("#ai-user-model").text(providerName + ' (' + model + effortSuffix + ')');
+        // NOTE: Reasoning effort is intentionally NOT displayed for AI User
+        // AI User has thinking/reasoning disabled for faster, simpler responses
+        $("#ai-user-model").text(providerName + ' (' + model + ')');
         return true;
       }
       return false;
@@ -1639,6 +1624,11 @@ $(function () {
         try { window.messages = []; } catch (_) {}
       }
 
+      // Clear images and mask data from previous app
+      if (typeof window.clearAllImages === 'function') {
+        window.clearAllImages();
+      }
+
       // Clear the discourse area
       $("#discourse").html("");
 
@@ -1686,6 +1676,11 @@ $(function () {
       window.SessionState.clearMessages();
     } else {
       try { window.messages = []; } catch (_) {}
+    }
+
+    // Clear images and mask data from previous app
+    if (typeof window.clearAllImages === 'function') {
+      window.clearAllImages();
     }
 
     // Clear user interaction flag (for app change confirmation)

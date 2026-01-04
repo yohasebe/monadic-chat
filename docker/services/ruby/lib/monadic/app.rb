@@ -407,11 +407,15 @@ class MonadicApp
       DOCKER
     end
 
-    # Use longer timeout for media generation (videos and images can take several minutes)
+    # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
     timeout_value = if command.include?("video_generator_veo") || command.include?("video_generator_openai")
                       480  # 8 minutes for video generation
                     elsif command.include?("image_generator_openai") || command.include?("image_generator_grok")
                       300  # 5 minutes for image generation
+                    elsif command.include?("tts_query")
+                      300  # 5 minutes for TTS (long texts take time, especially with Gemini)
+                    elsif command.include?("video_query")
+                      480  # 8 minutes for video analysis (many frames with vision API)
                     else
                       120  # 2 minutes default
                     end
@@ -479,7 +483,7 @@ class MonadicApp
           local_files1[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
         rescue Errno::EACCES => e
           # Permission denied - skip this file
-          DebugHelper.debug("Permission denied accessing file: #{f}", "app", level: :warning)
+          DebugHelper.debug("Permission denied accessing file: #{f}", category: :app, level: :warning)
           next
         rescue Errno::ENOENT => e
           # File was deleted between Dir[] and File.exist? - skip
@@ -489,7 +493,7 @@ class MonadicApp
           next
         rescue IOError => e
           # General I/O error - skip this file
-          DebugHelper.debug("IO error accessing file: #{f} - #{e.message}", "app", level: :warning)
+          DebugHelper.debug("IO error accessing file: #{f} - #{e.message}", category: :app, level: :warning)
           next
         end
       end
@@ -524,7 +528,7 @@ class MonadicApp
             local_files2[f] = File.exist?(f) ? Digest::MD5.file(f).hexdigest : nil
           rescue Errno::EACCES => e
             # Permission denied - skip this file
-            DebugHelper.debug("Permission denied accessing file after execution: #{f}", "app", level: :warning)
+            DebugHelper.debug("Permission denied accessing file after execution: #{f}", category: :app, level: :warning)
             next
           rescue Errno::ENOENT => e
             # File was deleted - skip
@@ -534,7 +538,7 @@ class MonadicApp
             next
           rescue IOError => e
             # General I/O error - skip this file
-            DebugHelper.debug("IO error accessing file after execution: #{f} - #{e.message}", "app", level: :warning)
+            DebugHelper.debug("IO error accessing file after execution: #{f} - #{e.message}", category: :app, level: :warning)
             next
           end
         end

@@ -112,7 +112,7 @@ app "DrawIOGrapherClaude" do
   
   llm do
     provider "Anthropic"
-    model "claude-sonnet-4-5-20250929"
+    model "claude-opus-4-5-20251101"
     temperature 0.0
   end
   

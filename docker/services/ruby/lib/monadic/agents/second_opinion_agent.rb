@@ -58,12 +58,20 @@ module SecondOpinionAgent
     ]
 
     # Set adequate max_tokens for detailed second opinion responses
-    # 2000 tokens allows for thorough evaluation with comments, validity, and reasoning
+    # 4000 tokens allows for thorough evaluation with comments, validity, reasoning, and references
+    # Increased from 2000 to prevent truncation with detailed responses
     parameters = {
       "messages" => messages,
-      "model" => target_model,
-      "max_tokens" => 2000
+      "model" => target_model
     }
+
+    # Use max_completion_tokens for OpenAI (required for newer models like gpt-5.x)
+    # Use max_tokens for other providers
+    if target_provider == "openai"
+      parameters["max_completion_tokens"] = 4000
+    else
+      parameters["max_tokens"] = 4000
+    end
     
     # Delegate reasoning configuration to the provider implementation
     # Each provider class knows how to configure its own reasoning models

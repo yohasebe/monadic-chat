@@ -134,6 +134,8 @@ Research Assistant availability matches the provider table above. Web search cap
 - **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
 - **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
 
+> **Note**: Gemini Research Assistant uses an internal web search agent (`gemini_web_search`) instead of native Google Search grounding. This enables web search to work alongside file operations and progress tracking, working around Gemini 3 API limitations.
+
 For more details, see the Chat app description above or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
 
 ## Language Related :id=language-related

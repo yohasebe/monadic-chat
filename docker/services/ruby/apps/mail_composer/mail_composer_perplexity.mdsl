@@ -60,8 +60,5 @@ app "MailComposerPerplexity" do
     group "Perplexity"
   end
 
-  tools do
-    # Import shared file operations tools (always visible - Phase 1)
-    import_shared_tools :file_operations, visibility: "always"
-  end
+  # Note: Perplexity API does not support tool/function calling
 end

@@ -1,5 +1,5 @@
 module VideoAnalyzeAgent
-  def analyze_video(file:, fps: 1, query: nil)
+  def analyze_video(file:, fps: 1, query: nil, session: nil)
     return "Error: file is required." if file.to_s.empty?
 
     split_command = <<~CMD
@@ -68,18 +68,20 @@ module VideoAnalyzeAgent
       # 1. Web UI selection (user's explicit choice from session)
       # 2. MDSL default (app developer's recommendation via agents block)
       # 3. System default (fallback)
-      stt_model = session[:parameters]&.[]("stt_model") ||      # Web UI selection
+      stt_model = session&.dig(:parameters, "stt_model") ||     # Web UI selection (safe navigation)
                   settings.dig(:agents, :speech_to_text) ||     # MDSL default
                   "gpt-4o-mini-transcribe-2025-12-15"           # System default
 
       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
         puts "[VideoAnalyzer] Using STT model: #{stt_model}"
-        puts "  - Web UI selection: #{session[:parameters]&.[]('stt_model') || 'none'}"
+        puts "  - Web UI selection: #{session&.dig(:parameters, 'stt_model') || 'none'}"
         puts "  - MDSL default: #{settings.dig(:agents, :speech_to_text) || 'none'}"
       end
 
+      # Use "text" format for better compatibility with all transcribe models
+      # (gpt-4o-mini-transcribe only supports "json" and "text", not "srt")
       audio_command = <<~CMD
-        bash -c 'stt_query.rb "#{audio_file}" "." "srt" "" "#{stt_model}"'
+        bash -c 'stt_query.rb "#{audio_file}" "." "text" "" "#{stt_model}"'
       CMD
       audio_description = send_command(command: audio_command, container: "ruby")
       

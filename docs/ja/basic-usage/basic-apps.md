@@ -132,6 +132,8 @@ Research Assistantの対応プロバイダーは冒頭の表を参照してく�
 - **Tavily検索**: Mistral、Cohere、DeepSeek、Ollama（`TAVILY_API_KEY`が必要）
 - **URLコンテンツ抽出**: 任意のURLからコンテンツを取得するSeleniumベースのスクレイピング（全プロバイダーで利用可能）
 
+> **注意**: GeminiのResearch Assistantは、ネイティブGoogle検索グラウンディングの代わりに内部ウェブ検索エージェント（`gemini_web_search`）を使用します。これにより、Gemini 3のAPI制限を回避し、ウェブ検索とファイル操作・プログレストラッキングを同時に利用できます。
+
 詳細については、上記のChatアプリの説明または[URLからのテキスト読み込み](./message-input.md#reading-text-from-urls)を参照してください。
 
 ## 言語関連 :id=language-related

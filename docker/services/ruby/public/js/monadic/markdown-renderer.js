@@ -604,6 +604,24 @@
 
       let text = markdown;
 
+      // 0. Fix emphasis with CJK punctuation
+      // markdown-it has issues with **「 and similar patterns
+      // Insert zero-width space (U+200B) to create proper word boundary
+      // CJK opening brackets: 「『（【〈《"'｛〔
+      // CJK closing brackets: 」』）】〉》"'｝〕
+      const cjkOpenBrackets = `「『（【〈《"'｛〔`;
+      const cjkCloseBrackets = `」』）】〉》"'｝〕`;
+      // Bold: ** or __ followed by CJK opening brackets
+      text = text.replace(new RegExp('(\\*\\*|__)([' + cjkOpenBrackets + '])', 'g'), '$1\u200B$2');
+      // Bold: CJK closing brackets followed by ** or __
+      text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*\\*|__)', 'g'), '$1\u200B$2');
+      // Italic: * or _ (single) followed by CJK opening brackets (but not ** or __)
+      text = text.replace(new RegExp('(?<!\\*)(\\*)(?!\\*)([' + cjkOpenBrackets + '])', 'g'), '$1\u200B$2');
+      text = text.replace(new RegExp('(?<!_)(_)(?!_)([' + cjkOpenBrackets + '])', 'g'), '$1\u200B$2');
+      // Italic: CJK closing brackets followed by * or _ (single)
+      text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(\\*)(?!\\*)', 'g'), '$1\u200B$2');
+      text = text.replace(new RegExp('([' + cjkCloseBrackets + '])(_)(?!_)', 'g'), '$1\u200B$2');
+
       // 1. MathJax block expressions をプレースホルダーに
       const mathBlocks = [];
       text = text.replace(/\$\$([\s\S]+?)\$\$/g, (match, content) => {

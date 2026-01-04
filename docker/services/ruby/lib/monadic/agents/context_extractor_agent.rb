@@ -216,6 +216,11 @@ module ContextExtractorAgent
       end
 
       if result.is_a?(String) && !result.empty?
+        if CONFIG && CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts("[#{Time.now}] [ContextExtractor] Raw API response: #{result[0..500].inspect}")
+          end
+        end
         parsed = parse_context_json(result, effective_schema)
         if CONFIG && CONFIG["EXTRA_LOGGING"]
           File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -374,9 +379,9 @@ module ContextExtractorAgent
         }
       ],
       "generationConfig" => {
-        # 1000 tokens for regular models to ensure complete JSON responses
-        # 2000 tokens for thinking models which include reasoning
-        "maxOutputTokens" => is_thinking_model ? 2000 : 1000
+        # 2000 tokens for regular models to ensure complete JSON responses
+        # 4000 tokens for thinking models which include reasoning
+        "maxOutputTokens" => is_thinking_model ? 4000 : 2000
       }
     }
 
@@ -390,6 +395,16 @@ module ContextExtractorAgent
     return nil unless response
 
     data = JSON.parse(response)
+
+    # Log full response structure for debugging
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        finish_reason = data.dig("candidates", 0, "finishReason")
+        token_count = data.dig("usageMetadata", "candidatesTokenCount")
+        log.puts("[#{Time.now}] [ContextExtractor] Gemini response: finishReason=#{finish_reason}, tokens=#{token_count}")
+      end
+    end
+
     # Gemini thinking models may have multiple parts (thought + text)
     # Find the last text part (thinking comes first if present)
     parts = data.dig("candidates", 0, "content", "parts")
@@ -671,9 +686,27 @@ module ContextExtractorAgent
     # Remove markdown code blocks if present
     cleaned = text.gsub(/```json\s*/i, "").gsub(/```\s*/, "").strip
 
-    # Try to find JSON object in the text
-    if match = cleaned.match(/\{[^{}]*\}/m)
+    if CONFIG && CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: cleaned text = #{cleaned[0..300].inspect}")
+      end
+    end
+
+    # Try to find JSON object in the text - use greedy match for nested structures
+    # Match from first { to last } to handle arrays inside
+    if match = cleaned.match(/\{.*\}/m)
       cleaned = match[0]
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: matched JSON = #{cleaned[0..300].inspect}")
+        end
+      end
+    else
+      if CONFIG && CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [ContextExtractor] parse_context_json: No JSON match found")
+        end
+      end
     end
 
     parsed = JSON.parse(cleaned)

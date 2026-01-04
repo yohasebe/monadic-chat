@@ -90,5 +90,9 @@ app "AutoForgeGrok" do
       parameter :context, "string", "Additional context about requirements", required: false
       parameter :files, "array", "Array of file objects with path and content", required: false
     end
+
+    define_tool "debug_application", "Debug a generated web application using Selenium to detect JavaScript errors, test functionality, and measure performance" do
+      parameter :spec, "object", "Specification with project name to debug (e.g., {\"name\": \"ProjectName\"})", required: true
+    end
   end
 end

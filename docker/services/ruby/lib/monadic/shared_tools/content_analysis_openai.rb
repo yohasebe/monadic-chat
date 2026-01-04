@@ -17,7 +17,7 @@ module Monadic
             parameters: {
               type: "object",
               properties: {
-                filename: {
+                file: {
                   type: "string",
                   description: "The video file to analyze"
                 },
@@ -30,7 +30,7 @@ module Monadic
                   description: "Query to guide the analysis"
                 }
               },
-              required: ["filename"]
+              required: ["file"]
             }
           }
         },

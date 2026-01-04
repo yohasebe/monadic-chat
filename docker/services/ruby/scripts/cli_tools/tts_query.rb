@@ -18,7 +18,7 @@ end
 
 API_ENDPOINT = "https://api.openai.com/v1"
 OPEN_TIMEOUT = 10
-READ_TIMEOUT = 60
+READ_TIMEOUT = 300  # 5 minutes for long TTS (e.g., 1000+ words can take 3+ minutes)
 WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
@@ -27,12 +27,17 @@ RETRY_DELAY = 1
 def configure_net_http_ssl(http)
   return unless http.use_ssl?
 
-  # Disable CRL checks
-  http.verify_flags = 0
-  http.verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
-  http.verify_flags &= ~OpenSSL::X509::V_FLAG_CRL_CHECK_ALL if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK_ALL)
+  # Create a cert store with CRL checks disabled
+  cert_store = OpenSSL::X509::Store.new
+  cert_store.set_default_paths
 
-  # Use system CA certificates
+  # Disable CRL checks on the store
+  if defined?(OpenSSL::X509::V_FLAG_CRL_CHECK)
+    # Start with no flags, then explicitly avoid CRL flags
+    cert_store.flags = 0
+  end
+
+  http.cert_store = cert_store
   http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 end
 
@@ -46,21 +51,20 @@ def list_openai_voices
 end
 
 def list_elevenlabs_voices
-  # Try ENV first (for test environment)
-  elevenlabs_api_key = ENV["ELEVENLABS_API_KEY"]
-  
-  # Fall back to reading config file
-  unless elevenlabs_api_key
+  # Try config file first (primary source of truth)
+  elevenlabs_api_key = nil
+  begin
+    elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
+  rescue Errno::ENOENT
     begin
-      elevenlabs_api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+      elevenlabs_api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
     rescue Errno::ENOENT
-      begin
-        elevenlabs_api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
-      rescue Errno::ENOENT
-        # Config file not found
-      end
+      # Config file not found
     end
   end
+
+  # Fall back to ENV only if config file doesn't have the key
+  elevenlabs_api_key = ENV["ELEVENLABS_API_KEY"] if elevenlabs_api_key.nil? || elevenlabs_api_key.empty?
 
   return [] unless elevenlabs_api_key
 
@@ -69,17 +73,36 @@ def list_elevenlabs_voices
     http = Net::HTTP.new(url.host, url.port)
     http.use_ssl = true
     configure_net_http_ssl(http)
+    http.open_timeout = 10
+    http.read_timeout = 30
     request = Net::HTTP::Get.new(url)
     request["xi-api-key"] = elevenlabs_api_key
     response = http.request(request)
+
+    unless response.is_a?(Net::HTTPSuccess)
+      STDERR.puts "[ElevenLabs] API returned #{response.code}: #{response.body[0..200]}"
+      return []
+    end
+
     voices = response.read_body
-    JSON.parse(voices)&.dig("voices")&.map do |voice|
+    parsed = JSON.parse(voices)
+
+    if parsed["voices"].nil? || parsed["voices"].empty?
+      STDERR.puts "[ElevenLabs] No voices found in response"
+      return []
+    end
+
+    parsed["voices"].map do |voice|
       {
         "display_name" => voice["name"],
         "voice_id" => voice["voice_id"]
       }
     end
+  rescue Net::OpenTimeout, Net::ReadTimeout => e
+    STDERR.puts "[ElevenLabs] Timeout fetching voices: #{e.message}"
+    []
   rescue StandardError => e
+    STDERR.puts "[ElevenLabs] Error fetching voices: #{e.class} - #{e.message}"
     []
   end
 end
@@ -153,21 +176,20 @@ def tts_api_request(text,
 
   case provider
   when "elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"
-    # Try ENV first (for test environment)
-    api_key = ENV["ELEVENLABS_API_KEY"]
-    
-    # Fall back to reading config file
-    unless api_key
+    # Try config file first (primary source of truth)
+    api_key = nil
+    begin
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
+    rescue Errno::ENOENT
       begin
-        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
+        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=", 2)&.last&.strip
       rescue Errno::ENOENT
-        begin
-          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("ELEVENLABS_API_KEY") }&.split("=")&.last
-        rescue Errno::ENOENT
-          # Config file not found
-        end
+        # Config file not found
       end
     end
+
+    # Fall back to ENV only if config file doesn't have the key
+    api_key = ENV["ELEVENLABS_API_KEY"] if api_key.nil? || api_key.empty?
 
     if api_key.nil?
       return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
@@ -223,21 +245,20 @@ def tts_api_request(text,
     output_format = "mp3_44100_128"
     target_uri = "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
   when "gemini", "gemini-flash", "gemini-pro"
-    # Try ENV first (for test environment)
-    api_key = ENV["GEMINI_API_KEY"]
-
-    # Fall back to reading config file
-    unless api_key
+    # Try config file first (primary source of truth)
+    api_key = nil
+    begin
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=", 2)&.last&.strip
+    rescue Errno::ENOENT
       begin
-        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=")&.last
+        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=", 2)&.last&.strip
       rescue Errno::ENOENT
-        begin
-          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("GEMINI_API_KEY") }&.split("=")&.last
-        rescue Errno::ENOENT
-          # Config file not found
-        end
+        # Config file not found
       end
     end
+
+    # Fall back to ENV only if config file doesn't have the key
+    api_key = ENV["GEMINI_API_KEY"] if api_key.nil? || api_key.empty?
 
     if api_key.nil?
       return { type: "error", content: "ERROR: GEMINI_API_KEY is not set." }
@@ -301,21 +322,20 @@ def tts_api_request(text,
                  end
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
   else # openai
-    # Try ENV first (for test environment)
-    api_key = ENV["OPENAI_API_KEY"]
-    
-    # Fall back to reading config file
-    unless api_key
+    # Try config file first (primary source of truth)
+    api_key = nil
+    begin
+      api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=", 2)&.last&.strip
+    rescue Errno::ENOENT
       begin
-        api_key = File.read("/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=")&.last
+        api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=", 2)&.last&.strip
       rescue Errno::ENOENT
-        begin
-          api_key = File.read("#{Dir.home}/monadic/config/env").split("\n").find { |line| line.start_with?("OPENAI_API_KEY") }&.split("=")&.last
-        rescue Errno::ENOENT
-          # Config file not found
-        end
+        # Config file not found
       end
     end
+
+    # Fall back to ENV only if config file doesn't have the key
+    api_key = ENV["OPENAI_API_KEY"] if api_key.nil? || api_key.empty?
 
     if api_key.nil?
       return { type: "error", content: "ERROR: OPENAI_API_KEY is not set." }
@@ -468,12 +488,12 @@ textpath = ARGV[0]
 # Validate text file
 
 unless textpath && File.exist?(textpath)
-  puts "ERROR: Text file not found or not provided."
-  puts "Usage:"
-  puts "  To list providers and voices:"
-  puts "    #{$PROGRAM_NAME} --list"
-  puts "  To convert text to speech:"
-  puts "    #{$PROGRAM_NAME} <textfile> --provider=<provider> --speed=<speed> --voice=<voice> --language=<language>"
+  STDERR.puts "ERROR: Text file not found or not provided."
+  STDERR.puts "Usage:"
+  STDERR.puts "  To list providers and voices:"
+  STDERR.puts "    #{$PROGRAM_NAME} --list"
+  STDERR.puts "  To convert text to speech:"
+  STDERR.puts "    #{$PROGRAM_NAME} <textfile> --provider=<provider> --speed=<speed> --voice=<voice> --language=<language>"
   exit 1
 end
 
@@ -495,7 +515,7 @@ response_format = "mp3"
 # Validate text content
 
 if text.nil? || text.empty?
-  puts "ERROR: No text content in the file."
+  STDERR.puts "ERROR: No text content in the file."
   exit 1
 end
 
@@ -509,10 +529,12 @@ begin
                            voice: voice,
                            language: language)
 
-  # Handle API error response
+  # Handle API error response (check both symbol and string keys for compatibility)
 
-  if response.is_a?(Hash) && response["type"] == "error"
-    puts response["content"]
+  if response.is_a?(Hash) && (response[:type] == "error" || response["type"] == "error")
+    error_content = response[:content] || response["content"]
+    # Use STDERR so send_command captures the error message properly
+    STDERR.puts error_content
     exit 1
   end
 

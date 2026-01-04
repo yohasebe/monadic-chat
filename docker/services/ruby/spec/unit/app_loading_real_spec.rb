@@ -514,9 +514,12 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
         websearch_agent tavily_search generate_video_with_veo
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
         generate_video_with_sora
-        gpt5_codex_agent grok_code_agent
+        gpt5_codex_agent grok_code_agent openai_code_agent
         save_context get_context update_context remove_from_context clear_context
         load_context add_topics add_people add_notes
+        save_research_progress load_research_progress add_finding add_research_topics
+        add_search add_sources add_research_notes
+        request_tool
       ]
       
       app_dirs.each do |app_dir|
@@ -563,9 +566,10 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       fetch_web_content search_wikipedia tavily_search websearch_agent
       write_to_file run_jupyter create_jupyter_notebook add_jupyter_cells system_info
       delete_jupyter_cell update_jupyter_cell get_jupyter_cells_with_results execute_and_fix_jupyter_cells
-      list_jupyter_notebooks restart_jupyter_kernel interrupt_jupyter_execution 
+      list_jupyter_notebooks restart_jupyter_kernel interrupt_jupyter_execution
       move_jupyter_cell insert_jupyter_cells
       list_providers_and_voices generate_video_with_veo
+      request_tool
     ]
     
     # Dynamically discover additional standard tools from MonadicApp if available

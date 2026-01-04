@@ -219,7 +219,10 @@ module WebSocketHelper
   end
 
   # Send message to specific session
-  def self.send_to_session(message_json, session_id)
+  # @param message_json [String] JSON message to send
+  # @param session_id [String] Session ID to send to
+  # @param single_connection [Boolean] If true, send to only one connection (for audio to prevent duplicates)
+  def self.send_to_session(message_json, session_id, single_connection: false)
     return unless session_id
 
     websockets = @@session_mutex.synchronize { @@connections_by_session[session_id].dup }
@@ -229,6 +232,15 @@ module WebSocketHelper
         puts "[WebSocketHelper] No connections found for session #{session_id}"
       end
       return
+    end
+
+    # For audio messages, only send to the first active connection to prevent duplicate playback
+    # when multiple tabs are open
+    if single_connection
+      websockets = [websockets.first]
+      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        puts "[WebSocketHelper] Single connection mode: sending to 1 of #{@@connections_by_session[session_id].size} connections"
+      end
     end
 
     # Collect connections to remove (avoid modification during iteration)
@@ -261,6 +273,12 @@ module WebSocketHelper
         puts "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}"
       end
     end
+  end
+
+  # Send audio message to only one connection per session
+  # This prevents duplicate audio playback when multiple tabs are open
+  def self.send_audio_to_session(message_json, session_id)
+    send_to_session(message_json, session_id, single_connection: true)
   end
 
   # Add WebSocket connection with session tracking
@@ -476,10 +494,10 @@ module WebSocketHelper
       begin
         parsed_voices = JSON.parse(voices)
       rescue JSON::ParserError => e
-        DebugHelper.debug("Invalid JSON from ElevenLabs API: #{voices[0..200]}", "api", level: :error)
+        DebugHelper.debug("Invalid JSON from ElevenLabs API: #{voices[0..200]}", category: :api, level: :error)
         return []
       end
-      
+
       parsed_voices&.dig("voices")&.map do |voice|
         {
           "voice_id" => voice["voice_id"],
@@ -487,7 +505,7 @@ module WebSocketHelper
         }
       end || []
     rescue Net::ReadTimeout => e
-      DebugHelper.debug("Timeout reading ElevenLabs voices", "api", level: :warning)
+      DebugHelper.debug("Timeout reading ElevenLabs voices", category: :api, level: :warning)
       []
     rescue StandardError => e
       []
@@ -905,7 +923,7 @@ module WebSocketHelper
           res_hash["is_segment"] = false  # Not segmented
 
           if ws_session_id
-            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+            WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
           else
             WebSocketHelper.broadcast_to_all(res_hash.to_json)
           end
@@ -950,9 +968,10 @@ module WebSocketHelper
   # @param language [String] Language code
   # @param realtime_mode [Boolean] If true, use sentence splitting with prefetch (for streaming TTS)
   # @param manual_play [Boolean] If true, this is a manual Play button click - no byte limit applied
-  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, realtime_mode: false, manual_play: false)
-    # Get session ID for targeted broadcasting
-    ws_session_id = Thread.current[:websocket_session_id]
+  # @param ws_session_id [String, nil] WebSocket session ID for targeted audio delivery
+  def start_tts_playback(text:, provider:, voice:, speed:, response_format:, language:, realtime_mode: false, manual_play: false, ws_session_id: nil)
+    # Use passed ws_session_id or fall back to thread-local variable
+    ws_session_id ||= Thread.current[:websocket_session_id]
 
     if CONFIG["EXTRA_LOGGING"]
       File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -1246,7 +1265,7 @@ module WebSocketHelper
 
           # Send audio and progress
           if ws_session_id
-            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+            WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
           else
             WebSocketHelper.broadcast_to_all(res_hash.to_json)
           end
@@ -1352,7 +1371,7 @@ module WebSocketHelper
           # Send audio and progress
           if res_hash && res_hash["type"] != "error"
             if ws_session_id
-              WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+              WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
             else
               WebSocketHelper.broadcast_to_all(res_hash.to_json)
             end
@@ -1884,7 +1903,7 @@ module WebSocketHelper
             obj = JSON.parse(message_data)
             obj = BooleanParser.parse_hash(obj)
           rescue JSON::ParserError => e
-            DebugHelper.debug("Invalid JSON in WebSocket message: #{message_data[0..100]}", "websocket", level: :error)
+            DebugHelper.debug("Invalid JSON in WebSocket message: #{message_data[0..100]}", category: :websocket, level: :error)
             send_to_client(connection, { "type" => "error", "content" => "invalid_message_format" })
             next
           end
@@ -1935,7 +1954,7 @@ module WebSocketHelper
 
           # Send TTS response to session only
           if ws_session_id
-            WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+            WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
           else
             WebSocketHelper.broadcast_to_all(res_hash.to_json)
           end
@@ -2514,7 +2533,7 @@ module WebSocketHelper
               WebSocketHelper.broadcast_to_all(param_message)
             end
           rescue StandardError => e
-            DebugHelper.debug("Parameter broadcast failed: #{e.message}", "websocket", level: :error) if defined?(DebugHelper)
+            DebugHelper.debug("Parameter broadcast failed: #{e.message}", category: :websocket, level: :error) if defined?(DebugHelper)
           end
 
         when "SYSTEM_PROMPT"
@@ -2746,6 +2765,9 @@ module WebSocketHelper
           # Handle play TTS message
           # This is similar to auto_speech processing but for card playback
 
+          # Get session ID for targeted broadcasting
+          ws_session_id = Thread.current[:websocket_session_id]
+
           # Stop any existing TTS thread first
           if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
             @tts_thread.kill
@@ -2776,7 +2798,8 @@ module WebSocketHelper
             speed: speed,
             response_format: response_format,
             language: language,
-            manual_play: true
+            manual_play: true,
+            ws_session_id: ws_session_id
           )
         else # fragment
           # Get session ID for targeted broadcasting throughout streaming
@@ -2909,6 +2932,25 @@ module WebSocketHelper
                   WebSocketHelper.broadcast_to_all(fragment_error)
                 end
                 break
+              elsif fragment["type"] == "clear_fragments"
+                # Clear server-side buffers before post-tool response streaming
+                # This prevents pre-tool text from being concatenated with post-tool response
+                buffer.clear
+                @realtime_tts_short_buffer.clear if @realtime_tts_short_buffer
+
+                # Send clear_fragments to frontend to clear the UI temp-card
+                clear_msg = { "type" => "clear_fragments" }.to_json
+                if ws_session_id
+                  WebSocketHelper.send_to_session(clear_msg, ws_session_id)
+                else
+                  WebSocketHelper.broadcast_to_all(clear_msg)
+                end
+
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [DEBUG] clear_fragments: server buffers cleared, message sent to frontend")
+                  end
+                end
               elsif fragment["type"] == "fragment"
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
@@ -3038,7 +3080,7 @@ module WebSocketHelper
                                     end
                                     # Use captured ws_session_id from outer scope
                                     if ws_session_id
-                                      WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                                      WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
                                     else
                                       WebSocketHelper.broadcast_to_all(res_hash.to_json)
                                     end
@@ -3106,7 +3148,7 @@ module WebSocketHelper
 
                                   # Send audio to client (use captured ws_session_id)
                                   if ws_session_id
-                                    WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                                    WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
                                   else
                                     WebSocketHelper.broadcast_to_all(res_hash.to_json)
                                   end
@@ -3245,7 +3287,7 @@ module WebSocketHelper
                     end
                     # Use captured ws_session_id from outer scope
                     if ws_session_id
-                      WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
+                      WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
                     else
                       WebSocketHelper.broadcast_to_all(res_hash.to_json)
                     end
@@ -3268,6 +3310,21 @@ module WebSocketHelper
             # Check if monadic is nil or empty string (both should be treated as false/disabled)
             monadic_disabled = original_monadic.nil? || original_monadic.to_s.strip.empty?
 
+            # Check for tts_target extracted text (for monadic apps like Voice Interpreter)
+            # This must be checked BEFORE the condition so monadic apps with tts_target can use TTS
+            tts_text_from_target = session[:tts_text]
+
+            # TTS is allowed if auto_speech is enabled, not cutoff, and not realtime mode
+            # The actual text source is determined later:
+            # - If tts_text_from_target exists (tool was called), use that
+            # - Otherwise, fall back to buffer.join (works for all apps including monadic)
+            #
+            # NOTE: The server auto-triggers TTS here. The client should NOT also click
+            # the Play button to avoid duplicate audio playback. The client-side code
+            # in websocket.js has been updated to skip playButton.click() when Auto TTS
+            # is expected (server will send audio automatically).
+            tts_allowed = auto_speech_enabled && !cutoff && !auto_tts_realtime_mode
+
             if CONFIG["EXTRA_LOGGING"]
               File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
                 log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION MODE conditions:")
@@ -3275,11 +3332,12 @@ module WebSocketHelper
                 log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff.inspect}")
                 log.puts("[#{Time.now}] [DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}")
                 log.puts("[#{Time.now}] [DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}")
-                log.puts("[#{Time.now}] [DEBUG]   Combined condition=#{(auto_speech_enabled && !cutoff && monadic_disabled && !auto_tts_realtime_mode).inspect}")
+                log.puts("[#{Time.now}] [DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}")
+                log.puts("[#{Time.now}] [DEBUG]   tts_allowed=#{tts_allowed.inspect}")
               end
             end
 
-            if auto_speech_enabled && !cutoff && monadic_disabled && !auto_tts_realtime_mode
+            if tts_allowed
               # Stop any existing TTS thread first
               if defined?(@tts_thread) && @tts_thread && @tts_thread.alive?
                 @tts_thread.kill
@@ -3288,7 +3346,6 @@ module WebSocketHelper
 
               # Get TTS text: prefer tts_target extraction (from session[:tts_text]) over full buffer
               # This allows apps to specify a specific tool parameter for TTS instead of the full response
-              tts_text_from_target = session[:tts_text]
               text = tts_text_from_target || buffer.join
 
               # Clear session tts_text after use to avoid reusing on next request
@@ -3302,14 +3359,14 @@ module WebSocketHelper
 
               # Only process if there's actual text
               if text.strip != ""
-                # Use common TTS playback method
                 start_tts_playback(
                   text: text,
                   provider: provider,
                   voice: voice,
                   speed: speed,
                   response_format: response_format,
-                  language: language
+                  language: language,
+                  ws_session_id: ws_session_id
                 )
               end
             end

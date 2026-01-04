@@ -166,6 +166,57 @@ let currentSegmentAudio = null; // Track current playing segment
 let currentPCMSource = null; // Track current PCM audio source
 let currentTTSCardId = null; // Track which card is currently playing TTS
 
+// Central registry for ALL active audio elements (to ensure stop button works)
+// This solves the issue where multiple Audio() elements are created independently
+// and can't be stopped because they're not tracked
+const activeAudioElements = new Set();
+
+// Register an audio element for tracking (auto-removes when ended/errored)
+function registerAudioElement(audio) {
+  if (!audio) return;
+  activeAudioElements.add(audio);
+
+  // Auto-remove when finished
+  const cleanup = () => {
+    activeAudioElements.delete(audio);
+  };
+  audio.addEventListener('ended', cleanup, { once: true });
+  audio.addEventListener('error', cleanup, { once: true });
+}
+
+// Stop ALL registered audio elements (called by clearAudioQueue and ttsStop)
+function stopAllActiveAudio() {
+  activeAudioElements.forEach(audio => {
+    try {
+      audio.pause();
+      audio.src = "";
+      // Remove all event listeners to prevent callbacks
+      audio.onended = null;
+      audio.onerror = null;
+      audio.oncanplay = null;
+      audio.onplay = null;
+    } catch (e) {
+      // Ignore errors from already-disposed elements
+    }
+  });
+  activeAudioElements.clear();
+
+  // Also stop iosAudioElement if it exists
+  if (iosAudioElement) {
+    try {
+      iosAudioElement.pause();
+      iosAudioElement.src = "";
+      iosAudioElement.onended = null;
+      iosAudioElement.onerror = null;
+    } catch (e) {
+      // Ignore
+    }
+  }
+}
+
+// Export for use by ttsStop in tts.js
+window.stopAllActiveAudio = stopAllActiveAudio;
+
 // Export audio queue state for TTS button highlighting
 window.globalAudioQueue = globalAudioQueue;
 window.getIsProcessingAudioQueue = () => isProcessingAudioQueue;
@@ -1367,11 +1418,18 @@ function initializeMediaSourceForAudio() {
       // Create audio element
       if (!audio) {
         audio = new Audio();
+        registerAudioElement(audio); // Track for stop button
         audio.src = URL.createObjectURL(mediaSource);
         window.audio = audio; // Export to window for global access
 
         // Create named handler for canplay (stored for later removal)
         audioCanPlayHandler = function() {
+          // Skip MediaSource playback if segment-based playback is active
+          // This prevents duplicate audio when both mechanisms are initialized
+          if (isProcessingAudioQueue || globalAudioQueue.length > 0 || currentSegmentAudio) {
+            return;
+          }
+
           // If auto-speech is active or play button was pressed, start playback automatically
           if (window.autoSpeechActive || window.autoPlayAudio) {
             const playPromise = audio.play();
@@ -1679,6 +1737,7 @@ function playWithAudioElement(audioData) {
 
     const audioUrl = URL.createObjectURL(blob);
     const audioElement = new Audio();
+    registerAudioElement(audioElement); // Track for stop button
 
     // Clean up when finished
     audioElement.onended = function() {
@@ -1717,6 +1776,12 @@ function parseSequenceNumber(sequenceId) {
 
 // Global audio queue management
 function addToAudioQueue(audioData, sequenceId, mimeType) {
+  // Validate audioData before adding to queue
+  if (!audioData || (audioData.length !== undefined && audioData.length === 0)) {
+    console.warn('[AudioQueue] Ignoring empty audio data, sequenceId:', sequenceId);
+    return;
+  }
+
   const sequenceNum = parseSequenceNumber(sequenceId);
 
   // If this has a sequence number, use sequence-based ordering
@@ -1908,6 +1973,10 @@ function processGlobalAudioQueue() {
 
 // Clear the audio queue (used by stop button)
 function clearAudioQueue() {
+  // CRITICAL: Stop ALL active audio elements first
+  // This ensures all independently-created Audio elements are stopped
+  stopAllActiveAudio();
+
   globalAudioQueue.length = 0; // Clear array while keeping reference
   isProcessingAudioQueue = false;
   currentAudioSequenceId = null;
@@ -2003,7 +2072,9 @@ function processAudio(audioData) {
       processAudioDataQueue();
 
       // Ensure audio playback starts automatically
-      if (audio && audio.paused) {
+      // Skip if segment-based queue is active to prevent duplicate audio
+      if (audio && audio.paused &&
+          !isProcessingAudioQueue && globalAudioQueue.length === 0 && !currentSegmentAudio) {
         audio.play().catch(err => {
           // Debug log removed
           // User interaction might be required
@@ -2026,6 +2097,14 @@ function playAudioFromQueue(audioItem) {
     const audioData = audioItem.data || audioItem;
     const mimeType = audioItem.mimeType;
     const sequenceNum = audioItem.sequenceNum;
+
+    // Validate audioData - skip if empty or invalid
+    if (!audioData || (audioData.length !== undefined && audioData.length === 0)) {
+      console.warn(`[AudioQueue] Skipping empty audio data for seq${sequenceNum}`);
+      isProcessingAudioQueue = false;
+      processGlobalAudioQueue();
+      return;
+    }
 
     // Helper function to handle error and skip to next
     const handleAudioError = (errorMsg) => {
@@ -2070,6 +2149,7 @@ function playAudioFromQueue(audioItem) {
 
     // Create a new audio element for this segment
     const segmentAudio = new Audio();
+    registerAudioElement(segmentAudio); // Track for stop button
     currentSegmentAudio = segmentAudio; // Track current segment
 
     segmentAudio.onended = function() {
@@ -2186,6 +2266,7 @@ function processIOSAudioBufferWithQueue() {
 
     if (!iosAudioElement) {
       iosAudioElement = new Audio();
+      registerAudioElement(iosAudioElement); // Track for stop button
     }
 
     iosAudioElement.onended = function() {
@@ -2296,6 +2377,7 @@ function processIOSAudioBuffer() {
     // Create or reuse audio element
     if (!iosAudioElement) {
       iosAudioElement = new Audio();
+      registerAudioElement(iosAudioElement); // Track for stop button
 
       // Set up handlers
       iosAudioElement.onended = function() {
@@ -2474,6 +2556,7 @@ function playPCMAudio(pcmData, sampleRate) {
 
       // Use standard audio element as fallback
       const audio = new Audio(blobUrl);
+      registerAudioElement(audio); // Track for stop button
       audio.onended = function() {
         URL.revokeObjectURL(blobUrl);
         if (window.ttsPlaybackCallback) {
@@ -2577,7 +2660,9 @@ function processAudioDataQueue() {
       sourceBuffer.appendBuffer(audioData);
 
       // For segmented playback, ensure continuous playback
-      if (audio && audio.paused && audio.readyState >= 2) {
+      // Skip if segment-based queue is active to prevent duplicate audio
+      if (audio && audio.paused && audio.readyState >= 2 &&
+          !isProcessingAudioQueue && globalAudioQueue.length === 0 && !currentSegmentAudio) {
         audio.play().catch(err => {
           // Debug log removed
         });
@@ -2778,6 +2863,7 @@ let loadedApp = "Chat";
                       const url = URL.createObjectURL(blob);
 
                       const tempAudio = new Audio(url);
+                      registerAudioElement(tempAudio); // Track for stop button
                       tempAudio.onended = function() {
                         URL.revokeObjectURL(url);
                         if (window.firefoxAudioQueue.length > 0) {
@@ -2837,6 +2923,7 @@ let loadedApp = "Chat";
           }
 
           audio = new Audio();
+          registerAudioElement(audio); // Track for stop button
           audio.src = URL.createObjectURL(mediaSource);
           window.audio = audio; // Export to window for global access
         } catch (e) {
@@ -3081,7 +3168,8 @@ let loadedApp = "Chat";
                 processAudioDataQueue();
 
                 // Ensure audio playback starts automatically for auto_speech
-              if (audio) {
+                // Skip if segment-based queue is active to prevent duplicate audio
+              if (audio && !isProcessingAudioQueue && globalAudioQueue.length === 0 && !currentSegmentAudio) {
                 // Always attempt to play, even if not paused (may be needed for some browsers)
                 audio.play().catch(err => {
                   // Debug log removed
@@ -3266,6 +3354,19 @@ let loadedApp = "Chat";
         break;
       }
 
+      case "clear_fragments": {
+        // Clear the fragment buffer in temp-card before streaming post-tool response
+        // This prevents pre-tool text from being concatenated with post-tool response
+        const tempCard = $("#temp-card");
+        if (tempCard.length) {
+          tempCard.find(".card-text").empty();
+          // Reset sequence tracking
+          window._lastProcessedSequence = -1;
+          window._lastProcessedIndex = -1;
+        }
+        break;
+      }
+
       case "thinking":
       case "reasoning": {
         // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
@@ -3284,14 +3385,15 @@ let loadedApp = "Chat";
             (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.reasoningProcess') : 'Reasoning Process');
 
           tempReasoningCard = $(`
-            <div id="temp-reasoning-card" class="card mt-3 streaming-card border-info">
-              <div class="card-header p-2 ps-3 bg-info bg-opacity-10">
-                <div class="fs-6 card-title mb-0 text-muted">
-                  <span><i class="fas fa-brain"></i></span> <span class="fw-bold">${titleText}</span>
+            <div id="temp-reasoning-card" class="card mt-3 streaming-card">
+              <div class="card-header p-2 ps-3">
+                <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
+                  <i class="fas fa-brain me-2"></i>
+                  <span>${titleText}</span>
                 </div>
               </div>
               <div class="card-body">
-                <div class="card-text small text-muted"></div>
+                <div class="card-text"></div>
               </div>
             </div>
           `);
@@ -3423,7 +3525,8 @@ let loadedApp = "Chat";
               processAudioDataQueue();
 
               // Make sure audio is playing with error handling
-              if (audio) {
+              // Skip if segment-based queue is active to prevent duplicate audio
+              if (audio && !isProcessingAudioQueue && globalAudioQueue.length === 0 && !currentSegmentAudio) {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                   playPromise.catch(err => {
@@ -3447,6 +3550,22 @@ let loadedApp = "Chat";
           // For manual TTS (Play button), hide immediately as before
           if (!window.autoSpeechActive && !window.autoPlayAudio) {
             $("#monadic-spinner").hide();
+          }
+
+          // Check for duplicate audio - use same ID generation as handler
+          const fallbackAudioId = data.sequence_id || data.t_index ||
+                                  (data.content ? String(data.content).substring(0, 50) : Date.now().toString());
+
+          // Skip if this audio was already processed by the handler
+          if (window.wsHandlers && typeof window.wsHandlers.isAudioProcessed === 'function') {
+            if (window.wsHandlers.isAudioProcessed(fallbackAudioId)) {
+              console.debug('[Fallback Audio] Skipping duplicate audio:', fallbackAudioId);
+              break; // Skip this audio - already processed by handler
+            }
+            // Mark as processed to prevent future duplicates
+            if (typeof window.wsHandlers.markAudioProcessed === 'function') {
+              window.wsHandlers.markAudioProcessed(fallbackAudioId);
+            }
           }
 
           try{
@@ -3519,7 +3638,8 @@ let loadedApp = "Chat";
               processAudioDataQueue();
 
               // Make sure audio is playing with error handling
-              if (audio) {
+              // Skip if segment-based queue is active to prevent duplicate audio
+              if (audio && !isProcessingAudioQueue && globalAudioQueue.length === 0 && !currentSegmentAudio) {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
                   playPromise.catch(err => {
@@ -5708,30 +5828,26 @@ let loadedApp = "Chat";
                   lastAutoTtsMessageId = currentMid;
                 }
 
-                // Use setTimeout to ensure the card is fully rendered before triggering TTS
+                // For Auto TTS, the SERVER automatically triggers TTS after streaming completes.
+                // We do NOT click the Play button here to avoid duplicate audio.
+                // The server will send audio messages which the client will receive and play.
+                //
+                // We just need to:
+                // 1. Highlight the Stop button for visual feedback
+                // 2. Set a timeout to hide spinner if audio doesn't arrive
                 setTimeout(() => {
                   const lastCard = $("#discourse div.card:last");
-                  const playButton = lastCard.find(".func-play");
-                  if (playButton.length > 0) {
+                  if (lastCard.length > 0) {
                     // Early highlight for Auto TTS: provides immediate visual feedback
                     const cardId = lastCard.attr('id');
                     if (cardId && typeof window.highlightStopButton === 'function') {
                       window.highlightStopButton(cardId);
                     }
-
-                    // In realtime mode, audio is already generated and queued
-                    // Only click Play button for post-completion mode to trigger TTS
-                    if (!realtimeMode) {
-                      playButton.click();
-                    }
-
-                    // Set timeout to force hide spinner if audio doesn't start playing
-                    scheduleAutoTtsSpinnerTimeout();
-                  } else {
-                    if (typeof checkAndHideSpinner === 'function') {
-                      checkAndHideSpinner();
-                    }
                   }
+
+                  // Set timeout to force hide spinner if audio doesn't start playing
+                  scheduleAutoTtsSpinnerTimeout();
+
                   // Note: window.autoSpeechActive will be reset when audio starts playing
                   // See audio.play() promise handler where spinner is hidden
                 }, 100);
@@ -5862,7 +5978,7 @@ let loadedApp = "Chat";
         window.SessionState.addMessage(message_obj);
 
         // Format content for display
-        let content_text = data["content"]["text"].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
+        let content_text = (data["content"]["text"] || "").trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, " ");
         let images;
         if (data["content"]["images"] !== undefined) {
           images = data["content"]["images"];
@@ -6110,14 +6226,16 @@ let loadedApp = "Chat";
 
           if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
             // Auto Speech enabled, TTS not started yet, and tab is foreground
-            // CRITICAL: Set autoSpeechActive flag so that html message handler knows to trigger TTS
-            window.autoSpeechActive = true;
-            if (window.debugWebSocket) console.log('[streaming_complete] Set window.autoSpeechActive = true (spinner will show when TTS starts)');
+            // NOTE: The SERVER now automatically triggers TTS after streaming completes.
+            // We do NOT set autoSpeechActive here or trigger any TTS from the client.
+            // The server sends audio directly, and the client just plays it.
+            // Setting autoSpeechActive = true here could cause race conditions with
+            // MediaSource audio playback, so we leave it as-is.
+            if (window.debugWebSocket) console.log('[streaming_complete] Auto Speech enabled - server will send audio');
 
             // NOTE: Do NOT show "Processing audio" spinner here.
-            // The spinner should ONLY be shown when the actual TTS API call is made (PLAY_TTS message sent).
-            // This prevents stale spinner display after sleep/wake or session restore.
-            // The spinner will be shown in cards.js when Play button is clicked (manually or programmatically).
+            // The server-triggered TTS will send audio messages directly.
+            // Spinner visibility is handled by the audio playback code.
           } else {
             // Check if we can hide spinner (depends on Auto Speech mode)
             if (typeof window.checkAndHideSpinner === 'function') {
@@ -6580,9 +6698,9 @@ function handleVisibilityChange() {
         removeStopButtonHighlight();
       }
 
-      // Hide spinner if showing "Processing audio" but actual processing is not happening
-      // This handles sleep/wake scenarios where TTS completed but spinner text wasn't reset
+      // Handle spinner visibility based on actual processing state
       if ($("#monadic-spinner").is(":visible")) {
+        // Spinner is visible - check if we should hide stale "Processing audio" spinners
         const spinnerText = $("#monadic-spinner").find("span").text();
         const isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
                                    spinnerText.toLowerCase().includes('audio');
@@ -6597,6 +6715,26 @@ function handleVisibilityChange() {
           $("#monadic-spinner")
             .find("span")
             .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        }
+      } else if (stillProcessing) {
+        // Spinner was hidden (likely due to tab switch) but we're still processing
+        // Restore the spinner to indicate ongoing processing
+        if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
+        $("#monadic-spinner").show();
+
+        // Determine appropriate spinner state based on processing type
+        if (callingFunction) {
+          const processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+            webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
+          $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
+        } else if (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive()) {
+          const thinkingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+            webUIi18n.t('ui.messages.spinnerThinking') : 'Thinking...';
+          $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${thinkingText}`);
+        } else {
+          const processingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+            webUIi18n.t('ui.messages.spinnerProcessing') : 'Processing';
+          $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
         }
       }
 

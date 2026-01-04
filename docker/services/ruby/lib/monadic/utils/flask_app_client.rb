@@ -84,14 +84,17 @@ class FlaskAppClient
   @@MAX_CACHE_SIZE = 1000  # Maximum number of items to cache
   
   def count_tokens(text, encoding_name = "o200k_base")
+    # Handle nil or non-string text
+    text = text.to_s if text.nil? || !text.is_a?(String)
+
     # Create cache key that includes both text and encoding_name
     cache_key = "#{encoding_name}:#{text.hash}"
-    
+
     # Check cache first (thread-safe read)
     @@cache_mutex.synchronize do
       return @@token_count_cache[cache_key] if @@token_count_cache.key?(cache_key)
     end
-    
+
     # If not in cache, make the API call
     body = { text: text, encoding_name: encoding_name }
     response = post_request("count_tokens", body)
@@ -113,6 +116,9 @@ class FlaskAppClient
   end
 
   def get_tokens_sequence(text)
+    # Handle nil or non-string text
+    text = text.to_s if text.nil? || !text.is_a?(String)
+
     body = { text: text, model_name: @model_name }
     response = post_request("get_tokens_sequence", body)
     response ? response["tokens_sequence"].split(",").map(&:to_i) : nil

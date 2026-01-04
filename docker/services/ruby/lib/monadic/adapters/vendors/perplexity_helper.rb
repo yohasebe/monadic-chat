@@ -424,7 +424,19 @@ module PerplexityHelper
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res
-        session[:messages] << res["content"]
+
+        # Check if this user message was already added by websocket.rb (for context extraction)
+        # to avoid duplicate consecutive user messages that cause API errors
+        existing_msg = session[:messages].find do |m|
+          m["role"] == "user" && m["text"] == obj["message"]
+        end
+
+        if existing_msg
+          # Update existing message with additional fields instead of adding new one
+          existing_msg.merge!(res["content"])
+        else
+          session[:messages] << res["content"]
+        end
       end
     end
 
@@ -1206,6 +1218,8 @@ module PerplexityHelper
               end
             end
 
+            # Strip trailing whitespace from content before processing citations
+            texts.first[1]["choices"][0]["message"]["content"] = texts.first[1]["choices"][0]["message"]["content"].strip
             new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
 
             # Debug: Log citation processing results
@@ -1260,6 +1274,8 @@ module PerplexityHelper
         DebugHelper.debug("Perplexity: Second citation processing - citations present: #{!citations.nil?}, count: #{citations&.size || 0}", category: :api, level: :info)
       end
 
+      # Strip trailing whitespace from content before processing citations
+      texts.first[1]["choices"][0]["message"]["content"] = texts.first[1]["choices"][0]["message"]["content"].strip
       new_text, new_citations = check_citations(texts.first[1]["choices"][0]["message"]["content"], citations)
       # add citations to the last message
       if citations && citations.any?
@@ -1314,6 +1330,9 @@ module PerplexityHelper
       
       # Debug final text_result structure
       # Set text field for WebSocket handler - it expects this field
+      # Strip trailing whitespace to avoid extra blank lines in UI
+      content = text_result["choices"][0]["message"]["content"]
+      text_result["choices"][0]["message"]["content"] = content.strip if content
       text_result["choices"][0]["text"] = text_result["choices"][0]["message"]["content"]
       
       

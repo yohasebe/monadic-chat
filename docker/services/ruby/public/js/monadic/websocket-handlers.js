@@ -7,6 +7,7 @@
 
 /**
  * Renders a thinking block with unified design across all providers
+ * Uses Bootstrap card style matching the temp-reasoning-card for consistency
  * @param {string} thinkingContent - The thinking/reasoning content to display
  * @param {string} title - Optional custom title (defaults to "Thinking Process")
  * @returns {string} - HTML string for the thinking block
@@ -19,18 +20,19 @@ function renderThinkingBlock(thinkingContent, title = null) {
     title = "Thinking Process";
   }
   const blockId = 'thinking-' + Math.random().toString(36).substr(2, 9);
-  
+
+  // Use Bootstrap card style with subtle, blended design
   return `
-    <div class="thinking-block" id="${blockId}">
-      <div class="thinking-block-header" onclick="toggleThinkingBlock('${blockId}')">
-        <div class="thinking-block-title">
-          <i class="fas fa-chevron-right thinking-block-icon"></i>
-          <i class="fas fa-brain"></i>
+    <div class="card mt-3 thinking-block" id="${blockId}">
+      <div class="card-header p-2 ps-3 thinking-block-header" onclick="toggleThinkingBlock('${blockId}')" style="cursor: pointer;">
+        <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
+          <i class="fas fa-chevron-right thinking-block-icon me-2"></i>
+          <i class="fas fa-brain me-2"></i>
           <span>${title}</span>
         </div>
       </div>
-      <div class="thinking-block-content">
-        <pre>${escapeHtml(thinkingContent)}</pre>
+      <div class="card-body thinking-block-content" style="max-height: 0; overflow: hidden; padding: 0; transition: max-height 0.3s ease-out, padding 0.3s ease-out;">
+        <div class="card-text">${escapeHtml(thinkingContent).replace(/\n/g, '<br>')}</div>
       </div>
     </div>
   `;
@@ -50,12 +52,14 @@ function toggleThinkingBlock(blockId) {
   const isExpanding = !block.classList.contains('expanded');
 
   if (isExpanding) {
-    // Measure actual content height before expanding
+    // Measure actual content height before expanding (with padding)
     content.style.maxHeight = 'none';
     content.style.overflow = 'visible';
+    content.style.padding = '1rem';  // Bootstrap card-body default padding
     const actualHeight = content.scrollHeight;
     content.style.maxHeight = '0';
     content.style.overflow = 'hidden';
+    content.style.padding = '0';
 
     // Force reflow
     content.offsetHeight;
@@ -63,13 +67,14 @@ function toggleThinkingBlock(blockId) {
     // Apply actual height for smooth animation
     block.classList.add('expanded');
     content.style.maxHeight = actualHeight + 'px';
+    content.style.padding = '1rem';
 
     // Remove inline max-height after animation completes
     setTimeout(() => {
       if (block.classList.contains('expanded')) {
         content.style.maxHeight = 'none';
       }
-    }, 500); // Match --transition-slow
+    }, 500);
   } else {
     // Collapsing: set current height first
     const currentHeight = content.scrollHeight;
@@ -81,6 +86,7 @@ function toggleThinkingBlock(blockId) {
     // Then collapse to 0
     block.classList.remove('expanded');
     content.style.maxHeight = '0';
+    content.style.padding = '0';
   }
 }
 
@@ -390,23 +396,53 @@ function handleErrorMessage(data) {
  * @param {Function} processAudio - Function to process audio data
  * @returns {boolean} - Whether the message was handled
  */
+// Track processed audio messages to prevent duplicates
+const processedAudioIds = new Set();
+const MAX_PROCESSED_IDS = 100; // Limit size to prevent memory issues
+
 function handleAudioMessage(data, processAudio) {
   if (data && data.type === 'audio') {
     try {
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         return true;
       }
-      // Check if content is a valid string
-      if (typeof data.content !== 'string') {
-        throw new Error('Invalid audio content format');
+      // Check if this is a finishing marker (no audio to process)
+      if (data.finished === true) {
+        return true;
+      }
+
+      // Check if content is a valid non-empty string
+      if (typeof data.content !== 'string' || data.content === '') {
+        // Empty content is valid for finished markers, but otherwise skip
+        return true;
+      }
+
+      // Generate unique ID for this audio message to prevent duplicate processing
+      const audioId = data.sequence_id || data.t_index ||
+                      (data.content ? data.content.substring(0, 50) : Date.now().toString());
+
+      // Check if we've already processed this exact audio
+      if (processedAudioIds.has(audioId)) {
+        console.debug('[handleAudioMessage] Skipping duplicate audio:', audioId);
+        return true;
+      }
+
+      // Mark as processed
+      processedAudioIds.add(audioId);
+
+      // Clean up old IDs to prevent memory bloat
+      if (processedAudioIds.size > MAX_PROCESSED_IDS) {
+        const idsArray = Array.from(processedAudioIds);
+        for (let i = 0; i < idsArray.length - MAX_PROCESSED_IDS / 2; i++) {
+          processedAudioIds.delete(idsArray[i]);
+        }
       }
 
       // Process audio data
       const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
 
-      // Check if this is a finishing marker
-      if (data.finished === true) {
-        // This is just a marker, no audio to process
+      // Skip if decoded data is empty
+      if (!audioData || audioData.length === 0) {
         return true;
       }
 
@@ -683,11 +719,39 @@ function handleCancelMessage(data) {
     return true;
   }
   return false;
+}
 
+// Helper function to clear processed audio IDs (call when starting new TTS)
+function clearProcessedAudioIds() {
+  if (typeof processedAudioIds !== 'undefined') {
+    processedAudioIds.clear();
+  }
+}
+
+// Check if an audio ID has already been processed
+function isAudioProcessed(audioId) {
+  if (typeof processedAudioIds !== 'undefined') {
+    return processedAudioIds.has(audioId);
+  }
+  return false;
+}
+
+// Mark an audio ID as processed
+function markAudioProcessed(audioId) {
+  if (typeof processedAudioIds !== 'undefined') {
+    processedAudioIds.add(audioId);
+    // Clean up old IDs to prevent memory bloat
+    if (processedAudioIds.size > MAX_PROCESSED_IDS) {
+      const idsArray = Array.from(processedAudioIds);
+      for (let i = 0; i < idsArray.length - MAX_PROCESSED_IDS / 2; i++) {
+        processedAudioIds.delete(idsArray[i]);
+      }
+    }
+  }
+}
 
 function canPlayAudioInForeground() {
   return typeof window.isForegroundTab === "function" ? window.isForegroundTab() : !(typeof document !== "undefined" && document.hidden);
-}
 }
 
 // Export handlers for browser environments
@@ -699,7 +763,10 @@ window.wsHandlers = {
   handleHtmlMessage,
   handleSampleSuccess,
   handleSTTMessage,
-  handleCancelMessage
+  handleCancelMessage,
+  clearProcessedAudioIds,
+  isAudioProcessed,
+  markAudioProcessed
 };
 
 // Support for Jest testing environment (CommonJS)

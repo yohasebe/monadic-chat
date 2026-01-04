@@ -45,8 +45,8 @@ app "ChatCohere" do
   
   llm do
     provider "cohere"
+    # Use reasoning model for more coherent chat responses
     model "command-a-reasoning-08-2025"
-    reasoning_effort "disabled"
   end
   
   display_name "Chat"

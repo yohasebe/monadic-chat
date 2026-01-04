@@ -57,7 +57,6 @@ app "ChatPerplexity" do
     websearch true
     group "Perplexity"
   end
-  
-  tools do
-  end
+
+  # Note: Perplexity API does not support tool/function calling
 end

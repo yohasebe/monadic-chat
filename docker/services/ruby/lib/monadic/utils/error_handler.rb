@@ -197,13 +197,13 @@ module ErrorHandler
 
     case error
     when *NetworkErrors::HTTP_ERRORS
-      DebugHelper.debug("Network error: #{error_info.to_json}", "api", level: :error)
+      DebugHelper.debug("Network error: #{error_info.to_json}", category: :api, level: :error)
     when *FileSystemErrors::FILE_ERRORS
-      DebugHelper.debug("File system error: #{error_info.to_json}", "app", level: :error)
+      DebugHelper.debug("File system error: #{error_info.to_json}", category: :app, level: :error)
     when *DataErrors::PARSE_ERRORS
-      DebugHelper.debug("Data parsing error: #{error_info.to_json}", "app", level: :warning)
+      DebugHelper.debug("Data parsing error: #{error_info.to_json}", category: :app, level: :warning)
     else
-      DebugHelper.debug("Unexpected error: #{error_info.to_json}", "app", level: :error)
+      DebugHelper.debug("Unexpected error: #{error_info.to_json}", category: :app, level: :error)
     end
   end
 

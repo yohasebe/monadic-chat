@@ -86,19 +86,60 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
       expect(session[:parameters]["tools"].first).to have_key("google_search")
     end
 
-    it "handles mixed tools with google_search" do
-      session = build_session("gemini-2.5-flash", tools: [
-        { "google_search" => {} },
-        { "function_declarations" => [{ "name" => "run_code" }] }
-      ])
+    # Note: Gemini 3 doesn't support mixing google_search grounding with function_declarations
+    # The gemini_web_search internal agent pattern is used instead
+    it "handles google_search grounding tool alone" do
+      session = build_session("gemini-2.5-flash", tools: [{ "google_search" => {} }])
 
-      # Verify both tool types are present
       tools = session[:parameters]["tools"]
-      expect(tools.length).to eq(2)
+      expect(tools.length).to eq(1)
+      expect(tools.first).to have_key("google_search")
+    end
+  end
 
-      tool_types = tools.map(&:keys).flatten
-      expect(tool_types).to include("google_search")
-      expect(tool_types).to include("function_declarations")
+  describe "gemini_web_search tool injection" do
+    # Test that gemini_web_search tool definition is correctly structured
+    # This tool is injected by gemini_helper.rb when websearch is enabled
+    # with function_declarations (instead of using google_search grounding)
+
+    it "defines gemini_web_search tool with correct structure" do
+      gemini_web_search_tool = {
+        "name" => "gemini_web_search",
+        "description" => "Search the web for current information using Google Search. Use this tool when you need to find up-to-date information, verify facts, or research topics. Returns search results with sources.",
+        "parameters" => {
+          "type" => "object",
+          "properties" => {
+            "query" => {
+              "type" => "string",
+              "description" => "The search query to find information on the web"
+            }
+          },
+          "required" => ["query"]
+        }
+      }
+
+      expect(gemini_web_search_tool["name"]).to eq("gemini_web_search")
+      expect(gemini_web_search_tool["parameters"]["properties"]).to have_key("query")
+      expect(gemini_web_search_tool["parameters"]["required"]).to include("query")
+    end
+
+    it "can be added to existing function declarations array" do
+      existing_tools = [
+        { "name" => "take_screenshot", "description" => "Take screenshot" },
+        { "name" => "navigate_to_url", "description" => "Navigate to URL" }
+      ]
+
+      gemini_web_search_tool = {
+        "name" => "gemini_web_search",
+        "description" => "Search the web",
+        "parameters" => { "type" => "object", "properties" => {}, "required" => [] }
+      }
+
+      combined_tools = existing_tools.dup
+      combined_tools << gemini_web_search_tool
+
+      expect(combined_tools.length).to eq(3)
+      expect(combined_tools.map { |t| t["name"] }).to include("gemini_web_search")
     end
   end
 

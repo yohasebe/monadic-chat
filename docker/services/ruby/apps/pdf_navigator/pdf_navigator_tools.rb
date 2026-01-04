@@ -19,12 +19,16 @@ class PDFNavigatorOpenAI < MonadicApp
     if @embeddings_db.nil? && defined?(TextEmbeddings)
       @embeddings_db = TextEmbeddings.new("monadic_user_docs", recreate_db: false)
     end
-    
+
     return { error: "Database not initialized" } unless @embeddings_db
-    
-    # Ensure API key is available
-    api_key = @api_key || CONFIG["OPENAI_API_KEY"]
-    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.empty?
+
+    # Ensure API key is available - check multiple sources
+    api_key = @api_key
+    api_key = nil if api_key.to_s.strip.empty?
+    api_key ||= CONFIG["OPENAI_API_KEY"] if defined?(CONFIG) && !CONFIG["OPENAI_API_KEY"].to_s.strip.empty?
+    api_key ||= ENV["OPENAI_API_KEY"] if !ENV["OPENAI_API_KEY"].to_s.strip.empty?
+
+    return { error: "OpenAI API key not configured" } if api_key.nil? || api_key.to_s.strip.empty?
     
     # Pass API key to embeddings method
     result = @embeddings_db.find_closest_text(text, top_n: top_n, api_key: api_key)

@@ -64,6 +64,39 @@ module ResponseEvaluator
     /Error: .* is not defined/
   ].freeze
 
+  # Patterns that indicate tool loop or depth exceeded errors
+  TOOL_LOOP_ERROR_PATTERNS = [
+    /Maximum function call depth exceeded/i,
+    /maximum.*tool.*calls.*exceeded/i,
+    /too many function calls/i,
+    /function call limit/i,
+    /recursive tool call/i
+  ].freeze
+
+  # Tools that are acceptable to call in initial messages (low risk)
+  SAFE_INITIAL_TOOLS = %w[
+    load_research_progress
+    load_learning_progress
+    load_novel_context
+    load_context
+    list_titles
+    list_help_sections
+    check_environment
+  ].freeze
+
+  # Tools that should NOT be called in initial messages (high risk for loops)
+  RISKY_INITIAL_TOOLS = %w[
+    save_research_progress
+    save_learning_progress
+    save_novel_context
+    save_response
+    save_context
+    add_finding
+    add_research_topics
+    add_sources
+    update_progress
+  ].freeze
+
   # Common refusal patterns (context-dependent - may be valid for some apps)
   REFUSAL_PATTERNS = [
     /I cannot|I can't|I'm unable to/i,
@@ -119,6 +152,42 @@ module ResponseEvaluator
       RUNTIME_ERROR_PATTERNS.each do |pattern|
         if response_text.match?(pattern)
           return Result.new(:fail, "Runtime error detected: #{pattern.source[0..30]}", stage: 1)
+        end
+      end
+
+      # Check for tool loop errors (always fail - critical issue)
+      TOOL_LOOP_ERROR_PATTERNS.each do |pattern|
+        if response_text.match?(pattern)
+          return Result.new(:fail, "Tool loop error detected: #{pattern.source[0..40]}. This indicates an infinite tool call loop in the system prompt.", stage: 1)
+        end
+      end
+
+      # For initial messages, check for risky tool usage patterns
+      if context[:is_initial_message] && has_tool_calls?(full_response)
+        tool_names = extract_tool_names(full_response)
+
+        # Check for risky tools in initial message
+        risky_tools_called = tool_names & RISKY_INITIAL_TOOLS
+        if risky_tools_called.any?
+          return Result.new(:fail,
+            "Risky tool(s) called in initial message: #{risky_tools_called.join(', ')}. " \
+            "Initial messages should typically not call save/update tools. " \
+            "This may indicate a system prompt issue that could cause tool loops.",
+            stage: 1)
+        end
+
+        # Warn if too many tools are called in initial message
+        if tool_names.length > 2
+          # Not an automatic fail, but flag for review
+          safe_tools = tool_names & SAFE_INITIAL_TOOLS
+          unsafe_tools = tool_names - SAFE_INITIAL_TOOLS
+
+          if unsafe_tools.length > 1
+            return Result.new(:fail,
+              "Too many non-safe tools called in initial message: #{unsafe_tools.join(', ')}. " \
+              "This may indicate aggressive tool usage in the system prompt.",
+              stage: 1)
+          end
         end
       end
 

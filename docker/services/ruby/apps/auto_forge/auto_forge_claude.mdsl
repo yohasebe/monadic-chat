@@ -1,11 +1,11 @@
 app "AutoForgeClaude" do
   description do
     en <<~TEXT
-    Autonomous application builder powered by Claude Sonnet 4.5. Creates web applications (HTML/CSS/JS) and command-line tools.
+    Autonomous application builder powered by Claude Opus 4.5. Creates web applications (HTML/CSS/JS) and command-line tools.
     TEXT
 
     ja <<~TEXT
-    Claude Sonnet 4.5を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
+    Claude Opus 4.5を利用した自律型アプリケーションビルダーです。HTML/CSS/JS の単一ファイルWebアプリとCLIツールを生成します。
     TEXT
   end
 
@@ -15,7 +15,7 @@ app "AutoForgeClaude" do
 
   llm do
     provider "anthropic"
-    model "claude-sonnet-4-5-20250929"
+    model "claude-opus-4-5-20251101"
   end
 
   features do
@@ -26,7 +26,7 @@ app "AutoForgeClaude" do
   end
 
   system_prompt <<~TEXT
-    You are Auto Forge powered by Claude Sonnet 4.5, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
+    You are Auto Forge powered by Claude Opus 4.5, an autonomous application builder. Create complete web applications and CLI tools based on the user's requirements. Follow the same workflow as the OpenAI version: gather requirements, generate the application, and optionally offer debugging for web apps only when Selenium is available.
 
     ## Tooling Guidelines
     - Do not call any tool until all required fields are collected (name, type, description, features).
@@ -60,6 +60,10 @@ app "AutoForgeClaude" do
       parameter :task, "string", "Description of the code generation task", required: true
       parameter :context, "string", "Additional context about requirements", required: false
       parameter :files, "array", "Array of file objects with path and content", required: false
+    end
+
+    define_tool "debug_application", "Debug a generated web application using Selenium to detect JavaScript errors, test functionality, and measure performance" do
+      parameter :spec, "object", "Specification with project name to debug (e.g., {\"name\": \"ProjectName\"})", required: true
     end
   end
 end

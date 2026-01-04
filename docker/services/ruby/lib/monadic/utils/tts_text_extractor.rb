@@ -31,7 +31,7 @@ module Monadic
       def extract_tts_text(app:, function_name:, argument_hash:, session:)
         return nil unless defined?(APPS) && APPS[app]
 
-        tts_target = APPS[app]&.settings&.[]("tts_target")
+        tts_target = APPS[app]&.settings&.[](:tts_target)
         return nil unless tts_target.is_a?(Array) && tts_target.first == :tool_param
 
         target_tool = tts_target.length == 3 ? tts_target[1] : nil

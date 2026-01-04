@@ -83,48 +83,14 @@ module AIUserAgent
       # On spec lookup failure, omit temperature to be safe
     end
 
-    # If the model supports reasoning_effort, set a default value from spec so that
-    # AI User behavior aligns with the assistant model display.
-    begin
-      effort_cfg = Monadic::Utils::ModelSpec.get_reasoning_effort_options(model)
-      if effort_cfg && effort_cfg[:options].is_a?(Array) && !effort_cfg[:options].empty?
-        default_effort = effort_cfg[:default]
-        default_effort = effort_cfg[:options].first unless effort_cfg[:options].include?(default_effort)
-        options["reasoning_effort"] = default_effort
-      end
-    rescue StandardError
-      # If lookup fails, skip setting reasoning_effort
-    end
-
-    # Anthropic: for AI User, skip thinking entirely to keep responses fast and simple
-    # AI User task is straightforward and doesn't benefit from extended thinking
-    begin
-      if provider.to_s.downcase.include?("anthropic")
-        # Don't set reasoning_effort - let the helper use non-thinking path
-        options.delete("reasoning_effort")
-      end
-    rescue StandardError
-      # Ignore lookup errors
-    end
-
-    # Gemini (Google): set a reasonable default when thinking is supported
-    begin
-      if provider.to_s.downcase.include?("gemini") && Monadic::Utils::ModelSpec.supports_thinking?(model)
-        # If can_disable is true, prefer 'low'; otherwise 'medium'
-        tb = Monadic::Utils::ModelSpec.get_thinking_budget(model)
-        default_effort = (tb && tb["can_disable"]) ? "low" : "medium"
-        options["reasoning_effort"] ||= default_effort
-      end
-    rescue StandardError
-    end
-
-    # xAI (Grok): prefer low by default (helper maps minimal->low internally)
-    begin
-      if provider.to_s.downcase.include?("grok") || provider.to_s.downcase.include?("xai")
-        options["reasoning_effort"] ||= "low"
-      end
-    rescue StandardError
-    end
+    # NOTE: Thinking/reasoning is intentionally DISABLED for all AI User requests
+    # AI User responses should be quick and simple - extended reasoning adds latency
+    # without providing meaningful benefit for simulating user messages.
+    #
+    # Explicitly remove any reasoning-related options to ensure fast responses:
+    options.delete("reasoning_effort")
+    options.delete("reasoning_content")
+    options.delete("thinking_budget")
 
     # Perplexity: use non-reasoning model for AI User to avoid role-play refusal
     # Sonar reasoning models are strongly tuned as search assistants and refuse role-playing
@@ -133,24 +99,6 @@ module AIUserAgent
         # Override to non-reasoning model for AI User
         model = "sonar-pro"
         options["model"] = model
-        # Don't set reasoning_effort for non-reasoning models
-      end
-    rescue StandardError
-    end
-
-    # Cohere: if model is a thinking/reasoning variant, enable reasoning path
-    begin
-      if provider.to_s.downcase.include?("cohere")
-        # Prefer enabling for reasoning models; helper will map appropriately
-        options["reasoning_effort"] ||= "enabled"
-      end
-    rescue StandardError
-    end
-
-    # DeepSeek: enable reasoning content by default for reasoner models; omit temperature later in helper
-    begin
-      if provider.to_s.downcase.include?("deepseek")
-        options["reasoning_content"] ||= "enabled"
       end
     rescue StandardError
     end

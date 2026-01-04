@@ -975,7 +975,19 @@ module CohereHelper
                   "app_name" => obj["app_name"]
                 } }
         block&.call res
-        session[:messages] << res["content"]
+
+        # Check if this user message was already added by websocket.rb (for context extraction)
+        # to avoid duplicate consecutive user messages that cause API errors
+        existing_msg = session[:messages].find do |m|
+          m["role"] == "user" && m["text"] == obj["message"]
+        end
+
+        if existing_msg
+          # Update existing message with additional fields instead of adding new one
+          existing_msg.merge!(res["content"])
+        else
+          session[:messages] << res["content"]
+        end
       end
     end
 
@@ -1256,12 +1268,25 @@ module CohereHelper
     # Add optional parameters with validation
     body["temperature"] = temperature if temperature && temperature.between?(0.0, 2.0)
     body["max_tokens"] = max_tokens if max_tokens && max_tokens.positive?
-    
+
+    # Include tool results in messages if this is a tool response
+    # This must be done BEFORE the reasoning model workaround, which combines messages into single text
+    if role == "tool" && obj["tool_results"]
+      messages = messages + obj["tool_results"]
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Cohere: Added #{obj["tool_results"].size} tool result messages to conversation"
+        end
+      end
+    end
+
     # Handle reasoning (thinking) parameter for command-a-reasoning models
     # Check if this is a reasoning model
     is_reasoning_model = CohereHelper.is_thinking_model?(obj["model"])
-    # If reasoning model but not specified, set a safe default (enabled)
-    if is_reasoning_model && (obj["reasoning_effort"].nil? || obj["reasoning_effort"].to_s.strip.empty?)
+    # If reasoning model but not specified or invalid value, set a safe default (enabled)
+    # Valid values are "enabled" and "disabled" - treat nil, empty, "none", or other invalid values as needing default
+    valid_reasoning_values = %w[enabled disabled]
+    if is_reasoning_model && !valid_reasoning_values.include?(obj["reasoning_effort"].to_s.strip.downcase)
       obj["reasoning_effort"] = "enabled"
     end
     if is_reasoning_model && obj["reasoning_effort"]
@@ -1480,16 +1505,11 @@ module CohereHelper
       body.delete("tool_choice")
     end
 
-    # Handle tool results in v2 format
-    # Only set messages if not already set by reasoning workaround
-   if !body["messages"]
-     if role == "tool" && obj["tool_results"]
-       # Include system prompt + context + tool results
-       body["messages"] = messages + obj["tool_results"]
-     else
-       body["messages"] = messages
-     end
-   end
+    # Set messages if not already set by reasoning workaround
+    # Note: tool_results are already included in messages (added earlier, before reasoning workaround)
+    if !body["messages"]
+      body["messages"] = messages
+    end
 
     body["messages"] = Array(body["messages"]).compact
     body["messages"].map! { |msg| normalize_cohere_message(msg) }
@@ -1674,6 +1694,7 @@ module CohereHelper
     accumulated_tool_calls = []
     citations = []  # Store citation data
     thinking_content = []  # Store thinking content from reasoning models
+    tool_plan_content = []  # Store tool_plan content separately (internal reasoning, not user-facing)
     # Track usage metrics if present in streaming deltas
     usage_input_tokens = nil
     usage_output_tokens = nil
@@ -1759,26 +1780,14 @@ module CohereHelper
               end
             when "tool-plan-delta"
               if text = json.dig("delta", "message", "tool_plan")
-                buffer += text
-                texts << text
+                # Store tool_plan separately - it's internal reasoning, not user-facing content
+                # Do NOT add to buffer or texts as those are for user-facing response
+                # Do NOT send to UI - tool_plan is internal and should never be displayed
+                tool_plan_content << text
 
-                # PTD: tool_plan is internal reasoning, don't show to user
-                # Only store it for progressive tool detection
-                # If you want to see tool_plan for debugging, set EXTRA_LOGGING=true
-                if ENV["EXTRA_LOGGING"] == "true"
-                  unless text.strip.empty?
-                    if text.length > 0
-                      res = {
-                        "type" => "fragment",
-                        "content" => "[TOOL PLAN] #{text}",
-                        "sequence" => fragment_sequence,
-                        "timestamp" => Time.now.to_f,
-                        "is_first" => fragment_sequence == 0
-                      }
-                      fragment_sequence += 1
-                      block&.call res
-                    end
-                  end
+                # Debug logging only - do NOT send fragments to UI
+                if CONFIG["EXTRA_LOGGING"]
+                  DebugHelper.debug("Cohere tool_plan: #{text}", category: :api, level: :debug)
                 end
               end
             when "tool-call-start"
@@ -1894,11 +1903,13 @@ module CohereHelper
 
     # Process accumulated tool calls if any exist
     if accumulated_tool_calls.any?
+      # Use tool_plan_content for context (internal reasoning), not texts (user-facing)
+      tool_plan_text = tool_plan_content.empty? ? nil : tool_plan_content.join("")
       context = [
         {
           "role" => "assistant",
           "tool_calls" => accumulated_tool_calls,
-          "tool_plan" => result
+          "tool_plan" => tool_plan_text
         }
       ]
 
@@ -2214,6 +2225,11 @@ module CohereHelper
     done_msg = { "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" }
     block&.call done_msg
 
+    # Signal frontend to clear fragment buffer before streaming post-tool response
+    # This prevents pre-tool text from being concatenated with post-tool response
+    clear_msg = { "type" => "clear_fragments" }
+    block&.call clear_msg
+
     # Make recursive API request with tool results
     api_request("tool", session, call_depth: call_depth, &block)
   end
@@ -2334,6 +2350,16 @@ module CohereHelper
         else
           conversation_messages << msg
         end
+      when "tool"
+        # Include tool results in conversation history
+        # Extract the tool result content from the document structure
+        tool_content = extract_tool_result_text(msg)
+        if tool_content && !tool_content.empty?
+          conversation_messages << {
+            "role" => "tool_result",
+            "content" => tool_content
+          }
+        end
       end
     end
     
@@ -2354,8 +2380,15 @@ module CohereHelper
       result += "---\n"
       
       conversation_messages.each do |msg|
-        role_label = msg["role"] == "user" ? "User" : "Assistant"
-        result += "#{role_label}: #{msg["content"]}\n\n"
+        case msg["role"]
+        when "user"
+          result += "User: #{msg["content"]}\n\n"
+        when "assistant"
+          result += "Assistant: #{msg["content"]}\n\n"
+        when "tool_result"
+          # Format tool result as a system note showing the file was saved
+          result += "[Tool Result]: #{msg["content"]}\n\n"
+        end
       end
       
       result += "---\n\n"
@@ -2465,5 +2498,32 @@ module CohereHelper
     else
       content.to_s.strip.empty?
     end
+  end
+
+  # Extract text from tool result message for conversation formatting
+  # Tool results have a complex structure with document/data/results format
+  def extract_tool_result_text(msg)
+    return "" unless msg.is_a?(Hash)
+
+    content = msg["content"]
+    return "" unless content.is_a?(Array)
+
+    results = []
+    content.each do |part|
+      next unless part.is_a?(Hash)
+
+      # Handle document format (Cohere v2 tool results)
+      if part["type"] == "document" && part["document"]
+        doc = part["document"]
+        if doc["data"] && doc["data"]["results"]
+          results << doc["data"]["results"].to_s
+        end
+      # Handle text format
+      elsif part["type"] == "text" && part["text"]
+        results << part["text"].to_s
+      end
+    end
+
+    results.join("\n")
   end
 end

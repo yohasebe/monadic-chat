@@ -709,6 +709,12 @@ function ttsStop() {
     removeStopButtonHighlight();
   }
 
+  // CRITICAL: Stop ALL active audio elements first
+  // This ensures all independently-created Audio elements are stopped
+  if (typeof window.stopAllActiveAudio === 'function') {
+    window.stopAllActiveAudio();
+  }
+
   // Clear the global audio queue
   // IMPORTANT: Use clearAudioQueue() which properly clears the queue
   // without breaking the reference between window.globalAudioQueue and the local variable

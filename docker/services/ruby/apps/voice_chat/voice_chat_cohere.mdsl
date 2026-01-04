@@ -43,6 +43,7 @@ app "VoiceChatCohere" do
   
   llm do
     provider "cohere"
+    # Use reasoning model but with thinking disabled for faster voice responses
     model "command-a-reasoning-08-2025"
     reasoning_effort "disabled"
   end

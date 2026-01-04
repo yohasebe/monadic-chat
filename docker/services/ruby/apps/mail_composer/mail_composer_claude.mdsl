@@ -48,6 +48,7 @@ app "MailComposerClaude" do
   llm do
     provider "anthropic"
     model "claude-sonnet-4-5-20250929"
+    reasoning_effort "none"
     temperature 0.3
   end
   

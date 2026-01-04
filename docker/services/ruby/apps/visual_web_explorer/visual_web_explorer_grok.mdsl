@@ -80,5 +80,6 @@ app "VisualWebExplorerGrok" do
   end
 
   # Import web automation tools from shared registry
-  import_shared_tools :web_automation, visibility: "conditional"
+  # Visual Web Explorer's core functionality requires these tools to always be available
+  import_shared_tools :web_automation, visibility: "always"
 end

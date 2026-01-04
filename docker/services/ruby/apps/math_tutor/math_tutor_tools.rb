@@ -2,14 +2,17 @@
 
 # Math Tutor application tools for learning progress tracking.
 # Uses Monadic Session State mechanism for context tracking.
+# Uses ContextPanelHelper to update the sidebar Context Panel.
 
 module MathTutorTools
   include MonadicHelper
   include Monadic::SharedTools::MonadicSessionState
+  include Monadic::SharedTools::ContextPanelHelper
 
   STATE_KEY = "math_tutor_context"
 
   # Save learning progress and context to session state.
+  # Also updates the Context Panel with concepts and tips.
   #
   # @param message [String] Response message to the user
   # @param current_problem [String] The current problem being worked on
@@ -32,7 +35,23 @@ module MathTutorTools
       last_message: message
     }
 
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    # Save to session state
+    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+
+    # Update Context Panel with concepts (mapped to "concepts" field)
+    if concepts_covered&.any?
+      add_to_context_panel(field: :concepts, items: concepts_covered, session: session)
+    end
+
+    # Update Context Panel with tips (from learning notes and weak areas)
+    tips = []
+    tips.concat(learning_notes) if learning_notes&.any?
+    tips.concat(weak_areas.map { |a| "Practice: #{a}" }) if weak_areas&.any?
+    if tips.any?
+      add_to_context_panel(field: :tips, items: tips, session: session)
+    end
+
+    result
   end
 
   # Load learning progress from session state.
@@ -69,6 +88,7 @@ module MathTutorTools
   end
 
   # Add concepts covered in the tutoring session.
+  # Also updates the Context Panel.
   #
   # @param concepts [Array<String>] Mathematical concepts to add
   # @param session [Hash] Session object (automatically provided)
@@ -79,10 +99,18 @@ module MathTutorTools
     all_concepts = all_concepts.uniq
 
     context = existing.merge(concepts_covered: all_concepts)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+
+    # Update Context Panel
+    if concepts&.any?
+      add_to_context_panel(field: :concepts, items: concepts, session: session)
+    end
+
+    result
   end
 
   # Record weak areas that need more practice.
+  # Also updates the Context Panel tips.
   #
   # @param areas [Array<String>] Areas where student struggles
   # @param session [Hash] Session object (automatically provided)
@@ -93,10 +121,19 @@ module MathTutorTools
     all_areas = all_areas.uniq
 
     context = existing.merge(weak_areas: all_areas)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+
+    # Update Context Panel with tips
+    if areas&.any?
+      tips = areas.map { |a| "Practice: #{a}" }
+      add_to_context_panel(field: :tips, items: tips, session: session)
+    end
+
+    result
   end
 
   # Add learning notes about the student's progress.
+  # Also updates the Context Panel tips.
   #
   # @param notes [Array<String>] Notes to add
   # @param session [Hash] Session object (automatically provided)
@@ -107,7 +144,14 @@ module MathTutorTools
     all_notes = all_notes.uniq
 
     context = existing.merge(learning_notes: all_notes)
-    monadic_save_state(key: STATE_KEY, payload: context, session: session)
+    result = monadic_save_state(key: STATE_KEY, payload: context, session: session)
+
+    # Update Context Panel with tips
+    if notes&.any?
+      add_to_context_panel(field: :tips, items: notes, session: session)
+    end
+
+    result
   end
 
   private

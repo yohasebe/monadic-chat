@@ -87,7 +87,7 @@ def get_encoding_name():
 @app.route('/count_tokens', methods=['POST'])
 def count_tokens():
     data = request.json
-    text = data.get('text', '')
+    text = data.get('text') or ''  # Handle None and missing key
     model_name = data.get('model_name', default_model)
     encoding_name = data.get('encoding_name', "o200k_base")
 
@@ -97,17 +97,27 @@ def count_tokens():
 
     # Use cached encoding instead of creating a new one each time
     encoding = get_cached_encoding(encoding_name)
+
+    # Ensure text is a string (handle None, dict, list, etc.)
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ''
+
     tokens = encoding.encode(text)
     return jsonify({'number_of_tokens': len(tokens)})
 
 @app.route('/get_tokens_sequence', methods=['POST'])
 def get_tokens_sequence():
     data = request.json
-    text = data.get('text', '')
+    text = data.get('text') or ''  # Handle None and missing key
     model_name = data.get('model_name', default_model)
     encoding_name = model_to_encoding_map[model_name]
     # Use cached encoding
     encoding = get_cached_encoding(encoding_name)
+
+    # Ensure text is a string (handle None, dict, list, etc.)
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ''
+
     tokens = encoding.encode(text)  # Using encode instead of encode_ordinary
     return jsonify({'tokens_sequence': ",".join(map(str, tokens))})
 

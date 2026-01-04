@@ -586,6 +586,17 @@ const modelSpec = {
     "supports_web_search": false
   },
   // Cohere models
+  "command-a-03-2025": {
+    "context_window" : [1, 256000],
+    "max_output_tokens" : [1, 8000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.01, 0.99], 0.75],
+    "frequency_penalty": [[0.0, 1.0], 0.0],
+    "presence_penalty": [[0.0, 1.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": false,
+    "deprecated": false
+  },
   "command-a-vision-07-2025": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 8000],

@@ -445,7 +445,19 @@ module MistralHelper
           res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
 
           block&.call res
-          session[:messages] << res["content"]
+
+          # Check if this user message was already added by websocket.rb (for context extraction)
+          # to avoid duplicate consecutive user messages that cause API errors
+          existing_msg = session[:messages].find do |m|
+            m["role"] == "user" && m["text"] == message
+          end
+
+          if existing_msg
+            # Update existing message with additional fields instead of adding new one
+            existing_msg.merge!(res["content"])
+          else
+            session[:messages] << res["content"]
+          end
         end
     end
     end
@@ -990,6 +1002,11 @@ module MistralHelper
             if delta["content"]
               content = delta["content"]
 
+              # Handle case where content might be an Array (some Mistral API responses)
+              if content.is_a?(Array)
+                content = content.map { |c| c.is_a?(Hash) ? (c["text"] || c["content"] || "") : c.to_s }.join
+              end
+              content = content.to_s unless content.is_a?(String)
 
               # Check if this is a Magistral model and process thinking blocks
               # Updated pattern to match magistral-medium-latest
@@ -1066,6 +1083,13 @@ module MistralHelper
 
     # Once done with the main content, process any tool calls
     if tool_calls && !tool_calls.empty?
+      # Save the pre-tool content to session for later use
+      # This prevents losing streamed content when tool calls trigger recursive api_request
+      if content_buffer && !content_buffer.strip.empty?
+        session[:mistral_pre_tool_content] ||= ""
+        session[:mistral_pre_tool_content] += content_buffer
+      end
+
       # Process each tool call
       session[:call_depth_per_turn] += 1
 
@@ -1236,6 +1260,23 @@ module MistralHelper
     # Finish up the standard response
     res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
     block&.call res
+
+    # Debug: Log content_buffer before final processing
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [Mistral] content_buffer length: #{content_buffer.length}")
+        log.puts("[#{Time.now}] [Mistral] content_buffer first 500 chars: #{content_buffer[0..500]}")
+        log.puts("[#{Time.now}] [Mistral] content_buffer last 500 chars: #{content_buffer[-500..-1]}")
+      end
+    end
+
+    # Prepend any saved pre-tool content from earlier in the conversation
+    # This recovers streamed content that was lost during tool call recursion
+    pre_tool_content = session[:mistral_pre_tool_content]
+    if pre_tool_content && pre_tool_content.is_a?(String) && !pre_tool_content.strip.empty?
+      content_buffer = pre_tool_content + "\n\n" + content_buffer.to_s
+      session.delete(:mistral_pre_tool_content)  # Clear after use
+    end
 
     # Clean content for Magistral models
     final_content = content_buffer

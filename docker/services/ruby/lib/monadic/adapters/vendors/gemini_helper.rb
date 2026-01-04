@@ -454,7 +454,127 @@ module GeminiHelper
   def clear_models_cache
     $MODELS[:gemini] = nil
   end
-  
+
+  # Internal Web Search Agent for Gemini
+  # This method makes a separate Gemini API call with google_search grounding only,
+  # allowing web search to be used as a function call alongside other tools.
+  # This works around the Gemini 3 limitation where grounding tools cannot be
+  # combined with function_declarations in a single API call.
+  #
+  # @param query [String] The search query
+  # @param model [String] The model to use (defaults to gemini-3-flash-preview)
+  # @return [Hash] Search results with sources and content
+  def gemini_web_search(query:, n: 5)
+    # Instance method wrapper for tool calls
+    result = GeminiHelper.internal_web_search(query: query)
+    if result[:success]
+      # Format for consistency with other search tools
+      {
+        "query" => query,
+        "answer" => result[:content],
+        "results" => result[:sources].map do |source|
+          if source["queries"]
+            { "type" => "search_queries", "queries" => source["queries"] }
+          else
+            { "title" => source["title"], "url" => source["uri"], "content" => "" }
+          end
+        end,
+        "websearch_agent" => "gemini_internal"
+      }
+    else
+      { "error" => result[:error], "query" => query }
+    end
+  end
+
+  def self.internal_web_search(query:, model: "gemini-3-flash-preview")
+    api_key = CONFIG["GEMINI_API_KEY"]
+    return { error: "GEMINI_API_KEY not configured" } if api_key.nil?
+
+    headers = {
+      "Content-Type" => "application/json"
+    }
+
+    # Build request body with google_search grounding only
+    body = {
+      "contents" => [
+        {
+          "role" => "user",
+          "parts" => [{ "text" => "Search the web for: #{query}\n\nProvide comprehensive search results with sources." }]
+        }
+      ],
+      "tools" => [{ "google_search" => {} }],
+      "generationConfig" => {
+        "temperature" => 0.0,
+        "maxOutputTokens" => 4096
+      }
+    }
+
+    target_uri = "#{API_ENDPOINT}/models/#{model}:generateContent?key=#{api_key}"
+
+    begin
+      http = HTTP.headers(headers)
+                 .timeout(connect: 30, read: 120, write: 60)
+      res = http.post(target_uri, json: body)
+
+      if res.status.success?
+        response_data = JSON.parse(res.body)
+
+        # Extract text content
+        text_content = ""
+        grounding_metadata = nil
+
+        if response_data["candidates"]&.first
+          candidate = response_data["candidates"].first
+          if candidate["content"]&.dig("parts")
+            text_content = candidate["content"]["parts"]
+                            .select { |p| p["text"] }
+                            .map { |p| p["text"] }
+                            .join("\n")
+          end
+          grounding_metadata = candidate["groundingMetadata"]
+        end
+
+        # Extract sources from grounding metadata
+        sources = []
+        if grounding_metadata
+          if grounding_metadata["groundingChunks"]
+            grounding_metadata["groundingChunks"].each do |chunk|
+              if chunk["web"]
+                sources << {
+                  "title" => chunk["web"]["title"],
+                  "uri" => chunk["web"]["uri"]
+                }
+              end
+            end
+          end
+          if grounding_metadata["webSearchQueries"]
+            sources.unshift({ "queries" => grounding_metadata["webSearchQueries"] })
+          end
+        end
+
+        {
+          success: true,
+          content: text_content,
+          sources: sources,
+          query: query
+        }
+      else
+        error_body = JSON.parse(res.body) rescue { "error" => res.body.to_s }
+        {
+          success: false,
+          error: "API Error: #{error_body.dig('error', 'message') || res.status}",
+          query: query
+        }
+      end
+    rescue StandardError => e
+      {
+        success: false,
+        error: "Request failed: #{e.message}",
+        query: query
+      }
+    end
+  end
+
   # Simple non-streaming chat completion
   def send_query(options, model: nil)
     # Resolve model via SSOT only (no hardcoded fallback)
@@ -1052,7 +1172,20 @@ module GeminiHelper
                   "app_name" => obj["app_name"]
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
-        session[:messages] << res["content"]
+
+        # Check if this user message was already added by websocket.rb (for context extraction)
+        # to avoid duplicate consecutive user messages that cause API errors
+        existing_msg = session[:messages].find do |m|
+          m["role"] == "user" && m["text"] == message
+        end
+
+        if existing_msg
+          # Update existing message with additional fields instead of adding new one
+          existing_msg.merge!(res["content"])
+        else
+          session[:messages] << res["content"]
+        end
+
         block&.call res
       end
     end
@@ -1445,12 +1578,10 @@ module GeminiHelper
       app_tools = filtered_function_tools
     end
     
-    google_search_allowed = use_native_websearch &&
-                             (!progressive_enabled || Monadic::Utils::ProgressiveToolManager.unlocked?(
-                               session: session,
-                               app_name: app,
-                               tool_name: "google_search"
-                             ))
+    # NOTE: google_search is a Gemini API grounding feature, NOT a PTD-managed tool.
+    # It should be enabled based on websearch setting alone, not PTD checks.
+    # PTD only manages function_declarations (user-defined tools).
+    google_search_allowed = use_native_websearch
 
     # Skip tool setup if we're processing tool results
     if role != "tool"
@@ -1471,23 +1602,50 @@ module GeminiHelper
       end
       
       if has_function_declarations && google_search_allowed
-        # Both function declarations and web search are needed
-        DebugHelper.debug("Gemini: Both function declarations and Google Search enabled", category: :api, level: :debug)
-        
-        # Combine function declarations and google_search tool
-        if app_tools.is_a?(Array)
-          body["tools"] = [
-            {"function_declarations" => app_tools},
-            {"google_search" => {}}
-          ]
-        else
-          body["tools"] = [
-            app_tools,
-            {"google_search" => {}}
-          ]
+        # Gemini 3 Flash Preview doesn't support combining google_search grounding with function_declarations
+        # Solution: Use gemini_web_search as a function declaration instead of google_search grounding
+        # This allows web search to work alongside other tools via the internal agent pattern
+        DebugHelper.debug("Gemini: Adding gemini_web_search tool to function declarations (google_search grounding incompatible)", category: :api, level: :debug)
+
+        # Define the gemini_web_search tool
+        gemini_web_search_tool = {
+          "name" => "gemini_web_search",
+          "description" => "Search the web for current information using Google Search. Use this tool when you need to find up-to-date information, verify facts, or research topics. Returns search results with sources.",
+          "parameters" => {
+            "type" => "object",
+            "properties" => {
+              "query" => {
+                "type" => "string",
+                "description" => "The search query to find information on the web"
+              }
+            },
+            "required" => ["query"]
+          }
+        }
+
+        # Add gemini_web_search to the existing tools
+        tools_array = app_tools.is_a?(Array) ? app_tools.dup : (app_tools["function_declarations"] || []).dup
+
+        # Only add if not already present
+        unless tools_array.any? { |t| t["name"] == "gemini_web_search" }
+          tools_array << gemini_web_search_tool
         end
-        
-        elsif has_function_declarations
+
+        if CONFIG["EXTRA_LOGGING"]
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+            log.puts "[#{Time.now}] [Gemini Web Search] Added gemini_web_search tool to #{app}"
+            log.puts "[#{Time.now}] [Gemini Web Search] Total tools: #{tools_array.length}"
+          end
+        end
+
+        body["tools"] = [{"function_declarations" => tools_array}]
+        body["toolConfig"] = {
+          "functionCallingConfig" => {
+            "mode" => "AUTO"
+          }
+        }
+
+      elsif has_function_declarations
         # Only function declarations (no web search)
         # Convert the tools format if it's an array (initialize_from_assistant apps)
         if app_tools.is_a?(Array)
@@ -1570,6 +1728,16 @@ module GeminiHelper
     has_function_declarations_in_body = body["tools"]&.any? { |tool|
       tool.is_a?(Hash) && tool["function_declarations"]&.any?
     }
+
+    # Debug: Log final tool configuration for Research Assistant
+    if CONFIG["EXTRA_LOGGING"] && app.to_s.include?("Research")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts "[#{Time.now}] [Gemini Research Debug] Final check: has_function_declarations_in_body=#{has_function_declarations_in_body}"
+        log.puts "[#{Time.now}] [Gemini Research Debug] body['tools'] = #{body['tools']&.map { |t| t.keys }.inspect}"
+        log.puts "[#{Time.now}] [Gemini Research Debug] body['toolConfig'] = #{body['toolConfig'].inspect}"
+      end
+    end
+
     if role != "tool" && tool_capable && has_function_declarations_in_body
       body["toolConfig"] ||= {}
       body["toolConfig"]["functionCallingConfig"] ||= {}
@@ -1721,14 +1889,20 @@ module GeminiHelper
     end
     
     # Add URL Context for web search functionality (SSOT-gated)
-    if use_native_websearch && role == "user"
+    # IMPORTANT: Gemini 3 Flash Preview doesn't support combining grounding tools (url_context, google_search)
+    # with function_declarations. Only add url_context if no function_declarations are present.
+    has_function_declarations_before_url_context = body["tools"]&.any? { |tool|
+      tool.is_a?(Hash) && tool["function_declarations"]&.any?
+    }
+
+    if use_native_websearch && role == "user" && !has_function_declarations_before_url_context
       DebugHelper.debug("Gemini: Adding URL Context for web search", category: :api, level: :debug)
-      
+
       # Add the url_context tool to enable URL retrieval
       if !body["tools"]
         body["tools"] = []
       end
-      
+
       # Add url_context tool (according to Gemini docs)
       body["tools"] << { "url_context" => {} }
       
@@ -2514,8 +2688,15 @@ module GeminiHelper
               log.puts "[#{Time.now}] [Jupyter Early Termination] new tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}"
             end
           end
-          # Return result without processing more tools
+          # Build final content from tool results
           final_content = result.any? ? result.join("") : "Notebook operations completed."
+
+          # Send content to client before returning
+          if final_content && !final_content.empty?
+            block&.call({ "type" => "fragment", "content" => final_content })
+          end
+          block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+
           return [{ "choices" => [{ "message" => { "content" => final_content } }] }]
         end
       end

@@ -21,7 +21,9 @@ module OpenAIHelper
   include ErrorPatternDetector
   include FunctionCallErrorHandler
   include MonadicPerformance
-  MAX_FUNC_CALLS = 20
+  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
+  # Auto Forge with GPT-5-Codex may need 30+ calls for complex applications
+  MAX_FUNC_CALLS = 50
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
@@ -343,7 +345,7 @@ module OpenAIHelper
           begin
             res_body = JSON.parse(res.body)
           rescue JSON::ParserError => e
-            DebugHelper.debug("Invalid JSON from OpenAI models API: #{res.body[0..200]}", "api", level: :error)
+            DebugHelper.debug("Invalid JSON from OpenAI models API: #{res.body[0..200]}", category: :api, level: :error)
             return []
           end
           
@@ -436,12 +438,16 @@ module OpenAIHelper
       response_format = options["response_format"] || options[:response_format]
       body["response_format"] = response_format.is_a?(Hash) ? response_format : { "type" => "json_object" }
 
-      DebugHelper.debug("Using response format: #{body['response_format'].inspect}", "api")
+      DebugHelper.debug("Using response format: #{body['response_format'].inspect}", category: :api)
     end
 
-    # Add max_tokens if specified
-    if options["max_tokens"]
-      body["max_tokens"] = options["max_tokens"].to_i
+    # Add max_completion_tokens if specified (required for GPT-5.x models)
+    # Also check for max_tokens for backward compatibility
+    if options["max_completion_tokens"]
+      body["max_completion_tokens"] = options["max_completion_tokens"].to_i
+    elsif options["max_tokens"]
+      # Use max_completion_tokens for all OpenAI models (GPT-5.x requires it, others accept it)
+      body["max_completion_tokens"] = options["max_tokens"].to_i
     end
 
     # Add tool definitions if provided (for testing tool-calling apps)
@@ -662,7 +668,19 @@ module OpenAIHelper
                 } }
         res["content"]["images"] = obj["images"] if obj["images"] && obj["images"].is_a?(Array)
         block&.call res
-        session[:messages] << res["content"]
+
+        # Check if this user message was already added by websocket.rb (for context extraction)
+        # to avoid duplicate consecutive user messages that cause API errors
+        existing_msg = session[:messages].find do |m|
+          m["role"] == "user" && m["text"] == obj["message"]
+        end
+
+        if existing_msg
+          # Update existing message with additional fields instead of adding new one
+          existing_msg.merge!(res["content"])
+        else
+          session[:messages] << res["content"]
+        end
       end
     end
 
@@ -755,7 +773,12 @@ module OpenAIHelper
     end
     
     if reasoning_model
-      body["reasoning_effort"] = reasoning_effort || "medium"
+      # Only add reasoning_effort if explicitly set and not "none"
+      # Default is "none" (no reasoning) - apps must opt-in to reasoning
+      if reasoning_effort && reasoning_effort != "none"
+        body["reasoning_effort"] = reasoning_effort
+      end
+      # nil or "none" case: don't add reasoning_effort (no reasoning)
       body.delete("temperature")
       body.delete("frequency_penalty")
       body.delete("presence_penalty")
@@ -1486,7 +1509,8 @@ module OpenAIHelper
       }
       
       # Add reasoning configuration for reasoning models
-      if body["reasoning_effort"]
+      # Skip if reasoning_effort is "none" - this disables reasoning entirely
+      if body["reasoning_effort"] && body["reasoning_effort"] != "none"
         responses_body["reasoning"] = {
           "effort" => body["reasoning_effort"],
           "summary" => "auto"  # Required to receive reasoning content in output

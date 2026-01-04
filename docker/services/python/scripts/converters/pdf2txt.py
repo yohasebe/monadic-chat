@@ -4,7 +4,13 @@ import sys
 import argparse
 import json
 import os
+import warnings
 from typing import Iterator
+
+# Suppress warnings before importing pymupdf4llm to prevent
+# "Consider using the pymupdf_layout package" message from corrupting JSON output
+warnings.filterwarnings("ignore")
+
 import fitz        # PyMuPDF
 import pymupdf4llm # PyMuPDF4LLM
 

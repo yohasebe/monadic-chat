@@ -114,7 +114,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Network error:.*HTTP::TimeoutError/),
-          "api",
+          category: :api,
           level: :error
         )
       end
@@ -126,7 +126,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Network error:.*ECONNREFUSED/),
-          "api",
+          category: :api,
           level: :error
         )
       end
@@ -138,7 +138,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Network error:.*Net::ReadTimeout/),
-          "api",
+          category: :api,
           level: :error
         )
       end
@@ -153,7 +153,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/File system error:.*ENOENT/),
-          "app",
+          category: :app,
           level: :error
         )
       end
@@ -165,7 +165,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/File system error:.*EACCES/),
-          "app",
+          category: :app,
           level: :error
         )
       end
@@ -177,7 +177,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/File system error:.*ENOSPC/),
-          "app",
+          category: :app,
           level: :error
         )
       end
@@ -191,7 +191,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Data parsing error:.*JSON::ParserError/),
-          "app",
+          category: :app,
           level: :warning
         )
       end
@@ -203,7 +203,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Data parsing error:.*TypeError/),
-          "app",
+          category: :app,
           level: :warning
         )
       end
@@ -217,7 +217,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Unexpected error:.*StandardError/),
-          "app",
+          category: :app,
           level: :error
         )
       end
@@ -231,7 +231,7 @@ RSpec.describe ErrorHandler do
       
       expect(DebugHelper).to have_received(:debug).with(
         a_string_matching(/"context":\{"user_id":123,"action":"file_upload"\}/),
-        "app",
+        category: :app,
         level: :error
       )
     end
@@ -244,7 +244,7 @@ RSpec.describe ErrorHandler do
       
       expect(DebugHelper).to have_received(:debug).with(
         a_string_matching(/"backtrace":\["line 0","line 1","line 2","line 3","line 4"\]/),
-        "app",
+        category: :app,
         level: :error
       )
     end
@@ -375,7 +375,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Network error:/),
-          "api",
+          category: :api,
           level: :error
         ).at_least(:once)
       end
@@ -404,7 +404,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/File system error:/),
-          "app",
+          category: :app,
           level: :error
         ).at_least(:once)
       end
@@ -429,7 +429,7 @@ RSpec.describe ErrorHandler do
         
         expect(DebugHelper).to have_received(:debug).with(
           a_string_matching(/Data parsing error:/),
-          "app",
+          category: :app,
           level: :warning
         ).at_least(:once)
       end
@@ -470,7 +470,7 @@ RSpec.describe ErrorHandler do
       
       expect(DebugHelper).to have_received(:debug).with(
         a_string_matching(/#{original_message}/),
-        "app",
+        category: :app,
         level: :error
       )
     end
@@ -506,7 +506,7 @@ RSpec.describe ErrorHandler do
       expect(result[:error]).to include(context[:file_path])
       expect(DebugHelper).to have_received(:debug).with(
         a_string_matching(/"operation":"read"/),
-        "app",
+        category: :app,
         level: :error
       )
     end

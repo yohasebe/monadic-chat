@@ -353,13 +353,13 @@ RSpec.describe PDF2Text do
       allow(FileUtils).to receive(:cp)
       allow(Open3).to receive(:capture3).and_return(['<html>Not JSON</html>', '', double(success?: true)])
       allow(DebugHelper).to receive(:debug)
-      
+
       expect(DebugHelper).to receive(:debug).with(
         /Invalid JSON from pdf2txt.py/,
-        "app",
+        category: :app,
         level: :error
       )
-      
+
       expect { extractor.pdf2text(test_pdf_path) }.to raise_error('PDF extraction returned invalid JSON format')
     end
   end

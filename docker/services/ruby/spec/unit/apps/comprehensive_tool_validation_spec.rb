@@ -96,7 +96,8 @@ RSpec.describe 'Comprehensive Tool Validation' do
     'second_opinion' => {
       tools: %w[second_opinion_agent],
       agents: [],
-      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek Perplexity Ollama]
+      # Note: Perplexity excluded - does not support tool calling
+      providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek Ollama]
     },
     'speech_draft_helper' => {
       tools: %w[list_providers_and_voices text_to_speech],

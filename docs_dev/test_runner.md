@@ -25,8 +25,10 @@ All test results are saved to a unified directory per test run:
   tmp/test_results/all_<timestamp>/
   ├── unit.json           # Ruby unit test results
   ├── integration.json    # Ruby integration test results
+  ├── system.json         # Ruby system test results
   ├── api.json            # API test results (if api_level != none)
   ├── media.json          # Media test results (if api_level == full)
+  ├── websearch.json      # Websearch API test results (if api_level == full)
   ├── jest.json           # JavaScript test results
   ├── pytest.txt          # Python test output
   ├── summary.json        # Combined summary

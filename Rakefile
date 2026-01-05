@@ -2752,18 +2752,30 @@ namespace :test do
     output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)
     FileUtils.mkdir_p(output_dir)
 
-    # Determine if we should run media tests (only on 'full' API level)
-    run_media = (api_level == 'full')
+    # Set TEST_OUTPUT_DIR so RSpec SummaryFormatter uses this directory
+    ENV['TEST_OUTPUT_DIR'] = output_dir
 
-    # Set environment variables for 'full' API level
+    # Determine what tests to run based on api_level
+    run_media = (api_level == 'full')
+    run_websearch = (api_level == 'full')
+
+    # Set environment variables for test runs
     if api_level == 'full'
       ENV['RUN_MEDIA'] = 'true'
       ENV['RUN_WEBSEARCH_TESTS'] = 'true'
+      ENV['RUN_API'] = 'true'
+    elsif api_level == 'standard'
+      ENV['RUN_API'] = 'true'
     end
 
+    # Calculate total steps
+    total_steps = 5  # unit, integration, system, javascript, python
+    total_steps += 1 if api_level != 'none'  # api tests
+    total_steps += 1 if run_media             # media tests
+    total_steps += 1 if run_websearch         # websearch tests
+
     # Build banner with proper display-width alignment
-    banner_width = 39  # Inner width between ║ characters
-    run_websearch = (api_level == 'full')
+    banner_width = 42  # Inner width between ║ characters
     puts "╔#{'═' * banner_width}╗"
     puts "║#{DisplayWidthHelpers.center('Monadic Chat - Full Test Suite', banner_width)}║"
     puts "║   API Level: #{DisplayWidthHelpers.ljust(api_level, banner_width - 14)}║"
@@ -2774,46 +2786,69 @@ namespace :test do
 
     results = {}
     start_time = Time.now
+    step = 0
 
-    # Ruby unit
-    total_steps = run_media ? 6 : 5
-    puts "\n🧪 [1/#{total_steps}] Running Ruby unit tests..."
+    # Ruby unit tests
+    step += 1
+    puts "\n🧪 [#{step}/#{total_steps}] Running Ruby unit tests..."
     results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=unit\"]")
 
-    # Ruby integration
-    puts "\n🧪 [2/#{total_steps}] Running Ruby integration tests..."
+    # Ruby integration tests
+    step += 1
+    puts "\n🧪 [#{step}/#{total_steps}] Running Ruby integration tests..."
     results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=integration\"]")
 
-    # API (optional by level)
+    # Ruby system tests
+    step += 1
+    puts "\n🧪 [#{step}/#{total_steps}] Running Ruby system tests..."
+    system_json = File.join(output_dir, 'system.json')
+    Dir.chdir("docker/services/ruby") do
+      results[:ruby_system] = system("bundle exec rspec spec/system --format documentation --format json --out #{system_json}")
+    end
+
+    # API tests (optional by level)
     if api_level != 'none'
-      puts "\n🧪 [3/#{total_steps}] Running API tests..."
+      step += 1
+      puts "\n🧪 [#{step}/#{total_steps}] Running API tests..."
       results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=api\"]")
     else
-      puts "\n⏭️  [3/#{total_steps}] Skipping API tests (api_level=none)"
       results[:api] = true
     end
 
     # Media tests (only on 'full' API level)
     if run_media
-      puts "\n🧪 [4/#{total_steps}] Running Media tests (image/video/audio generation)..."
+      step += 1
+      puts "\n🧪 [#{step}/#{total_steps}] Running Media tests (image/video/audio generation)..."
       media_json = File.join(output_dir, 'media.json')
       Dir.chdir("docker/services/ruby") do
         results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
       end
     else
-      puts "\n⏭️  [4/#{total_steps}] Skipping Media tests (requires api_level=full)"
       results[:media] = true
     end
 
-    # JavaScript
-    step_js = run_media ? 5 : 4
-    puts "\n🧪 [#{step_js}/#{total_steps}] Running JavaScript tests..."
+    # Websearch API tests (only on 'full' API level)
+    if run_websearch
+      step += 1
+      puts "\n🧪 [#{step}/#{total_steps}] Running Websearch API tests..."
+      websearch_json = File.join(output_dir, 'websearch.json')
+      Dir.chdir("docker/services/ruby") do
+        # Run websearch-tagged integration tests
+        results[:websearch] = system("bundle exec rspec spec/integration --tag websearch --format documentation --format json --out #{websearch_json}")
+      end
+    else
+      results[:websearch] = true
+    end
+
+    # JavaScript tests
+    step += 1
+    puts "\n🧪 [#{step}/#{total_steps}] Running JavaScript tests..."
     Rake::Task[:jstest].reenable
     results[:javascript] = Rake::Task[:jstest].invoke('true', output_dir)
 
-    # Python
-    step_py = run_media ? 6 : 5
-    puts "\n🧪 [#{step_py}/#{total_steps}] Running Python tests..."
+    # Python tests
+    step += 1
+    puts "\n🧪 [#{step}/#{total_steps}] Running Python tests..."
     Rake::Task["pytest:all"].reenable
     results[:python] = Rake::Task["pytest:all"].invoke('true', output_dir)
 
@@ -2842,8 +2877,10 @@ namespace :test do
       suites = []
       suites << { name: :unit,        file: 'unit.json',        status: results[:ruby_unit] }
       suites << { name: :integration, file: 'integration.json', status: results[:ruby_integration] }
+      suites << { name: :system,      file: 'system.json',      status: results[:ruby_system] }
       suites << { name: :api,         file: 'api.json',         status: results[:api] } if api_level != 'none'
       suites << { name: :media,       file: 'media.json',       status: results[:media] } if run_media
+      suites << { name: :websearch,   file: 'websearch.json',   status: results[:websearch] } if run_websearch
       suites << { name: :javascript,  file: 'jest.json',        status: results[:javascript] }
       suites << { name: :python,      file: 'pytest.txt',       status: results[:python] }
       idx_path = File.join(output_dir, 'index.html')

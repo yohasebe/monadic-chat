@@ -1,6 +1,8 @@
 .DS_Store
 .eslintrc.*
 eslint.config.*
+.editorconfig
+.gitmessage
 
 /public/ext
 
@@ -85,6 +87,7 @@ test_tts_input_*
 
 # Ignore internal development documentation
 CLAUDE.md
+GEMINI.md
 AGENTS.md
 DEVELOPER_NOTES.md
 ARCHITECTURE_IMPROVEMENTS.md

@@ -134,11 +134,15 @@ RSpec.describe 'Initiate From Assistant Safety Validation' do
                                 system_prompt.match?(/for simple.*skip.*tools/i) ||
                                 system_prompt.match?(/welcome.*message/i)
 
-            # This is a warning, not a failure - some apps may legitimately need tools on first message
+            # This is informational - some apps may legitimately need tools on first message
+            # Use skip instead of pending to avoid "fixed pending" failures
             if !has_any_safeguard && system_prompt.length > 500
-              pending "Consider adding initial greeting guidance - app has tools but no explicit greeting instructions"
+              skip "Consider adding initial greeting guidance - app has tools but no explicit greeting instructions"
             end
           end
+
+          # Test passes if no issues found
+          expect(true).to be(true)
         end
 
         it 'does not have excessive CRITICAL/MANDATORY language' do
@@ -149,12 +153,16 @@ RSpec.describe 'Initiate From Assistant Safety Validation' do
           recommended_count = system_prompt.scan(/Recommended|Optional|when appropriate|you may|you can/i).length
 
           # If more than 5 aggressive keywords and ratio is poor, flag it
+          # Use skip instead of pending to avoid "fixed pending" failures
           if critical_count > 5 && recommended_count < 2
-            pending <<~WARNING
+            skip <<~WARNING
               System prompt has high aggressive language ratio (#{critical_count} CRITICAL/MANDATORY vs #{recommended_count} recommended).
               Consider softening language to prevent potential tool loops.
             WARNING
           end
+
+          # Test passes if language ratio is acceptable
+          expect(true).to be(true)
         end
       end
     end

@@ -37,7 +37,7 @@
 ### Installation
 
 1. **Download** the installer for your platform from [Releases](https://github.com/yohasebe/monadic-chat/releases)
-   - macOS: `.dmg` file (Apple Silicon or Intel)
+   - macOS: `.dmg` file (Apple Silicon)
    - Windows: `.exe` installer
    - Linux: `.deb` package (Debian/Ubuntu)
 

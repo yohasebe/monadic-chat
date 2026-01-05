@@ -9,7 +9,8 @@ RSpec.describe 'Voice Pipeline (TTS -> STT)', :api, :media do
   include ProviderMatrixHelper
 
   it 'generates audio with TTS and transcribes it with STT (openai/elevenlabs/webspeech)' do
-    require_run_media!
+    # Voice pipeline tests run with RUN_API=true (no RUN_MEDIA requirement)
+    skip 'RUN_API is not enabled' unless ENV['RUN_API'] == 'true'
     text = 'Hello from the voice pipeline test'
     %w[openai elevenlabs webspeech].each do |tts|
       audio_file = generate_real_audio_file(text, provider: tts, voice: (tts == 'elevenlabs' ? 'alloy' : 'alloy'))

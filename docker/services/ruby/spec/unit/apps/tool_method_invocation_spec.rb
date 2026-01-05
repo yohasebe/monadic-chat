@@ -12,6 +12,11 @@
 require 'spec_helper'
 
 RSpec.describe 'Tool Method Invocation Validation' do
+  # Load all apps before running tests
+  before(:all) do
+    TestAppLoader.load_all_apps
+  end
+
   let(:app_base_dir) { File.expand_path('../../../apps', __dir__) }
 
   # List of apps known to have tools that should be tested

@@ -173,21 +173,22 @@ RSpec.describe 'App Switching Integration', type: :integration do
 
         apps_data = prepare_apps_data
 
-        # Find apps with different configurations
-        app_with_pdf = apps_data.find { |_, settings| settings['pdf'] == true }
-        app_without_pdf = apps_data.find { |_, settings| settings['pdf'] == false }
+        # Find apps with different pdf_vector_storage configurations
+        app_with_pdf = apps_data.find { |_, settings| settings['pdf_vector_storage'] == true }
+        app_without_pdf = apps_data.find { |_, settings| settings['pdf_vector_storage'] == false || settings['pdf_vector_storage'].nil? }
 
         if app_with_pdf && app_without_pdf
           _, settings_with = app_with_pdf
           _, settings_without = app_without_pdf
 
-          # Both should be actual booleans
-          expect(settings_with['pdf']).to be true
-          expect(settings_without['pdf']).to be false
-          expect(settings_with['pdf']).to be_a(TrueClass)
-          expect(settings_without['pdf']).to be_a(FalseClass)
+          # App with pdf_vector_storage should have true
+          expect(settings_with['pdf_vector_storage']).to be true
+          expect(settings_with['pdf_vector_storage']).to be_a(TrueClass)
+
+          # App without pdf_vector_storage should have false or nil
+          expect([false, nil]).to include(settings_without['pdf_vector_storage'])
         else
-          skip 'Could not find apps with different pdf configurations'
+          skip 'Could not find apps with different pdf_vector_storage configurations'
         end
       end
     end

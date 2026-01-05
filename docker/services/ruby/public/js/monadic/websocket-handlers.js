@@ -411,9 +411,16 @@ function handleAudioMessage(data, processAudio) {
         return true;
       }
 
-      // Check if content is a valid non-empty string
-      if (typeof data.content !== 'string' || data.content === '') {
-        // Empty content is valid for finished markers, but otherwise skip
+      // Check if content is a valid string
+      if (typeof data.content !== 'string') {
+        // Non-string content is unexpected - log error but return true to prevent fallback
+        // Returning true indicates "handled" (skipped) to avoid duplicate processing in fallback
+        console.error('[handleAudioMessage] Invalid content format:', typeof data.content);
+        return true;
+      }
+
+      // Empty string content is valid for finished markers, skip silently
+      if (data.content === '') {
         return true;
       }
 

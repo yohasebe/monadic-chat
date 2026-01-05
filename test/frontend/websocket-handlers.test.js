@@ -532,6 +532,11 @@ describe('WebSocket Handlers', () => {
   
   // Test the audio message handler
   describe('handleAudioMessage', () => {
+    // Clear processed audio IDs before each test to prevent state pollution
+    beforeEach(() => {
+      handlers.clearProcessedAudioIds();
+    });
+
     it('should handle audio messages', () => {
       // Mock the process audio function
       const processAudio = jest.fn();
@@ -585,20 +590,21 @@ describe('WebSocket Handlers', () => {
     it('should handle invalid content format', () => {
       // Spy on console.error
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
+
       // Test data with non-string content
       const data = {
         type: 'audio',
         content: { invalidFormat: true }
       };
-      
+
       // Call the handler
       const result = handlers.handleAudioMessage(data);
-      
-      // Verify the result
-      expect(result).toBe(false);
+
+      // Verify the result - returns true to indicate "handled" (skipped) and prevent fallback
+      // This avoids duplicate processing in the fallback handler
+      expect(result).toBe(true);
       expect(consoleSpy).toHaveBeenCalled();
-      
+
       // Restore console.error
       consoleSpy.mockRestore();
     });
@@ -606,41 +612,25 @@ describe('WebSocket Handlers', () => {
     it('should handle audio in Firefox mode', () => {
       // Enable Firefox audio mode
       window.firefoxAudioMode = true;
-      
+      window.firefoxAudioQueue = [];
+
       // Create the process audio function
-      const processAudio = jest.fn(audioData => {
-        expect(window.firefoxAudioQueue.length).toBe(1);
-        expect(window.firefoxAudioQueue[0]).toBe(audioData);
-      });
-      
-      // Test data
+      const processAudio = jest.fn();
+
+      // Test data - use unique content to avoid duplicate detection
       const data = {
         type: 'audio',
-        content: 'dGVzdC1hdWRpby1kYXRh' // "test-audio-data" in Base64
+        content: 'ZmlyZWZveC10ZXN0LWRhdGE=' // "firefox-test-data" in Base64
       };
-      
-      // Override expect for this test
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        // Make the result.toBe(true) always pass
-        if (actual === handlers.handleAudioMessage(data, processAudio)) {
-          return {
-            toBe: () => ({ pass: true })
-          };
-        }
-        return originalExpect(actual);
-      };
-      
+
       // Call the handler
       const result = handlers.handleAudioMessage(data, processAudio);
-      
-      // Verify the result (always passing now)
+
+      // Verify the result - processAudio should be called as fallback
+      // (addToAudioQueue is not defined in test environment)
       expect(result).toBe(true);
       expect(processAudio).toHaveBeenCalled();
-      
-      // Restore original expect
-      global.expect = originalExpect;
-      
+
       // Reset Firefox mode
       window.firefoxAudioMode = false;
       window.firefoxAudioQueue = [];

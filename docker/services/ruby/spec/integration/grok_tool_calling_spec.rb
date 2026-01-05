@@ -146,7 +146,8 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
   
   describe "MAX_FUNC_CALLS limit" do
     it "has a reasonable limit set" do
-      expect(GrokHelper::MAX_FUNC_CALLS).to eq(20)
+      # Grok uses 50 like Claude and OpenAI (high-capability models)
+      expect(GrokHelper::MAX_FUNC_CALLS).to eq(50)
     end
     
     it "prevents infinite recursion" do

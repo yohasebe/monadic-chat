@@ -2729,12 +2729,20 @@ namespace :test do
     # Determine if we should run media tests (only on 'full' API level)
     run_media = (api_level == 'full')
 
+    # Set environment variables for 'full' API level
+    if api_level == 'full'
+      ENV['RUN_MEDIA'] = 'true'
+      ENV['RUN_WEBSEARCH_TESTS'] = 'true'
+    end
+
     # Build banner with proper display-width alignment
     banner_width = 39  # Inner width between ║ characters
+    run_websearch = (api_level == 'full')
     puts "╔#{'═' * banner_width}╗"
     puts "║#{DisplayWidthHelpers.center('Monadic Chat - Full Test Suite', banner_width)}║"
     puts "║   API Level: #{DisplayWidthHelpers.ljust(api_level, banner_width - 14)}║"
     puts "║   Media Tests: #{DisplayWidthHelpers.ljust(run_media ? 'enabled' : 'disabled', banner_width - 16)}║"
+    puts "║   Websearch Tests: #{DisplayWidthHelpers.ljust(run_websearch ? 'enabled' : 'disabled', banner_width - 20)}║"
     puts "╚#{'═' * banner_width}╝"
 
     results = {}

@@ -22,7 +22,7 @@ All test results are saved to a unified directory per test run:
 
 - **Unified output structure** (`rake test:all`):
   ```
-  tmp/test_results/all_<timestamp>/
+  tmp/test_results/<timestamp>/
   ├── unit.json           # Ruby unit test results
   ├── integration.json    # Ruby integration test results
   ├── system.json         # Ruby system test results

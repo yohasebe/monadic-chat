@@ -2746,7 +2746,7 @@ namespace :test do
     api_level = args[:api_level] || ENV['TEST_API_LEVEL'] || 'standard'
     want_open = (args[:open].to_s == 'true' || ENV['OPEN_INDEX'] == 'true')
     timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
-    run_id = "all_#{timestamp}"
+    run_id = timestamp
 
     # Create unified output directory for all test results
     output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)

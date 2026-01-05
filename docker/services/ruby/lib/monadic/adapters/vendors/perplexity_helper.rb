@@ -314,10 +314,13 @@ module PerplexityHelper
           return { text: text_content, tool_calls: tool_calls }
         end
 
-        return message&.[]("content") || Monadic::Utils::ErrorFormatter.parsing_error(
+        content = message&.[]("content")
+        # Strip <think> tags from reasoning model responses
+        content = content&.gsub(%r{<think>.*?</think>\s*}m, '')&.strip if content
+        return content.to_s.empty? ? Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",
             message: "No content in response"
-          )
+          ) : content
       rescue => e
         return Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",

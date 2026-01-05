@@ -120,6 +120,7 @@ global.$ = jest.fn().mockImplementation(selector => {
   if (selector === '#temp-card') {
     return {
       hide: jest.fn(),
+      remove: jest.fn(),
       length: 0  // Important for the HTML handler
     };
   }
@@ -679,7 +680,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -742,7 +743,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -835,7 +836,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -892,7 +893,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
         
         // Default mock for other selectors
         return {
@@ -955,7 +956,7 @@ describe('WebSocket Handlers', () => {
         if (selector === '#cancel_query') return mockCancel;
         if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
         if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn() };
+        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
         
         // Default mock for other selectors
         return {

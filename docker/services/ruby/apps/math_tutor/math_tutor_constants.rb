@@ -16,7 +16,9 @@ module MathTutor
 
     ## TOOL USAGE (Optional but recommended)
 
-    For each user message, you may follow this sequence:
+    **IMPORTANT: For your FIRST message (initial greeting), do NOT call any tools. Simply greet the user warmly and ask how you can help with math today.**
+
+    For subsequent user messages, you may follow this sequence:
     1. Call `load_learning_progress` ONCE to check current state
     2. Provide your math help response
     3. Call `save_learning_progress` with your response and progress - this COMPLETES your turn

@@ -9,32 +9,51 @@ class TestRunner
   VALID_API_LEVELS = %w[none standard full].freeze
 
   def self.show_help
-    puts "\n=== Test Profiles ==="
-    puts "Usage: rake test:profile[profile_name]"
-    puts ""
-    
-    config = load_config
-    if config && config['profiles']
-      config['profiles'].each do |name, profile|
-        desc = profile['description'] || 'No description'
-        suites = profile['suites']&.join(', ') || 'N/A'
-        api_level = profile['api_level'] || 'none'
-        puts "  #{name.ljust(12)} - #{desc}"
-        puts "    #{''.ljust(12)}   Suites: #{suites}, API: #{api_level}"
-        puts ""
-      end
-    else
-      puts "  No profiles found. Check config/test/test-config.yml"
-    end
-    
-    puts "\n=== Available Suites ==="
-    puts "  unit          - Fast unit tests (no external dependencies)"
-    puts "  integration   - Integration tests (may require Docker)"
-    puts "  api           - Real API tests (requires API keys)"
-    puts "  e2e           - End-to-end tests (full stack)"
-    puts ""
-    puts "See: docs_dev/test_quickref.md for details"
-    puts ""
+    puts <<~HELP
+
+      ╔══════════════════════════════════════════════════════════════╗
+      ║                    Monadic Chat Test Runner                  ║
+      ╚══════════════════════════════════════════════════════════════╝
+
+      QUICK START
+      ───────────────────────────────────────────────────────────────
+        rake test                    Run basic tests (no API calls)
+        rake test:all[full]          Run ALL tests including API & media
+        rake test:all[standard]      Run tests with API (no media tests)
+        rake test:all[none]          Run tests without any API calls
+
+      OPEN RESULTS IN BROWSER (macOS)
+      ───────────────────────────────────────────────────────────────
+        rake test:all[full,true]     Run full tests & open HTML report
+        rake test:all[standard,true] Run standard tests & open report
+
+      INDIVIDUAL TEST SUITES
+      ───────────────────────────────────────────────────────────────
+        rake spec                    Ruby tests (unit + integration)
+        rake spec_unit               Ruby unit tests only
+        rake spec_integration        Ruby integration tests only
+        rake spec_system             Ruby system tests only
+        rake jstest                  JavaScript tests (Jest)
+        rake pytest                  Python tests
+
+      API LEVELS
+      ───────────────────────────────────────────────────────────────
+        none      Local tests only, no API calls
+        standard  API tests enabled (default)
+        full      API + media tests (image/video/audio generation)
+
+      OUTPUT
+      ───────────────────────────────────────────────────────────────
+        Results: tmp/test_results/<timestamp>/
+        Latest:  tmp/test_results/latest/ (symlink)
+
+      NOTES
+      ───────────────────────────────────────────────────────────────
+        • Rake arguments use bracket syntax: rake task[arg1,arg2]
+        • API keys must be configured in ~/monadic/config/env
+        • See docs_dev/test_runner.md for detailed documentation
+
+    HELP
   end
 
   def self.load_config

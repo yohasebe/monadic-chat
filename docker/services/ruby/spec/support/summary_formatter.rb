@@ -51,8 +51,10 @@ module Monadic
       compact_path = write_compact_md(counts, duration)
       write_full_md(counts, duration)
 
-      # Update latest pointers
-      Monadic::TestRunDir.update_latest(compact_source: compact_path)
+      # Update latest pointers (skip when running under unified test:all)
+      unless ENV['TEST_OUTPUT_DIR'] && !ENV['TEST_OUTPUT_DIR'].empty?
+        Monadic::TestRunDir.update_latest(compact_source: compact_path)
+      end
 
       # Console one-page summary
       print_console_summary(counts, duration)

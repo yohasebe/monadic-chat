@@ -30,7 +30,7 @@
     "@electron/notarize": "^3.0.1",
     "@jest/globals": "^30.2.0",
     "cross-env": "^7.0.3",
-    "electron": "^33.2.1",
+    "electron": "^39.2.7",
     "electron-builder": "^25.1.8",
     "globals": "^15.9.0",
     "jest": "^30.2.0",
@@ -39,7 +39,7 @@
     "ws": "^8.17.0"
   },
   "build": {
-    "electronVersion": "33.2.1",
+    "electronVersion": "39.2.7",
     "asar": true,
     "appId": "com.yohasebe.monadic",
     "publish": [

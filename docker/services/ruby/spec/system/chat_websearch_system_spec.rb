@@ -84,19 +84,26 @@ RSpec.describe "Chat Apps Web Search Configuration", type: :system do
   end
 
   describe "Tools configuration" do
+    # Providers that don't support tool/function calling
+    # Perplexity has built-in web search in API, doesn't use function calling
+    let(:providers_without_tool_support) { ["perplexity"] }
+
     it "ensures Chat apps with websearch have proper tools block" do
       chat_apps.each do |app_name|
         provider = app_name.gsub("Chat", "").downcase
         next unless provider_configured?(provider)
-        
+
+        # Skip providers that don't support tool calling
+        next if providers_without_tool_support.include?(provider)
+
         app_file = find_app_file(app_name, provider)
         next unless app_file
-        
+
         content = File.read(app_file)
-        
+
         # Check for tools block existence
         expect(content).to match(/tools\s+do/), "#{app_name} missing tools block"
-        
+
         # If websearch is enabled, tools block can be empty (native search)
         # or contain custom tools
       end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/monadic/utils/language_config"
+require_relative "../../../lib/monadic/utils/language_config"
 
 RSpec.describe "Provider Language Injection" do
   let(:session) do

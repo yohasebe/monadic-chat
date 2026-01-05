@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../../lib/monadic/adapters/vendors/cohere_helper"
+require_relative "../../../../lib/monadic/adapters/vendors/cohere_helper"
 
 # Mock CONFIG and MonadicApp if not already loaded
 unless defined?(CONFIG)

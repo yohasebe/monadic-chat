@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/monadic/utils/error_formatter"
+require_relative "../../../lib/monadic/utils/error_formatter"
 
 RSpec.describe Monadic::Utils::ErrorFormatter do
   describe ".format" do

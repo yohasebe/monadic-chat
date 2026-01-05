@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../../../../lib/monadic/utils/websocket"
-require_relative "../../../../lib/monadic/utils/language_config"
+require_relative "../../../lib/monadic/utils/websocket"
+require_relative "../../../lib/monadic/utils/language_config"
 
 RSpec.describe "WebSocket Language Handling" do
   let(:ws) { double("WebSocket") }

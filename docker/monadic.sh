@@ -8,7 +8,7 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 VERSION_FILE="${SCRIPT_DIR}/services/ruby/lib/monadic/version.rb"
 
 if [ -f "$VERSION_FILE" ]; then
-  # Extract version from Ruby file: VERSION = "1.0.0-beta.5"
+  # Extract version from Ruby file: VERSION = "1.0.0-beta.4"
   export MONADIC_VERSION=$(grep 'VERSION = ' "$VERSION_FILE" | sed -E 's/.*VERSION = "([^"]+)".*/\1/')
 else
   # Fallback: try package.json (development environment)

@@ -81,7 +81,7 @@
     - Fixes "Web search preview tool is not supported" error
     - Applies to all GPT-5, GPT-4.1, O3, and O4 models with web search support
 
-- [October 5, 2024] 1.0.0-beta.5
+- [October 5, 2024] Recent Updates
   - **MDSL Validator Fix**: Fixed method name error in Visual Web Explorer
     - Changed `ModelSpec.get_spec()` to `ModelSpec.get_model_spec()`
     - Resolved "undefined method 'get_spec'" errors preventing app initialization
@@ -197,8 +197,7 @@
     - Documented Claude's specific limitations with thinking blocks
     - Enhanced both English and Japanese docsify documentation
 
-- [August 14-15, 2024] 1.0.0-beta.4
-  - Version updated from 1.0.0-beta.2
+- [August 14-15, 2024] Recent Updates
   - **Claude Performance Optimizations**: Improved tool calling efficiency
     - Implemented batch processing for multiple tool calls in single API request
     - Set `reasoning_effort: minimal` for all Claude Sonnet 4 function-calling apps
@@ -278,7 +277,7 @@
     - All GPT-5 variants: 128K max output tokens (400K context window)
     - Automatic fallback to model defaults when not specified in MDSL
 
-- [June, 2024] 1.0.0-beta.2
+- [June, 2024] Recent Updates
   - **Security**: Path traversal protection for file operations
     - Validates file paths are within allowed directories
     - Prevents symlink-based attacks with `File.realpath`
@@ -298,7 +297,7 @@
     - Fixed parameter passing issues for Claude and other providers
   - **Documentation**: Updated provider documentation to reflect native search capabilities
 
-- [June, 2024] 1.0.0-beta.1
+- [June, 2024] Recent Updates
   - **Beta Release**: First beta release for version 1.0.0
   - **Important Changes**: See [documentation](https://yohasebe.github.io/monadic-chat/#/developer/breaking-changes) for migration guide
   - **New Apps**: Concept Visualizer (LaTeX/TikZ diagrams), Syntax Tree (linguistic analysis)

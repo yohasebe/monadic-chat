@@ -11,7 +11,7 @@ Monadic Chat uses intelligent build caching for containers to balance build spee
 Ruby container builds use different caching strategies depending on how the build is triggered:
 
 **1. Automatic Rebuild on Version Update (START button):**
-- **Trigger**: App detects version mismatch (e.g., `v1.0.0-beta.4` → `v1.0.0-beta.5`)
+- **Trigger**: App detects version mismatch (e.g., `v1.0.0-beta.3` → `v1.0.0-beta.4`)
 - **Cache Strategy**: Uses Docker build cache (fast, ~1-2 minutes)
 - **Rationale**: Version updates typically only change application code, not dependencies
 - **Implementation**: `FORCE_REBUILD` environment variable is NOT set

@@ -130,6 +130,8 @@ class TestRunner
     suite_name = @suite || 'unit'
     format = @options['format'] || 'documentation'
     save_logs = @options['save'] == 'true'
+    @output_dir = @options['output_dir']
+    @suite_output_name = @options['suite_name'] || suite_name
     @run_id = @options['run_id'] || (save_logs ? "suite_#{Time.now.strftime('%Y%m%d_%H%M%S')}" : nil)
 
     unless VALID_SUITES.include?(suite_name)
@@ -145,8 +147,8 @@ class TestRunner
 
     run_suite(suite_name, format, save_logs)
 
-    # Generate HTML report if logs were saved
-    if save_logs && @run_id
+    # Generate HTML report if logs were saved (legacy mode only)
+    if save_logs && @run_id && !@output_dir
       generate_reports
     end
   end
@@ -204,10 +206,18 @@ class TestRunner
 
   def run_suite(suite, format = 'documentation', save_logs = false)
     # Prepare output directory if saving logs
-    if save_logs && @run_id
-      results_dir = File.expand_path('../../../tmp/test_results', __dir__)
-      FileUtils.mkdir_p(results_dir)
-      json_file = File.join(results_dir, "#{@run_id}_#{suite}.json")
+    json_file = nil
+    if save_logs
+      if @output_dir
+        # Unified output mode: save to the specified directory
+        FileUtils.mkdir_p(@output_dir)
+        json_file = File.join(@output_dir, "#{@suite_output_name}.json")
+      elsif @run_id
+        # Legacy mode: save with run_id prefix
+        results_dir = File.expand_path('../../../tmp/test_results', __dir__)
+        FileUtils.mkdir_p(results_dir)
+        json_file = File.join(results_dir, "#{@run_id}_#{suite}.json")
+      end
     end
 
     Dir.chdir('docker/services/ruby') do

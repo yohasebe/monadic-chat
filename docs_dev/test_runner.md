@@ -18,24 +18,31 @@ Quick Start
   - `rake test:all[none]`
 
 Artifacts
-All test results are saved to `./tmp/test_results/` for centralized access:
+All test results are saved to a unified directory per test run:
 
-- **Ruby (RSpec)**:
-  - `tmp/test_results/<run_id>/` (directory with full results)
-  - `tmp/test_results/<run_id>/summary_compact.md` (concise summary)
-  - `tmp/test_results/<run_id>/summary_full.md` (detailed results)
-  - `tmp/test_results/<run_id>/rspec_report.json` (machine-readable)
-  - `tmp/test_results/latest/` (symlink to most recent run)
+- **Unified output structure** (`rake test:all`):
+  ```
+  tmp/test_results/all_<timestamp>/
+  ├── unit.json           # Ruby unit test results
+  ├── integration.json    # Ruby integration test results
+  ├── api.json            # API test results (if api_level != none)
+  ├── media.json          # Media test results (if api_level == full)
+  ├── jest.json           # JavaScript test results
+  ├── pytest.txt          # Python test output
+  ├── summary.json        # Combined summary
+  └── index.html          # HTML report with all results
+  ```
 
-- **JavaScript (Jest)**:
-  - `tmp/test_results/<run_id>_jest.json` (test results in JSON format)
+- **Symlink to latest run**:
+  - `tmp/test_results/latest/` → points to most recent test run directory
 
-- **Python (pytest)**:
-  - `tmp/test_results/<run_id>_pytest.txt` (test output)
-
-- **Unified test suite**:
-  - `tmp/test_results/all_<timestamp>.json` (combined summary)
-  - `tmp/test_results/index_all_<timestamp>.html` (HTML report index)
+- **Simple test run** (`rake test`):
+  ```
+  tmp/test_results/test_<timestamp>/
+  ├── jest.json           # JavaScript test results
+  ├── pytest.txt          # Python test output
+  └── summary.json        # Combined summary
+  ```
 
 API Levels
 - `full`: All tests including media generation (image/video/audio)

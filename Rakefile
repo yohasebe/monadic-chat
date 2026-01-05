@@ -1615,25 +1615,37 @@ end
 
 # Test JavaScript code with Jest
 desc "Run JavaScript tests using Jest"
-task :jstest, [:save_results, :run_id] do |_t, args|
+task :jstest, [:save_results, :output_dir] do |_t, args|
   require 'fileutils'
   require 'time'
 
   # Determine if we should save results
   save = args[:save_results] == 'true' || ENV['JEST_SAVE_RESULTS'] == 'true'
-  run_id = args[:run_id] || ENV['JEST_RUN_ID'] || Time.now.strftime('%Y%m%d_%H%M%S')
+  output_dir = args[:output_dir] || ENV['JEST_OUTPUT_DIR']
 
-  if save
-    # Create test results directory
-    results_dir = File.expand_path('tmp/test_results', __dir__)
-    FileUtils.mkdir_p(results_dir)
-
-    # Run Jest with JSON output
-    json_file = File.join(results_dir, "#{run_id}_jest.json")
+  if save && output_dir
+    # output_dir is the unified test results directory
+    FileUtils.mkdir_p(output_dir)
+    json_file = File.join(output_dir, 'jest.json')
     puts "Running Jest tests (saving results to #{json_file})..."
 
-    # Jest outputs JSON to stdout with --json flag
-    # We need to capture both the exit status and the output
+    success = system("npm test -- --json --outputFile=#{json_file}")
+
+    if File.exist?(json_file)
+      puts "✅ Jest results saved to: #{json_file}"
+    else
+      puts "⚠️  Warning: Jest results file was not created"
+    end
+
+    exit 1 unless success
+  elsif save
+    # Fallback: save to flat file with timestamp
+    results_dir = File.expand_path('tmp/test_results', __dir__)
+    FileUtils.mkdir_p(results_dir)
+    run_id = Time.now.strftime('%Y%m%d_%H%M%S')
+    json_file = File.join(results_dir, "jest_#{run_id}.json")
+    puts "Running Jest tests (saving results to #{json_file})..."
+
     success = system("npm test -- --json --outputFile=#{json_file}")
 
     if File.exist?(json_file)
@@ -1655,14 +1667,14 @@ task :jstest_all => :jstest
 # Test Python code
 namespace :pytest do
   desc "Run all Python tests"
-  task :all, [:save_results, :run_id] do |_t, args|
+  task :all, [:save_results, :output_dir] do |_t, args|
     require 'fileutils'
     require 'time'
     require 'open3'
 
     # Determine if we should save results
     save = args[:save_results] == 'true' || ENV['PYTEST_SAVE_RESULTS'] == 'true'
-    run_id = args[:run_id] || ENV['PYTEST_RUN_ID'] || Time.now.strftime('%Y%m%d_%H%M%S')
+    output_dir = args[:output_dir] || ENV['PYTEST_OUTPUT_DIR']
 
     puts "Running Python tests..."
     python_test_dirs = [
@@ -1700,11 +1712,18 @@ namespace :pytest do
     end
 
     # Save results if requested
-    if save
+    if save && output_dir
+      # output_dir is the unified test results directory
+      FileUtils.mkdir_p(output_dir)
+      output_file = File.join(output_dir, 'pytest.txt')
+      File.write(output_file, all_output.join("\n\n"))
+      puts "\n✅ Python test results saved to: #{output_file}"
+    elsif save
+      # Fallback: save to flat file with timestamp
       results_dir = File.expand_path('tmp/test_results', __dir__)
       FileUtils.mkdir_p(results_dir)
-
-      output_file = File.join(results_dir, "#{run_id}_pytest.txt")
+      run_id = Time.now.strftime('%Y%m%d_%H%M%S')
+      output_file = File.join(results_dir, "pytest_#{run_id}.txt")
       File.write(output_file, all_output.join("\n\n"))
       puts "\n✅ Python test results saved to: #{output_file}"
     end
@@ -1731,61 +1750,65 @@ desc "Run all tests (Ruby, JavaScript, and Python)"
 task :test do
   require 'time'
   require 'fileutils'
-
-  # Clean up all old test results before starting
-  results_dir = File.expand_path('tmp/test_results', __dir__)
-  if Dir.exist?(results_dir)
-    puts "\n" + "=" * 60
-    puts "🧹 Cleaning up old test results..."
-    puts "=" * 60
-
-    # Count items to delete
-    dirs = Dir.glob(File.join(results_dir, '2*')).select { |f| File.directory?(f) }
-    files = Dir.glob(File.join(results_dir, '*')).select { |f| File.file?(f) && File.basename(f) != '.DS_Store' }
-    total = dirs.size + files.size
-
-    if total > 0
-      puts "Deleting #{total} items (#{dirs.size} directories, #{files.size} files)..."
-      FileUtils.rm_rf(dirs)
-      FileUtils.rm_f(files)
-      puts "✅ Cleanup complete"
-    else
-      puts "No old results to clean up"
-    end
-    puts "=" * 60 + "\n"
-  end
+  require 'json'
 
   # Generate unified run ID for this test session
-  run_id = "test_#{Time.now.strftime('%Y%m%d_%H%M%S')}"
+  timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+  run_id = "test_#{timestamp}"
+
+  # Create unified output directory
+  output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)
+  FileUtils.mkdir_p(output_dir)
 
   puts "=" * 60
   puts "Running all tests (Ruby, JavaScript, Python)"
   puts "Run ID: #{run_id}"
+  puts "Output: #{output_dir}/"
   puts "=" * 60
 
-  success = true
+  results = {}
+  start_time = Time.now
 
-  # Run Ruby tests (RSpec already handles saving automatically)
+  # Run Ruby tests
   puts "\n[1/3] Running Ruby tests..."
-  success = Rake::Task[:spec].invoke && success
+  results[:ruby] = Rake::Task[:spec].invoke
 
   # Run JavaScript tests with result saving
   puts "\n[2/3] Running JavaScript tests..."
   Rake::Task[:jstest].reenable
-  Rake::Task[:jstest].invoke('true', "#{run_id}")
+  results[:javascript] = Rake::Task[:jstest].invoke('true', output_dir)
 
   # Run Python tests with result saving
   puts "\n[3/3] Running Python tests..."
   Rake::Task["pytest:all"].reenable
-  Rake::Task["pytest:all"].invoke('true', "#{run_id}")
+  results[:python] = Rake::Task["pytest:all"].invoke('true', output_dir)
+
+  duration = Time.now - start_time
+  all_passed = results.values.all?
+
+  # Write combined summary
+  summary = {
+    run_id: run_id,
+    timestamp: timestamp,
+    duration: duration.round(2),
+    results: results,
+    overall_status: all_passed ? 'passed' : 'failed'
+  }
+  File.write(File.join(output_dir, 'summary.json'), JSON.pretty_generate(summary))
+
+  # Create symlink to latest
+  latest_link = File.expand_path('tmp/test_results/latest', __dir__)
+  FileUtils.rm_f(latest_link)
+  FileUtils.ln_sf(output_dir, latest_link)
 
   puts "\n" + "=" * 60
-  puts success ? "✅ ALL TESTS COMPLETED" : "⚠️  SOME TESTS MAY HAVE FAILED"
+  puts all_passed ? "✅ ALL TESTS COMPLETED" : "⚠️  SOME TESTS MAY HAVE FAILED"
   puts "=" * 60
-  puts "Test results saved in: ./tmp/test_results/"
-  puts "  - Ruby: ./tmp/test_results/latest/"
-  puts "  - JavaScript: ./tmp/test_results/#{run_id}_jest.json"
-  puts "  - Python: ./tmp/test_results/#{run_id}_pytest.txt"
+  puts "Duration: #{duration.round(2)}s"
+  puts "Results saved to: #{output_dir}/"
+  puts "  - jest.json (JavaScript)"
+  puts "  - pytest.txt (Python)"
+  puts "  - summary.json (Combined)"
   puts "=" * 60
 end
 
@@ -2724,7 +2747,10 @@ namespace :test do
     want_open = (args[:open].to_s == 'true' || ENV['OPEN_INDEX'] == 'true')
     timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
     run_id = "all_#{timestamp}"
-    base = run_id
+
+    # Create unified output directory for all test results
+    output_dir = File.expand_path("tmp/test_results/#{run_id}", __dir__)
+    FileUtils.mkdir_p(output_dir)
 
     # Determine if we should run media tests (only on 'full' API level)
     run_media = (api_level == 'full')
@@ -2743,6 +2769,7 @@ namespace :test do
     puts "║   API Level: #{DisplayWidthHelpers.ljust(api_level, banner_width - 14)}║"
     puts "║   Media Tests: #{DisplayWidthHelpers.ljust(run_media ? 'enabled' : 'disabled', banner_width - 16)}║"
     puts "║   Websearch Tests: #{DisplayWidthHelpers.ljust(run_websearch ? 'enabled' : 'disabled', banner_width - 20)}║"
+    puts "║   Output: #{DisplayWidthHelpers.ljust(run_id, banner_width - 11)}║"
     puts "╚#{'═' * banner_width}╝"
 
     results = {}
@@ -2751,23 +2778,16 @@ namespace :test do
     # Ruby unit
     total_steps = run_media ? 6 : 5
     puts "\n🧪 [1/#{total_steps}] Running Ruby unit tests..."
-    unit_run_id = "#{base}_unit"
-    results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,run_id=#{unit_run_id}\"]")
-    # Force-generate HTML in case formatter/json combo didn't emit
-    system("rake test:report[#{unit_run_id}]")
+    results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=unit\"]")
 
     # Ruby integration
     puts "\n🧪 [2/#{total_steps}] Running Ruby integration tests..."
-    integ_run_id = "#{base}_integration"
-    results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,run_id=#{integ_run_id}\"]")
-    system("rake test:report[#{integ_run_id}]")
+    results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=integration\"]")
 
     # API (optional by level)
     if api_level != 'none'
       puts "\n🧪 [3/#{total_steps}] Running API tests..."
-      api_run_id = "#{base}_api"
-      results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,run_id=#{api_run_id}\"]")
-      system("rake test:report[#{api_run_id}]")
+      results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=api\"]")
     else
       puts "\n⏭️  [3/#{total_steps}] Skipping API tests (api_level=none)"
       results[:api] = true
@@ -2776,10 +2796,9 @@ namespace :test do
     # Media tests (only on 'full' API level)
     if run_media
       puts "\n🧪 [4/#{total_steps}] Running Media tests (image/video/audio generation)..."
-      media_run_id = "#{base}_media"
-      ENV['SUMMARY_RUN_ID'] = media_run_id
+      media_json = File.join(output_dir, 'media.json')
       Dir.chdir("docker/services/ruby") do
-        results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation")
+        results[:media] = system("bundle exec rspec spec/integration/api_media --format documentation --format json --out #{media_json}")
       end
     else
       puts "\n⏭️  [4/#{total_steps}] Skipping Media tests (requires api_level=full)"
@@ -2789,21 +2808,19 @@ namespace :test do
     # JavaScript
     step_js = run_media ? 5 : 4
     puts "\n🧪 [#{step_js}/#{total_steps}] Running JavaScript tests..."
-    js_run_id = "#{base}_javascript"
     Rake::Task[:jstest].reenable
-    results[:javascript] = Rake::Task[:jstest].invoke('true', js_run_id)
+    results[:javascript] = Rake::Task[:jstest].invoke('true', output_dir)
 
     # Python
     step_py = run_media ? 6 : 5
     puts "\n🧪 [#{step_py}/#{total_steps}] Running Python tests..."
-    py_run_id = "#{base}_python"
     Rake::Task["pytest:all"].reenable
-    results[:python] = Rake::Task["pytest:all"].invoke('true', py_run_id)
+    results[:python] = Rake::Task["pytest:all"].invoke('true', output_dir)
 
     duration = Time.now - start_time
     all_passed = results.values.all?
 
-    FileUtils.mkdir_p('tmp/test_results')
+    # Write combined summary
     summary = {
       run_id: run_id,
       api_level: api_level,
@@ -2812,27 +2829,25 @@ namespace :test do
       results: results,
       overall_status: all_passed ? 'passed' : 'failed'
     }
-    File.write("tmp/test_results/#{run_id}.json", JSON.pretty_generate(summary))
+    File.write(File.join(output_dir, 'summary.json'), JSON.pretty_generate(summary))
+
+    # Create symlink to latest
+    latest_link = File.expand_path('tmp/test_results/latest', __dir__)
+    FileUtils.rm_f(latest_link)
+    FileUtils.ln_sf(output_dir, latest_link)
 
     # Generate a simple index HTML bundling suite reports
     begin
       require_relative 'lib/test_index_html'
       suites = []
-      suites << { name: :unit,        run_id: unit_run_id,  status: results[:ruby_unit] }
-      suites << { name: :integration, run_id: integ_run_id, status: results[:ruby_integration] }
-      if api_level != 'none'
-        suites << { name: :api,      run_id: api_run_id,   status: results[:api] }
-      else
-        suites << { name: :api,      run_id: nil,          status: true }
-      end
-      if run_media
-        suites << { name: :media,      run_id: media_run_id, status: results[:media] }
-      else
-        suites << { name: :media,      run_id: nil,          status: true }
-      end
-      suites << { name: :javascript,  run_id: js_run_id,    status: results[:javascript] }
-      suites << { name: :python,      run_id: py_run_id,    status: results[:python] }
-      idx_path = TestIndexHTML.generate('tmp/test_results', run_id, suites, File.join('tmp', 'test_results', "index_#{run_id}.html"))
+      suites << { name: :unit,        file: 'unit.json',        status: results[:ruby_unit] }
+      suites << { name: :integration, file: 'integration.json', status: results[:ruby_integration] }
+      suites << { name: :api,         file: 'api.json',         status: results[:api] } if api_level != 'none'
+      suites << { name: :media,       file: 'media.json',       status: results[:media] } if run_media
+      suites << { name: :javascript,  file: 'jest.json',        status: results[:javascript] }
+      suites << { name: :python,      file: 'pytest.txt',       status: results[:python] }
+      idx_path = File.join(output_dir, 'index.html')
+      TestIndexHTML.generate_unified(output_dir, run_id, suites, idx_path)
       puts "\n📄 Index report generated: #{idx_path}"
       if want_open
         if RUBY_PLATFORM =~ /darwin/i
@@ -2841,15 +2856,15 @@ namespace :test do
           puts "(Auto-open is only supported on macOS; skipping)"
         end
       end
-    rescue StandardError
-      # non-fatal
+    rescue StandardError => e
+      puts "⚠️  Could not generate index HTML: #{e.message}"
     end
 
     puts "\n" + "=" * 50
     puts all_passed ? "✅ ALL TESTS PASSED!" : "❌ SOME TESTS FAILED"
     puts "=" * 50
     puts "Duration: #{duration.round(2)}s"
-    puts "Results saved to: tmp/test_results/#{run_id}.json"
+    puts "Results saved to: #{output_dir}/"
 
     if !all_passed
       failed = results.select { |_, v| !v }.keys

@@ -511,7 +511,7 @@ module ProviderMatrixHelper
         api_key = ENV['XAI_API_KEY']
         raise 'XAI_API_KEY not set' unless api_key && !api_key.empty?
         uri = URI('https://api.x.ai/v1/images/generations')
-        body = { model: 'grok-2-image', prompt: prompt, n: 1, response_format: 'b64_json' }
+        body = { model: 'grok-2-image-1212', prompt: prompt, n: 1, response_format: 'b64_json' }
         res = request_with_retry do
           http = Net::HTTP.new(uri.host, uri.port)
           http.use_ssl = true

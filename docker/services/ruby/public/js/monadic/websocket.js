@@ -740,12 +740,14 @@ const MONADIC_TAB_ID = ensureMonadicTabId();
 // Handle fragment message from streaming response
 // This function will be used by the fragment_with_audio handler and all vendor helpers
 window.handleFragmentMessage = function(fragment) {
+  console.log('[handleFragmentMessage] Called with:', fragment ? fragment.type : 'null', 'content length:', fragment?.content?.length || 0);
   if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
     // Skip streaming updates in background tabs to avoid duplicate rendering and TTS triggers
     window.__lastSkippedFragment = fragment;
     return;
   }
   if (fragment && fragment.type === 'fragment') {
+    console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', $('#temp-card').length, 'visible:', $('#temp-card').is(':visible'), 'display:', $('#temp-card').css('display'));
     const text = fragment.content || '';
 
     // Debug logging for streaming fragment ordering
@@ -794,6 +796,7 @@ window.handleFragmentMessage = function(fragment) {
         </div>
       `);
       $("#discourse").append(tempCard);
+      tempCard.show(); // Ensure temp-card is visible after creation
     } else if (fragment.start === true || fragment.is_first === true) {
       // If this is marked as the first fragment of a streaming response, clear the existing content
       $("#temp-card .card-text").empty();
@@ -827,8 +830,8 @@ window.handleFragmentMessage = function(fragment) {
 
       if (window._lastProcessedSequence !== undefined && window._lastProcessedSequence >= fragment.sequence) {
         // Skip duplicate or out-of-order fragments
+        console.warn('[handleFragmentMessage] SKIPPING fragment - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
         if (window.debugFragments) {
-          console.warn('[Fragment Debug] SKIPPING fragment - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
           window._skippedFragments = window._skippedFragments || [];
           window._skippedFragments.push({ sequence: fragment.sequence, content: text.substring(0, 30), time: performance.now() });
         }
@@ -839,9 +842,7 @@ window.handleFragmentMessage = function(fragment) {
       // Fallback to index-based detection for backwards compatibility
       if (window._lastProcessedIndex !== undefined && window._lastProcessedIndex >= fragment.index) {
         // Skip duplicate or out-of-order fragments
-        if (window.debugFragments) {
-          console.log('[Fragment Debug] Skipping duplicate - index:', fragment.index, 'lastIndex:', window._lastProcessedIndex);
-        }
+        console.warn('[handleFragmentMessage] SKIPPING fragment - index:', fragment.index, 'lastIndex:', window._lastProcessedIndex);
         return;
       }
       window._lastProcessedIndex = fragment.index;
@@ -871,7 +872,10 @@ window.handleFragmentMessage = function(fragment) {
 
     // Add to streaming text display
     const tempText = $("#temp-card .card-text");
+    console.log('[handleFragmentMessage] .card-text exists:', tempText.length, 'adding text length:', text.length);
     if (tempText.length) {
+      // Ensure temp-card is visible when adding content
+      $("#temp-card").show();
       // Debug: Log current text content before adding
       if (window.debugFragments) {
         console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
@@ -895,11 +899,14 @@ window.handleFragmentMessage = function(fragment) {
 
       // Append all at once for better performance
       tempText[0].appendChild(docFrag);
+      console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText[0].textContent.length);
 
       // Debug: Log after append
       if (window.debugFragments) {
         console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
       }
+    } else {
+      console.warn('[handleFragmentMessage] WARNING: .card-text not found, cannot append fragment');
     }
 
     // If this is a final fragment, clean up
@@ -5669,8 +5676,13 @@ let loadedApp = "Chat";
         // The flag will be properly reset in streaming_complete handler with appropriate delays.
         // This prevents "Ready for input" from appearing while function calls are still ongoing.
 
-        // Hide the temp-card and temp-reasoning-card as we're about to show the final HTML
-        $("#temp-card").hide();
+        // Check if more content is coming (tool calls in progress)
+        const moreComing = data["more_coming"] === true;
+
+        // Note: temp-card is now removed AFTER card creation in handleHtmlMessage
+        // This ensures streaming content stays visible until the final card replaces it
+
+        // Remove temp-reasoning-card as we're about to show the final HTML
         $("#temp-reasoning-card").remove();
         if (typeof window.setReasoningStreamActive === 'function') {
           window.setReasoningStreamActive(false);
@@ -5684,7 +5696,11 @@ let loadedApp = "Chat";
         if (wsHandlers && typeof wsHandlers.handleHtmlMessage === 'function') {
           handled = wsHandlers.handleHtmlMessage(data, appendCard);
           if (handled) {
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+            // moreComing handling is now done inside handleHtmlMessage
+            // so cancel_query visibility is controlled there
+            if (!data["more_coming"]) {
+              document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+            }
           }
         }
 
@@ -5736,121 +5752,173 @@ let loadedApp = "Chat";
             const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
             appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
-            // Show message input and hide spinner
-            $("#message").show();
-            $("#message").val(""); // Clear the message after successful response
-            $("#message").prop("disabled", false);
-            // Re-enable all input controls
-            $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-            $("#select-role").prop("disabled", false);
-
-            // Reset streaming flag as response is done
-            streamingResponse = false;
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', false);
-              window.UIState.set('isStreaming', false);
-            }
-
-            // Clear any pending spinner check interval
-            if (spinnerCheckInterval) {
-              clearInterval(spinnerCheckInterval);
-              spinnerCheckInterval = null;
-            }
-
-            // Hide spinner unless we're calling functions or streaming
-            // Note: We check callingFunction and streamingResponse directly here,
-            // not isSystemBusy(), to avoid circular dependency with spinner visibility
-            if (!callingFunction && !streamingResponse) {
-              // Mark text response as completed
-              window.setTextResponseCompleted(true);
-              // Check if we can hide spinner (depends on Auto Speech mode)
-              checkAndHideSpinner();
-            }
-
-            // If this is the first assistant message (from initiate_from_assistant), show user panel
-            if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
-              $("#user-panel").show();
-              setInputFocus();
-            }
-
-            document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-            // For assistant messages, don't show "Ready to start" immediately
-            // Wait for streaming to complete
-            const receivedText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.responseReceived') : 'Response received';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
-
-            // Handle auto_speech for TTS auto-playback
-            // Support both boolean and string values for backward compatibility
-            const autoSpeechEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-            const realtimeMode = window.params && window.params["auto_tts_realtime_mode"] === true;
-            const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
-            const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
-
-            if (!inForeground) {
-              setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
-              window.autoSpeechActive = false;
-              window.autoPlayAudio = false;
-            } else if (suppressionActive) {
-              window.autoSpeechActive = false;
-              window.autoPlayAudio = false;
-              if (typeof window.setTtsPlaybackStarted === 'function') {
-                window.setTtsPlaybackStarted(true);
+            // If more content is coming (tool calls), prepare for next streaming
+            if (moreComing) {
+              // Keep input disabled and streaming state active
+              callingFunction = true;
+              streamingResponse = true;
+              responseStarted = false; // Reset for next streaming
+              if (window.UIState) {
+                window.UIState.set('streamingResponse', true);
+                window.UIState.set('isStreaming', true);
               }
-              if (typeof checkAndHideSpinner === 'function') {
-                checkAndHideSpinner();
+
+              // Re-show and reset temp-card for next streaming
+              // Reset sequence tracking for new streaming session
+              // This is critical - without this, fragments may be skipped as duplicates
+              window._lastProcessedSequence = -1;
+              window._lastProcessedIndex = -1;
+
+              let tempCard = $("#temp-card");
+              if (!tempCard.length) {
+                // Create new temp-card if it doesn't exist
+                tempCard = $(`
+                  <div id="temp-card" class="card mt-3 streaming-card">
+                    <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
+                      <div class="fs-5 card-title mb-0">
+                        <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
+                      </div>
+                    </div>
+                    <div class="card-body role-assistant">
+                      <div class="card-text"></div>
+                    </div>
+                  </div>
+                `);
+                $("#discourse").append(tempCard);
               } else {
-                resetAutoSpeechSpinner();
+                // Reset existing temp-card
+                tempCard.find(".card-text").empty();
+                tempCard.detach();
+                $("#discourse").append(tempCard);
               }
-              if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
-                clearTimeout(window.autoTTSSpinnerTimeout);
-                window.autoTTSSpinnerTimeout = null;
+              tempCard.show();
+
+              // Show spinner with "Processing tools" message
+              const processingToolsText = typeof webUIi18n !== 'undefined' ?
+                webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
+              $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
+              $("#monadic-spinner").show();
+
+              // Keep cancel button visible
+              document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+            } else {
+              // Final message - normal completion flow
+              // Show message input and hide spinner
+              $("#message").show();
+              $("#message").val(""); // Clear the message after successful response
+              $("#message").prop("disabled", false);
+              // Re-enable all input controls
+              $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
+              $("#select-role").prop("disabled", false);
+
+              // Reset streaming flag as response is done
+              streamingResponse = false;
+              if (window.UIState) {
+                window.UIState.set('streamingResponse', false);
+                window.UIState.set('isStreaming', false);
               }
-            } else if (window.autoSpeechActive || autoSpeechEnabled) {
-              // Message ID check: prevent duplicate TTS for the same message (e.g., on sleep/wake reconnection)
-              const currentMid = data["content"]["mid"];
-              if (currentMid && currentMid === lastAutoTtsMessageId) {
-                console.debug('[Auto TTS] Skipped - already played for message:', currentMid);
-                // Mark TTS as "completed" (skipped) so spinner hides properly
+
+              // Clear any pending spinner check interval
+              if (spinnerCheckInterval) {
+                clearInterval(spinnerCheckInterval);
+                spinnerCheckInterval = null;
+              }
+
+              // Hide spinner unless we're calling functions or streaming
+              // Note: We check callingFunction and streamingResponse directly here,
+              // not isSystemBusy(), to avoid circular dependency with spinner visibility
+              if (!callingFunction && !streamingResponse) {
+                // Mark text response as completed
+                window.setTextResponseCompleted(true);
+                // Check if we can hide spinner (depends on Auto Speech mode)
+                checkAndHideSpinner();
+              }
+
+              // If this is the first assistant message (from initiate_from_assistant), show user panel
+              if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
+                $("#user-panel").show();
+                setInputFocus();
+              }
+
+              document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+
+              // For assistant messages, don't show "Ready to start" immediately
+              // Wait for streaming to complete
+              const receivedText = typeof webUIi18n !== 'undefined' ?
+                webUIi18n.t('ui.messages.responseReceived') : 'Response received';
+              setAlert(`<i class='fa-solid fa-circle-check'></i> ${receivedText}`, "success");
+
+              // Handle auto_speech for TTS auto-playback
+              // Support both boolean and string values for backward compatibility
+              const autoSpeechEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
+              const realtimeMode = window.params && window.params["auto_tts_realtime_mode"] === true;
+              const suppressionActive = typeof isAutoSpeechSuppressed === 'function' && isAutoSpeechSuppressed();
+              const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
+
+              if (!inForeground) {
+                setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+                window.autoSpeechActive = false;
+                window.autoPlayAudio = false;
+              } else if (suppressionActive) {
                 window.autoSpeechActive = false;
                 window.autoPlayAudio = false;
                 if (typeof window.setTtsPlaybackStarted === 'function') {
                   window.setTtsPlaybackStarted(true);
                 }
-                // Hide spinner since we're skipping TTS
                 if (typeof checkAndHideSpinner === 'function') {
                   checkAndHideSpinner();
+                } else {
+                  resetAutoSpeechSpinner();
                 }
-              } else {
-                // Record message ID before triggering TTS
-                if (currentMid) {
-                  lastAutoTtsMessageId = currentMid;
+                if (typeof window.autoTTSSpinnerTimeout !== 'undefined' && window.autoTTSSpinnerTimeout) {
+                  clearTimeout(window.autoTTSSpinnerTimeout);
+                  window.autoTTSSpinnerTimeout = null;
                 }
-
-                // For Auto TTS, the SERVER automatically triggers TTS after streaming completes.
-                // We do NOT click the Play button here to avoid duplicate audio.
-                // The server will send audio messages which the client will receive and play.
-                //
-                // We just need to:
-                // 1. Highlight the Stop button for visual feedback
-                // 2. Set a timeout to hide spinner if audio doesn't arrive
-                setTimeout(() => {
-                  const lastCard = $("#discourse div.card:last");
-                  if (lastCard.length > 0) {
-                    // Early highlight for Auto TTS: provides immediate visual feedback
-                    const cardId = lastCard.attr('id');
-                    if (cardId && typeof window.highlightStopButton === 'function') {
-                      window.highlightStopButton(cardId);
-                    }
+              } else if (window.autoSpeechActive || autoSpeechEnabled) {
+                // Message ID check: prevent duplicate TTS for the same message (e.g., on sleep/wake reconnection)
+                const currentMid = data["content"]["mid"];
+                if (currentMid && currentMid === lastAutoTtsMessageId) {
+                  console.debug('[Auto TTS] Skipped - already played for message:', currentMid);
+                  // Mark TTS as "completed" (skipped) so spinner hides properly
+                  window.autoSpeechActive = false;
+                  window.autoPlayAudio = false;
+                  if (typeof window.setTtsPlaybackStarted === 'function') {
+                    window.setTtsPlaybackStarted(true);
+                  }
+                  // Hide spinner since we're skipping TTS
+                  if (typeof checkAndHideSpinner === 'function') {
+                    checkAndHideSpinner();
+                  }
+                } else {
+                  // Record message ID before triggering TTS
+                  if (currentMid) {
+                    lastAutoTtsMessageId = currentMid;
                   }
 
-                  // Set timeout to force hide spinner if audio doesn't start playing
-                  scheduleAutoTtsSpinnerTimeout();
+                  // For Auto TTS, the SERVER automatically triggers TTS after streaming completes.
+                  // We do NOT click the Play button here to avoid duplicate audio.
+                  // The server will send audio messages which the client will receive and play.
+                  //
+                  // We just need to:
+                  // 1. Highlight the Stop button for visual feedback
+                  // 2. Set a timeout to hide spinner if audio doesn't arrive
+                  setTimeout(() => {
+                    const lastCard = $("#discourse div.card:last");
+                    if (lastCard.length > 0) {
+                      // Early highlight for Auto TTS: provides immediate visual feedback
+                      const cardId = lastCard.attr('id');
+                      if (cardId && typeof window.highlightStopButton === 'function') {
+                        window.highlightStopButton(cardId);
+                      }
+                    }
 
-                  // Note: window.autoSpeechActive will be reset when audio starts playing
-                  // See audio.play() promise handler where spinner is hidden
-                }, 100);
+                    // Set timeout to force hide spinner if audio doesn't start playing
+                    scheduleAutoTtsSpinnerTimeout();
+
+                    // Note: window.autoSpeechActive will be reset when audio starts playing
+                    // See audio.play() promise handler where spinner is hidden
+                  }, 100);
+                }
               }
             }
           } else {

@@ -161,7 +161,49 @@ end
 
 **Related Code**: `deepseek_strict_mode_spec.rb` (225 lines of tests)
 
-### 6. Reasoning Content Extraction
+### 6. Terminal Tool Handling
+
+**Problem**: Some tools signal the end of a tool sequence (e.g., `save_learning_progress` in Math Tutor). After such "terminal" tools, making additional API requests causes empty responses and `content_not_found` errors.
+
+**Solution**: Detect terminal tools and properly complete the turn without additional API requests.
+
+**Detection**:
+```ruby
+# List of terminal tools that signal end of tool sequence
+TERMINAL_TOOLS = %w[save_learning_progress save_response].freeze
+
+def terminal_tool?(name)
+  TERMINAL_TOOLS.include?(name)
+end
+```
+
+**Completion Flow**:
+```ruby
+if terminal_tool_called
+  # 1. Send DONE message to frontend (signals streaming complete)
+  done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+  block&.call done_res
+
+  # 2. Return properly structured response for websocket.rb processing
+  final_response = {
+    "choices" => [{
+      "message" => { "role" => "assistant", "content" => "" },
+      "finish_reason" => "stop"
+    }]
+  }
+  return [final_response]
+end
+```
+
+**Key Points**:
+- The `done_res` message tells the frontend to stop spinners and complete UI
+- The `final_response` has the `choices[0].message.content` structure that `websocket.rb` expects
+- Empty string content (`""`) is valid; only `nil` triggers `content_not_found` error
+- Without this handling, the model would be called again with tools disabled, returning empty content
+
+**Related Code**: Lines 1342-1369 in `deepseek_helper.rb`
+
+### 7. Reasoning Content Extraction
 
 **Pattern**: Extract reasoning content from `deepseek-reasoner` responses.
 
@@ -245,6 +287,11 @@ end
    - Symptom: Model outputs DSML but tools don't execute
    - Cause: DSML format variation not handled
    - Solution: Enable EXTRA_LOGGING to see raw DSML; report new patterns
+
+4. **"Content not found in response" error after tool calls**
+   - Symptom: Error appears after terminal tool (e.g., `save_learning_progress`) completes
+   - Cause: Terminal tool handling not returning properly structured response
+   - Solution: See "Terminal Tool Handling" section above; verify `final_response` structure
 
 ### Debugging
 

@@ -356,14 +356,8 @@ describe('Select Image Module', () => {
       expect(global.images[0].title).toBe(expectedFirstImage);
       expect(global.images[MAX_IMAGES - 1].title).toBe(expectedLastImage);
     });
-    
-    // Skip test that depends on specific prioritization logic
-    // as it requires more complex handling
-    it.skip('should prioritize PDF files when limiting images', () => {
-      // Skip for now as test implementation requires more work
-    });
   });
-  
+
   describe('fileToBase64 function', () => {
     it('should convert a file to base64 using callback', done => {
       // Create a mock blob

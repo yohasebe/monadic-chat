@@ -561,13 +561,27 @@ class MonadicApp
         changed_files.uniq!
 
         # Prepare the success message with file information
+        # Use explicit language to help LLMs understand whether images can be displayed
         if !changed_files.empty?
           file_paths = changed_files.map { |file| "/data/" + File.basename(file) }
-          output = "#{success}; File(s) generated or modified: #{file_paths.join(", ")}"
-          output += "; Output: #{stdout}" if stdout.strip.length.positive?
+          image_files = file_paths.select { |f| f.match?(/\.(png|jpg|jpeg|gif|svg|webp)$/i) }
+
+          if image_files.any?
+            output = "#{success}\n\nIMAGE FILES CREATED (verified to exist):\n"
+            image_files.each { |f| output += "- #{f}\n" }
+            output += "\nYou can safely display these images using <img src=\"#{image_files.first}\" /> tags."
+
+            other_files = file_paths - image_files
+            if other_files.any?
+              output += "\n\nOther files: #{other_files.join(", ")}"
+            end
+          else
+            output = "#{success}; File(s) generated or modified: #{file_paths.join(", ")}"
+          end
+          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
         else
-          output = "#{success} (No files generated or modified)"
-          output += "; Output: #{stdout}" if stdout.strip.length.positive?
+          output = "#{success}\n\nNOTE: No image files were created. Do NOT display any images."
+          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
         end
 
         # Clean up temporary file if keep_file is false

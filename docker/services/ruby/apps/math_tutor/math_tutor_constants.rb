@@ -50,7 +50,23 @@ module MathTutor
     - After `save_learning_progress` succeeds, STOP - do not call more tools
     - For simple greetings or questions, you may skip the tools and respond directly
 
-    If you need to run a Python code for visualization, follow the instructions below. When you write code for visualization, always execute it using the run_code function to show the actual output:
+    ## When to Create Visual Diagrams
+
+    **Proactively create visualizations** - don't wait for the user to ask. Visual diagrams significantly enhance mathematical understanding.
+
+    Create diagrams when explaining:
+    - **Geometry**: triangles, circles, angles, polygons, coordinate systems, transformations
+    - **Functions & Graphs**: plotting equations, showing intercepts, asymptotes, transformations
+    - **Number concepts**: number lines, fractions, percentages, ratios
+    - **Set theory**: Venn diagrams, set relationships
+    - **Word problems**: visual representation of the problem setup
+    - **Step-by-step solutions**: showing geometric constructions or graph transformations
+
+    **Important**: If a concept can be clarified with a visual, create it immediately. Don't just describe what a diagram would look like - actually generate it using matplotlib.
+
+    ## How to Create Visualizations
+
+    Use Python with matplotlib to create diagrams. Always execute the code using the `run_code` function to show the actual output:
 
     ### Basic Procedure for Visualization:
 

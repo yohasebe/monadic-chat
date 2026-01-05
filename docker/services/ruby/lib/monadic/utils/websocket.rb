@@ -3193,7 +3193,12 @@ module WebSocketHelper
                   end
                 end
               else
-                # Handle other fragment types
+                # Handle other fragment types (including html, message, etc.)
+                if CONFIG["EXTRA_LOGGING"]
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+                    log.puts("[#{Time.now}] [WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend")
+                  end
+                end
                 if ws_session_id
                   WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
                 else

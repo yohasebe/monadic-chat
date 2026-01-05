@@ -500,8 +500,11 @@ function handleAudioMessage(data, processAudio) {
  */
 function handleHtmlMessage(data, createCardFunc) {
   if (data && data.type === 'html' && data.content) {
-    // Hide the temp-card as we're about to show the final HTML
-    $('#temp-card').hide();
+    // Check if more content is coming (tool calls in progress)
+    const moreComing = data.more_coming === true;
+
+    // Note: We do NOT hide temp-card here. Instead, we remove it AFTER creating the final card.
+    // This ensures the user sees streaming content until the final card replaces it.
 
     // Note: Message is already added to window.messages via SessionState.addMessage
     // in websocket.js before this handler is called - no need to push here
@@ -545,6 +548,11 @@ function handleHtmlMessage(data, createCardFunc) {
                      true,
                      [],  // images
                      turnNumber);
+
+        // Remove temp-card AFTER the final card is created
+        // This ensures smooth transition from streaming display to final card
+        // (moreComing block will create a new temp-card if needed)
+        $('#temp-card').remove();
       }
 
       // Note: Auto TTS highlighting is handled in processSequentialAudio()
@@ -586,7 +594,53 @@ function handleHtmlMessage(data, createCardFunc) {
         // Keep spinner visible but update message
         $('#monadic-spinner span').html('<i class="fas fa-cogs fa-pulse"></i> Processing tools');
       }
-      
+
+      // If more content is coming (tool calls in progress), prepare for next streaming
+      console.log('[handleHtmlMessage] moreComing:', moreComing, 'data.more_coming:', data.more_coming);
+      if (moreComing) {
+        console.log('[handleHtmlMessage] Preparing temp-card for next streaming');
+        // Reset streaming state for next response
+        window.callingFunction = true;
+        window.streamingResponse = true;
+        window.responseStarted = false;
+        if (window.UIState) {
+          window.UIState.set('streamingResponse', true);
+          window.UIState.set('isStreaming', true);
+        }
+
+        // Reset fragment tracking to accept new fragments
+        window._lastProcessedSequence = -1;
+        window._lastProcessedIndex = -1;
+
+        // Remove any existing temp-card to avoid duplicates
+        $('#temp-card').remove();
+
+        // Create new temp-card for next streaming
+        const tempCard = $(`
+          <div id="temp-card" class="card mt-3 streaming-card">
+            <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
+              <div class="fs-5 card-title mb-0">
+                <span class="card-role-icon"><i class="fas fa-robot"></i></span> <span class="fw-bold fs-6 assistant-color">Assistant</span>
+              </div>
+            </div>
+            <div class="card-body role-assistant">
+              <div class="card-text"></div>
+            </div>
+          </div>
+        `);
+        $('#discourse').append(tempCard);
+        tempCard.show();
+        console.log('[handleHtmlMessage] temp-card created and shown, length:', $('#temp-card').length);
+
+        // Show processing indicator
+        const processingToolsText = typeof webUIi18n !== 'undefined'
+          ? webUIi18n.t('ui.messages.spinnerProcessingTools')
+          : 'Processing tools';
+        $('#monadic-spinner span').html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
+        $('#monadic-spinner').show();
+        document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+      }
+
       return true;
     }
     return false;

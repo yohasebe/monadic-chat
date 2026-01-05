@@ -246,6 +246,11 @@ module DeepSeekHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("[#{Time.now}] [DeepSeek] api_request called: role=#{role}, call_depth=#{call_depth}")
+      end
+    end
 
     num_retrial = 0
 
@@ -383,8 +388,25 @@ module DeepSeekHelper
     DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
     DebugHelper.debug("DeepSeek websearch enabled: #{websearch}", category: :api, level: :debug)
     
-    # Only include tools if this is not a tool response
-    if role != "tool"
+    # Check if terminal tool was called in previous turn
+    # If so, skip tools to prevent infinite loop
+    skip_tools = obj["_skip_tools_next_request"] == true
+
+    # Clear the flag for future requests (it should only affect the immediate next request)
+    if skip_tools
+      obj.delete("_skip_tools_next_request")
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DeepSeek] Skipping tools due to terminal tool in previous turn")
+        end
+      end
+    end
+
+    # Include tools unless: (1) this is a tool response with skip flag, or (2) terminal tool was just called
+    # Changed: include tools even for role == "tool" unless skip_tools is set
+    # This allows the model to continue calling tools after load_learning_progress,
+    # but stops after save_learning_progress
+    unless skip_tools
       # Build the tools array
       if websearch
         # Always include websearch tools when websearch is enabled
@@ -416,7 +438,11 @@ module DeepSeekHelper
         body.delete("tools")
         body.delete("tool_choice")
       end
-    end # end of role != "tool"
+    else
+      # Explicitly remove tools when skip_tools is set
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     if role == "tool"
       body["messages"] += obj["function_returns"]
@@ -424,7 +450,10 @@ module DeepSeekHelper
       body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
     end
 
-    if obj["model"].include?("reasoner")
+    # Check if this is a reasoning model (deepseek-reasoner or deepseek-r1)
+    is_reasoning_model = obj["model"].include?("reasoner") || obj["model"].include?("-r1")
+
+    if is_reasoning_model
       # Reasoner model has specific requirements
       body.delete("temperature")
       body.delete("presence_penalty")
@@ -433,8 +462,15 @@ module DeepSeekHelper
       # Keep tools and tool_choice if they exist
 
       # remove the text from the beginning of the message to "---" from the previous messages
-      body["messages"] = body["messages"].map do |msg|
+      # Also remove reasoning_content from old messages to conserve bandwidth
+      # (per API docs: "when starting new conversational turns, remove prior reasoning_content")
+      body["messages"] = body["messages"].map.with_index do |msg, idx|
         msg["content"] = msg["content"]&.sub(/---\n\n/, "") || msg["content"]
+        # Remove reasoning_content from all but the most recent assistant message
+        # to conserve bandwidth while maintaining context
+        if msg["role"] == "assistant" && idx < body["messages"].length - 1
+          msg.delete("reasoning_content")
+        end
         msg
       end
     else
@@ -996,6 +1032,32 @@ module DeepSeekHelper
             clean_content = clean_content.gsub(/<\|DSML\|[^>]*>/, "").gsub(/<\/\|DSML\|[^>]*>/, "").strip
             text_result["choices"][0]["message"]["content"] = clean_content
 
+            # IMPORTANT: Save the clean content to session BEFORE processing tool calls
+            # This ensures the streamed content is preserved when a new API request is made
+            if clean_content && !clean_content.empty?
+              request_id = SecureRandom.hex(4)
+              # Include app_name so the message is properly filtered and displayed
+              app_name = session[:parameters]["app_name"] || obj["app_name"]
+              assistant_message = {
+                "role" => "assistant",
+                "text" => clean_content,
+                "html" => markdown_to_html(clean_content, mathjax: true),
+                "lang" => detect_language(clean_content),
+                "mid" => request_id,
+                "active" => true,
+                "app_name" => app_name
+              }
+              session[:messages] << assistant_message
+
+              # Send HTML message IMMEDIATELY so frontend creates a card for this content
+              # This fixes the issue where intermediate messages were saved but not displayed
+              # more_coming flag tells frontend to keep temp-card ready for next streaming
+              html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
+              block&.call html_res
+
+              DebugHelper.debug("DeepSeek: Saved assistant message before DSML tool call (#{clean_content.length} chars)", category: :api, level: :debug)
+            end
+
             # Set finish reason to function_call
             text_result["choices"][0]["finish_reason"] = "function_call"
             finish_reason = "function_call"
@@ -1096,19 +1158,64 @@ module DeepSeekHelper
     if tools.any?
       # Handle tool/function calls
       DebugHelper.debug("DeepSeek tools before processing: #{tools.inspect}", category: :api, level: :verbose)
-      
+
       tools_data = tools.first[1].dig("choices", 0, "message", "tool_calls")
-      
+
       # If tool_calls is not an array, make it one
       if tools_data && !tools_data.is_a?(Array)
         tools_data = [tools_data]
       end
-      
+
       DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
-      
+
+      # Save any content from text_result to session BEFORE processing tool calls
+      # This ensures streamed content is preserved when native tool_calls are used
+      if text_result
+        content_before_tools = text_result.dig("choices", 0, "message", "content")
+        if content_before_tools && !content_before_tools.to_s.strip.empty?
+          request_id = SecureRandom.hex(4)
+          # Include app_name so the message is properly filtered and displayed
+          app_name = session[:parameters]["app_name"] || obj["app_name"]
+          assistant_message = {
+            "role" => "assistant",
+            "text" => content_before_tools.to_s,
+            "html" => markdown_to_html(content_before_tools.to_s, mathjax: true),
+            "lang" => detect_language(content_before_tools.to_s),
+            "mid" => request_id,
+            "active" => true,
+            "app_name" => app_name
+          }
+          session[:messages] << assistant_message
+
+          # Log to extra.log for debugging
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DeepSeek] Saved assistant message before tool call: #{content_before_tools.length} chars, mid=#{request_id}, app_name=#{app_name}")
+              log.puts("[#{Time.now}] [DeepSeek] session[:messages] now has #{session[:messages].size} messages")
+            end
+          end
+
+          # Send HTML message IMMEDIATELY so frontend creates a card for this content
+          # This fixes the issue where intermediate messages were saved but not displayed
+          # more_coming flag tells frontend to keep temp-card ready for next streaming
+          html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
+
+          if CONFIG["EXTRA_LOGGING"]
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+              log.puts("[#{Time.now}] [DeepSeek] Sending html message with more_coming=true, content length=#{content_before_tools.length}")
+            end
+          end
+
+          block&.call html_res
+
+          DebugHelper.debug("DeepSeek: Saved assistant message before native tool call (#{content_before_tools.length} chars)", category: :api, level: :debug)
+        end
+      end
+
       context = []
       # DeepSeek API requires content to be null/empty when tool_calls is present
-      res = {
+      # For reasoner model, reasoning_content must also be included
+      assistant_msg = {
         "role" => "assistant",
         "content" => nil,
         "tool_calls" => tools_data.map do |tool|
@@ -1119,7 +1226,21 @@ module DeepSeekHelper
           }
         end
       }
-      context << res
+
+      # For reasoning models (deepseek-reasoner, deepseek-r1), include reasoning_content
+      # in the assistant message. This is required by the DeepSeek API for tool calls
+      # with thinking mode. See: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
+      model_name = obj["model"] || ""
+      is_reasoning_model = model_name.include?("reasoner") || model_name.include?("-r1")
+      if is_reasoning_model
+        reasoning_content = text_result&.dig("choices", 0, "message", "reasoning_content")
+        if reasoning_content && !reasoning_content.empty?
+          assistant_msg["reasoning_content"] = reasoning_content
+          DebugHelper.debug("DeepSeek: Including reasoning_content in tool call context (#{reasoning_content.length} chars)", category: :api, level: :debug)
+        end
+      end
+
+      context << assistant_msg
 
       # Check for maximum function call depth
       call_depth += 1
@@ -1151,11 +1272,28 @@ module DeepSeekHelper
 
   private
 
+  # Terminal tools that signal the end of a tool-calling sequence
+  # After these tools are executed, the model should not call more tools
+  TERMINAL_TOOLS = %w[
+    save_learning_progress
+    save_conversation_analysis
+    save_diagnosis_progress
+    save_analysis_result
+  ].freeze
+
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
+    terminal_tool_called = false
+
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]
+
+      # Check if this is a terminal tool (signals end of tool sequence)
+      if TERMINAL_TOOLS.include?(function_name)
+        terminal_tool_called = true
+        DebugHelper.debug("DeepSeek: Terminal tool '#{function_name}' called - will disable tools in next request", category: :api, level: :debug)
+      end
 
       begin
         escaped = function_call["arguments"]
@@ -1200,6 +1338,35 @@ module DeepSeekHelper
     end
 
     obj["function_returns"] = context
+
+    # If terminal tool was called, do NOT make another api_request
+    # The terminal tool signals that the assistant's turn is complete
+    # Making another request would cause empty response and "content_not_found" error
+    if terminal_tool_called
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DeepSeek] Terminal tool called - sending DONE and ending turn")
+        end
+      end
+      # Send DONE message to signal completion to frontend
+      # This is necessary because previous html message may have had more_coming=true
+      done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call done_res
+
+      # Return a properly structured response that websocket.rb can process
+      # without triggering content_not_found error
+      # The response must have choices[0].message.content structure
+      final_response = {
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => ""  # Empty content is OK, will not trigger error
+          },
+          "finish_reason" => "stop"
+        }]
+      }
+      return [final_response]
+    end
 
     sleep RETRY_DELAY
     api_request("tool", session, call_depth: call_depth, &block)

@@ -205,3 +205,8 @@ class MathTutorGrok < MonadicApp
   include GrokHelper if defined?(GrokHelper)
   include MathTutorTools
 end
+
+class MathTutorDeepSeek < MonadicApp
+  include DeepSeekHelper if defined?(DeepSeekHelper)
+  include MathTutorTools
+end

@@ -2791,12 +2791,18 @@ namespace :test do
     # Ruby unit tests
     step += 1
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby unit tests..."
-    results[:ruby_unit] = system("rake test:run[unit,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=unit\"]")
+    unit_json = File.join(output_dir, 'unit.json')
+    Dir.chdir("docker/services/ruby") do
+      results[:ruby_unit] = system("bundle exec rspec spec/unit --format documentation --format json --out #{unit_json}")
+    end
 
     # Ruby integration tests
     step += 1
     puts "\n🧪 [#{step}/#{total_steps}] Running Ruby integration tests..."
-    results[:ruby_integration] = system("rake test:run[integration,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=integration\"]")
+    integration_json = File.join(output_dir, 'integration.json')
+    Dir.chdir("docker/services/ruby") do
+      results[:ruby_integration] = system("bundle exec rspec spec/integration --format documentation --format json --out #{integration_json}")
+    end
 
     # Ruby system tests
     step += 1
@@ -2810,7 +2816,10 @@ namespace :test do
     if api_level != 'none'
       step += 1
       puts "\n🧪 [#{step}/#{total_steps}] Running API tests..."
-      results[:api] = system("rake test:run[api,\"api_level=#{api_level},save=true,output_dir=#{output_dir},suite_name=api\"]")
+      api_json = File.join(output_dir, 'api.json')
+      Dir.chdir("docker/services/ruby") do
+        results[:api] = system("bundle exec rspec spec/integration --tag api --format documentation --format json --out #{api_json}")
+      end
     else
       results[:api] = true
     end
@@ -2843,14 +2852,14 @@ namespace :test do
     # JavaScript tests
     step += 1
     puts "\n🧪 [#{step}/#{total_steps}] Running JavaScript tests..."
-    Rake::Task[:jstest].reenable
-    results[:javascript] = Rake::Task[:jstest].invoke('true', output_dir)
+    # Use system() to run as subprocess - invoke() returns task object, not result
+    results[:javascript] = system("rake 'jstest[true,#{output_dir}]'")
 
     # Python tests
     step += 1
     puts "\n🧪 [#{step}/#{total_steps}] Running Python tests..."
-    Rake::Task["pytest:all"].reenable
-    results[:python] = Rake::Task["pytest:all"].invoke('true', output_dir)
+    # Use system() to run as subprocess - invoke() returns task object, not result
+    results[:python] = system("rake 'pytest:all[true,#{output_dir}]'")
 
     duration = Time.now - start_time
     all_passed = results.values.all?

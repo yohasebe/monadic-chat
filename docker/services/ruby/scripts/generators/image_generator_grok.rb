@@ -50,7 +50,7 @@ def generate_image(prompt, num_retrials: 3)
     }
 
     body = {
-      model: "grok-2-image",
+      model: "grok-2-image-1212",
       prompt: prompt,
       n: 1,
       response_format: "b64_json"

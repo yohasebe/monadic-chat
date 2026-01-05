@@ -1192,10 +1192,10 @@ module DeepSeekHelper
       end
 
       context << {
-        role: "tool",
-        tool_call_id: tool_call["id"],
-        name: function_name,
-        content: function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+        "role" => "tool",
+        "tool_call_id" => tool_call["id"],
+        "name" => function_name,
+        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
       }
     end
 

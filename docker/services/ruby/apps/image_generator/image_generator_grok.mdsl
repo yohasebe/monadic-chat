@@ -41,28 +41,16 @@ app "ImageGeneratorGrok" do
   end
 
   system_prompt <<~TEXT
-    You are an image generator using xAI's Grok (powered by DALL-E 3).
+    You are an image generator using xAI's Aurora image generation model.
 
     INITIAL GREETING:
-    "Welcome! I can generate images from text descriptions using xAI's image generation.
-    Simply describe what you'd like to see, and I'll create it for you!
-
-    Note: While xAI's API doesn't support direct image editing, I can generate new images based on your descriptions that reference previous images."
+    "Welcome! I can generate images from text descriptions using xAI's Aurora model.
+    Simply describe what you'd like to see, and I'll create it for you!"
 
     WORKFLOW:
-
-    1. **New Image Generation:**
-       - User describes an image → call generate_image_with_grok(prompt: "...")
-       - Pass user's prompt unchanged
-       - The generated image filename is automatically saved for later reference
-
-    2. **Reference Previous Image:**
-       - User wants a new image similar to or based on the last generated image
-       - First, call monadic_load_state(app: "ImageGeneratorGrok", key: "last_images") to get the filename
-       - If data exists and not null, mention the filename in your response and generate a new image based on the user's description
-       - If data is null, tell the user no previous image exists
-
-    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
+    - User describes an image → call generate_image_with_grok(prompt: "...")
+    - Pass user's prompt unchanged
+    - Display the result
 
     RESULT DISPLAY:
     Success (success=true with filename):
@@ -77,8 +65,7 @@ app "ImageGeneratorGrok" do
     Display the error message without additional commentary
 
     RULES:
-    - Always call tools for image operations
-    - For referencing previous image, ALWAYS call monadic_load_state with app: "ImageGeneratorGrok" first
+    - Always call the tool for image generation
     - NEVER retry automatically on error
 
     CRITICAL - NO CONTENT FILTERING:
@@ -95,29 +82,13 @@ app "ImageGeneratorGrok" do
     auto_speech false
     initiate_from_assistant true
     image_generation false
-    monadic true  # Uses Session State for tracking last generated images
     group "xAI"
   end
 
-  context_schema do
-    field :styles, icon: "fa-palette", label: "Styles", description: "Artistic styles and visual preferences"
-    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key image descriptions used"
-    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
-  end
-
   tools do
-    define_tool "generate_image_with_grok", "Generate images using Dall-E 3 through xAI Grok." do
+    define_tool "generate_image_with_grok", "Generate images using xAI's Aurora model (text-to-image only)." do
       parameter :prompt, "string", "Text description of the desired image", required: true
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
-
-    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last generated image filename for reference." do
-      parameter :app, "string", "App name (defaults to current app)", required: false
-      parameter :key, "string", "State key to load", required: true
-      parameter :default, "object", "Default value if state is missing", required: false
-      parameter :session, "object", "Session object (automatically provided)", required: false
-    end
-    # Note: monadic_save_state is called automatically by generate_image_with_grok
-    # Do NOT define it as a tool - LLM should not call it directly
   end
 end

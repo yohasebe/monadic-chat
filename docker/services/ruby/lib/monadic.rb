@@ -689,7 +689,6 @@ require "method_source"
 require "net/http"
 require "nokogiri"
 require "open3"
-require "pragmatic_segmenter"
 # require "rouge"  # Phase 3: Removed due to SIGSEGV bug on Ruby 3.4
 require "securerandom"
 require "strscan"

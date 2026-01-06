@@ -7,6 +7,7 @@ require 'uri'
 require 'async'
 require 'async/queue'
 require 'async/websocket/adapters/rack'
+require 'twitter_cldr'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
@@ -67,6 +68,19 @@ module WebSocketHelper
 
   # For backward compatibility and convenience
   REALTIME_TTS_MIN_LENGTH = realtime_tts_min_length
+
+  # Sentence segmentation using TwitterCLDR (faster and better RTL support than PragmaticSegmenter)
+  # Returns an array of sentence strings
+  def self.segment_sentences(text)
+    return [] if text.nil? || text.empty?
+
+    # Note: Must use .to_a before .map because the enumerator yields strings when iterated directly,
+    # but returns [text, start_pos, end_pos] arrays when converted to array first
+    TwitterCldr::Segmentation::BreakIterator.new(:en).each_sentence(text).to_a.map do |segment|
+      # TwitterCLDR returns [text, start_pos, end_pos], extract just the text
+      segment[0].strip
+    end.reject(&:empty?)
+  end
 
   # Class variable to store WebSocket connections with thread safety
   # Now stores Async::WebSocket::Connection objects
@@ -986,8 +1000,7 @@ module WebSocketHelper
     # Send notification that full text will be played and Stop button is available
     if manual_play
       # Send notice for manual playback (full text will be played)
-      ps = PragmaticSegmenter::Segmenter.new(text: text)
-      total_segments = ps.segment.length
+      total_segments = WebSocketHelper.segment_sentences(text).length
 
       notice_message = {
         "type" => "tts_notice",
@@ -1047,8 +1060,7 @@ module WebSocketHelper
         end
 
         # Segment text to find sentence boundaries
-        ps = PragmaticSegmenter::Segmenter.new(text: text)
-        all_segments = ps.segment
+        all_segments = WebSocketHelper.segment_sentences(text)
 
         # Accumulate consecutive segments from the beginning until byte limit is reached
         accumulated_bytes = 0
@@ -1144,9 +1156,8 @@ module WebSocketHelper
     end
 
     # REALTIME MODE (realtime_mode = true): Use sentence splitting with prefetch
-    # Process text with PragmaticSegmenter to split into sentences
-    ps = PragmaticSegmenter::Segmenter.new(text: text)
-    segments = ps.segment
+    # Process text with TwitterCLDR to split into sentences (faster and better RTL support)
+    segments = WebSocketHelper.segment_sentences(text)
 
     if CONFIG["EXTRA_LOGGING"]
       puts "[TTS] Realtime mode: Original text: '#{text[0..100]}...'"
@@ -2834,7 +2845,7 @@ module WebSocketHelper
           # Get auto_tts_realtime_mode setting
           # TEMPORARILY DISABLED (2025-11-07): Realtime mode has a race condition where
           # LLM streaming can split words mid-character (e.g., "チャット" → "チャ" + "ット"),
-          # causing PragmaticSegmenter to mark sentences as "complete" before all characters
+          # causing the sentence segmenter to mark sentences as "complete" before all characters
           # arrive. This results in truncated TTS audio (e.g., "チャット" → "チャ").
           # Need to add fragment stabilization (wait 50-100ms after sentence boundary)
           # before re-enabling.
@@ -2955,8 +2966,7 @@ module WebSocketHelper
                 text = fragment["content"]
                 buffer << text unless text.empty? || text == "DONE"
 
-                ps = PragmaticSegmenter::Segmenter.new(text: buffer.join)
-                segments = ps.segment
+                segments = WebSocketHelper.segment_sentences(buffer.join)
 
                 if CONFIG["EXTRA_LOGGING"]
                   File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
@@ -2967,7 +2977,7 @@ module WebSocketHelper
                   end
                 end
 
-                # Wait for complete sentences: PragmaticSegmenter returns 2+ segments when a sentence is complete
+                # Wait for complete sentences: TwitterCLDR returns 2+ segments when a sentence is complete
                 # Process all complete sentences (all except the last incomplete one)
                 if !cutoff && segments.size >= 2
                   complete_sentences = segments[0...-1]

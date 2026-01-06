@@ -701,8 +701,6 @@ module StringUtils
     end
   end
 
-  # Phase 3: Rouge removed due to SIGSEGV bug on Ruby 3.4
-  # Client-side highlight.js now handles all syntax highlighting
   def self.highlight_code_blocks(html, theme_name: nil, theme_mode: nil)
     return html if html.nil?
 
@@ -956,9 +954,6 @@ module StringUtils
       # Convert CommonMarker output format and apply current theme
       html = StringUtils.highlight_code_blocks(html, theme_name: theme, theme_mode: mode)
     end
-
-    # Phase 3: Rouge theme CSS generation removed
-    # Client-side highlight.js now handles all syntax highlighting and theming
 
     # Restore bold placeholders
     all_bold_items.each_with_index do |content, index|

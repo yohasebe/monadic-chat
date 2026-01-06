@@ -683,9 +683,6 @@ module WebSocketHelper
 
     params_for_render = params
     mathjax_enabled = params_for_render["mathjax"].to_s == "true"
-    # Phase 2: Server-side HTML rendering disabled
-    # Client-side MarkdownRenderer now handles all rendering
-    # No longer generating m["html"] field to avoid Rouge SIGSEGV bug
 
     filtered_messages
   end

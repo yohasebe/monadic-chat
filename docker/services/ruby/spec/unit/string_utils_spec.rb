@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require "dotenv/load"
-# Phase 3: Rouge removed due to SIGSEGV bug on Ruby 3.4
-# require "rouge"
 require "cld"
 require "csv"
 require_relative '../spec_helper'
@@ -12,8 +10,6 @@ RSpec.describe StringUtils do
   # Use real CONFIG or define it for testing
   before do
     unless defined?(CONFIG)
-      # Define CONFIG directly if it doesn't exist
-      # Note: ROUGE_THEME is kept for backward compatibility but rouge gem is no longer used
       Object.const_set(:CONFIG, {
         "ROUGE_THEME" => "github:light"
       })

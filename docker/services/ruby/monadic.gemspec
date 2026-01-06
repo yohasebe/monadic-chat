@@ -73,7 +73,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rake"
   spec.add_dependency "redcarpet"
   spec.add_dependency 'rexml', '~> 3.4.2'
-  # spec.add_dependency "rouge", "~> 4.5.0"  # Phase 3: Removed due to SIGSEGV bug on Ruby 3.4
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"
 

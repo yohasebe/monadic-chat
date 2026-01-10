@@ -6,8 +6,9 @@ RSpec.describe "ElevenLabs STT Integration" do
   describe "stt_api_request routing" do
     it "routes scribe models to ElevenLabs API" do
       # Verify routing logic for ElevenLabs models
-      # Note: scribe_v1 is available via REST API; scribe_v2 is WebSocket-only (not implemented)
-      scribe_models = ["scribe_v1"]
+      # scribe_v1 and scribe_v1_experimental are available via REST API
+      # scribe_v2_realtime is WebSocket-only (not implemented)
+      scribe_models = ["scribe_v1", "scribe_v1_experimental"]
       scribe_models.each do |model|
         expect(model.start_with?("scribe")).to be true
       end

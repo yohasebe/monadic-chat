@@ -4858,16 +4858,18 @@ let loadedApp = "Chat";
           $("#elevenlabs-flash-provider-option").prop("disabled", false);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
           $("#elevenlabs-v3-provider-option").prop("disabled", false);
-          // set ElevenLabs STT option enabled
+          // set ElevenLabs STT options enabled
           $("#elevenlabs-stt-scribe").prop("disabled", false);
+          $("#elevenlabs-stt-scribe-experimental").prop("disabled", false);
           // Do not set ElevenLabs as default - prefer openai-tts-4o
         } else {
           // set ElevenLabs provider options disabled (TTS)
           $("#elevenlabs-flash-provider-option").prop("disabled", true);
           $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
           $("#elevenlabs-v3-provider-option").prop("disabled", true);
-          // set ElevenLabs STT option disabled
+          // set ElevenLabs STT options disabled
           $("#elevenlabs-stt-scribe").prop("disabled", true);
+          $("#elevenlabs-stt-scribe-experimental").prop("disabled", true);
         }
         $("#elevenlabs-tts-voice").empty();
         voices.forEach((voice) => {

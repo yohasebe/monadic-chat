@@ -1,4 +1,16 @@
+/* ============================================ */
+/* CSS Layer Order Declaration */
+/* Later layers override earlier layers without needing !important */
+/* ============================================ */
+@layer vendor, base, components, dark-theme, responsive, utilities;
+
+/* ============================================ */
+/* Base Layer: Variables, resets, accessibility */
+/* ============================================ */
+@layer base {
+
 /* CSS Variables - Single source of truth for common values */
+
 :root {
   /* Transition Durations - Matching existing values */
   --transition-fast: 200ms;     /* Used for quick interactions */
@@ -101,11 +113,62 @@
   --spinner-bg: #777;
   --code-text: #555;
   --inline-code-bg: rgba(0, 0, 0, 0.05);
+
+  /* Badge Colors */
+  --badge-tools-bg: #ffebee;
+  --badge-tools-border: #ffcdd2;
+  --badge-tools-color: #c62828;
+  --badge-capabilities-bg: #e8f4f8;
+  --badge-capabilities-border: #b3e5fc;
+  --badge-capabilities-color: #01579b;
+  --badge-category-label: #666;
+
+  /* Tool Group Badge */
+  --tool-group-badge-bg: #e3f2fd;
+  --tool-group-badge-color: #1565c0;
+
+  /* Alert Message Colors */
+  --alert-info-bg: #e3f2fd;
+  --alert-info-color: #1565c0;
+  --alert-info-accent: #1976d2;
+  --alert-error-bg: #ffebee;
+  --alert-error-color: #c62828;
+  --alert-error-accent: #d32f2f;
+
+  /* Focus Colors */
+  --focus-outline: #4A90E2;
+  --focus-shadow: rgba(74, 144, 226, 0.3);
+  --focus-shadow-light: rgba(74, 144, 226, 0.15);
+
+  /* Voice Button Colors */
+  --voice-btn-bg: #5bc0de;
+  --voice-btn-border: #46b8da;
+  --voice-btn-hover-bg: #39b3d7;
+  --voice-btn-hover-border: #31b0d5;
+
+  /* TTS Indicator */
+  --tts-active-color: #DC4C64;
+
+  /* Navbar */
+  --navbar-border: #d5d5d5;
+
+  /* JSON Display Colors */
+  --json-label-primary: #495057;
+  --json-label-secondary: #343a40;
+  --json-text-muted: #6c757d;
+  --json-text-dark: #212529;
+
+  /* Dropdown Highlight */
+  --dropdown-highlight-bg: #f2f8ff;
+  --dropdown-highlight-accent: #3377ff;
 }
 
 /* ============================================ */
+
 /* Dark Theme Colors */
+
 /* ============================================ */
+
 .dark-theme {
   /* Background Colors */
   --bg-body: #1a1a1a;
@@ -166,6 +229,54 @@
   --code-text: #d0d0d0;
   --inline-code-bg: rgba(255, 255, 255, 0.1);
 
+  /* Badge Colors */
+  --badge-tools-bg: #4a2020;
+  --badge-tools-border: #6a3030;
+  --badge-tools-color: #f47983;
+  --badge-capabilities-bg: #1a3040;
+  --badge-capabilities-border: #2a4a5a;
+  --badge-capabilities-color: #8fb3e8;
+  --badge-category-label: #b0b0b0;
+
+  /* Tool Group Badge */
+  --tool-group-badge-bg: #1a3050;
+  --tool-group-badge-color: #8fb3e8;
+
+  /* Alert Message Colors */
+  --alert-info-bg: #1a3050;
+  --alert-info-color: #8fb3e8;
+  --alert-info-accent: #6b9bd8;
+  --alert-error-bg: #4a2020;
+  --alert-error-color: #f47983;
+  --alert-error-accent: #ff6b6b;
+
+  /* Focus Colors */
+  --focus-outline: #6b9bd8;
+  --focus-shadow: rgba(107, 155, 216, 0.3);
+  --focus-shadow-light: rgba(107, 155, 216, 0.15);
+
+  /* Voice Button Colors */
+  --voice-btn-bg: #3a8da8;
+  --voice-btn-border: #2a7d98;
+  --voice-btn-hover-bg: #4a9db8;
+  --voice-btn-hover-border: #3a8da8;
+
+  /* TTS Indicator */
+  --tts-active-color: #e56b7f;
+
+  /* Navbar */
+  --navbar-border: #4a4a4a;
+
+  /* JSON Display Colors */
+  --json-label-primary: #b0b0b0;
+  --json-label-secondary: #d0d0d0;
+  --json-text-muted: #8a8a8a;
+  --json-text-dark: #e0e0e0;
+
+  /* Dropdown Highlight */
+  --dropdown-highlight-bg: #2a3a4a;
+  --dropdown-highlight-accent: #6b9bd8;
+
   /* Shadows need to be lighter in dark mode */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
@@ -174,51 +285,187 @@
 }
 
 /* ============================================== */
-/* Dark Theme Card Styles */
-/* ============================================== */
-/* Improve card appearance in dark mode */
-.dark-theme .card {
-  border-color: var(--border-primary);
-  background-color: transparent;
-}
 
-/* Ensure smooth corners without visible gaps */
-.dark-theme .card-body {
-  border-radius: var(--border-radius);
-}
+/* Global Accessibility: Focus Indicators */
 
 /* ============================================== */
+
+/* Keyboard navigation focus styles for WCAG 2.1 compliance */
+
+*:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* Remove outline for mouse users, keep for keyboard users */
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Button focus styles */
+
+.btn:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  box-shadow: 0 0 0 3px var(--focus-shadow);
+}
+
+/* Input and textarea focus styles */
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--focus-shadow-light);
+}
+
+/* Link focus styles */
+
+a:focus-visible {
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
+  text-decoration: underline;
+}
+
+/* ============================================== */
+
+/* Accessibility: Reduced Motion Support */
+
+/* ============================================== */
+
+/* Respect user's motion preferences for WCAG 2.1 compliance */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Keep essential UI feedback transitions */
+  button:hover,
+  .btn:hover,
+  a:hover {
+    transition: background-color 0.01ms, color 0.01ms;
+  }
+}
+
+/* Reduce default font size to approx. 90% (match internal Zoom Out) */
+
+html, body, input, button, select, textarea {
+  font-size: 14px;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
+  color: var(--text-primary);
+  background-color: var(--bg-body);
+  line-height: 1.8;
+  height: 100%;
+  margin: 0;
+  font-size: 0.95em;
+}
+
+/* Global rule for all viewport sizes */
+
+body,
+html {
+  overflow: hidden;
+}
+
+textarea {
+  white-space: pre-wrap;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  background-color: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+
+/* Focus-visible for keyboard navigation */
+
+.btn-hover-lift:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  outline: 2px solid var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.dark-theme .btn-hover-lift:focus-visible {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+} /* end @layer base */
+
+/* ============================================ */
+/* Components Layer: UI component styles */
+/* ============================================ */
+@layer components {
+
+/* ============================================== */
+
 /* Icon and Link Colors - CSS Variables Based */
-/* ============================================== */
-/* Replaces JavaScript style forcing with pure CSS */
-/* Uses CSS variables defined in Critical CSS */
-/* Reduced !important usage by relying on specificity where possible */
 
 /* ============================================== */
-/* Panel Section Headers - Semantic Classes */
+
+/* Replaces JavaScript style forcing with pure CSS */
+
+/* Uses CSS variables defined in Critical CSS */
+
+/* Reduced usage by relying on specificity where possible */
+
 /* ============================================== */
+
+/* Panel Section Headers - Semantic Classes */
+
+/* ============================================== */
+
 .panel-section-header {
   color: var(--text-secondary);
   margin-top: 0.5em;
 }
 
 /* Generic secondary text styling */
+
 .text-secondary-styled {
   color: var(--text-secondary);
 }
 
 /* App select icon inherits secondary color */
+
 #app-select-icon {
   color: var(--text-secondary);
 }
 
 /* Role icon selector in user panel */
+
 .role-icon-selector {
   font-size: 1.3em;
   color: var(--color-user); /* User icon should be user color (blue) */
 }
 
 /* Alert/warning icon colors */
+
 .alert-warning-icon {
   color: #FF7F07; /* Orange for alert warnings */
 }
@@ -228,6 +475,7 @@
 }
 
 /* AI Assistant provider badge */
+
 .ai-assistant-provider {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -244,14 +492,19 @@
 }
 
 /* App select icon color */
+
 #app-select-icon i {
   color: #777;
 }
 
 /* ============================================== */
-/* Info Panel - Semantic Classes (No !important needed) */
+
+/* Info Panel - Semantic Classes (No needed) */
+
 /* ============================================== */
+
 /* Light mode: gray text and icons */
+
 #monadic-info-panel .info-panel-link,
 #monadic-info-panel .info-panel-text {
   color: var(--text-secondary);
@@ -263,6 +516,7 @@
 }
 
 /* Links remain themed */
+
 #monadic-info-panel .info-panel-link a {
   color: var(--color-link);
   text-decoration: none;
@@ -275,32 +529,37 @@
 }
 
 /* Header Icons - Yellow (high specificity selectors) */
+
 #monadic-info-panel h5 i,
 #base-app-icon,
 #base-app-icon i {
   color: var(--color-icon-primary);
 }
 
-/* Header Icons - Yellow (lower specificity, needs !important) */
+/* Header Icons - Yellow (lower specificity, needs) */
+
 .fas.fa-message,
 .fas.fa-bolt,
 .shaded-panel h5 i,
 .icon-container i,
 .icon-container .app-icon {
-  color: var(--color-icon-primary) !important;
+  color: var(--color-icon-primary);
 }
 
 /* AI Assistant Label - Red (high specificity) */
+
 #ai-assistant-info span[data-i18n="ui.aiAssistant"] {
   color: var(--color-assistant);
 }
 
-/* AI Assistant Label - Red (generic class, needs !important) */
+/* AI Assistant Label - Red (generic class, needs) */
+
 .assistant-color {
-  color: var(--color-assistant) !important;
+  color: var(--color-assistant);
 }
 
 /* Agent Tool Icons - Distinct colors for different agents */
+
 .agent-icon-gpt5codex {
   color: #4285f4; /* Google blue */
 }
@@ -309,8 +568,10 @@
   color: #6f42c1; /* Purple */
 }
 
-/* Card Header Icons - Semantic Classes (No !important needed) */
+/* Card Header Icons - Semantic Classes (No needed) */
+
 /* .card-role-icon ensures icons get role-specific colors */
+
 .card-header .card-role-icon {
   color: inherit; /* Will be overridden by specific icon rules below */
 }
@@ -334,6 +595,7 @@
 }
 
 /* Card Title - Vertical alignment for icon and text */
+
 .card-header .card-title {
   display: flex;
   align-items: center;
@@ -341,6 +603,7 @@
 }
 
 /* Links - Theme-aware Colors (ID selectors have sufficient specificity) */
+
 #monadic-info-panel a,
 #base-app-desc a {
   color: var(--color-link);
@@ -354,101 +617,50 @@
   text-decoration: underline;
 }
 
-/* Links with class selector (needs !important to override Bootstrap) */
+/* Links with class selector (needs to override Bootstrap) */
+
 .shaded-panel a {
-  color: var(--color-link) !important;
-  text-decoration: none !important;
+  color: var(--color-link);
+  text-decoration: none;
   transition: color 0.2s ease, text-decoration 0.2s ease;
 }
 
 .shaded-panel a:hover {
-  color: var(--color-link-hover) !important;
-  text-decoration: underline !important;
+  color: var(--color-link-hover);
+  text-decoration: underline;
 }
 
 /* Icons inside links (ID selectors sufficient) */
+
 #monadic-info-panel a i,
 #base-app-desc a i {
   color: inherit;
 }
 
 .shaded-panel a i {
-  color: inherit !important;
-}
-
-/* ============================================== */
-/* Global Accessibility: Focus Indicators */
-/* ============================================== */
-/* Keyboard navigation focus styles for WCAG 2.1 compliance */
-*:focus-visible {
-  outline: 2px solid #4A90E2;
-  outline-offset: 2px;
-}
-
-/* Remove outline for mouse users, keep for keyboard users */
-*:focus:not(:focus-visible) {
-  outline: none;
-}
-
-/* Button focus styles */
-.btn:focus-visible {
-  outline: 2px solid #4A90E2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.3);
-}
-
-/* Input and textarea focus styles */
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: 2px solid #4A90E2;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
-}
-
-/* Link focus styles */
-a:focus-visible {
-  outline: 2px solid #4A90E2;
-  outline-offset: 2px;
-  text-decoration: underline;
-}
-
-/* ============================================== */
-/* Accessibility: Reduced Motion Support */
-/* ============================================== */
-/* Respect user's motion preferences for WCAG 2.1 compliance */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  /* Keep essential UI feedback transitions */
-  button:hover,
-  .btn:hover,
-  a:hover {
-    transition: background-color 0.01ms, color 0.01ms;
-  }
+  color: inherit;
 }
 
 /* CSS (contents kept for reference, style additions added to end) */
+
 /*-------------------------------------------*/
+
 /* Custom Responsive Navbar Reset */
+
 #main-nav {
-  background-color: var(--bg-navbar) !important;
-  border-top: none !important;
-  border-bottom: 1px solid #d5d5d5 !important;
-  box-shadow: none !important;
+  background-color: var(--bg-navbar);
+  border-top: none;
+  border-bottom: 1px solid var(--navbar-border);
+  box-shadow: none;
 }
+
 #main-nav .container-fluid {
   display: flex;
   align-items: center;
   padding: 0 1rem;
   height: 65px;
 }
+
 #main-nav .navbar-brand {
   display: flex;
   align-items: center;
@@ -457,12 +669,14 @@ a:focus-visible {
   text-decoration: none;
   height: 65px;
 }
+
 #main-nav .nav-logo {
   width: 2em;
   height: auto;
   margin-right: 0.5rem;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
+
 #main-nav .nav-text .text-main {
   font-weight: 500;
   font-family: 'Montserrat', sans-serif;
@@ -470,48 +684,38 @@ a:focus-visible {
   font-size: 1.7rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
+
 #main-nav .nav-text .text-highlight {
   font-weight: bold;
   color: var(--color-icon-primary);
   font-size: 1.7rem;
   text-shadow: 0 1px 3px rgba(255, 193, 7, 0.25);
 }
+
 #main-nav .nav-actions {
-  display: flex !important;
-  align-items: center !important;
+  display: flex;
+  align-items: center;
 }
+
 #main-nav .nav-actions .btn {
   padding: var(--spacing-sm);
   background: transparent;
   border: none;
 }
+
 #main-nav .nav-actions .btn i {
   color: #333;
   font-size: 1.25rem;
 }
-@media (max-width: 767px) {
-  #main-nav .container-fluid {
-    height: 65px;
-  }
-  #main-nav .nav-logo {
-    width: 1.8em;
-  }
-  #main-nav .nav-text .text-main,
-  #main-nav .nav-text .text-highlight {
-    font-size: 1.4rem;
-  }
-  #main-nav .nav-actions {
-    gap: 0.5rem;
-    display: flex !important;
-    align-items: center !important;
-  }
-}
+
 /* Toggle Menu Button Border for Visibility */
+
 /* CRITICAL: Must use .btn.btn-light to override Bootstrap specificity */
+
 .btn.btn-light#toggle-menu {
   /* Always transparent background except on hover */
-  background-color: transparent !important;
-  border: 1px solid rgba(0, 0, 0, 0.15) !important; /* Visible but subtle border */
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15); /* Visible but subtle border */
   border-radius: 4px;
   /* Fixed size for toggle menu button (matches logo height in mobile view) */
   width: 2rem;
@@ -521,111 +725,93 @@ a:focus-visible {
   justify-content: center;
   padding: 0;
   position: relative;
-  color: #6c757d !important; /* Muted gray icon for less contrast */
+  color: #6c757d; /* Muted gray icon for less contrast */
 }
 
 .btn.btn-light#toggle-menu i {
-  color: #6c757d !important; /* Muted gray icon */
+  color: #6c757d; /* Muted gray icon */
 }
 
 /* Unified hover effect for both menu-hidden and menu-visible states */
+
 .btn.btn-light#toggle-menu:hover {
-  background-color: rgba(0, 0, 0, 0.15) !important;
-  border-color: rgba(0, 0, 0, 0.25) !important;
-  color: #212529 !important;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 0, 0, 0.25);
+  color: #212529;
 }
 
 .btn.btn-light#toggle-menu:hover i {
-  color: #212529 !important;
+  color: #212529;
 }
 
 /* No separate state-specific styles needed - unified transparent background */
 
 /* ********************************************** */
+
 /* Override navbar layout to enforce consistent centering */
+
 #main-nav .container-fluid {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
+
 #main-nav .navbar-brand {
-  display: flex !important;
-  align-items: center !important;
-  height: 65px !important;
-  margin: 0 0 0 0 !important;
+  display: flex;
+  align-items: center;
+  height: 65px;
+  margin: 0 0 0 0;
 }
 
 /* ------------------------------------------ */
+
 /* Override toggle-menu and navbar-brand layout */
+
 #main-nav .navbar-brand {
   /* Prevent brand from flex stretching and ensure vertical centering */
-  flex: 0 0 auto !important;
-  display: flex !important;
-  align-items: center !important;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
 }
-/* The toggle menu is now controlled by fixed positioning above */
-@media (max-width: 767px) {
-  #main-nav .navbar-brand {
-    flex: 0 0 auto !important;
-  }
-}
-/* Reduce default font size to approx. 90% (match internal Zoom Out) */
-html, body, input, button, select, textarea {
-  font-size: 14px;
-}
+
 /* Smooth nav style transitions on rapid width changes */
+
 #main-nav, .navbar, .navbar-brand, #main-nav .container-fluid {
   transition: all var(--transition-normal) ease-in-out;
 }
+
 /* Ensure layout uses flex for brand and toggle-button grouping */
+
 #main-nav .container-fluid {
-  display: flex !important;
-  align-items: center !important;
+  display: flex;
+  align-items: center;
 }
 
 /* Brand/logo grouping: remove inline vertical offsets */
+
 .navbar-brand > div {
-  margin-top: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  height: 100% !important;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 /* Override inline img/span offsets in brand */
+
 .navbar-brand img,
 .navbar-brand span {
-  vertical-align: middle !important;
-  top: auto !important;
+  vertical-align: middle;
+  top: auto;
 }
 
-/* Toggle menu button: push to far right and ensure visible */
-/* The toggle menu is now controlled by fixed positioning defined above */
-
-@media (max-width: 767px) {
-  /* On mobile, maintain fixed positioning defined above */
-}
 /* Header label adjustments: ensure icon and text size remain balanced */
+
 #modeLabel, #dockerLabel, #systemLabel {
   font-size: 0.85rem;
 }
+
 #modeLabel i, #dockerLabel i, #systemLabel i {
   font-size: 1rem;
-}
-html {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) transparent;
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
-  color: var(--text-primary);
-  background-color: var(--bg-body);
-  line-height: 1.8;
-  height: 100%;
-  margin: 0;
-  font-size: 0.95em;
 }
 
 /* Card styles */
@@ -655,6 +841,7 @@ div.sourcecode-toggle,
 }
 
 /* START: SOURCECODE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+
 div.sourcecode {
   background-color: var(--bg-code);
   border: 1px solid var(--border-tertiary);
@@ -675,9 +862,11 @@ pre {
   font-size: 0.95em;
   line-height: 1.5;
 }
+
 /* END: SOURCECODE STYLE IMPROVEMENTS */
 
 /* START: SOURCECODE TOGGLE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+
 div.sourcecode-toggle {
   color: #777;
   margin-top: 0.5em;
@@ -690,6 +879,7 @@ div.sourcecode-toggle {
 div.sourcecode-toggle i {
   margin-right: 0.5em;
 }
+
 /* END: SOURCECODE TOGGLE STYLE IMPROVEMENTS */
 
 .list-group-item {
@@ -788,18 +978,8 @@ div.card-body.role-system {
   font-size: 14px;
 }
 
-/* Responsive positioning for smaller screens */
-@media (max-width: 768px) {
-  #back_to_top {
-    bottom: 100px; /* Adjust for mobile UI */
-  }
-  
-  #back_to_bottom {
-    bottom: 50px; /* Adjust for mobile UI */
-  }
-}
-
 /* Simplified alert styles - remove ALL backgrounds and borders, keep only icon and text color */
+
 .alert,
 .alert-danger,
 .alert-warning,
@@ -810,29 +990,31 @@ div.card-body.role-system {
 .alert-light,
 .alert-dark,
 div[class*="alert-"] {
-  background-color: transparent !important;
-  background-image: none !important;
-  border: none !important;
-  border-left: none !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  padding: 0.5rem 0 !important;
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-left: none;
+  border-color: transparent;
+  box-shadow: none;
+  padding: 0.5rem 0;
   margin-bottom: 0.5rem;
   border-radius: 0;
 }
 
 /* Remove all pseudo-elements that might add borders or backgrounds */
+
 .alert::before,
 .alert::after,
 div[class*="alert-"]::before,
 div[class*="alert-"]::after {
-  display: none !important;
-  content: none !important;
-  border: none !important;
-  background: none !important;
+  display: none;
+  content: none;
+  border: none;
+  background: none;
 }
 
 /* Clean, simple text colors for different alert types */
+
 .alert-danger,
 .alert-danger *:not(a) {
   color: #dc3545 !important;  /* Clear red for errors */
@@ -876,6 +1058,7 @@ div[class*="alert-"]::after {
 }
 
 /* Ensure alert close buttons and links maintain visibility */
+
 .alert .btn-close {
   background-color: transparent !important;
   opacity: 0.8;
@@ -887,16 +1070,19 @@ div[class*="alert-"]::after {
 }
 
 /* Remove any Bootstrap alert animations/transitions that might show borders */
+
 .alert {
   transition: none !important;
 }
 
 /* Force override Bootstrap's alert-dismissible padding */
+
 .alert-dismissible {
   padding-right: 0 !important;
 }
 
 /* Ensure consistent icon spacing */
+
 .alert i[class*="fa-"] {
   margin-right: 0.5rem;
 }
@@ -921,7 +1107,7 @@ span.status.active {
 }
 
 button.fixed-width {
-  width: 140px !important;
+  width: 140px;
 }
 
 .monadic-color {
@@ -929,6 +1115,7 @@ button.fixed-width {
 }
 
 /* START: ROLE COLOR IMPROVEMENTS - ADDED 2025-04-08 */
+
 .assistant-color {
   color: var(--color-assistant);
   font-weight: 500;
@@ -945,6 +1132,7 @@ button.fixed-width {
   color: var(--color-system);
   font-weight: 500;
 }
+
 /* END: ROLE COLOR IMPROVEMENTS */
 
 #error-box-wrapper,
@@ -981,11 +1169,6 @@ button.fixed-width {
   padding-left: 0;
   border-bottom: 0;
   color: rgba(0, 0, 0, .6);
-}
-
-.dark-theme #status-message table td,
-.dark-theme #stats-message table td {
-  color: rgba(255, 255, 255, .7);
 }
 
 .icon-container {
@@ -1058,25 +1241,26 @@ h5 i,
 }
 
 #cancel_query:hover {
-  background-color: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(0, 0, 0, 0.1);
   text-decoration: none;
 }
 
 /* Match height and style of toggle-menu button */
+
 #cancel_query {
-  position: relative !important;
-  box-sizing: content-box !important; /* Ensure height doesn't include borders */
-  height: 26px !important; /* 26px + 2px borders = 28px total */
-  padding: 0 8px !important;
-  background-color: transparent !important;
-  border: 1px solid rgba(0, 0, 0, 0.2) !important;
-  border-radius: 4px !important;
-  display: flex !important; /* Show by default */
-  align-items: center !important;
-  justify-content: center !important;
-  opacity: var(--opacity-hover) !important;
-  cursor: pointer !important;
-  transition: opacity var(--transition-normal) ease !important;
+  position: relative;
+  box-sizing: content-box; /* Ensure height doesn't include borders */
+  height: 26px; /* 26px + 2px borders = 28px total */
+  padding: 0 8px;
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  display: flex; /* Show by default */
+  align-items: center;
+  justify-content: center;
+  opacity: var(--opacity-hover);
+  cursor: pointer;
+  transition: opacity var(--transition-normal) ease;
 }
 
 #cancel_query i {
@@ -1109,21 +1293,7 @@ h5 i,
   padding-bottom: 0;
   /* Ensure full height for all views to prevent gray area */
   min-height: calc(100vh - 65px);
-  margin-bottom: 0 !important;
-}
-
-/* Optimize main content area for all devices */
-@media (max-width: 767px) {
-  #main {
-    padding-bottom: 0 !important; /* Remove bottom padding on mobile */
-    margin-bottom: 0 !important;
-    /* Ensure consistent height on mobile */
-    min-height: calc(100vh - 65px);
-  }
-  
-  #main > div:last-child {
-    margin-bottom: 0 !important; /* Remove margin from last child */
-  }
+  margin-bottom: 0;
 }
 
 /* Removed iOS spacers, using JavaScript solution instead */
@@ -1139,27 +1309,7 @@ h5 i,
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
   /* Force margin bottom to zero to eliminate gray area */
-  margin-bottom: 0 !important;
-}
-
-/* Mobile optimized scrollable areas */
-@media (max-width: 767px) {
-  .scrollable {
-    max-height: calc(100vh - 65px - 12px) !important; /* Use max-height for mobile too */
-    padding-bottom: 20px !important; /* Add bottom padding to prevent content from being cut off */
-    overflow-y: auto !important; /* Use auto instead of scroll to only show scrollbar when needed */
-    margin-bottom: 0 !important; /* Remove margin at the bottom */
-  }
-}
-
-/* Global rule for all viewport sizes */
-body,
-html {
-  overflow: hidden;
-}
-
-textarea {
-  white-space: pre-wrap;
+  margin-bottom: 0;
 }
 
 #role-icon {
@@ -1170,6 +1320,7 @@ textarea {
 }
 
 /* START: BLOCKQUOTE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 blockquote {
   padding: 12px 16px;
   background-color: var(--bg-blockquote);
@@ -1184,16 +1335,16 @@ blockquote {
 }
 
 blockquote p {
-  margin-top: 0.75em !important;
-  margin-bottom: 0.75em !important;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
 }
 
 blockquote p:first-child {
-  margin-top: 0.25em !important;
+  margin-top: 0.25em;
 }
 
 blockquote p:last-child {
-  margin-bottom: 0.25em !important;
+  margin-bottom: 0.25em;
 }
 
 blockquote ul,
@@ -1201,6 +1352,7 @@ blockquote ol {
   margin-top: 0.75em;
   margin-bottom: 0.75em;
 }
+
 /* END: BLOCKQUOTE STYLE IMPROVEMENTS */
 
 #status-message code {
@@ -1213,7 +1365,7 @@ blockquote ol {
   padding: 6px;
   border-radius: 4px;
   border: 1px solid var(--border-light);
-  color: #495057; /* Darker gray for better contrast with gray background */
+  color: var(--json-label-primary); /* Darker gray for better contrast with gray background */
 }
 
 /* Legacy message-{type} classes removed - now using unified text-{type} system */
@@ -1221,10 +1373,6 @@ blockquote ol {
 .textbox-caption {
   font-size: 0.9em;
   color: #777;
-}
-
-.dark-theme .textbox-caption {
-  color: #bbb;
 }
 
 #asr-p-value {
@@ -1238,21 +1386,6 @@ blockquote ol {
 #interaction-toggle-all {
   transition: color var(--transition-fast) ease, transform var(--transition-fast) ease;
   display: inline-block;
-}
-
-@media (hover: hover) {
-  #interaction-check-all:hover,
-  #interaction-uncheck-all:hover,
-  #interaction-toggle-all:hover {
-    color: #495057;
-    transform: translateY(-1px);
-  }
-
-  .dark-theme #interaction-check-all:hover,
-  .dark-theme #interaction-uncheck-all:hover,
-  .dark-theme #interaction-toggle-all:hover {
-    color: #aaa;
-  }
 }
 
 div.sourcecode-toggle:hover {
@@ -1270,17 +1403,6 @@ div.sourcecode-toggle:hover {
   display: inline-block;
 }
 
-@media (hover: hover) {
-  .toggle-text:hover {
-    color: #555;
-    transform: translateY(-1px);
-  }
-
-  .dark-theme .toggle-text:hover {
-    color: #aaa;
-  }
-}
-
 #message,
 #initial-prompt,
 #ai-user-initial-prompt,
@@ -1293,6 +1415,7 @@ div.sourcecode-toggle:hover {
 }
 
 /* Role-specific styling for inline edit textarea */
+
 .role-user .inline-edit-textarea {
   background-color: #f6f8ff;
 }
@@ -1306,10 +1429,11 @@ div.sourcecode-toggle:hover {
 }
 
 /* Ensure consistent button styling for all roles */
+
 .card-body .btn-sm {
-  font-size: 0.875rem !important;
-  padding: 0.25rem 0.5rem !important;
-  line-height: 1.5 !important;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  line-height: 1.5;
 }
 
 div.diagram {
@@ -1349,6 +1473,7 @@ div.diagram {
 }
 
 /* START: TABLE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 .card-body table {
   border: 1px solid var(--border-tertiary);
   border-collapse: collapse;
@@ -1356,324 +1481,6 @@ div.diagram {
   background-color: var(--bg-input);
   margin: 1.5em 0;
   box-shadow: var(--shadow-sm);
-}
-
-.dark-theme .card-body table {
-  box-shadow: none; /* Remove shadow in dark mode for cleaner appearance */
-}
-
-/* Dark mode support for card content */
-.dark-theme .card,
-.dark-theme .card-body,
-.dark-theme .discourse {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-}
-
-.dark-theme .card-body strong,
-.dark-theme .card-body b,
-.dark-theme .card strong,
-.dark-theme .card b,
-.dark-theme .discourse strong,
-.dark-theme .discourse b {
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: All text in message areas should be visible */
-.dark-theme .card *,
-.dark-theme .card-body *,
-.dark-theme .discourse * {
-  color: inherit;
-}
-
-/* Dark mode support for ALL form elements - lighter background for better visibility */
-.dark-theme input,
-.dark-theme textarea,
-.dark-theme select,
-.dark-theme .form-control,
-.dark-theme .form-select,
-.dark-theme input[type="text"],
-.dark-theme input[type="number"],
-.dark-theme input[type="email"],
-.dark-theme input[type="password"],
-.dark-theme input[type="search"],
-.dark-theme input[type="url"],
-.dark-theme input[type="tel"] {
-  background-color: #353535 !important;
-  color: #f5f5f5 !important;
-  border-color: var(--border-medium) !important;
-}
-
-/* Dark mode: Ensure textarea specifically has white text */
-.dark-theme textarea,
-.dark-theme textarea.form-control,
-.dark-theme #message {
-  color: #f5f5f5 !important;
-}
-
-/* Dark mode: Textarea placeholder text */
-.dark-theme textarea::placeholder,
-.dark-theme textarea.form-control::placeholder,
-.dark-theme #message::placeholder,
-.dark-theme input::placeholder,
-.dark-theme select::placeholder {
-  color: #999 !important;
-  opacity: 1;
-}
-
-/* Dark mode: Checkboxes and radio buttons - keep their native appearance but ensure visibility */
-.dark-theme input[type="checkbox"],
-.dark-theme input[type="radio"] {
-  background-color: transparent !important;
-  border-color: var(--border-medium) !important;
-}
-
-/* Dark mode: Override any white backgrounds in form elements */
-.dark-theme input[style*="background"],
-.dark-theme select[style*="background"],
-.dark-theme textarea[style*="background"] {
-  background-color: #353535 !important;
-}
-
-/* Dark mode: Override any white backgrounds in tables */
-.dark-theme table,
-.dark-theme table tbody,
-.dark-theme table tr,
-.dark-theme table td,
-.dark-theme table th {
-  background-color: transparent !important;
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: Ensure all span and div text is visible */
-.dark-theme .card span,
-.dark-theme .card div,
-.dark-theme .card-body span,
-.dark-theme .card-body div,
-.dark-theme .discourse span,
-.dark-theme .discourse div,
-.dark-theme .card p,
-.dark-theme .card-body p,
-.dark-theme .discourse p,
-.dark-theme .card label,
-.dark-theme .card-body label,
-.dark-theme .discourse label {
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: Specific override for any remaining dark text */
-.dark-theme .card [style*="color"],
-.dark-theme .card-body [style*="color"],
-.dark-theme .discourse [style*="color"] {
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: Override any Bootstrap or system colors that might be dark */
-.dark-theme .text-dark,
-.dark-theme .text-muted,
-.dark-theme .text-black-50 {
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: Sidebar panels - ensure text is visible (specific elements only) */
-/* Exclude h5, h6, icons, and their children to preserve header icon colors */
-.dark-theme .shaded-panel p,
-.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text),
-.dark-theme .shaded-panel div:not(.icon-container):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge),
-.dark-theme .shaded-panel label,
-.dark-theme .shaded-panel td,
-.dark-theme .shaded-panel th {
-  color: var(--text-primary) !important;
-}
-
-/* Dark mode: Preserve role-specific colors in sidebar */
-.dark-theme .shaded-panel .assistant-color,
-.dark-theme #monadic-info-panel .assistant-color {
-  color: var(--color-assistant) !important;
-}
-
-.dark-theme .shaded-panel .user-color,
-.dark-theme #monadic-info-panel .user-color {
-  color: var(--color-user) !important;
-}
-
-.dark-theme .shaded-panel .system-color,
-.dark-theme #monadic-info-panel .system-color {
-  color: var(--color-system) !important;
-}
-
-/* Dark mode: Ensure badge colors are preserved in sidebar */
-.dark-theme .shaded-panel .badge-tools,
-.dark-theme .shaded-panel .badge-tools *,
-.dark-theme #monadic-info-panel .badge-tools,
-.dark-theme #monadic-info-panel .badge-tools * {
-  color: #c62828 !important;
-}
-
-.dark-theme .shaded-panel .badge-capabilities,
-.dark-theme .shaded-panel .badge-capabilities *,
-.dark-theme #monadic-info-panel .badge-capabilities,
-.dark-theme #monadic-info-panel .badge-capabilities * {
-  color: #01579b !important;
-}
-
-/* Dark mode: Specific override for stats and info panels */
-/* Use positive selector approach instead of wildcard + exclusions */
-.dark-theme #stats-message,
-.dark-theme #stats-message p,
-.dark-theme #stats-message span:not(.assistant-color):not(.user-color):not(.system-color),
-.dark-theme #stats-message div,
-.dark-theme #monadic-info-panel p,
-.dark-theme #monadic-info-panel span:not(.assistant-color):not(.user-color):not(.system-color),
-.dark-theme #monadic-info-panel div:not(.badge-tools):not(.badge-capabilities) {
-  color: var(--text-primary);
-}
-
-/* Dark mode: Card header background */
-.dark-theme .card-header {
-  background-color: var(--bg-secondary) !important;
-  border-bottom-color: var(--border-medium) !important;
-}
-
-/* Dark mode: Preserve role-specific colors in card headers */
-.dark-theme .card-header .assistant-color {
-  color: var(--color-assistant) !important;
-}
-
-.dark-theme .card-header .user-color {
-  color: var(--color-user) !important;
-}
-
-.dark-theme .card-header .system-color {
-  color: var(--color-system) !important;
-}
-
-/* Dark mode: Card header icons - match text colors */
-.dark-theme .card-header .fa-robot {
-  color: var(--color-assistant) !important;
-}
-
-.dark-theme .card-header .fa-user {
-  color: var(--color-user) !important;
-}
-
-.dark-theme .card-header .fa-cog {
-  color: var(--color-system) !important;
-}
-
-/* Dark mode: Link colors */
-.dark-theme a {
-  color: var(--text-link) !important;
-}
-
-.dark-theme a:hover {
-  color: var(--text-link-hover) !important;
-}
-
-/* Dark mode: Sidebar links - ensure link colors are visible */
-.dark-theme .shaded-panel a,
-.dark-theme #monadic-info-panel a,
-.dark-theme .shaded-panel span a,
-.dark-theme #monadic-info-panel span a,
-.dark-theme .shaded-panel .text-secondary a,
-.dark-theme #monadic-info-panel .text-secondary a {
-  color: var(--text-link) !important;
-  text-decoration: none;
-}
-
-.dark-theme .shaded-panel a:hover,
-.dark-theme #monadic-info-panel a:hover,
-.dark-theme .shaded-panel span a:hover,
-.dark-theme #monadic-info-panel span a:hover,
-.dark-theme .shaded-panel .text-secondary a:hover,
-.dark-theme #monadic-info-panel .text-secondary a:hover {
-  color: var(--text-link-hover) !important;
-  text-decoration: underline;
-}
-
-/* Dark mode: Generic badge text visibility - use dark text on light backgrounds */
-/* Note: Specific badge types (badge-tools, badge-capabilities) have their own colors defined in monadic-improvements.css */
-.dark-theme .badge:not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge) {
-  color: #1a1a1a !important;
-}
-
-/* Dark mode: Warning/info button text and icons - use dark color for better contrast */
-/* Dark mode AND light mode: Warning buttons should have dark text */
-.btn-warning,
-.btn-warning *,
-#doc,
-#doc *,
-#url,
-#url *,
-#image-file,
-#image-file *,
-.dark-theme .btn-warning,
-.dark-theme .btn-warning *,
-.dark-theme .btn-info,
-.dark-theme .btn-info *,
-.dark-theme #doc,
-.dark-theme #doc *,
-.dark-theme #url,
-.dark-theme #url *,
-.dark-theme #image-file,
-.dark-theme #image-file * {
-  color: #1a1a1a !important;
-}
-
-/* Dark mode: Sidebar heading icons - preserve yellow accent */
-.dark-theme .shaded-panel h5 i,
-.dark-theme #monadic-info-panel h5 i,
-.dark-theme .shaded-panel h5 span i,
-.dark-theme #monadic-info-panel h5 span i,
-.dark-theme .shaded-panel .like-h6 i,
-.dark-theme .shaded-panel h5 .fa-message,
-.dark-theme .shaded-panel h5 .fa-bolt,
-.dark-theme #monadic-info-panel h5 .fa-message,
-.dark-theme #monadic-info-panel h5 .fa-bolt,
-.dark-theme .shaded-panel span.text i {
-  color: var(--color-icon-primary) !important;
-}
-
-/* Dark mode: App icons - preserve yellow accent */
-.dark-theme .icon-container i,
-.dark-theme .icon-container .app-icon,
-.dark-theme #base-app-icon,
-.dark-theme #base-app-icon i {
-  color: var(--color-icon-primary) !important;
-}
-
-/* Dark mode: Nested json-content - lighter borders and reduced spacing */
-.dark-theme .json-content {
-  border-color: var(--border-medium) !important;
-  background-color: var(--bg-input) !important;
-}
-
-.dark-theme .json-content .json-content {
-  border-color: #2a2a2a !important;
-  background-color: #1a1a1a !important;
-  padding: 6px !important;
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
-}
-
-.dark-theme .json-content .json-item {
-  margin-bottom: 4px !important;
-}
-
-.dark-theme .json-content .json-content table {
-  padding: 4px !important;
-}
-
-.dark-theme .json-content tbody {
-  background-color: transparent !important;
-}
-
-/* Dark mode: AI Assistant provider badge - fix white background */
-.dark-theme .ai-assistant-provider,
-.dark-theme #ai-assistant-info span[style*="background-color"] {
-  background-color: var(--bg-secondary) !important;
-  border-color: var(--border-medium) !important;
-  color: var(--text-primary) !important;
 }
 
 .card-text table {
@@ -1708,6 +1515,7 @@ div.diagram {
   color: var(--text-quaternary);
   font-weight: 600;
 }
+
 /* END: TABLE STYLE IMPROVEMENTS */
 
 fieldset {
@@ -1725,73 +1533,85 @@ legend {
 }
 
 /* START: CARD TEXT STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 .card-text {
   line-height: 1.6;
 }
 
 /* Reset and explicitly set equal margins for paragraphs */
+
 .card-text p,
 .card-text li p,
 .card-text table p,
 .card-text div p {
-  margin-top: 0.75em !important;
-  margin-bottom: 0.75em !important;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
 }
 
 /* Special rule for first paragraph to control top spacing */
+
 .card-text > p:first-child,
 .card-text li > p:first-child,
 .card-text td > p:first-child,
 .card-text th > p:first-child,
 .card-text div > p:first-child {
-  margin-top: 0.25em !important;
+  margin-top: 0.25em;
 }
 
 /* Reduce bottom margin for last paragraph in card-text */
+
 .card-text p:last-child,
 .card-text li > p:last-child,
 .card-text td > p:last-child,
 .card-text th > p:last-child,
 .card-text div > p:last-child {
-  margin-bottom: 0.25em !important;
+  margin-bottom: 0.25em;
 }
+
 /* END: CARD TEXT STYLE IMPROVEMENTS */
 
 /* START: ROLE CONSISTENCY IMPROVEMENTS - ADDED 2025-04-08 */
+
 /* Special handling for cards with pb-1 class (high specificity) */
+
 .card-body.pb-1 .card-text p:last-child {
   margin-bottom: 0.25em;
 }
 
 /* Complete reset and explicit definition for card paragraphs (high specificity) */
+
 .card-body.role-assistant .card-text p,
 .card-body.role-user .card-text p,
 .card-body.role-system .card-text p {
-  margin-top: 0.5em !important;
-  margin-bottom: 0.5em !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
   padding: 0;
   box-sizing: border-box;
   white-space: pre-line;
 }
 
 /* First paragraph specific spacing (high specificity) */
+
 .card-body.role-assistant .card-text p:first-of-type,
 .card-body.role-user .card-text p:first-of-type,
 .card-body.role-system .card-text p:first-of-type {
-  margin-top: 0 !important;
+  margin-top: 0;
 }
 
 /* Last paragraph specific spacing (high specificity) */
+
 .card-body.role-assistant .card-text p:last-of-type,
 .card-body.role-user .card-text p:last-of-type,
 .card-body.role-system .card-text p:last-of-type {
-  margin-bottom: 0 !important;
+  margin-bottom: 0;
 }
 
 /* Ensure consistent white-space handling */
+
 /* END: ROLE CONSISTENCY IMPROVEMENTS */
 
 /* Add proper margins for code blocks in card-text */
+
 .card-text pre {
   margin-bottom: 1.5em;
 }
@@ -1801,6 +1621,7 @@ legend {
 }
 
 /* START: TOGGLE SHOW/HIDE STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+
 .toggle {
   margin-top: 1em;
   margin-bottom: 1.25em;
@@ -1835,6 +1656,7 @@ legend {
 .toggle-open p:last-child {
   margin-bottom: 0.25em;
 }
+
 /* END: TOGGLE SHOW/HIDE STYLE IMPROVEMENTS */
 
 .code-container {
@@ -1859,6 +1681,7 @@ legend {
 }
 
 /* Image container */
+
 .image-container {
   display: inline-block;
   margin: 10px;
@@ -1887,12 +1710,13 @@ legend {
   z-index: 10; /* UI_ZINDEX.ELEVATED */
 }
 
-/* Button styles (specific selectors override Bootstrap without !important) */
+/* Button styles (specific selectors override Bootstrap without) */
+
 .image-container .btn.remove-file,
 .image-container .btn.create-mask {
   background-color: #ffffff;
   border: 1px solid #dee2e6;
-  color: #495057;
+  color: var(--json-label-primary);
   padding: 0.5rem;
   font-size: 13px;
   border-radius: 5px;
@@ -1927,13 +1751,14 @@ legend {
 }
 
 /* Icon styles */
+
 .image-container .btn i {
   font-size: 14px;
   margin: 0;
 }
 
 .image-container .btn.create-mask i {
-  margin-right: 5px !important;
+  margin-right: 5px;
 }
 
 .json-header {
@@ -1954,6 +1779,7 @@ legend {
 }
 
 /* For simple key-value pairs */
+
 .json-item.json-simple {
   display: flex;
   flex-wrap: nowrap;
@@ -2008,6 +1834,7 @@ legend {
 }
 
 /* Enhance pulse animation for icons */
+
 #monadic-spinner i.fa-brain {
   animation-duration: 1.2s;
 }
@@ -2022,11 +1849,13 @@ legend {
 }
 
 /* Improve temp-card styling - reduce unnecessary bottom padding */
+
 #temp-card .card-body {
   padding-bottom: 0.5rem;
 }
 
 /* Eliminate extra bottom space in chat area during streaming */
+
 #chat {
   min-height: 10px;
   margin-bottom: 0;
@@ -2034,6 +1863,7 @@ legend {
 }
 
 /* Keep chat-bottom marker close to content */
+
 #chat-bottom {
   font-size: 0;
   line-height: 0;
@@ -2043,6 +1873,7 @@ legend {
 }
 
 /* Desktop navbar styling */
+
 #main-nav {
   display: flex;
   align-items: center;
@@ -2124,13 +1955,14 @@ legend {
 }
 
 /* START: CODE BLOCK STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 .highlighter-rouge {
   border-radius: 4px;
   border: 1px solid var(--border-primary);
   overflow: visible; /* Allow copy button to be visible */
   margin: 1.25em 0; /* No left/right margin */
   background-color: var(--bg-code);
-  padding: 0.75em !important; /* Ensure padding is applied directly */
+  padding: 0.75em; /* Ensure padding is applied directly */
   position: relative; /* Added for copy button positioning */
   box-shadow: var(--shadow-sm);
 }
@@ -2138,6 +1970,7 @@ legend {
 .card-text .highlighter-rouge {
   font-size: 0.95em;
 }
+
 /* END: CODE BLOCK STYLE IMPROVEMENTS */
 
 .highlighter-rouge .highlight {
@@ -2152,14 +1985,17 @@ legend {
 }
 
 /* Set margins for code blocks within card-text */
+
 .card-text .highlighter-rouge {
   margin: 1.25em 0; /* Vertical margins only, no horizontal margins */
 }
 
 /* Ensure last code block has appropriate spacing */
+
 .card-text .highlighter-rouge:last-child {
   margin-bottom: 0.75em; /* Adjusted bottom margin for last code block */
 }
+
 .card-text img {
     border-radius: 4px;
     border: 1px solid #ced4da;
@@ -2175,6 +2011,7 @@ legend {
 }
 
 /* START: IMAGE GENERATOR STYLE IMPROVEMENTS - ADDED 2025-04-09 */
+
 .prompt, 
 .revised_prompt {
   margin-top: 0.5em;
@@ -2185,6 +2022,7 @@ legend {
   margin-top: 0.5em;
   margin-bottom: 16px;
 }
+
 /* END: IMAGE GENERATOR STYLE IMPROVEMENTS */
 
 .json-content {
@@ -2214,26 +2052,27 @@ legend {
 }
 
 /* Nested json-content - reduced spacing for both light and dark modes */
+
 .json-content .json-content {
-  padding: 6px !important;
-  margin-top: 4px !important;
-  margin-bottom: 4px !important;
+  padding: 6px;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .json-content .json-item {
-  margin-bottom: 4px !important;
+  margin-bottom: 4px;
 }
 
 .json-content .json-content table {
-  padding: 4px !important;
+  padding: 4px;
 }
 
 .navbar {
   width: 100%; /* Use 100% instead of min-width to avoid width conflicts */
   margin: 0;
   padding: 0;
-  border: none !important;
-  box-shadow: none !important;
+  border: none;
+  box-shadow: none;
 }
 
 .navbar-container {
@@ -2245,475 +2084,15 @@ legend {
   padding: 0;
 }
 
-@media (max-width: 767px) {
-  .navbar {
-    min-width: 720px; /* Use min-width only for mobile breakpoints */
-  }
-  
-  .navbar-container {
-    padding-bottom: 20px;
-    margin-bottom: -20px;
-  }
-
-  #toggle-menu {
-    right: 10px;
-  }
-}
-
-
 /* Mobile device basic overscrolling */
+
 .ios-device #main,
 .ios-device #menu {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Desktop-specific styles */
-@media (min-width: 768px) {
-  /* Reset navbar elements to default styles when in desktop view */
-  .navbar-brand, .navbar-brand > div:first-child {
-    position: static !important;
-    top: auto !important;
-    left: auto !important;
-    transform: none !important;
-    height: auto !important;
-    margin: initial !important;
-    padding: initial !important;
-    display: initial !important;
-    align-items: initial !important;
-    justify-content: initial !important;
-  }
-  
-  /* Restore original navbar styling */
-  .navbar-brand > div:first-child {
-    margin-left: 6px !important;
-    margin-top: -10px !important;
-  }
-  
-  /* Toggle menu is controlled by fixed positioning at the top of the file */
-}
-
-@media (max-width: 767px) {
-  /* Hide tagline on mobile */
-  #tagline {
-    display: none !important;
-  }
-
-  #main-nav .navbar-brand {
-    height: 65px !important;
-    padding: 0 !important;
-  }
-
-  #main-nav .navbar-brand > div:first-child {
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    height: 100% !important;
-  }
-
-  #main-nav .navbar-brand img {
-    position: static !important;
-    margin: 0 !important;
-    margin-right: 8px !important;
-  }
-
-  #main-nav .navbar-brand span {
-    position: static !important;
-  }
-  
-  /* Reduce font size for labels */
-  label, .form-label, .div-label {
-    font-size: 0.9em;
-  }
-  
-  /* Stack model parameters vertically */
-  #model_parameters .col-3 {
-    width: 100%;
-    margin-bottom: 10px;
-  }
-  
-  /* Stack context/tokens controls vertically */
-  form .col-3.ms-2, form .col-5 {
-    width: 100%;
-    margin-left: 0 !important;
-    margin-bottom: 10px;
-  }
-  
-  /* Stack model/reasoning/PDF controls vertically */
-  #model_and_file .col-5, #model_and_file .col-3 {
-    width: 100%;
-    margin-left: 0 !important;
-    margin-bottom: 10px;
-  }
-  
-  /* Session buttons (reset/load/save) should be horizontal on mobile */
-  #control-panel button.btn {
-    display: inline-block;
-    width: auto !important;
-    margin: 5px 10px 5px 0 !important; /* Increased right margin for better spacing */
-    padding: 6px 12px !important; /* Slightly increased padding */
-    font-size: 0.85em !important;
-  }
-  
-  /* Media/content buttons should be horizontal on mobile */
-  #user-panel .row .col-auto {
-    width: 100% !important;
-  }
-  
-  #user-panel .row .col-auto .d-flex {
-    flex-direction: row !important; /* Keep horizontal alignment */
-    flex-wrap: wrap !important; /* Allow wrapping if needed */
-    width: 100%;
-  }
-  
-  #user-panel button#image-file,
-  #user-panel button#doc,
-  #user-panel button#url {
-    width: auto !important;
-    margin: 5px 10px 5px 0 !important;
-    padding: 6px 12px !important;
-    font-size: 0.85em !important;
-    white-space: nowrap !important;
-  }
-  
-  /* Fix #select-role overflow issues */
-  #user-panel .row .col-auto {
-    max-width: 100%;
-    overflow: hidden;
-  }
-  
-  /* Improve role selector layout */
-  #select-role {
-    max-width: 120px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-  }
-  
-  /* Better alignment for role-specific items */
-  #role-icon {
-    display: inline-flex !important;
-    margin-right: 8px !important;
-  }
-  
-  
-  /* AI User section improvements */
-  .user-color.fw-bold {
-    white-space: nowrap !important;
-    font-size: 0.9em !important;
-  }
-  
-  /* Make AI User section stack properly */
-  #user-panel .d-flex.align-items-center {
-    flex-wrap: wrap !important;
-  }
-  
-  /* Default padding for user panel elements */
-  #user-panel .row .col-auto {
-    padding-left: 15px;
-  }
-  
-  /* Improve AI User selector */
-  #ai_user_provider {
-    max-width: 120px !important;
-    margin-left: 5px !important;
-    font-size: 0.9em !important;
-  }
-  
-  /* Shrink Run button */
-  #ai_user {
-    padding: 4px 8px !important;
-    min-width: 40px !important;
-    font-size: 0.85em !important;
-  }
-  
-  /* Improve speech input controls */
-  #voice-input-row .col-auto {
-    width: 100% !important;
-    margin-bottom: 10px;
-  }
-  
-  /* Keep voice button as auto width */
-  #voice {
-    width: auto !important;
-    margin-right: 10px !important;
-    margin-bottom: 10px !important;
-    padding: 6px 12px !important;
-    font-size: 0.85em !important;
-  }
-  
-  /* Adjust amplitude display to be properly aligned with voice button */
-  #amplitude {
-    width: 150px !important;
-    margin-left: 10px !important;
-    display: none !important; /* Default to hidden, will be shown programmatically */
-    align-items: center !important;
-    height: 28px !important;
-    overflow: hidden !important;
-  }
-  
-  #amplitude-chart {
-    width: 150px !important;
-    height: 28px !important;
-  }
-  
-  /* Fix AI Assistant display */
-  #main #ai-assistant-info {
-    display: none;
-  }
-  
-  /* Hide exchange icon */
-  .text-secondary .fa-exchange-alt {
-    display: none;
-  }
-  
-  /* Improve send/clear button layout and caption */
-  #user-panel .row .col-auto .d-flex {
-    position: relative;
-    flex-direction: row !important; /* Changed to row for horizontal alignment */
-    flex-wrap: wrap !important;
-  }
-  
-  /* Make action buttons consistent and side by side on mobile */
-  #user-panel button#send,
-  #user-panel button#clear,
-  #user-panel button#settings {
-    width: auto !important; /* Auto width to fit content */
-    margin-right: 10px !important; /* Space between buttons */
-    margin-bottom: 5px !important;
-    padding: 0.25rem 0.5rem !important; /* Reduced padding for smaller buttons */
-    height: auto !important;
-    /* Removed min-height for more compact buttons */
-    flex: 0 0 auto !important; /* Don't grow or shrink */
-    font-size: 0.875rem !important; /* Standard btn-sm size */
-  }
-  
-  /* Optimize user panel spacing for mobile */
-  #user-panel {
-    margin-bottom: 0 !important;
-    padding-bottom: 0 !important;
-  }
-  
-  /* Adjust spacing between voice row and role row */
-  @media (max-width: 767px) {
-    #voice-input-row + .row {
-      margin-top: -0.5rem !important;
-    }
-  }
-  
-  /* Reduce textarea margin for better space usage */
-  #user-panel textarea#message {
-    margin-bottom: 8px !important;
-  }
-  
-  /* Position textbox caption below buttons with consistent alignment */
-  #user-panel .row .col-auto .d-flex .textbox-caption {
-    position: relative;
-    display: block !important;
-    width: 100%;
-    margin-top: 8px !important; 
-    margin-bottom: 8px !important;
-    margin-left: 0 !important;
-    padding-left: 0 !important;
-    font-size: 0.85em !important;
-    text-align: left !important;
-    clear: both !important; /* Ensure it appears below the buttons */
-    order: 2 !important; /* Place it after the buttons in flex layout */
-  }
-  
-  /* Default text alignment for caption */
-  #user-panel .textbox-caption span {
-    text-align: left;
-  }
-  
-  /* Card role styling */
-  .card-header .card-title .text-secondary {
-    margin-right: 5px;
-  }
-  
-  .card-header .card-title .fa-face-smile {
-    color: var(--color-user) !important;
-    font-size: 1.3em !important;
-  }
-  
-  /* Assistant icon - inherit text-secondary color */
-  .card-header .card-title .fa-robot,
-  #temp-card .card-header .card-title .fa-robot {
-    font-size: 1.3em !important;
-  }
-  
-  .card-header .card-title .fa-bars {
-    color: var(--color-system) !important;
-    font-size: 1.3em !important;
-  }
-  
-  /* Hide role text in cards on mobile, show only colored icon */
-  .card-header .card-title .fw-bold,
-  .card-header .card-title .user-color,
-  .card-header .card-title .system-color {
-    display: none !important;
-  }
-  
-  /* Keep assistant color visible but make text hidden */
-  .card-header .card-title .assistant-color {
-    display: none !important;
-  }
-  
-  /* Make AI User selector and button display inline */
-  #select-role, #ai_user_provider, #ai_user {
-    display: inline-block;
-    width: auto;
-  }
-  
-  /* Mobile navbar for reliable positioning */
-  #main-nav {
-    display: flex !important;
-    align-items: center !important;
-    /* Mobile navbar height unified with desktop */
-    height: 65px !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 1030 !important;
-    background-color: var(--bg-navbar) !important;
-    border-top: none !important;
-    border-bottom: 1px solid #d5d5d5 !important;
-  }
-  
-  /* Simplify container to avoid positioning conflicts */
-  #main-nav .container-fluid {
-    /* Use flex layout to center items and distribute space */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    height: 100% !important;
-    padding: 0 15px !important;
-  }
-  
-  /* Navbar-brand participates in flex on mobile */
-  .navbar-brand {
-    position: static !important;
-    margin-left: 15px !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    padding: 0 !important;
-    z-index: auto !important;
-    width: auto !important;
-  }
-  /* Toggle menu button is now positioned fixed at top-right in all screen sizes */
-  
-  .navbar-brand div {
-    display: flex !important;
-    align-items: center !important;
-  }
-  
-  .navbar-brand img {
-    width: 1.6em !important; /* Slightly smaller logo */
-    height: auto !important;
-    margin: 0 !important;
-    margin-right: 8px !important; /* Add spacing between logo and text */
-    position: static !important;
-  }
-  
-  .navbar-brand span {
-    font-size: 1.1em !important; /* Slightly smaller text */
-    position: static !important;
-  }
-  
-  /* Removed mobile-specific static positioning for toggle-menu to rely on responsive CSS */
-  
-  /* Adjust main content position to match reduced navbar height */
-  #contents {
-    margin-top: 65px !important; /* Match navbar height */
-    padding-top: 0 !important; /* Remove top padding completely */
-    padding-bottom: 0 !important; /* Remove bottom padding on mobile */
-    height: calc(100vh - 65px) !important; /* Full viewport height minus navbar */
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-  }
-  
-  /* Maximize screen space usage on mobile */
-  #main-panel {
-    margin-bottom: 0 !important;
-    padding-bottom: 5px !important; /* Minimal padding at bottom */
-  }
-  
-  /* Optimize panel spacing on mobile */
-  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel, #pdf-panel {
-    margin-bottom: 0.6rem !important; /* Further reduce space between panels */
-    padding-top: 0.6rem !important; /* Less padding to reduce overall spacing */
-    padding-bottom: 0.6rem !important;
-  }
-  
-  /* Reduce space between heading elements in panels */
-  #menu h5 {
-    margin-top: 0.3em !important;
-    margin-bottom: 0.3em !important;
-  }
-  
-  /* Properly separate main and menu containers */
-  body.menu-visible {
-    overflow: hidden !important; /* Prevents scrolling to see main content */
-  }
-  
-  /* Make menu take full screen when visible */
-  body.menu-visible #menu {
-    display: block !important;
-    height: calc(100vh - 65px) !important; /* Full height minus navbar */
-    overflow-y: auto !important;
-  }
-  
-  /* Hide main content completely when menu is shown */
-  body.menu-visible #main {
-    display: none !important;
-  }
-  
-  /* Hide scroll buttons when menu is visible on mobile */
-  body.menu-visible #back_to_top,
-  body.menu-visible #back_to_bottom {
-    display: none !important;
-  }
-  
-  /* Ensure menu is hidden initially */
-  #menu {
-    display: none;
-  }
-  
-  /* Enlarge card button icons for better touch targets */
-  .card-header .func-copy i,
-  .card-header .func-play i,
-  .card-header .func-stop i,
-  .card-header .func-delete i,
-  .card-header .func-edit i {
-    font-size: 1.2em !important;
-  }
-  
-  .card-header .me-3 {
-    margin-right: 1rem !important;
-  }
-  
-  /* Add padding to card header for easier tapping */
-  .card-header {
-    padding: 10px 12px !important;
-  }
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  background-color: var(--scrollbar-track);
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--scrollbar-thumb);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background-color: var(--scrollbar-track);
-}
-
 /* Custom scrollbar for apps dropdown */
+
 #custom-apps-dropdown::-webkit-scrollbar {
   width: 6px;
   background-color: #DCDCDC;
@@ -2747,12 +2126,12 @@ legend {
 
 ol {
   list-style: decimal;
-  counter-reset: none !important;
+  counter-reset: none;
 }
 
 ol li {
   display: list-item;
-  counter-increment: none !important;
+  counter-increment: none;
 }
 
 div.highlight pre.highlight {
@@ -2770,6 +2149,7 @@ pre code{
 }
 
 /* Hide list markers inside code blocks to prevent spurious numbers */
+
 pre ol,
 pre ul,
 code ol,
@@ -2781,11 +2161,12 @@ code ul,
 div.highlight ol,
 div.highlight ul {
   list-style: none !important;
-  padding-left: 0 !important;
-  margin-left: 0 !important;
+  padding-left: 0;
+  margin-left: 0;
 }
 
 /* Also hide ::marker pseudo-element for code block lists */
+
 pre ol li,
 pre ul li,
 code ol li,
@@ -2801,6 +2182,7 @@ div.highlight ul li {
 }
 
 /* Remove any counter-based numbering in code blocks */
+
 pre ol li::before,
 pre ul li::before,
 code ol li::before,
@@ -2815,17 +2197,16 @@ div.highlight ul li::before {
   display: none !important;
 }
 
-
 #voice {
-  background-color: #5bc0de; /* Lighter cyan color */
-  border-color: #46b8da; /* Border color */
+  background-color: var(--voice-btn-bg); /* Lighter cyan color */
+  border-color: var(--voice-btn-border); /* Border color */
 }
 
 #voice:focus {
   outline: none; /* Remove outline */
   box-shadow: 0 0 0 3px rgba(70, 184, 218, 0.4); /* Add a light blue halo effect */
-  background-color: #39b3d7; /* Slightly darker when focused */
-  border-color: #31b0d5; /* Brighter border color for better visibility */
+  background-color: var(--voice-btn-hover-bg); /* Slightly darker when focused */
+  border-color: var(--voice-btn-hover-border); /* Brighter border color for better visibility */
 }
 
 #voice i.fas.fa-microphone {
@@ -2838,9 +2219,10 @@ div.highlight ul li::before {
 }
 
 /* Also change on hover for better UX */
+
 #voice:hover {
-  background-color: #39b3d7; /* Slightly darker cyan on hover */
-  border-color: #31b0d5; /* Brighter border color for better visibility */
+  background-color: var(--voice-btn-hover-bg); /* Slightly darker cyan on hover */
+  border-color: var(--voice-btn-hover-border); /* Brighter border color for better visibility */
   box-shadow: 0 0 0 2px rgba(70, 184, 218, 0.25); /* Subtle halo effect on hover */
 }
 
@@ -2848,8 +2230,8 @@ div.highlight ul li::before {
   color: white; /* White icon when hovered */
 }
 
-
 /* START: CODE STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 code {
   color: var(--code-text);
   font-size: 0.90em;
@@ -2869,6 +2251,7 @@ pre code {
   border-radius: 0;
   white-space: pre-wrap;
 }
+
 /* END: CODE STYLE IMPROVEMENTS */
 
 #config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #voice-panel {
@@ -2879,22 +2262,9 @@ pre code {
 }
 
 /* Remove border from last section */
+
 #voice-panel {
   border-bottom: none;
-}
-
-/* Optimize config and main-panel spacing on mobile */
-@media (max-width: 767px) {
-  #config, #main-panel {
-    padding: 0.6rem !important; /* Reduced padding for more content space */
-    margin-bottom: 0.6rem !important; /* Reduced margin for better vertical spacing */
-  }
-  
-  /* Adjust heading spacing in main panels */
-  #config h5, #main-panel h5 {
-    margin-top: 0.2em !important; /* Minimum margin to keep things tight */
-    margin-bottom: 0.4em !important;
-  }
 }
 
 ul, ol {
@@ -2902,13 +2272,16 @@ ul, ol {
 }
 
 /* START: NESTED LIST STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 /* Card-specific list styling */
+
 .card-text ul, 
 .card-text ol {
   margin: 1em 0;
 }
 
 /* Nested list styling */
+
 .card-text ul ul,
 .card-text ol ol,
 .card-text ul ol,
@@ -2917,6 +2290,7 @@ ul, ol {
 }
 
 /* List item spacing */
+
 .card-text li {
   margin-bottom: 0.5em;
 }
@@ -2926,6 +2300,7 @@ ul, ol {
 }
 
 /* Paragraphs within list items */
+
 .card-text li p {
   margin: 0.5em 0;
 }
@@ -2937,9 +2312,11 @@ ul, ol {
 .card-text li p:last-child {
   margin-bottom: 0;
 }
+
 /* END: NESTED LIST STYLE IMPROVEMENTS */
 
 /* START: HEADINGS STYLE IMPROVEMENTS - ADDED 2025-04-08 */
+
 h1, h2, h3, h4, h5, h6 {
   line-height: 1.4;
   font-weight: 600;
@@ -2987,6 +2364,7 @@ h1 {
   color: #909090;
   font-style: italic;
 }
+
 /* END: HEADINGS STYLE IMPROVEMENTS */
 
 .syntree {
@@ -3006,6 +2384,7 @@ h1 {
 }
 
 /* Harmonize local/Cloud PDF rows */
+
 .pdf-db-row,
 .cloud-pdf-row {
   background: #fff;
@@ -3014,16 +2393,19 @@ h1 {
   border-radius: 6px;
   margin-bottom: 10px;
 }
+
 .pdf-db-row:hover,
 .cloud-pdf-row:hover {
   background: #f7f7f7;
 }
+
 .pdf-db-name,
 .cloud-pdf-name {
   color: #555;
 }
 
 /* Compact meta section rendered under assistant messages */
+
 .card-text .pdf-meta {
   margin-top: 6px;
   padding-top: 4px;
@@ -3034,17 +2416,21 @@ h1 {
 }
 
 /* Harmonize local/Cloud PDF rows */
+
 .cloud-pdf-row {
   background: #fff;
 }
+
 .cloud-pdf-row:hover {
   background: #f7f7f7;
 }
+
 .cloud-pdf-name {
   color: #555;
 }
 
 /* Custom dropdown styling */
+
 .custom-dropdown-group {
   display: flex;
   align-items: center;
@@ -3068,11 +2454,11 @@ h1 {
 }
 
 .custom-dropdown-option i {
-  color: #777 !important;
+  color: #777;
 }
 
 .custom-dropdown-option.highlighted {
-  background-color: #f2f8ff;
+  background-color: var(--dropdown-highlight-bg);
   position: relative;
 }
 
@@ -3083,7 +2469,7 @@ h1 {
   top: 0;
   bottom: 0;
   width: 3px;
-  background-color: #3377ff;
+  background-color: var(--dropdown-highlight-accent);
 }
 
 .custom-dropdown-option.disabled {
@@ -3096,29 +2482,8 @@ h1 {
   background-color: #f8f8f8;
 }
 
-/* Mobile-specific media queries for toggle menu */
-@media (max-width: 767px) {
-  #toggle-menu {
-    position: fixed !important;
-    margin: 0 !important;
-    /* Center vertically by aligning button center with navbar center */
-    /* Navbar height: 65px, button height: 2rem (32px) */
-    /* Vertical center: (65px - 32px) / 2 = 16.5px from top */
-    top: 16.5px !important;
-    right: 15px !important;
-    z-index: 1100 !important;
-  }
-
-  /* Adjust cancel button in mobile view */
-  #cancel_query {
-    position: fixed !important;
-    top: 16.5px !important; /* Match toggle button vertical position */
-    right: 65px !important;
-    z-index: 1100 !important;
-  }
-}
-
 /* Mask container styles */
+
 .mask-container {
   margin: 5px 0;
   padding: 5px;
@@ -3136,6 +2501,7 @@ h1 {
 }
 
 /* Mask overlay styles */
+
 .mask-overlay-container {
   position: relative;
   display: inline-block;
@@ -3186,6 +2552,7 @@ h1 {
 }
 
 /* Mask editor */
+
 #maskCanvas {
   cursor: crosshair;
   max-width: 100%;
@@ -3193,6 +2560,7 @@ h1 {
 }
 
 /* Syntax Tree SVG styling */
+
 .generated_image img {
   background-color: white;
   padding: 15px;
@@ -3209,6 +2577,7 @@ h1 {
 }
 
 /* Alternative selector for syntax tree SVGs if needed */
+
 .message .generated_image img[src*="syntree_"] {
   background-color: white;
   padding: 15px;
@@ -3222,21 +2591,24 @@ h1 {
 /* Thinking block styles - Subtle design that blends with content */
 
 /* Spacing between thinking block and main content */
+
 .thinking-block,
 #temp-reasoning-card {
-  margin-bottom: 1em !important;
-  border-color: #e0e0e0 !important;  /* Subtle gray border */
+  margin-bottom: 1em;
+  border-color: #e0e0e0;  /* Subtle gray border */
   background-color: transparent;
 }
 
 /* Subtle header styling */
+
 .thinking-block .card-header,
 #temp-reasoning-card .card-header {
-  background-color: #f8f9fa !important;  /* Very light gray */
-  border-bottom-color: #e0e0e0 !important;
+  background-color: #f8f9fa;  /* Very light gray */
+  border-bottom-color: #e0e0e0;
 }
 
 /* Icon rotation for expand/collapse indicator */
+
 .thinking-block-icon {
   transition: transform 0.3s ease;
   color: #888;
@@ -3247,12 +2619,14 @@ h1 {
 }
 
 /* Content area - collapsed by default, expanded via JavaScript */
+
 .thinking-block .thinking-block-content {
   transition: max-height 0.3s ease-out, padding 0.3s ease-out;
   background-color: #fafafa;  /* Very subtle background */
 }
 
 /* Text styling for thinking content */
+
 .thinking-block .card-text,
 #temp-reasoning-card .card-text {
   font-size: 1em;
@@ -3260,32 +2634,8 @@ h1 {
   color: #555;  /* Slightly muted text */
 }
 
-/* Dark mode support for thinking blocks */
-.dark-theme .thinking-block,
-.dark-theme #temp-reasoning-card {
-  border-color: #444 !important;
-}
-
-.dark-theme .thinking-block .card-header,
-.dark-theme #temp-reasoning-card .card-header {
-  background-color: #2d2d2d !important;
-  border-bottom-color: #444 !important;
-}
-
-.dark-theme .thinking-block .thinking-block-content {
-  background-color: #252525;
-}
-
-.dark-theme .thinking-block-icon {
-  color: #888;
-}
-
-.dark-theme .thinking-block .card-text,
-.dark-theme #temp-reasoning-card .card-text {
-  color: #ccc;
-}
-
 /* Provider colors for custom dropdown */
+
 .custom-dropdown-group[data-group="OpenAI"] span:first-child {
   color: #10a37f;
   font-weight: 700;
@@ -3337,6 +2687,7 @@ h1 {
 }
 
 /* Style for provider groups when all apps are disabled (no API key) */
+
 .custom-dropdown-group.all-disabled span:first-child {
   opacity: 0.6;
 }
@@ -3349,37 +2700,39 @@ h1 {
 }
 
 /* System info message styling */
+
 .system-info-message {
-  background-color: #e3f2fd;
-  color: #1565c0;
+  background-color: var(--tool-group-badge-bg);
+  color: var(--tool-group-badge-color);
   font-size: 1.05em;
   padding: 12px 16px;
   border-radius: 6px;
-  border-left: 4px solid #1976d2;
+  border-left: 4px solid var(--alert-info-accent);
   margin: 8px 0;
 }
 
 .system-info-message i {
-  color: #1976d2;
+  color: var(--alert-info-accent);
   margin-right: 8px;
 }
 
 .error-message {
-  background-color: #ffebee;
-  color: #c62828;
+  background-color: var(--badge-tools-bg);
+  color: var(--badge-tools-color);
   font-size: 1.05em;
   padding: 12px 16px;
   border-radius: 6px;
-  border-left: 4px solid #d32f2f;
+  border-left: 4px solid var(--alert-error-accent);
   margin: 8px 0;
 }
 
 .error-message i {
-  color: #d32f2f;
+  color: var(--alert-error-accent);
   margin-right: 8px;
 }
 
 /* Spacing between message text and PDFs/images */
+
 .pdf-preview {
   margin-top: 1.5rem;
 }
@@ -3392,12 +2745,14 @@ img.base64-image,
 /* RTL (Right-to-Left) language support - Applied only to message content areas */
 
 /* RTL for message display area */
+
 .rtl-messages .card-text {
   direction: rtl;
   text-align: right;
 }
 
 /* RTL for individual messages */
+
 .rtl-messages .user-message .message-content,
 .rtl-messages .assistant-message .message-content {
   direction: rtl;
@@ -3405,6 +2760,7 @@ img.base64-image,
 }
 
 /* RTL for lists in messages */
+
 .rtl-messages .card-text ul,
 .rtl-messages .card-text ol {
   padding-right: 1.5rem;
@@ -3418,6 +2774,7 @@ img.base64-image,
 }
 
 /* Keep code blocks LTR even in RTL messages */
+
 .rtl-messages .card-text pre,
 .rtl-messages .card-text code {
   direction: ltr;
@@ -3425,6 +2782,7 @@ img.base64-image,
 }
 
 /* RTL for blockquotes in messages */
+
 .rtl-messages .card-text blockquote {
   border-left: none;
   border-right: 4px solid #ddd;
@@ -3434,60 +2792,41 @@ img.base64-image,
 }
 
 /* RTL for message input textarea */
+
 .rtl-messages #message {
   direction: rtl;
   text-align: right;
 }
 
 /* Keep message headers (User/Assistant labels) in LTR */
+
 .rtl-messages .message-header {
   direction: ltr;
   text-align: left;
 }
-}
 
 /* ============================================== */
+
 /* Button Hover Effects - Consistent Interaction */
+
 /* ============================================== */
 
 /* Base hover lift class - adds subtle elevation on hover */
+
 .btn-hover-lift {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   will-change: transform, box-shadow;
 }
 
-/* Hover effect - only on devices that support hover */
-@media (hover: hover) {
-  .btn-hover-lift:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  /* Dark mode - lighter shadow for better visibility */
-  .dark-theme .btn-hover-lift:hover:not(:disabled) {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  }
-}
-
-/* Focus-visible for keyboard navigation */
-.btn-hover-lift:focus-visible {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  outline: 2px solid #4A90E2;
-  outline-offset: 2px;
-}
-
-.dark-theme .btn-hover-lift:focus-visible {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-}
-
 /* Disabled state - no hover effect */
+
 .btn-hover-lift:disabled {
   cursor: not-allowed;
   opacity: var(--opacity-disabled);
 }
 
 /* Auto-apply hover lift to common button types */
+
 .btn-warning,
 .btn-secondary,
 .btn-primary,
@@ -3504,65 +2843,8 @@ img.base64-image,
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
-@media (hover: hover) {
-  .btn-warning:hover:not(:disabled),
-  .btn-secondary:hover:not(:disabled),
-  .btn-primary:hover:not(:disabled),
-  .btn-outline-secondary:hover:not(:disabled),
-  .btn-outline-primary:hover:not(:disabled),
-  #start-button:hover:not(:disabled),
-  #reset:hover:not(:disabled),
-  #load:hover:not(:disabled),
-  #save:hover:not(:disabled),
-  #export-pdf:hover:not(:disabled),
-  #theme-system:hover:not(:disabled),
-  #theme-light:hover:not(:disabled),
-  #theme-dark:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  /* Warning buttons - add background color change */
-  .btn-warning:hover:not(:disabled),
-  #reset:hover:not(:disabled) {
-    background-color: #e0a800 !important;
-    border-color: #d39e00 !important;
-  }
-
-  /* Secondary buttons - add background color change */
-  .btn-secondary:hover:not(:disabled),
-  #theme-system:hover:not(:disabled),
-  #theme-light:hover:not(:disabled),
-  #theme-dark:hover:not(:disabled) {
-    background-color: #5a6268 !important;
-    border-color: #545b62 !important;
-  }
-
-  /* Primary buttons - add background color change */
-  .btn-primary:hover:not(:disabled),
-  #start-button:hover:not(:disabled) {
-    background-color: #0069d9 !important;
-    border-color: #0062cc !important;
-  }
-
-  .dark-theme .btn-warning:hover:not(:disabled),
-  .dark-theme .btn-secondary:hover:not(:disabled),
-  .dark-theme .btn-primary:hover:not(:disabled),
-  .dark-theme .btn-outline-secondary:hover:not(:disabled),
-  .dark-theme .btn-outline-primary:hover:not(:disabled),
-  .dark-theme #start-button:hover:not(:disabled),
-  .dark-theme #reset:hover:not(:disabled),
-  .dark-theme #load:hover:not(:disabled),
-  .dark-theme #save:hover:not(:disabled),
-  .dark-theme #export-pdf:hover:not(:disabled),
-  .dark-theme #theme-system:hover:not(:disabled),
-  .dark-theme #theme-light:hover:not(:disabled),
-  .dark-theme #theme-dark:hover:not(:disabled) {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-  }
-}
-
 /* Theme Selection Indicator - Yellow dot in top-right corner */
+
 .theme-selected {
   position: relative;
 }
@@ -3581,198 +2863,82 @@ img.base64-image,
 }
 
 /* Secondary button style - balanced gray for white text contrast */
+
 .btn-secondary {
-  background-color: #78828c !important; /* Slightly lighter gray (between gray-500 and gray-400) */
-  border-color: #78828c !important;
-  color: #ffffff !important;
+  background-color: #78828c; /* Slightly lighter gray (between gray-500 and gray-400) */
+  border-color: #78828c;
+  color: #ffffff;
 }
 
 .btn-secondary:hover {
-  background-color: #5a6470 !important;
-  border-color: #5a6470 !important;
-  color: #ffffff !important;
-}
-
-.dark-theme .btn-secondary {
-  background-color: #5a6470 !important;
-  border-color: #5a6470 !important;
-  color: #e5e7eb !important;
-}
-
-.dark-theme .btn-secondary:hover {
-  background-color: #4b5563 !important;
-  border-color: #4b5563 !important;
-  color: #ffffff !important;
-}
-
-/* CRITICAL: Sidebar heading icons MUST be yellow (highest priority) */
-.dark-theme .shaded-panel h5 i.fas.fa-message,
-.dark-theme .shaded-panel h5 i.fas.fa-bolt,
-.dark-theme #monadic-info-panel h5 i.fas.fa-message,
-.dark-theme #monadic-info-panel h5 i.fas.fa-bolt,
-.dark-theme .shaded-panel h5 span.text i.fas.fa-message,
-.dark-theme .shaded-panel h5 span.text i.fas.fa-bolt,
-.dark-theme #monadic-info-panel h5 span.text i.fas.fa-message,
-.dark-theme #monadic-info-panel h5 span.text i.fas.fa-bolt,
-.dark-theme .shaded-panel h5 span i.fas,
-.dark-theme #monadic-info-panel h5 span i.fas {
-  color: var(--color-icon-primary) !important;
-}
-
-/* CRITICAL: Sidebar links MUST use link colors (highest priority) */
-.dark-theme .shaded-panel span.text-secondary a,
-.dark-theme #monadic-info-panel span.text-secondary a,
-.dark-theme .shaded-panel .text a,
-.dark-theme #monadic-info-panel .text a {
-  color: #6b9bd8 !important;
-  text-decoration: none;
-}
-
-.dark-theme .shaded-panel span.text-secondary a:hover,
-.dark-theme #monadic-info-panel span.text-secondary a:hover,
-.dark-theme .shaded-panel .text a:hover,
-.dark-theme #monadic-info-panel .text a:hover {
-  color: #8fb3e8 !important;
-  text-decoration: underline;
-}
-
-/* ULTIMATE OVERRIDE: Force icon and link colors (both light and dark mode) */
-/* Light mode AND dark mode: Header icons must be yellow */
-#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
-#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
-#monadic-info-panel h5 i,
-#monadic-info-panel h5 span i,
-.shaded-panel h5 i,
-.shaded-panel h5 span i,
-i.fas.fa-message,
-i.fas.fa-bolt,
-.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
-.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
-.dark-theme #monadic-info-panel h5 i,
-.dark-theme #monadic-info-panel h5 span i,
-.dark-theme .shaded-panel h5 i,
-.dark-theme .shaded-panel h5 span i {
-  color: var(--color-icon-primary) !important;
-}
-
-/* Light mode AND dark mode: Links must use link colors */
-#monadic-info-panel a,
-#monadic-info-panel span a,
-#monadic-info-panel .text-secondary a,
-.shaded-panel a,
-.shaded-panel span a,
-.shaded-panel .text-secondary a,
-.dark-theme #monadic-info-panel a,
-.dark-theme #monadic-info-panel span a,
-.dark-theme #monadic-info-panel .text-secondary a,
-.dark-theme .shaded-panel a,
-.dark-theme .shaded-panel span a,
-.dark-theme .shaded-panel .text-secondary a {
-  color: #0d6efd !important;
-  text-decoration: none !important;
-}
-
-#monadic-info-panel a:hover,
-#monadic-info-panel span a:hover,
-#monadic-info-panel .text-secondary a:hover,
-.shaded-panel a:hover,
-.shaded-panel span a:hover,
-.shaded-panel .text-secondary a:hover,
-.dark-theme #monadic-info-panel a:hover,
-.dark-theme #monadic-info-panel span a:hover,
-.dark-theme #monadic-info-panel .text-secondary a:hover,
-.dark-theme .shaded-panel a:hover,
-.dark-theme .shaded-panel span a:hover,
-.dark-theme .shaded-panel .text-secondary a:hover {
-  color: #0a58ca !important;
-  text-decoration: underline !important;
+  background-color: #5a6470;
+  border-color: #5a6470;
+  color: #ffffff;
 }
 
 /* ------------------------------------------------------------------ */
+
 /* Navbar alignment & border overrides (2025-11-08 responsive fix)    */
+
 /* ------------------------------------------------------------------ */
+
 #main-nav,
 #main-nav.navbar {
-  border-top: none !important;
-  border-bottom: 1px solid var(--border-light) !important;
-  box-shadow: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  height: 65px !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.dark-theme #main-nav,
-.dark-theme #main-nav.navbar {
-  border-top: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-top: none;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  height: 65px;
+  display: flex;
+  align-items: center;
 }
 
 #main-nav .navbar-container,
 #main-nav .container-fluid {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  height: 65px !important;
-  margin: 0 !important;
-  padding: 0 1rem !important;
-  border: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 65px;
+  margin: 0;
+  padding: 0 1rem;
+  border: 0;
 }
 
 #main-nav .navbar-brand.reset-area {
-  display: inline-flex !important;
-  align-items: center !important;
+  display: inline-flex;
+  align-items: center;
   gap: 0.5rem;
-  height: auto !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  flex: 0 0 auto !important;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
 }
 
 #main-nav .navbar-brand.reset-area > div:first-child,
 #main-nav .navbar-brand.reset-area .nav-text {
-  display: inline-flex !important;
-  align-items: center !important;
-  height: auto !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  height: auto;
+  margin: 0;
+  padding: 0;
 }
 
 #main-nav .navbar-brand.reset-area .nav-text {
   gap: 0.15rem;
   line-height: 1;
-  display: inline-flex !important;
-  align-items: center !important;
+  display: inline-flex;
+  align-items: center;
 }
 
 #main-nav .navbar-brand.reset-area .nav-logo,
 #main-nav .navbar-brand.reset-area img {
-  display: block !important;
-  height: 2rem !important;
-  width: auto !important;
-  margin: 0 0.5rem 0 0 !important;
-  vertical-align: middle !important;
+  display: block;
+  height: 2rem;
+  width: auto;
+  margin: 0 0.5rem 0 0;
+  vertical-align: middle;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-}
-
-@media (max-width: 767px) {
-  #main-nav .navbar-container,
-  #main-nav .container-fluid {
-    padding: 0 0.75rem !important;
-  }
-
-  #main-nav .navbar-brand.reset-area .nav-logo,
-  #main-nav .navbar-brand.reset-area img {
-    height: 1.75rem !important;
-    margin-right: 0.4rem !important;
-  }
-
-  #main-nav .navbar-brand.reset-area .nav-text .text-main,
-  #main-nav .navbar-brand.reset-area .nav-text .text-highlight {
-    font-size: 1.2rem !important;
-    line-height: 1.75rem !important;
-  }
 }
 
 /* ============================================
@@ -3842,59 +3008,8 @@ i.fas.fa-bolt,
   min-width: 1.25rem;
 }
 
-/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
-.dark-theme #context-panel .context-section {
-  border-color: #495057 !important;
-  background: #1a1d20 !important;
-}
-
-.dark-theme #context-panel .context-section-header {
-  background: #2b3035 !important;
-}
-
-.dark-theme #context-panel .context-section-header span {
-  color: #dee2e6 !important;
-}
-
-.dark-theme #context-panel .context-section-header:hover {
-  background: #3a4045 !important;
-}
-
-.dark-theme #context-panel .context-section-header i {
-  color: #adb5bd !important;
-}
-
-.dark-theme #context-panel .context-section-content {
-  background: #1a1d20 !important;
-  border-top-color: #495057 !important;
-}
-
-.dark-theme #context-panel .context-section-content div {
-  color: #dee2e6 !important;
-}
-
-.dark-theme #context-panel .context-item {
-  background: #212529 !important;
-}
-
-.dark-theme #context-panel .context-items-list {
-  color: #dee2e6 !important;
-}
-
-.dark-theme #context-panel .context-badge {
-  background-color: #6c757d !important;
-  color: #fff !important;
-}
-
-.dark-theme #context-panel #context-legend {
-  color: #adb5bd !important;
-}
-
-.dark-theme #context-panel #context-legend span {
-  color: #adb5bd !important;
-}
-
 /* Context Panel Turn Grouping */
+
 .context-items-grouped {
   font-size: 0.875rem;
   line-height: 1.5;
@@ -3930,21 +3045,8 @@ i.fas.fa-bolt,
   color: var(--bs-body-color);
 }
 
-/* Dark mode for turn grouping */
-.dark-theme #context-panel .context-turn-label {
-  background: #343a40 !important;
-  color: #adb5bd !important;
-}
-
-.dark-theme #context-panel .context-turn-items {
-  color: #dee2e6 !important;
-}
-
-.dark-theme #context-panel .context-turn-group.with-separator {
-  border-top-color: #495057 !important;
-}
-
 /* Clickable turn labels */
+
 .context-turn-label.clickable {
   cursor: pointer;
   transition: all 0.15s ease;
@@ -3952,16 +3054,12 @@ i.fas.fa-bolt,
 
 .context-turn-label.clickable:hover {
   background: var(--bs-primary, #0d6efd);
-  color: white !important;
+  color: white;
   transform: scale(1.05);
 }
 
-.dark-theme .context-turn-label.clickable:hover {
-  background: var(--bs-primary, #0d6efd) !important;
-  color: white !important;
-}
-
 /* Edited badge for re-extracted turns */
+
 .context-edited-badge {
   display: inline-flex;
   align-items: center;
@@ -3982,15 +3080,8 @@ i.fas.fa-bolt,
   margin-left: -8px;
 }
 
-.dark-theme .context-edited-badge {
-  color: #ffc107;
-}
-
-.dark-theme .context-turn-group.edited {
-  border-left-color: #ffc107;
-}
-
 /* Card turn number badge */
+
 .card-turn-badge {
   display: inline-flex;
   align-items: center;
@@ -4006,20 +3097,14 @@ i.fas.fa-bolt,
   cursor: default;
 }
 
-.dark-theme .card-turn-badge {
-  background: #e57373;
-}
-
 /* User turn badge (blue to match user icon) */
+
 .card-turn-badge-user {
   background: #4cacdc;
 }
 
-.dark-theme .card-turn-badge-user {
-  background: #64b5f6;
-}
-
 /* Highlight effect when navigating to a card */
+
 .card.context-highlight {
   animation: context-card-highlight 2s ease-out;
 }
@@ -4033,10 +3118,6 @@ i.fas.fa-bolt,
   }
 }
 
-.dark-theme .card.context-highlight {
-  animation: context-card-highlight-dark 2s ease-out;
-}
-
 @keyframes context-card-highlight-dark {
   0% {
     box-shadow: 0 0 0 4px rgba(102, 178, 255, 0.5);
@@ -4047,6 +3128,7 @@ i.fas.fa-bolt,
 }
 
 /* Context Panel Loading Indicator */
+
 .context-loading-indicator {
   display: inline-block;
   width: 8px;
@@ -4068,3 +3150,2115 @@ i.fas.fa-bolt,
     transform: scale(1.15);
   }
 }
+
+/* Improvements for monadic context display */
+
+/* Make field labels (keys) more prominent */
+
+.json-item > span:first-child {
+  font-weight: 600;
+  color: var(--json-label-primary);
+}
+
+/* Special styling for context section keys */
+
+.json-item[data-depth="2"] > span:first-child {
+  font-weight: 600;
+  color: var(--json-label-secondary);
+  margin-right: 0.25rem;
+}
+
+/* Style for value text (second span in most cases) */
+
+.json-item > span:nth-child(2) {
+  color: #6c757d;
+}
+
+/* Special case for "no value" - will be styled via JavaScript */
+
+.no-value {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Style for empty objects/arrays */
+
+.json-item.empty-object > .json-header {
+  cursor: default;
+}
+
+.json-item.empty-object > .json-header:hover {
+  background: inherit;
+}
+
+.json-item.empty-object > .json-header .fa-chevron-down,
+.json-item.empty-object > .json-header .toggle-text {
+  display: none;
+}
+
+/* Add "empty" text after empty object headers */
+
+.json-item.empty-object > .json-header::after {
+  content: ": empty";
+  color: #6c757d;
+  font-style: italic;
+  font-weight: normal;
+  margin-left: 0.25rem;
+}
+
+/* Hide the empty content div */
+
+.json-item.empty-object > .json-content {
+  display: none;
+}
+
+/* Style for percentage values */
+
+.json-item span:last-child {
+  color: #212529;
+}
+
+/* Improve spacing for better readability */
+
+.json-item[data-depth="2"] {
+  margin-bottom: 0.5rem;
+}
+
+.json-item[data-depth="2"]:last-child {
+  margin-bottom: 0;
+}
+
+/* Style for the main Context header - keep original size */
+
+.json-item.context > .json-header > span {
+  /* Remove font size override to keep original */
+}
+
+/* Subtle background for context content */
+
+.json-item.context .json-content {
+  background-color: rgba(248, 249, 250, 0.5);
+  padding: 1rem;
+  border-radius: 0.25rem;
+}
+
+/* Better visual hierarchy for nested objects */
+
+.json-item .json-header span {
+  font-weight: 600;
+  color: var(--json-label-secondary);
+}
+
+/* Inquiry section styling */
+
+.json-item[data-key="inquiry"] {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.json-item[data-key="inquiry"] > span:first-child {
+  font-weight: 600;
+  color: #0056b3;
+}
+
+/* TTS Stop button highlight during playback */
+
+.func-stop.tts-active i {
+  color: var(--tts-active-color);
+  animation: tts-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tts-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+/* Tool Group Badges - Initial definition (will be extended below) */
+
+.tool-groups-display {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.tool-group-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: default;
+  transition: all 0.2s ease;
+  gap: 4px;
+}
+
+.tool-group-badge i {
+  font-size: 10px;
+}
+
+/* Ensure badge icons inherit text color */
+
+.badge-tools i {
+  color: inherit;
+}
+
+.badge-capabilities i {
+  color: inherit;
+}
+
+/* tool-group-badge: No hover effect (non-interactive) */
+
+/* Badge Category Container */
+
+.badge-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 12px;
+  margin-bottom: 6px;
+}
+
+.badge-category-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.badge-container {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Tools Category - Red系 (lighter, softer colors) */
+
+.badge-tools {
+  background-color: var(--badge-tools-bg);
+  border: 1px solid var(--badge-tools-border);
+  color: var(--badge-tools-color);
+}
+
+/* Capabilities Category - Blue系 (lighter, softer colors) */
+
+.badge-capabilities {
+  background-color: var(--badge-capabilities-bg);
+  border: 1px solid var(--badge-capabilities-border);
+  color: var(--badge-capabilities-color);
+}
+
+/* ========================================
+   Layout Components - Replace inline styles
+   ======================================== */
+
+/* Navbar container */
+
+.navbar-container {
+  height: 65px;
+}
+
+/* Reset area cursor */
+
+.reset-area {
+  cursor: pointer;
+}
+
+/* Main content area */
+
+#contents {
+  margin-top: 65px;
+  margin-bottom: 0;
+  padding-bottom: 12px;
+  position: relative;
+  min-height: calc(100vh - 65px);
+}
+
+/* Row without bottom margin */
+
+.row-no-bottom-margin {
+  margin-bottom: 0;
+}
+
+/* Scrollable areas */
+
+.scrollable {
+  padding-bottom: 50px;
+}
+
+/* Flexbox utilities */
+
+.flex-container {
+  display: flex;
+  align-items: center;
+}
+
+.flex-container-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.flex-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Form control utilities */
+
+.form-switch-inline {
+  display: inline-block;
+}
+
+.textarea-resizable {
+  resize: vertical;
+}
+
+.div-range {
+  max-width: 100%;
+}
+
+/* Specific component styles */
+
+#reasoning-effort {
+  min-width: 180px;
+}
+
+#ai_user_provider {
+  width: auto;
+  min-width: 120px;
+}
+
+/* App selector icon positioning */
+
+.app-selector-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.app-select-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+
+.app-select-wrapper select {
+  padding-left: 36px;
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.app-select-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  cursor: pointer;
+  background-color: transparent;
+}
+
+/* Custom apps dropdown */
+
+#custom-apps-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.25rem;
+  z-index: 1100;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  scrollbar-color: var(--scrollbar-thumb) var(--bg-body);
+  scrollbar-width: thin;
+}
+
+/* Modal close button - remove box shadow */
+
+.btn-close {
+  box-shadow: none !important;
+}
+
+} /* end @layer components */
+
+/* ============================================ */
+/* Dark Theme Layer: All dark mode overrides */
+/* ============================================ */
+@layer dark-theme {
+
+/* ============================================== */
+
+/* Dark Theme Card Styles */
+
+/* ============================================== */
+
+/* Improve card appearance in dark mode */
+
+.dark-theme .card {
+  border-color: var(--border-primary);
+  background-color: transparent;
+}
+
+/* Ensure smooth corners without visible gaps */
+
+.dark-theme .card-body {
+  border-radius: var(--border-radius);
+}
+
+.dark-theme #status-message table td,
+.dark-theme #stats-message table td {
+  color: rgba(255, 255, 255, .7);
+}
+
+.dark-theme .textbox-caption {
+  color: #bbb;
+}
+
+.dark-theme .card-body table {
+  box-shadow: none; /* Remove shadow in dark mode for cleaner appearance */
+}
+
+/* Dark mode support for card content */
+
+.dark-theme .card,
+.dark-theme .card-body,
+.dark-theme .discourse {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.dark-theme .card-body strong,
+.dark-theme .card-body b,
+.dark-theme .card strong,
+.dark-theme .card b,
+.dark-theme .discourse strong,
+.dark-theme .discourse b {
+  color: var(--text-primary);
+}
+
+/* Dark mode: All text in message areas should be visible */
+
+.dark-theme .card *,
+.dark-theme .card-body *,
+.dark-theme .discourse * {
+  color: inherit;
+}
+
+/* Dark mode support for ALL form elements - lighter background for better visibility */
+
+.dark-theme input,
+.dark-theme textarea,
+.dark-theme select,
+.dark-theme .form-control,
+.dark-theme .form-select,
+.dark-theme input[type="text"],
+.dark-theme input[type="number"],
+.dark-theme input[type="email"],
+.dark-theme input[type="password"],
+.dark-theme input[type="search"],
+.dark-theme input[type="url"],
+.dark-theme input[type="tel"] {
+  background-color: #353535;
+  color: #f5f5f5;
+  border-color: var(--border-medium);
+}
+
+/* Dark mode: Ensure textarea specifically has white text */
+
+.dark-theme textarea,
+.dark-theme textarea.form-control,
+.dark-theme #message {
+  color: #f5f5f5;
+}
+
+/* Dark mode: Textarea placeholder text */
+
+.dark-theme textarea::placeholder,
+.dark-theme textarea.form-control::placeholder,
+.dark-theme #message::placeholder,
+.dark-theme input::placeholder,
+.dark-theme select::placeholder {
+  color: #999;
+  opacity: 1;
+}
+
+/* Dark mode: Checkboxes and radio buttons - keep their native appearance but ensure visibility */
+
+.dark-theme input[type="checkbox"],
+.dark-theme input[type="radio"] {
+  background-color: transparent;
+  border-color: var(--border-medium);
+}
+
+/* Dark mode: Override any white backgrounds in form elements */
+
+.dark-theme input[style*="background"],
+.dark-theme select[style*="background"],
+.dark-theme textarea[style*="background"] {
+  background-color: #353535 !important;
+}
+
+/* Dark mode: Override any white backgrounds in tables */
+
+.dark-theme table,
+.dark-theme table tbody,
+.dark-theme table tr,
+.dark-theme table td,
+.dark-theme table th {
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+/* Dark mode: Ensure all span and div text is visible */
+
+.dark-theme .card span,
+.dark-theme .card div,
+.dark-theme .card-body span,
+.dark-theme .card-body div,
+.dark-theme .discourse span,
+.dark-theme .discourse div,
+.dark-theme .card p,
+.dark-theme .card-body p,
+.dark-theme .discourse p,
+.dark-theme .card label,
+.dark-theme .card-body label,
+.dark-theme .discourse label {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Specific override for any remaining dark text */
+
+.dark-theme .card [style*="color"],
+.dark-theme .card-body [style*="color"],
+.dark-theme .discourse [style*="color"] {
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode: Override any Bootstrap or system colors that might be dark */
+
+.dark-theme .text-dark,
+.dark-theme .text-muted,
+.dark-theme .text-black-50 {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Sidebar panels - ensure text is visible (specific elements only) */
+
+/* Exclude h5, h6, icons, and their children to preserve header icon colors */
+
+.dark-theme .shaded-panel p,
+.dark-theme .shaded-panel span:not(.assistant-color):not(.user-color):not(.system-color):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge):not(h5 span):not(h6 span):not(.like-h6 span):not(.text),
+.dark-theme .shaded-panel div:not(.icon-container):not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge),
+.dark-theme .shaded-panel label,
+.dark-theme .shaded-panel td,
+.dark-theme .shaded-panel th {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Preserve role-specific colors in sidebar */
+
+.dark-theme .shaded-panel .assistant-color,
+.dark-theme #monadic-info-panel .assistant-color {
+  color: var(--color-assistant);
+}
+
+.dark-theme .shaded-panel .user-color,
+.dark-theme #monadic-info-panel .user-color {
+  color: var(--color-user);
+}
+
+.dark-theme .shaded-panel .system-color,
+.dark-theme #monadic-info-panel .system-color {
+  color: var(--color-system);
+}
+
+/* Dark mode: Ensure badge colors are preserved in sidebar */
+
+.dark-theme .shaded-panel .badge-tools,
+.dark-theme .shaded-panel .badge-tools *,
+.dark-theme #monadic-info-panel .badge-tools,
+.dark-theme #monadic-info-panel .badge-tools * {
+  color: var(--badge-tools-color);
+}
+
+.dark-theme .shaded-panel .badge-capabilities,
+.dark-theme .shaded-panel .badge-capabilities *,
+.dark-theme #monadic-info-panel .badge-capabilities,
+.dark-theme #monadic-info-panel .badge-capabilities * {
+  color: var(--badge-capabilities-color);
+}
+
+/* Dark mode: Specific override for stats and info panels */
+
+/* Use positive selector approach instead of wildcard + exclusions */
+
+.dark-theme #stats-message,
+.dark-theme #stats-message p,
+.dark-theme #stats-message span:not(.assistant-color):not(.user-color):not(.system-color),
+.dark-theme #stats-message div,
+.dark-theme #monadic-info-panel p,
+.dark-theme #monadic-info-panel span:not(.assistant-color):not(.user-color):not(.system-color),
+.dark-theme #monadic-info-panel div:not(.badge-tools):not(.badge-capabilities) {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Card header background */
+
+.dark-theme .card-header {
+  background-color: var(--bg-secondary);
+  border-bottom-color: var(--border-medium);
+}
+
+/* Dark mode: Preserve role-specific colors in card headers */
+
+.dark-theme .card-header .assistant-color {
+  color: var(--color-assistant);
+}
+
+.dark-theme .card-header .user-color {
+  color: var(--color-user);
+}
+
+.dark-theme .card-header .system-color {
+  color: var(--color-system);
+}
+
+/* Dark mode: Card header icons - match text colors */
+
+.dark-theme .card-header .fa-robot {
+  color: var(--color-assistant);
+}
+
+.dark-theme .card-header .fa-user {
+  color: var(--color-user);
+}
+
+.dark-theme .card-header .fa-cog {
+  color: var(--color-system);
+}
+
+/* Dark mode: Link colors */
+
+.dark-theme a {
+  color: var(--text-link);
+}
+
+.dark-theme a:hover {
+  color: var(--text-link-hover);
+}
+
+/* Dark mode: Sidebar links - ensure link colors are visible */
+
+.dark-theme .shaded-panel a,
+.dark-theme #monadic-info-panel a,
+.dark-theme .shaded-panel span a,
+.dark-theme #monadic-info-panel span a,
+.dark-theme .shaded-panel .text-secondary a,
+.dark-theme #monadic-info-panel .text-secondary a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+
+.dark-theme .shaded-panel a:hover,
+.dark-theme #monadic-info-panel a:hover,
+.dark-theme .shaded-panel span a:hover,
+.dark-theme #monadic-info-panel span a:hover,
+.dark-theme .shaded-panel .text-secondary a:hover,
+.dark-theme #monadic-info-panel .text-secondary a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+/* Dark mode: Generic badge text visibility - use dark text on light backgrounds */
+
+/* Note: Specific badge types (badge-tools, badge-capabilities) have their own colors defined in monadic-improvements.css */
+
+.dark-theme .badge:not(.badge-tools):not(.badge-capabilities):not(.tool-group-badge) {
+  color: #1a1a1a;
+}
+
+/* Dark mode: Warning/info button text and icons - use dark color for better contrast */
+
+/* Dark mode AND light mode: Warning buttons should have dark text */
+
+.btn-warning,
+.btn-warning *,
+#doc,
+#doc *,
+#url,
+#url *,
+#image-file,
+#image-file *,
+.dark-theme .btn-warning,
+.dark-theme .btn-warning *,
+.dark-theme .btn-info,
+.dark-theme .btn-info *,
+.dark-theme #doc,
+.dark-theme #doc *,
+.dark-theme #url,
+.dark-theme #url *,
+.dark-theme #image-file,
+.dark-theme #image-file * {
+  color: #1a1a1a;
+}
+
+/* Dark mode: Sidebar heading icons - preserve yellow accent */
+
+.dark-theme .shaded-panel h5 i,
+.dark-theme #monadic-info-panel h5 i,
+.dark-theme .shaded-panel h5 span i,
+.dark-theme #monadic-info-panel h5 span i,
+.dark-theme .shaded-panel .like-h6 i,
+.dark-theme .shaded-panel h5 .fa-message,
+.dark-theme .shaded-panel h5 .fa-bolt,
+.dark-theme #monadic-info-panel h5 .fa-message,
+.dark-theme #monadic-info-panel h5 .fa-bolt,
+.dark-theme .shaded-panel span.text i {
+  color: var(--color-icon-primary);
+}
+
+/* Dark mode: App icons - preserve yellow accent */
+
+.dark-theme .icon-container i,
+.dark-theme .icon-container .app-icon,
+.dark-theme #base-app-icon,
+.dark-theme #base-app-icon i {
+  color: var(--color-icon-primary);
+}
+
+/* Dark mode: Nested json-content - lighter borders and reduced spacing */
+
+.dark-theme .json-content {
+  border-color: var(--border-medium);
+  background-color: var(--bg-input);
+}
+
+.dark-theme .json-content .json-content {
+  border-color: #2a2a2a;
+  background-color: #1a1a1a;
+  padding: 6px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.dark-theme .json-content .json-item {
+  margin-bottom: 4px;
+}
+
+.dark-theme .json-content .json-content table {
+  padding: 4px;
+}
+
+.dark-theme .json-content tbody {
+  background-color: transparent;
+}
+
+/* Dark mode: AI Assistant provider badge - fix white background */
+
+.dark-theme .ai-assistant-provider,
+.dark-theme #ai-assistant-info span[style*="background-color"] {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-medium) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Dark mode support for thinking blocks */
+
+.dark-theme .thinking-block,
+.dark-theme #temp-reasoning-card {
+  border-color: #444;
+}
+
+.dark-theme .thinking-block .card-header,
+.dark-theme #temp-reasoning-card .card-header {
+  background-color: #2d2d2d;
+  border-bottom-color: #444;
+}
+
+.dark-theme .thinking-block .thinking-block-content {
+  background-color: #252525;
+}
+
+.dark-theme .thinking-block-icon {
+  color: #888;
+}
+
+.dark-theme .thinking-block .card-text,
+.dark-theme #temp-reasoning-card .card-text {
+  color: #ccc;
+}
+
+.dark-theme .btn-secondary {
+  background-color: #5a6470;
+  border-color: #5a6470;
+  color: #e5e7eb;
+}
+
+.dark-theme .btn-secondary:hover {
+  background-color: #4b5563;
+  border-color: #4b5563;
+  color: #ffffff;
+}
+
+/* CRITICAL: Sidebar heading icons MUST be yellow (highest priority) */
+
+.dark-theme .shaded-panel h5 i.fas.fa-message,
+.dark-theme .shaded-panel h5 i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 i.fas.fa-message,
+.dark-theme #monadic-info-panel h5 i.fas.fa-bolt,
+.dark-theme .shaded-panel h5 span.text i.fas.fa-message,
+.dark-theme .shaded-panel h5 span.text i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 span.text i.fas.fa-message,
+.dark-theme #monadic-info-panel h5 span.text i.fas.fa-bolt,
+.dark-theme .shaded-panel h5 span i.fas,
+.dark-theme #monadic-info-panel h5 span i.fas {
+  color: var(--color-icon-primary);
+}
+
+/* CRITICAL: Sidebar links MUST use link colors (highest priority) */
+
+.dark-theme .shaded-panel span.text-secondary a,
+.dark-theme #monadic-info-panel span.text-secondary a,
+.dark-theme .shaded-panel .text a,
+.dark-theme #monadic-info-panel .text a {
+  color: #6b9bd8;
+  text-decoration: none;
+}
+
+.dark-theme .shaded-panel span.text-secondary a:hover,
+.dark-theme #monadic-info-panel span.text-secondary a:hover,
+.dark-theme .shaded-panel .text a:hover,
+.dark-theme #monadic-info-panel .text a:hover {
+  color: #8fb3e8;
+  text-decoration: underline;
+}
+
+/* ULTIMATE OVERRIDE: Force icon and link colors (both light and dark mode) */
+
+/* Light mode AND dark mode: Header icons must be yellow */
+
+#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
+#monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
+#monadic-info-panel h5 i,
+#monadic-info-panel h5 span i,
+.shaded-panel h5 i,
+.shaded-panel h5 span i,
+i.fas.fa-message,
+i.fas.fa-bolt,
+.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-message,
+.dark-theme #monadic-info-panel.shaded-panel h5 span.text i.fas.fa-bolt,
+.dark-theme #monadic-info-panel h5 i,
+.dark-theme #monadic-info-panel h5 span i,
+.dark-theme .shaded-panel h5 i,
+.dark-theme .shaded-panel h5 span i {
+  color: var(--color-icon-primary);
+}
+
+/* Light mode AND dark mode: Links must use link colors */
+
+#monadic-info-panel a,
+#monadic-info-panel span a,
+#monadic-info-panel .text-secondary a,
+.shaded-panel a,
+.shaded-panel span a,
+.shaded-panel .text-secondary a,
+.dark-theme #monadic-info-panel a,
+.dark-theme #monadic-info-panel span a,
+.dark-theme #monadic-info-panel .text-secondary a,
+.dark-theme .shaded-panel a,
+.dark-theme .shaded-panel span a,
+.dark-theme .shaded-panel .text-secondary a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+#monadic-info-panel a:hover,
+#monadic-info-panel span a:hover,
+#monadic-info-panel .text-secondary a:hover,
+.shaded-panel a:hover,
+.shaded-panel span a:hover,
+.shaded-panel .text-secondary a:hover,
+.dark-theme #monadic-info-panel a:hover,
+.dark-theme #monadic-info-panel span a:hover,
+.dark-theme #monadic-info-panel .text-secondary a:hover,
+.dark-theme .shaded-panel a:hover,
+.dark-theme .shaded-panel span a:hover,
+.dark-theme .shaded-panel .text-secondary a:hover {
+  color: #0a58ca;
+  text-decoration: underline;
+}
+
+.dark-theme #main-nav,
+.dark-theme #main-nav.navbar {
+  border-top: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Dark mode adjustments for context panel - use high specificity to override .shaded-panel rules */
+
+.dark-theme #context-panel .context-section {
+  border-color: var(--json-label-primary);
+  background: #1a1d20;
+}
+
+.dark-theme #context-panel .context-section-header {
+  background: #2b3035;
+}
+
+.dark-theme #context-panel .context-section-header span {
+  color: #dee2e6;
+}
+
+.dark-theme #context-panel .context-section-header:hover {
+  background: #3a4045;
+}
+
+.dark-theme #context-panel .context-section-header i {
+  color: #adb5bd;
+}
+
+.dark-theme #context-panel .context-section-content {
+  background: #1a1d20;
+  border-top-color: var(--json-label-primary);
+}
+
+.dark-theme #context-panel .context-section-content div {
+  color: #dee2e6;
+}
+
+.dark-theme #context-panel .context-item {
+  background: #212529;
+}
+
+.dark-theme #context-panel .context-items-list {
+  color: #dee2e6;
+}
+
+.dark-theme #context-panel .context-badge {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+.dark-theme #context-panel #context-legend {
+  color: #adb5bd;
+}
+
+.dark-theme #context-panel #context-legend span {
+  color: #adb5bd;
+}
+
+/* Dark mode for turn grouping */
+
+.dark-theme #context-panel .context-turn-label {
+  background: var(--json-label-secondary);
+  color: #adb5bd;
+}
+
+.dark-theme #context-panel .context-turn-items {
+  color: #dee2e6;
+}
+
+.dark-theme #context-panel .context-turn-group.with-separator {
+  border-top-color: var(--json-label-primary);
+}
+
+.dark-theme .context-turn-label.clickable:hover {
+  background: var(--bs-primary, #0d6efd);
+  color: white;
+}
+
+.dark-theme .context-edited-badge {
+  color: #ffc107;
+}
+
+.dark-theme .context-turn-group.edited {
+  border-left-color: #ffc107;
+}
+
+.dark-theme .card-turn-badge {
+  background: #e57373;
+}
+
+.dark-theme .card-turn-badge-user {
+  background: #64b5f6;
+}
+
+.dark-theme .card.context-highlight {
+  animation: context-card-highlight-dark 2s ease-out;
+}
+
+.dark-theme .badge-category-label {
+  color: #aaa;
+}
+
+.dark-theme .badge-tools {
+  background-color: var(--badge-tools-bg);
+  border: 1px solid var(--badge-tools-border);
+  color: var(--badge-tools-color);
+}
+
+.dark-theme .badge-capabilities {
+  background-color: var(--badge-capabilities-bg);
+  border: 1px solid var(--badge-capabilities-border);
+  color: var(--badge-capabilities-color);
+}
+
+/* badge-tools, badge-capabilities: No hover effect (non-interactive) */
+
+/* Dark mode support for badge container */
+
+.dark-theme .tool-groups-display {
+  border-top-color: #424242;
+}
+
+/* Dark mode: Info panel - Semantic classes (No needed) */
+
+/* In dark mode, info panel text and icons are white for better contrast */
+
+.dark-theme #monadic-info-panel .info-panel-link,
+.dark-theme #monadic-info-panel .info-panel-text {
+  color: var(--text-primary);
+}
+
+.dark-theme #monadic-info-panel .info-panel-link i,
+.dark-theme #monadic-info-panel .info-panel-text i {
+  color: var(--text-primary);
+}
+
+/* Dark mode: Card role icons maintain their role-specific colors */
+
+/* Ensure role colors are visible in dark mode by explicitly setting them */
+
+.dark-theme .card-header .card-role-icon .fa-face-smile {
+  color: var(--color-user);
+}
+
+.dark-theme .card-header .card-role-icon .fa-robot {
+  color: var(--color-assistant);
+}
+
+.dark-theme .card-header .card-role-icon .fa-bars {
+  color: var(--color-system);
+}
+
+/* Dark mode: AI Assistant and AI User labels maintain assistant/user colors */
+
+.dark-theme #ai-assistant-info span[data-i18n="ui.aiAssistant"] {
+  color: var(--color-assistant);
+}
+
+.dark-theme .user-color {
+  color: var(--color-user);
+}
+
+/* Dark mode: Role icon selector maintains user color */
+
+.dark-theme .role-icon-selector {
+  color: var(--color-user);
+}
+
+/* Dark mode: Logo styling - enhance visibility and style (high specificity) */
+
+.dark-theme #main-nav .nav-text .text-main {
+  color: #e5e5e5;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+}
+
+.dark-theme #main-nav .nav-text .text-highlight {
+  color: #ffd54f;
+  text-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+
+.dark-theme #main-nav .nav-logo {
+  filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.25));
+}
+
+/* Dark mode: Outline secondary buttons (needs to override Bootstrap) */
+
+.dark-theme .btn-outline-secondary {
+  color: #adb5bd;
+  border-color: #4a4a4a; /* Softer border color */
+  background-color: transparent;
+}
+
+.dark-theme .btn-outline-secondary:hover,
+.dark-theme .btn-outline-secondary:focus {
+  color: #f5f5f5;
+  background-color: #3a3a3a;
+  border-color: #5a5a5a; /* Softer border color on hover */
+}
+
+.dark-theme .btn-outline-secondary:active,
+.dark-theme .btn-outline-secondary.active {
+  color: #f5f5f5;
+  background-color: #4a4a4a;
+  border-color: #5a5a5a; /* Softer border color when active */
+}
+
+/* Dark mode: Modal dialogs (high specificity) */
+
+.dark-theme .modal-content {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+  border: 1px solid #444;
+}
+
+.dark-theme .modal-header {
+  background-color: #333;
+  color: #e5e5e5;
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme .modal-header .modal-title {
+  color: #e5e5e5;
+}
+
+.dark-theme .modal-body {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+}
+
+.dark-theme .modal-footer {
+  background-color: #2b2b2b;
+  border-top: 1px solid #444;
+}
+
+/* Dark mode: Modal form inputs (high specificity with attribute selectors) */
+
+.dark-theme .modal-body input[type="text"],
+.dark-theme .modal-body input[type="file"],
+.dark-theme .modal-body textarea,
+.dark-theme .modal-body select {
+  background-color: #3a3a3a;
+  color: #e5e5e5;
+  border: 1px solid #555;
+}
+
+.dark-theme .modal-body input[type="text"]::placeholder,
+.dark-theme .modal-body textarea::placeholder {
+  color: #999;
+}
+
+.dark-theme .modal-body label {
+  color: #e5e5e5;
+}
+
+/* Dark mode: Modal close button */
+
+.dark-theme .modal-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Dark mode: TTS Notice Toast */
+
+.dark-theme #tts-toast {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+  border: 1px solid #444;
+}
+
+.dark-theme #tts-toast .toast-header {
+  background-color: #333;
+  color: #e5e5e5;
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme #tts-toast .toast-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.dark-theme #tts-toast .toast-body {
+  background-color: #2b2b2b;
+  color: #e5e5e5;
+}
+
+.dark-theme #tts-toast .toast-body .text-muted {
+  color: #aaa;
+}
+
+/* Dark mode: Navbar improvements (ID selectors have high specificity) */
+
+.dark-theme #main-nav {
+  background-color: #2b2b2b;
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme #main-nav .btn-light {
+  background-color: #3a3a3a;
+  color: #e5e5e5;
+  border: 1px solid #555;
+}
+
+.dark-theme #main-nav .btn-light:hover {
+  background-color: #4a4a4a;
+  color: #fff;
+  border-color: #666;
+}
+
+/* Dark mode: Unified status styling (ID selector has high specificity) */
+
+.dark-theme #status-message {
+  background-color: #333333; /* Softer dark gray for better readability */
+  border: 1px solid #4a4a4a; /* Muted border for subtle appearance */
+}
+
+/* Dark mode: Status type colors (ID + class selectors have high specificity) */
+
+.dark-theme #status-message.text-success {
+  color: #7fd89f; /* Lighter green */
+}
+
+.dark-theme #status-message.text-warning {
+  color: #ffb74d; /* Lighter orange */
+}
+
+.dark-theme #status-message.text-danger {
+  color: #ef5350; /* Lighter red */
+}
+
+.dark-theme #status-message.text-info {
+  color: #90caf9; /* Lighter blue */
+}
+
+.dark-theme #status-message.text-secondary {
+  color: #bdbdbd; /* Lighter gray */
+}
+
+/* Dark mode: Toggle menu button (ID selector has high specificity) */
+
+.dark-theme #toggle-menu {
+  border-color: rgba(255, 255, 255, 0.25); /* Subtle border */
+  color: #d0d0d0; /* Bright gray icon for visibility */
+}
+
+.dark-theme #toggle-menu i {
+  color: #d0d0d0; /* Bright gray icon */
+}
+
+.dark-theme #toggle-menu.menu-hidden {
+  background-color: rgba(255, 255, 255, 0.08); /* Subtle background when hidden */
+}
+
+.dark-theme #toggle-menu.menu-hidden i {
+  color: #e0e0e0; /* Even brighter when menu is hidden */
+}
+
+.dark-theme #toggle-menu:hover {
+  background-color: rgba(255, 255, 255, 0.15); /* Subtle hover background */
+  border-color: rgba(255, 255, 255, 0.35); /* Slightly brighter on hover */
+  color: #f0f0f0; /* Lighter on hover */
+}
+
+.dark-theme #toggle-menu:hover i {
+  color: #f0f0f0; /* Lighter icon on hover */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden) {
+  background-color: rgba(255, 255, 255, 0.12); /* Visible active background */
+  border-color: rgba(255, 255, 255, 0.3); /* Visible when active */
+  color: #f5f5f5; /* Very light when active */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden) i {
+  color: #f5f5f5; /* Very light icon when active */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden):hover {
+  background-color: rgba(255, 255, 255, 0.18); /* Brighter on hover when active */
+  border-color: rgba(255, 255, 255, 0.4); /* Brighter border on hover when active */
+}
+
+.dark-theme #toggle-menu:not(.menu-hidden):hover i {
+  color: #ffffff; /* White icon on hover when active */
+}
+
+/* Dark mode: Custom apps dropdown (ID selector has high specificity) */
+
+.dark-theme #custom-apps-dropdown {
+  background: #2b2b2b;
+  border: 1px solid #555;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+}
+
+.dark-theme .custom-dropdown-option {
+  color: #e5e5e5;
+}
+
+.dark-theme .custom-dropdown-option i {
+  color: #aaa;
+}
+
+.dark-theme .custom-dropdown-option:hover {
+  background-color: #3a3a3a;
+}
+
+.dark-theme .custom-dropdown-option.highlighted {
+  background-color: #1e3a5f;
+  color: #ffffff;
+}
+
+.dark-theme .custom-dropdown-option.active {
+  background-color: #1e3a5f;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.dark-theme .custom-dropdown-option.disabled {
+  background-color: #333;
+  color: #777;
+}
+
+/* Dark mode: Custom dropdown group headers */
+
+.dark-theme .custom-dropdown-group {
+  background-color: #3a3a3a;
+}
+
+/* Keep provider brand colors visible, but brighten secondary text */
+
+.dark-theme .custom-dropdown-group .api-key-required {
+  color: #aaa;
+}
+
+.dark-theme .custom-dropdown-group .group-toggle-icon i {
+  color: #aaa;
+}
+
+/* Dark mode: Custom dropdown scrollbar (pseudo-elements with ID selector) */
+
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar {
+  background-color: #2b2b2b;
+}
+
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar-thumb {
+  background-color: #555;
+}
+
+.dark-theme #custom-apps-dropdown::-webkit-scrollbar-track {
+  background-color: #2b2b2b;
+}
+
+/* Dark mode: Brighten dark provider colors for better visibility (attribute selectors) */
+
+.dark-theme .custom-dropdown-group[data-group="Ollama"] span:first-child,
+.dark-theme .custom-dropdown-group[data-group="Extra"] span:first-child {
+  color: #9ca3af; /* Lighter gray for dark mode */
+}
+
+.dark-theme .custom-dropdown-group[data-group="DeepSeek"] span:first-child {
+  color: #3b82f6; /* Brighter blue for dark mode */
+}
+
+} /* end @layer dark-theme */
+
+/* ============================================ */
+/* Responsive Layer: Media queries */
+/* ============================================ */
+@layer responsive {
+
+@media (max-width: 767px) {
+  #main-nav .container-fluid {
+    height: 65px;
+  }
+  #main-nav .nav-logo {
+    width: 1.8em;
+  }
+  #main-nav .nav-text .text-main,
+  #main-nav .nav-text .text-highlight {
+    font-size: 1.4rem;
+  }
+  #main-nav .nav-actions {
+    gap: 0.5rem;
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* The toggle menu is now controlled by fixed positioning above */
+
+@media (max-width: 767px) {
+  #main-nav .navbar-brand {
+    flex: 0 0 auto;
+  }
+}
+
+/* Toggle menu button: push to far right and ensure visible */
+
+/* The toggle menu is now controlled by fixed positioning defined above */
+
+@media (max-width: 767px) {
+  /* On mobile, maintain fixed positioning defined above */
+}
+
+/* Responsive positioning for smaller screens */
+
+@media (max-width: 768px) {
+  #back_to_top {
+    bottom: 100px; /* Adjust for mobile UI */
+  }
+  
+  #back_to_bottom {
+    bottom: 50px; /* Adjust for mobile UI */
+  }
+}
+
+/* Optimize main content area for all devices */
+
+@media (max-width: 767px) {
+  #main {
+    padding-bottom: 0; /* Remove bottom padding on mobile */
+    margin-bottom: 0;
+    /* Ensure consistent height on mobile */
+    min-height: calc(100vh - 65px);
+  }
+  
+  #main > div:last-child {
+    margin-bottom: 0; /* Remove margin from last child */
+  }
+}
+
+/* Mobile optimized scrollable areas */
+
+@media (max-width: 767px) {
+  .scrollable {
+    max-height: calc(100vh - 65px - 12px); /* Use max-height for mobile too */
+    padding-bottom: 20px; /* Add bottom padding to prevent content from being cut off */
+    overflow-y: auto; /* Use auto instead of scroll to only show scrollbar when needed */
+    margin-bottom: 0; /* Remove margin at the bottom */
+  }
+}
+
+@media (hover: hover) {
+  #interaction-check-all:hover,
+  #interaction-uncheck-all:hover,
+  #interaction-toggle-all:hover {
+    color: var(--json-label-primary);
+    transform: translateY(-1px);
+  }
+
+  .dark-theme #interaction-check-all:hover,
+  .dark-theme #interaction-uncheck-all:hover,
+  .dark-theme #interaction-toggle-all:hover {
+    color: #aaa;
+  }
+}
+
+@media (hover: hover) {
+  .toggle-text:hover {
+    color: #555;
+    transform: translateY(-1px);
+  }
+
+  .dark-theme .toggle-text:hover {
+    color: #aaa;
+  }
+}
+
+@media (max-width: 767px) {
+  .navbar {
+    min-width: 720px; /* Use min-width only for mobile breakpoints */
+  }
+  
+  .navbar-container {
+    padding-bottom: 20px;
+    margin-bottom: -20px;
+  }
+
+  #toggle-menu {
+    right: 10px;
+  }
+}
+
+/* Desktop-specific styles */
+
+@media (min-width: 768px) {
+  /* Reset navbar elements to default styles when in desktop view */
+  .navbar-brand, .navbar-brand > div:first-child {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    height: auto;
+    margin: initial;
+    padding: initial;
+    display: initial;
+    align-items: initial;
+    justify-content: initial;
+  }
+  
+  /* Restore original navbar styling */
+  .navbar-brand > div:first-child {
+    margin-left: 6px;
+    margin-top: -10px;
+  }
+  
+  /* Toggle menu is controlled by fixed positioning at the top of the file */
+}
+
+@media (max-width: 767px) {
+  /* Hide tagline on mobile */
+  #tagline {
+    display: none;
+  }
+
+  #main-nav .navbar-brand {
+    height: 65px;
+    padding: 0;
+  }
+
+  #main-nav .navbar-brand > div:first-child {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+
+  #main-nav .navbar-brand img {
+    position: static;
+    margin: 0;
+    margin-right: 8px;
+  }
+
+  #main-nav .navbar-brand span {
+    position: static;
+  }
+  
+  /* Reduce font size for labels */
+  label, .form-label, .div-label {
+    font-size: 0.9em;
+  }
+  
+  /* Stack model parameters vertically */
+  #model_parameters .col-3 {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  /* Stack context/tokens controls vertically */
+  form .col-3.ms-2, form .col-5 {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 10px;
+  }
+  
+  /* Stack model/reasoning/PDF controls vertically */
+  #model_and_file .col-5, #model_and_file .col-3 {
+    width: 100%;
+    margin-left: 0;
+    margin-bottom: 10px;
+  }
+  
+  /* Session buttons (reset/load/save) should be horizontal on mobile */
+  #control-panel button.btn {
+    display: inline-block;
+    width: auto;
+    margin: 5px 10px 5px 0; /* Increased right margin for better spacing */
+    padding: 6px 12px; /* Slightly increased padding */
+    font-size: 0.85em;
+  }
+  
+  /* Media/content buttons should be horizontal on mobile */
+  #user-panel .row .col-auto {
+    width: 100%;
+  }
+  
+  #user-panel .row .col-auto .d-flex {
+    flex-direction: row; /* Keep horizontal alignment */
+    flex-wrap: wrap; /* Allow wrapping if needed */
+    width: 100%;
+  }
+  
+  #user-panel button#image-file,
+  #user-panel button#doc,
+  #user-panel button#url {
+    width: auto;
+    margin: 5px 10px 5px 0;
+    padding: 6px 12px;
+    font-size: 0.85em;
+    white-space: nowrap;
+  }
+  
+  /* Fix #select-role overflow issues */
+  #user-panel .row .col-auto {
+    max-width: 100%;
+    overflow: hidden;
+  }
+  
+  /* Improve role selector layout */
+  #select-role {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Better alignment for role-specific items */
+  #role-icon {
+    display: inline-flex;
+    margin-right: 8px;
+  }
+  
+  
+  /* AI User section improvements */
+  .user-color.fw-bold {
+    white-space: nowrap;
+    font-size: 0.9em;
+  }
+  
+  /* Make AI User section stack properly */
+  #user-panel .d-flex.align-items-center {
+    flex-wrap: wrap;
+  }
+  
+  /* Default padding for user panel elements */
+  #user-panel .row .col-auto {
+    padding-left: 15px;
+  }
+  
+  /* Improve AI User selector */
+  #ai_user_provider {
+    max-width: 120px;
+    margin-left: 5px;
+    font-size: 0.9em;
+  }
+  
+  /* Shrink Run button */
+  #ai_user {
+    padding: 4px 8px;
+    min-width: 40px;
+    font-size: 0.85em;
+  }
+  
+  /* Improve speech input controls */
+  #voice-input-row .col-auto {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  
+  /* Keep voice button as auto width */
+  #voice {
+    width: auto;
+    margin-right: 10px;
+    margin-bottom: 10px;
+    padding: 6px 12px;
+    font-size: 0.85em;
+  }
+  
+  /* Adjust amplitude display to be properly aligned with voice button */
+  #amplitude {
+    width: 150px;
+    margin-left: 10px;
+    display: none; /* Default to hidden, will be shown programmatically */
+    align-items: center;
+    height: 28px;
+    overflow: hidden;
+  }
+  
+  #amplitude-chart {
+    width: 150px;
+    height: 28px;
+  }
+  
+  /* Fix AI Assistant display */
+  #main #ai-assistant-info {
+    display: none;
+  }
+  
+  /* Hide exchange icon */
+  .text-secondary .fa-exchange-alt {
+    display: none;
+  }
+  
+  /* Improve send/clear button layout and caption */
+  #user-panel .row .col-auto .d-flex {
+    position: relative;
+    flex-direction: row; /* Changed to row for horizontal alignment */
+    flex-wrap: wrap;
+  }
+  
+  /* Make action buttons consistent and side by side on mobile */
+  #user-panel button#send,
+  #user-panel button#clear,
+  #user-panel button#settings {
+    width: auto; /* Auto width to fit content */
+    margin-right: 10px; /* Space between buttons */
+    margin-bottom: 5px;
+    padding: 0.25rem 0.5rem; /* Reduced padding for smaller buttons */
+    height: auto;
+    /* Removed min-height for more compact buttons */
+    flex: 0 0 auto; /* Don't grow or shrink */
+    font-size: 0.875rem; /* Standard btn-sm size */
+  }
+  
+  /* Optimize user panel spacing for mobile */
+  #user-panel {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  
+  /* Adjust spacing between voice row and role row */
+  @media (max-width: 767px) {
+    #voice-input-row + .row {
+      margin-top: -0.5rem;
+    }
+  }
+  
+  /* Reduce textarea margin for better space usage */
+  #user-panel textarea#message {
+    margin-bottom: 8px;
+  }
+  
+  /* Position textbox caption below buttons with consistent alignment */
+  #user-panel .row .col-auto .d-flex .textbox-caption {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin-top: 8px; 
+    margin-bottom: 8px;
+    margin-left: 0;
+    padding-left: 0;
+    font-size: 0.85em;
+    text-align: left;
+    clear: both; /* Ensure it appears below the buttons */
+    order: 2; /* Place it after the buttons in flex layout */
+  }
+  
+  /* Default text alignment for caption */
+  #user-panel .textbox-caption span {
+    text-align: left;
+  }
+  
+  /* Card role styling */
+  .card-header .card-title .text-secondary {
+    margin-right: 5px;
+  }
+  
+  .card-header .card-title .fa-face-smile {
+    color: var(--color-user);
+    font-size: 1.3em;
+  }
+  
+  /* Assistant icon - inherit text-secondary color */
+  .card-header .card-title .fa-robot,
+  #temp-card .card-header .card-title .fa-robot {
+    font-size: 1.3em;
+  }
+  
+  .card-header .card-title .fa-bars {
+    color: var(--color-system);
+    font-size: 1.3em;
+  }
+  
+  /* Hide role text in cards on mobile, show only colored icon */
+  .card-header .card-title .fw-bold,
+  .card-header .card-title .user-color,
+  .card-header .card-title .system-color {
+    display: none;
+  }
+  
+  /* Keep assistant color visible but make text hidden */
+  .card-header .card-title .assistant-color {
+    display: none;
+  }
+  
+  /* Make AI User selector and button display inline */
+  #select-role, #ai_user_provider, #ai_user {
+    display: inline-block;
+    width: auto;
+  }
+  
+  /* Mobile navbar for reliable positioning */
+  #main-nav {
+    display: flex;
+    align-items: center;
+    /* Mobile navbar height unified with desktop */
+    height: 65px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1030;
+    background-color: var(--bg-navbar);
+    border-top: none;
+    border-bottom: 1px solid var(--navbar-border);
+  }
+  
+  /* Simplify container to avoid positioning conflicts */
+  #main-nav .container-fluid {
+    /* Use flex layout to center items and distribute space */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    padding: 0 15px;
+  }
+  
+  /* Navbar-brand participates in flex on mobile */
+  .navbar-brand {
+    position: static;
+    margin-left: 15px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0;
+    z-index: auto;
+    width: auto;
+  }
+  /* Toggle menu button is now positioned fixed at top-right in all screen sizes */
+  
+  .navbar-brand div {
+    display: flex;
+    align-items: center;
+  }
+  
+  .navbar-brand img {
+    width: 1.6em; /* Slightly smaller logo */
+    height: auto;
+    margin: 0;
+    margin-right: 8px; /* Add spacing between logo and text */
+    position: static;
+  }
+  
+  .navbar-brand span {
+    font-size: 1.1em; /* Slightly smaller text */
+    position: static;
+  }
+  
+  /* Removed mobile-specific static positioning for toggle-menu to rely on responsive CSS */
+  
+  /* Adjust main content position to match reduced navbar height */
+  #contents {
+    margin-top: 65px; /* Match navbar height */
+    padding-top: 0; /* Remove top padding completely */
+    padding-bottom: 0; /* Remove bottom padding on mobile */
+    height: calc(100vh - 65px); /* Full viewport height minus navbar */
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
+  /* Maximize screen space usage on mobile */
+  #main-panel {
+    margin-bottom: 0;
+    padding-bottom: 5px; /* Minimal padding at bottom */
+  }
+  
+  /* Optimize panel spacing on mobile */
+  #monadic-info-panel, #control-panel, #ai-status-panel, #voice-panel, #pdf-panel {
+    margin-bottom: 0.6rem; /* Further reduce space between panels */
+    padding-top: 0.6rem; /* Less padding to reduce overall spacing */
+    padding-bottom: 0.6rem;
+  }
+  
+  /* Reduce space between heading elements in panels */
+  #menu h5 {
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
+  }
+  
+  /* Properly separate main and menu containers */
+  body.menu-visible {
+    overflow: hidden; /* Prevents scrolling to see main content */
+  }
+  
+  /* Make menu take full screen when visible */
+  body.menu-visible #menu {
+    display: block;
+    height: calc(100vh - 65px); /* Full height minus navbar */
+    overflow-y: auto;
+  }
+  
+  /* Hide main content completely when menu is shown */
+  body.menu-visible #main {
+    display: none;
+  }
+  
+  /* Hide scroll buttons when menu is visible on mobile */
+  body.menu-visible #back_to_top,
+  body.menu-visible #back_to_bottom {
+    display: none;
+  }
+  
+  /* Ensure menu is hidden initially */
+  #menu {
+    display: none;
+  }
+  
+  /* Enlarge card button icons for better touch targets */
+  .card-header .func-copy i,
+  .card-header .func-play i,
+  .card-header .func-stop i,
+  .card-header .func-delete i,
+  .card-header .func-edit i {
+    font-size: 1.2em;
+  }
+  
+  .card-header .me-3 {
+    margin-right: 1rem;
+  }
+  
+  /* Add padding to card header for easier tapping */
+  .card-header {
+    padding: 10px 12px;
+  }
+}
+
+/* Optimize config and main-panel spacing on mobile */
+
+@media (max-width: 767px) {
+  #config, #main-panel {
+    padding: 0.6rem; /* Reduced padding for more content space */
+    margin-bottom: 0.6rem; /* Reduced margin for better vertical spacing */
+  }
+  
+  /* Adjust heading spacing in main panels */
+  #config h5, #main-panel h5 {
+    margin-top: 0.2em; /* Minimum margin to keep things tight */
+    margin-bottom: 0.4em;
+  }
+}
+
+/* Mobile-specific media queries for toggle menu */
+
+@media (max-width: 767px) {
+  #toggle-menu {
+    position: fixed;
+    margin: 0;
+    /* Center vertically by aligning button center with navbar center */
+    /* Navbar height: 65px, button height: 2rem (32px) */
+    /* Vertical center: (65px - 32px) / 2 = 16.5px from top */
+    top: 16.5px;
+    right: 15px;
+    z-index: 1100;
+  }
+
+  /* Adjust cancel button in mobile view */
+  #cancel_query {
+    position: fixed;
+    top: 16.5px; /* Match toggle button vertical position */
+    right: 65px;
+    z-index: 1100;
+  }
+}
+
+/* Hover effect - only on devices that support hover */
+
+@media (hover: hover) {
+  .btn-hover-lift:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Dark mode - lighter shadow for better visibility */
+  .dark-theme .btn-hover-lift:hover:not(:disabled) {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
+@media (hover: hover) {
+  .btn-warning:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-outline-secondary:hover:not(:disabled),
+  .btn-outline-primary:hover:not(:disabled),
+  #start-button:hover:not(:disabled),
+  #reset:hover:not(:disabled),
+  #load:hover:not(:disabled),
+  #save:hover:not(:disabled),
+  #export-pdf:hover:not(:disabled),
+  #theme-system:hover:not(:disabled),
+  #theme-light:hover:not(:disabled),
+  #theme-dark:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Warning buttons - add background color change */
+  .btn-warning:hover:not(:disabled),
+  #reset:hover:not(:disabled) {
+    background-color: #e0a800;
+    border-color: #d39e00;
+  }
+
+  /* Secondary buttons - add background color change */
+  .btn-secondary:hover:not(:disabled),
+  #theme-system:hover:not(:disabled),
+  #theme-light:hover:not(:disabled),
+  #theme-dark:hover:not(:disabled) {
+    background-color: #5a6268;
+    border-color: #545b62;
+  }
+
+  /* Primary buttons - add background color change */
+  .btn-primary:hover:not(:disabled),
+  #start-button:hover:not(:disabled) {
+    background-color: #0069d9;
+    border-color: #0062cc;
+  }
+
+  .dark-theme .btn-warning:hover:not(:disabled),
+  .dark-theme .btn-secondary:hover:not(:disabled),
+  .dark-theme .btn-primary:hover:not(:disabled),
+  .dark-theme .btn-outline-secondary:hover:not(:disabled),
+  .dark-theme .btn-outline-primary:hover:not(:disabled),
+  .dark-theme #start-button:hover:not(:disabled),
+  .dark-theme #reset:hover:not(:disabled),
+  .dark-theme #load:hover:not(:disabled),
+  .dark-theme #save:hover:not(:disabled),
+  .dark-theme #export-pdf:hover:not(:disabled),
+  .dark-theme #theme-system:hover:not(:disabled),
+  .dark-theme #theme-light:hover:not(:disabled),
+  .dark-theme #theme-dark:hover:not(:disabled) {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+  }
+}
+
+@media (max-width: 767px) {
+  #main-nav .navbar-container,
+  #main-nav .container-fluid {
+    padding: 0 0.75rem;
+  }
+
+  #main-nav .navbar-brand.reset-area .nav-logo,
+  #main-nav .navbar-brand.reset-area img {
+    height: 1.75rem;
+    margin-right: 0.4rem;
+  }
+
+  #main-nav .navbar-brand.reset-area .nav-text .text-main,
+  #main-nav .navbar-brand.reset-area .nav-text .text-highlight {
+    font-size: 1.2rem;
+    line-height: 1.75rem;
+  }
+}
+
+/* Mobile responsive improvements */
+
+@media (max-width: 767px) {
+  /* CRITICAL: Maintain scrollable area on mobile with minimal bottom padding */
+  #main.scrollable,
+  .col-md-8.order-md-1.scrollable {
+    max-height: calc(100vh - 65px);
+    overflow-y: auto;
+    padding-bottom: 20px;
+  }
+
+  /* CRITICAL FIX: Override ALL align-items-center in user-panel */
+  #user-panel .d-flex.align-items-center,
+  #user-panel .d-flex,
+  #user-panel .row.mt-3 .col-auto .d-flex,
+  #user-panel .row .col-auto .d-flex {
+    align-items: flex-start;
+  }
+
+  /* CRITICAL FIX: All buttons must have auto height */
+  #user-panel .btn,
+  #user-panel .btn-sm,
+  #user-panel .btn-primary,
+  #user-panel .btn-secondary,
+  #user-panel .btn-warning,
+  #user-panel .btn-info,
+  #send,
+  #clear,
+  #settings,
+  #image-file,
+  #doc,
+  #url,
+  #voice,
+  #ai_user {
+    height: auto;
+    min-height: auto;
+  }
+
+  /* Minimal bottom spacing */
+  #main-panel {
+    padding-bottom: 0.5rem;
+    margin-bottom: 0;
+  }
+
+  #user-panel {
+    margin-bottom: 30px;
+    padding-bottom: 0;
+  }
+}
+
+/* Extra small screens - full width for AI User controls */
+
+@media (max-width: 480px) {
+  #ai_user_provider {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #ai_user {
+    width: 100%;
+  }
+}
+
+} /* end @layer responsive */
+
+/* ============================================ */
+/* Utilities Layer: Override helpers */
+/* ============================================ */
+@layer utilities {
+
+/* ========================================
+   Icon State Classes - Replace inline styles
+   ======================================== */
+
+/* Icon state classes */
+
+.icon-success {
+  color: var(--color-assistant) !important; /* var(--tts-active-color) */
+}
+
+.icon-active {
+  color: var(--color-assistant) !important;
+}
+
+/* ========================================
+   Visibility Classes - Replace inline styles
+   ======================================== */
+
+/* Visibility utilities */
+
+.hidden {
+  display: none !important;
+}
+
+/* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
+
+/* Opacity utilities */
+
+.opacity-0 {
+  opacity: 0 !important;
+}
+
+.opacity-60 {
+  opacity: 0.6 !important;
+}
+
+} /* end @layer utilities */
+
+

@@ -56,6 +56,8 @@
   /* ============================================ */
 
   /* Background Colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f0f0;
   --bg-body: #DCDCDC;
   --bg-panel: #F8F8F8;
   --bg-card-assistant: #fcedee;
@@ -89,6 +91,15 @@
   --accent-red: #DC4C64;
   --accent-blue: #4CACDC;
   --accent-green: #22ad50;
+
+  /* Role & Icon Colors */
+  --color-icon-primary: #ffc107;
+  --color-assistant: rgb(220, 76, 100);
+  --color-user: #4CACDC;
+  --color-system: #22ad50;
+  --color-info: #2196f3;
+  --color-link: #0d6efd;
+  --color-link-hover: #0a58ca;
 
   /* Status Colors */
   --status-error: #dc3545;
@@ -171,6 +182,8 @@
 
 .dark-theme {
   /* Background Colors */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #333333;
   --bg-body: #1a1a1a;
   --bg-panel: #2a2a2a;
   --bg-card-assistant: #3d3d3d;
@@ -204,6 +217,10 @@
   --accent-red: #e56b7f;
   --accent-blue: #6bc2e8;
   --accent-green: #4cd374;
+
+  /* Role & Icon Colors (link colors adjusted for dark mode) */
+  --color-link: #6b9bd8;
+  --color-link-hover: #8fb3e8;
 
   /* Status Colors (adjusted for dark mode) */
   --status-error: #f47983;
@@ -4759,22 +4776,9 @@ i.fas.fa-bolt,
     display: flex;
     align-items: center;
   }
-}
-
-/* The toggle menu is now controlled by fixed positioning above */
-
-@media (max-width: 767px) {
   #main-nav .navbar-brand {
     flex: 0 0 auto;
   }
-}
-
-/* Toggle menu button: push to far right and ensure visible */
-
-/* The toggle menu is now controlled by fixed positioning defined above */
-
-@media (max-width: 767px) {
-  /* On mobile, maintain fixed positioning defined above */
 }
 
 /* Responsive positioning for smaller screens */
@@ -4798,15 +4802,11 @@ i.fas.fa-bolt,
     /* Ensure consistent height on mobile */
     min-height: calc(100vh - 65px);
   }
-  
+
   #main > div:last-child {
     margin-bottom: 0; /* Remove margin from last child */
   }
-}
 
-/* Mobile optimized scrollable areas */
-
-@media (max-width: 767px) {
   .scrollable {
     max-height: calc(100vh - 65px - 12px); /* Use max-height for mobile too */
     padding-bottom: 20px; /* Add bottom padding to prevent content from being cut off */
@@ -4828,9 +4828,7 @@ i.fas.fa-bolt,
   .dark-theme #interaction-toggle-all:hover {
     color: #aaa;
   }
-}
 
-@media (hover: hover) {
   .toggle-text:hover {
     color: #555;
     transform: translateY(-1px);
@@ -5327,9 +5325,7 @@ i.fas.fa-bolt,
   .dark-theme .btn-hover-lift:hover:not(:disabled) {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
-}
 
-@media (hover: hover) {
   .btn-warning:hover:not(:disabled),
   .btn-secondary:hover:not(:disabled),
   .btn-primary:hover:not(:disabled),

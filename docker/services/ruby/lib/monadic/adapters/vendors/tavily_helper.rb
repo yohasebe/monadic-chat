@@ -2,12 +2,12 @@
 
 require 'http'
 require_relative "../../utils/debug_helper"
+require_relative "../base_vendor_helper"
 
 module TavilyHelper
+  include BaseVendorHelper
   include DebugHelper
-  OPEN_TIMEOUT = 10 # Timeout for opening a connection (seconds)
-  READ_TIMEOUT = 60 # Timeout for reading data (seconds)
-  WRITE_TIMEOUT = 60 # Timeout for writing data (seconds)
+  define_timeouts "TAVILY", open: 10, read: 60, write: 60
 
   # Number of retries for API requests
   MAX_RETRIES = 10
@@ -53,7 +53,7 @@ module TavilyHelper
 
     begin
       http = HTTP.headers(headers)
-      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).post(target_uri, json: body)
 
       if res.status.success?
         res = JSON.parse(res.body)

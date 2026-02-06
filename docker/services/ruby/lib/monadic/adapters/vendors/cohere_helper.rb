@@ -17,30 +17,7 @@ module CohereHelper
   MAX_FUNC_CALLS = 20
   # API endpoint and configuration constants
   API_ENDPOINT = "https://api.cohere.ai/v2"
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["COHERE_OPEN_TIMEOUT"]&.to_i || 10) : 10
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["COHERE_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["COHERE_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    CohereHelper.open_timeout
-  end
-
-  def read_timeout
-    CohereHelper.read_timeout
-  end
-
-  def write_timeout
-    CohereHelper.write_timeout
-  end
+  define_timeouts "COHERE", open: 10, read: 600, write: 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

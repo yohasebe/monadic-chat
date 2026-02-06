@@ -47,9 +47,7 @@ module GeminiHelper
   MAX_FUNC_CALLS = 20
   # Use v1beta to support newer Gemini 3 models
   API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta"
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["GEMINI_OPEN_TIMEOUT"]&.to_i || 10) : 10
-  end
+  define_timeouts "GEMINI", open: 10, read: 600, write: 120
 
   # Gemini 3 Pro Image Preview via v1 generateContent
   # Supports optional image inputs (up to 14) for editing/conditioning:
@@ -321,26 +319,6 @@ module GeminiHelper
     ) }.to_json
   end
 
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["GEMINI_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    GeminiHelper.open_timeout
-  end
-
-  def read_timeout
-    GeminiHelper.read_timeout
-  end
-
-  def write_timeout
-    GeminiHelper.write_timeout
-  end
 
   # Image generation model endpoints (separate from chat models)
   # These are specialized APIs not included in the regular model list

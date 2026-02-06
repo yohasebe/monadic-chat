@@ -7,9 +7,11 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../base_vendor_helper"
 require "json"
 
 module GrokHelper
+  include BaseVendorHelper
   include InteractionUtils
   include FunctionCallErrorHandler
   # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
@@ -18,30 +20,7 @@ module GrokHelper
   # ENV key for emergency override
   GROK_LEGACY_MODE_ENV = "GROK_LEGACY_MODE"
 
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["GROK_OPEN_TIMEOUT"]&.to_i || 20) : 20
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["GROK_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["GROK_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    GrokHelper.open_timeout
-  end
-
-  def read_timeout
-    GrokHelper.read_timeout
-  end
-
-  def write_timeout
-    GrokHelper.write_timeout
-  end
+  define_timeouts "GROK", open: 20, read: 600, write: 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

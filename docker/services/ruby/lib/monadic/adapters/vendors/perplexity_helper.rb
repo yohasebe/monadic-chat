@@ -18,30 +18,7 @@ module PerplexityHelper
   # ENV key for emergency override (optional)
   PERPLEXITY_LEGACY_MODE_ENV = "PERPLEXITY_LEGACY_MODE"
 
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["PERPLEXITY_OPEN_TIMEOUT"]&.to_i || 5) : 5
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["PERPLEXITY_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["PERPLEXITY_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    PerplexityHelper.open_timeout
-  end
-
-  def read_timeout
-    PerplexityHelper.read_timeout
-  end
-
-  def write_timeout
-    PerplexityHelper.write_timeout
-  end
+  define_timeouts "PERPLEXITY", open: 5, read: 600, write: 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

@@ -1,18 +1,18 @@
 # frozen_string_literal: false
 
 require_relative "../../utils/interaction_utils"
+require_relative "../base_vendor_helper"
 require 'strscan'
 require 'securerandom'
 
 module DeepSeekHelper
+  include BaseVendorHelper
   include InteractionUtils
   MAX_FUNC_CALLS = 20
   # Note: Beta API (/beta) with strict mode has schema validation issues
   # Keeping standard endpoint for now
   API_ENDPOINT = "https://api.deepseek.com"
-  OPEN_TIMEOUT = 10
-  READ_TIMEOUT = 120
-  WRITE_TIMEOUT = 120
+  define_timeouts "DEEPSEEK", open: 10, read: 120, write: 120
   MAX_RETRIES = 5
   RETRY_DELAY = 1
 
@@ -211,9 +211,9 @@ module DeepSeekHelper
     MAX_RETRIES.times do
       begin
         response = http.timeout(
-          connect: OPEN_TIMEOUT,
-          write: WRITE_TIMEOUT,
-          read: READ_TIMEOUT
+          connect: open_timeout,
+          write: write_timeout,
+          read: read_timeout
         ).post(target_uri, json: body)
         
         break if response && response.status && response.status.success?
@@ -494,9 +494,9 @@ module DeepSeekHelper
     http = HTTP.headers(headers)
 
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       if res.status.success?
         break
       end

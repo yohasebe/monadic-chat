@@ -23,31 +23,7 @@ module ClaudeHelper
   MAX_RETRIES = 5
   RETRY_DELAY = 2
 
-  # Timeout configuration (as methods to allow CONFIG access)
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["CLAUDE_OPEN_TIMEOUT"]&.to_i || 10) : 10
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["CLAUDE_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["CLAUDE_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to module methods
-  def open_timeout
-    ClaudeHelper.open_timeout
-  end
-
-  def read_timeout
-    ClaudeHelper.read_timeout
-  end
-
-  def write_timeout
-    ClaudeHelper.write_timeout
-  end
+  define_timeouts "CLAUDE", open: 10, read: 600, write: 120
 
   MIN_PROMPT_CACHING = 1024
   MAX_PC_PROMPTS = 4

@@ -1,12 +1,12 @@
 require 'http'
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../monadic_performance"
+require_relative "../base_vendor_helper"
 
 module OllamaHelper
+  include BaseVendorHelper
   include MonadicPerformance
-  OPEN_TIMEOUT = 5
-  READ_TIMEOUT = 60
-  WRITE_TIMEOUT = 60
+  define_timeouts "OLLAMA", open: 5, read: 60, write: 60
   MAX_RETRIES = 5
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
@@ -85,7 +85,7 @@ module OllamaHelper
     http = HTTP.headers(headers)
 
     begin
-      res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).get(target_uri)
+      res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout).get(target_uri)
 
       if res.status.success?
         model_data = JSON.parse(res.body)
@@ -145,9 +145,9 @@ module OllamaHelper
 
     success = false
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       if res.status.success?
         success = true
         break
@@ -332,9 +332,9 @@ module OllamaHelper
 
     success = false
     MAX_RETRIES.times do
-      res = http.timeout(connect: OPEN_TIMEOUT,
-                         write: WRITE_TIMEOUT,
-                         read: READ_TIMEOUT).post(target_uri, json: body)
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
       if res.status.success?
         success = true
         break

@@ -27,30 +27,7 @@ module OpenAIHelper
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["OPENAI_OPEN_TIMEOUT"]&.to_i || 20) : 20
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["OPENAI_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["OPENAI_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    OpenAIHelper.open_timeout
-  end
-
-  def read_timeout
-    OpenAIHelper.read_timeout
-  end
-
-  def write_timeout
-    OpenAIHelper.write_timeout
-  end
+  define_timeouts "OPENAI", open: 20, read: 600, write: 120
 
   MAX_RETRIES = 5
   RETRY_DELAY = 1

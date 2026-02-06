@@ -18,30 +18,7 @@ module MistralHelper
   include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 30
   API_ENDPOINT   = "https://api.mistral.ai/v1"
-  def self.open_timeout
-    defined?(CONFIG) ? (CONFIG["MISTRAL_OPEN_TIMEOUT"]&.to_i || 5) : 5
-  end
-
-  def self.read_timeout
-    defined?(CONFIG) ? (CONFIG["MISTRAL_READ_TIMEOUT"]&.to_i || 600) : 600
-  end
-
-  def self.write_timeout
-    defined?(CONFIG) ? (CONFIG["MISTRAL_WRITE_TIMEOUT"]&.to_i || 120) : 120
-  end
-
-  # Instance methods that delegate to class methods
-  def open_timeout
-    MistralHelper.open_timeout
-  end
-
-  def read_timeout
-    MistralHelper.read_timeout
-  end
-
-  def write_timeout
-    MistralHelper.write_timeout
-  end
+  define_timeouts "MISTRAL", open: 5, read: 600, write: 120
 
   MAX_RETRIES    = 5
   RETRY_DELAY    = 1
@@ -166,7 +143,6 @@ module MistralHelper
     end
 
     # Method to manually clear cache if needed
-
     def clear_models_cache
       $MODELS[:mistral] = nil
     end

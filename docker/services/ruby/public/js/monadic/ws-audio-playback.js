@@ -7,30 +7,30 @@
 (function() {
   "use strict";
 
-  var C = window.WsAudioConstants || {};
+  const C = window.WsAudioConstants || {};
 
   // ── iOS audio state ────────────────────────────────────────────────
-  var iosAudioBuffer = [];
-  var isIOSAudioPlaying = false;
-  var iosAudioQueue = [];
-  var iosAudioElement = null;
+  let iosAudioBuffer = [];
+  let isIOSAudioPlaying = false;
+  let iosAudioQueue = [];
+  let iosAudioElement = null;
 
   // ── Handler references for cleanup ─────────────────────────────────
-  var mediaSourceOpenHandler = null;
-  var sourceBufferUpdateEndHandler = null;
-  var audioCanPlayHandler = null;
+  let mediaSourceOpenHandler = null;
+  let sourceBufferUpdateEndHandler = null;
+  let audioCanPlayHandler = null;
 
   // ── MediaSource / Audio elements ───────────────────────────────────
-  var audioContext = null;
-  var mediaSource = null;
-  var audio = null;
-  var sourceBuffer = null;
-  var audioDataQueue = [];
+  let audioContext = null;
+  let mediaSource = null;
+  let audio = null;
+  let sourceBuffer = null;
+  let audioDataQueue = [];
 
   // Create AudioContext for iOS fallback
   if (!C.hasMediaSourceSupport && C.hasAudioContextSupport && C.isIOS) {
     try {
-      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       audioContext = new AudioContextClass();
     } catch (e) {
       console.error("[Audio] Failed to create AudioContext:", e);
@@ -38,12 +38,12 @@
   }
 
   // ── Active audio element registry ──────────────────────────────────
-  var activeAudioElements = new Set();
+  const activeAudioElements = new Set();
 
   function registerAudioElement(el) {
     if (!el) return;
     activeAudioElements.add(el);
-    var cleanup = function() { activeAudioElements.delete(el); };
+    const cleanup = function() { activeAudioElements.delete(el); };
     el.addEventListener('ended', cleanup, { once: true });
     el.addEventListener('error', cleanup, { once: true });
   }
@@ -77,10 +77,10 @@
     if ('MediaSource' in window && !window.basicAudioMode) {
       try {
         if (mediaSource && mediaSourceOpenHandler) {
-          try { mediaSource.removeEventListener('sourceopen', mediaSourceOpenHandler); } catch (e) {}
+          try { mediaSource.removeEventListener('sourceopen', mediaSourceOpenHandler); } catch (e) { console.warn("[Audio] removeEventListener sourceopen failed:", e); }
         }
         if (sourceBuffer && sourceBufferUpdateEndHandler) {
-          try { sourceBuffer.removeEventListener('updateend', sourceBufferUpdateEndHandler); } catch (e) {}
+          try { sourceBuffer.removeEventListener('updateend', sourceBufferUpdateEndHandler); } catch (e) { console.warn("[Audio] removeEventListener updateend failed:", e); }
         }
 
         mediaSource = new MediaSource();
@@ -112,13 +112,13 @@
           window.audio = audio;
 
           audioCanPlayHandler = function() {
-            var isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
-                                (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
-                                window._currentSegmentAudio;
+            const isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
+                                  (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
+                                  window._currentSegmentAudio;
             if (isQueueActive) return;
 
             if (window.autoSpeechActive || window.autoPlayAudio) {
-              var playPromise = audio.play();
+              const playPromise = audio.play();
               if (playPromise !== undefined) {
                 playPromise.then(function() {
                   if (window.autoSpeechActive || window.autoPlayAudio) {
@@ -144,7 +144,7 @@
                   window.autoPlayAudio = false;
 
                   if (err.name === 'NotAllowedError') {
-                    var enableAudio = function() {
+                    const enableAudio = function() {
                       audio.play().then(function() {
                         document.removeEventListener('click', enableAudio);
                       }).catch(function(e) {
@@ -152,7 +152,7 @@
                       });
                     };
                     document.addEventListener('click', enableAudio);
-                    var clickAudioText = typeof getTranslation === 'function'
+                    const clickAudioText = typeof getTranslation === 'function'
                       ? getTranslation('ui.messages.clickToEnableAudio', 'Click anywhere to enable audio')
                       : 'Click anywhere to enable audio';
                     if (typeof setAlert === 'function') {
@@ -204,7 +204,7 @@
         if (!audio.paused) audio.pause();
         audio.currentTime = 0;
         if (audio.src) {
-          var srcToRevoke = audio.src;
+          const srcToRevoke = audio.src;
           setTimeout(function() { URL.revokeObjectURL(srcToRevoke); }, 100);
           audio.src = '';
         }
@@ -217,10 +217,10 @@
           try {
             sourceBuffer.abort();
             mediaSource.removeSourceBuffer(sourceBuffer);
-          } catch (e) {}
+          } catch (e) { console.warn("[Audio] SourceBuffer cleanup failed:", e); }
         }
         if (mediaSource.readyState === 'open') {
-          try { mediaSource.endOfStream(); } catch (e) {}
+          try { mediaSource.endOfStream(); } catch (e) { console.warn("[Audio] MediaSource.endOfStream failed:", e); }
         }
       }
 
@@ -256,12 +256,12 @@
       if (audioContext && C.hasAudioContextSupport) {
         if (audioContext.state === 'suspended') audioContext.resume();
 
-        var uint8Data = (audioData instanceof Uint8Array) ? audioData : new Uint8Array(audioData);
-        var arrayBuffer = uint8Data.buffer.slice(uint8Data.byteOffset, uint8Data.byteOffset + uint8Data.byteLength);
+        const uint8Data = (audioData instanceof Uint8Array) ? audioData : new Uint8Array(audioData);
+        const arrayBuffer = uint8Data.buffer.slice(uint8Data.byteOffset, uint8Data.byteOffset + uint8Data.byteLength);
 
         audioContext.decodeAudioData(arrayBuffer)
           .then(function(buffer) {
-            var source = audioContext.createBufferSource();
+            const source = audioContext.createBufferSource();
             source.buffer = buffer;
             source.connect(audioContext.destination);
             source.start(0);
@@ -288,15 +288,15 @@
     }
 
     try {
-      var mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'];
-      var blob = null;
-      for (var i = 0; i < mimeTypes.length; i++) {
-        try { blob = new Blob([audioData], { type: mimeTypes[i] }); break; } catch (e) {}
+      const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/ogg'];
+      let blob = null;
+      for (let i = 0; i < mimeTypes.length; i++) {
+        try { blob = new Blob([audioData], { type: mimeTypes[i] }); break; } catch (e) { console.warn("[Audio] Blob creation failed:", e); }
       }
       if (!blob) blob = new Blob([audioData], { type: 'audio/mpeg' });
 
-      var audioUrl = URL.createObjectURL(blob);
-      var audioElement = new Audio();
+      const audioUrl = URL.createObjectURL(blob);
+      const audioElement = new Audio();
       registerAudioElement(audioElement);
       audioElement.onended = function() { URL.revokeObjectURL(audioUrl); };
       audioElement.onerror = function() { URL.revokeObjectURL(audioUrl); };
@@ -312,7 +312,7 @@
       iosAudioBuffer.push(audioData);
       if (isIOSAudioPlaying) return;
       processIOSAudioBuffer();
-    } catch (e) {}
+    } catch (e) { console.warn("[Audio] iOS audio buffer processing failed:", e); }
   }
 
   function processIOSAudioBuffer() {
@@ -323,20 +323,20 @@
     isIOSAudioPlaying = true;
 
     try {
-      var totalLength = 0;
+      let totalLength = 0;
       iosAudioBuffer.forEach(function(chunk) { totalLength += chunk.length; });
-      var combinedData = new Uint8Array(totalLength);
-      var offset = 0;
+      const combinedData = new Uint8Array(totalLength);
+      let offset = 0;
       iosAudioBuffer.forEach(function(chunk) { combinedData.set(chunk, offset); offset += chunk.length; });
       iosAudioBuffer = [];
 
-      var mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/mp4'];
-      var blob = null;
-      for (var i = 0; i < mimeTypes.length; i++) {
-        try { blob = new Blob([combinedData], { type: mimeTypes[i] }); break; } catch (e) {}
+      const mimeTypes = ['audio/mpeg', 'audio/mp3', 'audio/aac', 'audio/mp4'];
+      let blob = null;
+      for (let i = 0; i < mimeTypes.length; i++) {
+        try { blob = new Blob([combinedData], { type: mimeTypes[i] }); break; } catch (e) { console.warn("[Audio] Combined Blob creation failed:", e); }
       }
       if (!blob) blob = new Blob([combinedData], { type: 'audio/mpeg' });
-      var blobUrl = URL.createObjectURL(blob);
+      const blobUrl = URL.createObjectURL(blob);
 
       if (!iosAudioElement) {
         iosAudioElement = new Audio();
@@ -368,7 +368,7 @@
           isIOSAudioPlaying = false;
           URL.revokeObjectURL(blobUrl);
           if (err.name === 'NotAllowedError') {
-            var tapAudioText = typeof getTranslation === 'function'
+            const tapAudioText = typeof getTranslation === 'function'
               ? getTranslation('ui.messages.tapToEnableIOSAudio', 'Tap to enable iOS audio')
               : 'Tap to enable iOS audio';
             if (typeof setAlert === 'function') {
@@ -385,17 +385,17 @@
   // ── PCM / WAV playback ─────────────────────────────────────────────
 
   function playPCMAudio(pcmData, sampleRate) {
-    var doPlayPCM = function() {
+    const doPlayPCM = function() {
       try {
-        var numSamples = pcmData.length / 2;
-        var audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
-        var channelData = audioBuffer.getChannelData(0);
-        for (var i = 0; i < numSamples; i++) {
-          var sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
-          var signedSample = sample < 0x8000 ? sample : sample - 0x10000;
+        const numSamples = pcmData.length / 2;
+        const audioBuffer = window.audioCtx.createBuffer(1, numSamples, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < numSamples; i++) {
+          const sample = (pcmData[i * 2] | (pcmData[i * 2 + 1] << 8));
+          const signedSample = sample < 0x8000 ? sample : sample - 0x10000;
           channelData[i] = signedSample / 32768.0;
         }
-        var source = window.audioCtx.createBufferSource();
+        const source = window.audioCtx.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(window.audioCtx.destination);
         window._currentPCMSource = source;
@@ -439,9 +439,9 @@
       else $("#monadic-spinner").hide();
 
       try {
-        var wavBlob = createWAVFromPCM(pcmData, sampleRate);
-        var blobUrl = URL.createObjectURL(wavBlob);
-        var fallbackAudio = new Audio(blobUrl);
+        const wavBlob = createWAVFromPCM(pcmData, sampleRate);
+        const blobUrl = URL.createObjectURL(wavBlob);
+        const fallbackAudio = new Audio(blobUrl);
         registerAudioElement(fallbackAudio);
         fallbackAudio.onended = function() {
           URL.revokeObjectURL(blobUrl);
@@ -467,17 +467,17 @@
   }
 
   function createWAVFromPCM(pcmData, sampleRate) {
-    var numChannels = 1;
-    var bitsPerSample = 16;
-    var byteRate = sampleRate * numChannels * bitsPerSample / 8;
-    var blockAlign = numChannels * bitsPerSample / 8;
-    var dataSize = pcmData.length;
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+    const dataSize = pcmData.length;
 
-    var buffer = new ArrayBuffer(44 + dataSize);
-    var view = new DataView(buffer);
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
 
-    var writeString = function(offset, string) {
-      for (var i = 0; i < string.length; i++) {
+    const writeString = function(offset, string) {
+      for (let i = 0; i < string.length; i++) {
         view.setUint8(offset + i, string.charCodeAt(i));
       }
     };
@@ -496,7 +496,7 @@
     writeString(36, 'data');
     view.setUint32(40, dataSize, true);
 
-    var dataArray = new Uint8Array(buffer, 44);
+    const dataArray = new Uint8Array(buffer, 44);
     dataArray.set(pcmData);
 
     return new Blob([buffer], { type: 'audio/wav' });
@@ -509,12 +509,12 @@
     if (!mediaSource || !sourceBuffer) return;
 
     if (mediaSource.readyState === 'open' && audioDataQueue.length > 0 && !sourceBuffer.updating) {
-      var data = audioDataQueue.shift();
+      const data = audioDataQueue.shift();
       try {
         sourceBuffer.appendBuffer(data);
-        var isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
-                            (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
-                            window._currentSegmentAudio;
+        const isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
+                              (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
+                              window._currentSegmentAudio;
         if (audio && audio.paused && audio.readyState >= 2 && !isQueueActive) {
           audio.play().catch(function() {});
         }
@@ -546,13 +546,13 @@
       } else {
         audioDataQueue.push(audioData);
         processAudioDataQueue();
-        var isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
-                            (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
-                            window._currentSegmentAudio;
+        const isQueueActive = (window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) ||
+                              (window.globalAudioQueue && window.globalAudioQueue.length > 0) ||
+                              window._currentSegmentAudio;
         if (audio && audio.paused && !isQueueActive) {
           audio.play().catch(function(err) {
             if (err.name === 'NotAllowedError') {
-              var clickAudioText = typeof getTranslation === 'function'
+              const clickAudioText = typeof getTranslation === 'function'
                 ? getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio')
                 : 'Click to enable audio';
               if (typeof setAlert === 'function') {
@@ -568,7 +568,7 @@
   }
 
   // ── Namespace export ───────────────────────────────────────────────
-  var ns = {
+  const ns = {
     registerAudioElement: registerAudioElement,
     stopAllActiveAudio: stopAllActiveAudio,
     initializeMediaSourceForAudio: initializeMediaSourceForAudio,

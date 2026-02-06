@@ -262,7 +262,7 @@ module GrokHelper
                 "name" => tc.dig("function", "name"),
                 "args" => begin
                   JSON.parse(tc.dig("function", "arguments") || "{}")
-                rescue
+                rescue JSON::ParserError
                   {}
                 end
               }

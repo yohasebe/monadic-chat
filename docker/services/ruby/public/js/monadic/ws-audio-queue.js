@@ -7,27 +7,27 @@
 (function() {
   "use strict";
 
-  var C = window.WsAudioConstants || {};
-  var Playback = window.WsAudioPlayback || {};
+  const C = window.WsAudioConstants || {};
+  const Playback = window.WsAudioPlayback || {};
 
   // ── Queue state ────────────────────────────────────────────────────
-  var globalAudioQueue = [];
-  var isProcessingAudioQueue = false;
-  var currentAudioSequenceId = null;
-  var currentSegmentAudio = null;
-  var currentPCMSource = null;
+  let globalAudioQueue = [];
+  let isProcessingAudioQueue = false;
+  let currentAudioSequenceId = null;
+  let currentSegmentAudio = null;
+  let currentPCMSource = null;
 
   // ── Sequence state ─────────────────────────────────────────────────
-  var nextExpectedSequence = 1;
-  var pendingAudioSegments = {};
-  var sequenceCheckTimer = null;
-  var sequenceRetryCount = 0;
-  var failedSequences = new Set();
+  let nextExpectedSequence = 1;
+  let pendingAudioSegments = {};
+  let sequenceCheckTimer = null;
+  let sequenceRetryCount = 0;
+  const failedSequences = new Set();
 
   // ── Response / TTS completion tracking ─────────────────────────────
-  var textResponseCompleted = false;
-  var ttsPlaybackStarted = false;
-  var lastAutoTtsMessageId = null;
+  let textResponseCompleted = false;
+  let ttsPlaybackStarted = false;
+  let lastAutoTtsMessageId = null;
 
   // Publish flags to window for ws-auto-speech.js checkAndHideSpinner
   window._textResponseCompleted = textResponseCompleted;
@@ -36,7 +36,7 @@
   // ── parseSequenceNumber ────────────────────────────────────────────
   function parseSequenceNumber(sequenceId) {
     if (!sequenceId || typeof sequenceId !== 'string') return null;
-    var match = sequenceId.match(/^seq(\d+)_/);
+    const match = sequenceId.match(/^seq(\d+)_/);
     if (match && match[1]) return parseInt(match[1], 10);
     return null;
   }
@@ -48,7 +48,7 @@
       return;
     }
 
-    var sequenceNum = parseSequenceNumber(sequenceId);
+    const sequenceNum = parseSequenceNumber(sequenceId);
 
     if (sequenceNum !== null) {
       pendingAudioSegments[sequenceNum] = {
@@ -81,19 +81,19 @@
   // ── processSequentialAudio ─────────────────────────────────────────
   function processSequentialAudio() {
     if (pendingAudioSegments[nextExpectedSequence]) {
-      var segment = pendingAudioSegments[nextExpectedSequence];
+      const segment = pendingAudioSegments[nextExpectedSequence];
       delete pendingAudioSegments[nextExpectedSequence];
 
       console.debug('[AudioQueue] Playing segment ' + nextExpectedSequence + ' in order');
       sequenceRetryCount = 0;
 
-      var isFirstSegment = nextExpectedSequence === 1;
+      const isFirstSegment = nextExpectedSequence === 1;
       if (isFirstSegment && globalAudioQueue.length === 0 && !isProcessingAudioQueue) {
         setTimeout(function() {
-          var $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
+          const $assistantCards = $('.role-assistant').closest('.card').not('#temp-card');
           if ($assistantCards.length > 0) {
-            var $latestCard = $assistantCards.last();
-            var cardId = $latestCard.attr('id');
+            const $latestCard = $assistantCards.last();
+            const cardId = $latestCard.attr('id');
             if (cardId && typeof window.highlightStopButton === 'function') {
               window.highlightStopButton(cardId);
             }
@@ -114,11 +114,11 @@
     } else {
       if (!sequenceCheckTimer) {
         sequenceCheckTimer = setTimeout(function() {
-          var pendingCount = Object.keys(pendingAudioSegments).length;
+          const pendingCount = Object.keys(pendingAudioSegments).length;
           sequenceRetryCount++;
 
           if (pendingCount > 0) {
-            var availableSequences = Object.keys(pendingAudioSegments)
+            const availableSequences = Object.keys(pendingAudioSegments)
               .map(function(k) { return parseInt(k, 10); })
               .sort(function(a, b) { return a - b; });
 
@@ -150,7 +150,7 @@
   // ── processGlobalAudioQueue ────────────────────────────────────────
   function processGlobalAudioQueue() {
     if (globalAudioQueue.length === 0) {
-      var pendingCount = Object.keys(pendingAudioSegments).length;
+      const pendingCount = Object.keys(pendingAudioSegments).length;
       if (pendingCount > 0) {
         isProcessingAudioQueue = false;
         processSequentialAudio();
@@ -180,7 +180,7 @@
     }
 
     isProcessingAudioQueue = true;
-    var audioItem = globalAudioQueue.shift();
+    const audioItem = globalAudioQueue.shift();
     currentAudioSequenceId = audioItem.sequenceId;
 
     if (window.isIOS || window.basicAudioMode) {
@@ -193,9 +193,9 @@
   // ── playAudioFromQueue ─────────────────────────────────────────────
   function playAudioFromQueue(audioItem) {
     try {
-      var audioData = audioItem.data || audioItem;
-      var mimeType = audioItem.mimeType;
-      var sequenceNum = audioItem.sequenceNum;
+      const audioData = audioItem.data || audioItem;
+      const mimeType = audioItem.mimeType;
+      const sequenceNum = audioItem.sequenceNum;
 
       if (!audioData || (audioData.length !== undefined && audioData.length === 0)) {
         console.warn('[AudioQueue] Skipping empty audio data for seq' + sequenceNum);
@@ -204,7 +204,7 @@
         return;
       }
 
-      var handleAudioError = function(errorMsg) {
+      const handleAudioError = function(errorMsg) {
         console.error(errorMsg);
         if (sequenceNum !== null && sequenceNum !== undefined) {
           failedSequences.add(sequenceNum);
@@ -217,8 +217,8 @@
 
       // PCM audio from Gemini
       if (mimeType && mimeType.includes("audio/L16")) {
-        var mimeMatch = mimeType.match(/rate=(\d+)/);
-        var sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
+        const mimeMatch = mimeType.match(/rate=(\d+)/);
+        const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
         window.ttsPlaybackCallback = function() {
           isProcessingAudioQueue = false;
           processGlobalAudioQueue();
@@ -230,9 +230,9 @@
       }
 
       // Standard blob playback
-      var blob = new Blob([audioData], { type: mimeType || 'audio/mpeg' });
-      var audioUrl = URL.createObjectURL(blob);
-      var segmentAudio = new Audio();
+      const blob = new Blob([audioData], { type: mimeType || 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(blob);
+      const segmentAudio = new Audio();
       if (typeof Playback.registerAudioElement === 'function') {
         Playback.registerAudioElement(segmentAudio);
       }
@@ -256,8 +256,8 @@
           processGlobalAudioQueue();
           return;
         }
-        var errorDetail = e.target && e.target.error ? e.target.error : e;
-        var errorMessage = (errorDetail && (errorDetail.message || errorDetail.code)) || 'Unknown error';
+        const errorDetail = e.target && e.target.error ? e.target.error : e;
+        const errorMessage = (errorDetail && (errorDetail.message || errorDetail.code)) || 'Unknown error';
         handleAudioError('Segment audio error for seq' + sequenceNum + ': ' + errorMessage);
       };
 
@@ -296,8 +296,8 @@
   // ── iOS queue playback ─────────────────────────────────────────────
   function playAudioForIOSFromQueue(audioData) {
     try {
-      var pb = window.WsAudioPlayback || {};
-      var buf = pb.getIosAudioBuffer ? pb.getIosAudioBuffer() : [];
+      const pb = window.WsAudioPlayback || {};
+      const buf = pb.getIosAudioBuffer ? pb.getIosAudioBuffer() : [];
       buf.push(audioData);
       if (pb.setIosAudioBuffer) pb.setIosAudioBuffer(buf);
       if (!(pb.getIsIOSAudioPlaying && pb.getIsIOSAudioPlaying())) {
@@ -309,8 +309,8 @@
   }
 
   function processIOSAudioBufferWithQueue() {
-    var pb = window.WsAudioPlayback || {};
-    var buf = pb.getIosAudioBuffer ? pb.getIosAudioBuffer() : [];
+    const pb = window.WsAudioPlayback || {};
+    const buf = pb.getIosAudioBuffer ? pb.getIosAudioBuffer() : [];
     if (buf.length === 0) {
       if (pb.setIsIOSAudioPlaying) pb.setIsIOSAudioPlaying(false);
       setTimeout(function() { processGlobalAudioQueue(); }, C.AUDIO_QUEUE_DELAY);
@@ -319,17 +319,17 @@
     if (pb.setIsIOSAudioPlaying) pb.setIsIOSAudioPlaying(true);
 
     try {
-      var totalLength = 0;
+      let totalLength = 0;
       buf.forEach(function(chunk) { totalLength += chunk.length; });
-      var combinedData = new Uint8Array(totalLength);
-      var offset = 0;
+      const combinedData = new Uint8Array(totalLength);
+      let offset = 0;
       buf.forEach(function(chunk) { combinedData.set(chunk, offset); offset += chunk.length; });
       if (pb.setIosAudioBuffer) pb.setIosAudioBuffer([]);
 
-      var blob = new Blob([combinedData], { type: 'audio/mpeg' });
-      var blobUrl = URL.createObjectURL(blob);
+      const blob = new Blob([combinedData], { type: 'audio/mpeg' });
+      const blobUrl = URL.createObjectURL(blob);
 
-      var iosEl = pb.getIosAudioElement ? pb.getIosAudioElement() : null;
+      let iosEl = pb.getIosAudioElement ? pb.getIosAudioElement() : null;
       if (!iosEl) {
         iosEl = new Audio();
         if (typeof Playback.registerAudioElement === 'function') {
@@ -402,7 +402,7 @@
     }
     window._currentPCMSource = null;
 
-    var pb = window.WsAudioPlayback || {};
+    const pb = window.WsAudioPlayback || {};
     if (pb.setIosAudioBuffer) pb.setIosAudioBuffer([]);
     if (pb.setIsIOSAudioPlaying) pb.setIsIOSAudioPlaying(false);
     if (pb.setAudioDataQueue) pb.setAudioDataQueue([]);
@@ -469,7 +469,7 @@
   }
 
   // ── Namespace export ───────────────────────────────────────────────
-  var ns = {
+  const ns = {
     addToAudioQueue: addToAudioQueue,
     processSequentialAudio: processSequentialAudio,
     processGlobalAudioQueue: processGlobalAudioQueue,

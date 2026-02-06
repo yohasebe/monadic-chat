@@ -588,7 +588,7 @@ module DeepSeekHelper
         # Check for [DONE] message
         begin
           break if /\Rdata: \[DONE\]\R/ =~ buffer
-        rescue
+        rescue StandardError
           next
         end
 

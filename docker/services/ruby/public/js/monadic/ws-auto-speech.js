@@ -7,13 +7,17 @@
 (function() {
   "use strict";
 
+  // ── Timing constants from ws-audio-constants.js ────────────────────
+  const TTS_SPINNER_RECHECK_MS = (window.WsAudioConstants || {}).TTS_SPINNER_RECHECK_MS || 5000;
+  const TTS_SPINNER_TIMEOUT_MS = (window.WsAudioConstants || {}).TTS_SPINNER_TIMEOUT_MS || 12000;
+
   // ── Auto-speech suppression state ──────────────────────────────────
-  var autoSpeechSuppressionReasons = new Set();
-  var autoSpeechSuppressed = false;
+  const autoSpeechSuppressionReasons = new Set();
+  let autoSpeechSuppressed = false;
 
   function resetAutoSpeechSpinner() {
     if (typeof $ === 'undefined') return;
-    var $spinner = $("#monadic-spinner");
+    const $spinner = $("#monadic-spinner");
     $spinner.hide();
     $spinner.find("span i")
       .removeClass("fa-headphones")
@@ -27,12 +31,12 @@
   function showTtsNotice(content) {
     if (typeof $ === 'undefined' || typeof bootstrap === 'undefined') return;
 
-    var toastEl = document.getElementById('tts-toast');
-    var toastBody = document.getElementById('tts-toast-body');
+    const toastEl = document.getElementById('tts-toast');
+    const toastBody = document.getElementById('tts-toast-body');
     if (!toastEl || !toastBody) return;
 
-    var message = '';
-    var details = '';
+    let message = '';
+    let details = '';
 
     if (content.notice_type === 'partial') {
       if (typeof webUIi18n !== 'undefined') {
@@ -64,21 +68,21 @@
         : '(Use Stop button to cancel)';
     }
 
-    var html = '<p class="mb-1">' + message + '</p>';
+    let html = '<p class="mb-1">' + message + '</p>';
     if (details) {
       html += '<small class="text-muted">' + details + '</small>';
     }
     toastBody.innerHTML = html;
 
-    var toast = new bootstrap.Toast(toastEl);
+    const toast = new bootstrap.Toast(toastEl);
     toast.show();
   }
 
   function hideTtsToast() {
-    var toastEl = document.getElementById('tts-toast');
+    const toastEl = document.getElementById('tts-toast');
     if (!toastEl || typeof bootstrap === 'undefined') return;
 
-    var toast = bootstrap.Toast.getInstance(toastEl);
+    const toast = bootstrap.Toast.getInstance(toastEl);
     if (toast) {
       toast.hide();
     }
@@ -93,8 +97,8 @@
 
   function setAutoSpeechSuppressed(value, options) {
     options = options || {};
-    var reason = options.reason || 'general';
-    var wasSuppressed = autoSpeechSuppressed;
+    const reason = options.reason || 'general';
+    const wasSuppressed = autoSpeechSuppressed;
 
     if (value) {
       autoSpeechSuppressionReasons.add(reason);
@@ -156,13 +160,13 @@
   // ── Stop-button highlighting ───────────────────────────────────────
 
   // currentTTSCardId is shared mutable state
-  var currentTTSCardId = null;
+  let currentTTSCardId = null;
 
   function highlightStopButton(cardId) {
     if (cardId) {
-      var $card = $('#' + cardId);
+      const $card = $('#' + cardId);
       if ($card.length) {
-        var $stopButton = $card.find('.func-stop');
+        const $stopButton = $card.find('.func-stop');
         $stopButton.addClass('tts-active');
         currentTTSCardId = cardId;
       }
@@ -170,11 +174,11 @@
   }
 
   function removeStopButtonHighlight(cardId) {
-    var targetCardId = cardId || currentTTSCardId;
+    const targetCardId = cardId || currentTTSCardId;
     if (targetCardId) {
-      var $card = $('#' + targetCardId);
+      const $card = $('#' + targetCardId);
       if ($card.length) {
-        var $stopButton = $card.find('.func-stop');
+        const $stopButton = $card.find('.func-stop');
         $stopButton.removeClass('tts-active');
       }
     }
@@ -184,9 +188,9 @@
   // ── Spinner helpers ────────────────────────────────────────────────
 
   function checkAndHideSpinner() {
-    var inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
+    const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
 
-    var stillProcessing = window.streamingResponse === true || window.callingFunction === true ||
+    const stillProcessing = window.streamingResponse === true || window.callingFunction === true ||
       (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
 
     if (!inForeground) {
@@ -197,18 +201,18 @@
       return;
     }
 
-    var messageCount = (window.messages && window.messages.length) || 0;
+    const messageCount = (window.messages && window.messages.length) || 0;
     if (messageCount === 0) {
       $("#monadic-spinner").hide();
       return;
     }
 
-    var paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-    var checkboxEnabled = $("#check-auto-speech").is(":checked");
-    var autoSpeechActiveFlag = window.autoSpeechActive === true;
-    var autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActiveFlag;
-    var reasoningActive = typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive();
-    var streamingActive = window.streamingResponse === true;
+    const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
+    const checkboxEnabled = $("#check-auto-speech").is(":checked");
+    const autoSpeechActiveFlag = window.autoSpeechActive === true;
+    const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActiveFlag;
+    const reasoningActive = typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive();
+    const streamingActive = window.streamingResponse === true;
 
     if (reasoningActive || streamingActive) {
       ensureThinkingSpinnerVisible();
@@ -243,7 +247,7 @@
   // ── Thinking spinner ───────────────────────────────────────────────
 
   function ensureThinkingSpinnerVisible() {
-    var thinkingText = typeof webUIi18n !== 'undefined'
+    const thinkingText = typeof webUIi18n !== 'undefined'
       ? webUIi18n.t('ui.messages.spinnerThinking')
       : 'Thinking...';
     $("#monadic-spinner")
@@ -258,9 +262,9 @@
     if (window.autoTTSSpinnerTimeout) {
       clearTimeout(window.autoTTSSpinnerTimeout);
     }
-    var evaluateTimeout = function() {
+    const evaluateTimeout = function() {
       if ((window.isReasoningStreamActive && window.isReasoningStreamActive()) || window.streamingResponse) {
-        window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, 5000);
+        window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, TTS_SPINNER_RECHECK_MS);
         return;
       }
       if ($("#monadic-spinner").is(":visible")) {
@@ -278,7 +282,7 @@
       }
       window.autoTTSSpinnerTimeout = null;
     };
-    window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, 12000);
+    window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, TTS_SPINNER_TIMEOUT_MS);
   }
 
   // Deferred initial suppression check
@@ -294,7 +298,7 @@
   }
 
   // ── Namespace export ───────────────────────────────────────────────
-  var ns = {
+  const ns = {
     resetAutoSpeechSpinner: resetAutoSpeechSpinner,
     showTtsNotice: showTtsNotice,
     hideTtsToast: hideTtsToast,

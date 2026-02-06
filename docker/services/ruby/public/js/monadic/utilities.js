@@ -1209,7 +1209,7 @@ function setParams() {
       else if (looksDeepseek) provider = 'DeepSeek';
       else if (looksPerplexity) provider = 'Perplexity';
       // Otherwise keep provider as-is (OpenAI or app group-derived)
-    } catch (_) {}
+    } catch (_) { console.warn("[ReasoningProvider] Provider detection failed:", _); }
     
     if (window.ReasoningMapper) {
       // Map UI value to provider-specific parameter

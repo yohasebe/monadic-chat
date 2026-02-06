@@ -1,6 +1,10 @@
 # Add required utilities
 require_relative 'utils/fa_icons'
-require_relative 'utils/mdsl_validator' rescue nil
+begin
+  require_relative 'utils/mdsl_validator'
+rescue LoadError
+  # mdsl_validator is optional
+end
 require_relative 'utils/provider_model_cache'
 require_relative 'shared_tools/registry'
 require_relative 'shared_tools/file_operations'
@@ -199,7 +203,7 @@ module MonadicDSL
 
     def bind(&block)
       Result.new(block.call(self))
-    rescue => e
+    rescue StandardError => e
       Result.new(nil, e)
     end
     

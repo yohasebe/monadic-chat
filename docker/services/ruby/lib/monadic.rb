@@ -108,7 +108,7 @@ get "/api/ai_user_defaults" do
       result[p] = { has_key: has_key, default_model: default_model }
     end
     { success: true, defaults: result }.to_json
-  rescue => e
+  rescue StandardError => e
     status 500
     { success: false, error: e.message }.to_json
   end
@@ -804,7 +804,7 @@ def check_ollama_available
     # Check if Ollama container exists
     ollama_exists = `docker ps -a --format "{{.Names}}" 2>/dev/null`.include?("monadic-chat-ollama-container")
     return ollama_exists
-  rescue => e
+  rescue StandardError => e
     # If any error occurs, assume Ollama is not available
     return false
   end

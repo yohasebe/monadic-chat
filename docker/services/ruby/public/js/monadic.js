@@ -714,7 +714,7 @@ $(function () {
           tries += 1;
           if (setAiUserBadge() || tries >= 10) {
             clearInterval(tick);
-            try { observer.disconnect(); } catch(_) {}
+            try { observer.disconnect(); } catch(_) { console.warn("[MutationObserver] Disconnect failed:", _); }
           }
         }, 300);
       } catch (e) {
@@ -1621,7 +1621,7 @@ $(function () {
       if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
         window.SessionState.clearMessages();
       } else {
-        try { window.messages = []; } catch (_) {}
+        try { window.messages = []; } catch (_) { console.warn("[Session] Failed to clear messages:", _); }
       }
 
       // Clear images and mask data from previous app
@@ -1675,7 +1675,7 @@ $(function () {
     if (window.SessionState && typeof window.SessionState.clearMessages === 'function') {
       window.SessionState.clearMessages();
     } else {
-      try { window.messages = []; } catch (_) {}
+      try { window.messages = []; } catch (_) { console.warn("[Session] Failed to clear messages on reset:", _); }
     }
 
     // Clear images and mask data from previous app
@@ -1735,7 +1735,7 @@ $(function () {
         const sys = hasApp ? !!apps[appValue]["system_prompt"] : null;
         window.logTL('proceedWithAppChange_enter', { appValue, hasApp, hasSystemPrompt: sys });
       }
-    } catch (_) {}
+    } catch (_) { console.warn("[AppChange] Timeline logging failed:", _); }
     // Ensure params is initialized
     if (typeof params === 'undefined') {
       window.params = {};
@@ -2964,13 +2964,13 @@ $(function () {
         $("#storage-cloud").prop('disabled', false);
         $("#storage-local").prop('checked', true);
       });
-    } catch (_) {}
+    } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
 
     // Set a friendly placeholder for file title
     try {
       const ph = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.fileTitlePlaceholder') : 'File name will be used if not provided';
       $("#file-title").attr('placeholder', ph);
-    } catch (_) {}
+    } catch (_) { console.warn("[PDF Modal] Placeholder setup failed:", _); }
   });
 
   let fileTitle = "";
@@ -3184,7 +3184,7 @@ $(function () {
         $("#cloud-pdf-meta").text(vs ? `Vector Store ID: ${vs}` : '');
         // Do not show VS in header to avoid confusion
         // Leave #cloud-pdf-info handling to status refresher
-      } catch (_) {}
+      } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
       const files = res.files || [];
       if (files.length === 0) {
         $list.html('<span class="text-secondary">(none)</span>');

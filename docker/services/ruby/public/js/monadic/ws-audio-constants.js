@@ -32,6 +32,19 @@
   var maxReconnectAttempts = 5;
   var baseReconnectDelay = 1000;
 
+  // ── WebSocket timing constants ────────────────────────────────────
+  var PING_INTERVAL_MS = 30000;
+  var TOKEN_VERIFY_TIMEOUT_MS = 30000;
+  var VERIFY_CHECK_INTERVAL_MS = 1000;
+  var RESPONSE_TIMEOUT_MS = 30000;
+  var RESPONSE_TIMEOUT_SLOW_MS = 60000;
+  var BUSY_CHECK_INTERVAL_MS = 500;
+  var BUSY_CHECK_MAX_WAIT_MS = 10000;
+
+  // ── Auto-speech timing constants ──────────────────────────────────
+  var TTS_SPINNER_RECHECK_MS = 5000;
+  var TTS_SPINNER_TIMEOUT_MS = 12000;
+
   // ── Namespace export ───────────────────────────────────────────────
   var ns = {
     isIOS: isIOS,
@@ -48,7 +61,16 @@
     SEQUENCE_TIMEOUT_MS: SEQUENCE_TIMEOUT_MS,
     MAX_SEQUENCE_RETRIES: MAX_SEQUENCE_RETRIES,
     maxReconnectAttempts: maxReconnectAttempts,
-    baseReconnectDelay: baseReconnectDelay
+    baseReconnectDelay: baseReconnectDelay,
+    PING_INTERVAL_MS: PING_INTERVAL_MS,
+    TOKEN_VERIFY_TIMEOUT_MS: TOKEN_VERIFY_TIMEOUT_MS,
+    VERIFY_CHECK_INTERVAL_MS: VERIFY_CHECK_INTERVAL_MS,
+    RESPONSE_TIMEOUT_MS: RESPONSE_TIMEOUT_MS,
+    RESPONSE_TIMEOUT_SLOW_MS: RESPONSE_TIMEOUT_SLOW_MS,
+    BUSY_CHECK_INTERVAL_MS: BUSY_CHECK_INTERVAL_MS,
+    BUSY_CHECK_MAX_WAIT_MS: BUSY_CHECK_MAX_WAIT_MS,
+    TTS_SPINNER_RECHECK_MS: TTS_SPINNER_RECHECK_MS,
+    TTS_SPINNER_TIMEOUT_MS: TTS_SPINNER_TIMEOUT_MS
   };
 
   window.WsAudioConstants = ns;

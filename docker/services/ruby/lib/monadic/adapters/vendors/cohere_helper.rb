@@ -466,7 +466,7 @@ module CohereHelper
               "args" => begin
                 args = tc.dig("function", "arguments") || tc["parameters"] || "{}"
                 args.is_a?(String) ? JSON.parse(args) : args
-              rescue
+              rescue JSON::ParserError
                 {}
               end
             }

@@ -1532,7 +1532,7 @@ function initializeApp() {
                   try {
                     window.silentReconnectMode = true;
                     document.cookie = 'silent_reconnect=true; path=/';
-                  } catch(_) {}
+                  } catch(_) { console.warn("[Main] Silent reconnect setup failed:", _); }
                 `);
               }
             } catch (e) {
@@ -2474,7 +2474,7 @@ function openInstallOptionsWindow() {
             console.warn('[Main] Forcing close of Install Options (renderer unresponsive)');
             installOptionsWindow.destroy();
           }
-        } catch (_) {}
+        } catch (_) { console.warn("[Main] Install options cleanup failed:", _); }
       }, 3000);
     }
   });
@@ -2938,7 +2938,7 @@ function openSettingsWindow() {
             console.warn('[Main] Forcing hide of Settings (renderer unresponsive)');
             settingsWindow.hide();
           }
-        } catch (_) {}
+        } catch (_) { console.warn("[Main] Settings window operation failed:", _); }
       }, 3000);
     });
   }

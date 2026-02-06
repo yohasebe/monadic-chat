@@ -17,7 +17,7 @@ try {
   if (document.cookie && document.cookie.includes('silent_reconnect=true')) {
     window.silentReconnectMode = true;
   }
-} catch (_) {}
+} catch (_) { console.warn("[WebSocket] Silent reconnect cookie check failed:", _); }
 
 // Note: WebSocket connection will be established after ensureMonadicTabId() is defined
 // See bottom of this file for actual connection initialization
@@ -66,30 +66,20 @@ if (!window.logTL) {
       if (window._timeline.length > MAX_TIMELINE) {
         window._timeline = window._timeline.slice(-MAX_TIMELINE);
       }
-    } catch (_) {}
+    } catch (_) { console.warn("[WebSocket] Timeline logging failed:", _); }
   };
 }
 
 // OpenAI API token verification
 let verified = null;
 
-// iOS audio state, handler refs, and audio elements now in ws-audio-playback.js
-
-// Global audio queue for managing TTS playback order — now in ws-audio-queue.js
-
-// Message rendering helpers now in ws-content-renderer.js
 const { getMessageAppName, getMessageMonadicFlag, renderMessage } = window.WsContentRenderer || {};
-
-// activeAudioElements, registerAudioElement, stopAllActiveAudio now in ws-audio-playback.js
 const { registerAudioElement, stopAllActiveAudio } = window.WsAudioPlayback || {};
-
-// Audio queue state exports now in ws-audio-queue.js
 
 if (typeof window.suppressParamBroadcastCount === 'undefined') {
   window.suppressParamBroadcastCount = 0;
 }
 
-// Sequence state, completion tracking, and setters now in ws-audio-queue.js
 
 // Auto-speech suppression, TTS toast, foreground detection now in ws-auto-speech.js
 const { setAutoSpeechSuppressed, isAutoSpeechSuppressed, isForegroundTab,
@@ -97,9 +87,18 @@ const { setAutoSpeechSuppressed, isAutoSpeechSuppressed, isForegroundTab,
         ensureThinkingSpinnerVisible, scheduleAutoTtsSpinnerTimeout
       } = window.WsAutoSpeech || {};
 
-// Audio queue processing delays - from ws-audio-constants.js
+// Constants from ws-audio-constants.js
 const AUDIO_QUEUE_DELAY = (window.WsAudioConstants || {}).AUDIO_QUEUE_DELAY || 20;
 const AUDIO_ERROR_DELAY = (window.WsAudioConstants || {}).AUDIO_ERROR_DELAY || 50;
+
+// WebSocket timing constants - from ws-audio-constants.js
+const PING_INTERVAL_MS = (window.WsAudioConstants || {}).PING_INTERVAL_MS || 30000;
+const TOKEN_VERIFY_TIMEOUT_MS = (window.WsAudioConstants || {}).TOKEN_VERIFY_TIMEOUT_MS || 30000;
+const VERIFY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).VERIFY_CHECK_INTERVAL_MS || 1000;
+const RESPONSE_TIMEOUT_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_MS || 30000;
+const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_SLOW_MS || 60000;
+const BUSY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).BUSY_CHECK_INTERVAL_MS || 500;
+const BUSY_CHECK_MAX_WAIT_MS = (window.WsAudioConstants || {}).BUSY_CHECK_MAX_WAIT_MS || 10000;
 
 // Stop-button highlighting, checkAndHideSpinner now in ws-auto-speech.js
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};
@@ -139,17 +138,7 @@ document.addEventListener("keydown", function (event) {
   }
 });
 
-// No longer handling Enter key in textarea - allow normal line break behavior
-message.addEventListener("keydown", function (event) {
-  // Enter key behavior in textarea is left to default (line break)
-});
-
-// setCopyCodeButton now in ws-content-renderer.js
 const setCopyCodeButton = window.setCopyCodeButton;
-
-// (reverted) removed OpenAI PDF manager refresh hook on model change
-
-// Note: Visibility change handler is defined later in the file
 
 //////////////////////////////
 // WebSocket event handlers
@@ -158,13 +147,7 @@ const setCopyCodeButton = window.setCopyCodeButton;
 // In browser environments, wsHandlers is defined globally in websocket-handlers.js
 let wsHandlers = window.wsHandlers;
 
-// apps is now declared at the top of the file to avoid TDZ errors
-// Use global variables which are proxied to SessionState
-// let messages = []; // Removed - using global messages instead
-// let originalParams = {}; // Removed - using global originalParams instead
-// let params = {} // Removed - using global params instead
-
-let reconnectDelay = 1000;
+let reconnectDelay = (window.WsAudioConstants || {}).baseReconnectDelay || 1000;
 
 let pingInterval;
 
@@ -180,7 +163,7 @@ function startPing() {
       // If the websocket is no longer open, stop pinging
       stopPing();
     }
-  }, 30000);
+  }, PING_INTERVAL_MS);
 }
 
 function stopPing() {
@@ -737,7 +720,7 @@ let loadedApp = "Chat";
 
         clearInterval(verificationCheckTimer);
       }
-    }, 30000); // 30 seconds timeout
+    }, TOKEN_VERIFY_TIMEOUT_MS);
 
     // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
@@ -755,7 +738,7 @@ let loadedApp = "Chat";
         clearInterval(verificationCheckTimer);
         clearTimeout(verificationTimeout); // Clear timeout when verification succeeds
       }
-    }, 1000);
+    }, VERIFY_CHECK_INTERVAL_MS);
   }
 
   function updateAppAndModelSelection(parameters) {
@@ -840,7 +823,7 @@ let loadedApp = "Chat";
           $hr.after($wrap);
         }
       }
-    } catch (_) {}
+    } catch (_) { console.warn("[WebSocket] Reasoning block rendering failed:", _); }
   }
 
   // Helper function to display an error message
@@ -857,7 +840,7 @@ let loadedApp = "Chat";
     // Use longer timeout for providers known to have slower initial responses
     const currentProvider = window.currentLLMProvider || '';
     const isSlowProvider = ['deepseek', 'perplexity'].includes(currentProvider.toLowerCase());
-    const timeoutDuration = isSlowProvider ? 60000 : 30000; // 60s for slow providers, 30s for others
+    const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {
       if ($("#user-panel").is(":visible") && $("#send").prop("disabled")) {
@@ -1906,7 +1889,7 @@ let loadedApp = "Chat";
             window.logTL && window.logTL('apps_cached_to_global', { keys: Object.keys(apps).length });
 
             // No need to log imported_tool_groups in production; keep data available in apps object
-          } catch (_) {}
+          } catch (_) { console.warn("[WebSocket] App caching failed:", _); }
 
           // Prepare arrays for app classification
           let regularApps = [];
@@ -4099,14 +4082,14 @@ let loadedApp = "Chat";
                 const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
                 setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
               }
-            }, 500); // Check every 500ms
+            }, BUSY_CHECK_INTERVAL_MS);
 
             // Safety timeout to prevent infinite checking
             setTimeout(function() {
               clearInterval(checkInterval);
               const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
               setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }, 10000); // Maximum wait of 10 seconds
+            }, BUSY_CHECK_MAX_WAIT_MS);
           }
 
           // Always ensure UI elements are enabled
@@ -4273,7 +4256,7 @@ let loadedApp = "Chat";
       const stoppedText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.stopped') : 'Stopped';
       setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
       // Do not attempt reconnection in silent mode
-      try { stopPing(); } catch(_) {}
+      try { stopPing(); } catch(_) { console.warn("[WebSocket] Ping stop failed:", _); }
       return;
     } else {
       const lostText = getTranslation('ui.messages.connectionLost', 'Connection lost');
@@ -4323,7 +4306,7 @@ function reconnect_websocket(currentWs, callback) {
     if (window.silentReconnectMode || (document.cookie && document.cookie.includes('silent_reconnect=true'))) {
       return;
     }
-  } catch (_) {}
+  } catch (_) { console.warn("[WebSocket] Silent reconnect check failed:", _); }
   // Prevent multiple reconnection attempts for the same WebSocket
   if (currentWs && currentWs._isReconnecting) {
     if (window.debugWebSocket) console.log("Already attempting to reconnect, skipping duplicate attempt");
@@ -4463,7 +4446,7 @@ function reconnect_websocket(currentWs, callback) {
         try {
           window.silentReconnectMode = false;
           document.cookie = 'silent_reconnect=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        } catch(_) {}
+        } catch(_) { console.warn("[WebSocket] Silent reconnect cleanup failed:", _); }
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
 
         // Execute callback if provided
@@ -4638,7 +4621,7 @@ function handleVisibilityChange() {
                 : "<i class='fa-solid fa-circle-check'></i> Connected";
 
               setAlert(successMessage, "info");
-              try { window.silentReconnectMode = false; } catch(_) {}
+              try { window.silentReconnectMode = false; } catch(_) { console.warn("[WebSocket] Silent mode reset failed:", _); }
             }
           });
           break;
@@ -4693,18 +4676,18 @@ window.addEventListener('beforeunload', function() {
   if (window.firefoxAudioQueue) window.firefoxAudioQueue = [];
 
   // Release MediaSource/SourceBuffer/Audio via playback module
-  var pb = window.WsAudioPlayback || {};
-  var sb = pb.getSourceBuffer ? pb.getSourceBuffer() : null;
-  var ms = pb.getMediaSource ? pb.getMediaSource() : null;
-  var aud = pb.getAudio ? pb.getAudio() : null;
-  var ac = pb.getAudioContext ? pb.getAudioContext() : null;
+  const pb = window.WsAudioPlayback || {};
+  const sb = pb.getSourceBuffer ? pb.getSourceBuffer() : null;
+  const ms = pb.getMediaSource ? pb.getMediaSource() : null;
+  const aud = pb.getAudio ? pb.getAudio() : null;
+  const ac = pb.getAudioContext ? pb.getAudioContext() : null;
 
-  if (sb) { try { if (sb.updating) sb.abort(); } catch (e) {} }
-  if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch (e) {} }
+  if (sb) { try { if (sb.updating) sb.abort(); } catch (e) { console.warn("[Audio] SourceBuffer abort failed:", e); } }
+  if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch (e) { console.warn("[Audio] MediaSource.endOfStream failed:", e); } }
   if (aud) { aud.pause(); aud.src = ''; aud.load(); }
-  if (ac && ac.state !== 'closed') { ac.close().catch(function() {}); }
+  if (ac && ac.state !== 'closed') { ac.close().catch(function(e) { console.warn("[Audio] AudioContext close failed:", e); }); }
   if (window.audioCtx && window.audioCtx.state !== 'closed') {
-    window.audioCtx.close().catch(function() {});
+    window.audioCtx.close().catch(function(e) { console.warn("[Audio] Global AudioContext close failed:", e); });
   }
 
   closeCurrentWebSocket();
@@ -4718,14 +4701,13 @@ window.handleVisibilityChange = handleVisibilityChange;
 window.startPing = startPing;
 window.stopPing = stopPing;
 
-// Audio exports now in ws-audio-playback.js and ws-audio-queue.js
 
 // Support for Jest testing environment (CommonJS)
 // Re-export from extracted modules for backward compatibility
 if (typeof module !== 'undefined' && module.exports) {
-  var _pb = (typeof window !== 'undefined' && window.WsAudioPlayback) || {};
-  var _q = (typeof window !== 'undefined' && window.WsAudioQueue) || {};
-  var _ui = (typeof window !== 'undefined' && window.WsUiHelpers) || {};
+  const _pb = (typeof window !== 'undefined' && window.WsAudioPlayback) || {};
+  const _q = (typeof window !== 'undefined' && window.WsAudioQueue) || {};
+  const _ui = (typeof window !== 'undefined' && window.WsUiHelpers) || {};
   module.exports = {
     connect_websocket,
     reconnect_websocket,

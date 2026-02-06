@@ -86,7 +86,7 @@ class MonadicApp
         puts "[MonadicApp] WARNING: Failed to connect to Python service in client mode. Some token-related features may not work."
       end
     end
-  rescue => e
+  rescue StandardError => e
     puts "[MonadicApp] Error initializing tokenizer: #{e.message}"
     TOKENIZER = nil
   end

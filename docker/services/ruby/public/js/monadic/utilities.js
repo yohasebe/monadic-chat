@@ -1450,6 +1450,21 @@ function doResetActions(resetToDefaultApp = false) {
       // Call proceedWithAppChange to properly initialize the app
       window.proceedWithAppChange(currentAppVal);
     }
+
+    // Ensure app-specific flags (like initiate_from_assistant) are restored
+    // proceedWithAppChange may be delayed by isLoadingParams, so explicitly
+    // restore the checkbox state after a sufficient delay
+    if (currentAppVal && window.apps && window.apps[currentAppVal]) {
+      setTimeout(function() {
+        var appData = window.apps[currentAppVal];
+        if (appData && appData["initiate_from_assistant"]) {
+          $("#initiate-from-assistant").prop('checked', true);
+        }
+        if (appData && appData["auto_speech"]) {
+          $("#check-auto-speech").prop('checked', true);
+        }
+      }, 800);
+    }
   }, 300);
 
   const model = $("#model").val();

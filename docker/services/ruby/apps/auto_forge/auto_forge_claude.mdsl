@@ -15,7 +15,7 @@ app "AutoForgeClaude" do
 
   llm do
     provider "anthropic"
-    model "claude-opus-4-5-20251101"
+    model "claude-opus-4-6"
   end
 
   features do

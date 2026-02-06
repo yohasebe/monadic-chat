@@ -64,7 +64,7 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
     },
     'cohere' => {
       api_key_env: 'COHERE_API_KEY',
-      model: 'command-a-03-2025',
+      model: 'command-a-reasoning-08-2025',
       description: 'Cohere Command'
     },
     'deepseek' => {
@@ -238,7 +238,7 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
           user_query: "What programming language should I learn first?",
           agent_response: "Python is a great first programming language due to its simple syntax.",
           provider: "cohere",
-          model: "command-a-03-2025"
+          model: "command-a-reasoning-08-2025"
         )
 
         # Cohere had very low default max_tokens (300), this test ensures fix works

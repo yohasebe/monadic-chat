@@ -55,7 +55,6 @@ module PerplexityHelper
   def self.list_models
     ["sonar",
      "sonar-pro",
-     "sonar-reasoning",
      "sonar-reasoning-pro",
      "sonar-deep-research"
     ]

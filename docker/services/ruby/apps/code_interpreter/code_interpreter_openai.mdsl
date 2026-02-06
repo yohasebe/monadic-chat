@@ -41,7 +41,7 @@ app "CodeInterpreterOpenAI" do
     presence_penalty 0.2
 
     agents do
-      code_generator model: "gpt-5.1-codex"
+      code_generator model: "gpt-5.2-codex"
     end
   end
 

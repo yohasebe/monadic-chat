@@ -4859,6 +4859,7 @@ let loadedApp = "Chat";
           $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
           $("#elevenlabs-v3-provider-option").prop("disabled", false);
           // set ElevenLabs STT options enabled
+          $("#elevenlabs-stt-scribe-v2").prop("disabled", false);
           $("#elevenlabs-stt-scribe").prop("disabled", false);
           $("#elevenlabs-stt-scribe-experimental").prop("disabled", false);
           // Do not set ElevenLabs as default - prefer openai-tts-4o
@@ -4868,6 +4869,7 @@ let loadedApp = "Chat";
           $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
           $("#elevenlabs-v3-provider-option").prop("disabled", true);
           // set ElevenLabs STT options disabled
+          $("#elevenlabs-stt-scribe-v2").prop("disabled", true);
           $("#elevenlabs-stt-scribe").prop("disabled", true);
           $("#elevenlabs-stt-scribe-experimental").prop("disabled", true);
         }

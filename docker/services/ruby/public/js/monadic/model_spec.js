@@ -146,6 +146,26 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
+  "gpt-5.2-codex": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": true,
+    "supports_pdf": false,
+    "skip_in_progress_events": true
+  },
   "gpt-5.1-codex": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
@@ -437,6 +457,26 @@ const modelSpec = {
     "vision_capability": false
   },
   // Anthropic models
+  "claude-opus-4-6": {
+    "context_window" : [1, 200000],
+    "api_version": "2023-06-01",
+    "max_output_tokens" : [[1, 128000], 128000],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_thinking": true,
+    "thinking_budget": {
+      "min": 1024,
+      "default": 10000,
+      "max": null
+    },
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_streaming": true,
+    "supports_context_management": true,
+    "structured_output": true,
+    "structured_output_mode": "json_schema",
+    "beta_flags": []
+  },
   "claude-opus-4-20250514": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
@@ -595,7 +635,7 @@ const modelSpec = {
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
     "vision_capability": false,
-    "deprecated": false
+    "deprecated": true
   },
   "command-a-vision-07-2025": {
     "context_window" : [1, 128000],
@@ -1093,19 +1133,6 @@ const modelSpec = {
     "vision_capability": true,
     "is_reasoning_model": true,
     "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "supports_web_search": true,
-    "supports_pdf": true,
-    "supports_pdf_upload": false
-  },
-  "sonar-reasoning": {
-    "context_window" : [1, 128000],
-    "temperature": [[0.0, 1.99], 0.9],
-    "top_p": [[0.0, 1.0], 0.9],
-    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[0.0, 2.0], 1.0],
-    "vision_capability": true,
-    "is_reasoning_model": true,
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_pdf_upload": false

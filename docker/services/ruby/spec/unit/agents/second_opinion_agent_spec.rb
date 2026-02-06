@@ -258,7 +258,7 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is AI?",
           agent_response: "AI stands for Artificial Intelligence",
           provider: "cohere",
-          model: "command-a-03-2025"
+          model: "command-a-reasoning-08-2025"
         )
 
         expect(result[:comments]).to be_a(String)

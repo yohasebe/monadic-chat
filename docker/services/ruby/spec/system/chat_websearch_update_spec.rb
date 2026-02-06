@@ -98,7 +98,7 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
     when "claude" then "claude-sonnet-4-5-20250929"
     when "gemini" then "gemini-1.5-flash"
     when "mistral" then "mistral-large-latest"
-    when "cohere" then "command-a-03-2025"
+    when "cohere" then "command-a-reasoning-08-2025"
     when "perplexity" then "llama-3.3-sonar-large"
     when "grok" then "grok-4-fast-reasoning"
     when "deepseek" then "deepseek-chat"

@@ -29,7 +29,7 @@ RSpec.describe AIUserAgent do
       "COHERE_API_KEY" => "test-key",
       "OPENAI_DEFAULT_MODEL" => "gpt-4.1",
       "ANTHROPIC_DEFAULT_MODEL" => "claude-sonnet-4-5-20250929",
-      "COHERE_DEFAULT_MODEL" => "command-a-03-2025",
+      "COHERE_DEFAULT_MODEL" => "command-a-reasoning-08-2025",
       "GROK_DEFAULT_MODEL" => "grok-4-fast-reasoning",
       "PERPLEXITY_DEFAULT_MODEL" => "sonar-reasoning-pro"
     })

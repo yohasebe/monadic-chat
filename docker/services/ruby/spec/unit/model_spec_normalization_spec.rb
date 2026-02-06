@@ -25,7 +25,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
     end
 
     it "marks Cohere models as not supporting PDFs" do
-      model = "command-a-03-2025"
+      model = "command-a-reasoning-08-2025"
       expect(Monadic::Utils::ModelSpec.supports_pdf?(model)).to be false
       # vision_capability may be absent; accessor defaults to true when undefined
       # this test only asserts PDF behavior for Cohere non-vision model

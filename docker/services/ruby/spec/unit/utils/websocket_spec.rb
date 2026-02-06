@@ -484,9 +484,127 @@ RSpec.describe WebSocketHelper do
       
       # Extract non-search messages
       filtered = app.session[:messages].filter { |m| m["type"] != "search" }
-      
+
       expect(filtered.length).to eq(2)
       expect(filtered.none? { |m| m["type"] == "search" }).to be true
+    end
+  end
+
+  describe 'session connection tracking' do
+    before do
+      # Clear session tracking state before each test
+      session_mutex = described_class.class_variable_get(:@@session_mutex)
+      session_mutex.synchronize do
+        described_class.class_variable_set(:@@connections_by_session, Hash.new { |h, k| h[k] = Set.new })
+      end
+
+      state_mutex = described_class.class_variable_get(:@@session_state_mutex)
+      state_mutex.synchronize do
+        described_class.class_variable_set(:@@session_state, {})
+      end
+    end
+
+    describe '.add_connection_with_session' do
+      it 'tracks connection under session_id' do
+        ws = MockWebSocket.new
+        described_class.add_connection_with_session(ws, 'session-1')
+
+        sessions = described_class.class_variable_get(:@@connections_by_session)
+        expect(sessions['session-1']).to include(ws)
+      end
+
+      it 'allows multiple connections per session' do
+        ws1 = MockWebSocket.new
+        ws2 = MockWebSocket.new
+        described_class.add_connection_with_session(ws1, 'session-1')
+        described_class.add_connection_with_session(ws2, 'session-1')
+
+        sessions = described_class.class_variable_get(:@@connections_by_session)
+        expect(sessions['session-1'].size).to eq(2)
+      end
+    end
+
+    describe '.remove_connection_with_session' do
+      it 'removes connection from session tracking' do
+        ws = MockWebSocket.new
+        described_class.add_connection_with_session(ws, 'session-1')
+        described_class.remove_connection_with_session(ws, 'session-1')
+
+        sessions = described_class.class_variable_get(:@@connections_by_session)
+        # Use keys.include? to avoid default Hash block creating new entry on access
+        expect(sessions.keys).not_to include('session-1')
+      end
+
+      it 'removes session entry when last connection closes' do
+        ws1 = MockWebSocket.new
+        ws2 = MockWebSocket.new
+        described_class.add_connection_with_session(ws1, 'session-1')
+        described_class.add_connection_with_session(ws2, 'session-1')
+
+        described_class.remove_connection_with_session(ws1, 'session-1')
+        sessions = described_class.class_variable_get(:@@connections_by_session)
+        expect(sessions.keys).to include('session-1')
+        expect(sessions['session-1'].size).to eq(1)
+
+        described_class.remove_connection_with_session(ws2, 'session-1')
+        expect(sessions.keys).not_to include('session-1')
+      end
+
+      it 'handles removing from nonexistent session gracefully' do
+        ws = MockWebSocket.new
+        expect { described_class.remove_connection_with_session(ws, 'nonexistent') }.not_to raise_error
+      end
+    end
+
+    describe '.update_session_state and .fetch_session_state' do
+      it 'stores and retrieves session state' do
+        messages = [{ "role" => "user", "text" => "hello" }]
+        params = { "model" => "gpt-5.2" }
+        described_class.update_session_state('session-1', messages: messages, parameters: params)
+
+        state = described_class.fetch_session_state('session-1')
+        expect(state[:messages].first["text"]).to eq("hello")
+        expect(state[:parameters]["model"]).to eq("gpt-5.2")
+      end
+
+      it 'deep clones state to prevent reference leaks' do
+        messages = [{ "role" => "user", "text" => "original" }]
+        described_class.update_session_state('session-1', messages: messages, parameters: {})
+
+        # Mutate the original
+        messages.first["text"] = "mutated"
+
+        state = described_class.fetch_session_state('session-1')
+        expect(state[:messages].first["text"]).to eq("original")
+      end
+
+      it 'preserves session state after connection closes (for page reload)' do
+        ws = MockWebSocket.new
+        described_class.add_connection_with_session(ws, 'session-1')
+        described_class.update_session_state('session-1', messages: [{ "text" => "preserved" }], parameters: {})
+
+        # Connection closes (simulating page reload)
+        described_class.remove_connection_with_session(ws, 'session-1')
+
+        # Session state should still be available for reconnection
+        state = described_class.fetch_session_state('session-1')
+        expect(state).not_to be_nil
+        expect(state[:messages].first["text"]).to eq("preserved")
+      end
+
+      it 'returns nil for unknown session_id' do
+        expect(described_class.fetch_session_state('unknown')).to be_nil
+      end
+
+      it 'returns nil for nil session_id' do
+        expect(described_class.fetch_session_state(nil)).to be_nil
+      end
+    end
+
+    describe 'dead code removal: cleanup_stale_sessions' do
+      it 'does not define cleanup_stale_sessions (removed as dead code)' do
+        expect(described_class).not_to respond_to(:cleanup_stale_sessions)
+      end
     end
   end
 end

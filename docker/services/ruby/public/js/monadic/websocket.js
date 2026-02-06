@@ -54,13 +54,18 @@ if (typeof window.isProcessingImport === 'undefined') {
 
 // Lightweight timeline logger to trace initialization order
 // Entries are stored in window._timeline for debugging (access via console)
+// Capped at 200 entries to prevent unbounded memory growth in long sessions
 if (!window.logTL) {
+  const MAX_TIMELINE = window._timelineMaxSize || 200;
   window.logTL = function(event, payload) {
     try {
       const ts = new Date().toISOString();
       const entry = Object.assign({ ts, event }, payload || {});
       window._timeline = window._timeline || [];
       window._timeline.push(entry);
+      if (window._timeline.length > MAX_TIMELINE) {
+        window._timeline = window._timeline.slice(-MAX_TIMELINE);
+      }
     } catch (_) {}
   };
 }
@@ -951,6 +956,7 @@ window.resetFragmentDebug = function() {
   window._sequenceGaps = [];
   window._skippedFragments = [];
   window._lastFragmentTime = null;
+  window._timeline = [];
   if (window.debugFragments) {
     console.log('[Fragment Debug] Tracking reset');
   }

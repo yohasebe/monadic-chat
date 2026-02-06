@@ -320,17 +320,20 @@ module WebSocketHelper
 
     # Remove from session tracking if session_id provided
     if session_id
+      remaining = 0
       @@session_mutex.synchronize do
-        @@connections_by_session[session_id].delete(ws)
+        if @@connections_by_session.key?(session_id)
+          @@connections_by_session[session_id].delete(ws)
+          remaining = @@connections_by_session[session_id].size
 
-        # Remove empty session entries
-        if @@connections_by_session[session_id].empty?
-          @@connections_by_session.delete(session_id)
+          # Remove empty session entries
+          if @@connections_by_session[session_id].empty?
+            @@connections_by_session.delete(session_id)
+          end
         end
       end
 
       if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        remaining = @@session_mutex.synchronize { @@connections_by_session[session_id]&.size || 0 }
         puts "[WebSocketHelper] Removed connection for session #{session_id}, remaining: #{remaining}"
       end
     end
@@ -346,27 +349,6 @@ module WebSocketHelper
     end
   end
 
-  # Clean up stale sessions periodically
-  def self.cleanup_stale_sessions
-    @@session_mutex.synchronize do
-      @@connections_by_session.each do |session_id, websockets|
-        # Collect dead connections
-        to_remove = []
-        websockets.each do |connection|
-          if connection.nil? || connection.closed?
-            to_remove << connection
-          end
-        end
-
-        # Remove after iteration
-        to_remove.each { |connection| websockets.delete(connection) }
-
-        # Remove empty sessions
-        @@connections_by_session.delete(session_id) if websockets.empty?
-      end
-    end
-  end
-  
   # Initialize token counting in a background thread
   def initialize_token_counting(text, encoding_name="o200k_base")
     # Return immediately if no text

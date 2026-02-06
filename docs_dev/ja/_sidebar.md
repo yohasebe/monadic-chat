@@ -27,6 +27,7 @@
 * 📦 機能ドキュメント
   * [Auto Forge内部実装](/ja/auto_forge_internals.md)
   * [SSOT正規化](/ja/ssot_normalization_and_accessors.md)
+  * [SSOT機能概要](/ja/ssot_capabilities_and_model_spec.md)
   * [TTS事前取得最適化](/ja/tts_prefetch_optimization.md)
   * [PDFレジストリとハイブリッド](/ja/pdf_registry_and_hybrid.md)
   * [アプリの分離とセッション安全性](/ja/app_isolation_and_session_safety.md)

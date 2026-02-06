@@ -1,0 +1,518 @@
+/**
+ * ws-content-renderer.js
+ *
+ * Content rendering utilities extracted from websocket.js:
+ * MathJax, Mermaid, ABC notation, copy-code buttons, message rendering,
+ * toggle/source-code helpers.
+ */
+(function() {
+  "use strict";
+
+  // ── Message rendering helpers ──────────────────────────────────────
+
+  function getMessageAppName(msg) {
+    if (msg && msg.app_name) {
+      return msg.app_name;
+    }
+
+    if (window.SessionState && typeof window.SessionState.getCurrentApp === 'function') {
+      var current = window.SessionState.getCurrentApp();
+      if (current) return current;
+    }
+
+    if (typeof params !== 'undefined' && params && params["app_name"]) {
+      return params["app_name"];
+    }
+
+    return null;
+  }
+
+  function getMessageMonadicFlag(msg) {
+    if (msg && typeof msg.monadic !== 'undefined') {
+      return msg.monadic;
+    }
+
+    if (typeof params !== 'undefined' && params && typeof params["monadic"] !== 'undefined') {
+      return params["monadic"];
+    }
+
+    if (window.SessionState && window.SessionState.app && window.SessionState.app.params) {
+      var appParams = window.SessionState.app.params;
+      if (typeof appParams["monadic"] !== 'undefined') {
+        return appParams["monadic"];
+      }
+    }
+
+    return false;
+  }
+
+  function renderMessage(msg) {
+    if (!msg) {
+      console.error('renderMessage: msg is null or undefined');
+      return '';
+    }
+
+    var appName = getMessageAppName(msg);
+    var monadicFlag = getMessageMonadicFlag(msg);
+
+    // Priority 1: Client-side rendering with MarkdownRenderer
+    if (msg.text && window.MarkdownRenderer) {
+      try {
+        var result = window.MarkdownRenderer.render(msg.text, { appName: appName, isMonadic: monadicFlag });
+        return result;
+      } catch (err) {
+        console.error('MarkdownRenderer failed:', err);
+      }
+    }
+
+    // Priority 2: Server-rendered HTML (backward compatibility)
+    if (msg.html) {
+      return msg.html;
+    }
+
+    // Priority 3: Plain text fallback
+    if (msg.text) {
+      return msg.text;
+    }
+
+    // Last resort: empty string
+    console.warn('Message ' + (msg.mid || '?') + ' has no renderable content');
+    return '';
+  }
+
+  // ── Copy code button ───────────────────────────────────────────────
+
+  function setCopyCodeButton(element) {
+    if (!element) {
+      return;
+    }
+    element.find("div.card-text div.highlighter-rouge").each(function () {
+      var highlighterElement = $(this);
+      if (highlighterElement.find(".copy-code-button").length === 0) {
+        var codeElement = highlighterElement.find("code");
+        if (codeElement.length) {
+          var copyButton = $('<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>');
+          highlighterElement.append(copyButton);
+
+          copyButton.click(function () {
+            var text = codeElement.text();
+            var icon = copyButton.find("i");
+
+            try {
+              var textarea = document.createElement('textarea');
+              textarea.value = text;
+              textarea.style.position = 'fixed';
+              textarea.style.opacity = 0;
+              document.body.appendChild(textarea);
+              textarea.select();
+
+              var success = document.execCommand('copy');
+              document.body.removeChild(textarea);
+
+              if (!success) {
+                throw new Error('execCommand copy failed');
+              }
+
+              icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+              setTimeout(function() {
+                icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+              }, 1000);
+            } catch (err) {
+              console.error("Failed to copy text: ", err);
+
+              try {
+                if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
+                  window.electronAPI.writeClipboard(text);
+                  icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+                  setTimeout(function() {
+                    icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+                  }, 1000);
+                } else if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(text)
+                    .then(function() {
+                      icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
+                      setTimeout(function() {
+                        icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
+                      }, 1000);
+                    })
+                    .catch(function() {
+                      icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+                      setTimeout(function() {
+                        icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+                      }, 1000);
+                    });
+                } else {
+                  throw new Error('No clipboard API available');
+                }
+              } catch (fallbackErr) {
+                console.error("All clipboard methods failed: ", fallbackErr);
+                icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
+                setTimeout(function() {
+                  icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
+                }, 1000);
+              }
+            }
+          });
+        }
+      }
+    });
+  }
+
+  // ── MathJax ────────────────────────────────────────────────────────
+
+  function applyMathJax(element) {
+    if (element.hasClass("diagram")) {
+      return;
+    }
+
+    if (typeof MathJax === 'undefined') {
+      console.error('MathJax is not loaded. Please make sure to include the MathJax script in your HTML file.');
+      return;
+    }
+
+    var domElement = element.get(0);
+    MathJax.typesetPromise([domElement])
+      .then(function() {})
+      .catch(function(err) {
+        console.error('Error re-rendering MathJax element:', err);
+      });
+  }
+
+  // ── Mermaid ────────────────────────────────────────────────────────
+
+  var mermaid_config = {
+    startOnLoad: true,
+    securityLevel: 'strict',
+    theme: 'default'
+  };
+
+  function sanitizeMermaidSource(text) {
+    if (!text) {
+      return text;
+    }
+
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/[\u2010-\u2015\u2212\u30FC\uFF0D]/g, '-')
+      .replace(/[\u2018\u2019\u2032\uFF07]/g, "'")
+      .replace(/[\u201C\u201D\u2033\uFF02]/g, '"')
+      .replace(/[\u300C\u300D]/g, '"');
+  }
+
+  async function applyMermaid(element) {
+    mermaid.initialize(mermaid_config);
+
+    element.find(".mermaid-code").each(function (index) {
+      var mermaidElement = $(this);
+      mermaidElement.addClass("sourcecode");
+      mermaidElement.find("pre").addClass("sourcecode");
+      var mermaidText = mermaidElement.text().trim();
+      var sanitizedMermaidText = sanitizeMermaidSource(mermaidText);
+      mermaidElement.find("pre").text(mermaidText);
+      addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
+
+      var containerId = 'diagram-' + index;
+      var diagramContainer = $('<div class="diagram-wrapper">' +
+        '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
+        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>' +
+        '</div>');
+      mermaidElement.after(diagramContainer);
+
+      try {
+        var type = mermaid.detectType(sanitizedMermaidText);
+        if (!type) {
+          throw new Error("Invalid diagram type");
+        }
+      } catch (error) {
+        var errorElement = diagramContainer.find('#error-' + containerId);
+        errorElement.html('<div class="alert alert-danger">' +
+          '<strong>Mermaid Syntax Error:</strong><br>' +
+          error.message +
+          '</div>').show();
+        diagramContainer.find('.diagram').hide();
+      }
+    });
+
+    try {
+      await mermaid.run({ querySelector: 'mermaid' });
+    } catch (error) {
+      console.error('Mermaid rendering error:', error);
+    }
+
+    element.find(".diagram").each(function (index) {
+      var diagram = $(this);
+      if (diagram.is(':visible')) {
+        var downloadButton = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
+        downloadButton.on('click', function () {
+          var svgElement = diagram.find('svg')[0];
+          if (svgElement) {
+            var serializer = new XMLSerializer();
+            var source = serializer.serializeToString(svgElement);
+            var blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'diagram-' + (index + 1) + '.svg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }
+        });
+        diagram.after(downloadButton);
+      }
+    });
+  }
+
+  // ── ABC notation ───────────────────────────────────────────────────
+
+  function abcCursorControl(element_id) {
+    var self = this;
+
+    self.onStart = function () {
+      var svg = document.querySelector(element_id + ' svg');
+      var cursor = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      cursor.setAttribute("class", "abcjs-cursor");
+      cursor.setAttributeNS(null, 'x1', 0);
+      cursor.setAttributeNS(null, 'y1', 0);
+      cursor.setAttributeNS(null, 'x2', 0);
+      cursor.setAttributeNS(null, 'y2', 0);
+      svg.appendChild(cursor);
+    };
+    self.beatSubdivisions = 2;
+    self.onEvent = function (ev) {
+      if (ev.measureStart && ev.left === null) return;
+
+      var lastSelection = document.querySelectorAll(element_id + ' svg .highlight');
+      for (var k = 0; k < lastSelection.length; k++)
+        lastSelection[k].classList.remove("highlight");
+
+      for (var i = 0; i < ev.elements.length; i++) {
+        var note = ev.elements[i];
+        for (var j = 0; j < note.length; j++) {
+          note[j].classList.add("highlight");
+        }
+      }
+
+      var cursor = document.querySelector(element_id + ' svg .abcjs-cursor');
+      if (cursor) {
+        cursor.setAttribute("x1", ev.left - 2);
+        cursor.setAttribute("x2", ev.left - 2);
+        cursor.setAttribute("y1", ev.top);
+        cursor.setAttribute("y2", ev.top + ev.height);
+      }
+    };
+    self.onFinished = function () {
+      var els = document.querySelectorAll("svg .highlight");
+      for (var i = 0; i < els.length; i++) {
+        els[i].classList.remove("highlight");
+      }
+      var cursor = document.querySelector(element_id + ' svg .abcjs-cursor');
+      if (cursor) {
+        cursor.setAttribute("x1", 0);
+        cursor.setAttribute("x2", 0);
+        cursor.setAttribute("y1", 0);
+        cursor.setAttribute("y2", 0);
+      }
+    };
+  }
+
+  function abcClickListener(abcElem, tuneNumber, classes, analysis, drag, mouseEvent) {
+    var lastClicked = abcElem.midiPitches;
+    if (!lastClicked) return;
+    ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
+  }
+
+  function applyAbc(element) {
+    element.find(".abc-code").each(function () {
+      $(this).addClass("sourcecode");
+      $(this).find("pre").addClass("sourcecode");
+      var abcElement = $(this);
+      var abcId = '' + Date.now();
+      var abcText = abcElement.find("pre").text().trim();
+      abcText = abcText.split("\n").map(function(line) { return line.trim(); }).join("\n");
+      var instrument = "";
+      var instrumentMatch = abcText.match(/^%%tablature\s+(.*)/);
+      if (instrumentMatch) {
+        instrument = instrumentMatch[1];
+      }
+
+      abcElement.find("pre").text(abcText);
+      var abcSVG = 'abc-svg-' + abcId;
+      var abcMidi = 'abc-midi-' + abcId;
+      addToggleSourceCode(abcElement, "Toggle ABC Notation");
+      abcElement.after('<div>&nbsp;</div>');
+      abcElement.after('<div id="' + abcMidi + '" class="abc-midi"></div>');
+      abcElement.after('<div id="' + abcSVG + '" class="abc-svg"></div>');
+      var abcOptions = {
+        add_classes: true,
+        clickListener: self.abcClickListener,
+        responsive: "resize",
+        soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
+        scale: 0.65,
+        staffwidth: 1200,
+        paddingtop: 10,
+        paddingbottom: 10,
+        format: {
+          titlefont: '"itim-music,Itim" 14',
+          gchordfont: '"itim-music,Itim" 9',
+          vocalfont: '"itim-music,Itim" 9',
+          annotationfont: '"itim-music,Itim" 9',
+          composerfont: '"itim-music,Itim" 9',
+          partsfont: '"itim-music,Itim" 9',
+          tempoFont: '"itim-music,Itim" 9',
+          wordsfont: '"itim-music,Itim" 9',
+          infofont: '"itim-music,Itim" 9',
+          tablabelfont: "Helvetica 9 box",
+          tabnumberfont: "Times 9",
+          dynamicVAlign: false,
+          dynamicHAlign: false
+        }
+      };
+      if (instrument === "violin" || instrument === "mandolin" || instrument === "fiddle" || instrument === "guitar" || instrument === "fiveString") {
+        abcOptions.tablature = [{ instrument: instrument }];
+      } else if (instrument === "bass") {
+        abcOptions.tablature = [{ instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"] }];
+      }
+      var visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
+      if (ABCJS.synth.supportsAudio()) {
+        var synthControl = new ABCJS.synth.SynthController();
+        var cursorControl = new abcCursorControl('#' + abcSVG);
+        synthControl.load('#' + abcMidi, cursorControl, {
+          displayLoop: true,
+          displayRestart: true,
+          displayPlay: true,
+          displayProgress: true,
+          displayWarp: true
+        });
+        synthControl.setTune(visualObj, false, {});
+      } else {
+        document.querySelector(abcMidi).innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
+      }
+    });
+  }
+
+  // ── Toggle / source code helpers ───────────────────────────────────
+
+  function applyToggle(element, nl2br) {
+    if (element.find(".sourcecode-toggle").length > 0) {
+      return;
+    }
+    element.find(".toggle").each(function () {
+      var toggleElement = $(this);
+      toggleElement.addClass("sourcecode");
+      toggleElement.find("pre").addClass("sourcecode");
+
+      if (nl2br) {
+        var toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+        toggleElement.find("pre").text(toggleText);
+      }
+      addToggleSourceCode(toggleElement, toggleElement.data("label"));
+    });
+  }
+
+  function addToggleSourceCode(element, title) {
+    title = title || "Toggle Show/Hide";
+    if (element.data("title")) {
+      title = element.data("title");
+    }
+    var toggleHide = "<i class='fa-solid fa-toggle-on'></i> " + title;
+    var toggleShow = "<i class='fa-solid fa-toggle-off'></i> " + title;
+    var controlDiv = '<div class="sourcecode-toggle unselectable">' + toggleShow + '</div>';
+    element.before(controlDiv);
+    element.prev().click(function () {
+      var sourcecode = $(this).next();
+      sourcecode.toggle();
+      if (sourcecode.is(":visible")) {
+        $(this).html(toggleHide);
+      } else {
+        $(this).html(toggleShow);
+      }
+    });
+    element.hide();
+  }
+
+  function formatSourceCode(element) {
+    element.find(".sourcecode").each(function () {
+      var sourceCodeElement = $(this);
+      var sourceCode = sourceCodeElement.text().trim();
+      sourceCodeElement.find("code").text(sourceCode);
+    });
+  }
+
+  function cleanupListCodeBlocks(element) {
+    element.find('li').each(function() {
+      var $li = $(this);
+      var children = $li.contents();
+
+      children.each(function(index) {
+        if (this.nodeType === Node.TEXT_NODE) {
+          var text = $(this).text().trim();
+          if (text.match(/^[0-9]{1,2}$/)) {
+            var prevSibling = $(this).prev();
+            if (prevSibling.hasClass('highlight') || prevSibling.find('.highlight').length > 0) {
+              $(this).remove();
+            }
+          }
+        }
+      });
+    });
+  }
+
+  // ── isElementInViewport ────────────────────────────────────────────
+
+  function isElementInViewport(element) {
+    var rect = element.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  }
+
+  // ── Namespace export ───────────────────────────────────────────────
+  var ns = {
+    getMessageAppName: getMessageAppName,
+    getMessageMonadicFlag: getMessageMonadicFlag,
+    renderMessage: renderMessage,
+    setCopyCodeButton: setCopyCodeButton,
+    applyMathJax: applyMathJax,
+    mermaid_config: mermaid_config,
+    sanitizeMermaidSource: sanitizeMermaidSource,
+    applyMermaid: applyMermaid,
+    abcCursorControl: abcCursorControl,
+    abcClickListener: abcClickListener,
+    applyAbc: applyAbc,
+    applyToggle: applyToggle,
+    addToggleSourceCode: addToggleSourceCode,
+    formatSourceCode: formatSourceCode,
+    cleanupListCodeBlocks: cleanupListCodeBlocks,
+    isElementInViewport: isElementInViewport
+  };
+
+  window.WsContentRenderer = ns;
+
+  // Backward-compat individual exports
+  window.applyMathJax = applyMathJax;
+  window.applyMermaid = applyMermaid;
+  window.applyAbc = applyAbc;
+  window.applyToggle = applyToggle;
+  window.addToggleSourceCode = addToggleSourceCode;
+  window.formatSourceCode = formatSourceCode;
+  window.cleanupListCodeBlocks = cleanupListCodeBlocks;
+  window.setCopyCodeButton = setCopyCodeButton;
+  window.renderMessage = renderMessage;
+  window.isElementInViewport = isElementInViewport;
+
+  // Support for Jest testing environment (CommonJS)
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ns;
+  }
+})();

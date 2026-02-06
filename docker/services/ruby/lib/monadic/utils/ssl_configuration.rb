@@ -1,5 +1,20 @@
 # frozen_string_literal: true
 
+# SSL Configuration for Monadic Chat
+#
+# This module intentionally disables CRL (Certificate Revocation List) checks
+# for all outgoing HTTPS connections. This is a deliberate design decision:
+#
+# - Monadic Chat runs inside Docker containers that may lack network access
+#   to CRL distribution points, causing connection timeouts and failures.
+# - Many AI provider APIs (OpenAI, Anthropic, etc.) do not publish CRLs
+#   accessible from within Docker environments.
+# - Certificate verification (VERIFY_PEER) remains fully enabled; only the
+#   CRL lookup step is skipped.
+#
+# Users can supply custom CA certificates via SSL_CERT_FILE / SSL_CERT_DIR
+# environment variables in ~/monadic/config/env.
+
 require 'openssl'
 
 module Monadic

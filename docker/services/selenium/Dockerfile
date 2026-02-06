@@ -1,6 +1,7 @@
-# Pin to stable Chrome version for reproducible builds
+# Pin to stable version for reproducible builds
 # Update version periodically to get security updates
-FROM selenium/standalone-chromium:latest
+# See: https://github.com/SeleniumHQ/docker-selenium/releases
+FROM selenium/standalone-chromium:4.40.0-20260202
 
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG

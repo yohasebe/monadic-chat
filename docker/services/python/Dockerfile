@@ -2,8 +2,8 @@ FROM python:3.12-slim-bookworm
 ARG PROJECT_TAG
 LABEL project=$PROJECT_TAG
 
-# Install uv - fast Python package installer
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv - fast Python package installer (pinned for reproducibility)
+COPY --from=ghcr.io/astral-sh/uv:0.9.18 /uv /usr/local/bin/uv
 
 # Configure uv to use system Python and optimize for Docker
 ENV UV_SYSTEM_PYTHON=1
@@ -48,25 +48,26 @@ RUN if [ "$INSTALL_LATEX" = "true" ]; then \
       fc-cache -fv && apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Install base Python packages (stable, cached)
+# Install base Python packages (pinned to compatible versions for reproducibility)
+# Versions captured 2026-02-07; update periodically for security fixes
 RUN uv pip install --no-cache \
-      setuptools wheel \
-      jupyterlab ipywidgets plotly \
-      numpy pandas statsmodels \
-      matplotlib seaborn sympy \
-      gunicorn tiktoken flask \
-      pymupdf pymupdf4llm \
-      selenium html2text \
-      openpyxl python-docx python-pptx \
-      requests beautifulsoup4 \
-      lxml pygraphviz graphviz pydotplus networkx pyvis \
-      svgwrite cairosvg tinycss cssselect pygal \
-      pyecharts pyecharts-snapshot \
-      opencv-python moviepy
+      setuptools~=80.9 wheel~=0.45 \
+      jupyterlab~=4.5 ipywidgets~=8.1 plotly~=6.5 \
+      numpy~=1.26 pandas~=2.3 statsmodels~=0.14 \
+      matplotlib~=3.10 seaborn~=0.13 sympy~=1.14 \
+      gunicorn~=23.0 tiktoken~=0.12 flask~=3.1 \
+      pymupdf~=1.26 pymupdf4llm~=0.2 \
+      selenium~=4.39 html2text~=2025.4 \
+      openpyxl~=3.1 python-docx~=1.2 python-pptx~=1.0 \
+      requests~=2.32 beautifulsoup4~=4.14 \
+      lxml~=6.0 pygraphviz~=1.14 graphviz~=0.21 pydotplus~=2.0 networkx~=3.6 pyvis~=0.3 \
+      svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
+      pyecharts~=2.0 pyecharts-snapshot~=0.2 \
+      opencv-python~=4.11 moviepy~=2.0
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
-RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy==3.7.5 || true; else echo "skip spacy"; fi
+RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy~=3.7.5 || true; else echo "skip spacy"; fi
 RUN if [ "$PYOPT_SCIKIT" = "true" ]; then uv pip install --no-cache scikit-learn || true; else echo "skip scikit"; fi
 RUN if [ "$PYOPT_GENSIM" = "true" ]; then uv pip install --no-cache gensim || true; else echo "skip gensim"; fi
 RUN if [ "$PYOPT_LIBROSA" = "true" ]; then uv pip install --no-cache librosa || true; else echo "skip librosa"; fi

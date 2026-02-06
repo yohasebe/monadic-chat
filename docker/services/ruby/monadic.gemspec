@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   DESC
   spec.homepage = "https://github.com/yohasebe/monadic-chat"
   spec.license = "Apache-2.0"
-  spec.required_ruby_version = ">= 2.6.10"
+  spec.required_ruby_version = ">= 3.1"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
@@ -71,7 +71,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "twitter_cldr"
   spec.add_dependency "rack", "~> 3.2"
   spec.add_dependency "rake"
-  spec.add_dependency "redcarpet"
   spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"

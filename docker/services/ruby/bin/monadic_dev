@@ -45,12 +45,7 @@ def is_linux?
 end
 
 # Select appropriate Selenium image based on architecture
-selenium_image = "selenium/standalone-chrome:latest"
-if is_mac?
-  if `uname -m`.chomp == "arm64"
-    selenium_image = "seleniarm/standalone-chromium:latest"
-  end
-end
+selenium_image = "selenium/standalone-chromium:4.40.0-20260202"
 
 # Set environment variables
 ENV["SELENIUM_IMAGE"] = selenium_image

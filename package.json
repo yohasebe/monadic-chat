@@ -111,7 +111,7 @@
       "icon": "icons/icon.ico",
       "signtoolOptions": {
         "certificateSubjectName": "Open Source Developer, Yoichiro Hasebe",
-        "certificateSha1": "a8d4693b31228d10a9da7c2687f5c565928c2a06"
+        "certificateSha1": "7ec5dd1282358fec8dca3223d040bf5da5cc46cf"
       },
       "artifactName": "Monadic.Chat.Setup.${version}.${ext}",
       "protocols": [

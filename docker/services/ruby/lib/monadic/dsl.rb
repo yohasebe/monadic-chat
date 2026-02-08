@@ -1774,6 +1774,11 @@ module MonadicDSL
       class_def << "        @settings[:betas] = #{state.settings[:betas].inspect}\n"
     end
 
+    # Add agents if specified (internal sub-agents like code_generator, speech_to_text)
+    if state.settings[:agents] && !state.settings[:agents].empty?
+      class_def << "        @settings[:agents] = #{state.settings[:agents].inspect}\n"
+    end
+
     # Add context_schema if specified (for monadic apps)
     if state.settings[:context_schema]
       class_def << "        @settings[:context_schema] = #{state.settings[:context_schema].inspect}\n"

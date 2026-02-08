@@ -1980,6 +1980,11 @@ $(document).ready(function() {
       updateAppBadges(selectedApp);
     }, 100); // Small delay to ensure DOM is ready
 
+    // Reload Workflow Viewer if open
+    if (typeof WorkflowViewer !== "undefined" && WorkflowViewer.isOpen()) {
+      WorkflowViewer.loadApp(selectedApp);
+    }
+
     // Show/hide Context Panel based on monadic setting
     if (typeof ContextPanel !== "undefined" && apps && apps[selectedApp]) {
       const isMonadic = apps[selectedApp]["monadic"] === true ||

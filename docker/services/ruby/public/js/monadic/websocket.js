@@ -1090,6 +1090,11 @@ let loadedApp = "Chat";
         // Show the spinner and update its message based on the content
         $("#monadic-spinner").show();
 
+        // Highlight workflow node based on wait content
+        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+          WorkflowViewer.setStage(data["content"].includes("CALLING FUNCTIONS") ? 'tools' : 'model');
+        }
+
         // Customize spinner message based on wait content
         if (data["content"].includes("CALLING FUNCTIONS")) {
           const callingFunctionsText = getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions');
@@ -1125,6 +1130,9 @@ let loadedApp = "Chat";
         // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
         const content = data.content || '';
         if (!content) break;
+        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+          WorkflowViewer.setStage('model');
+        }
         if (typeof window.setReasoningStreamActive === 'function') {
           window.setReasoningStreamActive(true);
         }
@@ -1486,6 +1494,9 @@ let loadedApp = "Chat";
       case "context_update": {
         // Handle context update from server (sent by ContextExtractorAgent)
         // Includes both context data and optional schema for dynamic rendering
+        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+          WorkflowViewer.setStage('context');
+        }
         if (typeof ContextPanel !== "undefined") {
           ContextPanel.hideLoading();
           if (data.context) {
@@ -3186,6 +3197,9 @@ let loadedApp = "Chat";
           } else {
             // No tool calls, ensure callingFunction is false
             callingFunction = false;
+            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+              WorkflowViewer.setStage('done');
+            }
           }
           ws.send(JSON.stringify({ "message": "HTML" }));
         } else if (data["content"] === "CLEAR") {
@@ -4185,6 +4199,9 @@ let loadedApp = "Chat";
             if (window.UIState) {
               window.UIState.set('streamingResponse', true);
               window.UIState.set('isStreaming', true);
+            }
+            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+              WorkflowViewer.setStage('response');
             }
           }
 

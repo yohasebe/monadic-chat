@@ -203,7 +203,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             // Restore visible state
             toggleBtn.removeClass("menu-hidden")
                     .attr("aria-expanded", "true")
-                    .html('<i class="fas fa-times"></i>');
+                    .html('<i class="fas fa-bars"></i>');
 
             if (isMobile) {
               menuPanel.show();
@@ -1012,13 +1012,12 @@ $(function () {
         menuPanel.hide();
         mainPanel.show().removeClass("col-md-8").addClass("col-md-12");
         $("body").removeClass("menu-visible");
-        toggleBtn.html('<i class="fas fa-bars"></i>');
+        // icon stays the same; active style controlled by menu-hidden class
       } else {
         // Menu should be visible, main should be hidden
         menuPanel.show();
         mainPanel.hide();
         $("body").addClass("menu-visible");
-        toggleBtn.html('<i class="fas fa-times"></i>');
       }
       
       // Reset any inline styles that might have been applied
@@ -1036,12 +1035,12 @@ $(function () {
         // Both panels visible
         mainPanel.removeClass("col-md-12").addClass("col-md-8").show();
         menuPanel.show();
-        toggleBtn.removeClass("menu-hidden").html('<i class="fas fa-times"></i>');
+        toggleBtn.removeClass("menu-hidden");
       } else {
         // Only main panel visible
         mainPanel.removeClass("col-md-8").addClass("col-md-12").show();
         menuPanel.hide();
-        toggleBtn.addClass("menu-hidden").html('<i class="fas fa-bars"></i>');
+        toggleBtn.addClass("menu-hidden");
       }
     }
     
@@ -2156,7 +2155,7 @@ $(function () {
     // On mobile, initialize with menu hidden on first load
     if ($(window).width() < 600) {
       // Set proper classes and hide menu on mobile
-      $("#toggle-menu").addClass("menu-hidden").html('<i class="fas fa-bars"></i>');
+      $("#toggle-menu").addClass("menu-hidden");
       $("#menu").hide();
       $("#main").show();
       $("body").removeClass("menu-visible");
@@ -2164,7 +2163,7 @@ $(function () {
       // Note: Removed inline CSS injection for toggle-menu in document.ready
     } else {
       // On desktop, menu is visible by default, so set the appropriate icon and style
-      $("#toggle-menu").removeClass("menu-hidden").html('<i class="fas fa-times"></i>');
+      $("#toggle-menu").removeClass("menu-hidden");
     }
     
     // Initialize scroll buttons state
@@ -2284,8 +2283,7 @@ $(function () {
       if (menuVisible) {
         // Menu is visible, will be hidden
         $toggleBtn.addClass("menu-hidden")
-                  .attr("aria-expanded", "false")
-                  .html('<i class="fas fa-bars"></i>'); // Change to bars when menu closed
+                  .attr("aria-expanded", "false");
 
         // Save menu state to localStorage to persist across zoom operations
         if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'true')) {
@@ -2305,8 +2303,7 @@ $(function () {
       } else {
         // Menu is hidden, will be shown
         $toggleBtn.removeClass("menu-hidden")
-                  .attr("aria-expanded", "true")
-                  .html('<i class="fas fa-times"></i>'); // Change to X when menu open
+                  .attr("aria-expanded", "true");
 
         // Save menu state to localStorage to persist across zoom operations
         if (!StorageHelper.safeSetItem('monadic-menu-hidden', 'false')) {
@@ -2684,6 +2681,9 @@ $(function () {
         }
 
         ws.send(JSON.stringify(params));
+        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+          WorkflowViewer.setStage('input');
+        }
         $("#message").css("height", "96px").val("");
 
         // Clear all images including PDFs after sending

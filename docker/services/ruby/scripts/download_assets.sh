@@ -186,4 +186,20 @@ fi
 echo "Creating Montserrat CSS file..."
 echo "$MONTSERRAT_CSS" > "/monadic/public/vendor/css/montserrat.css"
 
+# Build maxGraph IIFE bundle (no CDN UMD build available)
+echo "Building maxGraph bundle..."
+if [ ! -f "/monadic/public/vendor/js/maxgraph.bundle.js" ]; then
+  cd /tmp
+  npm init -y --silent > /dev/null 2>&1
+  npm install --silent @maxgraph/core@0.22.0 esbuild@0.25.0 > /dev/null 2>&1
+  npx esbuild node_modules/@maxgraph/core/lib/esm/index.js \
+    --bundle --format=iife --global-name=maxgraph \
+    --outfile=/monadic/public/vendor/js/maxgraph.bundle.js \
+    --minify 2>&1
+  rm -rf /tmp/node_modules /tmp/package.json /tmp/package-lock.json
+  echo "maxGraph bundle built successfully"
+else
+  echo "maxGraph bundle already exists, skipping"
+fi
+
 echo "All vendor files have been downloaded"

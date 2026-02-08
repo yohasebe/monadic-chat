@@ -32,7 +32,10 @@ ASSETS=(
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
   "js,https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js,markdown-it.min.js"
   "js,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js,highlight.min.js"
-  
+
+  # maxGraph — built from npm source via esbuild (see download_assets.sh)
+  # No CDN entry; bundle is generated during Docker build
+
   # Font Awesome Webfonts
   "webfont,https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2,fa-solid-900.woff2"
   "webfont,https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-regular-400.woff2,fa-regular-400.woff2"

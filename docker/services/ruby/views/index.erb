@@ -244,6 +244,7 @@
     <link href="css/pigments-default.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/syntax-themes.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/monadic.css?timestamp=<%= @timestamp %>" rel="stylesheet">
+    <link href="css/workflow-viewer.css?timestamp=<%= @timestamp %>" rel="stylesheet">
     <link href="css/print.css?timestamp=<%= @timestamp %>" rel="stylesheet" media="print">
     <link rel="icon" href="img/favicon.ico" type="image/x-icon">
    <script>
@@ -273,6 +274,9 @@
             <i class="fas fa-ban"></i><span data-i18n="ui.cancelQuery">CANCEL</span>
           </button>
           <div id="status-message" class="me-2" data-i18n="ui.notStarted">Not started</div>
+          <button id="toggle-workflow-viewer" class="btn btn-light me-1" aria-label="Workflow Viewer" title="Workflow Viewer" data-i18n-title="ui.workflowViewer">
+            <i class="fas fa-project-diagram"></i>
+          </button>
           <button id="toggle-menu" class="btn btn-light" aria-label="Toggle Menu" title="Toggle menu visibility" data-i18n-title="ui.toggleMenu">
             <i class="fas fa-bars"></i>
           </button>
@@ -678,6 +682,30 @@
 
           <div id="main-panel" class="rounded p-3 shaded-panel" style="display: none;">
             <h5 class="pb-0 mb-0 panel-section-header"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
+            <!-- Workflow Viewer Panel -->
+            <div id="workflow-viewer-panel" class="wv-panel-collapsed">
+              <div class="wv-panel-header">
+                <span class="wv-panel-title">
+                  <span id="workflowViewerLabel" data-i18n="ui.workflowViewer">Workflow Viewer</span>
+                </span>
+                <div class="wv-panel-controls">
+                  <button id="wv-zoom-in" class="btn btn-sm btn-outline-secondary" title="Zoom in">
+                    <i class="fas fa-search-plus"></i></button>
+                  <button id="wv-zoom-out" class="btn btn-sm btn-outline-secondary" title="Zoom out">
+                    <i class="fas fa-search-minus"></i></button>
+                  <button id="wv-zoom-fit" class="btn btn-sm btn-outline-secondary" title="Fit to view">
+                    <i class="fas fa-compress-arrows-alt"></i></button>
+                  <button id="wv-close" class="btn btn-sm btn-outline-secondary ms-2" title="Close">
+                    <i class="fas fa-times"></i></button>
+                </div>
+              </div>
+              <div id="workflow-viewer-container"></div>
+              <div class="wv-panel-footer">
+                <div class="workflow-viewer-legend"></div>
+                <span class="wv-resize-indicator" title="Drag to resize"><i class="fas fa-arrows-alt-v"></i></span>
+              </div>
+              <div class="wv-resize-handle" title="Drag to resize"></div>
+            </div>
             <div id="discourse" style="width: 100%; overflow-y: auto; display: none;"></div>
 
             <div id="temp-card" class="card mt-3" style="display:none;">
@@ -1023,6 +1051,9 @@
     <!-- highlight.js (local or CDN) -->
     <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
+    <!-- maxGraph (bundled IIFE, no CDN fallback) -->
+    <script src="vendor/js/maxgraph.bundle.js"></script>
+
     <!-- Debug configuration - must be loaded before all other scripts -->
     <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
 
@@ -1057,6 +1088,7 @@
     <script src="js/monadic/dom-cache.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/context-panel.js?timestamp=<%= @timestamp %>"></script>
+    <script src="js/monadic/workflow-viewer.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ws-audio-constants.js?timestamp=<%= @timestamp %>"></script>
     <script src="js/monadic/ws-content-renderer.js?timestamp=<%= @timestamp %>"></script>

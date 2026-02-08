@@ -41,7 +41,9 @@ const settingsTranslations = {
         enableMcpServer: "Enable MCP Server",
         enableMcpServerDesc: "Enables Model Context Protocol server for external tool integration (e.g., Claude Desktop, VS Code).",
         mcpServerPort: "MCP Server Port",
-        mcpServerPortDesc: "Network port for MCP server. Change only if port 3100 conflicts with another service."
+        mcpServerPortDesc: "Network port for MCP server. Change only if port 3100 conflicts with another service.",
+        openAtLogin: "Launch at Login",
+        openAtLoginDesc: "Automatically start Monadic Chat when you log in to your computer."
       },
       buttons: {
         showApiKeys: "Show API Keys",
@@ -101,7 +103,9 @@ const settingsTranslations = {
         enableMcpServer: "MCPサーバーを有効化",
         enableMcpServerDesc: "外部ツール統合（Claude Desktop、VS Codeなど）のためのModel Context Protocolサーバーを有効化します。",
         mcpServerPort: "MCPサーバーポート",
-        mcpServerPortDesc: "MCPサーバーのネットワークポート。ポート3100が他のサービスと競合する場合のみ変更してください。"
+        mcpServerPortDesc: "MCPサーバーのネットワークポート。ポート3100が他のサービスと競合する場合のみ変更してください。",
+        openAtLogin: "ログイン時に起動",
+        openAtLoginDesc: "コンピュータにログインしたときにMonadic Chatを自動的に起動します。"
       },
       buttons: {
         showApiKeys: "APIキーを表示",
@@ -161,7 +165,9 @@ const settingsTranslations = {
         enableMcpServer: "启用MCP服务器",
         enableMcpServerDesc: "启用Model Context Protocol服务器以进行外部工具集成（例如Claude Desktop、VS Code）。",
         mcpServerPort: "MCP服务器端口",
-        mcpServerPortDesc: "MCP服务器的网络端口。仅当端口3100与其他服务冲突时才更改。"
+        mcpServerPortDesc: "MCP服务器的网络端口。仅当端口3100与其他服务冲突时才更改。",
+        openAtLogin: "登录时启动",
+        openAtLoginDesc: "登录计算机时自动启动Monadic Chat。"
       },
       buttons: {
         showApiKeys: "显示API密钥",
@@ -221,7 +227,9 @@ const settingsTranslations = {
         enableMcpServer: "MCP 서버 활성화",
         enableMcpServerDesc: "외부 도구 통합(예: Claude Desktop, VS Code)을 위한 Model Context Protocol 서버를 활성화합니다.",
         mcpServerPort: "MCP 서버 포트",
-        mcpServerPortDesc: "MCP 서버의 네트워크 포트입니다. 포트 3100이 다른 서비스와 충돌하는 경우에만 변경하세요."
+        mcpServerPortDesc: "MCP 서버의 네트워크 포트입니다. 포트 3100이 다른 서비스와 충돌하는 경우에만 변경하세요.",
+        openAtLogin: "로그인 시 시작",
+        openAtLoginDesc: "컴퓨터에 로그인할 때 Monadic Chat를 자동으로 시작합니다."
       },
       buttons: {
         showApiKeys: "API 키 표시",
@@ -281,7 +289,9 @@ const settingsTranslations = {
         enableMcpServer: "Habilitar Servidor MCP",
         enableMcpServerDesc: "Habilita el servidor Model Context Protocol para integración de herramientas externas (p. ej., Claude Desktop, VS Code).",
         mcpServerPort: "Puerto del Servidor MCP",
-        mcpServerPortDesc: "Puerto de red para el servidor MCP. Cambie solo si el puerto 3100 entra en conflicto con otro servicio."
+        mcpServerPortDesc: "Puerto de red para el servidor MCP. Cambie solo si el puerto 3100 entra en conflicto con otro servicio.",
+        openAtLogin: "Iniciar al iniciar sesión",
+        openAtLoginDesc: "Inicia automáticamente Monadic Chat cuando inicias sesión en tu computadora."
       },
       buttons: {
         showApiKeys: "Mostrar Claves API",
@@ -341,7 +351,9 @@ const settingsTranslations = {
         enableMcpServer: "Activer le Serveur MCP",
         enableMcpServerDesc: "Active le serveur Model Context Protocol pour l'intégration d'outils externes (par ex., Claude Desktop, VS Code).",
         mcpServerPort: "Port du Serveur MCP",
-        mcpServerPortDesc: "Port réseau pour le serveur MCP. Ne modifiez que si le port 3100 entre en conflit avec un autre service."
+        mcpServerPortDesc: "Port réseau pour le serveur MCP. Ne modifiez que si le port 3100 entre en conflit avec un autre service.",
+        openAtLogin: "Lancer au démarrage",
+        openAtLoginDesc: "Démarre automatiquement Monadic Chat lorsque vous vous connectez à votre ordinateur."
       },
       buttons: {
         showApiKeys: "Afficher les Clés API",
@@ -401,7 +413,9 @@ const settingsTranslations = {
         enableMcpServer: "MCP-Server aktivieren",
         enableMcpServerDesc: "Aktiviert den Model Context Protocol-Server für externe Tool-Integration (z. B. Claude Desktop, VS Code).",
         mcpServerPort: "MCP-Server-Port",
-        mcpServerPortDesc: "Netzwerkport für MCP-Server. Ändern Sie nur, wenn Port 3100 mit einem anderen Dienst in Konflikt steht."
+        mcpServerPortDesc: "Netzwerkport für MCP-Server. Ändern Sie nur, wenn Port 3100 mit einem anderen Dienst in Konflikt steht.",
+        openAtLogin: "Bei Anmeldung starten",
+        openAtLoginDesc: "Startet Monadic Chat automatisch, wenn Sie sich an Ihrem Computer anmelden."
       },
       buttons: {
         showApiKeys: "API-Schlüssel anzeigen",

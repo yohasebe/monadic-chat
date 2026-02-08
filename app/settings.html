@@ -401,6 +401,12 @@
           <label for="mcp-server-port" data-i18n="settings.labels.mcpServerPort">MCP Server Port</label>
           <input type="number" id="mcp-server-port" name="mcp-server-port" min="1024" max="65535" value="3100">
           <small class="text-muted" data-i18n="settings.labels.mcpServerPortDesc">Network port for MCP server. Change only if port 3100 conflicts with another service.</small>
+
+          <div id="open-at-login-group">
+            <label class="form-check-label" for="open-at-login" data-i18n="settings.labels.openAtLogin">Launch at Login</label>
+            <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="open-at-login">
+            <small class="text-muted" data-i18n="settings.labels.openAtLoginDesc">Automatically start Monadic Chat when you log in to your computer.</small>
+          </div>
         </div>
 
       </form>
@@ -464,7 +470,8 @@
           PDF_STORAGE_MODE: document.getElementById('pdf-storage-mode-setting').value,
           AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked,
           AUTO_TTS_MAX_BYTES: document.getElementById('auto-tts-max-bytes').value,
-          AUTO_TTS_MIN_LENGTH: document.getElementById('auto-tts-min-length').value
+          AUTO_TTS_MIN_LENGTH: document.getElementById('auto-tts-min-length').value,
+          OPEN_AT_LOGIN: document.getElementById('open-at-login').checked
         };
         
         // Port settings have been removed since they don't affect Docker containers
@@ -596,6 +603,7 @@
         document.getElementById('extra-logging').checked = data.EXTRA_LOGGING == "true" || false;
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
+        document.getElementById('open-at-login').checked = data.OPEN_AT_LOGIN == "true" || false;
         document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
         
         // Handle distributed mode settings - ensure default value is set
@@ -632,6 +640,11 @@
         // Hide the loading overlay once settings are loaded
         document.getElementById('loading-overlay').style.display = 'none';
       });
+
+      // Hide "Launch at Login" on Linux (unsupported by Electron API)
+      if (navigator.platform.startsWith('Linux')) {
+        document.getElementById('open-at-login-group').style.display = 'none';
+      }
 
       window.electronAPI.requestSettings();
       

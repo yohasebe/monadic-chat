@@ -1413,6 +1413,12 @@ function initializeApp() {
     // Fallback to internal if not set
     browserMode = settings.BROWSER_MODE || 'internal';
     console.log('Browser mode set to:', browserMode);
+
+    // Apply login item setting (macOS and Windows only)
+    if (process.platform !== 'linux') {
+      const openAtLogin = settings.OPEN_AT_LOGIN === 'true';
+      app.setLoginItemSettings({ openAtLogin });
+    }
   } catch (err) {
     console.error('Error loading browser mode setting:', err);
   }
@@ -3305,6 +3311,10 @@ function loadSettings() {
 
 ipcMain.on('request-settings', (event) => {
   const settings = loadSettings();
+  // Override with actual system state for login item (macOS/Windows only)
+  if (process.platform !== 'linux') {
+    settings.OPEN_AT_LOGIN = app.getLoginItemSettings().openAtLogin ? 'true' : 'false';
+  }
   event.sender.send('load-settings', settings);
 });
 
@@ -3343,7 +3353,14 @@ ipcMain.on('save-settings', (_event, data) => {
   const languageChanged = uiLanguage && uiLanguage !== oldUiLanguage;
   
   saveSettings(data);
-  
+
+  // Apply login item setting (macOS/Windows only)
+  if (process.platform !== 'linux') {
+    app.setLoginItemSettings({
+      openAtLogin: data.OPEN_AT_LOGIN === true || data.OPEN_AT_LOGIN === 'true'
+    });
+  }
+
   // Apply UI language change
   if (uiLanguage) {
     i18n.setLanguage(uiLanguage);

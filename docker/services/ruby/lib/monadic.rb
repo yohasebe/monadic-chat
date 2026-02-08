@@ -893,6 +893,70 @@ rescue => e
   puts "Warning: Failed to configure SSL defaults: #{e.message}"
 end
 
+# Workflow Viewer helpers: extract graph data from app settings
+def wv_extract_tools(s)
+  pt = s[:progressive_tools] || s["progressive_tools"] || {}
+  all_names = pt[:all_tool_names] || pt["all_tool_names"] || []
+  always_visible = pt[:always_visible] || pt["always_visible"] || []
+  conditional = pt[:conditional] || pt["conditional"] || []
+  conditional_map = conditional.each_with_object({}) do |c, h|
+    name = c[:name] || c["name"]
+    h[name] = {
+      visibility: (c[:visibility] || c["visibility"]).to_s,
+      unlock_hint: c[:unlock_hint] || c["unlock_hint"]
+    }
+  end
+
+  all_names.map do |name|
+    meta = conditional_map[name]
+    {
+      name: name,
+      visibility: meta ? meta[:visibility] : "always",
+      unlock_hint: meta ? meta[:unlock_hint] : nil
+    }
+  end
+end
+
+def wv_extract_shared_tool_groups(s)
+  groups = s[:imported_tool_groups] || s["imported_tool_groups"] || []
+  groups.map do |g|
+    group_name = (g[:name] || g["name"]).to_sym
+    tool_names = begin
+      MonadicSharedTools::Registry.tools_for(group_name).map(&:name)
+    rescue ArgumentError
+      []
+    end
+    {
+      name: group_name.to_s,
+      visibility: (g[:visibility] || g["visibility"]).to_s,
+      tool_count: g[:tool_count] || g["tool_count"] || tool_names.size,
+      tool_names: tool_names
+    }
+  end
+end
+
+def wv_extract_agents(s)
+  agents = s[:agents] || s["agents"] || {}
+  agents.each_with_object({}) do |(k, v), h|
+    h[k.to_s] = v.to_s
+  end
+end
+
+def wv_extract_features(s)
+  flags = %w[websearch monadic image pdf jupyter mermaid mathjax abc
+             image_generation easy_submit auto_speech initiate_from_assistant]
+  result = flags.each_with_object({}) do |f, h|
+    val = s[f.to_sym]
+    val = s[f] if val.nil?
+    h[f] = !!val
+  end
+  # Normalize: pdf_vector_storage and pdf_upload imply pdf capability
+  unless result["pdf"]
+    result["pdf"] = !!(s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"])
+  end
+  result
+end
+
 def handle_error(message)
   session[:error] = message
   redirect "/"
@@ -1615,6 +1679,76 @@ get "/api/pdf_storage_defaults" do
   rescue StandardError => e
     status 500
     { default_storage: 'local', pgvector_available: false }.to_json
+  end
+end
+
+# API: Deduplicated app list for batch SVG export
+get "/api/apps/graph_list" do
+  content_type :json
+  begin
+    by_display = {}
+    APPS.each do |app_name, app|
+      s = app.settings
+      dn = (s[:display_name] || s["display_name"] || app_name).to_s
+      provider = (s[:provider] || s["provider"] || s[:group] || s["group"]).to_s.downcase
+      existing = by_display[dn]
+      if existing.nil? || (provider == "openai" && existing[:provider] != "openai")
+        by_display[dn] = { app_name: app_name, display_name: dn, provider: provider }
+      end
+    end
+    by_display.values.sort_by { |e| e[:display_name] }.to_json
+  rescue StandardError => e
+    status 500
+    { error: e.message }.to_json
+  end
+end
+
+# API: Graph data for Workflow Viewer
+get "/api/app/:name/graph" do
+  content_type :json
+  begin
+    app_name = params[:name]
+    app = defined?(APPS) && APPS[app_name]
+    unless app
+      status 404
+      return { error: "App not found" }.to_json
+    end
+
+    s = app.settings
+
+    prompt_text = (s[:initial_prompt] || s["initial_prompt"]).to_s
+    output_types = ["text"]
+    output_types << "image" if s[:image_generation] || s["image_generation"]
+    output_types << "audio" if s[:auto_speech] || s["auto_speech"]
+
+    input_types = ["text"]
+    input_types << "image" if s[:image] || s["image"]
+    input_types << "pdf" if s[:pdf] || s["pdf"] || s[:pdf_vector_storage] || s["pdf_vector_storage"] || s[:pdf_upload] || s["pdf_upload"]
+
+    {
+      app_name: s[:app_name] || s["app_name"],
+      display_name: s[:display_name] || s["display_name"] || s[:app_name],
+      icon: s[:icon] || s["icon"],
+      provider: (s[:provider] || s["provider"] || s[:group] || s["group"]).to_s.downcase,
+      models: s[:models] || s["models"] || [s[:model] || s["model"]].compact,
+      core: {
+        temperature: s[:temperature] || s["temperature"],
+        reasoning_effort: s[:reasoning_effort] || s["reasoning_effort"],
+        context_size: s[:context_size] || s["context_size"],
+        max_tokens: s[:max_tokens] || s["max_tokens"]
+      },
+      system_prompt: prompt_text.length > 2000 ? prompt_text[0, 2000] + "..." : prompt_text,
+      input_types: input_types,
+      output_types: output_types,
+      tools: wv_extract_tools(s),
+      shared_tool_groups: wv_extract_shared_tool_groups(s),
+      agents: wv_extract_agents(s),
+      features: wv_extract_features(s),
+      context_schema: (s[:context_schema] || s["context_schema"] || {})
+    }.to_json
+  rescue StandardError => e
+    status 500
+    { error: e.message }.to_json
   end
 end
 

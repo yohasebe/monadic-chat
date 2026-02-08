@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Workflow Export</title>
+  <style>
+    body { margin: 0; background: #fff; }
+    #workflow-viewer-panel {
+      max-height: none !important; opacity: 1 !important;
+      border: none; box-shadow: none; position: static;
+    }
+    #workflow-viewer-container { width: 1200px; height: 800px; }
+    .wv-panel-header, .wv-panel-footer, .wv-resize-handle { display: none; }
+  </style>
+  <link rel="stylesheet" href="/css/workflow-viewer.css">
+</head>
+<body>
+  <!-- WorkflowViewer expected DOM structure -->
+  <div id="workflow-viewer-panel">
+    <div class="wv-panel-header">
+      <span class="wv-panel-title"><span id="workflowViewerLabel"></span></span>
+    </div>
+    <div id="workflow-viewer-container"></div>
+    <div class="wv-panel-footer">
+      <div class="workflow-viewer-legend"></div>
+    </div>
+    <div class="wv-resize-handle"></div>
+  </div>
+  <!-- Hidden dummy elements referenced by init() -->
+  <button id="toggle-workflow-viewer" style="display:none"></button>
+  <button id="wv-zoom-in" style="display:none"></button>
+  <button id="wv-zoom-out" style="display:none"></button>
+  <button id="wv-zoom-fit" style="display:none"></button>
+  <button id="wv-close" style="display:none"></button>
+
+  <script src="/vendor/js/maxgraph.bundle.js"></script>
+  <script src="/js/monadic/workflow-viewer.js"></script>
+  <script>
+    window.renderAndExport = async function(appName) {
+      WorkflowViewer.init();
+      document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+      WorkflowViewer._doLoadApp(appName);
+      // Poll until SVG rendering completes
+      return new Promise(function(resolve, reject) {
+        var attempts = 0;
+        var check = setInterval(function() {
+          if (++attempts > 50) { clearInterval(check); reject(new Error('Timeout: ' + appName)); }
+          if (document.querySelector('#workflow-viewer-container svg')) {
+            clearInterval(check);
+            setTimeout(function() {
+              resolve(WorkflowViewer.exportSvg({ width: 800, padding: 30 }));
+              WorkflowViewer.destroy();
+            }, 300);
+          }
+        }, 100);
+      });
+    };
+  </script>
+</body>
+</html>

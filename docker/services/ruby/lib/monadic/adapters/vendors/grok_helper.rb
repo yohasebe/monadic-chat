@@ -1570,6 +1570,7 @@ module GrokHelper
     tools.each do |tool_call|
       function_call = tool_call["function"]
       function_name = function_call["name"]
+      block&.call({ "type" => "tool_executing", "content" => function_name })
 
       begin
         # Handle empty string arguments for tools with no parameters

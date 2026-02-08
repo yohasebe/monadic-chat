@@ -995,4 +995,171 @@ describe('WorkflowViewer highlighting with loaded graph', () => {
       }
     }).not.toThrow();
   });
+
+  // ── Error stage tests (Task B) ──────────────────────────────
+
+  test('setStage(error) should not throw', () => {
+    expect(() => window.WorkflowViewer.setStage('error')).not.toThrow();
+  });
+
+  test('setStage(error) → setStage(done) should clear highlights', () => {
+    window.WorkflowViewer.setStage('error');
+    expect(() => window.WorkflowViewer.setStage('done')).not.toThrow();
+  });
+
+  // ── setActiveTool tests (Task A) ────────────────────────────
+
+  test('setActiveTool should be a public method', () => {
+    expect(typeof window.WorkflowViewer.setActiveTool).toBe('function');
+  });
+
+  test('setActiveTool should not throw with a tool name', () => {
+    expect(() => window.WorkflowViewer.setActiveTool('fetch_web_content')).not.toThrow();
+  });
+
+  test('setActiveTool should not throw with null', () => {
+    expect(() => window.WorkflowViewer.setActiveTool(null)).not.toThrow();
+  });
+});
+
+// ── PTD lock icon tests (Task C) ──────────────────────────────
+
+describe('WorkflowViewer PTD lock icons', () => {
+  let insertedVertices;
+
+  beforeEach(async () => {
+    delete window.WorkflowViewer;
+    delete window.maxgraph;
+    insertedVertices = [];
+
+    window.maxgraph = {
+      Graph: jest.fn(function () {
+        const g = createMockGraph();
+        g.insertVertex = jest.fn(function (parent, id, label, x, y, w, h, style) {
+          const cell = {
+            id, value: label, geometry: { x, y, width: w, height: h }, style,
+            setVisible: jest.fn(), _visible: true,
+          };
+          insertedVertices.push(cell);
+          return cell;
+        });
+        g.insertEdge = jest.fn(() => ({ geometry: { points: null } }));
+        return g;
+      }),
+      HierarchicalLayout: jest.fn(() => ({
+        orientation: 'north', intraCellSpacing: 0, interRankCellSpacing: 0,
+        interHierarchySpacing: 0, disableEdgeStyle: false, execute: jest.fn(),
+      })),
+      Rectangle: jest.fn((x, y, w, h) => ({ x, y, width: w, height: h })),
+      Point: jest.fn((x, y) => ({ x, y })),
+    };
+
+    setupDOM();
+    global.fetch = jest.fn();
+    loadWorkflowViewer();
+    window.WorkflowViewer.init();
+    document.getElementById('workflow-viewer-panel').classList.remove('wv-panel-collapsed');
+  });
+
+  afterEach(() => {
+    if (window.WorkflowViewer) window.WorkflowViewer.destroy();
+    document.body.innerHTML = '';
+    delete global.fetch;
+  });
+
+  test('conditional tools should display lock icon', async () => {
+    const ptdData = {
+      ...SAMPLE_MINIMAL,
+      tools: [
+        { name: 'always_tool', visibility: 'always' },
+        { name: 'locked_tool', visibility: 'conditional' },
+      ],
+      shared_tool_groups: [],
+    };
+    global.fetch.mockResolvedValueOnce({
+      ok: true, json: async () => ptdData,
+    });
+    window.WorkflowViewer._doLoadApp('TestApp');
+    await new Promise(r => setTimeout(r, 0));
+    const toolNode = insertedVertices.find(v => v.value.includes('Tools'));
+    expect(toolNode).toBeDefined();
+    // Lock icon U+1F512 should appear for conditional tool
+    expect(toolNode.value).toContain('\uD83D\uDD12');
+    expect(toolNode.value).toContain('Locked Tool');
+  });
+
+  test('always-visible tools should not display lock icon', async () => {
+    const ptdData = {
+      ...SAMPLE_MINIMAL,
+      tools: [
+        { name: 'always_tool', visibility: 'always' },
+      ],
+      shared_tool_groups: [],
+    };
+    global.fetch.mockResolvedValueOnce({
+      ok: true, json: async () => ptdData,
+    });
+    window.WorkflowViewer._doLoadApp('TestApp');
+    await new Promise(r => setTimeout(r, 0));
+    const toolNode = insertedVertices.find(v => v.value.includes('Tools'));
+    expect(toolNode).toBeDefined();
+    expect(toolNode.value).not.toContain('\uD83D\uDD12');
+  });
+
+  test('conditional shared tool groups should display lock icon', async () => {
+    const ptdData = {
+      ...SAMPLE_MINIMAL,
+      tools: [],
+      shared_tool_groups: [
+        { name: 'locked_group', tool_names: ['tool_a', 'tool_b'], visibility: 'conditional' },
+        { name: 'open_group', tool_names: ['tool_c'], visibility: 'always' },
+      ],
+    };
+    global.fetch.mockResolvedValueOnce({
+      ok: true, json: async () => ptdData,
+    });
+    window.WorkflowViewer._doLoadApp('TestApp');
+    await new Promise(r => setTimeout(r, 0));
+    const toolNode = insertedVertices.find(v => v.value.includes('Tools'));
+    expect(toolNode).toBeDefined();
+    // Lock icon should appear for locked_group but not open_group
+    expect(toolNode.value).toContain('\uD83D\uDD12');
+    expect(toolNode.value).toContain('Locked Group');
+    // open_group line should not have lock icon
+    const lines = toolNode.value.split('</div>');
+    const openGroupLine = lines.find(l => l.includes('Open Group'));
+    expect(openGroupLine).toBeDefined();
+    expect(openGroupLine).not.toContain('\uD83D\uDD12');
+  });
+});
+
+// ── setActiveTool when panel is collapsed ─────────────────────
+
+describe('WorkflowViewer setActiveTool edge cases', () => {
+  beforeEach(() => {
+    delete window.WorkflowViewer;
+    delete window.maxgraph;
+    setupMaxgraphMock();
+    setupDOM();
+    loadWorkflowViewer();
+    window.WorkflowViewer.init();
+  });
+
+  afterEach(() => {
+    if (window.WorkflowViewer) window.WorkflowViewer.destroy();
+    document.body.innerHTML = '';
+  });
+
+  test('setActiveTool should not throw when panel is collapsed', () => {
+    // Panel starts collapsed
+    expect(() => window.WorkflowViewer.setActiveTool('some_tool')).not.toThrow();
+  });
+
+  test('setActiveTool should not throw with null when panel is collapsed', () => {
+    expect(() => window.WorkflowViewer.setActiveTool(null)).not.toThrow();
+  });
+
+  test('setStage(error) should not throw when panel is collapsed', () => {
+    expect(() => window.WorkflowViewer.setStage('error')).not.toThrow();
+  });
 });

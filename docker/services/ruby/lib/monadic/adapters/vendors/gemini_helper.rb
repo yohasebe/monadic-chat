@@ -3115,6 +3115,7 @@ module GeminiHelper
     # Process each tool call
     tool_calls.each do |tool_call|
       function_name = tool_call["name"]
+      block&.call({ "type" => "tool_executing", "content" => function_name })
 
       begin
         # Parse arguments from the tool call

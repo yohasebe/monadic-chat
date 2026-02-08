@@ -1941,6 +1941,7 @@ module ClaudeHelper
     tools.each do |tool_call|
       tool_name = tool_call["name"]
       tool_type = tool_call["type"]
+      block&.call({ "type" => "tool_executing", "content" => tool_name })
 
       # Skip server_tool_use (executed by Anthropic, not by us)
       # But still check for file_id and download if present

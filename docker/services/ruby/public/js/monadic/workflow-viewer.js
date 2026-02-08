@@ -28,6 +28,7 @@ const WorkflowViewer = (function () {
   let cellsByType = {};      // { 'input': cell, 'model': cell, ... }
   let edgesByKey = {};       // { 'input→prompt': edgeCell, ... }
   let activeStage = null;    // Current highlight stage
+  let activeTool = null;     // Currently executing tool name
 
   // ── Colours ──────────────────────────────────────────────────
   function colours() {
@@ -338,10 +339,14 @@ const WorkflowViewer = (function () {
         var gk = 'tg:' + g.name;
         var isExp = expanded.has(gk);
         var arrow = (names.length > 0) ? (isExp ? '\u25be ' : '\u25b8 ') : '';
-        toolBody.push(arrow + titleCase(g.name.replace(/_/g, ' ')) + ' (' + names.length + ')');
+        var gLock = (g.visibility === 'conditional') ? '\uD83D\uDD12 ' : '';
+        toolBody.push(arrow + gLock + titleCase(g.name.replace(/_/g, ' ')) + ' (' + names.length + ')');
         if (isExp) names.forEach(function (n) { toolBody.push('\u00a0\u00a0\u00a0\u00a0' + titleCase(n.replace(/_/g, ' '))); });
       });
-      inlineTools.forEach(function (t) { toolBody.push(titleCase(t.name.replace(/_/g, ' '))); });
+      inlineTools.forEach(function (t) {
+        var tLock = (t.visibility === 'conditional') ? '\uD83D\uDD12 ' : '';
+        toolBody.push(tLock + titleCase(t.name.replace(/_/g, ' ')));
+      });
 
       var toolId = nid();
       nodes.push({
@@ -887,7 +892,7 @@ const WorkflowViewer = (function () {
   }
 
   function clearAllHighlights() {
-    var classes = ['wv-node-active', 'wv-edge-active'];
+    var classes = ['wv-node-active', 'wv-edge-active', 'wv-node-error'];
     if (!graph) return;
     var parent = graph.getDefaultParent();
     if (!parent || !parent.children) return;
@@ -906,9 +911,17 @@ const WorkflowViewer = (function () {
   function setStageInternal(stage) {
     if (!graph || !panelEl || panelEl.classList.contains('wv-panel-collapsed')) return;
     clearAllHighlights();
+    if (activeTool) { activeTool = null; resetToolHeading(); }
     activeStage = stage;
 
     if (stage === 'done') return; // Clear only
+
+    if (stage === 'error') {
+      if (cellsByType['model']) {
+        applyHighlight(cellsByType['model'], 'wv-node-error');
+      }
+      return;
+    }
 
     // Stage → active node types
     var nodeMap = {
@@ -947,6 +960,31 @@ const WorkflowViewer = (function () {
       if (edgesByKey[tk]) applyHighlight(edgesByKey[tk], 'wv-edge-active');
     }
 
+  }
+
+  // ── Active tool display ────────────────────────────────────
+
+  function setActiveToolInternal(toolName) {
+    if (!graph || !panelEl || panelEl.classList.contains('wv-panel-collapsed')) return;
+    activeTool = toolName;
+    var toolCell = cellsByType['toolGroup'];
+    if (!toolCell || !toolName) return;
+    var state = graph.getView().getState(toolCell);
+    if (!state || !state.shape || !state.shape.node) return;
+    var headingEl = state.shape.node.querySelector('b');
+    if (headingEl) {
+      var displayName = titleCase(toolName.replace(/_/g, ' '));
+      headingEl.innerHTML = 'Tools <span style="font-weight:normal;opacity:0.7">\u2014 ' + escHtml(displayName) + '</span>';
+    }
+  }
+
+  function resetToolHeading() {
+    var toolCell = cellsByType['toolGroup'];
+    if (!toolCell || !graph) return;
+    var state = graph.getView().getState(toolCell);
+    if (!state || !state.shape || !state.shape.node) return;
+    var headingEl = state.shape.node.querySelector('b');
+    if (headingEl) headingEl.textContent = 'Tools';
   }
 
   // ── Public API ─────────────────────────────────────────────
@@ -1059,7 +1097,7 @@ const WorkflowViewer = (function () {
       if (themeHandler) { window.removeEventListener('theme-applied', themeHandler); themeHandler = null; }
       currentApp = null; currentData = null; pendingApp = null;
       viewStates = {}; expandedGroups = {}; initialised = false;
-      cellsByType = {}; edgesByKey = {}; activeStage = null;
+      cellsByType = {}; edgesByKey = {}; activeStage = null; activeTool = null;
     },
     exportSvg: function (opts) {
       opts = opts || {};
@@ -1097,6 +1135,9 @@ const WorkflowViewer = (function () {
     },
     setStage: function (stage) {
       setStageInternal(stage);
+    },
+    setActiveTool: function (toolName) {
+      setActiveToolInternal(toolName);
     },
     clearHighlights: function () {
       clearAllHighlights();

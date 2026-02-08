@@ -304,3 +304,20 @@
 .dark-theme .wv-node-active {
   animation-name: wv-pulse-glow-dark;
 }
+
+/* --- Error Node Highlighting --- */
+@keyframes wv-pulse-error {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.2)); }
+  50%      { filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7)); }
+}
+.wv-node-error {
+  animation: wv-pulse-error 1.5s ease-in-out infinite;
+}
+@keyframes wv-pulse-error-dark {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(248, 113, 113, 0.3)); }
+  50%      { filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.8)); }
+}
+[data-theme="dark"] .wv-node-error,
+.dark-theme .wv-node-error {
+  animation-name: wv-pulse-error-dark;
+}

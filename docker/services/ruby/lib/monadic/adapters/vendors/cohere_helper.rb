@@ -2027,6 +2027,7 @@ module CohereHelper
       # Extract function name and validate
       function_name = tool_call.dig("function", "name")
       next if function_name.nil?
+      block&.call({ "type" => "tool_executing", "content" => function_name })
 
       # Important: Keep the original tool_call_id exactly as received
       tool_call_id = tool_call["id"]  # This ID must match exactly what the API sent

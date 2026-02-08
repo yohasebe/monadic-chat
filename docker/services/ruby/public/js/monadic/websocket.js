@@ -1125,6 +1125,13 @@ let loadedApp = "Chat";
         break;
       }
 
+      case "tool_executing": {
+        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
+          WorkflowViewer.setActiveTool(data["content"]);
+        }
+        break;
+      }
+
       case "thinking":
       case "reasoning": {
         // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
@@ -1708,6 +1715,11 @@ let loadedApp = "Chat";
 
             // Restore the message content so user can edit and retry
             $("#message").val(params["message"]);
+          }
+
+          // Notify Workflow Viewer of error state
+          if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+            WorkflowViewer.setStage('error');
           }
 
           // Reset response tracking flags to ensure clean state

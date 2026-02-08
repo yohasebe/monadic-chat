@@ -1097,6 +1097,7 @@ module MistralHelper
         # Extract function details
         function_name = tool_call.dig("function", "name")
         function_args = tool_call.dig("function", "arguments")
+        block&.call({ "type" => "tool_executing", "content" => function_name })
 
         if function_name && APPS[app]&.respond_to?(:settings)
           begin

@@ -78,6 +78,15 @@ describe('Model Specification', () => {
       // Claude Haiku 4.5 has vision support
       expect(modelSpec['claude-haiku-4-5-20251001'].vision_capability).toBe(true);
     });
+
+    it('should mark Opus 4.6 as supporting adaptive thinking', () => {
+      expect(modelSpec['claude-opus-4-6'].supports_adaptive_thinking).toBe(true);
+    });
+
+    it('should not mark older Claude models as supporting adaptive thinking', () => {
+      expect(modelSpec['claude-sonnet-4-5-20250929'].supports_adaptive_thinking).toBeUndefined();
+      expect(modelSpec['claude-haiku-4-5-20251001'].supports_adaptive_thinking).toBeUndefined();
+    });
   });
   
   describe('Cohere Models', () => {

@@ -13,7 +13,7 @@ Several AI providers now offer models that expose their internal reasoning or th
 | Provider | Models | Format | Display Name |
 |----------|--------|--------|--------------|
 | **OpenAI** | o1, o3 series | Field-based (`reasoning_content`) | Reasoning |
-| **Anthropic (Claude)** | Sonnet 4.5+ | Content blocks (`type: "thinking"`) | Thinking |
+| **Anthropic (Claude)** | Sonnet 4.5+, Opus 4.6 (adaptive) | Content blocks (`type: "thinking"`) | Thinking |
 | **DeepSeek** | deepseek-reasoner, deepseek-r1 | Field-based (`reasoning_content`) | Reasoning |
 | **Gemini** | gemini-2.0-flash-thinking-exp | Parts with `thought: true` flag | Thinking |
 | **Grok** | All models | Field-based (`reasoning_content`) | Reasoning |
@@ -50,7 +50,12 @@ end
 
 ### Content Block Pattern (Claude)
 
-Claude uses structured content blocks with explicit types:
+Claude uses structured content blocks with explicit types. Two thinking modes are supported:
+
+- **Legacy (Sonnet 4.5, Opus 4, etc.)**: `thinking: {type: "enabled", budget_tokens: N}` with `interleaved-thinking-2025-05-14` beta header
+- **Adaptive (Opus 4.6+)**: `thinking: {type: "adaptive"}` + `output_config: {effort: "low"|"medium"|"high"}` — no beta header needed. The model self-regulates thinking depth.
+
+Both modes produce the same streaming events (`thinking` blocks and `thinking_delta` events), so the frontend display logic is unchanged.
 
 ```ruby
 # Detect thinking block start

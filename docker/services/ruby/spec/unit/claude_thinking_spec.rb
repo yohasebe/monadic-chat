@@ -163,6 +163,43 @@ RSpec.describe "Claude Thinking Content Extraction" do
     end
   end
 
+  describe "Adaptive thinking mode detection" do
+    it "detects adaptive thinking enabled" do
+      params = {
+        "thinking" => { "type" => "adaptive" },
+        "output_config" => { "effort" => "high" }
+      }
+
+      is_adaptive = params.dig("thinking", "type") == "adaptive"
+      effort = params.dig("output_config", "effort")
+
+      expect(is_adaptive).to be true
+      expect(effort).to eq("high")
+    end
+
+    it "distinguishes adaptive from legacy thinking" do
+      adaptive_params = { "thinking" => { "type" => "adaptive" } }
+      legacy_params = { "thinking" => { "type" => "enabled", "budget_tokens" => 10000 } }
+
+      expect(adaptive_params.dig("thinking", "type")).to eq("adaptive")
+      expect(legacy_params.dig("thinking", "type")).to eq("enabled")
+      expect(legacy_params.dig("thinking", "budget_tokens")).to eq(10000)
+    end
+
+    it "maps reasoning_effort to adaptive effort levels" do
+      mapping = {
+        "minimal" => "low",
+        "low"     => "low",
+        "medium"  => "medium",
+        "high"    => "high"
+      }
+
+      mapping.each do |ui_effort, api_effort|
+        expect(api_effort).to eq(mapping[ui_effort])
+      end
+    end
+  end
+
   describe "Model compatibility" do
     it "supports Claude 3.7 Sonnet with extended thinking" do
       model_name = "claude-sonnet-4-5-20250929"
@@ -174,7 +211,7 @@ RSpec.describe "Claude Thinking Content Extraction" do
     end
 
     it "identifies non-thinking Claude models" do
-      models = ["claude-3-haiku-20240307", "claude-3-5-sonnet-20241022"]
+      models = ["claude-3-haiku-20240307", "claude-sonnet-4-20250514"]
 
       models.each do |model_name|
         # These models existed before extended thinking

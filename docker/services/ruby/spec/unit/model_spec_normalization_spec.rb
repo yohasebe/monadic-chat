@@ -47,6 +47,16 @@ RSpec.describe Monadic::Utils::ModelSpec do
       model = "gpt-5"
       expect(Monadic::Utils::ModelSpec.responses_api?(model)).to be true
     end
+
+    it "detects adaptive thinking support for Opus 4.6" do
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-6")).to be true
+    end
+
+    it "returns false for adaptive thinking on older Claude models" do
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-sonnet-4-5-20250929")).to be false
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-haiku-4-5-20251001")).to be false
+      expect(Monadic::Utils::ModelSpec.supports_adaptive_thinking?("claude-opus-4-20250514")).to be false
+    end
   end
 end
 

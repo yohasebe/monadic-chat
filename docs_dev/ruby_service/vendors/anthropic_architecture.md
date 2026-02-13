@@ -18,23 +18,24 @@ This section documents hardcoded behavior patterns in `claude_helper.rb` and exp
 
 ### 1. Beta Feature Flags
 
-**Pattern**: `supports_extended_thinking` checks for "sonnet-4.5" or "opus-4" in model name
+**Pattern**: Thinking capability determined via SSOT (`supports_thinking` flag in `model_spec.js`)
 
 ```ruby
-def supports_extended_thinking?(model)
-  model.to_s.downcase.include?('sonnet-4.5') ||
-  model.to_s.downcase.include?('opus-4')
-end
+# SSOT-based (current implementation)
+supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+use_adaptive = supports_thinking &&
+               Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
 ```
 
 **Rationale**:
-- Extended thinking is a beta feature in Claude 4.5 and Claude 4 series
-- Only specific model series support this capability
-- Feature availability tied to model architecture, not API version
+- Thinking support is defined per model in `model_spec.js` (SSOT)
+- Opus 4.6+ uses adaptive thinking (`thinking: {type: "adaptive"}` + `output_config: {effort: ...}`)
+- Older models use legacy thinking (`thinking: {type: "enabled", budget_tokens: N}`)
+- Feature availability is model-specific, managed via `supports_thinking` and `supports_adaptive_thinking` flags
 
-**SSOT Migration Path**:
-- Maps to `extended_thinking_capability` in `model_spec.js`
-- Accessor: `ModelSpec.supports_extended_thinking?(model, 'anthropic')`
+**SSOT Status**: ✅ Migrated
+- `ModelSpec.supports_thinking?(model)` — returns true for all thinking-capable models
+- `ModelSpec.supports_adaptive_thinking?(model)` — returns true for Opus 4.6+
 
 ### 2. Streaming Defaults
 
@@ -83,18 +84,8 @@ end
 **Pattern**: Context windows vary by model series
 
 ```ruby
-def context_window(model)
-  case model
-  when /opus-4|sonnet-4\.5/
-    200_000
-  when /haiku-4\.5/
-    180_000
-  when /sonnet-3\.5|opus-3\.5/
-    200_000
-  else
-    100_000  # Conservative default
-  end
-end
+# SSOT-based (current implementation)
+context_window = Monadic::Utils::ModelSpec.get_model_property(model, "context_window")
 ```
 
 **Rationale**:
@@ -112,18 +103,8 @@ end
 **Pattern**: Maximum output tokens vary by model
 
 ```ruby
-def max_output_tokens(model)
-  case model
-  when /opus-4|sonnet-4\.5/
-    16_000
-  when /haiku-4\.5/
-    8_000
-  when /sonnet-3\.5|opus-3\.5/
-    8_192
-  else
-    4_096  # Conservative default
-  end
-end
+# SSOT-based (current implementation)
+max_output = Monadic::Utils::ModelSpec.get_model_property(model, "max_output_tokens")
 ```
 
 **Rationale**:
@@ -162,7 +143,7 @@ end
 
 ```ruby
 def supports_prompt_caching?(model)
-  model.to_s.match?(/3\.5|4\.|sonnet-4|opus-4|haiku-4/)
+  model.to_s.match?(/sonnet-4|opus-4|haiku-4/)
 end
 ```
 
@@ -213,7 +194,7 @@ end
 POST https://api.anthropic.com/v1/messages
 
 {
-  "model": "claude-sonnet-4.5-20250514",
+  "model": "claude-sonnet-4-5-20250929",
   "max_tokens": 4096,
   "messages": [
     {"role": "user", "content": "Hello"}
@@ -223,11 +204,11 @@ POST https://api.anthropic.com/v1/messages
 }
 ```
 
-### With Extended Thinking
+### With Thinking (Legacy — Sonnet 4.5, Opus 4, etc.)
 
 ```ruby
 {
-  "model": "claude-sonnet-4.5-20250514",
+  "model": "claude-sonnet-4-5-20250929",
   "max_tokens": 4096,
   "thinking": {
     "type": "enabled",
@@ -237,11 +218,27 @@ POST https://api.anthropic.com/v1/messages
 }
 ```
 
+### With Adaptive Thinking (Opus 4.6+)
+
+```ruby
+{
+  "model": "claude-opus-4-6",
+  "max_tokens": 4096,
+  "thinking": {
+    "type": "adaptive"
+  },
+  "output_config": {
+    "effort": "high"
+  },
+  "messages": [...]
+}
+```
+
 ### With Tool Calling
 
 ```ruby
 {
-  "model": "claude-sonnet-4.5-20250514",
+  "model": "claude-sonnet-4-5-20250929",
   "max_tokens": 4096,
   "tools": [
     {
@@ -333,14 +330,15 @@ end
 
 | Feature | Current Implementation | SSOT Status |
 |---------|-----------------------|-------------|
-| Extended Thinking | Hardcoded model check | ✅ In `model_spec.js` |
+| Thinking (Legacy) | SSOT flag `supports_thinking` | ✅ In `model_spec.js` |
+| Adaptive Thinking | SSOT flag `supports_adaptive_thinking` | ✅ In `model_spec.js` (Opus 4.6+) |
 | Context Window | Hardcoded case statement | ✅ In `model_spec.js` |
 | Max Output Tokens | Hardcoded case statement | ✅ In `model_spec.js` |
 | Vision Support | Hardcoded model check | ✅ In `model_spec.js` |
 | Streaming Default | Hardcoded true | Not migrated (handled in `claude_helper.rb`) |
 | Tool Call Limit | Hardcoded constant | Not migrated (handled in `claude_helper.rb`) |
 | Prompt Caching | Hardcoded model check | Not migrated (handled in `claude_helper.rb`) |
-| Thinking Budget | Hardcoded case statement | Not migrated (handled in `claude_helper.rb`) |
+| Thinking Budget | SSOT `thinking_budget` + adaptive effort mapping | ✅ In `model_spec.js` + `claude_helper.rb` |
 
 ## Related Files
 
@@ -356,14 +354,24 @@ end
 Test each capability detection method:
 
 ```ruby
-RSpec.describe ClaudeHelper do
-  describe '#supports_extended_thinking?' do
-    it 'returns true for Claude 4.5' do
-      expect(helper.supports_extended_thinking?('claude-sonnet-4.5')).to be true
+RSpec.describe Monadic::Utils::ModelSpec do
+  describe '.supports_thinking?' do
+    it 'returns true for Claude Sonnet 4.5' do
+      expect(described_class.supports_thinking?('claude-sonnet-4-5-20250929')).to be true
     end
 
-    it 'returns false for Claude 3.5' do
-      expect(helper.supports_extended_thinking?('claude-3.5-sonnet')).to be false
+    it 'returns false for Claude Haiku 3' do
+      expect(described_class.supports_thinking?('claude-3-haiku-20240307')).to be false
+    end
+  end
+
+  describe '.supports_adaptive_thinking?' do
+    it 'returns true for Opus 4.6' do
+      expect(described_class.supports_adaptive_thinking?('claude-opus-4-6')).to be true
+    end
+
+    it 'returns false for older models' do
+      expect(described_class.supports_adaptive_thinking?('claude-sonnet-4-5-20250929')).to be false
     end
   end
 end
@@ -375,11 +383,12 @@ Test actual API behavior with real models:
 
 ```ruby
 RSpec.describe 'Claude API Integration', type: :integration do
-  it 'successfully uses extended thinking' do
+  it 'successfully uses adaptive thinking with Opus 4.6' do
     response = helper.chat(
-      model: 'claude-sonnet-4.5',
+      model: 'claude-opus-4-6',
       messages: [...],
-      thinking: { type: 'enabled', budget_tokens: 10000 }
+      thinking: { type: 'adaptive' },
+      output_config: { effort: 'high' }
     )
 
     expect(response).to have_key(:thinking_content)

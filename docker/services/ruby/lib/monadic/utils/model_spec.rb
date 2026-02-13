@@ -109,8 +109,7 @@ module Monadic
         # Normalize model name by removing date suffixes
         # Examples:
         #   gpt-5-2025-08-07 -> gpt-5
-        #   claude-3-5-sonnet-20241022 -> claude-3-5-sonnet
-        #   gemini-2.0-flash-001 -> gemini-2.0-flash
+        #   claude-sonnet-4-5-20250929 -> claude-sonnet-4-5
         #   gemini-2.5-flash-002 -> gemini-2.5-flash
         #   command-a-vision-07-2025 -> command-a-vision
         def normalize_model_name(model_name)
@@ -303,6 +302,10 @@ module Monadic
         
         def supports_thinking?(model_name)
           get_model_property(model_name, "supports_thinking") == true
+        end
+
+        def supports_adaptive_thinking?(model_name)
+          get_model_property(model_name, "supports_adaptive_thinking") == true
         end
 
         def supports_thinking_level?(model_name)

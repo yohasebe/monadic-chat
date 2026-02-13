@@ -93,13 +93,13 @@ end
 # Integration test with real API call
 it 'generates text with Claude', run_api: true do
   response = ClaudeHelper.new.chat(
-    model: 'claude-sonnet-4.5',
+    model: 'claude-sonnet-4-5-20250929',
     messages: [{ role: 'user', content: 'Say hello' }]
   )
 
   # Real provider response
   expect(response[:text]).to match(/hello|hi|greetings/i)
-  expect(response[:model]).to eq('claude-sonnet-4.5')
+  expect(response[:model]).to eq('claude-sonnet-4-5-20250929')
 end
 ```
 

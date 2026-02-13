@@ -75,14 +75,14 @@ All provider helpers should follow this structure:
 # ❌ Bad: Hardcoded capability checks
 class ProviderHelper
   def supports_thinking?(model)
-    model.include?('sonnet-4.5') || model.include?('opus-4')  # Hardcoded
+    model.include?('sonnet-4-5') || model.include?('opus-4')  # Hardcoded
   end
 
   def context_window(model)
     case model
     when /opus-4/
       200_000
-    when /sonnet-4.5/
+    when /sonnet-4-5/
       200_000
     else
       100_000
@@ -93,11 +93,15 @@ end
 # ✅ Good: SSOT-based implementation
 class ProviderHelper
   def supports_thinking?(model)
-    ModelSpec.supports_extended_thinking?(model, provider_name)  # Uses SSOT
+    Monadic::Utils::ModelSpec.supports_thinking?(model)  # Uses SSOT
+  end
+
+  def supports_adaptive_thinking?(model)
+    Monadic::Utils::ModelSpec.supports_adaptive_thinking?(model)  # Opus 4.6+
   end
 
   def context_window(model)
-    ModelSpec.context_window(model, provider_name)  # Uses SSOT
+    Monadic::Utils::ModelSpec.get_model_property(model, "context_window")  # Uses SSOT
   end
 end
 ```
@@ -154,30 +158,32 @@ Each provider helper follows the same migration pattern:
 ```ruby
 # claude_helper.rb
 def supports_extended_thinking?(model)
-  model.to_s.downcase.include?('sonnet-4.5') ||
+  model.to_s.downcase.include?('sonnet-4-5') ||
   model.to_s.downcase.include?('opus-4')
 end
 ```
 
 **After (SSOT)**:
 ```ruby
-# claude_helper.rb
-def supports_extended_thinking?(model)
-  result = ModelSpec.supports_extended_thinking?(model, 'anthropic')
-
-  if ENV['EXTRA_LOGGING']
-    Rails.logger.debug "[ClaudeHelper] Extended thinking for #{model}: #{result} (source: SSOT)"
-  end
-
-  result
-end
+# claude_helper.rb — current implementation
+supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+use_adaptive = supports_thinking &&
+               Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
 ```
 
 **SSOT Definition** (`model_spec.js`):
 ```javascript
-"claude-sonnet-4.5-20250514": {
-  extended_thinking_capability: true,
-  thinking_budget_tokens: 20000,
+"claude-opus-4-6": {
+  "supports_thinking": true,
+  "supports_adaptive_thinking": true,  // Opus 4.6+ only
+  "thinking_budget": { "min": 1024, "default": 10000, "max": null },
+  // ... other capabilities
+}
+
+"claude-sonnet-4-5-20250929": {
+  "supports_thinking": true,
+  // supports_adaptive_thinking is absent (legacy mode)
+  "thinking_budget": { "min": 1024, "default": 10000, "max": null },
   // ... other capabilities
 }
 ```
@@ -190,8 +196,9 @@ end
 - **Vision**: All GPT-4+ models support vision except text-only variants
 
 #### Anthropic/Claude
-- **Extended Thinking**: Claude 4.5/4 series with thinking_budget parameter
-- **Prompt Caching**: Claude 3.5+ supports prompt caching for cost optimization
+- **Thinking (Legacy)**: Claude Sonnet 4.5, Opus 4, etc. use `thinking: {type: "enabled", budget_tokens: N}`
+- **Adaptive Thinking**: Claude Opus 4.6+ uses `thinking: {type: "adaptive"}` + `output_config: {effort: ...}`
+- **Prompt Caching**: Claude 4+ supports prompt caching for cost optimization
 - **Streaming Default**: All Claude models default to streaming enabled
 
 #### Gemini

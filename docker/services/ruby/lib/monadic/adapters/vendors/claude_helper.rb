@@ -146,10 +146,10 @@ module ClaudeHelper
         else
           # Return fallback models if API call fails during testing
           fallback_models = [
-            "claude-opus-4-20250514",
+            "claude-opus-4-6",
             "claude-sonnet-4-5-20250929",
-            "claude-3-5-sonnet-20241022",
-            "claude-3-haiku-20240307"
+            "claude-sonnet-4-20250514",
+            "claude-haiku-4-5-20251001"
           ]
           $MODELS[:anthropic] = fallback_models
           return fallback_models
@@ -157,10 +157,10 @@ module ClaudeHelper
       rescue HTTP::Error, HTTP::TimeoutError, StandardError
         # Return fallback models if any error occurs
         fallback_models = [
-          "claude-opus-4-20250514",
+          "claude-opus-4-6",
           "claude-sonnet-4-5-20250929",
-          "claude-3-5-sonnet-20241022",
-          "claude-3-haiku-20240307"
+          "claude-sonnet-4-20250514",
+          "claude-haiku-4-5-20251001"
         ]
         $MODELS[:anthropic] = fallback_models
         return fallback_models
@@ -627,6 +627,8 @@ module ClaudeHelper
     
     # Check if the model supports thinking via ModelSpec
     supports_thinking = Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+    use_adaptive = supports_thinking &&
+                   Monadic::Utils::ModelSpec.supports_adaptive_thinking?(obj["model"])
 
     # Check if monadic mode + structured outputs are enabled
     # Thinking is incompatible with structured outputs, so disable thinking in monadic mode
@@ -639,30 +641,50 @@ module ClaudeHelper
     # 2. reasoning_effort is not "none"
     # 3. NOT in monadic mode with structured outputs (incompatible)
     if supports_thinking && obj["reasoning_effort"] && obj["reasoning_effort"] != "none" && !monadic_with_structured_outputs
-      case obj["reasoning_effort"]
-      when "minimal"
-        # Use half of low effort for minimal, ensuring minimum of 1024
-        budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
-        max_tokens = user_max_tokens  # Keep original value
-      when "low"
-        # Use proportional approach based on user's max_tokens
-        budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
-        max_tokens = user_max_tokens  # Keep original value
-      when "medium"
-        budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
-        max_tokens = user_max_tokens
-      when "high"
-        budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
+      thinking_enabled = true
+
+      if use_adaptive
+        # Adaptive thinking (Opus 4.6+): model self-regulates thinking depth
+        # via output_config effort level; no explicit budget_tokens needed
+        budget_tokens = nil
+        adaptive_effort = case obj["reasoning_effort"]
+                          when "minimal" then "low"
+                          when "low"     then "low"
+                          when "medium"  then "medium"
+                          when "high"    then "high"
+                          else "medium"
+                          end
         max_tokens = user_max_tokens
       else
-        # Default to low if no valid reasoning_effort is provided for thinking models
-        budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
-        max_tokens = user_max_tokens
+        # Legacy thinking: explicit budget_tokens calculation
+        adaptive_effort = nil
+        case obj["reasoning_effort"]
+        when "minimal"
+          # Use half of low effort for minimal, ensuring minimum of 1024
+          budget_tokens = [[(user_max_tokens * 0.25).to_i, 1024].max, 8000].min
+          max_tokens = user_max_tokens  # Keep original value
+        when "low"
+          # Use proportional approach based on user's max_tokens
+          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+          max_tokens = user_max_tokens  # Keep original value
+        when "medium"
+          budget_tokens = [(user_max_tokens * 0.7).to_i, 32000].min
+          max_tokens = user_max_tokens
+        when "high"
+          budget_tokens = [(user_max_tokens * 0.8).to_i, 48000].min
+          max_tokens = user_max_tokens
+        else
+          # Default to low if no valid reasoning_effort is provided for thinking models
+          budget_tokens = [(user_max_tokens * 0.5).to_i, 16000].min
+          max_tokens = user_max_tokens
+        end
       end
     else
       # Disable thinking for models that don't support it, when reasoning_effort is "none",
       # or when using monadic mode with structured outputs (incompatible features)
+      thinking_enabled = false
       budget_tokens = nil
+      adaptive_effort = nil
       max_tokens = user_max_tokens
 
       if CONFIG["EXTRA_LOGGING"] && monadic_with_structured_outputs
@@ -673,7 +695,7 @@ module ClaudeHelper
         extra_log.close
       end
     end
-    
+
     # Ensure budget_tokens is less than max_tokens (only if budget_tokens is set)
     if budget_tokens && budget_tokens >= max_tokens
       # Adjust budget_tokens to be at most 80% of max_tokens
@@ -754,7 +776,7 @@ module ClaudeHelper
 
           # Add thinking block clearing if thinking is enabled
           # IMPORTANT: clear_thinking must come FIRST in the edits array
-          if budget_tokens
+          if thinking_enabled
             edits << {
               "type" => "clear_thinking_20251015",
               "keep" => {
@@ -814,16 +836,21 @@ module ClaudeHelper
       end
     end
     
-    if budget_tokens
+    if thinking_enabled
       body["max_tokens"] = max_tokens
       body["temperature"] = 1  # Required to be 1 when thinking is enabled
       # IMPORTANT: Do NOT set tool_choice when thinking is enabled
       # Claude API does not allow tool_choice with thinking mode
       # The model will automatically decide whether to use tools
-      body["thinking"] = {
-        "type": "enabled",
-        "budget_tokens": budget_tokens
-      }
+      if adaptive_effort
+        body["thinking"] = { "type": "adaptive" }
+        body["output_config"] = { "effort": adaptive_effort }
+      else
+        body["thinking"] = {
+          "type": "enabled",
+          "budget_tokens": budget_tokens
+        }
+      end
     else
       body["temperature"] = temperature if temperature
       body["max_tokens"] = max_tokens if max_tokens
@@ -983,7 +1010,7 @@ module ClaudeHelper
     if body["tools"] && !body["tools"].empty?
       body["tools"].uniq!
       # Set tool_choice for non-thinking mode if not already set
-      if !budget_tokens && role != "tool" && !body["tool_choice"]
+      if !thinking_enabled && role != "tool" && !body["tool_choice"]
         # only when tool-capable or websearch tool is present
         has_websearch_tool = body["tools"].any? { |t| (t.is_a?(Hash) && (t["type"] == "web_search_20250305" || t[:type] == "web_search_20250305")) }
         if tool_capable || has_websearch_tool

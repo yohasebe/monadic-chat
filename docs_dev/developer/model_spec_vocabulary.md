@@ -39,6 +39,11 @@ This document defines the canonical property names used across providers in `mod
 - supports_thinking: boolean
   - Whether a provider supports a dedicated thinking/thought budget feature.
 
+- supports_adaptive_thinking: boolean
+  - Whether the model supports adaptive thinking mode (Claude Opus 4.6+).
+  - When true, uses `thinking: {type: "adaptive"}` + `output_config: {effort: "..."}` instead of explicit `budget_tokens`.
+  - The model self-regulates thinking depth based on the effort level.
+
 - thinking_budget: object
   - Structure: { min, max, can_disable, presets: { minimal, low, medium, high } }.
 
@@ -75,6 +80,8 @@ Helpers should prefer accessors over reading raw properties when possible:
 - ModelSpec.supports_pdf?(model)
 - ModelSpec.supports_pdf_upload?(model)
 - ModelSpec.supports_web_search?(model)
+- ModelSpec.supports_thinking?(model)
+- ModelSpec.supports_adaptive_thinking?(model)
 - ModelSpec.supports_verbosity?(model)
 - ModelSpec.get_verbosity_options(model)
 - ModelSpec.responses_api?(model)

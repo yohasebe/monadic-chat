@@ -146,6 +146,26 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
+  "gpt-5.3-codex": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": true,
+    "supports_pdf": false,
+    "skip_in_progress_events": true
+  },
   "gpt-5.2-codex": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
@@ -295,18 +315,6 @@ const modelSpec = {
     "vision_capability": true,
     "supports_pdf_upload": true
   },
-  "chatgpt-4o-latest": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 16384],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_pdf_upload": true,
-    "skip_in_progress_events": true
-  },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
@@ -338,12 +346,6 @@ const modelSpec = {
     "supports_pdf_upload": false
   },
   // reasoning models
-  "o1": {
-    "context_window" : [1, 200000],
-    "max_output_tokens" : [25000, 100000],
-    "tool_capability": false,
-    "vision_capability": false
-  },
   "o1-pro": {
     "context_window" : [1, 200000],
     "max_output_tokens" : [25000, 100000],
@@ -436,26 +438,6 @@ const modelSpec = {
     "vision_capability": true,
     "reasoning_effort": [["none", "low", "medium", "high"], "high"]
   },
-  // Other OpenAI models
-  "codex-mini-latest": {
-    "context_window": [1, 128000],
-    "max_output_tokens": [1, 16384],
-    "temperature": [[0.0, 2.0], 0.7],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
-  },
-  "gpt-4": {
-    "context_window": [1, 8192],
-    "max_output_tokens": [1, 4096],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": false
-  },
   // Anthropic models
   "claude-opus-4-6": {
     "context_window" : [1, 200000],
@@ -464,6 +446,7 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": true,
+    "supports_adaptive_thinking": true,
     "thinking_budget": {
       "min": 1024,
       "default": 10000,
@@ -829,26 +812,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
-  },
-  // Flash models
-  "gemini-2.0-flash": {
-    "context_window" : [1, 1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-2.0-flash-lite": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
     "supports_pdf": true
   },
   // Mistral models

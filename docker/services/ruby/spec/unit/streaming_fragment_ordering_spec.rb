@@ -93,22 +93,22 @@ RSpec.describe "Streaming Fragment Ordering (All Providers)" do
         expect(should_skip).to be true
       end
       
-      it "skips response.in_progress events for chatgpt-4o-latest" do
+      it "skips response.in_progress events for gpt-4o" do
         json = {
           "type" => "response.in_progress",
           "response" => {
-            "model" => "chatgpt-4o-latest",
+            "model" => "gpt-4o",
             "output" => [
               { "type" => "text", "text" => "Test" }
             ]
           }
         }
-        
-        streaming_model = "chatgpt-4o-latest"
+
+        streaming_model = "gpt-4o"
         current_model = streaming_model
-        
-        should_skip = current_model && current_model.to_s.include?("chatgpt-4o")
-        
+
+        should_skip = current_model && current_model.to_s.include?("gpt-4o")
+
         expect(should_skip).to be true
       end
     end

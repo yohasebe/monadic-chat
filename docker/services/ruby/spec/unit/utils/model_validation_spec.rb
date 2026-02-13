@@ -70,7 +70,7 @@ RSpec.describe 'Model Validation' do
         'command-r7b-12-2024' => 'command-r7b',
         'magistral-small-2509' => 'magistral-small',
         'gemini-2.5-flash-lite-06-17' => 'gemini-2.5-flash-lite',
-        'gemini-2.0-flash-001' => 'gemini-2.0-flash'
+        'gemini-2.5-flash-002' => 'gemini-2.5-flash'
       }
 
       test_cases.each do |input, expected|

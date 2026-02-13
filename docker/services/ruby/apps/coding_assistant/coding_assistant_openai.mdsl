@@ -70,7 +70,7 @@ app "CodingAssistantOpenAI" do
     temperature 0.0
 
     agents do
-      code_generator model: "gpt-5.2-codex"
+      code_generator model: "gpt-5.3-codex"
     end
   end
 

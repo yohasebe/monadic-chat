@@ -43,7 +43,7 @@ app "JupyterNotebookOpenAI" do
     context_size 20
 
     agents do
-      code_generator model: "gpt-5.2-codex"
+      code_generator model: "gpt-5.3-codex"
     end
   end
 

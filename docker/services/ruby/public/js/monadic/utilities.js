@@ -176,7 +176,7 @@ function listModels(models, openai = false) {
   // Array of patterns to identify different model types
   // GPT-5: gpt-5, gpt-5.1, gpt-5.2, gpt-5-mini, gpt-5.2-pro, gpt-5.2-chat-latest, etc.
   const gpt5ModelPatterns = [/^gpt-5(?:\.\d)?(-(?:mini|nano|pro|chat-latest|codex(?:-mini|-max)?))?(?:-(?:latest|\d{4}-\d{2}-\d{2}))?$/];
-  // GPT-4: gpt-4, gpt-4o, gpt-4o-mini, chatgpt-4o-latest, etc.
+  // GPT-4: gpt-4o, gpt-4o-mini, etc.
   const gpt4ModelPatterns = [/^(?:chatgpt-4o|gpt-4)/];
 
   // Separate models by type

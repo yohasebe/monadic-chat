@@ -146,26 +146,6 @@ const modelSpec = {
     "supports_pdf_upload": true,
     "skip_in_progress_events": true
   },
-  "gpt-5.3-codex": {
-    "context_window": [1, 400000],
-    "max_output_tokens": [1, 128000],
-    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
-    "tool_capability": true,
-    "vision_capability": true,
-    "api_type": "responses",
-    "supports_streaming": true,
-    "supports_temperature": false,
-    "supports_top_p": false,
-    "supports_presence_penalty": false,
-    "supports_frequency_penalty": false,
-    "supports_structured_output": true,
-    "is_agent_model": true,
-    "agent_type": "coding",
-    "adaptive_reasoning": true,
-    "supports_web_search": true,
-    "supports_pdf": false,
-    "skip_in_progress_events": true
-  },
   "gpt-5.2-codex": {
     "context_window": [1, 400000],
     "max_output_tokens": [1, 128000],
@@ -881,7 +861,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "deprecated": true
   },
   "mistral-small-latest": {
     "max_output_tokens" : [1, 32768],
@@ -919,7 +900,8 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "deprecated": true
   },
   "mistral-medium": {
     "max_output_tokens" : [1, 32768],
@@ -1043,7 +1025,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "supports_web_search": false,
-    "supports_parallel_function_calling": true
+    "supports_parallel_function_calling": true,
+    "deprecated": true
   },
   "grok-3": {
     "context_window" : [1, 131072],

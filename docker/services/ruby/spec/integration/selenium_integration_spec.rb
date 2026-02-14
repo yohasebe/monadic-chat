@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "timeout"
 
 RSpec.describe "Selenium Integration", :integration do
   before(:context) do
@@ -60,8 +61,15 @@ RSpec.describe "Selenium Integration", :integration do
       max_retries = 3
       
       while retries < max_retries
-        output = `timeout 90 docker exec monadic-chat-python-container #{command} 2>&1`
-        
+        begin
+          output = ""
+          Timeout.timeout(90) do
+            output = `docker exec monadic-chat-python-container #{command} 2>&1`
+          end
+        rescue Timeout::Error
+          output = "timeout: command timed out after 90 seconds"
+        end
+
         # Check if successful
         if output.match(/Successfully saved screenshot to:.*\.png/) || output.match(/saved to:|screenshot.*\.png/i)
           break
@@ -74,7 +82,8 @@ RSpec.describe "Selenium Integration", :integration do
       end
       
       # Check for actual network issues or container problems
-      if output.include?("connection timed out") || 
+      if output.include?("connection timed out") ||
+         output.include?("command timed out") ||
          output.include?("Failed to fetch") ||
          output.include?("Connection refused") ||
          output.include?("unable to access") ||

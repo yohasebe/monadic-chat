@@ -26,7 +26,7 @@ RSpec.describe "API /api/models endpoint" do
         "tool_capability" => true,
         "vision_capability" => true
       },
-      "gpt-4" => {
+      "gpt-4o" => {
         "temperature" => [[0.0, 2.0], 0.5],
         "custom_override" => true
       }
@@ -51,9 +51,9 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         expect(result).to be_a(Hash)
-        expect(result.keys).to include("gpt-4", "claude-opus-4-20250514")
-        expect(result["gpt-4"]).to have_key("context_window")
-        expect(result["gpt-4"]).to have_key("max_output_tokens")
+        expect(result.keys).to include("gpt-4o", "claude-opus-4-20250514")
+        expect(result["gpt-4o"]).to have_key("context_window")
+        expect(result["gpt-4o"]).to have_key("max_output_tokens")
       end
     end
 
@@ -71,12 +71,12 @@ RSpec.describe "API /api/models endpoint" do
         expect(result["test-gpt-5"]["vision_capability"]).to eq(true)
         
         # Existing model should be modified
-        expect(result["gpt-4"]["temperature"]).to eq([[0.0, 2.0], 0.5])
-        expect(result["gpt-4"]["custom_override"]).to eq(true)
+        expect(result["gpt-4o"]["temperature"]).to eq([[0.0, 2.0], 0.5])
+        expect(result["gpt-4o"]["custom_override"]).to eq(true)
         
         # Other properties should be preserved
-        expect(result["gpt-4"]).to have_key("context_window")
-        expect(result["gpt-4"]).to have_key("tool_capability")
+        expect(result["gpt-4o"]).to have_key("context_window")
+        expect(result["gpt-4o"]).to have_key("tool_capability")
         
         # Other models should remain unchanged
         expect(result).to have_key("claude-opus-4-20250514")
@@ -116,7 +116,7 @@ RSpec.describe "API /api/models endpoint" do
         result = ModelSpecLoader.load_merged_spec(default_spec_path)
         
         # Should have default models
-        expect(result).to have_key("gpt-4")
+        expect(result).to have_key("gpt-4o")
         expect(result).to have_key("claude-opus-4-20250514")
         
         # Should not have custom models
@@ -228,7 +228,7 @@ RSpec.describe "API /api/models endpoint" do
       result = ModelSpecLoader.load_merged_spec(default_spec_path)
       
       # Should return default models unchanged
-      expect(result).to have_key("gpt-4")
+      expect(result).to have_key("gpt-4o")
       expect(result).to have_key("claude-opus-4-20250514")
     end
 
@@ -265,7 +265,7 @@ RSpec.describe "API /api/models endpoint" do
       expect(result.keys.size).to be > 100
       expect(result).to have_key("test-model-0")
       expect(result).to have_key("test-model-99")
-      expect(result).to have_key("gpt-4")
+      expect(result).to have_key("gpt-4o")
     end
   end
 end

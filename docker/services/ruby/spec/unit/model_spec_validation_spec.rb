@@ -77,6 +77,8 @@ def should_exclude_from_model_spec?(model)
   return true if model.match?(/^voxtral/)
   # Code-only models that are not general chat models (devstral is code-only)
   return true if model.match?(/^devstral/)
+  # CLI-only models (not usable via standard chat API)
+  return true if model.include?('vibe-cli')
   false
 end
 
@@ -256,10 +258,12 @@ RSpec.describe "Model Specification Validation" do
         
         cohere_models_in_spec = model_spec.keys.select { |k| k.match?(/^(command|embed|rerank)/) }
         
-        # Filter out models that have explicit deprecated: false flag
+        # Filter out models that have explicit deprecated flag
         deprecated_models = cohere_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
@@ -305,11 +309,13 @@ RSpec.describe "Model Specification Validation" do
         skip "No Mistral models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         mistral_models_in_spec = model_spec.keys.select { |k| k.match?(/^(mistral|open-mistral|codestral|pixtral)/) }
-        
-        # Filter out models that have explicit deprecated: false flag
+
+        # Filter out models that have explicit deprecated flag
         deprecated_models = mistral_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
@@ -352,11 +358,13 @@ RSpec.describe "Model Specification Validation" do
         skip "No Grok models returned; skipping deprecated check" if available_models.nil? || available_models.empty?
         
         grok_models_in_spec = model_spec.keys.select { |k| k.match?(/^grok/) }
-        
-        # Filter out models that have explicit deprecated: false flag
+
+        # Filter out models that have explicit deprecated flag
         deprecated_models = grok_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
@@ -397,11 +405,13 @@ RSpec.describe "Model Specification Validation" do
         available_models = DeepSeekHelper.list_models
         
         deepseek_models_in_spec = model_spec.keys.select { |k| k.match?(/^deepseek/) }
-        
-        # Filter out models that have explicit deprecated: false flag
+
+        # Filter out models that have explicit deprecated flag
         deprecated_models = deepseek_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end
@@ -439,11 +449,13 @@ RSpec.describe "Model Specification Validation" do
         available_models = PerplexityHelper.list_models
         
         perplexity_models_in_spec = model_spec.keys.select { |k| k.match?(/^(sonar|r1)/) }
-        
-        # Filter out models that have explicit deprecated: false flag
+
+        # Filter out models that have explicit deprecated flag
         deprecated_models = perplexity_models_in_spec.select do |model|
           # Skip if model has deprecated: false explicitly set
           next false if model_spec[model] && model_spec[model]["deprecated"] == false
+          # Skip if model has deprecated: true (intentionally kept for backward compatibility)
+          next false if model_deprecated?(model)
           # Otherwise, check if it's not in available models
           !available_models.include?(model)
         end

@@ -6,7 +6,7 @@ import argparse
 import base64
 import json
 from datetime import datetime
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 import sys
 import contextlib
 

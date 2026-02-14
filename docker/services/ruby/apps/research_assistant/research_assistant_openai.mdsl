@@ -64,7 +64,7 @@ app "ResearchAssistantOpenAI" do
     context_size 30
 
     agents do
-      code_generator model: "gpt-5.3-codex"
+      code_generator model: "gpt-5.2-codex"
     end
   end
 

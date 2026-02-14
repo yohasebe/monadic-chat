@@ -22,8 +22,15 @@ from unittest.mock import patch, MagicMock
 
 # Add the parent directory to the path to import jupyter_controller
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import jupyter_controller
+try:
+    import jupyter_controller
+    HAS_JUPYTER_DEPS = True
+except ModuleNotFoundError:
+    # Dependencies (e.g., nbformat) not available outside Docker
+    HAS_JUPYTER_DEPS = False
+    jupyter_controller = None
 
+@unittest.skipUnless(HAS_JUPYTER_DEPS, "Required modules not available (run inside Docker)")
 class TestJupyterController(unittest.TestCase):
     def setUp(self):
         """Set up test environment before each test"""
@@ -259,6 +266,7 @@ class TestJupyterController(unittest.TestCase):
                 self.assertEqual(len(nb['cells']), 1)
 
 
+@unittest.skipUnless(HAS_JUPYTER_DEPS, "Required modules not available (run inside Docker)")
 class TestJupyterControllerIntegration(unittest.TestCase):
     """Integration tests that test the full command-line interface"""
     

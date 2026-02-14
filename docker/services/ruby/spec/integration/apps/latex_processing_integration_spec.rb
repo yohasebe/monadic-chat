@@ -20,8 +20,9 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   
   describe "LaTeX installation in Python container" do
     before(:all) do
-      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
-      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+      _out, _err, latex_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      _out, _err, dvisvgm_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "dvisvgm")
+      skip "LaTeX toolchain is not fully installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless latex_status.success? && dvisvgm_status.success?
     end
     it "has latex command available" do
       stdout, stderr, status = Open3.capture3("docker", "exec", container_name, "which", "latex")
@@ -46,8 +47,9 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   
   describe "Basic LaTeX compilation" do
     before(:all) do
-      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
-      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+      _out, _err, latex_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      _out, _err, dvisvgm_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "dvisvgm")
+      skip "LaTeX toolchain is not fully installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless latex_status.success? && dvisvgm_status.success?
     end
     it "can compile simple TikZ document" do
       test_tex = <<~LATEX
@@ -159,8 +161,9 @@ RSpec.describe "LaTeX Processing Integration Tests", :integration do
   
   describe "Error handling" do
     before(:all) do
-      _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
-      skip "LaTeX toolchain is not installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless status.success?
+      _out, _err, latex_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "latex")
+      _out, _err, dvisvgm_status = Open3.capture3("docker", "exec", "monadic-chat-python-container", "which", "dvisvgm")
+      skip "LaTeX toolchain is not fully installed in the Python container (set INSTALL_LATEX=true and rebuild)" unless latex_status.success? && dvisvgm_status.success?
     end
     it "reports error for invalid LaTeX syntax" do
       test_tex = <<~LATEX

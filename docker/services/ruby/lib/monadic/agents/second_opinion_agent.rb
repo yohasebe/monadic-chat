@@ -119,7 +119,13 @@ module SecondOpinionAgent
       end
       
       # Extract validity - handle variations in formatting
-      if response =~ /###\s*VALIDITY\s*\n\s*(\d+)\s*\/\s*10/mi
+      # Providers may format as "### VALIDITY\n9/10", "**VALIDITY**: 9/10",
+      # "VALIDITY: 9/10", or have extra whitespace/newlines
+      if response =~ /###?\s*\**VALIDITY\**[:\s]*\n?\s*(\d+)\s*\/\s*10/mi
+        validity = "#{$1}/10"
+      elsif response =~ /\bVALIDITY[:\s]+(\d+)\s*\/\s*10/mi
+        validity = "#{$1}/10"
+      elsif response =~ /(\d+)\s*\/\s*10\s*$/m
         validity = "#{$1}/10"
       end
       

@@ -181,7 +181,7 @@ RSpec.describe "Grok Tool Calling Integration", :integration do
       expect(app_instance.settings[:model]).to eq("grok-4-1-fast-non-reasoning")
       # Agent model is configured separately in the agents block
       if app_instance.settings[:agents]
-        expect(app_instance.settings[:agents][:code_generator][:model]).to eq("grok-code-fast-1")
+        expect(app_instance.settings[:agents][:code_generator]).to eq("grok-code-fast-1")
       end
     end
     

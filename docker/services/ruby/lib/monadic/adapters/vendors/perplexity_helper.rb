@@ -305,7 +305,13 @@ module PerplexityHelper
       end
     else
       begin
-        error_data = response && response.body ? JSON.parse(response.body) : {}
+        if response.nil?
+          return Monadic::Utils::ErrorFormatter.api_error(
+              provider: "Perplexity",
+              message: "No response received after #{MAX_RETRIES} retries"
+            )
+        end
+        error_data = response.body ? JSON.parse(response.body) : {}
         error_message = error_data.dig("error", "message") || error_data["error"] || "Unknown error"
         return Monadic::Utils::ErrorFormatter.api_error(
             provider: "Perplexity",
@@ -315,7 +321,7 @@ module PerplexityHelper
       rescue => e
         return Monadic::Utils::ErrorFormatter.parsing_error(
             provider: "Perplexity",
-            message: "Failed to parse error response"
+            message: "Failed to parse error response: #{e.message}"
           )
       end
     end
@@ -821,11 +827,10 @@ module PerplexityHelper
         res = { "type" => "error", "content" => formatted_error }
         block&.call res
         return [res]
-      rescue StandardError
+      rescue StandardError => e
         formatted_error = Monadic::Utils::ErrorFormatter.api_error(
           provider: "Perplexity",
-          message: "Unknown error occurred",
-          code: res.status.code
+          message: "Unknown error occurred: #{e.message}"
         )
         res = { "type" => "error", "content" => formatted_error }
         block&.call res

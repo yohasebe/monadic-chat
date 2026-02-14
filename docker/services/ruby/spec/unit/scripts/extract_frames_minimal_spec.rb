@@ -5,7 +5,14 @@ require 'json'
 RSpec.describe "extract_frames.py minimal tests", :integration do
   let(:container_name) { "monadic-chat-python-container" }
   let(:script_path) { "/monadic/scripts/converters/extract_frames.py" }
-  
+
+  before(:all) do
+    # Check if moviepy is available in the container
+    _out, _err, status = Open3.capture3("docker", "exec", "monadic-chat-python-container",
+                                        "python", "-c", "from moviepy import VideoFileClip")
+    skip "moviepy is not installed in the Python container" unless status.success?
+  end
+
   def run_in_container(script_args)
     command = ["docker", "exec", container_name, "python", script_path] + script_args
     stdout, stderr, status = Open3.capture3(*command)

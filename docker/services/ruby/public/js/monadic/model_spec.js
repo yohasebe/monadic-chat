@@ -999,7 +999,6 @@ const modelSpec = {
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
     "websearch_capability": false,
     "fallback_for_websearch": "grok-4-1-fast-reasoning",
     "supports_web_search": false,
@@ -1035,7 +1034,6 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
@@ -1046,6 +1044,7 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
+    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
@@ -1057,7 +1056,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "websearch_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": true,
     "supports_parallel_function_calling": true
   },

@@ -144,12 +144,8 @@ module GrokHelper
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
     # Handle reasoning_effort for models that support it
-    # Supported: grok-3, grok-4-0709, grok-4-fast-reasoning, grok-code-fast-1
-    # NOT supported: grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning
-    reasoning_supported = model.start_with?("grok-3") ||
-                         model == "grok-4-0709" ||
-                         model == "grok-4-fast-reasoning" ||
-                         model == "grok-code-fast-1"
+    # Only grok-3-mini supports reasoning_effort (per xAI docs)
+    reasoning_supported = model.start_with?("grok-3-mini")
 
     if options["reasoning_effort"] && reasoning_supported
       case options["reasoning_effort"]
@@ -544,12 +540,8 @@ module GrokHelper
     body["max_tokens"] = max_tokens if max_tokens
 
     # Handle reasoning_effort for models that support it
-    # Supported: grok-3, grok-4-0709, grok-4-fast-reasoning, grok-code-fast-1
-    # NOT supported: grok-4-1-fast-reasoning, grok-4-1-fast-non-reasoning
-    reasoning_supported = model.start_with?("grok-3") ||
-                         model == "grok-4-0709" ||
-                         model == "grok-4-fast-reasoning" ||
-                         model == "grok-code-fast-1"
+    # Only grok-3-mini supports reasoning_effort (per xAI docs)
+    reasoning_supported = model.start_with?("grok-3-mini")
 
     if reasoning_effort && reasoning_supported
       case reasoning_effort

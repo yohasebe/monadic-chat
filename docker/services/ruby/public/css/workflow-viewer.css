@@ -1,43 +1,34 @@
-/* Workflow Viewer - Inline Panel */
+/* Workflow Viewer - Floating Panel */
 
 /* --- Panel Container --- */
 #workflow-viewer-panel {
-  --wv-panel-height: 350px;
-  max-height: var(--wv-panel-height);
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  left: auto;
+  width: 520px;
+  height: 380px;
+  min-width: 320px;
+  min-height: 200px;
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border-color, rgba(128,128,128,0.3));
   border-radius: var(--border-radius, 6px);
-  margin-top: 8px;
-  margin-bottom: 4px;
-  opacity: 1;
   background: var(--bg-panel, #f8f8f8);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: max-height 0.3s ease, opacity 0.2s ease, border-color 0.2s ease, margin 0.2s ease, box-shadow 0.2s ease;
-}
-
-#workflow-viewer-panel.wv-resizing {
-  transition: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .dark-theme #workflow-viewer-panel {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 #workflow-viewer-panel.wv-panel-collapsed {
-  max-height: 0;
-  opacity: 0;
-  border-color: transparent;
-  margin-top: 0;
-  margin-bottom: 0;
-  pointer-events: none;
-  position: static;
-  box-shadow: none;
+  display: none;
 }
 
-/* --- Panel Header --- */
+/* --- Panel Header (drag handle) --- */
 .wv-panel-header {
   display: flex;
   align-items: center;
@@ -47,6 +38,12 @@
   border-bottom: 1px solid var(--border-color, rgba(128,128,128,0.2));
   background: #edf0f4;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+}
+
+.wv-panel-header.wv-dragging {
+  cursor: grabbing;
 }
 
 .dark-theme .wv-panel-header,
@@ -89,7 +86,8 @@
 /* --- Graph Container --- */
 #workflow-viewer-container {
   width: 100%;
-  height: calc(var(--wv-panel-height) - 70px);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
   cursor: grab;
@@ -97,37 +95,6 @@
 
 #workflow-viewer-container:active {
   cursor: grabbing;
-}
-
-/* --- Resize Handle --- */
-.wv-resize-handle {
-  height: 6px;
-  cursor: ns-resize;
-  background: #edf0f4;
-  position: relative;
-  flex-shrink: 0;
-  border-radius: 0 0 var(--border-radius, 6px) var(--border-radius, 6px);
-}
-
-.dark-theme .wv-resize-handle,
-[data-theme="dark"] .wv-resize-handle {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.wv-resize-handle::after {
-  content: '';
-  display: block;
-  width: 36px;
-  height: 3px;
-  margin: 0 auto;
-  border-radius: 2px;
-  background: rgba(128, 128, 128, 0.35);
-  position: relative;
-  top: 2px;
-}
-
-.wv-resize-handle:hover::after {
-  background: rgba(128, 128, 128, 0.6);
 }
 
 /* --- Panel Footer --- */
@@ -139,6 +106,7 @@
   border-top: 1px solid var(--border-color, rgba(128,128,128,0.2));
   background: #edf0f4;
   flex-shrink: 0;
+  position: relative;
 }
 
 .dark-theme .wv-panel-footer,
@@ -146,12 +114,23 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.wv-resize-indicator {
+/* --- Corner Resize Grip --- */
+.wv-resize-grip {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: nwse-resize;
   color: rgba(128, 128, 128, 0.45);
-  font-size: 10px;
-  flex-shrink: 0;
-  margin-left: 8px;
-  align-self: flex-end;
+  opacity: 0.6;
+}
+
+.wv-resize-grip:hover {
+  opacity: 1;
 }
 
 /* --- Toggle button active state --- */
@@ -263,61 +242,33 @@
 }
 
 /* --- Real-time Node Highlighting --- */
-@keyframes wv-pulse-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.2)); }
-  50%      { filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.7)); }
-}
+/* Node glow is driven entirely by JS (requestAnimationFrame + filter:drop-shadow).
+   No CSS keyframes needed for nodes — see applyHighlight / startNodePulse in JS. */
 
-.wv-node-active {
-  animation: wv-pulse-glow 1.5s ease-in-out infinite;
-}
-
-/* --- Edge Flow Animation --- */
+/* --- Edge Flow + Pulse Animation --- */
 @keyframes wv-edge-flow {
   0%   { stroke-dashoffset: 0; }
   100% { stroke-dashoffset: -16px; }
 }
 
-/* Connector line: flowing dash animation */
+@keyframes wv-edge-pulse {
+  0%, 100% { stroke-opacity: 0.35; }
+  50%      { stroke-opacity: 1; }
+}
+
+/* Connector line: flowing dashes + pulsing brightness */
 .wv-edge-active path:first-of-type {
   stroke: #3b82f6 !important;
   stroke-width: 2.5px !important;
   stroke-dasharray: 6px 4px !important;
-  animation: wv-edge-flow 0.6s linear infinite;
+  animation: wv-edge-flow 0.6s linear infinite,
+             wv-edge-pulse 1.5s ease-in-out infinite;
 }
 
-/* Arrowhead: solid colour, no dash animation */
+/* Arrowhead: pulsing brightness, no dash animation */
 .wv-edge-active path ~ path {
   stroke: #3b82f6 !important;
   fill: #3b82f6 !important;
   stroke-dasharray: none !important;
-  animation: none !important;
-}
-
-/* --- Dark Theme Highlighting --- */
-@keyframes wv-pulse-glow-dark {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(96, 165, 250, 0.3)); }
-  50%      { filter: drop-shadow(0 0 12px rgba(96, 165, 250, 0.8)); }
-}
-
-[data-theme="dark"] .wv-node-active,
-.dark-theme .wv-node-active {
-  animation-name: wv-pulse-glow-dark;
-}
-
-/* --- Error Node Highlighting --- */
-@keyframes wv-pulse-error {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.2)); }
-  50%      { filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7)); }
-}
-.wv-node-error {
-  animation: wv-pulse-error 1.5s ease-in-out infinite;
-}
-@keyframes wv-pulse-error-dark {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(248, 113, 113, 0.3)); }
-  50%      { filter: drop-shadow(0 0 12px rgba(248, 113, 113, 0.8)); }
-}
-[data-theme="dark"] .wv-node-error,
-.dark-theme .wv-node-error {
-  animation-name: wv-pulse-error-dark;
+  animation: wv-edge-pulse 1.5s ease-in-out infinite;
 }

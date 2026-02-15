@@ -64,6 +64,8 @@ function createMockGraph() {
     getCellAt: jest.fn(() => null),
     zoomIn: jest.fn(),
     zoomOut: jest.fn(),
+    refresh: jest.fn(),
+    sizeDidChange: jest.fn(),
     destroy: jest.fn(),
     _cells: cells,
   };
@@ -102,13 +104,15 @@ function setupDOM() {
         <span class="wv-panel-title">
           <span id="workflowViewerLabel"></span>
         </span>
+        <div class="wv-panel-controls">
+          <button id="wv-close"></button>
+        </div>
       </div>
       <div id="workflow-viewer-container" style="width:800px;height:230px;"></div>
       <div class="wv-panel-footer">
         <div class="workflow-viewer-legend"></div>
+        <span class="wv-resize-grip"></span>
       </div>
-      <div class="wv-resize-handle"></div>
-      <button id="wv-close"></button>
     </div>
     <button id="toggle-workflow-viewer"></button>
     <button id="wv-zoom-in"></button>
@@ -271,32 +275,43 @@ describe('WorkflowViewer', () => {
     });
   });
 
-  describe('Resize handle', () => {
-    test('should have resize handle element in panel', () => {
-      const handle = document.querySelector('#workflow-viewer-panel .wv-resize-handle');
-      expect(handle).not.toBeNull();
+  describe('Floating panel', () => {
+    test('should have resize grip element in footer', () => {
+      const grip = document.querySelector('#workflow-viewer-panel .wv-resize-grip');
+      expect(grip).not.toBeNull();
     });
 
-    test('pointerdown on handle should add wv-resizing class', () => {
-      const handle = document.querySelector('.wv-resize-handle');
-      handle.setPointerCapture = jest.fn();
+    test('open should apply panel position styles', () => {
+      window.WorkflowViewer.open();
       const panel = document.getElementById('workflow-viewer-panel');
-      panel.classList.remove('wv-panel-collapsed');
-      // Mock getBoundingClientRect
-      panel.getBoundingClientRect = jest.fn(() => ({ height: 300 }));
-      handle.dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientY: 300, pointerId: 1 }));
-      expect(panel.classList.contains('wv-resizing')).toBe(true);
+      // Panel should have explicit position styles set by applyPanelRect
+      expect(panel.style.width).toBeTruthy();
+      expect(panel.style.height).toBeTruthy();
+      expect(panel.style.left).toBeTruthy();
+      expect(panel.style.top).toBeTruthy();
     });
 
-    test('pointerup on handle should remove wv-resizing class', () => {
-      const handle = document.querySelector('.wv-resize-handle');
-      handle.setPointerCapture = jest.fn();
+    test('close should save panel rect to localStorage', () => {
+      const spy = jest.spyOn(Storage.prototype, 'setItem');
+      window.WorkflowViewer.open();
+      window.WorkflowViewer.close();
+      const lsCalls = spy.mock.calls.filter(c => c[0] === 'wv-panel-rect');
+      expect(lsCalls.length).toBeGreaterThan(0);
+      spy.mockRestore();
+    });
+
+    test('should restore panel rect from localStorage', () => {
+      const savedRect = { left: 100, top: 80, width: 500, height: 350 };
+      jest.spyOn(Storage.prototype, 'getItem').mockReturnValue(JSON.stringify(savedRect));
+      // Re-init to pick up the stored rect
+      window.WorkflowViewer.destroy();
+      setupDOM();
+      window.WorkflowViewer.init();
+      window.WorkflowViewer.open();
       const panel = document.getElementById('workflow-viewer-panel');
-      panel.classList.remove('wv-panel-collapsed');
-      panel.getBoundingClientRect = jest.fn(() => ({ height: 300 }));
-      handle.dispatchEvent(new PointerEvent('pointerdown', { button: 0, clientY: 300, pointerId: 1 }));
-      handle.dispatchEvent(new PointerEvent('pointerup', { clientY: 400 }));
-      expect(panel.classList.contains('wv-resizing')).toBe(false);
+      expect(panel.style.left).toBe('100px');
+      expect(panel.style.top).toBe('80px');
+      Storage.prototype.getItem.mockRestore();
     });
   });
 
@@ -336,6 +351,22 @@ describe('WorkflowViewer', () => {
       const themeCall = spy.mock.calls.find(c => c[0] === 'theme-applied');
       expect(themeCall).toBeDefined();
       spy.mockRestore();
+    });
+
+    test('should not throw when theme-applied fires while panel is collapsed', () => {
+      // Panel starts collapsed; theme change should not crash
+      window.WorkflowViewer.close();
+      expect(() => {
+        window.dispatchEvent(new CustomEvent('theme-applied', { detail: { theme: 'dark' } }));
+      }).not.toThrow();
+    });
+
+    test('should defer refresh when theme changes while panel is hidden', () => {
+      // Close panel, then trigger theme change — should not throw
+      window.WorkflowViewer.close();
+      window.dispatchEvent(new CustomEvent('theme-applied', { detail: { theme: 'dark' } }));
+      // Reopening should not throw (deferred refresh is processed)
+      expect(() => window.WorkflowViewer.open()).not.toThrow();
     });
   });
 

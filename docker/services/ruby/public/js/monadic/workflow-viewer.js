@@ -1,8 +1,8 @@
 /**
- * Workflow Viewer — Phase 1
+ * Workflow Viewer — Floating Panel
  *
  * Visualises each MDSL app's internal pipeline as an interactive node graph
- * using maxGraph. Rendered inside an inline collapsible panel.
+ * using maxGraph. Rendered inside a draggable, resizable floating panel.
  */
 
 /* global maxgraph */
@@ -29,6 +29,7 @@ const WorkflowViewer = (function () {
   let edgesByKey = {};       // { 'input→prompt': edgeCell, ... }
   let activeStage = null;    // Current highlight stage
   let activeTool = null;     // Currently executing tool name
+  let needsRefreshOnOpen = false; // Deferred graph refresh (e.g. theme changed while hidden)
 
   // ── Colours ──────────────────────────────────────────────────
   function colours() {
@@ -815,42 +816,211 @@ const WorkflowViewer = (function () {
     return graph;
   }
 
-  // ── Resize handle ──────────────────────────────────────────
+  // ── Floating panel: drag, resize, persistence ──────────────
 
-  var MIN_PANEL_H = 150;
-  var MAX_PANEL_H = 600;
-  var DEFAULT_PANEL_H = 350;
+  var MIN_PANEL_W = 320;
+  var MIN_PANEL_H = 200;
+  var DEFAULT_W = 520;
+  var DEFAULT_H = 380;
+  var RESIZE_ZONE = 6;
+  var STORAGE_KEY = 'wv-panel-rect';
 
-  function setupResizeHandle() {
+  var panelRect = null;          // { left, top, width, height }
+  var isDragging = false;
+  var isResizing = false;
+  var resizeDir = '';             // 'n','s','e','w','ne','nw','se','sw'
+  var dragStart = { x: 0, y: 0 };
+  var rectStart = null;
+
+  var CURSOR_MAP = {
+    n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
+    ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize'
+  };
+
+  function savePanelRect() {
+    if (!panelRect) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(panelRect)); } catch (e) { /* ignore */ }
+  }
+
+  function loadPanelRect() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (s) return JSON.parse(s);
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function defaultRect() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    return {
+      left: Math.max(20, vw - DEFAULT_W - 20),
+      top: 60,
+      width: Math.min(DEFAULT_W, vw - 40),
+      height: Math.min(DEFAULT_H, vh - 80)
+    };
+  }
+
+  function applyPanelRect(rect) {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    // Clamp size
+    rect.width = Math.max(MIN_PANEL_W, Math.min(rect.width, vw - 20));
+    rect.height = Math.max(MIN_PANEL_H, Math.min(rect.height, vh - 20));
+    // Clamp position (ensure at least 40px visible)
+    rect.left = Math.max(-rect.width + 40, Math.min(rect.left, vw - 40));
+    rect.top = Math.max(0, Math.min(rect.top, vh - 40));
+    // Apply
+    panelEl.style.left = rect.left + 'px';
+    panelEl.style.top = rect.top + 'px';
+    panelEl.style.width = rect.width + 'px';
+    panelEl.style.height = rect.height + 'px';
+    panelEl.style.right = 'auto';
+    panelRect = rect;
+  }
+
+  function getCurrentRect() {
+    if (!panelEl) return defaultRect();
+    var r = panelEl.getBoundingClientRect();
+    return { left: r.left, top: r.top, width: r.width, height: r.height };
+  }
+
+  // Detect which resize direction based on pointer position within panel
+  function detectResizeDir(e) {
+    if (!panelEl) return '';
+    var r = panelEl.getBoundingClientRect();
+    var x = e.clientX - r.left, y = e.clientY - r.top;
+    var w = r.width, h = r.height;
+    var top = y < RESIZE_ZONE, bot = y > h - RESIZE_ZONE;
+    var left = x < RESIZE_ZONE, right = x > w - RESIZE_ZONE;
+    if (top && left) return 'nw';
+    if (top && right) return 'ne';
+    if (bot && left) return 'sw';
+    if (bot && right) return 'se';
+    if (top) return 'n';
+    if (bot) return 's';
+    if (left) return 'w';
+    if (right) return 'e';
+    return '';
+  }
+
+  function setupDrag() {
     if (!panelEl) return;
-    var handle = panelEl.querySelector('.wv-resize-handle');
-    if (!handle) return;
-    var startY = 0, startH = 0;
+    var headerEl = panelEl.querySelector('.wv-panel-header');
+    if (!headerEl) return;
 
-    handle.addEventListener('pointerdown', function (e) {
+    headerEl.addEventListener('pointerdown', function (e) {
+      // Don't drag when clicking buttons in the header
+      if (e.target.closest && e.target.closest('.wv-panel-controls')) return;
       if (e.button !== 0) return;
       e.preventDefault();
-      handle.setPointerCapture(e.pointerId);
-      panelEl.classList.add('wv-resizing');
-      startY = e.clientY;
-      startH = panelEl.getBoundingClientRect().height;
+      headerEl.setPointerCapture(e.pointerId);
+      isDragging = true;
+      headerEl.classList.add('wv-dragging');
+      dragStart = { x: e.clientX, y: e.clientY };
+      rectStart = getCurrentRect();
     });
 
-    handle.addEventListener('pointermove', function (e) {
-      if (!panelEl.classList.contains('wv-resizing')) return;
-      var dy = e.clientY - startY;
-      var newH = Math.max(MIN_PANEL_H, Math.min(MAX_PANEL_H, startH + dy));
-      panelEl.style.setProperty('--wv-panel-height', newH + 'px');
+    headerEl.addEventListener('pointermove', function (e) {
+      if (!isDragging || !rectStart) return;
+      var dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      var newRect = {
+        left: rectStart.left + dx,
+        top: rectStart.top + dy,
+        width: rectStart.width,
+        height: rectStart.height
+      };
+      applyPanelRect(newRect);
+    });
+
+    function stopDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      headerEl.classList.remove('wv-dragging');
+      savePanelRect();
+    }
+    headerEl.addEventListener('pointerup', stopDrag);
+    headerEl.addEventListener('pointercancel', stopDrag);
+    headerEl.addEventListener('lostpointercapture', stopDrag);
+  }
+
+  function setupResize() {
+    if (!panelEl) return;
+
+    // Update cursor on hover near edges
+    panelEl.addEventListener('pointermove', function (e) {
+      if (isDragging || isResizing) return;
+      var dir = detectResizeDir(e);
+      panelEl.style.cursor = dir ? CURSOR_MAP[dir] : '';
+    });
+
+    panelEl.addEventListener('pointerdown', function (e) {
+      if (isDragging) return;
+      var dir = detectResizeDir(e);
+      if (!dir) return;
+      // Don't start resize from header area (let drag handle it)
+      if (e.target.closest && e.target.closest('.wv-panel-header')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      panelEl.setPointerCapture(e.pointerId);
+      isResizing = true;
+      resizeDir = dir;
+      dragStart = { x: e.clientX, y: e.clientY };
+      rectStart = getCurrentRect();
+    });
+
+    // Also allow corner grip to initiate se resize
+    var grip = panelEl.querySelector('.wv-resize-grip');
+    if (grip) {
+      grip.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        panelEl.setPointerCapture(e.pointerId);
+        isResizing = true;
+        resizeDir = 'se';
+        dragStart = { x: e.clientX, y: e.clientY };
+        rectStart = getCurrentRect();
+      });
+    }
+
+    panelEl.addEventListener('pointermove', function (e) {
+      if (!isResizing || !rectStart) return;
+      var dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      var r = {
+        left: rectStart.left,
+        top: rectStart.top,
+        width: rectStart.width,
+        height: rectStart.height
+      };
+
+      if (resizeDir.indexOf('e') >= 0) r.width = rectStart.width + dx;
+      if (resizeDir.indexOf('w') >= 0) { r.width = rectStart.width - dx; r.left = rectStart.left + dx; }
+      if (resizeDir.indexOf('s') >= 0) r.height = rectStart.height + dy;
+      if (resizeDir.indexOf('n') >= 0) { r.height = rectStart.height - dy; r.top = rectStart.top + dy; }
+
+      // Enforce minimum size (prevent left/top from jumping when hitting min)
+      if (r.width < MIN_PANEL_W) {
+        if (resizeDir.indexOf('w') >= 0) r.left = rectStart.left + rectStart.width - MIN_PANEL_W;
+        r.width = MIN_PANEL_W;
+      }
+      if (r.height < MIN_PANEL_H) {
+        if (resizeDir.indexOf('n') >= 0) r.top = rectStart.top + rectStart.height - MIN_PANEL_H;
+        r.height = MIN_PANEL_H;
+      }
+
+      applyPanelRect(r);
     });
 
     function stopResize() {
-      if (!panelEl.classList.contains('wv-resizing')) return;
-      panelEl.classList.remove('wv-resizing');
+      if (!isResizing) return;
+      isResizing = false;
+      resizeDir = '';
+      panelEl.style.cursor = '';
+      savePanelRect();
       if (graph) fitGraphToContainer();
     }
-    handle.addEventListener('pointerup', stopResize);
-    handle.addEventListener('pointercancel', stopResize);
-    handle.addEventListener('lostpointercapture', stopResize);
+    panelEl.addEventListener('pointerup', stopResize);
+    panelEl.addEventListener('pointercancel', stopResize);
+    panelEl.addEventListener('lostpointercapture', stopResize);
   }
 
   // ── Toggle button active state ─────────────────────────────
@@ -875,34 +1045,90 @@ const WorkflowViewer = (function () {
 
   // ── Real-time highlighting ─────────────────────────────────
 
-  function applyHighlight(cell, className) {
+  // requestAnimationFrame handles for node glow pulses  { cellId → rafId }
+  var pulseFrames = {};
+
+  // Start a smooth pulsing drop-shadow glow on an SVG node via rAF.
+  // CSS filter:drop-shadow follows the element's alpha shape (rounded rect).
+  // maxCycles: 0 = unlimited (default), >0 = settle to static glow after N cycles.
+  function startNodePulse(cellId, node, isError, maxCycles) {
+    stopNodePulse(cellId, node);
+    var startTime = performance.now();
+    var r = isError ? '239, 68, 68' : '59, 130, 246';
+    var period = 1500; // ms per cycle
+    var limit = maxCycles || 0;
+    function frame(now) {
+      var elapsed = now - startTime;
+      if (limit > 0 && elapsed >= period * limit) {
+        // Settle to a subtle static glow
+        node.style.filter = 'drop-shadow(0 0 4px rgba(' + r + ', 0.45))';
+        delete pulseFrames[cellId];
+        return;
+      }
+      var t = (Math.sin(elapsed / 750 * Math.PI) + 1) / 2; // 0→1→0
+      var blur = 2 + t * 8;       // 2px → 10px
+      var opacity = 0.2 + t * 0.8; // 0.2 → 1.0
+      node.style.filter = 'drop-shadow(0 0 ' + blur + 'px rgba(' + r + ', ' + opacity + '))';
+      pulseFrames[cellId] = requestAnimationFrame(frame);
+    }
+    pulseFrames[cellId] = requestAnimationFrame(frame);
+  }
+
+  function stopNodePulse(cellId, node) {
+    if (pulseFrames[cellId]) {
+      cancelAnimationFrame(pulseFrames[cellId]);
+      delete pulseFrames[cellId];
+    }
+    if (node) node.style.filter = '';
+  }
+
+  function stopAllNodePulses() {
+    Object.keys(pulseFrames).forEach(function (id) {
+      cancelAnimationFrame(pulseFrames[id]);
+    });
+    pulseFrames = {};
+  }
+
+  function applyHighlight(cell, className, maxCycles) {
     if (!graph || !cell) return;
     var state = graph.getView().getState(cell);
-    if (state && state.shape && state.shape.node) {
-      state.shape.node.classList.add(className);
+    if (!state || !state.shape || !state.shape.node) return;
+    var node = state.shape.node;
+    node.classList.add(className);
+    // For node highlights, use filter:drop-shadow() with rAF-driven pulse.
+    // state.shape.node is an SVG element; drop-shadow follows the shape's
+    // alpha channel, producing a rounded glow that extends outside the border.
+    if (className === 'wv-node-active' || className === 'wv-node-error') {
+      startNodePulse(cell.id || className, node, className === 'wv-node-error', maxCycles);
     }
   }
 
   function removeHighlight(cell, className) {
     if (!graph || !cell) return;
     var state = graph.getView().getState(cell);
-    if (state && state.shape && state.shape.node) {
-      state.shape.node.classList.remove(className);
+    if (!state || !state.shape || !state.shape.node) return;
+    var node = state.shape.node;
+    node.classList.remove(className);
+    if (className === 'wv-node-active' || className === 'wv-node-error') {
+      stopNodePulse(cell.id || className, node);
     }
   }
 
   function clearAllHighlights() {
     var classes = ['wv-node-active', 'wv-edge-active', 'wv-node-error'];
     if (!graph) return;
+    stopAllNodePulses();
     var parent = graph.getDefaultParent();
     if (!parent || !parent.children) return;
     var view = graph.getView();
     parent.children.forEach(function (cell) {
       var state = view.getState(cell);
       if (state && state.shape && state.shape.node) {
+        var node = state.shape.node;
         classes.forEach(function (c) {
-          state.shape.node.classList.remove(c);
+          node.classList.remove(c);
         });
+        node.style.filter = '';
       }
     });
     activeStage = null;
@@ -936,9 +1162,12 @@ const WorkflowViewer = (function () {
     var activeNodes = nodeMap[stage] || [];
     var primaryNode = activeNodes[activeNodes.length - 1];
 
-    // Pulse-glow on primary node
+    // Pulse-glow on primary node.
+    // 'context' stage arrives after 'done' with no subsequent clear,
+    // so limit its pulse to 3 cycles then settle to a static glow.
+    var pulseCycles = (stage === 'context') ? 3 : 0;
     if (primaryNode && cellsByType[primaryNode]) {
-      applyHighlight(cellsByType[primaryNode], 'wv-node-active');
+      applyHighlight(cellsByType[primaryNode], 'wv-node-active', pulseCycles);
     }
 
     // Flow-animate edges along the chain
@@ -1000,6 +1229,11 @@ const WorkflowViewer = (function () {
       panelEl = document.getElementById('workflow-viewer-panel');
       container = document.getElementById('workflow-viewer-container');
       if (!panelEl || !container) { console.warn('[WorkflowViewer] Panel not found'); return; }
+      // Move panel to body so position:fixed is relative to viewport,
+      // not constrained by any ancestor with transform/filter/will-change
+      if (panelEl.parentNode !== document.body) {
+        document.body.appendChild(panelEl);
+      }
       var self = this;
       var btn = document.getElementById('toggle-workflow-viewer');
       if (btn) btn.addEventListener('click', function () { self.toggle(); });
@@ -1009,26 +1243,28 @@ const WorkflowViewer = (function () {
       if (zi) zi.addEventListener('click', function () { if (graph) graph.zoomIn(); });
       if (zo) zo.addEventListener('click', function () { if (graph) graph.zoomOut(); });
       if (zf) zf.addEventListener('click', function () { fitGraphToContainer(); });
-      // Restore view state (or fit) after expand transition completes
-      panelEl.addEventListener('transitionend', function (e) {
-        if (e.propertyName === 'max-height' && !panelEl.classList.contains('wv-panel-collapsed')) {
-          if (graph) {
-            if (restoreViewState()) {
-              skipNextResize = true;
-              setTimeout(function () { skipNextResize = false; }, 200);
-            } else {
-              fitGraphToContainer();
-            }
-          }
-        }
-      });
-      setupTooltips(); setupClickHandler(); buildLegend(); setupResizeHandle();
+      setupTooltips(); setupClickHandler(); buildLegend();
+      setupDrag(); setupResize();
+      // Load persisted panel rect (applied when panel opens)
+      panelRect = loadPanelRect() || defaultRect();
       // Refresh graph colours when theme changes
       themeHandler = function () {
-        if (graph && currentData && container) refreshGraph();
+        if (graph && currentData && container) {
+          if (panelEl && !panelEl.classList.contains('wv-panel-collapsed')) {
+            refreshGraph();
+          } else {
+            needsRefreshOnOpen = true;
+          }
+        }
         buildLegend();
       };
       window.addEventListener('theme-applied', themeHandler);
+      // Re-clamp panel position when viewport resizes
+      window.addEventListener('resize', function () {
+        if (panelRect && panelEl && !panelEl.classList.contains('wv-panel-collapsed')) {
+          applyPanelRect(panelRect);
+        }
+      });
       // ResizeObserver: detect container becoming visible (e.g. session start with panel open)
       if (typeof ResizeObserver !== 'undefined') {
         var resizeTimer = null;
@@ -1044,16 +1280,36 @@ const WorkflowViewer = (function () {
     },
     open: function () {
       if (!panelEl) return;
+      // Apply saved or default rect before showing
+      applyPanelRect(panelRect || defaultRect());
       panelEl.classList.remove('wv-panel-collapsed');
       setToggleActive(true);
       var self = this;
       requestAnimationFrame(function () {
         if (pendingApp) { self._doLoadApp(pendingApp); pendingApp = null; }
+        else if (needsRefreshOnOpen && currentData) {
+          // Theme or other deferred change while panel was hidden → full rebuild
+          needsRefreshOnOpen = false;
+          refreshGraph();
+        } else if (graph) {
+          // Revalidate view states after display:none → display:flex transition.
+          // While hidden, the container has 0 dimensions, so view states may
+          // have been computed with invalid bounds.
+          graph.sizeDidChange();
+          if (restoreViewState()) {
+            skipNextResize = true;
+            setTimeout(function () { skipNextResize = false; }, 200);
+          } else {
+            fitGraphToContainer();
+          }
+        }
       });
     },
     close: function () {
       if (!panelEl) return;
       saveViewState();
+      panelRect = getCurrentRect();
+      savePanelRect();
       panelEl.classList.add('wv-panel-collapsed');
       hideTooltip();
       setToggleActive(false);
@@ -1097,7 +1353,10 @@ const WorkflowViewer = (function () {
       if (themeHandler) { window.removeEventListener('theme-applied', themeHandler); themeHandler = null; }
       currentApp = null; currentData = null; pendingApp = null;
       viewStates = {}; expandedGroups = {}; initialised = false;
+      stopAllNodePulses();
       cellsByType = {}; edgesByKey = {}; activeStage = null; activeTool = null;
+      isDragging = false; isResizing = false; resizeDir = '';
+      needsRefreshOnOpen = false;
     },
     exportSvg: function (opts) {
       opts = opts || {};

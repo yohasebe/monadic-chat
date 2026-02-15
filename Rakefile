@@ -316,6 +316,7 @@ def version_files
     "./package-lock.json",
     "./docker/monadic.sh",
     "./docs/_coverpage.md",
+    "./docs/ja/_coverpage.md",
     "./docs/getting-started/installation.md",
     "./docs/ja/getting-started/installation.md"
   ]

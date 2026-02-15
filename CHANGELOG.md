@@ -1,3 +1,6 @@
+- [February, 2026] 1.0.0-beta.7
+  - Version updated from 1.0.0-beta.6
+
 - [November 15, 2024] Recent Updates
   - **Claude Structured Outputs Support**: Added monadic mechanism for Claude models
     - Implemented structured outputs using beta header `structured-outputs-2025-11-13`

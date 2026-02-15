@@ -766,6 +766,35 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call request_tool(\"jupyter_operations\") when you need to create, manage, or execute Jupyter notebooks."
+      },
+
+      planning: {
+        module_name: 'MonadicSharedTools::Planning',
+        tools: [
+          {
+            name: "propose_plan",
+            description: "Create a structured execution plan for a complex multi-step task. " \
+                         "Call this BEFORE executing when the task requires 3 or more distinct steps. " \
+                         "After calling this tool, present the plan to the user and wait for their approval.",
+            parameters: [
+              {
+                name: :plan,
+                type: "string",
+                description: "The execution plan in markdown format. Each step should be numbered " \
+                             "and include: what action will be taken, which tool will be used, " \
+                             "and what the expected outcome is.",
+                required: true
+              },
+              {
+                name: :summary,
+                type: "string",
+                description: "A one-line summary of the overall task goal.",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call propose_plan when you need to break down a complex task into steps and get user approval before execution."
       }
     }
 

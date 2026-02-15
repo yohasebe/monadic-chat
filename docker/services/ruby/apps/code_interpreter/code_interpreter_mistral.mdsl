@@ -55,7 +55,16 @@ app "CodeInterpreterMistral" do
     2. IMPORTANT: If the user has already provided a request, immediately start working on it
     3. Focus on executing code when the user requests it - immediately use the run_code function
 
-    If the user asks you to do a task that consists of multiple steps, you should guide the user through each step. For example, if the user asks you to read a file, process the data, and then generate a plot, you should respond to each step individually; do not combine all the steps into a single response. For instance, if the user asks you to read a file, parse the data, and then plot the results, you should first offer the code to read the file, execute the file, and then ask the user if they would like to proceed with the next step.
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Tasks involving data pipeline (load → process → analyze → visualize), multi-file operations, or any request where failure in early steps wastes later computation.
+    WHEN TO SKIP: Simple single-step requests (one code execution, one file read, direct questions).
 
     Remember that if the user requests a specific file to be created, you should execute the code and save the file in the current directory of the code-running environment.
 
@@ -247,5 +256,8 @@ app "CodeInterpreterMistral" do
 
     # Import shared file reading tools (always visible - Phase 1)
     import_shared_tools :file_reading, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
   end
 end

@@ -1419,6 +1419,13 @@ function initializeApp() {
       const openAtLogin = settings.OPEN_AT_LOGIN === 'true';
       app.setLoginItemSettings({ openAtLogin });
     }
+
+    // Apply Menu Bar Mode — hide Dock icon (macOS only)
+    if (process.platform === 'darwin') {
+      if (settings.MENU_BAR_MODE === 'true') {
+        app.dock.hide();
+      }
+    }
   } catch (err) {
     console.error('Error loading browser mode setting:', err);
   }
@@ -1721,14 +1728,7 @@ function initializeApp() {
       });
     }
 
-    if (settingsWindow) {
-      settingsWindow.on('close', (event) => {
-        if (!isQuitting) {
-          event.preventDefault();
-          settingsWindow.hide();
-        }
-      });
-    }
+    // Settings window close is handled in openSettingsWindow() with save-confirmation flow
   })();
 }
 
@@ -2887,16 +2887,20 @@ function openBrowser(url, outside = false, forceOpen = false) {
 
 function openSettingsWindow() {
   if (!settingsWindow) {
+    const mainBounds = mainWindow.getBounds();
     settingsWindow = new BrowserWindow({
       devTools: !app.isPackaged, // Only enable DevTools in development
-      width: 600,
-      minWidth: 600,
-      height: 400,
-      minHeight: 400,
+      x: mainBounds.x,
+      y: mainBounds.y,
+      width: Math.min(mainBounds.width, 900),
+      height: Math.min(mainBounds.height, 700),
+      minWidth: 700,
+      minHeight: 480,
       parent: mainWindow,
-      modal: true,
+      modal: false,
       show: false,
-      frame: false,
+      frame: true,
+      title: 'Monadic Chat Settings',
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -2947,9 +2951,24 @@ function openSettingsWindow() {
         } catch (_) { console.warn("[Main] Settings window operation failed:", _); }
       }, 3000);
     });
+  } else {
+    // Re-open: page already loaded, send fresh settings from disk
+    sendSettingsToRenderer(settingsWindow.webContents);
   }
   settingsWindow.show();
-  settingsWindow.webContents.send('request-settings');
+}
+
+// Send fresh settings from disk to a renderer window
+function sendSettingsToRenderer(webContents) {
+  const settings = loadSettings();
+  if (process.platform !== 'linux') {
+    settings.OPEN_AT_LOGIN = app.getLoginItemSettings().openAtLogin ? 'true' : 'false';
+  }
+  if (process.platform === 'darwin') {
+    settings.MENU_BAR_MODE = app.dock.isVisible() ? 'false' : 'true';
+  }
+  settings.APP_VERSION = app.getVersion();
+  webContents.send('load-settings', settings);
 }
 
 function getEnvPath() {
@@ -3310,13 +3329,21 @@ function loadSettings() {
 }
 
 ipcMain.on('request-settings', (event) => {
-  const settings = loadSettings();
-  // Override with actual system state for login item (macOS/Windows only)
-  if (process.platform !== 'linux') {
-    settings.OPEN_AT_LOGIN = app.getLoginItemSettings().openAtLogin ? 'true' : 'false';
-  }
-  event.sender.send('load-settings', settings);
+  sendSettingsToRenderer(event.sender);
 });
+
+// Handle check-for-updates request from settings window
+ipcMain.on('check-for-updates-from-settings', () => {
+  checkForUpdates();
+});
+
+// Handle open-external-url request from settings window
+ipcMain.on('open-external-url', (_event, url) => {
+  if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+  }
+});
+
 
 // Handle immediate UI language change
 ipcMain.on('change-ui-language', (_event, language) => {
@@ -3359,6 +3386,16 @@ ipcMain.on('save-settings', (_event, data) => {
     app.setLoginItemSettings({
       openAtLogin: data.OPEN_AT_LOGIN === true || data.OPEN_AT_LOGIN === 'true'
     });
+  }
+
+  // Apply Menu Bar Mode — hide/show Dock icon immediately (macOS only)
+  if (process.platform === 'darwin') {
+    const menuBarMode = data.MENU_BAR_MODE === true || data.MENU_BAR_MODE === 'true';
+    if (menuBarMode) {
+      app.dock.hide();
+    } else {
+      app.dock.show();
+    }
   }
 
   // Apply UI language change
@@ -3604,7 +3641,7 @@ ipcMain.on('close-settings', () => {
 
 ipcMain.on('confirm-close-settings', () => {
   if (pendingCloseTimers.settings) clearTimeout(pendingCloseTimers.settings);
-  if (settingsWindow) settingsWindow.hide();
+  if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.hide();
 });
 
 ipcMain.on('confirm-close-install-options', () => {

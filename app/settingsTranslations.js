@@ -5,11 +5,12 @@ const settingsTranslations = {
       title: "Settings",
       loading: "Loading settings...",
       categories: {
+        general: "General",
+        system: "System",
         apiKeys: "API Keys",
-        modelSettings: "Model Settings",
-        displayUI: "Display & UI",
-        voiceAudio: "Voice & Audio",
-        systemSettings: "System Settings"
+        voice: "Voice & Audio",
+        services: "Services",
+        about: "About"
       },
       labels: {
         uiLanguage: "UI Language",
@@ -20,7 +21,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Local uses PGVector database on your machine. Cloud uses OpenAI Vector Store API (requires additional API costs).",
         speechToText: "STT_MODEL (Speech-to-Text)",
         ttsDictPath: "TTS Dictionary File Path",
-        ttsDictPathDesc: "JSON file to customize pronunciation. Maps words/phrases to phonetic spellings for better TTS output.",
+        ttsDictPathDesc: "CSV file to customize pronunciation. Maps words/phrases to phonetic spellings for better TTS output.",
         selectFile: "Select File",
         autoTtsRealtimeMode: "Auto TTS Realtime Mode",
         autoTtsRealtimeModeDesc: "When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.",
@@ -43,7 +44,14 @@ const settingsTranslations = {
         mcpServerPort: "MCP Server Port",
         mcpServerPortDesc: "Network port for MCP server. Change only if port 3100 conflicts with another service.",
         openAtLogin: "Launch at Login",
-        openAtLoginDesc: "Automatically start Monadic Chat when you log in to your computer."
+        openAtLoginDesc: "Automatically start Monadic Chat when you log in to your computer.",
+        menuBarMode: "Menu Bar Mode",
+        menuBarModeDesc: "Hide the Dock icon and run as a menu bar app. (macOS only)",
+        version: "Version",
+        checkForUpdates: "Check for Updates",
+        developer: "Developer",
+        homepage: "Homepage",
+        sourceCode: "Source Code"
       },
       buttons: {
         showApiKeys: "Show API Keys",
@@ -67,11 +75,12 @@ const settingsTranslations = {
       title: "設定",
       loading: "設定を読み込み中...",
       categories: {
+        general: "一般",
+        system: "システム",
         apiKeys: "APIキー",
-        modelSettings: "モデル設定",
-        displayUI: "表示・UI",
-        voiceAudio: "音声・オーディオ",
-        systemSettings: "システム設定"
+        voice: "音声・オーディオ",
+        services: "サービス",
+        about: "Monadic Chatについて"
       },
       labels: {
         uiLanguage: "UI言語",
@@ -82,7 +91,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Localはマシン上のPGVectorデータベースを使用。CloudはOpenAI Vector Store API を使用（追加のAPI利用料金が発生）。",
         speechToText: "STT_MODEL (音声認識)",
         ttsDictPath: "TTS辞書ファイルパス",
-        ttsDictPathDesc: "発音をカスタマイズするJSONファイル。単語やフレーズを発音記号にマッピングしてTTS出力を改善します。",
+        ttsDictPathDesc: "発音をカスタマイズするCSVファイル。単語やフレーズを発音記号にマッピングしてTTS出力を改善します。",
         selectFile: "ファイル選択",
         autoTtsRealtimeMode: "自動TTSリアルタイムモード",
         autoTtsRealtimeModeDesc: "有効にすると、テキストのストリーミング中にTTSを生成します。無効（デフォルト）の場合、ストリーミング完了後にTTSを生成します。",
@@ -105,7 +114,14 @@ const settingsTranslations = {
         mcpServerPort: "MCPサーバーポート",
         mcpServerPortDesc: "MCPサーバーのネットワークポート。ポート3100が他のサービスと競合する場合のみ変更してください。",
         openAtLogin: "ログイン時に起動",
-        openAtLoginDesc: "コンピュータにログインしたときにMonadic Chatを自動的に起動します。"
+        openAtLoginDesc: "コンピュータにログインしたときにMonadic Chatを自動的に起動します。",
+        menuBarMode: "メニューバーモード",
+        menuBarModeDesc: "Dockアイコンを非表示にし、メニューバーアプリとして実行します。(macOSのみ)",
+        version: "バージョン",
+        checkForUpdates: "アップデートを確認",
+        developer: "開発者",
+        homepage: "ホームページ",
+        sourceCode: "ソースコード"
       },
       buttons: {
         showApiKeys: "APIキーを表示",
@@ -129,11 +145,12 @@ const settingsTranslations = {
       title: "设置",
       loading: "加载设置中...",
       categories: {
+        general: "通用",
+        system: "系统",
         apiKeys: "API密钥",
-        modelSettings: "模型设置",
-        displayUI: "显示和UI",
-        voiceAudio: "语音和音频",
-        systemSettings: "系统设置"
+        voice: "语音和音频",
+        services: "服务",
+        about: "关于"
       },
       labels: {
         uiLanguage: "界面语言",
@@ -144,7 +161,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Local使用本地PGVector数据库。Cloud使用OpenAI Vector Store API（需要额外API费用）。",
         speechToText: "STT_MODEL (语音转文本)",
         ttsDictPath: "TTS字典文件路径",
-        ttsDictPathDesc: "用于自定义发音的JSON文件。将单词/短语映射到语音拼写以改善TTS输出。",
+        ttsDictPathDesc: "用于自定义发音的CSV文件。将单词/短语映射到语音拼写以改善TTS输出。",
         selectFile: "选择文件",
         autoTtsRealtimeMode: "自动TTS实时模式",
         autoTtsRealtimeModeDesc: "启用时，在文本流式传输期间生成TTS。禁用时（默认），在流式传输完成后生成TTS。",
@@ -167,7 +184,14 @@ const settingsTranslations = {
         mcpServerPort: "MCP服务器端口",
         mcpServerPortDesc: "MCP服务器的网络端口。仅当端口3100与其他服务冲突时才更改。",
         openAtLogin: "登录时启动",
-        openAtLoginDesc: "登录计算机时自动启动Monadic Chat。"
+        openAtLoginDesc: "登录计算机时自动启动Monadic Chat。",
+        menuBarMode: "菜单栏模式",
+        menuBarModeDesc: "隐藏Dock图标，作为菜单栏应用运行。(仅限macOS)",
+        version: "版本",
+        checkForUpdates: "检查更新",
+        developer: "开发者",
+        homepage: "主页",
+        sourceCode: "源代码"
       },
       buttons: {
         showApiKeys: "显示API密钥",
@@ -191,11 +215,12 @@ const settingsTranslations = {
       title: "설정",
       loading: "설정 로드 중...",
       categories: {
+        general: "일반",
+        system: "시스템",
         apiKeys: "API 키",
-        modelSettings: "모델 설정",
-        displayUI: "디스플레이 및 UI",
-        voiceAudio: "음성 및 오디오",
-        systemSettings: "시스템 설정"
+        voice: "음성 및 오디오",
+        services: "서비스",
+        about: "정보"
       },
       labels: {
         uiLanguage: "UI 언어",
@@ -206,7 +231,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Local은 로컬 PGVector 데이터베이스를 사용합니다. Cloud는 OpenAI Vector Store API를 사용합니다(추가 API 비용 발생).",
         speechToText: "STT_MODEL (음성-텍스트 변환)",
         ttsDictPath: "TTS 사전 파일 경로",
-        ttsDictPathDesc: "발음을 사용자 정의하는 JSON 파일입니다. 단어/구문을 음성 철자에 매핑하여 TTS 출력을 개선합니다.",
+        ttsDictPathDesc: "발음을 사용자 정의하는 CSV 파일입니다. 단어/구문을 음성 철자에 매핑하여 TTS 출력을 개선합니다.",
         selectFile: "파일 선택",
         autoTtsRealtimeMode: "자동 TTS 실시간 모드",
         autoTtsRealtimeModeDesc: "활성화하면 텍스트 스트리밍 중에 TTS를 생성합니다. 비활성화(기본값)하면 스트리밍 완료 후 TTS를 생성합니다.",
@@ -229,7 +254,14 @@ const settingsTranslations = {
         mcpServerPort: "MCP 서버 포트",
         mcpServerPortDesc: "MCP 서버의 네트워크 포트입니다. 포트 3100이 다른 서비스와 충돌하는 경우에만 변경하세요.",
         openAtLogin: "로그인 시 시작",
-        openAtLoginDesc: "컴퓨터에 로그인할 때 Monadic Chat를 자동으로 시작합니다."
+        openAtLoginDesc: "컴퓨터에 로그인할 때 Monadic Chat를 자동으로 시작합니다.",
+        menuBarMode: "메뉴 바 모드",
+        menuBarModeDesc: "Dock 아이콘을 숨기고 메뉴 바 앱으로 실행합니다. (macOS 전용)",
+        version: "버전",
+        checkForUpdates: "업데이트 확인",
+        developer: "개발자",
+        homepage: "홈페이지",
+        sourceCode: "소스 코드"
       },
       buttons: {
         showApiKeys: "API 키 표시",
@@ -253,11 +285,12 @@ const settingsTranslations = {
       title: "Configuración",
       loading: "Cargando configuración...",
       categories: {
+        general: "General",
+        system: "Sistema",
         apiKeys: "Claves API",
-        modelSettings: "Configuración del Modelo",
-        displayUI: "Pantalla y UI",
-        voiceAudio: "Voz y Audio",
-        systemSettings: "Configuración del Sistema"
+        voice: "Voz y Audio",
+        services: "Servicios",
+        about: "Acerca de"
       },
       labels: {
         uiLanguage: "Idioma de UI",
@@ -268,7 +301,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Local usa la base de datos PGVector local. Cloud usa OpenAI Vector Store API (requiere costos adicionales de API).",
         speechToText: "STT_MODEL (Voz a Texto)",
         ttsDictPath: "Ruta del Archivo de Diccionario TTS",
-        ttsDictPathDesc: "Archivo JSON para personalizar la pronunciación. Mapea palabras/frases a deletreos fonéticos para mejorar la salida TTS.",
+        ttsDictPathDesc: "Archivo CSV para personalizar la pronunciación. Mapea palabras/frases a deletreos fonéticos para mejorar la salida TTS.",
         selectFile: "Seleccionar Archivo",
         autoTtsRealtimeMode: "Modo TTS Automático en Tiempo Real",
         autoTtsRealtimeModeDesc: "Cuando está habilitado, genera TTS durante la transmisión de texto. Cuando está deshabilitado (predeterminado), genera TTS después de que se complete la transmisión.",
@@ -291,7 +324,14 @@ const settingsTranslations = {
         mcpServerPort: "Puerto del Servidor MCP",
         mcpServerPortDesc: "Puerto de red para el servidor MCP. Cambie solo si el puerto 3100 entra en conflicto con otro servicio.",
         openAtLogin: "Iniciar al iniciar sesión",
-        openAtLoginDesc: "Inicia automáticamente Monadic Chat cuando inicias sesión en tu computadora."
+        openAtLoginDesc: "Inicia automáticamente Monadic Chat cuando inicias sesión en tu computadora.",
+        menuBarMode: "Modo Barra de Menú",
+        menuBarModeDesc: "Oculta el icono del Dock y ejecuta como aplicación de barra de menú. (solo macOS)",
+        version: "Versión",
+        checkForUpdates: "Buscar Actualizaciones",
+        developer: "Desarrollador",
+        homepage: "Página principal",
+        sourceCode: "Código fuente"
       },
       buttons: {
         showApiKeys: "Mostrar Claves API",
@@ -315,11 +355,12 @@ const settingsTranslations = {
       title: "Paramètres",
       loading: "Chargement des paramètres...",
       categories: {
+        general: "Général",
+        system: "Système",
         apiKeys: "Clés API",
-        modelSettings: "Paramètres du Modèle",
-        displayUI: "Affichage et Interface",
-        voiceAudio: "Voix et Audio",
-        systemSettings: "Paramètres Système"
+        voice: "Voix et Audio",
+        services: "Services",
+        about: "À propos"
       },
       labels: {
         uiLanguage: "Langue de l'UI",
@@ -330,7 +371,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Local utilise la base de données PGVector locale. Cloud utilise l'API OpenAI Vector Store (nécessite des coûts API supplémentaires).",
         speechToText: "STT_MODEL (Reconnaissance Vocale)",
         ttsDictPath: "Chemin du Fichier Dictionnaire TTS",
-        ttsDictPathDesc: "Fichier JSON pour personnaliser la prononciation. Mappe les mots/phrases aux orthographes phonétiques pour améliorer la sortie TTS.",
+        ttsDictPathDesc: "Fichier CSV pour personnaliser la prononciation. Mappe les mots/phrases aux orthographes phonétiques pour améliorer la sortie TTS.",
         selectFile: "Sélectionner Fichier",
         autoTtsRealtimeMode: "Mode TTS Automatique en Temps Réel",
         autoTtsRealtimeModeDesc: "Lorsqu'activé, génère le TTS pendant la diffusion du texte. Lorsque désactivé (par défaut), génère le TTS après la fin de la diffusion.",
@@ -353,7 +394,14 @@ const settingsTranslations = {
         mcpServerPort: "Port du Serveur MCP",
         mcpServerPortDesc: "Port réseau pour le serveur MCP. Ne modifiez que si le port 3100 entre en conflit avec un autre service.",
         openAtLogin: "Lancer au démarrage",
-        openAtLoginDesc: "Démarre automatiquement Monadic Chat lorsque vous vous connectez à votre ordinateur."
+        openAtLoginDesc: "Démarre automatiquement Monadic Chat lorsque vous vous connectez à votre ordinateur.",
+        menuBarMode: "Mode Barre de Menu",
+        menuBarModeDesc: "Masque l'icône du Dock et s'exécute comme application de barre de menu. (macOS uniquement)",
+        version: "Version",
+        checkForUpdates: "Vérifier les mises à jour",
+        developer: "Développeur",
+        homepage: "Page d'accueil",
+        sourceCode: "Code source"
       },
       buttons: {
         showApiKeys: "Afficher les Clés API",
@@ -377,11 +425,12 @@ const settingsTranslations = {
       title: "Einstellungen",
       loading: "Einstellungen werden geladen...",
       categories: {
+        general: "Allgemein",
+        system: "System",
         apiKeys: "API-Schlüssel",
-        modelSettings: "Modelleinstellungen",
-        displayUI: "Anzeige und Benutzeroberfläche",
-        voiceAudio: "Sprache und Audio",
-        systemSettings: "Systemeinstellungen"
+        voice: "Sprache und Audio",
+        services: "Dienste",
+        about: "Über"
       },
       labels: {
         uiLanguage: "UI-Sprache",
@@ -392,7 +441,7 @@ const settingsTranslations = {
         pdfStorageModeDesc: "Lokal verwendet die lokale PGVector-Datenbank. Cloud verwendet die OpenAI Vector Store API (erfordert zusätzliche API-Kosten).",
         speechToText: "STT_MODEL (Spracherkennung)",
         ttsDictPath: "TTS-Wörterbuchdateipfad",
-        ttsDictPathDesc: "JSON-Datei zur Anpassung der Aussprache. Ordnet Wörter/Phrasen phonetischen Schreibweisen zu, um die TTS-Ausgabe zu verbessern.",
+        ttsDictPathDesc: "CSV-Datei zur Anpassung der Aussprache. Ordnet Wörter/Phrasen phonetischen Schreibweisen zu, um die TTS-Ausgabe zu verbessern.",
         selectFile: "Datei auswählen",
         autoTtsRealtimeMode: "Automatischer TTS-Echtzeitmodus",
         autoTtsRealtimeModeDesc: "Wenn aktiviert, wird TTS während des Text-Streamings generiert. Wenn deaktiviert (Standard), wird TTS nach Abschluss des Streamings generiert.",
@@ -415,7 +464,14 @@ const settingsTranslations = {
         mcpServerPort: "MCP-Server-Port",
         mcpServerPortDesc: "Netzwerkport für MCP-Server. Ändern Sie nur, wenn Port 3100 mit einem anderen Dienst in Konflikt steht.",
         openAtLogin: "Bei Anmeldung starten",
-        openAtLoginDesc: "Startet Monadic Chat automatisch, wenn Sie sich an Ihrem Computer anmelden."
+        openAtLoginDesc: "Startet Monadic Chat automatisch, wenn Sie sich an Ihrem Computer anmelden.",
+        menuBarMode: "Menüleisten-Modus",
+        menuBarModeDesc: "Blendet das Dock-Symbol aus und führt die App als Menüleisten-App aus. (nur macOS)",
+        version: "Version",
+        checkForUpdates: "Nach Updates suchen",
+        developer: "Entwickler",
+        homepage: "Startseite",
+        sourceCode: "Quellcode"
       },
       buttons: {
         showApiKeys: "API-Schlüssel anzeigen",

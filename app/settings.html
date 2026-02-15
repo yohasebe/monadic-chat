@@ -8,442 +8,738 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+    * { box-sizing: border-box; }
+
     body {
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
       margin: 0;
       padding: 0;
       color: #333;
-      background-color: #eeeeee;
+      background-color: #f5f5f7;
       overflow: hidden;
+      height: 100vh;
     }
 
     body, input, textarea, button, select, pre {
       font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Original Yu Gothic", "Yu Gothic", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Sans Emoji";
     }
 
-    h1 {
-      margin: 10px;
-      font-size: 14px;
+    /* ─── Grid Layout ─── */
+    #settings-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      height: 100vh;
+    }
+
+    /* ─── Sidebar ─── */
+    #settings-sidebar {
+      background-color: #f5f5f7;
+      border-right: 1px solid #d1d1d6;
+      display: flex;
+      flex-direction: column;
+      padding-top: 12px;
+      user-select: none;
+    }
+
+    #category-list {
+      list-style: none;
+      margin: 0;
+      padding: 0 8px;
+      flex: 1;
+    }
+
+    #category-list li {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      margin-bottom: 2px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+      transition: background-color 0.15s ease;
+    }
+
+    #category-list li:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    #category-list li.active {
+      background-color: rgba(0, 0, 0, 0.08);
       font-weight: 600;
     }
 
-    #settings-container {
-        flex-grow: 1;
-        overflow-y: auto;
-        padding: 0 10px;
-        height: calc(100vh - 55px);
-    }
-
-    #settings-form {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 20px;
-    }
-
-    /* Common category styles */
-    .settings-category {
-      margin-bottom: 20px;
-      padding: 15px;
-      background-color: #f9f9f9;
-      border-radius: 8px;
-      border-left: 4px solid; /* Color will be set by category-specific classes */
-    }
-
-    .settings-category h2 {
-      font-size: 13px;
-      margin-top: 0;
-      margin-bottom: 12px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #e0e0e0;
+    #category-list li i {
+      width: 20px;
+      text-align: center;
+      margin-right: 10px;
+      font-size: 14px;
       color: #555;
     }
 
-    .settings-category h2 i {
-      margin-right: 8px;
-    }
-    
-    /* Category-specific color styles */
-    .category-api-keys {
-      border-left-color: #2196F3; /* Blue */
-    }
-    .category-api-keys h2 i {
-      color: #2196F3;
-    }
-    
-    .category-model {
-      border-left-color: #4CAF50; /* Green */
-    }
-    .category-model h2 i {
-      color: #4CAF50;
-    }
-    
-    .category-display {
-      border-left-color: #9C27B0; /* Purple */
-    }
-    .category-display h2 i {
-      color: #9C27B0;
-    }
-    
-    .category-voice {
-      border-left-color: #FF9800; /* Orange */
-    }
-    .category-voice h2 i {
-      color: #FF9800;
-    }
-    
-    .category-system {
-      border-left-color: #F44336; /* Red */
-    }
-    .category-system h2 i {
-      color: #F44336;
+    #category-list li.active i {
+      color: #333;
     }
 
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: 500;
-      font-size: 12px;
+    /* ─── Sidebar Footer ─── */
+    #sidebar-footer {
+      padding: 12px;
+      border-top: 1px solid #d1d1d6;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    input, select {
-      width: 100%;
-      padding: 6px 12px;
-      margin-top: 5px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      box-sizing: border-box;
-    }
-
-    /* Default focus style */
-    input:focus, select:focus {
-      outline: none;
-      border-color: #2196F3;
-      box-shadow: 0 0 3px rgba(33, 150, 243, 0.3);
-    }
-    
-    /* Category-specific focus styles */
-    .category-api-keys input:focus, .category-api-keys select:focus {
-      border-color: #2196F3;
-      box-shadow: 0 0 3px rgba(33, 150, 243, 0.3);
-    }
-    
-    .category-model input:focus, .category-model select:focus {
-      border-color: #4CAF50;
-      box-shadow: 0 0 3px rgba(76, 175, 80, 0.3);
-    }
-
-    /* Description text styling */
-    .text-muted {
-      font-size: 11px;
-      line-height: 1.4;
-      color: #666;
-      display: block;
-      margin-top: 5px;
-      margin-bottom: 12px;
-    }
-
-    .category-display input:focus, .category-display select:focus {
-      border-color: #9C27B0;
-      box-shadow: 0 0 3px rgba(156, 39, 176, 0.3);
-    }
-    
-    .category-voice input:focus, .category-voice select:focus {
-      border-color: #FF9800;
-      box-shadow: 0 0 3px rgba(255, 152, 0, 0.3);
-    }
-    
-    .category-system input:focus, .category-system select:focus {
-      border-color: #F44336;
-      box-shadow: 0 0 3px rgba(244, 67, 54, 0.3);
-    }
-
-    .button-group {
-        border-top: 1px solid #ccc;
-        padding: 12px;
-        background-color: #eeeeee;
-    }
-
-    .button-group button {
+    #sidebar-footer button {
       background-color: #ffc107;
       color: #000;
       border: none;
-      border-radius: 5px;
-      padding: 5px 10px;
-      margin-left: 5px;
+      border-radius: 6px;
+      padding: 6px 14px;
       cursor: pointer;
       font-size: 13px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      line-height: 1;
+      gap: 6px;
+      transition: background-color 0.15s ease;
     }
 
-    .button-group button:hover {
+    #sidebar-footer button:hover {
       background-color: #e0ac07;
-    }
-
-    .fa-icon {
-      margin-right: 5px;
     }
 
     #save-message {
       display: none;
       color: #28a745;
-      margin-left: 10px;
       font-size: 18px;
-      vertical-align: middle;
     }
-    
+
     #save-message i {
       animation: checkmark 0.5s ease-in-out;
     }
-    
+
     @keyframes checkmark {
-      0% {
-        transform: scale(0);
-        opacity: 0;
-      }
-      50% {
-        transform: scale(1.2);
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
     }
 
+    /* ─── Content Area ─── */
+    #settings-content {
+      background-color: #ffffff;
+      overflow-y: auto;
+      padding: 24px 32px;
+    }
+
+    #content-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 20px 0;
+      color: #1d1d1f;
+    }
+
+    .settings-panel { display: none; }
+    .settings-panel.active { display: block; }
+
+    /* ─── Form Elements ─── */
+    .setting-group {
+      margin-bottom: 20px;
+    }
+
+    .setting-group label {
+      display: block;
+      font-weight: 500;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #1d1d1f;
+    }
+
+    .setting-group input,
+    .setting-group select {
+      width: 100%;
+      padding: 7px 12px;
+      font-size: 13px;
+      border: 1px solid #d1d1d6;
+      border-radius: 6px;
+      background-color: #fff;
+      color: #333;
+    }
+
+    .setting-group input:focus,
+    .setting-group select:focus {
+      outline: none;
+      border-color: #0071e3;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+    }
+
+    .setting-group .text-muted {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #86868b;
+      margin-top: 4px;
+      display: block;
+    }
+
+    /* Checkbox rows */
+    .setting-group .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .setting-group .checkbox-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .setting-group .checkbox-row label {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    /* API key field with eye toggle */
+    .api-key-field {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .api-key-field input {
+      flex: 1;
+      padding-right: 35px;
+    }
+
+    .api-key-field .toggle-api-key-visibility {
+      position: absolute;
+      right: 5px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 5px;
+      color: #86868b;
+      font-size: 14px;
+    }
+
+    .api-key-field .toggle-api-key-visibility:hover {
+      color: #333;
+    }
+
+    /* TTS Dict file picker */
+    .file-picker-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-picker-row input { flex: 1; }
+
+    .file-picker-row button {
+      background-color: #86868b;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .file-picker-row button:hover {
+      background-color: #6e6e73;
+    }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    #loading-overlay i {
+      font-size: 36px;
+      color: #ffc107;
+    }
+
+    #loading-overlay p {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #86868b;
+    }
+    /* ─── Dark Mode ─── */
+    @media (prefers-color-scheme: dark) {
+      body {
+        color: #e5e5e7;
+        background-color: #2c2c2e;
+      }
+
+      #settings-sidebar {
+        background-color: #2c2c2e;
+        border-right-color: #38383a;
+      }
+
+      #category-list li {
+        color: #e5e5e7;
+      }
+
+      #category-list li:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+      }
+
+      #category-list li.active {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      #category-list li i {
+        color: #a1a1a6;
+      }
+
+      #category-list li.active i {
+        color: #e5e5e7;
+      }
+
+      #sidebar-footer {
+        border-top-color: #38383a;
+      }
+
+      #settings-content {
+        background-color: #1c1c1e;
+      }
+
+      #content-title {
+        color: #f5f5f7;
+      }
+
+      .setting-group label {
+        color: #f5f5f7;
+      }
+
+      .setting-group input,
+      .setting-group select {
+        background-color: #3a3a3c;
+        border-color: #545458;
+        color: #e5e5e7;
+      }
+
+      .setting-group input:focus,
+      .setting-group select:focus {
+        border-color: #0a84ff;
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.25);
+      }
+
+      .setting-group .text-muted {
+        color: #8e8e93;
+      }
+
+      .api-key-field .toggle-api-key-visibility {
+        color: #8e8e93;
+      }
+
+      .api-key-field .toggle-api-key-visibility:hover {
+        color: #e5e5e7;
+      }
+
+      .file-picker-row button {
+        background-color: #636366;
+      }
+
+      .file-picker-row button:hover {
+        background-color: #545458;
+      }
+
+      #loading-overlay {
+        background: rgba(28, 28, 30, 0.9);
+      }
+
+      #loading-overlay p {
+        color: #8e8e93;
+      }
+    }
     </style>
     <script src="./settingsTranslations.js"></script>
   </head>
   <body>
-    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-         background: rgba(255,255,255,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+    <div id="loading-overlay">
       <div style="text-align: center;">
-        <i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #ffc107;"></i>
+        <i class="fas fa-spinner fa-spin"></i>
         <p data-i18n="settings.loading">Loading settings...</p>
       </div>
     </div>
-    
-    <h1>Monadic Chat <span style="font-weight: normal;" data-i18n="settings.title">Settings</span></h1>
-    <div id="settings-container">
-      <form id="settings-form">
-        <!-- Category: Display & UI -->
-        <div class="settings-category category-display">
-          <h2 data-i18n="settings.categories.displayUI"><i class="fas fa-palette"></i> Display & UI</h2>
-          
-          <label for="ui-language" data-i18n="settings.labels.uiLanguage">UI Language</label>
-          <select id="ui-language" name="ui-language">
-            <option value="en">English</option>
-            <option value="ja">日本語 (Japanese)</option>
-            <option value="zh">中文 (Chinese)</option>
-            <option value="ko">한국어 (Korean)</option>
-            <option value="es">Español (Spanish)</option>
-            <option value="fr">Français (French)</option>
-            <option value="de">Deutsch (German)</option>
-          </select>
-          
-          <label for="rouge-theme" data-i18n="settings.labels.syntaxHighlighting">Syntax Highlighting Theme</label>
-          <select id="rouge-theme" name="rouge-theme">
-            <option disabled data-i18n="settings.labels.darkThemes">──Dark Themes──</option>
-            <option value="base16:dark">base16-dark</option>
-            <option value="github:dark">github-dark</option>
-            <option value="gruvbox:dark">gruvbox-dark</option>
-            <option value="colorful:dark">colorful</option>
-            <option value="molokai:dark">molokai</option>
-            <option value="monokai:dark">monokai</option>
-            <option value="monokai_sublime:dark">monokai_sublime</option>
-            <option value="tulip:dark">tulip</option>
-            <option value="thankful_eyes:light">thankful_eyes</option>
 
-            <option disabled data-i18n="settings.labels.lightThemes">──Light Themes──</option>
-            <option value="base16:light">base16-light</option>
-            <option value="github:light">github-light</option>
-            <option value="gruvbox:light">gruvbox-light</option>
-            <option value="bw:light">bw</option>
-            <option value="igor_pro:light">igor_pro</option>
-            <option value="magritte:light">magritte</option>
-            <option value="pastie:light">pastie</option>
-          </select>
+    <div id="settings-layout">
+      <!-- Sidebar -->
+      <nav id="settings-sidebar">
+        <ul id="category-list">
+          <li data-category="general" class="active">
+            <i class="fas fa-sliders-h"></i>
+            <span data-i18n="settings.categories.general">General</span>
+          </li>
+          <li data-category="system">
+            <i class="fas fa-cogs"></i>
+            <span data-i18n="settings.categories.system">System</span>
+          </li>
+          <li data-category="api-keys">
+            <i class="fas fa-key"></i>
+            <span data-i18n="settings.categories.apiKeys">API Keys</span>
+          </li>
+          <li data-category="voice">
+            <i class="fas fa-microphone-alt"></i>
+            <span data-i18n="settings.categories.voice">Voice & Audio</span>
+          </li>
+          <li data-category="services">
+            <i class="fas fa-server"></i>
+            <span data-i18n="settings.categories.services">Services</span>
+          </li>
+          <li data-category="about">
+            <i class="fas fa-info-circle"></i>
+            <span data-i18n="settings.categories.about">About</span>
+          </li>
+        </ul>
+        <div id="sidebar-footer">
+          <button type="submit" form="settings-form">
+            <i class="fas fa-save"></i>
+            <span data-i18n="settings.buttons.save">Save</span>
+          </button>
+          <span id="save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
         </div>
+      </nav>
 
-        <!-- Category: API Keys -->
-        <div class="settings-category category-api-keys">
-          <h2 data-i18n="settings.categories.apiKeys"><i class="fas fa-key"></i> API Keys</h2>
-          
-          <label for="openai-api-key">OPENAI_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="openai-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+      <!-- Content Area -->
+      <main id="settings-content">
+        <h1 id="content-title">General</h1>
+        <form id="settings-form">
+
+          <!-- Panel: General -->
+          <div class="settings-panel active" id="panel-general">
+            <div class="setting-group">
+              <label for="ui-language" data-i18n="settings.labels.uiLanguage">UI Language</label>
+              <select id="ui-language" name="ui-language">
+                <option value="en">English</option>
+                <option value="ja">日本語 (Japanese)</option>
+                <option value="zh">中文 (Chinese)</option>
+                <option value="ko">한국어 (Korean)</option>
+                <option value="es">Español (Spanish)</option>
+                <option value="fr">Français (French)</option>
+                <option value="de">Deutsch (German)</option>
+              </select>
+            </div>
+
+            <div class="setting-group">
+              <label for="browser-mode" data-i18n="settings.labels.browserMode">Browser Mode</label>
+              <select id="browser-mode" name="browser-mode">
+                <option value="internal" data-i18n="settings.labels.internalBrowser">Internal Browser</option>
+                <option value="external" data-i18n="settings.labels.externalBrowser">External Browser</option>
+              </select>
+              <small class="text-muted" data-i18n="settings.labels.browserModeDesc">Internal uses built-in WebView. External opens in your default system browser.</small>
+            </div>
+
+            <div class="setting-group">
+              <label for="rouge-theme" data-i18n="settings.labels.syntaxHighlighting">Syntax Highlighting Theme</label>
+              <select id="rouge-theme" name="rouge-theme">
+                <option disabled data-i18n="settings.labels.darkThemes">──Dark Themes──</option>
+                <option value="base16:dark">base16-dark</option>
+                <option value="github:dark">github-dark</option>
+                <option value="gruvbox:dark">gruvbox-dark</option>
+                <option value="colorful:dark">colorful</option>
+                <option value="molokai:dark">molokai</option>
+                <option value="monokai:dark">monokai</option>
+                <option value="monokai_sublime:dark">monokai_sublime</option>
+                <option value="tulip:dark">tulip</option>
+                <option value="thankful_eyes:light">thankful_eyes</option>
+                <option disabled data-i18n="settings.labels.lightThemes">──Light Themes──</option>
+                <option value="base16:light">base16-light</option>
+                <option value="github:light">github-light</option>
+                <option value="gruvbox:light">gruvbox-light</option>
+                <option value="bw:light">bw</option>
+                <option value="igor_pro:light">igor_pro</option>
+                <option value="magritte:light">magritte</option>
+                <option value="pastie:light">pastie</option>
+              </select>
+            </div>
           </div>
 
-          <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="anthropic-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          <!-- Panel: System -->
+          <div class="settings-panel" id="panel-system">
+            <div class="setting-group" id="open-at-login-group">
+              <div class="checkbox-row">
+                <input type="checkbox" id="open-at-login" value="">
+                <label for="open-at-login" data-i18n="settings.labels.openAtLogin">Launch at Login</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.openAtLoginDesc">Automatically start Monadic Chat when you log in to your computer.</small>
+            </div>
+
+            <div class="setting-group" id="menu-bar-mode-group">
+              <div class="checkbox-row">
+                <input type="checkbox" id="menu-bar-mode" value="">
+                <label for="menu-bar-mode" data-i18n="settings.labels.menuBarMode">Menu Bar Mode</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.menuBarModeDesc">Hide the Dock icon and run as a menu bar app. (macOS only)</small>
+            </div>
+
+            <div class="setting-group">
+              <div class="checkbox-row">
+                <input type="checkbox" id="extra-logging" value="">
+                <label for="extra-logging" data-i18n="settings.labels.extraLogging">Extra Logging</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.extraLoggingDesc">Enables detailed debug logging for troubleshooting. Logs saved to ~/monadic/log/extra.log.</small>
+            </div>
           </div>
 
-          <label for="cohere-api-key">COHERE_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="cohere-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          <!-- Panel: API Keys -->
+          <div class="settings-panel" id="panel-api-keys">
+            <div class="setting-group">
+              <label for="openai-api-key">OPENAI_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="openai-api-key" name="openai-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="openai-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="anthropic-api-key">ANTHROPIC_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="anthropic-api-key" name="anthropic-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="anthropic-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="cohere-api-key">COHERE_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="cohere-api-key" name="cohere-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="cohere-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="gemini-api-key">GEMINI_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="gemini-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="mistral-api-key">MISTRAL_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="mistral-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="xai-api-key">XAI_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="xai-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="perplexity-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="deepseek-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="elevenlabs-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label for="tavily-api-key">TAVILY_API_KEY</label>
+              <div class="api-key-field">
+                <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false">
+                <button type="button" class="toggle-api-key-visibility" data-target="tavily-api-key"><i class="fas fa-eye"></i></button>
+              </div>
+            </div>
           </div>
 
-          <label for="gemini-api-key">GEMINI_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="gemini-api-key" name="gemini-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="gemini-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          <!-- Panel: Voice & Audio -->
+          <div class="settings-panel" id="panel-voice">
+            <div class="setting-group">
+              <label for="tts-dict-path" data-i18n="settings.labels.ttsDictPath">TTS Dictionary File Path</label>
+              <div class="file-picker-row">
+                <input type="text" id="tts-dict-path" name="tts-dict-path" readonly>
+                <button type="button" id="select-tts-dict" data-i18n="settings.labels.selectFile">Select File</button>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.ttsDictPathDesc">CSV file to customize pronunciation. Maps words/phrases to phonetic spellings for better TTS output.</small>
+            </div>
+
+            <div class="setting-group">
+              <div class="checkbox-row">
+                <input type="checkbox" id="auto-tts-realtime-mode" value="">
+                <label for="auto-tts-realtime-mode" data-i18n="settings.labels.autoTtsRealtimeMode">Auto TTS Realtime Mode</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
+            </div>
+
+            <div class="setting-group">
+              <label for="auto-tts-max-bytes" data-i18n="settings.labels.autoTtsMaxBytes">Auto TTS Max Bytes</label>
+              <input type="number" id="auto-tts-max-bytes" name="auto-tts-max-bytes" min="500" max="10000" value="500">
+              <small class="text-muted" data-i18n="settings.labels.autoTtsMaxBytesDesc">Maximum text size (in bytes) for auto TTS in post-completion mode. Text exceeding this limit will be partially played or skipped. Range: 400-10000 bytes.</small>
+            </div>
+
+            <div class="setting-group">
+              <label for="auto-tts-min-length" data-i18n="settings.labels.autoTtsMinLength">Auto TTS Buffer Size (characters)</label>
+              <input type="number" id="auto-tts-min-length" name="auto-tts-min-length" min="20" max="200" value="50">
+              <small class="text-muted" data-i18n="settings.labels.autoTtsMinLengthDesc">Minimum text length before generating TTS in realtime mode. Smaller values (20-40) provide faster response but may cause choppy audio. Larger values (60-100) improve fluency but increase initial delay. Range: 20-200 characters.</small>
+            </div>
           </div>
 
-          <label for="mistral-api-key">MISTRAL_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="mistral-api-key" name="mistral-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="mistral-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          <!-- Panel: Services -->
+          <div class="settings-panel" id="panel-services">
+            <div class="setting-group">
+              <label for="distributed-mode" data-i18n="settings.labels.applicationMode">Application Mode</label>
+              <select id="distributed-mode" name="distributed-mode">
+                <option value="off" data-i18n="settings.labels.standaloneMode">Standalone (Default)</option>
+                <option value="server" data-i18n="settings.labels.serverMode">Server Mode</option>
+              </select>
+              <small class="text-muted" data-i18n="settings.labels.applicationModeDesc">Standalone runs locally. Server mode allows remote browser access via network.</small>
+            </div>
+
+            <div class="setting-group">
+              <div class="checkbox-row">
+                <input type="checkbox" id="mcp-server-enabled" value="">
+                <label for="mcp-server-enabled" data-i18n="settings.labels.enableMcpServer">Enable MCP Server</label>
+              </div>
+              <small class="text-muted" data-i18n="settings.labels.enableMcpServerDesc">Enables Model Context Protocol server for external tool integration (e.g., Claude Desktop, VS Code).</small>
+            </div>
+
+            <div class="setting-group">
+              <label for="mcp-server-port" data-i18n="settings.labels.mcpServerPort">MCP Server Port</label>
+              <input type="number" id="mcp-server-port" name="mcp-server-port" min="1024" max="65535" value="3100">
+              <small class="text-muted" data-i18n="settings.labels.mcpServerPortDesc">Network port for MCP server. Change only if port 3100 conflicts with another service.</small>
+            </div>
+
+            <div class="setting-group">
+              <label for="pdf-storage-mode-setting" data-i18n="settings.labels.pdfStorageMode">PDF Storage Mode</label>
+              <select id="pdf-storage-mode-setting" name="pdf-storage-mode-setting">
+                <option value="local">Local (PGVector)</option>
+                <option value="cloud">Cloud (OpenAI Vector Store)</option>
+              </select>
+              <small class="text-muted" data-i18n="settings.labels.pdfStorageModeDesc">Local uses PGVector database on your machine. Cloud uses OpenAI Vector Store API (requires additional API costs).</small>
+            </div>
           </div>
 
-          <label for="xai-api-key">XAI_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="xai-api-key" name="xai-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="xai-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
+          <!-- Panel: About -->
+          <div class="settings-panel" id="panel-about">
+            <div class="setting-group">
+              <label data-i18n="settings.labels.version">Version</label>
+              <p id="app-version" style="font-size: 14px; color: #1d1d1f; margin: 4px 0 0 0;">—</p>
+            </div>
+            <div class="setting-group">
+              <button type="button" id="check-for-updates-btn" style="background-color: #0071e3; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-sync-alt"></i>
+                <span data-i18n="settings.labels.checkForUpdates">Check for Updates</span>
+              </button>
+            </div>
+            <hr style="border: none; border-top: 1px solid #e5e5ea; margin: 24px 0;">
+            <div class="setting-group">
+              <label data-i18n="settings.labels.developer">Developer</label>
+              <p style="font-size: 13px; color: #1d1d1f; margin: 4px 0 0 0;">Yoichiro Hasebe</p>
+            </div>
+            <div class="setting-group">
+              <label data-i18n="settings.labels.homepage">Homepage</label>
+              <p style="margin: 4px 0 0 0;">
+                <a href="#" id="link-homepage" style="font-size: 13px; color: #0071e3; text-decoration: none;">
+                  <i class="fas fa-house" style="margin-right: 4px;"></i>yohasebe.github.io/monadic-chat
+                </a>
+              </p>
+            </div>
+            <div class="setting-group">
+              <label data-i18n="settings.labels.sourceCode">Source Code</label>
+              <p style="margin: 4px 0 0 0;">
+                <a href="#" id="link-github" style="font-size: 13px; color: #0071e3; text-decoration: none;">
+                  <i class="fab fa-github" style="margin-right: 4px;"></i>github.com/yohasebe/monadic-chat
+                </a>
+              </p>
+            </div>
           </div>
 
-          <label for="perplexity-api-key">PERPLEXITY_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="perplexity-api-key" name="perplexity-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="perplexity-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
-          </div>
-
-          <label for="deepseek-api-key">DEEPSEEK_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="deepseek-api-key" name="deepseek-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="deepseek-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
-          </div>
-
-          <label for="elevenlabs-api-key">ELEVENLABS_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="elevenlabs-api-key" name="elevenlabs-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="elevenlabs-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
-          </div>
-
-          <label for="tavily-api-key">TAVILY_API_KEY</label>
-          <div style="position: relative; display: flex; align-items: center;">
-            <input type="password" id="tavily-api-key" name="tavily-api-key" spellcheck="false" style="flex: 1; padding-right: 35px;">
-            <button type="button" class="toggle-api-key-visibility" data-target="tavily-api-key" style="position: absolute; right: 5px; background: none; border: none; cursor: pointer; padding: 5px; color: #666;"><i class="fas fa-eye"></i></button>
-          </div>
-        </div>
-
-        <!-- Category: Model Settings -->
-        <div class="settings-category category-model">
-          <h2 data-i18n="settings.categories.modelSettings"><i class="fas fa-robot"></i> Model Settings</h2>
-
-          <label for="pdf-storage-mode-setting" data-i18n="settings.labels.pdfStorageMode">PDF Storage Mode</label>
-          <select id="pdf-storage-mode-setting" name="pdf-storage-mode-setting">
-            <option value="local">Local (PGVector)</option>
-            <option value="cloud">Cloud (OpenAI Vector Store)</option>
-          </select>
-          <small class="text-muted" data-i18n="settings.labels.pdfStorageModeDesc">Local uses PGVector database on your machine. Cloud uses OpenAI Vector Store API (requires additional API costs).</small>
-        </div>
-
-        <!-- Category: Voice & Audio -->
-        <div class="settings-category category-voice">
-          <h2 data-i18n="settings.categories.voiceAudio"><i class="fas fa-microphone-alt"></i> Voice & Audio</h2>
-
-          <label for="tts-dict-path" data-i18n="settings.labels.ttsDictPath">TTS Dictionary File Path</label>
-          <div style="display: flex; align-items: flex-start; margin-top: 5px; margin-bottom: 10px;">
-            <input type="text" id="tts-dict-path" name="tts-dict-path" readonly style="flex: 1; margin-right: 10px; margin-top: 0; margin-bottom: 0;">
-            <button type="button" id="select-tts-dict" style="background-color: #888; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; white-space: nowrap; height: 29px; font-size: 11px;" data-i18n="settings.labels.selectFile">Select File</button>
-          </div>
-          <small class="text-muted" data-i18n="settings.labels.ttsDictPathDesc">JSON file to customize pronunciation. Maps words/phrases to phonetic spellings for better TTS output.</small>
-
-          <label class="form-check-label" for="auto-tts-realtime-mode" data-i18n="settings.labels.autoTtsRealtimeMode">Auto TTS Realtime Mode</label>
-          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="auto-tts-realtime-mode">
-          <small class="text-muted" data-i18n="settings.labels.autoTtsRealtimeModeDesc">When enabled, generates TTS during text streaming. When disabled (default), generates TTS after streaming completes.</small>
-
-          <label for="auto-tts-max-bytes" data-i18n="settings.labels.autoTtsMaxBytes">Auto TTS Max Bytes</label>
-          <input type="number" id="auto-tts-max-bytes" name="auto-tts-max-bytes" min="400" max="10000" value="400">
-          <small class="text-muted" data-i18n="settings.labels.autoTtsMaxBytesDesc">Maximum text size (in bytes) for auto TTS in post-completion mode. Text exceeding this limit will be partially played or skipped. Range: 400-10000 bytes.</small>
-
-          <label for="auto-tts-min-length" data-i18n="settings.labels.autoTtsMinLength">Auto TTS Buffer Size (characters)</label>
-          <input type="number" id="auto-tts-min-length" name="auto-tts-min-length" min="20" max="200" value="50">
-          <small class="text-muted" data-i18n="settings.labels.autoTtsMinLengthDesc">Minimum text length before generating TTS in realtime mode. Smaller values (20-40) provide faster response but may cause choppy audio. Larger values (60-100) improve fluency but increase initial delay. Range: 20-200 characters.</small>
-        </div>
-
-        <!-- Category: System Settings -->
-        <div class="settings-category category-system">
-          <h2 data-i18n="settings.categories.systemSettings"><i class="fas fa-cogs"></i> System Settings</h2>
-          
-          <label for="distributed-mode" data-i18n="settings.labels.applicationMode">Application Mode</label>
-          <select id="distributed-mode" name="distributed-mode">
-            <option value="off" data-i18n="settings.labels.standaloneMode">Standalone (Default)</option>
-            <option value="server" data-i18n="settings.labels.serverMode">Server Mode</option>
-          </select>
-          <small class="text-muted" data-i18n="settings.labels.applicationModeDesc">Standalone runs locally. Server mode allows remote browser access via network.</small>
-
-          <label for="browser-mode" data-i18n="settings.labels.browserMode">Browser Mode</label>
-          <select id="browser-mode" name="browser-mode">
-            <option value="internal" data-i18n="settings.labels.internalBrowser">Internal Browser</option>
-            <option value="external" data-i18n="settings.labels.externalBrowser">External Browser</option>
-          </select>
-          <small class="text-muted" data-i18n="settings.labels.browserModeDesc">Internal uses built-in WebView. External opens in your default system browser.</small>
-
-          <label class="form-check-label" for="extra-logging" data-i18n="settings.labels.extraLogging">Extra Logging</label>
-          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="extra-logging">
-          <small class="text-muted" data-i18n="settings.labels.extraLoggingDesc">Enables detailed debug logging for troubleshooting. Logs saved to ~/monadic/log/extra.log.</small>
-
-          <label class="form-check-label" for="mcp-server-enabled" data-i18n="settings.labels.enableMcpServer">Enable MCP Server</label>
-          <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="mcp-server-enabled">
-          <small class="text-muted" data-i18n="settings.labels.enableMcpServerDesc">Enables Model Context Protocol server for external tool integration (e.g., Claude Desktop, VS Code).</small>
-
-          <label for="mcp-server-port" data-i18n="settings.labels.mcpServerPort">MCP Server Port</label>
-          <input type="number" id="mcp-server-port" name="mcp-server-port" min="1024" max="65535" value="3100">
-          <small class="text-muted" data-i18n="settings.labels.mcpServerPortDesc">Network port for MCP server. Change only if port 3100 conflicts with another service.</small>
-
-          <div id="open-at-login-group">
-            <label class="form-check-label" for="open-at-login" data-i18n="settings.labels.openAtLogin">Launch at Login</label>
-            <input class="form-check-inline" style="display:inline; width: 20px; margin-left:0;" type="checkbox" value="" id="open-at-login">
-            <small class="text-muted" data-i18n="settings.labels.openAtLoginDesc">Automatically start Monadic Chat when you log in to your computer.</small>
-          </div>
-        </div>
-
-      </form>
-    </div>
-
-    <div class="button-group">
-      <button type="submit" form="settings-form" data-i18n="settings.buttons.save"><i class="fas fa-save fa-icon"></i>Save</button>
-      <button type="button" id="cancel" data-i18n="settings.buttons.close"><i class="fas fa-times fa-icon"></i>Close</button>
-      <span id="save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
+        </form>
+      </main>
     </div>
 
     <script>
+      // ─── State Management ───
       let settingsDirty = false;
       let settingsInitialSnapshot = '';
+      let dirtyListenersAttached = false;
+      let initialLanguage = 'en';
+      let closingAfterSave = false;
+
       const takeSettingsSnapshot = () => {
         const form = document.getElementById('settings-form');
         const obj = {};
         form.querySelectorAll('input, select, textarea').forEach(el => {
           if (!el.id) return;
-          if (el.type === 'checkbox') {
-            obj[el.id] = !!el.checked;
-          } else {
-            obj[el.id] = el.value;
-          }
+          obj[el.id] = el.type === 'checkbox' ? !!el.checked : el.value;
         });
         return JSON.stringify(obj);
       };
-      // Use the APIs exposed via preload.js instead of direct require
-      // No need for toggling anymore as we've simplified the UI
-      document.getElementById('distributed-mode').addEventListener('change', function() {
-        // Port settings are always visible now
+
+      // ─── Dialog Accessibility Helper ───
+      function setupDialogAccessibility(dialogId, onDismiss) {
+        const dialog = document.getElementById(dialogId);
+        if (!dialog) return;
+        // Focus the last button (primary action) by default
+        const buttons = dialog.querySelectorAll('button');
+        if (buttons.length) buttons[buttons.length - 1].focus();
+        // Escape key dismisses dialog
+        const escHandler = (e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            document.removeEventListener('keydown', escHandler);
+            onDismiss();
+          }
+        };
+        document.addEventListener('keydown', escHandler);
+        // Focus trap: cycle through focusable elements within dialog
+        const focusable = dialog.querySelectorAll('button');
+        if (focusable.length > 1) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          dialog.addEventListener('keydown', (e) => {
+            if (e.key !== 'Tab') return;
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          });
+        }
+      }
+
+      // ─── Category Switching ───
+      document.querySelectorAll('#category-list li').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelector('#category-list li.active').classList.remove('active');
+          item.classList.add('active');
+          document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+          document.getElementById(`panel-${item.dataset.category}`).classList.add('active');
+          document.getElementById('content-title').textContent = item.querySelector('span').textContent;
+        });
       });
 
+      // ─── Save Handler ───
       document.getElementById('settings-form').addEventListener('submit', (event) => {
         event.preventDefault();
 
-        const ttsDictPath = document.getElementById('tts-dict-path').value;
         const distributedMode = document.getElementById('distributed-mode').value;
         const previousMode = document.getElementById('distributed-mode').getAttribute('data-previous-value') || 'off';
         const previousBrowserMode = document.getElementById('browser-mode').getAttribute('data-previous-value') || 'external';
@@ -460,7 +756,7 @@
           ELEVENLABS_API_KEY: document.getElementById('elevenlabs-api-key').value,
           TAVILY_API_KEY: document.getElementById('tavily-api-key').value,
           ROUGE_THEME: document.getElementById('rouge-theme').value,
-          TTS_DICT_PATH: ttsDictPath,
+          TTS_DICT_PATH: document.getElementById('tts-dict-path').value,
           EXTRA_LOGGING: document.getElementById('extra-logging').checked,
           BROWSER_MODE: document.getElementById('browser-mode').value,
           DISTRIBUTED_MODE: distributedMode,
@@ -471,120 +767,113 @@
           AUTO_TTS_REALTIME_MODE: document.getElementById('auto-tts-realtime-mode').checked,
           AUTO_TTS_MAX_BYTES: document.getElementById('auto-tts-max-bytes').value,
           AUTO_TTS_MIN_LENGTH: document.getElementById('auto-tts-min-length').value,
-          OPEN_AT_LOGIN: document.getElementById('open-at-login').checked
+          OPEN_AT_LOGIN: document.getElementById('open-at-login').checked,
+          MENU_BAR_MODE: document.getElementById('menu-bar-mode').checked
         };
-        
-        // Port settings have been removed since they don't affect Docker containers
-        // Default values will be used: RUBY_PORT=4567, PYTHON_PORT=5070, JUPYTER_PORT=8889
 
         window.electronAPI.saveSettings(data);
 
-        // Show the save icon with animation
+        // Show save confirmation
         const saveMessage = document.getElementById('save-message');
-        // Set tooltip text based on current language
-        const tooltipText = settingsI18n.t('settings.messages.settingsSaved');
-        saveMessage.setAttribute('title', tooltipText);
+        saveMessage.setAttribute('title', settingsI18n.t('settings.messages.settingsSaved'));
         saveMessage.style.display = 'inline-block';
-        
-        // Hide the icon after 2 seconds
-        setTimeout(() => {
-          saveMessage.style.display = 'none';
-        }, 2000);
-        // Mark clean after save via snapshot
+        setTimeout(() => { saveMessage.style.display = 'none'; }, 2000);
+
         settingsInitialSnapshot = takeSettingsSnapshot();
         settingsDirty = false;
-        // Mark clean after save
-        settingsDirty = false;
-        
-        // Check if distributed mode has changed
-        if (distributedMode !== previousMode) {
-          // Signal to main process that mode has changed and we need to clear messages
-          window.electronAPI.clearMessages();
-          
-          // Show a custom modal dialog for mode change notification
-          const dialogHTML = `
-            <div id="modeChangeDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-                background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; 
-                justify-content: center;">
-              <div style="background-color: #f8f9fa; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-                  padding: 20px; max-width: 400px; font-family: 'Montserrat', sans-serif;">
-                <h3 style="margin-top: 0; color: #495057; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.modeChanged')}</h3>
-                <p style="margin-bottom: 20px; color: #495057; font-weight: normal; font-size: 14px;">
-                  ${settingsI18n.t('settings.messages.modeChangeMessage')}
-                </p>
-                <div style="text-align: right;">
-                  <button id="closeDialog" style="background-color: #ffc107; border: none; padding: 6px 12px; 
-                      border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 13px;">
-                    ${settingsI18n.t('settings.messages.ok')}
-                  </button>
+
+        // Update previous values so consecutive saves compare correctly
+        document.getElementById('distributed-mode').setAttribute('data-previous-value', distributedMode);
+        document.getElementById('browser-mode').setAttribute('data-previous-value', data.BROWSER_MODE);
+
+        // Mode change requires restart (skip dialog when saving via unsaved dialog)
+        if (!closingAfterSave) {
+          if (distributedMode !== previousMode) {
+            window.electronAPI.clearMessages();
+            const dialogHTML = `
+              <div id="modeChangeDialog" role="dialog" aria-modal="true" aria-labelledby="modeChangeDialogTitle" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                  background-color: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center;
+                  justify-content: center;">
+                <div style="background-color: #f8f9fa; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                    padding: 24px; max-width: 400px; font-family: 'Montserrat', sans-serif;">
+                  <h3 id="modeChangeDialogTitle" style="margin-top: 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.modeChanged')}</h3>
+                  <p style="margin-bottom: 20px; color: #1d1d1f; font-weight: normal; font-size: 14px;">
+                    ${settingsI18n.t('settings.messages.modeChangeMessage')}
+                  </p>
+                  <div style="text-align: right;">
+                    <button id="closeDialog" style="background-color: #ffc107; border: none; padding: 8px 16px;
+                        border-radius: 6px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">
+                      ${settingsI18n.t('settings.messages.ok')}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          `;
-          
-          // Add the dialog to the document
-          document.body.insertAdjacentHTML('beforeend', dialogHTML);
-          
-          // Add event listener to close button
-          document.getElementById('closeDialog').addEventListener('click', () => {
-            document.getElementById('modeChangeDialog').remove();
-            
-            // Close the settings window
+              </div>`;
+            document.body.insertAdjacentHTML('beforeend', dialogHTML);
+            document.getElementById('closeDialog').addEventListener('click', () => {
+              document.getElementById('modeChangeDialog').remove();
+              window.electronAPI.closeSettings();
+            });
+            // Accessibility: focus trap, Escape key dismiss
+            setupDialogAccessibility('modeChangeDialog', () => {
+              document.getElementById('closeDialog')?.click();
+            });
+          } else if (data.BROWSER_MODE !== previousBrowserMode) {
             window.electronAPI.closeSettings();
-          });
-        }
-        // If only browser mode changed, apply immediately and close settings
-        else if (data.BROWSER_MODE !== previousBrowserMode) {
-          window.electronAPI.closeSettings();
+          }
         }
       });
 
+      // ─── Unsaved Changes Dialog ───
       function showUnsavedDialog(onSave) {
         const dialogHTML = `
-          <div id="unsavedDialog" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-              background-color: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center; 
+          <div id="unsavedDialog" role="dialog" aria-modal="true" aria-labelledby="unsavedDialogTitle" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+              background-color: rgba(0,0,0,0.5); z-index: 3000; display: flex; align-items: center;
               justify-content: center;">
-            <div style="background-color: #f8f9fa; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
-                padding: 20px; max-width: 420px; font-family: 'Montserrat', sans-serif;">
-              <h3 style="margin-top: 0; color: #495057; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle') || 'Unsaved Changes'}</h3>
-              <p style="margin-bottom: 20px; color: #495057; font-weight: normal; font-size: 14px;">
+            <div style="background-color: #f8f9fa; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                padding: 24px; max-width: 420px; font-family: 'Montserrat', sans-serif;">
+              <h3 id="unsavedDialogTitle" style="margin-top: 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">${settingsI18n.t('settings.messages.unsavedTitle') || 'Unsaved Changes'}</h3>
+              <p style="margin-bottom: 20px; color: #1d1d1f; font-weight: normal; font-size: 14px;">
                 ${settingsI18n.t('settings.messages.unsavedMessage') || 'You have unsaved changes. Save before closing?'}
               </p>
-              <div style="text-align: right; display:flex; gap:8px; justify-content:flex-end;">
-                <button id="unsavedCancel" style="background-color: #ddd; border: none; padding: 6px 12px; 
-                    border-radius: 4px; color: #000; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
-                <button id="unsavedSave" style="background-color: #ffc107; border: none; padding: 6px 12px; 
-                    border-radius: 4px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
+              <div style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                <button id="unsavedDiscard" style="background-color: #e5e5ea; border: none; padding: 8px 16px;
+                    border-radius: 6px; color: #1d1d1f; cursor: pointer; font-weight: 500; font-size: 13px;">${settingsI18n.t('settings.buttons.close') || 'Close'}</button>
+                <button id="unsavedSave" style="background-color: #ffc107; border: none; padding: 8px 16px;
+                    border-radius: 6px; color: #000; cursor: pointer; font-weight: 600; font-size: 13px;">${settingsI18n.t('settings.messages.saveAndClose') || 'Save and Close'}</button>
               </div>
             </div>
           </div>`;
         document.body.insertAdjacentHTML('beforeend', dialogHTML);
-        document.getElementById('unsavedCancel').addEventListener('click', () => {
+        document.getElementById('unsavedDiscard').addEventListener('click', () => {
+          // Revert language if it was changed without saving
+          const currentLanguage = document.getElementById('ui-language').value;
+          if (currentLanguage !== initialLanguage) {
+            settingsI18n.setLanguage(initialLanguage);
+            window.electronAPI.changeUILanguage(initialLanguage);
+          }
           document.getElementById('unsavedDialog')?.remove();
+          window.electronAPI.confirmCloseSettings();
         });
         document.getElementById('unsavedSave').addEventListener('click', async () => {
+          closingAfterSave = true;
           try { await onSave?.(); } finally {
+            closingAfterSave = false;
             document.getElementById('unsavedDialog')?.remove();
-            window.electronAPI.closeSettings();
+            window.electronAPI.confirmCloseSettings();
           }
+        });
+        // Accessibility: focus trap, Escape key dismiss
+        setupDialogAccessibility('unsavedDialog', () => {
+          document.getElementById('unsavedDiscard')?.click();
         });
       }
 
-      document.getElementById('cancel').addEventListener('click', () => {
-        // Recompute dirty via snapshot to avoid false prompts
-        settingsDirty = (takeSettingsSnapshot() !== settingsInitialSnapshot);
-        if (settingsDirty) {
-          showUnsavedDialog(() => {
-            // Trigger form submit to reuse existing save flow
-            document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
-          });
-        } else {
-          window.electronAPI.confirmCloseSettings();
-        }
-      });
-
-      // Listen for settings load event from the main process
+      // ─── Load Settings from Main Process ───
       window.electronAPI.onLoadSettings((_event, data) => {
+        // Clean up any stale dialogs from previous session
+        document.getElementById('modeChangeDialog')?.remove();
+        document.getElementById('unsavedDialog')?.remove();
+
         document.getElementById('openai-api-key').value = data.OPENAI_API_KEY || '';
         document.getElementById('anthropic-api-key').value = data.ANTHROPIC_API_KEY || '';
         document.getElementById('cohere-api-key').value = data.COHERE_API_KEY || '';
@@ -604,51 +893,69 @@
         document.getElementById('mcp-server-enabled').checked = data.MCP_SERVER_ENABLED == "true" || false;
         document.getElementById('mcp-server-port').value = data.MCP_SERVER_PORT || '3100';
         document.getElementById('open-at-login').checked = data.OPEN_AT_LOGIN == "true" || false;
+        document.getElementById('menu-bar-mode').checked = data.MENU_BAR_MODE == "true" || false;
         document.getElementById('ui-language').value = data.UI_LANGUAGE || 'en';
-        
-        // Handle distributed mode settings - ensure default value is set
+
+        // Sync UI language and track initial value for discard revert
+        initialLanguage = data.UI_LANGUAGE || 'en';
+        settingsI18n.setLanguage(initialLanguage);
+        const activeItem = document.querySelector('#category-list li.active');
+        if (activeItem) {
+          document.getElementById('content-title').textContent = activeItem.querySelector('span').textContent;
+        }
+
+        // Distributed mode
         const distributedMode = data.DISTRIBUTED_MODE || 'off';
-        // Make sure the select element has this value, or default to 'off' if it doesn't exist
         const modeSelect = document.getElementById('distributed-mode');
-        const valueExists = Array.from(modeSelect.options).some(option => option.value === distributedMode);
+        const valueExists = Array.from(modeSelect.options).some(opt => opt.value === distributedMode);
         modeSelect.value = valueExists ? distributedMode : 'off';
-        
-        // Save the current mode value as an attribute for change detection
         modeSelect.setAttribute('data-previous-value', modeSelect.value);
-        
-        // Handle browser mode settings - default to external
+
+        // Browser mode
         const browserModeValue = data.BROWSER_MODE || 'external';
         const browserModeSelect = document.getElementById('browser-mode');
         const browserValueExists = Array.from(browserModeSelect.options).some(opt => opt.value === browserModeValue);
         browserModeSelect.value = browserValueExists ? browserModeValue : 'external';
-        // Store previous browser mode for change detection
         browserModeSelect.setAttribute('data-previous-value', browserModeSelect.value);
-        
-        // Always set port values
-        // Port settings have been removed since they don't affect Docker containers
-        // Default values will be used instead
-        
-        // Track dirty after initial population
+
+        // PDF storage mode (with fallback to PDF_DEFAULT_STORAGE for backward compat)
+        const pdfMode = (data.PDF_STORAGE_MODE || data.PDF_DEFAULT_STORAGE || 'local').toLowerCase();
+        document.getElementById('pdf-storage-mode-setting').value = (pdfMode === 'cloud') ? 'cloud' : 'local';
+
+        // Track dirty state
         settingsDirty = false;
-        const formEl = document.getElementById('settings-form');
-        formEl.querySelectorAll('input, select, textarea').forEach(el => {
-          el.addEventListener('change', () => { settingsDirty = true; });
-          el.addEventListener('input', () => { settingsDirty = true; });
-        });
-        // Take initial snapshot for diff-based dirty checking
+        if (!dirtyListenersAttached) {
+          const formEl = document.getElementById('settings-form');
+          formEl.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('change', () => { settingsDirty = true; });
+            el.addEventListener('input', () => { settingsDirty = true; });
+          });
+          dirtyListenersAttached = true;
+        }
         settingsInitialSnapshot = takeSettingsSnapshot();
-        // Hide the loading overlay once settings are loaded
+
+        // Display app version
+        if (data.APP_VERSION) {
+          document.getElementById('app-version').textContent = data.APP_VERSION;
+        }
+
+        // Hide loading overlay
         document.getElementById('loading-overlay').style.display = 'none';
       });
 
-      // Hide "Launch at Login" on Linux (unsupported by Electron API)
-      if (navigator.platform.startsWith('Linux')) {
+      // ─── Platform Guards ───
+      const platform = window.electronAPI?.platform || '';
+      if (platform === 'linux') {
         document.getElementById('open-at-login-group').style.display = 'none';
       }
+      if (platform !== 'darwin') {
+        document.getElementById('menu-bar-mode-group').style.display = 'none';
+      }
 
+      // ─── Request Settings ───
       window.electronAPI.requestSettings();
-      
-      // Handle OS/window close attempts from main process
+
+      // ─── Native Window Close Handler ───
       window.electronAPI.onAttemptCloseSettings(() => {
         const isDirtyNow = (takeSettingsSnapshot() !== settingsInitialSnapshot);
         if (isDirtyNow) {
@@ -660,28 +967,31 @@
         }
       });
 
-      // Listen for interface language changes and update UI
+      // ─── Language Change ───
       document.getElementById('ui-language').addEventListener('change', (event) => {
         const language = event.target.value;
         settingsI18n.setLanguage(language);
-        
-        // Notify main process to update language immediately
         window.electronAPI.changeUILanguage(language);
+        // Update content title to match new language
+        const activeItem = document.querySelector('#category-list li.active');
+        if (activeItem) {
+          document.getElementById('content-title').textContent = activeItem.querySelector('span').textContent;
+        }
       });
 
+      // ─── TTS Dict File Picker ───
       document.getElementById('select-tts-dict').addEventListener('click', async () => {
-        // Since ipcRenderer.invoke isn't exposed via preload, we need to call an exposed API
-        // that will handle this operation through the main process
-        // NOTE: Need to add this function to preload.js
         const filePath = await window.electronAPI.selectTTSDict();
-        document.getElementById('tts-dict-path').value = filePath;
+        if (filePath) {
+          document.getElementById('tts-dict-path').value = filePath;
+        }
       });
 
-      // Enable cut/copy/paste/select all shortcuts for all input fields
-      const inputs = document.querySelectorAll('input');
-      inputs.forEach(input => {
+      // ─── Keyboard Shortcuts (cut/copy/paste/select-all) ───
+      // Note: copy/cut on password fields is a no-op by Chromium security design
+      document.querySelectorAll('input').forEach(input => {
         input.addEventListener('keydown', (e) => {
-          if (e.ctrlKey || e.metaKey) {  // Support both Ctrl key (Windows/Linux) and Command key (macOS)
+          if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
               case 'a':
                 e.preventDefault();
@@ -689,26 +999,11 @@
                 break;
               case 'c':
                 e.preventDefault();
-                if (e.target.type === 'password') {
-                  const selection = window.getSelection().toString();
-                  if (selection) {
-                    navigator.clipboard.writeText(selection);
-                  }
-                } else {
-                  document.execCommand('copy');
-                }
+                document.execCommand('copy');
                 break;
               case 'x':
                 e.preventDefault();
-                if (e.target.type === 'password') {
-                  const selection = window.getSelection().toString();
-                  if (selection) {
-                    navigator.clipboard.writeText(selection);
-                    e.target.value = e.target.value.replace(selection, '');
-                  }
-                } else {
-                  document.execCommand('cut');
-                }
+                document.execCommand('cut');
                 break;
               case 'v':
                 e.preventDefault();
@@ -724,30 +1019,35 @@
         });
       });
 
-      // Individual API key visibility toggle buttons
+      // ─── Check for Updates ───
+      document.getElementById('check-for-updates-btn').addEventListener('click', () => {
+        window.electronAPI.checkForUpdates();
+      });
+
+      // ─── About Panel Links (open in external browser) ───
+      document.getElementById('link-homepage').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.electronAPI.openExternal('https://yohasebe.github.io/monadic-chat/#/?id=monadic-chat');
+      });
+      document.getElementById('link-github').addEventListener('click', (e) => {
+        e.preventDefault();
+        window.electronAPI.openExternal('https://github.com/yohasebe/monadic-chat');
+      });
+
+      // ─── API Key Visibility Toggles ───
       document.querySelectorAll('.toggle-api-key-visibility').forEach(button => {
         button.addEventListener('click', () => {
           const targetId = button.getAttribute('data-target');
           const input = document.getElementById(targetId);
           const icon = button.querySelector('i');
-
           if (input.type === 'password') {
             input.type = 'text';
             icon.className = 'fas fa-eye-slash';
-            button.style.color = '#333';
           } else {
             input.type = 'password';
             icon.className = 'fas fa-eye';
-            button.style.color = '#666';
           }
         });
-      });
-
-      // Populate PDF storage mode from settings
-      window.electronAPI.onLoadSettings((data) => {
-        const mode = (data.PDF_STORAGE_MODE || data.PDF_DEFAULT_STORAGE || 'local').toLowerCase();
-        const sel = document.getElementById('pdf-storage-mode-setting');
-        sel.value = (mode === 'cloud') ? 'cloud' : 'local';
       });
     </script>
   </body>

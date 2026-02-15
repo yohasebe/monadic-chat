@@ -17,7 +17,10 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Listen for temporal UI disable event from the main process 
+  // Platform identifier (e.g., 'darwin', 'win32', 'linux')
+  platform: process.platform,
+
+  // Listen for temporal UI disable event from the main process
   onDisableUI: (callback) => ipcRenderer.on('disable-ui', callback),
 
   // Listen for command output from the main process
@@ -109,6 +112,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Select TTS dictionary file
   selectTTSDict: () => ipcRenderer.invoke('select-tts-dict'),
   
+  // Check for updates (from settings window)
+  checkForUpdates: () => ipcRenderer.send('check-for-updates-from-settings'),
+
+  // Open URL in external browser (from settings window)
+  openExternal: (url) => ipcRenderer.send('open-external-url', url),
+
   // Clear messages area when mode changes
   clearMessages: () => ipcRenderer.send('clear-messages'),
   // Focus main window (invoked by internal browser)

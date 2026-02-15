@@ -362,8 +362,8 @@ API_TIMEOUT=120 RUN_API=true rake spec_api:smoke
 #### 5. Review Test Artifacts
 
 ```bash
-cat ./tmp/test_runs/latest_compact.md
-cat ./tmp/test_runs/latest/summary_full.md
+cat ./tmp/test_results/latest_compact.md
+cat ./tmp/test_results/latest/summary_full.md
 ```
 
 ### Best Practices
@@ -452,17 +452,17 @@ All values can be overridden per provider (for example `API_TIMEOUT_COHERE=120` 
    RUN_API=true rake spec_api:all
    ```
    For a faster pass, scope to a subset (e.g., `rake spec_api:smoke`).
-4. Review `./tmp/test_runs/latest_compact.md` for a concise summary. Re-run failed providers individually if a transient error is suspected.
+4. Review `./tmp/test_results/latest_compact.md` for a concise summary. Re-run failed providers individually if a transient error is suspected.
 
 ## Result Summaries
 
-- A custom formatter emits artifacts under `./tmp/test_runs/<timestamp>/` (only the latest directory is kept by default):
+- A custom formatter emits artifacts under `./tmp/test_results/<timestamp>/` (only the latest directory is kept by default):
   - `summary_compact.md` — short digest (LLM‑friendly)
   - `summary_full.md` — failures/pending details with filtered traces
   - `rspec_report.json` — machine‑readable
   - `env_meta.json` — env + git metadata
 - Latest shortcuts:
-  - `./tmp/test_runs/latest` (symlink), `./tmp/test_runs/latest_compact.md`
+  - `./tmp/test_results/latest` (symlink), `./tmp/test_results/latest_compact.md`
 - To keep older runs, set `SUMMARY_PRESERVE_HISTORY=true` (or `SUMMARY_KEEP_HISTORY=true`) before invoking the suite. Without this flag, previous run directories are removed automatically.
 - Print last summary in terminal:
   - `rake test_summary:latest`

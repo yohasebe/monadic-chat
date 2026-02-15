@@ -44,4 +44,4 @@ In Chat apps, the web search tool is disabled by default to give users control o
 
 ##### Q: Can I access all Monadic Chat tools through MCP? :id=mcp-tools
 
-**A**: Yes, the MCP server automatically exposes all tools from all enabled apps. This includes image generation (DALL-E, Gemini), diagram creation (Mermaid, Syntax Tree), code execution, PDF search, and more. Tools are named using the convention `AppName__tool_name`. For example, `ImageGeneratorOpenAI__generate_image_with_dalle` or `SyntaxTreeOpenAI__render_syntax_tree`. No additional configuration is needed - new apps and tools are automatically discovered.
+**A**: Yes, the MCP server automatically exposes all tools from all enabled apps. This includes image generation, diagram creation (Mermaid, Syntax Tree), code execution, PDF search, and more. Tools are named using the convention `AppName__tool_name`. No additional configuration is needed - new apps and tools are automatically discovered.

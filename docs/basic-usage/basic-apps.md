@@ -145,7 +145,7 @@ Research Assistant availability matches the provider table above. Web search cap
 - **Tavily Search**: Mistral, Cohere, DeepSeek, Ollama (requires `TAVILY_API_KEY`)
 - **URL Content Extraction**: Selenium-based web scraping for fetching content from any URL (available for all providers)
 
-> **Note**: Gemini Research Assistant uses an internal web search agent (`gemini_web_search`) instead of native Google Search grounding. This enables web search to work alongside file operations and progress tracking, working around Gemini 3 API limitations.
+> **Note**: Gemini Research Assistant uses an internal web search agent (`gemini_web_search`) instead of native Google Search grounding. This enables web search to work alongside file operations and progress tracking, working around certain Gemini API limitations.
 
 For more details, see the Chat app description above or [Reading Text from URLs](./message-input.md#reading-text-from-urls).
 
@@ -307,14 +307,14 @@ Some providers offer both fast and high-quality models. If you prefer higher qua
 **Key Features:**
 -   **Text-to-video generation**: Create videos from text descriptions
 -   **Image-to-video generation**: Animate existing images by using them as the first frame, automatically detecting uploaded images from the conversation session.
--   **Remix**: Modify existing videos with new prompts (OpenAI Sora 2 only), automatically referencing the last generated video from the conversation session.
+-   **Remix**: Modify existing videos with new prompts (supported by some providers), automatically referencing the last generated video from the conversation session.
 -   **Multiple aspect ratios**: Choose between landscape and portrait formats
 
 **Usage:**
 1. For text-to-video: Provide a detailed description of the video you want to create
    - Include shot type, subject, action, setting, lighting, and camera movement
 2. For image-to-video: Upload an image and describe how it should be animated; the system will automatically use the uploaded image from the session.
-3. For remix (OpenAI Sora 2 only): After generating a video, simply request modifications (e.g., "make it longer") without re-specifying the video ID; the system will use the last generated video.
+3. For remix (supported by some providers): After generating a video, simply request modifications (e.g., "make it longer") without re-specifying the video ID; the system will use the last generated video.
 4. Specify quality preferences if needed by using keywords in your prompt
 
 ?> **Note:** Generated videos are saved in the `Shared Folder` and displayed in the chat interface.
@@ -323,7 +323,7 @@ Some providers offer both fast and high-quality models. If you prefer higher qua
 - "Create a video of a sunset over mountains" → text-to-video generation
 - "Create a high-quality marketing video" → text-to-video with high-quality model
 - "Turn this image into a video of waves gently moving" → image-to-video generation
-- "Make the video more colorful" (after generating) → remix with modifications (OpenAI Sora 2 only)
+- "Make the video more colorful" (after generating) → remix with modifications (supported by some providers)
 
 Video Generator is available with the providers indicated in the availability table.
 

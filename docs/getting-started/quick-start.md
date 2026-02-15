@@ -122,7 +122,7 @@ Can you create a simple bar chart showing the population of the 5 largest cities
 Now that you've tried the basics, explore more features:
 
 - **Voice Chat**: Try voice conversations with speech input/output
-- **Image Generation**: Create images with AI (requires DALL-E access)
+- **Image Generation**: Create images with AI (requires image generation API access)
 - **Jupyter Notebook**: Interactive coding environment
 - **Mermaid Grapher**: Create diagrams and flowcharts
 

@@ -2065,6 +2065,8 @@ module ClaudeHelper
           puts "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}"
         end
 
+        send_verification_notification(session, &block) if tool_name == "report_verification"
+
         # Extract TTS text from tool parameters if tts_target is configured
         Monadic::Utils::TtsTextExtractor.extract_tts_text(
           app: app,

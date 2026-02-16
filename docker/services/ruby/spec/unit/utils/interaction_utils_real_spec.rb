@@ -214,7 +214,43 @@ RSpec.describe InteractionUtils do
       expect { utils.check_model_switch("gpt-4", "gpt-3.5", session) }.not_to raise_error
     end
   end
-  
+
+  describe '#send_verification_notification' do
+    it 'sends wait message via block when verification_wait_message is present' do
+      session = { verification_wait_message: "<i class='fas fa-clipboard-check'></i> Verification: Passed" }
+      messages = []
+
+      utils.send_verification_notification(session) { |msg| messages << msg }
+
+      expect(messages.length).to eq(1)
+      expect(messages[0]["type"]).to eq("wait")
+      expect(messages[0]["content"]).to include("Verification: Passed")
+    end
+
+    it 'deletes the message from session after sending' do
+      session = { verification_wait_message: "test" }
+
+      utils.send_verification_notification(session) { |_| }
+
+      expect(session).not_to have_key(:verification_wait_message)
+    end
+
+    it 'does nothing when verification_wait_message is absent' do
+      session = {}
+      messages = []
+
+      utils.send_verification_notification(session) { |msg| messages << msg }
+
+      expect(messages).to be_empty
+    end
+
+    it 'does not raise without block' do
+      session = { verification_wait_message: "test" }
+
+      expect { utils.send_verification_notification(session) }.not_to raise_error
+    end
+  end
+
   describe '#tts_api_request' do
     context 'with nil or empty text' do
       it 'returns nil for nil text' do

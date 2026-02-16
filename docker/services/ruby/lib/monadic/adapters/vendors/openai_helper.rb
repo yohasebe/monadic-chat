@@ -2329,6 +2329,8 @@ module OpenAIHelper
             puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
           end
 
+          send_verification_notification(session, &block) if function_name == "report_verification"
+
           # Extract TTS text from tool parameters if tts_target is configured
           Monadic::Utils::TtsTextExtractor.extract_tts_text(
             app: app,

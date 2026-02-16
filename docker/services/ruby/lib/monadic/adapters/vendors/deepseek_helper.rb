@@ -1330,6 +1330,8 @@ module DeepSeekHelper
         function_return = "ERROR: #{e.message}"
       end
 
+      send_verification_notification(session, &block) if function_name == "report_verification"
+
       context << {
         "role" => "tool",
         "tool_call_id" => tool_call["id"],

@@ -1147,6 +1147,8 @@ module MistralHelper
           )
         end
 
+        send_verification_notification(session, &block) if function_name == "report_verification"
+
         if function_name.to_s.start_with?("tavily_") && function_return.to_s.downcase.include?("bearer token not found")
           function_return = {
             error: "tavily_api_key_missing",

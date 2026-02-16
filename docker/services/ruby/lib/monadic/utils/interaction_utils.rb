@@ -1723,18 +1723,25 @@ module InteractionUtils
     return unless response_model && requested_model && block
     return if response_model == requested_model
     return if session[:model_switch_notified]
-    
+
     # Ignore version switches for the same base model (e.g., gpt-4.1 -> gpt-4.1-2025-04-14)
     # Extract base model name (everything before the date)
     response_base = response_model.split(/\d{4}-\d{2}-\d{2}/).first.chomp('-')
     requested_base = requested_model.split(/\d{4}-\d{2}-\d{2}/).first.chomp('-')
     return if response_base == requested_base
-    
+
     session[:model_switch_notified] = true
     system_msg = {
       "type" => "system_info",
       "content" => "Model automatically switched from #{requested_model} to #{response_model}."
     }
     block.call system_msg
+  end
+
+  def send_verification_notification(session, &block)
+    return unless session[:verification_wait_message]
+
+    msg = session.delete(:verification_wait_message)
+    block&.call({ "type" => "wait", "content" => msg })
   end
 end

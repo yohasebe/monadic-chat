@@ -1773,6 +1773,8 @@ module GrokHelper
       begin
         function_return = APPS[app].send(function_name.to_sym, **argument_hash)
 
+        send_verification_notification(session, &block) if function_name == "report_verification"
+
         # GROK-SPECIFIC FIX: Check if SVG files were created with HTML escaping
         # This is a workaround for Grok's tendency to HTML-escape SVG content
         if function_name == "run_code" && function_return.to_s.include?("File(s) generated")

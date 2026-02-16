@@ -96,7 +96,7 @@ module ContextExtractorAgent
     "openai" => "https://api.openai.com/v1/chat/completions",
     "anthropic" => "https://api.anthropic.com/v1/messages",
     "gemini" => "https://generativelanguage.googleapis.com/v1beta/models/%{model}:generateContent",
-    "xai" => "https://api.x.ai/v1/chat/completions",
+    "xai" => "https://api.x.ai/v1/responses",
     "mistral" => "https://api.mistral.ai/v1/chat/completions",
     "cohere" => "https://api.cohere.ai/v2/chat",
     "deepseek" => "https://api.deepseek.com/v1/chat/completions",
@@ -255,7 +255,9 @@ module ContextExtractorAgent
   # @return [String, nil] The response text or nil
   def call_provider_api(provider, model, system_message, api_key)
     case provider
-    when "openai", "xai", "mistral", "deepseek"
+    when "xai"
+      call_xai_api(model, system_message, api_key)
+    when "openai", "mistral", "deepseek"
       call_openai_compatible_api(provider, model, system_message, api_key)
     when "anthropic"
       call_anthropic_api(model, system_message, api_key)
@@ -271,7 +273,7 @@ module ContextExtractorAgent
     end
   end
 
-  # Call OpenAI-compatible API (OpenAI, xAI, Mistral, DeepSeek)
+  # Call OpenAI-compatible API (OpenAI, Mistral, DeepSeek)
   def call_openai_compatible_api(provider, model, system_message, api_key)
     endpoint = API_ENDPOINTS[provider] || API_ENDPOINTS["openai"]
     uri = URI.parse(endpoint)
@@ -321,6 +323,46 @@ module ContextExtractorAgent
     data.dig("choices", 0, "message", "content")
   rescue StandardError => e
     puts "[ContextExtractor] OpenAI-compatible API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
+    nil
+  end
+
+  # Call xAI Responses API
+  def call_xai_api(model, system_message, api_key)
+    uri = URI.parse(API_ENDPOINTS["xai"])
+
+    request_body = {
+      "model" => model,
+      "input" => [
+        { "role" => "system", "content" => system_message },
+        { "role" => "user", "content" => "Extract context and return JSON only." }
+      ],
+      "max_output_tokens" => 500,
+      "temperature" => 0.3,
+      "store" => false
+    }
+
+    response = make_http_request(uri, request_body, {
+      "Authorization" => "Bearer #{api_key}",
+      "Content-Type" => "application/json"
+    })
+
+    return nil unless response
+
+    data = JSON.parse(response)
+
+    # Responses API: extract text from output array
+    if data["output"].is_a?(Array)
+      data["output"].each do |item|
+        next unless item["type"] == "message" && item["content"].is_a?(Array)
+
+        item["content"].each do |content_item|
+          return content_item["text"] if content_item["type"] == "output_text" && content_item["text"]
+        end
+      end
+    end
+    nil
+  rescue StandardError => e
+    puts "[ContextExtractor] xAI Responses API error: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]
     nil
   end
 

@@ -3,24 +3,24 @@
 require "spec_helper"
 require "json"
 
-# Integration test for xAI Live Search with enhanced parameters
-RSpec.describe "xAI Live Search Parameters", :integration do
+# Integration test for xAI Responses API web search tools
+RSpec.describe "xAI Responses API Web Search", :integration do
   include IntegrationRetryHelper
   before(:all) do
     @skip_xai = !CONFIG["XAI_API_KEY"]
   end
-  
+
   before(:each) do
     skip "xAI API key not configured" if @skip_xai
   end
-  
-  describe "Enhanced search parameters" do
-    it "supports web source with country and website filters" do
+
+  describe "Responses API search tools" do
+    it "supports web_search tool with domain filters" do
       with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
         require_relative "../../lib/monadic/adapters/vendors/grok_helper"
         require_relative "../../lib/monadic/utils/string_utils"
 
-        class TestGrokEnhanced
+        class TestGrokWebSearch
           include GrokHelper
           include StringUtils
 
@@ -37,16 +37,15 @@ RSpec.describe "xAI Live Search Parameters", :integration do
           end
         end
 
-        helper = TestGrokEnhanced.new
+        helper = TestGrokWebSearch.new
 
         session = {
           messages: [],
           parameters: {
             "model" => "grok-4-fast-reasoning",
             "websearch" => true,
-            "web_country" => "JP",
             "excluded_websites" => ["spam.com"],
-            "safe_search" => true,
+            "allowed_websites" => ["wikipedia.org"],
             "temperature" => 0.0,
             "max_tokens" => 1000,
             "context_size" => 5,
@@ -78,17 +77,16 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         end
 
         # Verify we received some response types; content may be empty in rare cases
-        # Ensure we got at least one response item; content assertion is relaxed due to variability
         expect(responses).not_to be_empty
       end
     end
-    
-    it "supports X source with handle filters" do
+
+    it "supports x_search tool with handle filters" do
       with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
         require_relative "../../lib/monadic/adapters/vendors/grok_helper"
         require_relative "../../lib/monadic/utils/string_utils"
 
-        class TestGrokX
+        class TestGrokXSearch
           include GrokHelper
           include StringUtils
 
@@ -105,7 +103,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
           end
         end
 
-        helper = TestGrokX.new
+        helper = TestGrokXSearch.new
 
         session = {
           messages: [],
@@ -113,7 +111,6 @@ RSpec.describe "xAI Live Search Parameters", :integration do
             "model" => "grok-4-fast-reasoning",
             "websearch" => true,
             "included_x_handles" => ["@elonmusk"],
-            "post_favorite_count" => 1000,
             "temperature" => 0.0,
             "max_tokens" => 1000,
             "context_size" => 5,
@@ -148,13 +145,13 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         expect(responses).not_to be_empty
       end
     end
-    
-    it "supports date range filtering" do
+
+    it "supports date range filtering via x_search tool" do
       with_api_retry(max_attempts: 3, wait: 2, backoff: :exponential) do
         require_relative "../../lib/monadic/adapters/vendors/grok_helper"
         require_relative "../../lib/monadic/utils/string_utils"
 
-        class TestGrokDate
+        class TestGrokDateSearch
           include GrokHelper
           include StringUtils
 
@@ -171,7 +168,7 @@ RSpec.describe "xAI Live Search Parameters", :integration do
           end
         end
 
-        helper = TestGrokDate.new
+        helper = TestGrokDateSearch.new
 
         # Use a date range from last week
         date_from = (Date.today - 7).to_s
@@ -215,7 +212,6 @@ RSpec.describe "xAI Live Search Parameters", :integration do
         end
 
         # Verify we received some response items; content assertion is relaxed
-        # due to variability in API responses (consistent with other tests in this file)
         expect(responses).not_to be_empty
       end
     end

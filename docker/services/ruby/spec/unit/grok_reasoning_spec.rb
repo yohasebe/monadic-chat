@@ -1,7 +1,94 @@
 require "spec_helper"
 
 RSpec.describe "Grok Reasoning Content Extraction" do
-  describe "Reasoning content delta handling" do
+  describe "Responses API reasoning_summary_text events" do
+    it "extracts reasoning from reasoning_summary_text.delta event" do
+      json = {
+        "type" => "response.reasoning_summary_text.delta",
+        "item_id" => "rs_123",
+        "delta" => "Let me analyze this problem step by step"
+      }
+
+      reasoning_content = []
+      delta = json["delta"]
+
+      unless delta.to_s.strip.empty?
+        reasoning_content << delta
+      end
+
+      expect(reasoning_content).to eq(["Let me analyze this problem step by step"])
+    end
+
+    it "handles multiple reasoning_summary_text.delta events" do
+      deltas = [
+        {
+          "type" => "response.reasoning_summary_text.delta",
+          "item_id" => "rs_123",
+          "delta" => "First step: identify the problem"
+        },
+        {
+          "type" => "response.reasoning_summary_text.delta",
+          "item_id" => "rs_123",
+          "delta" => "Second step: analyze constraints"
+        },
+        {
+          "type" => "response.reasoning_summary_text.delta",
+          "item_id" => "rs_123",
+          "delta" => "Third step: formulate solution"
+        }
+      ]
+
+      reasoning_content = []
+
+      deltas.each do |event|
+        delta = event["delta"]
+        unless delta.to_s.strip.empty?
+          reasoning_content << delta
+        end
+      end
+
+      expect(reasoning_content.length).to eq(3)
+      expect(reasoning_content[0]).to eq("First step: identify the problem")
+      expect(reasoning_content[1]).to eq("Second step: analyze constraints")
+      expect(reasoning_content[2]).to eq("Third step: formulate solution")
+    end
+
+    it "filters out empty reasoning deltas" do
+      json = {
+        "type" => "response.reasoning_summary_text.delta",
+        "item_id" => "rs_123",
+        "delta" => "  "
+      }
+
+      reasoning_content = []
+      delta = json["delta"]
+
+      unless delta.to_s.strip.empty?
+        reasoning_content << delta
+      end
+
+      expect(reasoning_content).to be_empty
+    end
+
+    it "handles nil delta" do
+      json = {
+        "type" => "response.reasoning_summary_text.delta",
+        "item_id" => "rs_123",
+        "delta" => nil
+      }
+
+      reasoning_content = []
+      delta = json["delta"]
+
+      unless delta.to_s.strip.empty?
+        reasoning_content << delta
+      end
+
+      expect(reasoning_content).to be_empty
+    end
+  end
+
+  describe "Legacy reasoning_content delta handling (fallback)" do
     it "extracts reasoning_content from delta" do
       json = {
         "choices" => [
@@ -85,52 +172,6 @@ RSpec.describe "Grok Reasoning Content Extraction" do
 
       expect(reasoning_content).to be_empty
     end
-
-    it "handles multiple reasoning_content deltas" do
-      deltas = [
-        {
-          "choices" => [
-            {
-              "delta" => {
-                "reasoning_content" => "First step: identify the problem"
-              }
-            }
-          ]
-        },
-        {
-          "choices" => [
-            {
-              "delta" => {
-                "reasoning_content" => "Second step: analyze constraints"
-              }
-            }
-          ]
-        },
-        {
-          "choices" => [
-            {
-              "delta" => {
-                "reasoning_content" => "Third step: formulate solution"
-              }
-            }
-          ]
-        }
-      ]
-
-      reasoning_content = []
-
-      deltas.each do |json|
-        reasoning = json.dig("choices", 0, "delta", "reasoning_content")
-        unless reasoning.to_s.strip.empty? || reasoning == "Thinking..."
-          reasoning_content << reasoning
-        end
-      end
-
-      expect(reasoning_content.length).to eq(3)
-      expect(reasoning_content[0]).to eq("First step: identify the problem")
-      expect(reasoning_content[1]).to eq("Second step: analyze constraints")
-      expect(reasoning_content[2]).to eq("Third step: formulate solution")
-    end
   end
 
   describe "Reasoning content aggregation" do
@@ -164,6 +205,27 @@ RSpec.describe "Grok Reasoning Content Extraction" do
   end
 
   describe "Final response structure" do
+    it "includes reasoning_content in Responses API format" do
+      response = {
+        "choices" => [{
+          "message" => {
+            "role" => "assistant",
+            "content" => "The answer is 42"
+          },
+          "finish_reason" => "stop"
+        }]
+      }
+
+      reasoning_texts = ["Step 1: Analyze", "Step 2: Conclude"]
+
+      if reasoning_texts.any?
+        response["choices"][0]["message"]["reasoning_content"] = reasoning_texts.join("\n\n")
+      end
+
+      expect(response["choices"][0]["message"]["reasoning_content"]).to eq("Step 1: Analyze\n\nStep 2: Conclude")
+      expect(response["choices"][0]["message"]["content"]).to eq("The answer is 42")
+    end
+
     it "includes thinking in message when reasoning_content available" do
       result = {
         "choices" => [

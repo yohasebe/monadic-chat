@@ -55,7 +55,7 @@ RSpec.describe 'MDSL Web Search Default Settings' do
       websearch_enabled = parse_mdsl_websearch(mdsl_file)
 
       expect(websearch_enabled).to eq(true),
-        "chat_grok.mdsl should have websearch true (native support via search_parameters)"
+        "chat_grok.mdsl should have websearch true (native support via Responses API web_search/x_search tools)"
     end
 
     it 'enables websearch by default for Perplexity Chat' do

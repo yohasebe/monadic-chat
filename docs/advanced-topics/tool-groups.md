@@ -48,6 +48,12 @@ These tool groups are always available and don't require additional setup:
 
 **Apps using this**: Research Assistant, Content Reader, Chat Plus
 
+#### Planning (1 tool)
+- Propose structured execution plans for complex multi-step tasks
+- AI presents plan to user for approval before executing
+
+**Apps using this**: All tool-enabled apps (Code Interpreter, Research Assistant, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, etc.)
+
 ### Conditionally Available
 
 These tool groups require specific containers or API keys to be available:

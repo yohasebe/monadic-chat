@@ -48,6 +48,12 @@
 
 **このツールを使用するアプリ**: Research Assistant、Content Reader、Chat Plus
 
+#### プランニング（1ツール）
+- 複雑なマルチステップタスクの構造化された実行計画を提案
+- AIが実行前にユーザーに計画を提示し、承認を待つ
+
+**このツールを使用するアプリ**: 全ツール対応アプリ（Code Interpreter、Research Assistant、Coding Assistant、Jupyter Notebook、AutoForge、Math Tutor 等）
+
 ### 条件付き利用可能
 
 これらのツールグループは、特定のコンテナまたはAPIキーが利用可能である必要があります：

@@ -165,13 +165,29 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
+### 11. planning
+**Module:** `MonadicSharedTools::Planning`
+**Default Visibility:** Always
+**Description:** Propose structured execution plans for complex multi-step tasks and get user approval before execution
+
+**Tools:**
+- `propose_plan` - Create a structured execution plan for a complex multi-step task
+
+**Parameters:**
+- `plan` (string, required) - The execution plan in markdown format. Each step should be numbered and include: what action will be taken, which tool will be used, and what the expected outcome is.
+- `summary` (string, required) - A one-line summary of the overall task goal.
+
+**Default PTD Hint:** "Call propose_plan when you need to break down a complex task into steps and get user approval before execution."
+
+---
+
 ## App-by-App Tools Inventory
 
 ### Auto Forge (3 providers: Claude, Grok, OpenAI)
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:web_automation [conditional]` |
+| **Imported Tools** | `:planning [always]`<br/>`:web_automation [conditional]` |
 | **Custom Tools** | • `generate_application` - Generate a complete application<br/>• `validate_specification` - Validate app specification<br/>• `list_projects` - List previously generated projects<br/>• `generate_additional_file` - Generate additional project files |
 
 ---
@@ -190,7 +206,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -199,7 +215,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `validate_chord_progression` - Validate chord progression for music theory<br/>• `validate_abc_syntax` - Validate ABC notation syntax using abcjs<br/>• `analyze_abc_error` - Analyze ABC syntax errors and suggest fixes |
 
 ---
@@ -208,7 +224,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]` |
+| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
 | **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex Python tasks to OpenAI Code |
 | **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
 
@@ -218,7 +234,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex tasks to OpenAI Code |
 | **Custom Tools (Grok only)** | • `grok_code_agent` - Call Grok-Code-Fast-1 for complex tasks |
 
@@ -228,7 +244,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `generate_concept_diagram` - Generate conceptual diagram using LaTeX/TikZ<br/>• `list_diagram_examples` - Show diagram type examples |
 
 ---
@@ -237,7 +253,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:content_analysis_openai [conditional]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:content_analysis_openai [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `fetch_text_from_pdf` - Extract text from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `fetch_text_from_file` - Read text from file |
 
 ---
@@ -246,7 +262,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -255,7 +271,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `write_drawio_file` - Save Draw.io diagram to file |
 
 ---
@@ -264,7 +280,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `generate_image_with_gemini` - Generate/edit using Google's models<br/>• `generate_image_with_openai` - Generate using OpenAI<br/>• `generate_image_with_grok` - Generate using Grok/DALL-E 3 |
 
 ---
@@ -273,7 +289,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:jupyter_operations [always]`<br/>`:python_execution [always]`<br/>`:file_operations [always]`<br/>`:file_reading [always]` |
+| **Imported Tools** | `:jupyter_operations [always]`<br/>`:python_execution [always]`<br/>`:file_operations [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
 | **Custom Tools (OpenAI only)** | • `openai_code_agent` - Delegate complex notebook tasks to OpenAI Code |
 | **Custom Tools (Gemini/Grok)** | • `create_and_populate_jupyter_notebook` - Create notebook with cells in one operation |
 
@@ -301,7 +317,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -310,7 +326,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]` |
+| **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -319,7 +335,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:web_search_tools [conditional]` |
+| **Imported Tools** | `:web_search_tools [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `validate_mermaid_syntax` - Validate diagram syntax<br/>• `analyze_mermaid_error` - Analyze errors and suggest fixes<br/>• `preview_mermaid` - Save preview image<br/>• `fetch_mermaid_docs` - Get documentation URL |
 
 ---
@@ -328,7 +344,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `find_help_topics` - Search documentation with multiple context chunks<br/>• `get_help_document` - Retrieve full document by ID<br/>• `list_help_sections` - List all doc sections<br/>• `search_help_by_section` - Search within specific section |
 
 ---
@@ -337,7 +353,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools** | • `count_num_of_words` - Count word count<br/>• `count_num_of_chars` - Count character count |
 
 ---
@@ -346,7 +362,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `find_closest_text` - Find closest text via embedding similarity<br/>• `get_text_snippet` - Retrieve text snippet from DB<br/>• `list_titles` - List doc IDs and titles<br/>• `find_closest_doc` - Find closest doc via embedding<br/>• `get_text_snippets` - Retrieve all snippets for a doc |
 
 ---
@@ -355,7 +371,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:planning [always]` |
 | **Custom Tools (OpenAI only)** | • `request_tool` - Request access to locked tool<br/>• `openai_code_agent` - Delegate code generation to OpenAI Code |
 | **Custom Tools (Grok only)** | • `request_tool` - Request access to locked tool<br/>• `grok_code_agent` - Call Grok-Code-Fast-1 for code generation |
 
@@ -365,7 +381,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `second_opinion_agent` - Verify response before returning to user |
 
 ---
@@ -374,7 +390,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:content_analysis_openai [conditional]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:content_analysis_openai [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `fetch_text_from_file` - Fetch text from file<br/>• `fetch_text_from_pdf` - Extract from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `list_providers_and_voices` - List TTS providers and voices<br/>• `text_to_speech` - Convert text to speech MP3 |
 
 ---
@@ -383,7 +399,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:planning [always]` |
 | **Custom Tools** | • `render_syntax_tree` - Render syntax tree as SVG using LaTeX |
 
 ---
@@ -401,7 +417,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:content_analysis_openai [conditional]` |
+| **Imported Tools** | `:content_analysis_openai [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -410,7 +426,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | (none) |
+| **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `generate_video_with_veo` - Generate videos using Veo 3.1 (Gemini)<br/>• `generate_video_with_sora` - Generate videos using Sora 2 (OpenAI) |
 
 ---
@@ -419,7 +435,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:web_automation [conditional]` |
+| **Imported Tools** | `:web_automation [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -446,7 +462,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:web_search_tools [conditional]` |
+| **Imported Tools** | `:web_search_tools [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `search_wikipedia` - Search Wikipedia articles via Wikimedia API |
 
 ---
@@ -464,19 +480,20 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | `:jupyter_operations` | Jupyter Notebook | 1 |
 | `:content_analysis_openai` | Content Reader, Speech Draft Helper, Video Describer | 3 |
 | `:web_automation` | Auto Forge, Visual Web Explorer | 2 |
+| `:planning` | All tool-enabled apps | 22 |
 
 ### By Visibility Setting
 
 | Visibility | Tool Groups | Count |
 |------------|------------|-------|
-| **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation | 5 |
+| **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation, planning | 6 |
 | **Conditional** | web_search_tools, web_automation, content_analysis_openai | 3 |
 
 ### Apps with Most Tool Imports
 
-1. **Jupyter Notebook** - 4 shared tool groups (jupyter_operations, python_execution, file_operations, file_reading)
-2. **Content Reader** - 3 shared tool groups (file_operations, web_search_tools, content_analysis_openai)
-3. Multiple apps - 2 shared tool groups (Auto Forge, Chat Plus, Coding Assistant, etc.)
+1. **Jupyter Notebook** - 5 shared tool groups (jupyter_operations, python_execution, file_operations, file_reading, planning)
+2. **Content Reader** - 4 shared tool groups (file_operations, web_search_tools, content_analysis_openai, planning)
+3. **Research Assistant** - 3 shared tool groups (file_operations, web_search_tools, planning)
 
 ### Provider-Specific Custom Tools
 
@@ -534,6 +551,7 @@ Located in `/docker/services/ruby/lib/monadic/shared_tools/`:
 - `content_analysis_openai.rb` - Multimodal content analysis
 - `jupyter_operations.rb` - Notebook management
 - `app_creation.rb` - App introspection and creation
+- `planning.rb` - Plan-Approve-Execute pattern
 
 ### App-Specific Tools
 Located in `/docker/services/ruby/apps/{app_name}/`:

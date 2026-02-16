@@ -34,7 +34,7 @@ Progressive Tool Disclosure (PTD) is an architectural pattern that dynamically c
 ### Visibility Modes
 
 - **`always`**: Tool group is always available
-  - Example: `file_operations`, `python_execution`
+  - Example: `file_operations`, `python_execution`, `planning`
   - No runtime checking needed
 
 - **`conditional`**: Tool group availability depends on runtime conditions
@@ -188,6 +188,10 @@ end
 4. **`file_reading`** (3 tools)
    - Text, PDF, Office file reading
    - Shared folder file access
+
+5. **`planning`** (1 tool)
+   - Structured execution plan proposal
+   - User approval before multi-step execution
 
 ### Conditionally Available
 

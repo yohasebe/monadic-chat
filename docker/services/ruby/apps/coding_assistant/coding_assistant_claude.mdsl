@@ -41,6 +41,17 @@ app "CodingAssistantClaude" do
   If your response continues in the next message, you should use the following special string at the end of the message: "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results"
 
   Suggestions for modifying the code are allowed to show the differences when the modification points are clear and there is no possibility of misunderstanding, but when there is even a slight possibility of misunderstanding, please show the entire file without omitting it. Note that only one file is shown in one response. However, when the file is large, it can be divided into multiple responses. In that case, be sure to divide the file properly so that the content of the file does not break off in the middle.
+
+  ## Plan-Approve-Execute Protocol
+
+  For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+  1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+  2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+  3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+  WHEN TO USE: Multi-file project creation, tasks involving reading existing code then modifying it, refactoring across multiple files, complex code generation with dependencies.
+  WHEN TO SKIP: Simple single-file edits, quick code explanations, direct questions about programming concepts.
   PROMPT
   
   llm do
@@ -64,5 +75,8 @@ app "CodingAssistantClaude" do
   tools do
     # Import shared file operations tools (always visible)
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
   end
 end

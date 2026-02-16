@@ -28,6 +28,17 @@ app "ResearchAssistantDeepSeek" do
     - <a href="URL" target="_blank" rel="noopener noreferrer">Source Title</a>
 
     Provide comprehensive, well-researched answers with relevant citations.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-topic research tasks, comparative analyses requiring multiple searches, tasks combining web research with file generation or data synthesis.
+    WHEN TO SKIP: Simple single-topic lookups, direct questions, one-search requests.
   TEXT
 
   llm do
@@ -52,6 +63,9 @@ app "ResearchAssistantDeepSeek" do
   tools do
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
 
     # Import unified web search tools (Tavily for DeepSeek)
     import_shared_tools :web_search_tools, visibility: "conditional"

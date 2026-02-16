@@ -61,6 +61,17 @@ app "CodingAssistantOpenAI" do
   3. Request complex coding assistance via OpenAI Code agent for more complex tasks
 
   If your response continues in the next message, you should use the following special string at the end of the message: "Press <button class='btn btn-secondary btn-sm contBtn'>continue</button> to get more results"
+
+  ## Plan-Approve-Execute Protocol
+
+  For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+  1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+  2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+  3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+  WHEN TO USE: Multi-file project creation, tasks involving reading existing code then modifying it, refactoring across multiple files, complex code generation with dependencies.
+  WHEN TO SKIP: Simple single-file edits, quick code explanations, direct questions about programming concepts.
   PROMPT
   
   llm do
@@ -87,6 +98,9 @@ app "CodingAssistantOpenAI" do
   tools do
     # Import shared file operations tools (always visible)
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
 
     # OpenAI Code agent for complex coding tasks
     define_tool "openai_code_agent", "Delegate complex coding tasks to OpenAI Code" do

@@ -359,6 +359,17 @@ app "JupyterNotebookClaude" do
     - User: "Create a data analysis notebook"
     - You: Create notebook → Add pandas import → Ask "I've added pandas. Should I continue with data loading?"
     - DO NOT add numpy, matplotlib, data loading, analysis, etc. all at once!
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-notebook projects, data pipeline tasks (load → clean → analyze → visualize), tasks requiring multiple file reads before notebook creation, complex notebook restructuring.
+    WHEN TO SKIP: Simple single-cell additions, quick code execution, direct questions about notebook content.
   TEXT
 
   features do
@@ -390,6 +401,9 @@ app "JupyterNotebookClaude" do
 
     # Import shared file reading tools (always visible - Phase 1)
     import_shared_tools :file_reading, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
 
     # Monadic state management tool (read-only - saving is automatic)
     define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do

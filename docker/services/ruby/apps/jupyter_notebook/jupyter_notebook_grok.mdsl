@@ -163,6 +163,17 @@ app "JupyterNotebookGrok" do
 
     NEVER respond with just "Notebook created" or "Cells added" without the clickable link.
     The user needs the link to access the notebook in JupyterLab.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-notebook projects, data pipeline tasks (load → clean → analyze → visualize), tasks requiring multiple file reads before notebook creation, complex notebook restructuring.
+    WHEN TO SKIP: Simple single-cell additions, quick code execution, direct questions about notebook content.
   TEXT
 
   features do
@@ -193,6 +204,9 @@ app "JupyterNotebookGrok" do
 
     # Import shared file reading tools (always visible - Phase 1)
     import_shared_tools :file_reading, visibility: "always"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
 
     # COMBINED TOOL FOR xAI GROK - Optimal for parallel function calling
     # This creates the notebook AND adds cells in ONE operation

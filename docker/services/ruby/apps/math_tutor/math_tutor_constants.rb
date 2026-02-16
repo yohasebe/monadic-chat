@@ -199,5 +199,16 @@ module MathTutor
     - Save images with descriptive filenames (no paths)
     - Display images using `<img src="/data/filename.ext" />`
     - Use single backslashes for LaTeX commands in MathJax
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-topic study sessions, structured problem sets with progress tracking, tasks combining code execution with mathematical explanation.
+    WHEN TO SKIP: Single problem solving, quick calculations, direct concept explanations.
   TEXT
 end

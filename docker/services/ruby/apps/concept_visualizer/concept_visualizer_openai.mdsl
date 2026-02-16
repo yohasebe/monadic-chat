@@ -130,6 +130,17 @@ app "ConceptVisualizerOpenAI" do
     DO NOT INCLUDE NON-EXISTENT FILE PATHS IN YOUR RESPONSES.
     
     When displaying the generated image, replace ACTUAL_FILENAME with the actual filename returned by the generate_concept_diagram function. The generate_concept_diagram function returns just the filename (e.g., "concept_network_123456.svg"), so you need to prepend "/data/" to create the full path (e.g., "/data/concept_network_123456.svg").
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-diagram visualization projects, comparative concept mapping, tasks requiring research before diagram generation.
+    WHEN TO SKIP: Single diagram generation, simple concept illustrations.
   TEXT
 
   features do
@@ -143,6 +154,9 @@ app "ConceptVisualizerOpenAI" do
   
 
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "generate_concept_diagram", "Generate a conceptual diagram using LaTeX/TikZ" do
       parameter :diagram_type, "string", "Type of diagram (mindmap, flowchart, network, timeline, venn, etc.)", required: true
       parameter :tikz_code, "string", "The complete TikZ code for the diagram", required: true

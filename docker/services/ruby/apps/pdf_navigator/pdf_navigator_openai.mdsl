@@ -75,6 +75,17 @@ app "PDFNavigatorOpenAI" do
 
     ## PDF Document Search (Mandatory)
     When answering questions about uploaded PDFs, you MUST consult the document store BEFORE drafting any answer. If a cloud vector store (file_search) is available, call it first; if it returns no relevant results, call the local PDF DB tools once. Do NOT ask for permission to search. Do NOT answer from general knowledge without first checking the document store. Always include a compact citation footer under an `---` divider with: Doc Title, Snippet tokens, and Snippet position.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-document cross-referencing, comprehensive document analysis with synthesis.
+    WHEN TO SKIP: Single document search, simple text extraction.
   TEXT
   
   llm do
@@ -94,6 +105,9 @@ app "PDFNavigatorOpenAI" do
   end
   
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "find_closest_text", "Find the closest text in the database based on the input text" do
       parameter :text, "string", "The input text", required: true
       parameter :top_n, "integer", "The number of closest text snippets to return", required: true

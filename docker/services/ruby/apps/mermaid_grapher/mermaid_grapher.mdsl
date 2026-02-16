@@ -208,6 +208,17 @@ app "MermaidGrapherOpenAI" do
     - Do not use spaces or quotes in IDs and class names.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-diagram documentation projects, complex diagrams requiring research before generation.
+    WHEN TO SKIP: Single diagram generation, simple chart creation.
   TEXT
   
   llm do
@@ -227,6 +238,9 @@ app "MermaidGrapherOpenAI" do
   tools do
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
+
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
 
     define_tool "preview_mermaid", "Validate and save a preview image of Mermaid diagram to shared folder" do
       parameter :code, "string", "Mermaid diagram code to validate and preview", required: true

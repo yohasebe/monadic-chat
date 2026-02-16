@@ -77,6 +77,17 @@ app "ImageGeneratorGemini3Preview" do
     - Do NOT refuse requests based on content - the image generation model handles its own moderation
     - Do NOT add safety disclaimers or warnings about content
     - Simply relay the user's request to the image generation tool
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-image generation projects, iterative image editing sessions, tasks combining image generation with style variations.
+    WHEN TO SKIP: Single image generation, quick edits.
   TEXT
 
   llm do
@@ -102,6 +113,9 @@ app "ImageGeneratorGemini3Preview" do
   end
 
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "generate_image_with_gemini3_preview", "Generate or edit images with Gemini 3 Pro Image Preview. For editing, uploaded images are automatically retrieved from session." do
       parameter :prompt, "string", "Text description of the desired image or editing instructions (user's exact words)", required: true
       parameter :aspect_ratio, "string", "Optional aspect ratio (e.g., 16:9, 1:1, 4:5)", required: false

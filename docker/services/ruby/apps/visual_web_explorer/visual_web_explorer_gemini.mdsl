@@ -64,6 +64,17 @@ app "VisualWebExplorerGemini" do
     IMPORTANT: When tools return gallery_html in their response, you MUST include it in your output exactly as provided. The gallery_html contains special markup that will be rendered by the browser.
     
     Remember to format responses clearly and help users choose the best method for their needs.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-page web exploration, comparative website analysis, tasks combining screenshot capture with content extraction.
+    WHEN TO SKIP: Single page capture, quick URL inspection.
   PROMPT
 
   llm do
@@ -82,4 +93,7 @@ app "VisualWebExplorerGemini" do
   # Import web automation tools from shared registry
   # Visual Web Explorer's core functionality requires these tools to always be available
   import_shared_tools :web_automation, visibility: "always"
+
+  # Import planning tools for Plan-Approve-Execute protocol
+  import_shared_tools :planning, visibility: "always"
 end

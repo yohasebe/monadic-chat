@@ -242,6 +242,17 @@ K:C
 
     You should NEVER invent or use functions not defined or not listed HERE. If you need to call multiple functions, you will call them one at a time.
 
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-section musical compositions, tasks combining chord validation with ABC notation generation, complex arrangements.
+    WHEN TO SKIP: Simple chord progression requests, single-section accompaniments.
+
     IMPORTANT: You MUST respond in Japanese. This is a language preference set by the user.
     - Always use Japanese for your responses
     - Even if the user writes in a different language, respond in Japanese unless explicitly asked to switch
@@ -264,6 +275,9 @@ K:C
   end
 
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "validate_chord_progression", "Validate chord progression for music theory correctness" do
       parameter :chords, "string", "Comma-separated chord progression (e.g., 'C,Am,F,G')", required: true
       parameter :key, "string", "Musical key (e.g., 'C', 'Am', 'F#m')", required: true

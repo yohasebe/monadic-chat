@@ -105,6 +105,17 @@ app "VideoGeneratorOpenAI" do
     - For reusing previous image, ALWAYS call monadic_load_state with app: "VideoGeneratorOpenAI" first
     - NEVER retry automatically on error
     - Video generation takes several minutes
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-video generation projects, iterative prompt refinement with style variations.
+    WHEN TO SKIP: Single video generation, quick prompt-to-video.
   TEXT
 
   features do
@@ -125,6 +136,9 @@ app "VideoGeneratorOpenAI" do
   end
 
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "generate_video_with_sora", "Generate videos using OpenAI's Sora 2 models. Creates asynchronous video generation jobs." do
       parameter :prompt, "string", "Text description of the video (user's exact words, unmodified)", required: true
       parameter :model, "string", "Model to use: 'sora-2' (fast, default) or 'sora-2-pro' (high quality). Default: sora-2", required: false, enum: ["sora-2", "sora-2-pro"]

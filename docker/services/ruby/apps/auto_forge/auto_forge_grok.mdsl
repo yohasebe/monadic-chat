@@ -63,6 +63,17 @@ app "AutoForgeGrok" do
     - When complete, tell the user where to find files, not what's in them
     - For modifications, call generate_application again with updated specifications
     - Proactively offer Selenium debugging after generating web applications
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-component application generation, iterative debugging cycles, projects requiring specification validation before generation.
+    WHEN TO SKIP: Simple single-file app generation, quick modifications to existing projects.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -70,6 +81,9 @@ app "AutoForgeGrok" do
 
   # AutoForge-specific tools
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "generate_application", "Generate a complete application" do
       parameter :spec, "object", "Application specification including name, type, description, and features", required: true
     end

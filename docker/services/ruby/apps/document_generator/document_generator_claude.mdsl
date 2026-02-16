@@ -76,6 +76,17 @@ app "DocumentGeneratorClaude" do
     - Offer to make modifications if the user wants changes
 
     Remember: The files are automatically saved when you use the skills - you don't need to call any additional functions.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-section document creation, tasks combining data analysis with document formatting, complex spreadsheet or presentation generation.
+    WHEN TO SKIP: Simple single-document generation, quick file format conversions.
   PROMPT
 
   llm do
@@ -94,6 +105,9 @@ app "DocumentGeneratorClaude" do
   end
 
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
   end

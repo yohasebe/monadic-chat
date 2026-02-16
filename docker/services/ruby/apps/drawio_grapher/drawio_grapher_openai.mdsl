@@ -109,8 +109,19 @@ app "DrawIOGrapherOpenAI" do
     CRITICAL: Only mention that the diagram has been saved as a .drawio file if the `write_drawio_file` function returns a success message. Check the return value from the function - it will contain either a success message ("The file X has been saved") or an error message. If there was an error, do not claim that the file was saved.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-diagram projects, complex system architecture diagrams, tasks requiring iterative refinement.
+    WHEN TO SKIP: Single diagram generation, simple flowcharts.
   TEXT
-  
+
   llm do
     provider "OpenAI"
     model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
@@ -126,6 +137,9 @@ app "DrawIOGrapherOpenAI" do
   end
   
   tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     define_tool "write_drawio_file", "Save Draw.io diagram to file" do
       parameter :content, "string", "Draw.io XML content", required: true
       parameter :filename, "string", "Output filename (without extension)", required: false

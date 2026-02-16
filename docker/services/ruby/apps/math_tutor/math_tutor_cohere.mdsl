@@ -36,6 +36,9 @@ app "MathTutorCohere" do
     # Import shared file reading tools
     import_shared_tools :file_reading, visibility: "always"
 
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
     # Learning progress management tools
     define_tool "load_learning_progress", "Load current learning progress (problems solved, concepts, weak areas) from session state" do
       parameter :session, "object", "Session object (automatically provided)", required: false

@@ -6,7 +6,7 @@
 
 If you do not want to use commercial APIs, you can use the Ollama container to run local language models:
 1. Build the Ollama container via Actions → Build Ollama Container
-2. Install models using an `olsetup.sh` script or let it download the default model (llama3.2)
+2. Install models using an `olsetup.sh` script or let it download the default model
 3. Use the Chat app with Ollama provider selected
 
 For detailed information on using Ollama with Monadic Chat, see [Using Ollama](/advanced-topics/ollama.md).

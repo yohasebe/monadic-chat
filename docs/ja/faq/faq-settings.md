@@ -6,7 +6,7 @@
 
 商用のAPIを使いたくない場合は、Ollamaコンテナを使用してローカル言語モデルを実行できます：
 1. Actions → Build Ollama Container でOllamaコンテナをビルド
-2. `olsetup.sh`スクリプトを使用してモデルをインストールするか、デフォルトモデル（llama3.2）をダウンロード
+2. `olsetup.sh`スクリプトを使用してモデルをインストールするか、デフォルトモデルをダウンロード
 3. Ollamaプロバイダーを選択してChatアプリを使用
 
 Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](../advanced-topics/ollama.md) を参照してください。

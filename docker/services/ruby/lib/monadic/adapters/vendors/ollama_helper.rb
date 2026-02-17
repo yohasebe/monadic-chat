@@ -1,44 +1,54 @@
 require 'http'
 require_relative "../../utils/system_prompt_injector"
+require_relative "../../utils/function_call_error_handler"
 require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
 
 module OllamaHelper
   include BaseVendorHelper
   include MonadicPerformance
+  include FunctionCallErrorHandler
   define_timeouts "OLLAMA", open: 5, read: 60, write: 60
   MAX_RETRIES = 5
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
-  
-  # Default model can be overridden by OLLAMA_DEFAULT_MODEL environment variable
-  DEFAULT_MODEL = ENV['OLLAMA_DEFAULT_MODEL'] || 'llama3.2:latest'
 
-  ollama_endpoint = nil
+  # Default model resolved via SystemDefaults (env var > system_defaults.json > hardcoded fallback)
+  DEFAULT_MODEL = (defined?(SystemDefaults) &&
+    SystemDefaults.get_default_model('ollama')) || 'qwen3:4b'
 
-  endpoints = [
+  ENDPOINT_CANDIDATES = [
     "http://monadic-chat-ollama-container:11434/api",
     "http://host.docker.internal:11434/api",
     "http://localhost:11434/api"
-  ]
+  ].freeze
 
-  MAX_RETRIES.times do
-    break if ollama_endpoint
-    endpoints.each do |endpoint|
-      url = endpoint.gsub("/api", "")
+  @cached_endpoint = nil
+
+  def self.find_endpoint
+    return @cached_endpoint if @cached_endpoint
+
+    ENDPOINT_CANDIDATES.each do |endpoint|
+      url = endpoint.sub("/api", "")
       begin
-        if HTTP.get(url).status.success?
-          ollama_endpoint = endpoint
-          break
-        end
+        return @cached_endpoint = endpoint if HTTP.get(url).status.success?
       rescue HTTP::Error
         next
       end
     end
+    nil
+  end
+
+  def self.reset_endpoint_cache
+    @cached_endpoint = nil
+  end
+
+  MAX_RETRIES.times do
+    break if find_endpoint
     sleep RETRY_DELAY
   end
 
-  API_ENDPOINT = ollama_endpoint || endpoints.last
+  API_ENDPOINT = find_endpoint || ENDPOINT_CANDIDATES.last
 
   attr_reader :models
 
@@ -51,28 +61,10 @@ module OllamaHelper
     # Use global $MODELS cache like other providers
     return $MODELS[:ollama] if $MODELS[:ollama]
 
-    # Dynamically find Ollama endpoint
-    ollama_endpoint = nil
-    endpoints = [
-      "http://host.docker.internal:11434/api",
-      "http://localhost:11434/api"
-    ]
-
-    endpoints.each do |endpoint|
-      url = endpoint.gsub("/api", "")
-      begin
-        if HTTP.get(url).status.success?
-          ollama_endpoint = endpoint
-          break
-        end
-      rescue HTTP::Error
-        next
-      end
-    end
+    ollama_endpoint = OllamaHelper.find_endpoint
 
     # If no endpoint found, return empty array
     unless ollama_endpoint
-      # Return empty array - Ollama service is not available
       return []
     end
 
@@ -108,24 +100,7 @@ module OllamaHelper
 
   # No streaming plain text completion/chat call
   def send_query(options, model: nil)
-    # Dynamically find Ollama endpoint
-    ollama_endpoint = nil
-    endpoints = [
-      "http://host.docker.internal:11434/api",
-      "http://localhost:11434/api"
-    ]
-
-    endpoints.each do |endpoint|
-      url = endpoint.gsub("/api", "")
-      begin
-        if HTTP.get(url).status.success?
-          ollama_endpoint = endpoint
-          break
-        end
-      rescue HTTP::Error
-        next
-      end
-    end
+    ollama_endpoint = OllamaHelper.find_endpoint
 
     return "Error: Ollama service is not available" unless ollama_endpoint
 
@@ -156,7 +131,7 @@ module OllamaHelper
     end
 
     if res.status.success?
-      JSON.parse(res.body).dig("choices", 0, "message", "content")
+      JSON.parse(res.body).dig("message", "content")
     else
       error = JSON.parse(res.body)["error"]
       STDERR.puts "[Ollama API Error] #{error}" if CONFIG["EXTRA_LOGGING"]
@@ -168,6 +143,11 @@ module OllamaHelper
 
   def api_request(role, session, call_depth: 0, &block)
     num_retrial = 0
+
+    # Initialize call_depth_per_turn on user turns
+    if role == "user"
+      session[:call_depth_per_turn] = 0
+    end
 
     session[:messages].delete_if do |msg|
       msg["role"] == "assistant" && msg["content"].to_s == ""
@@ -229,24 +209,7 @@ module OllamaHelper
     end
     context.each { |msg| msg["active"] = true }
 
-    # Dynamically find Ollama endpoint
-    ollama_endpoint = nil
-    endpoints = [
-      "http://host.docker.internal:11434/api",
-      "http://localhost:11434/api"
-    ]
-
-    endpoints.each do |endpoint|
-      url = endpoint.gsub("/api", "")
-      begin
-        if HTTP.get(url).status.success?
-          ollama_endpoint = endpoint
-          break
-        end
-      rescue HTTP::Error
-        next
-      end
-    end
+    ollama_endpoint = OllamaHelper.find_endpoint
 
     unless ollama_endpoint
       res = { "type" => "error", "content" => "Ollama service is not available. Please ensure the Ollama container is running." }
@@ -265,6 +228,13 @@ module OllamaHelper
         "temperature" => temperature,
       }
     }
+
+    # Add tool definitions if available and within call depth limit
+    tools_config = obj["tools"]
+    if tools_config && session[:call_depth_per_turn].to_i < MAX_FUNC_CALLS
+      formatted_tools = format_tools_for_ollama(tools_config)
+      body["tools"] = formatted_tools unless formatted_tools.empty?
+    end
 
     messages_containing_img = false
     system_message_modified = false
@@ -371,7 +341,7 @@ module OllamaHelper
     [res]
   end
 
-  def process_json_data(app, session, body, _call_depth, &block)
+  def process_json_data(app, session, body, call_depth, &block)
     if CONFIG["EXTRA_LOGGING"]
       extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       extra_log.puts("Processing Ollama streaming response at #{Time.now}")
@@ -381,8 +351,9 @@ module OllamaHelper
 
     buffer = String.new
     texts = []
+    accumulated_tool_calls = []
     finish_reason = nil
-    fragment_sequence = 0  # Sequence number for fragments to ensure ordering
+    fragment_sequence = 0
     is_first_fragment = true
 
     body.each do |chunk|
@@ -391,14 +362,21 @@ module OllamaHelper
         json = JSON.parse(buffer)
         buffer = String.new
         finish_reason = json["done"] ? "stop" : nil
-        if json.dig("message", "content")
+
+        # Detect tool calls (Ollama sends them in the done:true chunk)
+        if json.dig("message", "tool_calls")
+          json["message"]["tool_calls"].each do |tc|
+            accumulated_tool_calls << tc
+          end
+          if CONFIG["EXTRA_LOGGING"]
+            extra_log&.puts("Tool calls detected: #{accumulated_tool_calls.length}")
+          end
+        elsif json.dig("message", "content")
           fragment = json.dig("message", "content").to_s
           res = {
             "type" => "fragment",
             "content" => fragment,
             "sequence" => fragment_sequence
-            # Don't send is_first flag to prevent spinner from disappearing
-            # "is_first" => is_first_fragment
           }
 
           if CONFIG["EXTRA_LOGGING"]
@@ -411,22 +389,54 @@ module OllamaHelper
           is_first_fragment = false
         end
       rescue JSON::ParserError
-        buffer << chunk
+        # Incomplete JSON, continue buffering
       end
     rescue StandardError => e
       STDERR.puts "[Ollama Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
       STDERR.puts "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
     end
 
-    result = texts.join("")
-
     if CONFIG["EXTRA_LOGGING"]
-      extra_log.puts("Total fragments processed: #{texts.length}")
-      extra_log.puts("Final result length: #{result.length}")
-      extra_log.close
+      extra_log&.puts("Total fragments processed: #{texts.length}")
+      extra_log&.puts("Tool calls accumulated: #{accumulated_tool_calls.length}")
+      extra_log&.close
     end
 
-    if result
+    # Handle tool calls if any were detected
+    if accumulated_tool_calls.any?
+      session[:call_depth_per_turn] = session[:call_depth_per_turn].to_i + 1
+
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+        res = { "type" => "error", "content" => "ERROR: Maximum function call depth exceeded (#{MAX_FUNC_CALLS})" }
+        block&.call res
+        return [res]
+      end
+
+      # Build context from current session messages for tool result re-invocation
+      context_size = obj["context_size"].to_i
+      context = [session[:messages].first]
+      if session[:messages].size > 1
+        context += session[:messages][1..].last(context_size)
+      end
+
+      # Add assistant message with tool_calls to context
+      assistant_msg = { "role" => "assistant", "content" => texts.join("") }
+      assistant_msg["tool_calls"] = accumulated_tool_calls.map do |tc|
+        {
+          "function" => {
+            "name" => tc.dig("function", "name"),
+            "arguments" => tc.dig("function", "arguments")
+          }
+        }
+      end
+      context << assistant_msg
+
+      return process_functions(app, session, accumulated_tool_calls, context, session[:call_depth_per_turn], &block)
+    end
+
+    result = texts.join("")
+
+    if result && !result.empty?
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       result = {
@@ -443,5 +453,114 @@ module OllamaHelper
       block&.call res
       [res]
     end
+  end
+
+  def process_functions(app, session, tool_calls, context, call_depth, &block)
+    obj = session[:parameters]
+
+    res = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> CALLING FUNCTIONS" }
+    block&.call res
+
+    tool_calls.each do |tool_call|
+      function_name = tool_call.dig("function", "name")
+      next unless function_name
+
+      block&.call({ "type" => "tool_executing", "content" => function_name })
+
+      begin
+        arguments = tool_call.dig("function", "arguments")
+        argument_hash = if arguments.is_a?(String) && !arguments.to_s.strip.empty?
+                          JSON.parse(arguments)
+                        elsif arguments.is_a?(Hash)
+                          arguments
+                        else
+                          {}
+                        end
+      rescue JSON::ParserError
+        argument_hash = {}
+      end
+
+      converted = {}
+      argument_hash.each_with_object(converted) do |(k, v), memo|
+        memo[k.to_sym] = v
+      end
+
+      # Inject session for tools that need it
+      method_obj = APPS[app].method(function_name.to_sym) rescue nil
+      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
+        converted[:session] = session
+      end
+
+      begin
+        function_return = if converted.empty?
+                           APPS[app].send(function_name.to_sym)
+                         else
+                           APPS[app].send(function_name.to_sym, **converted)
+                         end
+      rescue StandardError => e
+        function_return = "ERROR: #{e.message}"
+      end
+
+      # Check for repeated errors
+      if handle_function_error(session, function_return, function_name, &block)
+        context << {
+          "role" => "tool",
+          "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+        }
+        next
+      end
+
+      context << {
+        "role" => "tool",
+        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+      }
+    end
+
+    obj["function_returns"] = context
+
+    # Stop if repeated errors detected
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
+    end
+
+    sleep RETRY_DELAY
+    api_request("tool", session, call_depth: call_depth, &block)
+  end
+
+  private
+
+  def format_tools_for_ollama(tools_config)
+    # Ollama uses OpenAI-compatible tool format
+    return [] unless tools_config
+
+    tools = case tools_config
+            when Array
+              tools_config
+            when Hash
+              tools_config["function_declarations"] || []
+            else
+              []
+            end
+
+    tools.map do |tool|
+      if tool.is_a?(Hash) && tool["type"] == "function" && tool["function"]
+        # Already in OpenAI format — pass through
+        tool
+      elsif tool.is_a?(Hash) && tool["name"]
+        # Claude/Gemini format — convert to OpenAI format
+        {
+          "type" => "function",
+          "function" => {
+            "name" => tool["name"],
+            "description" => tool["description"] || "",
+            "parameters" => tool["input_schema"] || tool["parameters"] || { "type" => "object", "properties" => {} }
+          }
+        }
+      else
+        nil
+      end
+    end.compact
   end
 end

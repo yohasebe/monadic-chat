@@ -25,7 +25,7 @@
       "model": "deepseek-chat"
     },
     "ollama": {
-      "model": "llama3.2:latest"
+      "model": "qwen3:4b"
     }
   }
 }

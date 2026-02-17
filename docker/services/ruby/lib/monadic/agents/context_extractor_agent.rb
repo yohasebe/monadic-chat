@@ -615,10 +615,9 @@ module ContextExtractorAgent
   def get_ollama_fallback_model
     if defined?(OllamaHelper) && OllamaHelper.respond_to?(:list_models)
       models = OllamaHelper.list_models
-      models&.first
+      models&.first || OllamaHelper::DEFAULT_MODEL
     else
-      # Fallback to a common default
-      "llama3.2:3b"
+      OllamaHelper::DEFAULT_MODEL rescue "qwen3:4b"
     end
   rescue StandardError => e
     puts "[ContextExtractor] Error getting Ollama models: #{e.message}" if CONFIG && CONFIG["EXTRA_LOGGING"]

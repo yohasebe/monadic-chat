@@ -797,8 +797,10 @@ build_ollama_container() {
       echo "Custom model setup completed." | tee -a "${log_file}"
     else
       echo "No custom setup script found. Downloading default model..." | tee -a "${log_file}"
-      # Get default model from environment variable or use llama3.2 as fallback
-      DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-llama3.2}"
+      # Read default model from system_defaults.json, with env var override
+      DEFAULTS_FILE="${SCRIPT_DIR}/services/ruby/config/system_defaults.json"
+      DEFAULTS_MODEL=$(grep -A1 '"ollama"' "$DEFAULTS_FILE" 2>/dev/null | grep '"model"' | sed 's/.*: *"\([^"]*\)".*/\1/')
+      DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-${DEFAULTS_MODEL:-qwen3:4b}}"
       echo "Default model: ${DEFAULT_MODEL}" | tee -a "${log_file}"
       ${DOCKER} exec monadic-chat-ollama-container ollama pull "${DEFAULT_MODEL}" 2>&1 | tee -a "${log_file}"
       echo "Default model downloaded." | tee -a "${log_file}"

@@ -120,14 +120,6 @@ module Monadic
           handle_tools_list(id, params)
         when 'tools/call'
           handle_tool_call(id, params)
-        when 'resources/list'
-          handle_resources_list(id, params)
-        when 'resources/read'
-          handle_resource_read(id, params)
-        when 'prompts/list'
-          handle_prompts_list(id, params)
-        when 'prompts/get'
-          handle_prompt_get(id, params)
         else
           json_rpc_error(id, "Method not found", METHOD_NOT_FOUND)
         end
@@ -143,9 +135,7 @@ module Monadic
             version: Monadic::VERSION
           },
           capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {}
+            tools: {}
           }
         }
 
@@ -211,26 +201,6 @@ module Monadic
           puts "[MCP] Error executing tool #{tool_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"] == "true"
           json_rpc_error(id, "Tool execution failed", INTERNAL_ERROR, e.message)
         end
-      end
-
-      def handle_resources_list(id, params)
-        # Resources could be files, databases, etc.
-        # For now, return empty array
-        json_rpc_response(id, { resources: [] })
-      end
-
-      def handle_resource_read(id, params)
-        json_rpc_error(id, "No resources available", INVALID_PARAMS)
-      end
-
-      def handle_prompts_list(id, params)
-        # Prompts could be pre-defined templates
-        # For now, return empty array
-        json_rpc_response(id, { prompts: [] })
-      end
-
-      def handle_prompt_get(id, params)
-        json_rpc_error(id, "No prompts available", INVALID_PARAMS)
       end
 
       def discover_apps

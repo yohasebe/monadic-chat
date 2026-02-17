@@ -1614,7 +1614,7 @@ module MonadicDSL
                                     when /grok|xai/ then "grok-2"
                                     when /perplexity/ then "sonar"
                                     when /deepseek/ then "deepseek-chat"
-                                    when /ollama/ then "(defined?(OllamaHelper) && OllamaHelper.list_models.first) || 'llama3.2:3b'"
+                                    when /ollama/ then "(defined?(OllamaHelper) && (OllamaHelper.list_models.first || OllamaHelper::DEFAULT_MODEL)) || 'qwen3:4b'"
                                     else "gpt-4.1" # Default fallback
                                     end
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"

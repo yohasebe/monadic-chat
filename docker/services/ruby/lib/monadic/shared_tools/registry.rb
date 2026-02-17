@@ -845,6 +845,42 @@ module MonadicSharedTools
         default_hint: "Call report_verification after checking your work to record the verification outcome."
       },
 
+      parallel_python_execution: {
+        module_name: 'MonadicSharedTools::ParallelPythonExecution',
+        tools: [
+          {
+            name: "parallel_run_code",
+            description: "Execute multiple independent Python code snippets in parallel. " \
+                         "Each snippet runs in its own process; results are collected and returned together. " \
+                         "Use for 2-5 independent analyses, visualizations, or computations on the same dataset.",
+            parameters: [
+              {
+                name: :tasks,
+                type: "array",
+                description: "Array of {id, code, description?} objects (max 5). Each 'code' is a complete Python script.",
+                required: true,
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", description: "Unique task identifier" },
+                    code: { type: "string", description: "Complete Python code to execute" },
+                    description: { type: "string", description: "Brief description of the task" }
+                  },
+                  required: %w[id code]
+                }
+              },
+              {
+                name: :timeout,
+                type: "integer",
+                description: "Per-task timeout in seconds (default: 60, max: 180)",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call parallel_run_code when you have 2-5 independent Python analyses or visualizations to run simultaneously."
+      },
+
       parallel_dispatch: {
         module_name: 'MonadicSharedTools::ParallelDispatch',
         tools: [
@@ -873,6 +909,12 @@ module MonadicSharedTools
                 name: :timeout,
                 type: "integer",
                 description: "Per-task timeout in seconds (default: 120, max: 300)",
+                required: false
+              },
+              {
+                name: :websearch,
+                type: "boolean",
+                description: "Enable web search for sub-agents. Uses provider-native search when available, Tavily API for others.",
                 required: false
               }
             ]

@@ -17,8 +17,9 @@ unless defined?(CONFIG)
     "DEEPSEEK_API_KEY" => "test-key-deepseek",
     "XAI_API_KEY" => "test-key-xai",
     "MISTRAL_API_KEY" => "test-key-mistral",
-    "PERPLEXITY_API_KEY" => "test-key-perplexity"
-  }.freeze
+    "PERPLEXITY_API_KEY" => "test-key-perplexity",
+    "TAVILY_API_KEY" => "test-key-tavily"
+  }
 end
 
 # Mock WebSocketHelper for testing
@@ -38,6 +39,11 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       public :resolve_provider_config, :sub_agent_api_call,
              :openai_compat_sub_call, :anthropic_sub_call,
              :gemini_sub_call, :cohere_sub_call,
+             :responses_api_sub_call,
+             :gemini_websearch_sub_call,
+             :anthropic_websearch_sub_call,
+             :tavily_prefetch_and_inject,
+             :standard_sub_call,
              :send_parallel_progress
     end
   end
@@ -137,7 +143,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
       it "passes context when provided" do
         tasks = [{ "id" => "t1", "prompt" => "Analyze this", "context" => "Some context" }]
-        expect(app).to receive(:sub_agent_api_call) do |model, prompt, _, _|
+        expect(app).to receive(:sub_agent_api_call) do |model, prompt, _, _, **kwargs|
           expect(prompt).to include("Context: Some context")
           expect(prompt).to include("Task: Analyze this")
           "Response"
@@ -146,7 +152,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
 
       it "uses model from session parameters" do
-        expect(app).to receive(:sub_agent_api_call).with("gpt-4.1", anything, anything, anything).and_return("text")
+        expect(app).to receive(:sub_agent_api_call).with("gpt-4.1", anything, anything, anything, websearch: false).and_return("text")
         tasks = [{ "id" => "t1", "prompt" => "test" }]
         app.dispatch_parallel_tasks(tasks: tasks, session: session)
       end
@@ -227,7 +233,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
 
       it "uses default model when session is nil" do
-        expect(app).to receive(:sub_agent_api_call).with("gpt-4.1", anything, anything, anything).and_return("text")
+        expect(app).to receive(:sub_agent_api_call).with("gpt-4.1", anything, anything, anything, websearch: false).and_return("text")
         tasks = [{ "id" => "t1", "prompt" => "test" }]
         app.dispatch_parallel_tasks(tasks: tasks, session: nil)
       end
@@ -266,6 +272,20 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         expect(fragment["parallel_progress"]["total"]).to eq(2)
         expect(fragment["parallel_progress"]["completed"]).to eq(1)
         expect(fragment["parallel_progress"]["task_names"]).to eq(["t1", "t2"])
+      end
+
+      app.send_parallel_progress("test message", nil, tasks, 1)
+    end
+
+    it "includes step_progress in the fragment" do
+      tasks = [{ "id" => "t1", "prompt" => "p1" }, { "id" => "t2", "prompt" => "p2" }]
+      expect(WebSocketHelper).to receive(:send_progress_fragment) do |fragment, _ws_id|
+        sp = fragment["step_progress"]
+        expect(sp).not_to be_nil
+        expect(sp["mode"]).to eq("parallel")
+        expect(sp["current"]).to eq(1)
+        expect(sp["total"]).to eq(2)
+        expect(sp["steps"]).to eq(["t1", "t2"])
       end
 
       app.send_parallel_progress("test message", nil, tasks, 1)
@@ -386,6 +406,324 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         "CohereHelper", "DeepSeekHelper", "GrokHelper",
         "MistralHelper", "PerplexityHelper"
       )
+    end
+  end
+
+  # ===== Web Search Tests =====
+
+  describe "PROVIDER_CONFIG websearch strategies" do
+    let(:config) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG }
+
+    it "defines websearch_strategy for all providers" do
+      config.each do |name, cfg|
+        expect(cfg).to have_key(:websearch_strategy), "#{name} missing websearch_strategy"
+      end
+    end
+
+    it "maps OpenAI and Grok to :responses_api with responses_endpoint" do
+      %w[OpenAIHelper GrokHelper].each do |name|
+        expect(config[name][:websearch_strategy]).to eq(:responses_api)
+        expect(config[name][:responses_endpoint]).to be_a(String)
+      end
+    end
+
+    it "maps Perplexity to :native" do
+      expect(config["PerplexityHelper"][:websearch_strategy]).to eq(:native)
+    end
+
+    it "maps Gemini to :grounding" do
+      expect(config["GeminiHelper"][:websearch_strategy]).to eq(:grounding)
+    end
+
+    it "maps Claude to :native_tool" do
+      expect(config["ClaudeHelper"][:websearch_strategy]).to eq(:native_tool)
+    end
+
+    it "maps Mistral, Cohere, and DeepSeek to :tavily" do
+      %w[MistralHelper CohereHelper DeepSeekHelper].each do |name|
+        expect(config[name][:websearch_strategy]).to eq(:tavily)
+      end
+    end
+  end
+
+  describe "#dispatch_parallel_tasks with websearch" do
+    before do
+      allow(app).to receive(:sub_agent_api_call).and_return("Mocked response")
+    end
+
+    it "propagates websearch: true to sub_agent_api_call" do
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: true)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, websearch: true, session: session)
+    end
+
+    it "inherits websearch from session parameters" do
+      ws_session = { parameters: { "model" => "gpt-4.1", "websearch" => true } }
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: true)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, session: ws_session)
+    end
+
+    it "explicit websearch: false overrides session" do
+      ws_session = { parameters: { "model" => "gpt-4.1", "websearch" => true } }
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: false)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, websearch: false, session: ws_session)
+    end
+
+    it "defaults to websearch: false when not specified" do
+      expect(app).to receive(:sub_agent_api_call)
+        .with(anything, anything, anything, anything, websearch: false)
+        .and_return("text")
+      tasks = [{ "id" => "t1", "prompt" => "test" }]
+      app.dispatch_parallel_tasks(tasks: tasks, session: session)
+    end
+  end
+
+  describe "websearch sub_call methods" do
+    let(:mock_response) { double("response", body: double(to_s: '{}'), status: 200) }
+    let(:mock_http) { double("http") }
+
+    before do
+      allow(HTTP).to receive(:headers).and_return(mock_http)
+      allow(mock_http).to receive(:timeout).and_return(mock_http)
+      allow(mock_http).to receive(:post).and_return(mock_response)
+    end
+
+    describe "#responses_api_sub_call" do
+      it "extracts text from Responses API output format" do
+        response_json = {
+          "output" => [
+            { "type" => "message", "content" => [
+              { "type" => "output_text", "text" => "Search result from Responses API" }
+            ] }
+          ]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        result = app.responses_api_sub_call(
+          "https://api.openai.com/v1/responses", "key", "gpt-4.1", "test query", 120
+        )
+        expect(result).to eq("Search result from Responses API")
+      end
+
+      it "includes web_search tool in request body" do
+        response_json = { "output" => [] }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        expect(mock_http).to receive(:post) do |_url, **opts|
+          body = opts[:json]
+          expect(body["tools"]).to include({ "type" => "web_search" })
+          mock_response
+        end
+
+        app.responses_api_sub_call(
+          "https://api.openai.com/v1/responses", "key", "gpt-4.1", "test", 120
+        )
+      end
+
+      it "raises on API error" do
+        error_json = { "error" => { "message" => "Bad request" } }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: error_json))
+        allow(mock_response).to receive(:status).and_return(400)
+
+        expect {
+          app.responses_api_sub_call("https://api.openai.com/v1/responses", "key", "gpt-4.1", "test", 120)
+        }.to raise_error(RuntimeError, /Bad request/)
+      end
+    end
+
+    describe "#gemini_websearch_sub_call" do
+      it "includes google_search tool in request" do
+        response_json = {
+          "candidates" => [{ "content" => { "parts" => [{ "text" => "Grounded result" }] } }]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        expect(mock_http).to receive(:post) do |_url, **opts|
+          body = opts[:json]
+          expect(body["tools"]).to include({ "google_search" => {} })
+          mock_response
+        end
+
+        app.gemini_websearch_sub_call(
+          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-2.5-flash", "test", 120
+        )
+      end
+
+      it "extracts text from Gemini response" do
+        response_json = {
+          "candidates" => [{ "content" => { "parts" => [{ "text" => "Grounded result" }] } }]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        result = app.gemini_websearch_sub_call(
+          "https://generativelanguage.googleapis.com/v1beta", "key", "gemini-2.5-flash", "test", 120
+        )
+        expect(result).to eq("Grounded result")
+      end
+    end
+
+    describe "#anthropic_websearch_sub_call" do
+      it "includes web_search_20250305 tool in request" do
+        response_json = {
+          "content" => [{ "type" => "text", "text" => "Web search result" }]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        expect(mock_http).to receive(:post) do |_url, **opts|
+          body = opts[:json]
+          tool = body["tools"].find { |t| t["type"] == "web_search_20250305" }
+          expect(tool).not_to be_nil
+          expect(tool["name"]).to eq("web_search")
+          expect(tool["max_uses"]).to eq(5)
+          mock_response
+        end
+
+        app.anthropic_websearch_sub_call(
+          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-5-20250929", "test", 120
+        )
+      end
+
+      it "extracts only text blocks from mixed content response" do
+        response_json = {
+          "content" => [
+            { "type" => "web_search_tool_result", "content" => "raw search data" },
+            { "type" => "text", "text" => "Answer from Claude" },
+            { "type" => "web_search_tool_result", "content" => "more data" },
+            { "type" => "text", "text" => " with citations" }
+          ]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: response_json))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        result = app.anthropic_websearch_sub_call(
+          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-5-20250929", "test", 120
+        )
+        expect(result).to eq("Answer from Claude\n with citations")
+      end
+    end
+
+    describe "#tavily_prefetch_and_inject" do
+      it "injects search results into prompt when TAVILY_API_KEY is set" do
+        tavily_response = {
+          "results" => [
+            { "title" => "Result 1", "url" => "https://example.com/1", "content" => "Content 1" },
+            { "title" => "Result 2", "url" => "https://example.com/2", "content" => "Content 2" }
+          ]
+        }.to_json
+        allow(mock_response).to receive(:body).and_return(double(to_s: tavily_response))
+        allow(mock_response).to receive(:status).and_return(200)
+
+        result = app.tavily_prefetch_and_inject("What is Ruby?")
+        expect(result).to include("=== Web Search Results ===")
+        expect(result).to include("Result 1")
+        expect(result).to include("Content 1")
+        expect(result).to include("What is Ruby?")
+      end
+
+      it "raises RuntimeError when TAVILY_API_KEY is not set" do
+        original = CONFIG["TAVILY_API_KEY"]
+        CONFIG.delete("TAVILY_API_KEY")
+        begin
+          expect {
+            app.tavily_prefetch_and_inject("test query")
+          }.to raise_error(RuntimeError, /TAVILY_API_KEY/)
+        ensure
+          CONFIG["TAVILY_API_KEY"] = original
+        end
+      end
+
+      it "falls back to original prompt on Tavily API error" do
+        allow(mock_response).to receive(:body).and_return(double(to_s: '{"error": "Bad request"}'))
+        allow(mock_response).to receive(:status).and_return(400)
+
+        result = app.tavily_prefetch_and_inject("fallback test")
+        expect(result).to eq("fallback test")
+      end
+    end
+  end
+
+  describe "#sub_agent_api_call websearch routing" do
+    let(:openai_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["OpenAIHelper"] }
+    let(:grok_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["GrokHelper"] }
+    let(:gemini_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["GeminiHelper"] }
+    let(:claude_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["ClaudeHelper"] }
+    let(:perplexity_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["PerplexityHelper"] }
+    let(:mistral_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["MistralHelper"] }
+    let(:deepseek_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["DeepSeekHelper"] }
+    let(:cohere_cfg) { MonadicSharedTools::ParallelDispatch::PROVIDER_CONFIG["CohereHelper"] }
+
+    it "routes OpenAI to responses_api_sub_call when websearch: true" do
+      expect(app).to receive(:responses_api_sub_call).and_return("result")
+      app.sub_agent_api_call("gpt-4.1", "test", openai_cfg, 120, websearch: true)
+    end
+
+    it "routes Grok to responses_api_sub_call when websearch: true" do
+      expect(app).to receive(:responses_api_sub_call).and_return("result")
+      app.sub_agent_api_call("grok-3", "test", grok_cfg, 120, websearch: true)
+    end
+
+    it "routes Gemini to gemini_websearch_sub_call when websearch: true" do
+      expect(app).to receive(:gemini_websearch_sub_call).and_return("result")
+      app.sub_agent_api_call("gemini-2.5-flash", "test", gemini_cfg, 120, websearch: true)
+    end
+
+    it "routes Claude to anthropic_websearch_sub_call when websearch: true" do
+      expect(app).to receive(:anthropic_websearch_sub_call).and_return("result")
+      app.sub_agent_api_call("claude-sonnet-4-5-20250929", "test", claude_cfg, 120, websearch: true)
+    end
+
+    it "routes Perplexity to openai_compat_sub_call (native search) when websearch: true" do
+      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+      app.sub_agent_api_call("sonar-pro", "test", perplexity_cfg, 120, websearch: true)
+    end
+
+    it "routes Mistral to tavily_prefetch + openai_compat when websearch: true" do
+      expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
+      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+      app.sub_agent_api_call("mistral-large", "test", mistral_cfg, 120, websearch: true)
+    end
+
+    it "routes DeepSeek to tavily_prefetch + openai_compat when websearch: true" do
+      expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
+      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+      app.sub_agent_api_call("deepseek-chat", "test", deepseek_cfg, 120, websearch: true)
+    end
+
+    it "routes Cohere to tavily_prefetch + cohere_sub_call when websearch: true" do
+      expect(app).to receive(:tavily_prefetch_and_inject).with("test").and_return("enriched")
+      expect(app).to receive(:cohere_sub_call).and_return("result")
+      app.sub_agent_api_call("command-a-08-2025", "test", cohere_cfg, 120, websearch: true)
+    end
+
+    it "uses standard routing when websearch: false" do
+      expect(app).not_to receive(:responses_api_sub_call)
+      expect(app).to receive(:openai_compat_sub_call).and_return("result")
+      app.sub_agent_api_call("gpt-4.1", "test", openai_cfg, 120, websearch: false)
+    end
+
+    it "raises RuntimeError for tavily providers when TAVILY_API_KEY missing" do
+      original = CONFIG["TAVILY_API_KEY"]
+      CONFIG.delete("TAVILY_API_KEY")
+      begin
+        expect {
+          app.sub_agent_api_call("mistral-large", "test", mistral_cfg, 120, websearch: true)
+        }.to raise_error(RuntimeError, /TAVILY_API_KEY/)
+      ensure
+        CONFIG["TAVILY_API_KEY"] = original
+      end
     end
   end
 end

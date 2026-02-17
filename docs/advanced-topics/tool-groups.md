@@ -54,6 +54,23 @@ These tool groups are always available and don't require additional setup:
 
 **Apps using this**: All tool-enabled apps (Code Interpreter, Research Assistant, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, etc.)
 
+#### Parallel Python Execution (1 tool)
+- Execute 2-5 independent Python code snippets in parallel
+- Each snippet runs in its own process with results collected together
+- Progress displayed in real-time via the temporary card UI
+- Ideal for simultaneous visualizations, statistical analyses, and model comparisons
+
+**Apps using this**: Code Interpreter (all providers)
+
+#### Parallel Dispatch (1 tool)
+- Dispatch 2-5 independent sub-tasks to run in parallel via separate API calls
+- Each sub-agent runs as a text-only call; results are collected and synthesized
+- Supports **web search** for sub-agents when the Web Search toggle is enabled in the UI
+- Web search uses provider-native mechanisms (OpenAI/Grok Responses API, Gemini grounding, Claude server-side search) or Tavily API as a fallback for providers without native search (Mistral, Cohere, DeepSeek)
+- Progress displayed in real-time via the temporary card UI
+
+**Apps using this**: Research Assistant (all providers)
+
 #### Verification (1 tool)
 - Record the outcome of self-verifying work before presenting it to the user
 - Supports statuses: passed, issues found, fixed

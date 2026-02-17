@@ -14,20 +14,31 @@ module MonadicSharedTools
     # Provider configuration for direct API calls (no tools in request body).
     # Grouped by API format family so sub-agents never trigger tool loops.
     PROVIDER_CONFIG = {
-      "ClaudeHelper"     => { type: :anthropic,      endpoint: "https://api.anthropic.com/v1/messages",                         api_key_env: "ANTHROPIC_API_KEY" },
-      "GeminiHelper"     => { type: :gemini,          endpoint: "https://generativelanguage.googleapis.com/v1beta",
+      "ClaudeHelper"     => { type: :anthropic,      websearch_strategy: :native_tool,
+                               endpoint: "https://api.anthropic.com/v1/messages",
+                               api_key_env: "ANTHROPIC_API_KEY" },
+      "GeminiHelper"     => { type: :gemini,          websearch_strategy: :grounding,
+                               endpoint: "https://generativelanguage.googleapis.com/v1beta",
                                api_key_env: "GEMINI_API_KEY" },
-      "CohereHelper"     => { type: :cohere,          endpoint: "https://api.cohere.ai/v2/chat",
+      "CohereHelper"     => { type: :cohere,          websearch_strategy: :tavily,
+                               endpoint: "https://api.cohere.ai/v2/chat",
                                api_key_env: "COHERE_API_KEY" },
-      "DeepSeekHelper"   => { type: :openai_compat,   endpoint: "https://api.deepseek.com/chat/completions",
+      "DeepSeekHelper"   => { type: :openai_compat,   websearch_strategy: :tavily,
+                               endpoint: "https://api.deepseek.com/chat/completions",
                                api_key_env: "DEEPSEEK_API_KEY" },
-      "GrokHelper"       => { type: :openai_compat,   endpoint: "https://api.x.ai/v1/chat/completions",
+      "GrokHelper"       => { type: :openai_compat,   websearch_strategy: :responses_api,
+                               endpoint: "https://api.x.ai/v1/chat/completions",
+                               responses_endpoint: "https://api.x.ai/v1/responses",
                                api_key_env: "XAI_API_KEY" },
-      "MistralHelper"    => { type: :openai_compat,   endpoint: "https://api.mistral.ai/v1/chat/completions",
+      "MistralHelper"    => { type: :openai_compat,   websearch_strategy: :tavily,
+                               endpoint: "https://api.mistral.ai/v1/chat/completions",
                                api_key_env: "MISTRAL_API_KEY" },
-      "PerplexityHelper" => { type: :openai_compat,   endpoint: "https://api.perplexity.ai/chat/completions",
+      "PerplexityHelper" => { type: :openai_compat,   websearch_strategy: :native,
+                               endpoint: "https://api.perplexity.ai/chat/completions",
                                api_key_env: "PERPLEXITY_API_KEY" },
-      "OpenAIHelper"     => { type: :openai_compat,   endpoint: "https://api.openai.com/v1/chat/completions",
+      "OpenAIHelper"     => { type: :openai_compat,   websearch_strategy: :responses_api,
+                               endpoint: "https://api.openai.com/v1/chat/completions",
+                               responses_endpoint: "https://api.openai.com/v1/responses",
                                api_key_env: "OPENAI_API_KEY" }
     }.freeze
 
@@ -39,7 +50,7 @@ module MonadicSharedTools
     # @param timeout [Integer, nil] Per-task timeout in seconds (default: 120, max: 300)
     # @param session [Hash, nil] Injected by process_functions
     # @return [String] Formatted result for the model to synthesize
-    def dispatch_parallel_tasks(tasks:, timeout: nil, session: nil)
+    def dispatch_parallel_tasks(tasks:, timeout: nil, websearch: nil, session: nil)
       # --- Input validation ---
       unless tasks.is_a?(Array) && !tasks.empty?
         return "ERROR: tasks parameter is required and must be a non-empty array"
@@ -58,6 +69,14 @@ module MonadicSharedTools
       # --- Configuration ---
       model = session&.dig(:parameters, "model") || "gpt-4.1"
       timeout_val = [[(timeout || DEFAULT_TIMEOUT), DEFAULT_TIMEOUT].max, MAX_TIMEOUT].min
+
+      # Resolve websearch: explicit param > session setting > false
+      ws_enabled = if !websearch.nil?
+                     websearch == true || websearch == "true"
+                   else
+                     ws_val = session&.dig(:parameters, "websearch")
+                     ws_val == true || ws_val == "true"
+                   end
       parent_ws_session_id = Thread.current[:websocket_session_id]
       provider_cfg = resolve_provider_config
 
@@ -84,7 +103,7 @@ module MonadicSharedTools
                      end
 
             text = Timeout.timeout(timeout_val) do
-              sub_agent_api_call(model, prompt, provider_cfg, timeout_val)
+              sub_agent_api_call(model, prompt, provider_cfg, timeout_val, websearch: ws_enabled)
             end
 
             results_mutex.synchronize do
@@ -152,11 +171,31 @@ module MonadicSharedTools
       PROVIDER_CONFIG["OpenAIHelper"] # fallback
     end
 
-    # Make a simple text-only API call to the detected provider.
-    # No tools are included in the request body, ensuring text-only responses.
-    def sub_agent_api_call(model, prompt, provider_cfg, timeout_secs)
+    # Route API call to the appropriate method based on provider and websearch flag.
+    def sub_agent_api_call(model, prompt, provider_cfg, timeout_secs, websearch: false)
       api_key = CONFIG[provider_cfg[:api_key_env]] if provider_cfg[:api_key_env]
 
+      if websearch
+        case provider_cfg[:websearch_strategy]
+        when :responses_api
+          responses_api_sub_call(provider_cfg[:responses_endpoint], api_key, model, prompt, timeout_secs)
+        when :grounding
+          gemini_websearch_sub_call(provider_cfg[:endpoint], api_key, model, prompt, timeout_secs)
+        when :native_tool
+          anthropic_websearch_sub_call(provider_cfg[:endpoint], api_key, model, prompt, timeout_secs)
+        when :tavily
+          enriched = tavily_prefetch_and_inject(prompt)
+          standard_sub_call(provider_cfg, api_key, model, enriched, timeout_secs)
+        else # :native (Perplexity) — search is built-in
+          standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
+        end
+      else
+        standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
+      end
+    end
+
+    # Standard (non-websearch) routing by provider type.
+    def standard_sub_call(provider_cfg, api_key, model, prompt, timeout_secs)
       case provider_cfg[:type]
       when :anthropic
         anthropic_sub_call(provider_cfg[:endpoint], api_key, model, prompt, timeout_secs)
@@ -262,6 +301,113 @@ module MonadicSharedTools
       thinking_items.map { |item| item["thinking"] }.compact.join("\n")
     end
 
+    # OpenAI/Grok Responses API with web_search tool.
+    def responses_api_sub_call(endpoint, api_key, model, prompt, timeout_secs)
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+      body = {
+        "model" => model,
+        "input" => prompt,
+        "tools" => [{ "type" => "web_search" }]
+      }
+      res = HTTP.headers(headers)
+                .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
+                .post(endpoint, json: body)
+      parsed = JSON.parse(res.body.to_s)
+      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+
+      # Extract text from Responses API output format
+      output = parsed["output"] || []
+      output.select { |item| item["type"] == "message" }
+            .flat_map { |item| Array(item["content"]) }
+            .select { |c| c["type"] == "output_text" }
+            .map { |c| c["text"] }
+            .join
+    end
+
+    # Gemini with google_search grounding tool.
+    def gemini_websearch_sub_call(endpoint, api_key, model, prompt, timeout_secs)
+      target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
+      body = {
+        "contents" => [{ "role" => "user", "parts" => [{ "text" => prompt }] }],
+        "tools" => [{ "google_search" => {} }],
+        "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => 4096 }
+      }
+      res = HTTP.headers("Content-Type" => "application/json")
+                .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
+                .post(target_uri, json: body)
+      parsed = JSON.parse(res.body.to_s)
+      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+      parsed.dig("candidates", 0, "content", "parts", 0, "text") || ""
+    end
+
+    # Anthropic Messages API with web_search_20250305 server-side tool.
+    def anthropic_websearch_sub_call(endpoint, api_key, model, prompt, timeout_secs)
+      headers = {
+        "Content-Type" => "application/json",
+        "x-api-key" => api_key,
+        "anthropic-version" => "2023-06-01"
+      }
+      body = {
+        "model" => model,
+        "messages" => [{ "role" => "user", "content" => prompt }],
+        "max_tokens" => 4096,
+        "temperature" => 0.0,
+        "tools" => [{ "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }]
+      }
+      res = HTTP.headers(headers)
+                .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
+                .post(endpoint, json: body)
+      parsed = JSON.parse(res.body.to_s)
+      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+
+      # Extract only text blocks (skip web_search_tool_result blocks)
+      content = parsed["content"]
+      return "" unless content.is_a?(Array)
+      text_blocks = content.select { |c| c["type"] == "text" }
+      text_blocks.map { |c| c["text"] }.join("\n")
+    end
+
+    # Prefetch Tavily search results and inject into prompt.
+    # Raises RuntimeError if TAVILY_API_KEY is not configured.
+    def tavily_prefetch_and_inject(prompt)
+      api_key = CONFIG["TAVILY_API_KEY"]
+      raise "TAVILY_API_KEY is not configured. Web search requires a Tavily API key for this provider." if api_key.nil? || api_key.empty?
+
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+      body = {
+        "query" => prompt.slice(0, 400),
+        "search_depth" => "basic",
+        "max_results" => 3,
+        "include_answer" => false,
+        "include_raw_content" => false,
+        "include_images" => false
+      }
+
+      begin
+        res = HTTP.headers(headers)
+                  .timeout(connect: 10, write: 15, read: 15)
+                  .post("https://api.tavily.com/search", json: body)
+        parsed = JSON.parse(res.body.to_s)
+        results = parsed["results"]
+        return prompt unless results.is_a?(Array) && !results.empty?
+
+        search_block = results.map do |r|
+          "### #{r["title"]}\nURL: #{r["url"]}\n#{r["content"]}"
+        end.join("\n\n")
+
+        "=== Web Search Results ===\n#{search_block}\n=== End Search Results ===\n\n#{prompt}"
+      rescue StandardError
+        # Tavily API error — fall back to original prompt
+        prompt
+      end
+    end
+
     # Send progress update to the WebSocket for temp card display.
     def send_parallel_progress(message, ws_session_id, tasks, completed)
       return unless defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_progress_fragment)
@@ -275,6 +421,12 @@ module MonadicSharedTools
           "completed" => completed,
           "total" => tasks.length,
           "task_names" => task_names
+        },
+        "step_progress" => {
+          "mode" => "parallel",
+          "current" => completed,
+          "total" => tasks.length,
+          "steps" => task_names
         }
       }
       WebSocketHelper.send_progress_fragment(fragment, ws_session_id)

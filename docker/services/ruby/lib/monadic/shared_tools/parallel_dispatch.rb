@@ -79,7 +79,7 @@ module MonadicSharedTools
 
       # --- Configuration ---
       model = session&.dig(:parameters, "model") || "gpt-4.1"
-      timeout_val = [[(timeout || DEFAULT_TIMEOUT), DEFAULT_TIMEOUT].max, MAX_TIMEOUT].min
+      timeout_val = [(timeout || DEFAULT_TIMEOUT), MAX_TIMEOUT].min
 
       # Resolve websearch: explicit param > session setting > false
       ws_enabled = if !websearch.nil?

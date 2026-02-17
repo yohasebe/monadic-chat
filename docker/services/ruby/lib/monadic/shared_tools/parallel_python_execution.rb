@@ -2,6 +2,7 @@
 
 require 'json'
 require 'timeout'
+require 'securerandom'
 
 module MonadicSharedTools
   module ParallelPythonExecution
@@ -36,7 +37,7 @@ module MonadicSharedTools
       end
 
       # --- Configuration ---
-      timeout_val = [[(timeout || DEFAULT_CODE_TIMEOUT), DEFAULT_CODE_TIMEOUT].max, MAX_CODE_TIMEOUT].min
+      timeout_val = [(timeout || DEFAULT_CODE_TIMEOUT), MAX_CODE_TIMEOUT].min
       parent_ws_session_id = Thread.current[:websocket_session_id]
 
       # --- Initial progress ---
@@ -56,8 +57,10 @@ module MonadicSharedTools
         Thread.new(task) do |t|
           Thread.current.report_on_exception = false
           begin
+            # Add unique suffix to avoid filename collision across parallel threads
+            unique_code = "# parallel_task_#{SecureRandom.hex(6)}\n#{t["code"]}"
             output = Timeout.timeout(timeout_val) do
-              run_code(code: t["code"], command: "python", extension: "py")
+              run_code(code: unique_code, command: "python", extension: "py")
             end
 
             results_mutex.synchronize do

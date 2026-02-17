@@ -253,8 +253,9 @@ module DeepSeekHelper
       end
     end
 
-    # Reset parallel dispatch guard for new user turn
+    # Reset parallel dispatch guard and call depth for new user turn
     if role == "user"
+      session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
     end
 

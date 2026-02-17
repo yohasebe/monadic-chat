@@ -121,12 +121,10 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
         app.parallel_run_code(tasks: valid_tasks, session: session)
       end
 
-      it "passes python command and py extension to run_code" do
+      it "passes python command and py extension to run_code with unique prefix" do
         expect(app).to receive(:run_code)
-          .with(code: "print('statistics')", command: "python", extension: "py")
-          .and_return('{"success": true}')
-        expect(app).to receive(:run_code)
-          .with(code: "print('chart')", command: "python", extension: "py")
+          .with(hash_including(command: "python", extension: "py"))
+          .twice
           .and_return('{"success": true}')
         app.parallel_run_code(tasks: valid_tasks, session: session)
       end

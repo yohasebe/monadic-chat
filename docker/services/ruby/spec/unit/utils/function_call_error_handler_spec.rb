@@ -246,24 +246,24 @@ RSpec.describe FunctionCallErrorHandler do
       expect(fragments[0]["content"]).to include("non-interactive backend")
     end
     
-    it 'does not trigger stop for unrecognized patterns' do
+    it 'triggers stop for generic (unrecognized) patterns after 3 errors' do
       fragments = []
-      
-      # Use truly unrecognized errors that won't match any pattern
-      # According to the implementation, these won't trigger stop condition
+
+      # Generic errors now match :generic_error pattern and accumulate
       result1 = handler.handle_function_error(session, "ERROR: Custom unrecognized error 1", "func1")
       expect(result1).to be false
-      
+
       result2 = handler.handle_function_error(session, "ERROR: Custom unrecognized error 2", "func2")
       expect(result2).to be false
-      
+
       result3 = handler.handle_function_error(session, "ERROR: Custom unrecognized error 3", "func3") do |res|
         fragments << res
       end
-      expect(result3).to be false
-      
-      # No suggestion should be generated for unrecognized patterns
-      expect(fragments.size).to eq(0)
+      expect(result3).to be true
+
+      # Generic error suggestion should be generated
+      expect(fragments.size).to eq(1)
+      expect(fragments[0]["content"]).to include("repeated errors")
     end
   end
   

@@ -252,6 +252,11 @@ module DeepSeekHelper
       end
     end
 
+    # Reset parallel dispatch guard for new user turn
+    if role == "user"
+      session[:parallel_dispatch_called] = nil
+    end
+
     num_retrial = 0
 
     begin
@@ -1346,6 +1351,17 @@ module DeepSeekHelper
 
       send_verification_notification(session, &block) if function_name == "report_verification"
 
+      # Check for repeated errors
+      if handle_function_error(session, function_return, function_name, &block)
+        context << {
+          "role" => "tool",
+          "tool_call_id" => tool_call["id"],
+          "name" => function_name,
+          "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+        }
+        next
+      end
+
       context << {
         "role" => "tool",
         "tool_call_id" => tool_call["id"],
@@ -1355,6 +1371,13 @@ module DeepSeekHelper
     end
 
     obj["function_returns"] = context
+
+    # Stop if repeated errors detected
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
+    end
 
     # If terminal tool was called, do NOT make another api_request
     # The terminal tool signals that the assistant's turn is complete

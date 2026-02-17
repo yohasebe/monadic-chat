@@ -247,7 +247,10 @@ module ErrorPatternDetector
     SYSTEM_ERROR_PATTERNS.each_with_index do |pattern, index|
       return "system_error_#{index}".to_sym if pattern =~ error_message
     end
-    
-    nil
+
+    # Catch-all: any unrecognized error still counts as a generic error.
+    # This prevents infinite loops when the same tool keeps returning
+    # errors that don't match specific patterns.
+    :generic_error
   end
 end

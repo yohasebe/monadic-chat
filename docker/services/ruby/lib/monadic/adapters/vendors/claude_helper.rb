@@ -436,6 +436,7 @@ module ClaudeHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -2105,6 +2106,17 @@ module ClaudeHelper
         tool_return = "Empty result"
       end
 
+      # Check for repeated errors (same pattern as OpenAI helper)
+      if handle_function_error(session, tool_return, tool_name, &block)
+        # Add the tool result so the model sees the error, then stop the loop
+        content << {
+          type: "tool_result",
+          tool_use_id: tool_call["id"],
+          content: tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
+        }
+        next # Skip to next tool (or finish loop) — stop_retrying flag is set
+      end
+
       # Check if this tool call resulted in a file generation (from Skills)
       if tool_call["file_id"]
         file_id = tool_call["file_id"]
@@ -2139,6 +2151,13 @@ module ClaudeHelper
       }
 
       obj["function_returns"] = context
+
+      # Stop if repeated errors detected (set by handle_function_error above)
+      if should_stop_for_errors?(session)
+        res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+        block&.call res
+        return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
+      end
 
       # Making recursive api_request with role 'tool'
 

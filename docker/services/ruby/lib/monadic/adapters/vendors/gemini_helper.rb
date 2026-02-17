@@ -1070,6 +1070,7 @@ module GeminiHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
       # Clear tool_results from previous turn to prevent stale data affecting termination logic
       session[:parameters]["tool_results"] = []
     end
@@ -3325,6 +3326,9 @@ module GeminiHelper
             content = function_return.is_a?(String) ? function_return : function_return.to_json
           end
 
+          # Check for repeated errors before adding to tool results
+          handle_function_error(session, content, function_name, &block)
+
           # Add to tool results and debug
           session_params["tool_results"] << {
             "functionResponse" => {
@@ -3336,7 +3340,7 @@ module GeminiHelper
             },
             "call_depth" => call_depth  # Track call_depth to prevent duplicates within same turn
           }
-          
+
           # Tool result added (debug logging removed)
         end
       rescue StandardError => e
@@ -3552,6 +3556,13 @@ module GeminiHelper
           end
         end
       end
+    end
+
+    # Stop if repeated errors detected
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected." } }] }]
     end
 
     # Make the API request with the tool results

@@ -439,6 +439,13 @@ textarea {
 /* ============================================ */
 @layer components {
 
+/* Fix: base layer `button { font-size: 14px }` overrides Bootstrap vendor layer,
+   making .btn-sm render at 14px instead of the intended smaller size.
+   This restores proper sizing to match Electron main window buttons (13px). */
+.btn-sm {
+  font-size: 13px;
+}
+
 /* ============================================== */
 
 /* Icon and Link Colors - CSS Variables Based */
@@ -1474,7 +1481,7 @@ div.sourcecode-toggle:hover {
 /* Ensure consistent button styling for all roles */
 
 .card-body .btn-sm {
-  font-size: 0.875rem;
+  font-size: 13px;
   padding: 0.25rem 0.5rem;
   line-height: 1.5;
 }
@@ -3822,6 +3829,22 @@ mjx-container[display="false"] {
   vertical-align: middle !important;
 }
 
+/* Tool execution status in temp card header */
+#tool-status {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+  color: #6b7280;
+}
+#tool-status .tool-call-count {
+  font-weight: 600;
+}
+#tool-status .fa-cog {
+  color: #f59e0b;
+}
+
 } /* end @layer components */
 
 /* ============================================ */
@@ -4808,6 +4831,13 @@ i.fas.fa-bolt,
   color: #3b82f6; /* Brighter blue for dark mode */
 }
 
+.dark-theme #tool-status {
+  color: #9ca3af;
+}
+.dark-theme #tool-status .fa-cog {
+  color: #f59e0b;
+}
+
 } /* end @layer dark-theme */
 
 /* ============================================ */
@@ -4994,7 +5024,7 @@ i.fas.fa-bolt,
     width: auto;
     margin: 5px 10px 5px 0; /* Increased right margin for better spacing */
     padding: 6px 12px; /* Slightly increased padding */
-    font-size: 0.85em;
+    font-size: 13px;
   }
   
   /* Media/content buttons should be horizontal on mobile */
@@ -5126,7 +5156,7 @@ i.fas.fa-bolt,
     height: auto;
     /* Removed min-height for more compact buttons */
     flex: 0 0 auto; /* Don't grow or shrink */
-    font-size: 0.875rem; /* Standard btn-sm size */
+    font-size: 13px; /* Match Electron main window buttons */
   }
   
   /* Adjust spacing between voice row and role row */

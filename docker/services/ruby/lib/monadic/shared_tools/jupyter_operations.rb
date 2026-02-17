@@ -83,7 +83,14 @@ module MonadicSharedTools
       end
 
       # MonadicHelper#add_jupyter_cells doesn't accept session parameter
-      super(filename: filename, cells: cells, run: run, escaped: escaped)
+      result = super(filename: filename, cells: cells, run: run, escaped: escaped)
+
+      # Store the notebook URL in session so report_verification can reference it
+      if session && result.is_a?(String) && result =~ /Access the notebook at:\s*(http\S+)/
+        session[:last_notebook_url] = $1
+      end
+
+      result
     end
 
     # Delete a cell from a Jupyter notebook

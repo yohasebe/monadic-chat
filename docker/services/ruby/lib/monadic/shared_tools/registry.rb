@@ -795,6 +795,54 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call propose_plan when you need to break down a complex task into steps and get user approval before execution."
+      },
+
+      verification: {
+        module_name: 'MonadicSharedTools::Verification',
+        tools: [
+          {
+            name: "report_verification",
+            description: "Record the outcome of verifying your work before presenting it to the user. " \
+                         "Call this after using verification tools (run_code, preview_mermaid, etc.) " \
+                         "or after self-reviewing outputs.",
+            parameters: [
+              {
+                name: :result_summary,
+                type: "string",
+                description: "Brief description of what was produced and needs verification",
+                required: true
+              },
+              {
+                name: :checks_performed,
+                type: "array",
+                description: "List of verification checks performed",
+                required: true,
+                items: { type: "string" }
+              },
+              {
+                name: :status,
+                type: "string",
+                description: "Verification outcome: 'passed', 'issues_found', or 'fixed'",
+                required: true
+              },
+              {
+                name: :issues,
+                type: "array",
+                description: "Issues found (when status is 'issues_found' or 'fixed')",
+                required: false,
+                items: { type: "string" }
+              },
+              {
+                name: :fixes_applied,
+                type: "array",
+                description: "Fixes applied (when status is 'fixed')",
+                required: false,
+                items: { type: "string" }
+              }
+            ]
+          }
+        ],
+        default_hint: "Call report_verification after checking your work to record the verification outcome."
       }
     }
 

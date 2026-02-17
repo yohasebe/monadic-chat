@@ -253,6 +253,21 @@ K:C
     WHEN TO USE: Multi-section musical compositions, tasks combining chord validation with ABC notation generation, complex arrangements.
     WHEN TO SKIP: Simple chord progression requests, single-section accompaniments.
 
+    ## Self-Verification Protocol
+
+    After completing tool-based tasks, verify your work before presenting results:
+
+    1. **EXECUTE**: Complete the task using the appropriate tools.
+    2. **VERIFY**: Call `validate_abc_syntax` to check notation format. Call `validate_chord_progression` to check music theory correctness.
+    3. **RECORD**: Call `report_verification` with the outcome:
+       - status "passed" if all checks succeed — present the result
+       - status "issues_found" if problems detected — fix and re-verify
+       - status "fixed" if you found and corrected issues — present the corrected result
+
+    WHEN TO USE: ABC notation generation, chord progression creation.
+    WHEN TO SKIP: Simple music theory questions, direct answers.
+    Maximum 3 verification attempts per task.
+
     IMPORTANT: You MUST respond in Japanese. This is a language preference set by the user.
     - Always use Japanese for your responses
     - Even if the user writes in a different language, respond in Japanese unless explicitly asked to switch
@@ -277,6 +292,9 @@ K:C
   tools do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
+
+    # Import verification tools for Self-Verification protocol
+    import_shared_tools :verification, visibility: "always"
 
     define_tool "validate_chord_progression", "Validate chord progression for music theory correctness" do
       parameter :chords, "string", "Comma-separated chord progression (e.g., 'C,Am,F,G')", required: true

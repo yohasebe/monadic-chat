@@ -178,6 +178,21 @@ app "JupyterNotebookGemini" do
 
     WHEN TO USE: Multi-notebook projects, data pipeline tasks (load → clean → analyze → visualize), tasks requiring multiple file reads before notebook creation, complex notebook restructuring.
     WHEN TO SKIP: Simple single-cell additions, quick code execution, direct questions about notebook content.
+
+    ## Self-Verification Protocol
+
+    After completing tool-based tasks, verify your work before presenting results:
+
+    1. **EXECUTE**: Complete the task using the appropriate tools.
+    2. **VERIFY**: Use `get_jupyter_cells_with_results` to check for cell execution errors. If errors found, fix cell code and re-execute. For plots/charts, verify the output was generated successfully.
+    3. **RECORD**: Call `report_verification` with the outcome:
+       - status "passed" if all checks succeed — present the result
+       - status "issues_found" if problems detected — fix and re-verify
+       - status "fixed" if you found and corrected issues — present the corrected result
+
+    WHEN TO USE: Notebook creation with code execution, data analysis pipelines, multi-cell operations.
+    WHEN TO SKIP: Simple explanations, direct answers, single markdown cells.
+    Maximum 3 verification attempts per task.
   TEXT
 
   features do
@@ -209,6 +224,9 @@ app "JupyterNotebookGemini" do
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
+
+    # Import verification tools for Self-Verification protocol
+    import_shared_tools :verification, visibility: "always"
 
     # Monadic state management tool (read-only - saving is automatic)
     define_tool "monadic_load_state", "Load notebook context from session state. Use this ONLY when you need to reference previous notebook state (e.g., to get the current notebook filename or check if Jupyter is running). Do NOT call this on every turn." do

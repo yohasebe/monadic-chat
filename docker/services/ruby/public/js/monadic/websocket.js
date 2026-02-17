@@ -488,6 +488,9 @@ let callingFunction = false;
 let streamingResponse = false; // Keep local variable for backward compatibility
 // Track whether reasoning/thinking fragments are currently streaming
 let reasoningStreamActive = false;
+// Track tool execution progress across the full tool chain
+let toolCallCount = 0;
+let currentToolName = '';
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
@@ -499,6 +502,50 @@ window.setReasoningStreamActive = function(value) {
 window.isReasoningStreamActive = function() {
   return reasoningStreamActive;
 };
+
+// ── Tool execution progress helpers ──────────────────────────
+
+function formatToolName(name) {
+  if (!name) return '';
+  return name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+}
+
+function updateToolStatus(toolName, count) {
+  const tempCard = $("#temp-card");
+  if (!tempCard.length) return;
+
+  let toolStatus = tempCard.find("#tool-status");
+  if (!toolStatus.length) {
+    // Dynamically inject into the card header's right-side area
+    let rightArea = tempCard.find(".card-header .d-flex.align-items-center").last();
+    if (!rightArea.length || rightArea.hasClass("card-title")) {
+      rightArea = $('<div class="me-1 text-secondary d-flex align-items-center"></div>');
+      tempCard.find(".card-header").append(rightArea);
+    }
+    toolStatus = $('<span id="tool-status" class="tool-status-label me-2"></span>');
+    const indicator = rightArea.find("#indicator");
+    if (indicator.length) {
+      toolStatus.insertBefore(indicator);
+    } else {
+      rightArea.prepend(toolStatus);
+    }
+  }
+
+  if (toolName && count > 0) {
+    toolStatus.html(
+      '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>'
+    ).show();
+  } else {
+    toolStatus.hide();
+  }
+}
+
+function clearToolStatus() {
+  toolCallCount = 0;
+  currentToolName = '';
+  $("#tool-status").hide().empty();
+}
+window.clearToolStatus = clearToolStatus;
 
 function connect_websocket(callback) {
   // Use current hostname if available, otherwise default to localhost
@@ -1126,8 +1173,21 @@ let loadedApp = "Chat";
       }
 
       case "tool_executing": {
+        toolCallCount++;
+        currentToolName = data["content"];
+
+        // Show temp card early if hidden (immediate feedback)
+        const toolTempCard = $("#temp-card");
+        if (toolTempCard.length && toolTempCard.is(":hidden")) {
+          toolTempCard.show();
+        }
+
+        // Update temp card header with tool name and count
+        updateToolStatus(currentToolName, toolCallCount);
+
+        // Update workflow viewer
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
-          WorkflowViewer.setActiveTool(data["content"]);
+          WorkflowViewer.setActiveTool(data["content"], toolCallCount);
         }
         break;
       }
@@ -1695,6 +1755,7 @@ let loadedApp = "Chat";
           }
 
           // Reset UI panels and indicators
+          clearToolStatus();
           $("#temp-card").hide();
           $("#indicator").hide();
           $("#user-panel").show();
@@ -3786,6 +3847,7 @@ let loadedApp = "Chat";
         }
 
         $("#chat").html("");
+        clearToolStatus();
         $("#temp-card").hide();
         $("#indicator").hide();
         $("#user-panel").show();
@@ -4173,6 +4235,7 @@ let loadedApp = "Chat";
           document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
 
           // Hide loading indicators
+          clearToolStatus();
           $("#temp-card").hide();
           $("#indicator").hide();
 

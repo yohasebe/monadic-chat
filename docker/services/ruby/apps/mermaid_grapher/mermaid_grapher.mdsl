@@ -219,6 +219,21 @@ app "MermaidGrapherOpenAI" do
 
     WHEN TO USE: Multi-diagram documentation projects, complex diagrams requiring research before generation.
     WHEN TO SKIP: Single diagram generation, simple chart creation.
+
+    ## Self-Verification Protocol
+
+    After completing tool-based tasks, verify your work before presenting results:
+
+    1. **EXECUTE**: Complete the task using the appropriate tools.
+    2. **VERIFY**: Call `preview_mermaid` which validates and renders the diagram. If validation fails, fix syntax and re-validate.
+    3. **RECORD**: Call `report_verification` with the outcome:
+       - status "passed" if all checks succeed — present the result
+       - status "issues_found" if problems detected — fix and re-verify
+       - status "fixed" if you found and corrected issues — present the corrected result
+
+    WHEN TO USE: Diagram generation, multi-diagram tasks.
+    WHEN TO SKIP: Simple syntax questions, direct answers.
+    Maximum 3 verification attempts per task.
   TEXT
   
   llm do
@@ -241,6 +256,9 @@ app "MermaidGrapherOpenAI" do
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
+
+    # Import verification tools for Self-Verification protocol
+    import_shared_tools :verification, visibility: "always"
 
     define_tool "preview_mermaid", "Validate and save a preview image of Mermaid diagram to shared folder" do
       parameter :code, "string", "Mermaid diagram code to validate and preview", required: true

@@ -583,7 +583,12 @@ function handleHtmlMessage(data, createCardFunc) {
         if (window.streamingResponse) {
           window.streamingResponse = false;
         }
-        
+
+        // Clear tool execution progress display
+        if (typeof window.clearToolStatus === 'function') {
+          window.clearToolStatus();
+        }
+
         // Clear the "Connected" status and show "Ready for input"
         // Only update if system is not busy
         if (typeof setAlert === 'function' && typeof window.isSystemBusy === 'function' && !window.isSystemBusy()) {

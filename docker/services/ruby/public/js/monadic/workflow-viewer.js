@@ -1193,7 +1193,7 @@ const WorkflowViewer = (function () {
 
   // ── Active tool display ────────────────────────────────────
 
-  function setActiveToolInternal(toolName) {
+  function setActiveToolInternal(toolName, callCount) {
     if (!graph || !panelEl || panelEl.classList.contains('wv-panel-collapsed')) return;
     activeTool = toolName;
     var toolCell = cellsByType['toolGroup'];
@@ -1203,7 +1203,8 @@ const WorkflowViewer = (function () {
     var headingEl = state.shape.node.querySelector('b');
     if (headingEl) {
       var displayName = titleCase(toolName.replace(/_/g, ' '));
-      headingEl.innerHTML = 'Tools <span style="font-weight:normal;opacity:0.7">\u2014 ' + escHtml(displayName) + '</span>';
+      var countStr = callCount ? ' (' + callCount + ')' : '';
+      headingEl.innerHTML = 'Tools <span style="font-weight:normal;opacity:0.7">\u2014 ' + escHtml(displayName) + countStr + '</span>';
     }
   }
 
@@ -1395,8 +1396,8 @@ const WorkflowViewer = (function () {
     setStage: function (stage) {
       setStageInternal(stage);
     },
-    setActiveTool: function (toolName) {
-      setActiveToolInternal(toolName);
+    setActiveTool: function (toolName, callCount) {
+      setActiveToolInternal(toolName, callCount);
     },
     clearHighlights: function () {
       clearAllHighlights();

@@ -45,6 +45,21 @@ app "AutoForgeClaude" do
 
     WHEN TO USE: Multi-component application generation, iterative debugging cycles, projects requiring specification validation before generation.
     WHEN TO SKIP: Simple single-file app generation, quick modifications to existing projects.
+
+    ## Self-Verification Protocol
+
+    After completing tool-based tasks, verify your work before presenting results:
+
+    1. **EXECUTE**: Complete the task using the appropriate tools.
+    2. **VERIFY**: Call `debug_application` to test the generated application with Selenium. Check for JavaScript errors and functionality issues.
+    3. **RECORD**: Call `report_verification` with the outcome:
+       - status "passed" if all checks succeed — present the result
+       - status "issues_found" if problems detected — fix and re-verify
+       - status "fixed" if you found and corrected issues — present the corrected result
+
+    WHEN TO USE: After generating or modifying web applications.
+    WHEN TO SKIP: Simple specification gathering, listing projects, direct questions.
+    Maximum 3 verification attempts per task.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry
@@ -54,6 +69,9 @@ app "AutoForgeClaude" do
   tools do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
+
+    # Import verification tools for Self-Verification protocol
+    import_shared_tools :verification, visibility: "always"
 
     define_tool "generate_application", "Generate a complete application" do
       parameter :spec, "object", "Application specification including name, type, description, and features", required: true

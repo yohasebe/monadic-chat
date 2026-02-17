@@ -8,6 +8,7 @@ require 'securerandom'
 module DeepSeekHelper
   include BaseVendorHelper
   include InteractionUtils
+  include FunctionCallErrorHandler
   MAX_FUNC_CALLS = 20
   # Note: Beta API (/beta) with strict mode has schema validation issues
   # Keeping standard endpoint for now

@@ -2,6 +2,92 @@ require_relative "../utils/system_defaults"
 
 module SecondOpinionAgent
 
+  PROVIDER_API_KEYS = {
+    "openai" => "OPENAI_API_KEY",
+    "claude" => "ANTHROPIC_API_KEY",
+    "gemini" => "GEMINI_API_KEY",
+    "cohere" => "COHERE_API_KEY",
+    "mistral" => "MISTRAL_API_KEY",
+    "grok" => "XAI_API_KEY",
+    "deepseek" => "DEEPSEEK_API_KEY",
+    "perplexity" => "PERPLEXITY_API_KEY",
+    "ollama" => "OLLAMA_AVAILABLE"
+  }.freeze
+
+  def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: {})
+    # Validate providers parameter
+    unless providers.is_a?(Array) && providers.length >= 2
+      return "Error: `providers` must be an array with at least 2 provider names."
+    end
+    if providers.length > 5
+      return "Error: `providers` must have at most 5 provider names."
+    end
+
+    # Normalize provider names and check API key availability
+    available = []
+    skipped = []
+    providers.each do |p|
+      normalized = normalize_provider_name(p.to_s)
+      env_key = PROVIDER_API_KEYS[normalized]
+      if env_key && (defined?(CONFIG) ? CONFIG[env_key] : ENV[env_key])
+        available << normalized
+      else
+        skipped << p.to_s
+      end
+    end
+
+    if available.length < 2
+      return "Error: At least 2 providers must be available. Skipped (no API key): #{skipped.join(', ')}"
+    end
+
+    # Capture WebSocket session ID from current thread for progress reporting
+    ws_session_id = Thread.current[:websocket_session_id]
+
+    # Send initial progress
+    send_multi_provider_progress(
+      "Querying #{available.length} providers...",
+      ws_session_id, available, []
+    )
+
+    # Parallel execution
+    results = []
+    results_mutex = Mutex.new
+    completed = []
+    completed_mutex = Mutex.new
+
+    threads = available.map do |provider_name|
+      Thread.new(provider_name) do |pname|
+        begin
+          result = second_opinion_agent(
+            user_query: user_query,
+            agent_response: agent_response,
+            provider: pname
+          )
+          results_mutex.synchronize { results << { provider: pname, result: result } }
+        rescue => e
+          results_mutex.synchronize do
+            results << { provider: pname, result: { comments: "Error: #{e.message}", validity: "error", model: pname } }
+          end
+        ensure
+          completed_mutex.synchronize { completed << pname }
+          send_multi_provider_progress(
+            "Querying providers: #{completed.length}/#{available.length} completed",
+            ws_session_id, available, completed
+          )
+        end
+      end
+    end
+
+    # Wait for all threads with timeout
+    threads.each { |t| t.join(130) }
+
+    # Force-stop further tool calls
+    session[:call_depth_per_turn] = 9999 if session.is_a?(Hash)
+
+    # Format and return results
+    format_parallel_opinions(results, skipped)
+  end
+
   def second_opinion_agent(user_query: "", agent_response: "", provider: nil, model: nil)
     # Determine provider and model
     target_provider, target_model = determine_provider_and_model(provider, model)
@@ -159,6 +245,56 @@ module SecondOpinionAgent
   end
 
   private
+
+  def normalize_provider_name(name)
+    case name.to_s.downcase
+    when "claude", "anthropic" then "claude"
+    when "openai", "gpt" then "openai"
+    when "gemini", "google" then "gemini"
+    when "xai", "grok" then "grok"
+    else name.to_s.downcase
+    end
+  end
+
+  def format_parallel_opinions(results, skipped)
+    output = "## Multi-Provider Verification Results\n\n"
+    results.each do |entry|
+      r = entry[:result]
+      output += "### #{entry[:provider].capitalize} (#{r[:model]})\n"
+      output += "**Validity:** #{r[:validity]}\n\n"
+      output += "#{r[:comments]}\n\n---\n\n"
+    end
+    unless skipped.empty?
+      output += "_Skipped (API key not configured): #{skipped.join(', ')}_\n\n"
+    end
+    output += "Do NOT call any more tools. Synthesize the above results for the user."
+    output
+  end
+
+  def send_multi_provider_progress(message, ws_session_id, providers, completed)
+    return unless defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_progress_fragment)
+
+    provider_labels = providers.map(&:capitalize)
+    fragment = {
+      "type" => "wait",
+      "content" => message,
+      "source" => "MultiProviderVerification",
+      "parallel_progress" => {
+        "completed" => completed.length,
+        "total" => providers.length,
+        "task_names" => provider_labels
+      },
+      "step_progress" => {
+        "mode" => "parallel",
+        "current" => completed.length,
+        "total" => providers.length,
+        "steps" => provider_labels
+      }
+    }
+    WebSocketHelper.send_progress_fragment(fragment, ws_session_id)
+  rescue StandardError
+    # Progress reporting is best-effort; don't fail the dispatch
+  end
 
   def determine_provider_and_model(provider, model)
     # Normalize provider name if provided

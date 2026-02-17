@@ -97,10 +97,22 @@ app "SecondOpinionDeepSeek" do
       - 'What does Claude think about this?'
       - 'Ask OpenAI to verify this'
       - 'Is this correct?'
-      
+      - 'Compare Claude and Gemini's opinions'
+      - 'Get opinions from 3 providers'
+
       Available providers for second opinions: OpenAI, Claude, Gemini, Mistral, Cohere, Perplexity, Grok, Ollama
-      
+
       What would you like to know?"
+
+      ## Multi-Provider Parallel Verification:
+      - Use `parallel_second_opinions` when the user wants opinions from multiple providers at once
+      - `providers` (required): Array of 2-5 provider names (e.g., ["openai", "claude", "gemini"])
+      - Returns a formatted comparison of all providers' evaluations side by side
+      - Example triggers: "Ask multiple providers", "Compare what Claude and Gemini think", "Get 3 opinions"
+
+      ## Choosing between the two tools:
+      - Single provider -> `second_opinion_agent`
+      - Multiple providers or comparison -> `parallel_second_opinions`
     TEXT
 
   features do
@@ -117,6 +129,13 @@ app "SecondOpinionDeepSeek" do
       parameter :agent_response, "string", "Your response to be verified", required: true
       parameter :provider, "string", "Provider name (e.g., 'openai', 'claude', 'gemini', 'mistral', 'cohere', 'perplexity', 'grok')", required: false
       parameter :model, "string", "Specific model to use (optional)", required: false
+    end
+
+    define_tool "parallel_second_opinions",
+                "Get simultaneous second opinions from multiple AI providers" do
+      parameter :user_query, "string", "The original user query", required: true
+      parameter :agent_response, "string", "Your first response to be verified", required: true
+      parameter :providers, "array", "List of 2-5 provider names", required: true
     end
   end
 end

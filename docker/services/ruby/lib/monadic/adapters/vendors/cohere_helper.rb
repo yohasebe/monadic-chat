@@ -886,6 +886,7 @@ module CohereHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -2481,13 +2482,19 @@ module CohereHelper
   def cohere_message_empty?(message)
     return false unless message.is_a?(Hash)
 
+    # Never discard tool result messages or assistant messages with tool calls
+    role = message["role"].to_s
+    return false if role == "tool"
+    return false if role == "assistant" && (message["tool_calls"] || message["tool_plan"])
+
     content = message["content"]
     case content
     when Array
       content.all? do |part|
         next true unless part.is_a?(Hash)
         type = part["type"].to_s.downcase
-        if type == "image"
+        # Preserve document-type content (used by Cohere tool results)
+        if type == "image" || type == "document"
           false
         else
           part["text"].to_s.strip.empty?

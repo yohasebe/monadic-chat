@@ -5,6 +5,7 @@ module MonadicSharedTools
     include MonadicHelper
 
     MAX_VERIFICATION_RETRIES = 3
+    FORCE_STOP_DEPTH = 99_999  # Exceeds any MAX_FUNC_CALLS to prevent further tool calls
 
     # Record the outcome of verifying work before presenting it to the user.
     # The model calls this tool after using verification tools (run_code,
@@ -43,7 +44,7 @@ module MonadicSharedTools
       # This prevents models from ignoring the text instruction and continuing to call tools.
       # Works for all providers that use session[:call_depth_per_turn] (OpenAI, Claude, Gemini, etc.)
       if session && (status == "passed" || status == "fixed")
-        session[:call_depth_per_turn] = 9999
+        session[:call_depth_per_turn] = FORCE_STOP_DEPTH
       end
 
       # Force-stop when consecutive failures exceed retry limit.
@@ -57,7 +58,7 @@ module MonadicSharedTools
         end
 
         if consecutive_issues >= MAX_VERIFICATION_RETRIES
-          session[:call_depth_per_turn] = 9999
+          session[:call_depth_per_turn] = FORCE_STOP_DEPTH
           session[:verification_wait_message] = "<i class='fas fa-clipboard-check'></i> Verification: Limit Reached"
 
           notebook_url_line = if session[:last_notebook_url]

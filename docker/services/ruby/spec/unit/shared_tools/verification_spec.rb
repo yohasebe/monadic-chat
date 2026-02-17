@@ -163,17 +163,17 @@ RSpec.describe "MonadicSharedTools::Verification" do
     context "loop termination via call_depth_per_turn" do
       let(:session) { { call_depth_per_turn: 3 } }
 
-      it "sets call_depth_per_turn to 9999 when status is 'passed'" do
+      it "sets call_depth_per_turn to 99_999 when status is 'passed'" do
         app.report_verification(**base_params.merge(status: "passed"), session: session)
 
-        expect(session[:call_depth_per_turn]).to eq(9999)
+        expect(session[:call_depth_per_turn]).to eq(99_999)
       end
 
-      it "sets call_depth_per_turn to 9999 when status is 'fixed'" do
+      it "sets call_depth_per_turn to 99_999 when status is 'fixed'" do
         params = base_params.merge(status: "fixed", fixes_applied: ["Fixed bug"])
         app.report_verification(**params, session: session)
 
-        expect(session[:call_depth_per_turn]).to eq(9999)
+        expect(session[:call_depth_per_turn]).to eq(99_999)
       end
 
       it "does not modify call_depth_per_turn when status is 'issues_found'" do
@@ -201,7 +201,7 @@ RSpec.describe "MonadicSharedTools::Verification" do
 
       it "force-stops on MAX_VERIFICATION_RETRIES consecutive failures" do
         3.times { app.report_verification(**issues_params, session: session) }
-        expect(session[:call_depth_per_turn]).to eq(9999)
+        expect(session[:call_depth_per_turn]).to eq(99_999)
       end
 
       it "returns VERIFICATION LIMIT REACHED message on force-stop" do

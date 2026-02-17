@@ -133,10 +133,10 @@ RSpec.describe "MonadicSharedTools::ParallelPythonExecution" do
     end
 
     context "force-stop via call_depth_per_turn" do
-      it "sets call_depth_per_turn to 9999 after completion" do
+      it "sets call_depth_per_turn to 99_999 after completion" do
         session_with_depth = { parameters: { "model" => "gpt-4.1" }, call_depth_per_turn: 3 }
         app.parallel_run_code(tasks: valid_tasks, session: session_with_depth)
-        expect(session_with_depth[:call_depth_per_turn]).to eq(9999)
+        expect(session_with_depth[:call_depth_per_turn]).to eq(99_999)
       end
 
       it "does not raise when session is nil" do

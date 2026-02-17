@@ -10,6 +10,7 @@ module MonadicSharedTools
     MAX_PARALLEL_CODE_TASKS = 5
     DEFAULT_CODE_TIMEOUT = 60
     MAX_CODE_TIMEOUT = 180
+    FORCE_STOP_DEPTH = 99_999  # Exceeds any MAX_FUNC_CALLS to prevent further tool calls
 
     # Execute multiple independent Python code snippets in parallel.
     # Each snippet runs via the existing run_code method in its own thread.
@@ -90,7 +91,7 @@ module MonadicSharedTools
       threads.each { |t| t.kill if t.alive? }
 
       # Force-stop further tool calls after results are returned.
-      session[:call_depth_per_turn] = 9999 if session
+      session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session
 
       # --- Build result ---
       succeeded = results.count { |r| r["success"] }

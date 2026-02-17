@@ -172,14 +172,14 @@ RSpec.describe SecondOpinionAgent, "#parallel_second_opinions" do
   end
 
   describe "session call depth" do
-    it "sets call_depth_per_turn to 9999 after execution" do
+    it "sets call_depth_per_turn to 99_999 after execution" do
       session_hash = {}
       agent.parallel_second_opinions(
         user_query: "test", agent_response: "test",
         providers: ["openai", "claude"], session: session_hash
       )
 
-      expect(session_hash[:call_depth_per_turn]).to eq(9999)
+      expect(session_hash[:call_depth_per_turn]).to eq(99_999)
     end
   end
 

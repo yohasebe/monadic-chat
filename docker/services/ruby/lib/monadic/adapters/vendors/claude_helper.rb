@@ -1237,7 +1237,7 @@ module ClaudeHelper
     end
 
     # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = 9999). Prevents the model from attempting
+    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
     # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
       body.delete("tools")

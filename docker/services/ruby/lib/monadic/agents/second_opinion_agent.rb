@@ -2,8 +2,9 @@ require_relative "../utils/system_defaults"
 
 module SecondOpinionAgent
 
-  SECOND_OPINION_TIMEOUT = 130   # seconds per provider thread
+  SECOND_OPINION_TIMEOUT = 130    # seconds per provider thread
   SECOND_OPINION_MAX_TOKENS = 4096
+  FORCE_STOP_DEPTH = 99_999      # Exceeds any MAX_FUNC_CALLS to prevent further tool calls
 
   PROVIDER_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
@@ -89,7 +90,7 @@ module SecondOpinionAgent
     threads.each { |t| t.kill if t.alive? }
 
     # Force-stop further tool calls
-    session[:call_depth_per_turn] = 9999 if session.is_a?(Hash)
+    session[:call_depth_per_turn] = FORCE_STOP_DEPTH if session.is_a?(Hash)
 
     # Format and return results
     format_parallel_opinions(results, skipped)

@@ -14,6 +14,29 @@ module MonadicSharedTools
   module FileOperations
     include MonadicHelper
 
+    CONTAINER_DATA_PREFIX = "/monadic/data"
+
+    # Normalize a path from container format (/monadic/data/...) to host format
+    # when running in dev mode. In container mode, returns path unchanged.
+    def normalize_path_for_host(path)
+      return path if Monadic::Utils::Environment.in_container?
+      return path unless path.start_with?(CONTAINER_DATA_PREFIX)
+
+      data_dir = Monadic::Utils::Environment.data_path
+      data_dir + path[CONTAINER_DATA_PREFIX.length..]
+    end
+
+    # Normalize a host path to container format (/monadic/data/...) for use
+    # in Python/Docker code. In container mode, returns path unchanged.
+    def normalize_path_for_container(path)
+      return path if Monadic::Utils::Environment.in_container?
+
+      data_dir = Monadic::Utils::Environment.data_path
+      return path unless path.start_with?(data_dir)
+
+      CONTAINER_DATA_PREFIX + path[data_dir.length..]
+    end
+
     # Read a file from the shared folder
     #
     # @param filepath [String] Relative or absolute path to the file
@@ -35,7 +58,8 @@ module MonadicSharedTools
 
       # Handle both absolute and relative paths
       full_path = if filepath.start_with?('/')
-                    filepath
+                    # Normalize container paths (/monadic/data/...) to host paths in dev mode
+                    normalize_path_for_host(filepath)
                   else
                     File.join(data_dir, filepath)
                   end
@@ -130,8 +154,9 @@ module MonadicSharedTools
 
       # Handle both absolute and relative paths
       if filepath.start_with?('/')
-        full_path = filepath
-        relative_path = filepath.sub(/^#{Regexp.escape(data_dir)}\//, '')
+        # Normalize container paths to host paths for actual file I/O
+        full_path = normalize_path_for_host(filepath)
+        relative_path = full_path.sub(/^#{Regexp.escape(data_dir)}\//, '')
       else
         # Sanitize path while preserving Unicode characters and directory structure
         # Split path into parts, sanitize each part individually
@@ -198,7 +223,7 @@ module MonadicSharedTools
         {
           success: true,
           filepath: relative_path,
-          full_path: full_path,
+          full_path: normalize_path_for_container(full_path),
           action: action,
           metadata: {
             size: file_size,

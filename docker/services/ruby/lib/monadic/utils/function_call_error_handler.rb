@@ -2,9 +2,21 @@
 
 # Mixin module for vendor helpers to track and handle repeated function call errors
 module FunctionCallErrorHandler
+  # Detect whether a function return value indicates an error.
+  # Covers multiple error formats: "ERROR:", "Error executing code:", "Error occurred:", etc.
+  def function_return_is_error?(function_return)
+    text = function_return.to_s
+    return true if text.start_with?("ERROR:")
+    return true if text.start_with?("Error executing code")
+    return true if text.start_with?("Error occurred")
+    return true if text.start_with?("Error:")
+
+    false
+  end
+
   # Process function returns and check for repeated errors
   def handle_function_error(session, function_return, function_name, &block)
-    return false unless function_return.to_s.start_with?("ERROR:")
+    return false unless function_return_is_error?(function_return)
     
     # Initialize error pattern detector if not already done
     ErrorPatternDetector.initialize_session(session) unless session[:error_patterns]

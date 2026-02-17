@@ -10,9 +10,13 @@ module MonadicHelper
 
     begin
       # Handle both absolute and relative paths
-      # (Same logic as file_operations.rb read_file_from_shared_folder)
+      # Normalize container paths (/monadic/data/...) to host paths in dev mode
       full_path = if file_path.start_with?('/')
-                    file_path
+                    if !Monadic::Utils::Environment.in_container? && file_path.start_with?("/monadic/data")
+                      data_dir + file_path["/monadic/data".length..]
+                    else
+                      file_path
+                    end
                   else
                     File.join(data_dir, file_path)
                   end

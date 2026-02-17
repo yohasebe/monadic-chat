@@ -3327,7 +3327,20 @@ module GeminiHelper
           end
 
           # Check for repeated errors before adding to tool results
-          handle_function_error(session, content, function_name, &block)
+          if handle_function_error(session, content, function_name, &block)
+            # Stop retrying - add result and skip to loop exit
+            session_params["tool_results"] << {
+              "functionResponse" => {
+                "name" => function_name,
+                "response" => {
+                  "name" => function_name,
+                  "content" => content
+                }
+              },
+              "call_depth" => call_depth
+            }
+            next
+          end
 
           # Add to tool results and debug
           session_params["tool_results"] << {

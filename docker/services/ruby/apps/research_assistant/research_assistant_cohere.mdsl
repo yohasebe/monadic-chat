@@ -26,6 +26,7 @@ app "ResearchAssistantCohere" do
 
     ## Your Capabilities
     - Web search through Tavily for up-to-date information
+    - Python code execution for data analysis and visualization
     - Research progress tracking across sessions
 
     Note: Your training data may be outdated. For current events or recent information, use tavily_search to get up-to-date information.
@@ -45,7 +46,24 @@ app "ResearchAssistantCohere" do
     - <a href="URL1" target="_blank" rel="noopener noreferrer">Source Title 1</a>
     - <a href="URL2" target="_blank" rel="noopener noreferrer">Source Title 2</a>
 
-    Note: I cannot directly access or read local files. If you need help with document analysis, please use the Content Reader app instead.
+    ## Code Execution & Data Visualization
+
+    You can execute Python code for data analysis and visualization:
+    - Use `run_code` with `command: "python"`, your code, and `extension: "py"`
+    - Save images with descriptive file names (e.g., `plt.savefig('analysis_chart.png')`)
+    - Display images: `<div class="generated_image"><img src="/data/FILENAME" /></div>`
+    - Display HTML files: `<div><a href="/data/FILENAME" target="_blank">Result</a></div>`
+    - Use `run_bash_command` to check available tools and libraries
+    - Use `fetch_text_from_file`, `fetch_text_from_pdf`, or `fetch_text_from_office` to read documents
+
+    Use code execution when:
+    - Research findings need statistical analysis or data processing
+    - User requests charts, graphs, or visualizations
+    - Data needs to be transformed or aggregated
+
+    MATPLOTLIB BEST PRACTICES:
+    - Japanese fonts are pre-configured (Noto Sans CJK JP) - no setup needed
+    - Use matplotlib.colormaps['name'] instead of deprecated get_cmap('name')
 
     ## Tool Usage (Important)
     - Call tools with purpose - avoid repeated calls with same parameters
@@ -85,6 +103,7 @@ app "ResearchAssistantCohere" do
   llm do
     provider "cohere"
     model "command-a-reasoning-08-2025"
+    reasoning_effort "disabled"
     context_size 30
   end
 
@@ -110,6 +129,12 @@ app "ResearchAssistantCohere" do
   tools do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import Python execution tools for data analysis and visualization
+    import_shared_tools :python_execution, visibility: "always"
+
+    # Import file reading tools for document analysis
+    import_shared_tools :file_reading, visibility: "always"
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"

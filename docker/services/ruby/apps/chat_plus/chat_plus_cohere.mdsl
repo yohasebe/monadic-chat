@@ -69,6 +69,7 @@ app "ChatPlusCohere" do
   llm do
     provider "cohere"
     model "command-a-reasoning-08-2025"
+    reasoning_effort "disabled"
     context_size 20
   end
 

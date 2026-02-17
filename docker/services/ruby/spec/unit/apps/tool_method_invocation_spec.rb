@@ -258,6 +258,9 @@ RSpec.describe 'Tool Method Invocation Validation' do
             move_jupyter_cell insert_jupyter_cells
             validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
             save_context get_context update_context remove_from_context clear_context
+            openai_code_agent claude_code_agent grok_code_agent
+            second_opinion_agent parallel_second_opinions
+            parallel_run_code
           ]
 
           next if standard_tools.include?(tool_name)

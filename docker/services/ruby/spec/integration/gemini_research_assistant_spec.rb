@@ -177,11 +177,19 @@ RSpec.describe "Gemini Research Assistant Integration" do
       settings = app.settings
       tools = settings["tools"]
 
-      if tools.is_a?(Hash) && tools["function_declarations"]
-        tool_names = tools["function_declarations"].map { |t| t["name"] }
-        # Check for typical Visual Web Explorer tools
-        expect(tool_names.any? { |n| n.include?("screenshot") || n.include?("navigate") }).to be true
-      end
+      # Extract tool names from either Hash or Array format
+      tool_names = if tools.is_a?(Hash) && tools["function_declarations"]
+                     tools["function_declarations"].map { |t| t["name"] }
+                   elsif tools.is_a?(Array)
+                     tools.map { |t| t["name"] || t[:name] }.compact
+                   else
+                     []
+                   end
+
+      skip "No tool declarations found for VisualWebExplorerGemini" if tool_names.empty?
+
+      # Check for typical Visual Web Explorer tools (screenshot capture or web content)
+      expect(tool_names.any? { |n| n.include?("screenshot") || n.include?("navigate") || n.include?("capture") || n.include?("webpage") }).to be true
     end
   end
 end

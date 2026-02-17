@@ -158,9 +158,34 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
     end
 
-    context "result text after completion" do
+    context "one dispatch per turn guard" do
       before do
         allow(app).to receive(:sub_agent_api_call).and_return("text")
+      end
+
+      it "allows the first call and blocks the second call in the same turn" do
+        result1 = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
+        expect(result1).to include("PARALLEL TASKS COMPLETED")
+
+        result2 = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
+        expect(result2).to include("ERROR: dispatch_parallel_tasks has already been called")
+      end
+
+      it "allows dispatch again after parallel_dispatch_called is cleared (new turn)" do
+        app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
+        expect(session[:parallel_dispatch_called]).to eq(true)
+
+        # Simulate new user turn: vendor helper resets the flag
+        session[:parallel_dispatch_called] = nil
+
+        result = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
+        expect(result).to include("PARALLEL TASKS COMPLETED")
+      end
+
+      it "does not block when session is nil" do
+        expect {
+          app.dispatch_parallel_tasks(tasks: valid_tasks, session: nil)
+        }.not_to raise_error
       end
 
       it "does not modify call_depth_per_turn" do
@@ -173,12 +198,6 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         result = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
         expect(result).to include("Do NOT call dispatch_parallel_tasks again")
         expect(result).to include("You may use other tools")
-      end
-
-      it "does not raise when session is nil" do
-        expect {
-          app.dispatch_parallel_tasks(tasks: valid_tasks, session: nil)
-        }.not_to raise_error
       end
     end
 

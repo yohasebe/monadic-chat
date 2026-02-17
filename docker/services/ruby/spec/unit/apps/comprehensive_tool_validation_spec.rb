@@ -597,6 +597,7 @@ RSpec.describe 'Comprehensive Tool Validation' do
     validate_mermaid_syntax analyze_mermaid_error preview_mermaid fetch_mermaid_docs
     save_context get_context update_context remove_from_context clear_context
     openai_code_agent claude_code_agent grok_code_agent
-    second_opinion_agent
+    second_opinion_agent parallel_second_opinions
+    parallel_run_code
   ].freeze
 end

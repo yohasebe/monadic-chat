@@ -1,5 +1,9 @@
 - [February, 2026] 1.0.0-beta.7
   - Version updated from 1.0.0-beta.6
+  - **Parallel Python Execution**: Added `parallel_run_code` shared tool for Code Interpreter
+    - Execute 2-5 independent Python code snippets simultaneously
+    - Real-time progress display via step_progress parallel mode
+    - Available across all 7 Code Interpreter provider variants
 
 - [November 15, 2024] Recent Updates
   - **Claude Structured Outputs Support**: Added monadic mechanism for Claude models

@@ -51,6 +51,17 @@ module MonadicSharedTools
     # @param session [Hash, nil] Injected by process_functions
     # @return [String] Formatted result for the model to synthesize
     def dispatch_parallel_tasks(tasks:, timeout: nil, websearch: nil, session: nil)
+      # --- Guard: one dispatch per turn ---
+      # Prevent infinite dispatch loops by allowing only one call per user turn.
+      if session
+        if session[:parallel_dispatch_called]
+          return "ERROR: dispatch_parallel_tasks has already been called this turn. " \
+                 "Synthesize the previous results instead of dispatching again. " \
+                 "You may use other tools (e.g., run_code) if needed."
+        end
+        session[:parallel_dispatch_called] = true
+      end
+
       # --- Input validation ---
       unless tasks.is_a?(Array) && !tasks.empty?
         return "ERROR: tasks parameter is required and must be a non-empty array"

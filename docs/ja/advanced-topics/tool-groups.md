@@ -54,6 +54,14 @@
 
 **このツールを使用するアプリ**: 全ツール対応アプリ（Code Interpreter、Research Assistant、Coding Assistant、Jupyter Notebook、AutoForge、Math Tutor 等）
 
+#### Python並列実行（1ツール）
+- 2〜5個の独立したPythonコードスニペットを並列実行
+- 各スニペットは独自のプロセスで実行され、結果がまとめて返却される
+- テンポラリカードUIでリアルタイムに進捗表示
+- 複数の可視化、統計分析、モデル比較の同時実行に最適
+
+**このツールを使用するアプリ**: Code Interpreter（全プロバイダー）
+
 #### 検証（1ツール）
 - ユーザーに結果を提示する前に、自己検証の結果を記録
 - ステータス: passed（合格）、issues_found（問題発見）、fixed（修正済み）をサポート

@@ -2124,21 +2124,13 @@ module CohereHelper
 
       # Use the error handler module to check for repeated errors
       if handle_function_error(session, function_return, function_name, &block)
-        # Stop retrying - add a special response and return
+        # Add the error result so the model sees it, then skip to next tool
         tool_results << {
           role: "tool",
           tool_call_id: tool_call_id,
           content: [{ type: "text", text: function_return.to_s }]
         }
-
-        # Add to context and make recursive call to get final response
-        context << {
-          "role" => "tool",
-          "tool_calls" => tool_results
-        }
-
-        obj["function_returns"] = context
-        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
+        next # stop_retrying flag is set — will be checked after the loop
       end
 
       # Process function return to detect generated images and enhance the response
@@ -2221,6 +2213,13 @@ module CohereHelper
 
     # Store the tool results in the session
     obj["tool_results"] = context
+
+    # Stop if repeated errors detected (set by handle_function_error above)
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
+    end
 
     # Tell the client we're done with function processing before making the recursive API request
     done_msg = { "type" => "wait", "content" => "<i class='fas fa-check-circle'></i> FUNCTION CALLS COMPLETE" }

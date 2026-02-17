@@ -135,11 +135,6 @@ module MonadicSharedTools
       # Kill any hung threads
       threads.each { |t| t.kill if t.alive? }
 
-      # Force-stop further tool calls after synthesis (same pattern as verification.rb).
-      # The provider's depth check only blocks tool-call responses, not text-only
-      # responses, so the model can still synthesize results in one more API turn.
-      session[:call_depth_per_turn] = 9999 if session
-
       # --- Build result ---
       succeeded = results.count { |r| r["success"] }
       results_json = JSON.pretty_generate({
@@ -155,8 +150,9 @@ module MonadicSharedTools
         Results:
         #{results_json}
 
-        Now synthesize these results into a coherent response for the user.
-        Do NOT call any more tools.
+        Synthesize these results into a coherent response for the user.
+        Do NOT call dispatch_parallel_tasks again.
+        You may use other tools (e.g., run_code) if needed to fulfill the user's request.
       RESULT
     end
 

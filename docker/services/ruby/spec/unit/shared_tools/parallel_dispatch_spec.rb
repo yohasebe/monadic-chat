@@ -126,8 +126,8 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
       it "includes synthesize instruction" do
         result = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
-        expect(result).to include("synthesize these results")
-        expect(result).to include("Do NOT call any more tools")
+        expect(result).to include("Synthesize these results")
+        expect(result).to include("Do NOT call dispatch_parallel_tasks again")
       end
 
       it "includes result content from sub-agents" do
@@ -158,15 +158,21 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
     end
 
-    context "force-stop via call_depth_per_turn" do
+    context "result text after completion" do
       before do
         allow(app).to receive(:sub_agent_api_call).and_return("text")
       end
 
-      it "sets call_depth_per_turn to 9999 after completion" do
+      it "does not modify call_depth_per_turn" do
         session_with_depth = { parameters: { "model" => "gpt-4.1" }, call_depth_per_turn: 3 }
         app.dispatch_parallel_tasks(tasks: valid_tasks, session: session_with_depth)
-        expect(session_with_depth[:call_depth_per_turn]).to eq(9999)
+        expect(session_with_depth[:call_depth_per_turn]).to eq(3)
+      end
+
+      it "instructs not to re-call dispatch_parallel_tasks but allows other tools" do
+        result = app.dispatch_parallel_tasks(tasks: valid_tasks, session: session)
+        expect(result).to include("Do NOT call dispatch_parallel_tasks again")
+        expect(result).to include("You may use other tools")
       end
 
       it "does not raise when session is nil" do

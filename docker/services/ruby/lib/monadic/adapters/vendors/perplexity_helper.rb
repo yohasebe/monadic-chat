@@ -338,6 +338,7 @@ module PerplexityHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1407,16 +1408,14 @@ module PerplexityHelper
 
       # Use the error handler module to check for repeated errors
       if handle_function_error(session, function_return, function_name, &block)
-        # Stop retrying - add a special response and return
+        # Stop retrying - add result and skip to loop exit
         context << {
           tool_call_id: tool_call["id"],
           role: "tool",
           name: function_name,
           content: function_return.to_s
         }
-
-        obj["function_returns"] = context
-        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
+        next
       end
 
       context << {
@@ -1428,6 +1427,13 @@ module PerplexityHelper
     end
 
     obj["function_returns"] = context
+
+    # Check if we should stop due to repeated errors
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
+    end
 
     # return Array
     api_request("tool", session, call_depth: call_depth, &block)

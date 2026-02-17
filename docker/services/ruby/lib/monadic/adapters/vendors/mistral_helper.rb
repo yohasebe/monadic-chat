@@ -374,6 +374,7 @@ module MistralHelper
     # This allows unlimited user iterations while preventing infinite loops within a single response
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -1175,7 +1176,7 @@ module MistralHelper
 
         # Use the error handler module to check for repeated errors
         if handle_function_error(session, function_return, function_name, &block)
-          # Stop retrying - add current result and make recursive call
+          # Stop retrying - add current result and skip to loop exit
           content = function_return.to_s
           content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?
 
@@ -1185,9 +1186,7 @@ module MistralHelper
             name: function_name,
             content: content
           }
-
-          session[:parameters]["function_returns"] = function_returns
-          return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
+          next
         end
 
         # Add to function returns with proper encoding
@@ -1239,6 +1238,13 @@ module MistralHelper
       # Update session with function returns and tool calls message
       session[:parameters]["function_returns"] = function_returns
       session[:parameters]["tool_calls_message"] = tool_calls_message
+
+      # Check if we should stop due to repeated errors
+      if should_stop_for_errors?(session)
+        res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+        block&.call res
+        return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
+      end
 
       # Make recursive API call with tool responses
       return api_request("tool", session, call_depth: call_depth, &block)

@@ -394,6 +394,7 @@ module GrokHelper
     # Reset call_depth counter and tool state for each new user turn
     if role == "user"
       session[:call_depth_per_turn] = 0
+      session[:parallel_dispatch_called] = nil
       session[:parameters]["function_returns"] = nil
       session[:parameters]["assistant_function_calls"] = nil
     end
@@ -1911,17 +1912,14 @@ module GrokHelper
 
       # Use the error handler module to check for repeated errors
       if handle_function_error(session, function_return, function_name, &block)
-        # Stop retrying - add tool result and return
+        # Stop retrying - add tool result and skip to loop exit
         tool_result = {
           "call_id" => tool_call["id"],
           "name" => function_name,
           "content" => function_return.to_s
         }
         tool_results << tool_result
-
-        # Store results and make recursive call
-        obj["function_returns"] = tool_results
-        return api_request("tool", session, call_depth: session[:call_depth_per_turn], &block)
+        next
       end
 
       # Format tool result for Responses API (function_call_output format)
@@ -1962,6 +1960,13 @@ module GrokHelper
           "finish_reason" => "stop"
         }]
       }]
+    end
+
+    # Check if we should stop due to repeated errors
+    if should_stop_for_errors?(session)
+      res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+      block&.call res
+      return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
     end
 
     # CORRECT FLOW: Send tool results back to Grok to get natural language response

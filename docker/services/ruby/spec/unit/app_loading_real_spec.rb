@@ -177,8 +177,16 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
             end
             
             # Check for agent includes that provide the method
+            # Convert CamelCase to snake_case for matching (e.g., SecondOpinionAgent → second_opinion)
             agent_includes = ruby_content.scan(/include\s+(\w+Agent)/)
-            if agent_includes.any? { |agent| tool_name.include?(agent.first.downcase.gsub('agent', '')) }
+            if agent_includes.any? { |agent_match|
+              agent_snake = agent_match.first
+                .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                .downcase
+                .gsub(/_agent$/, '')
+              tool_name.include?(agent_snake)
+            }
               ruby_implementation_found = true
               break
             end

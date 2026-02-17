@@ -11,10 +11,9 @@
 # 3. Model follows instructions literally and calls tools repeatedly
 # 4. Results in "Maximum function call depth exceeded" error
 #
-# The solution pattern:
-# 1. Apps should have explicit initial greeting instructions
-# 2. Tool usage should be "recommended" not "mandatory"
-# 3. Clear stop conditions should be specified
+# Validated here:
+# - System prompts must not contain dangerous mandatory tool patterns
+#   without safeguards (greeting exceptions or recommended language)
 
 require 'spec_helper'
 
@@ -189,8 +188,8 @@ RSpec.describe 'Initiate From Assistant Safety Validation' do
           apps_with_tools_and_initiate << relative_path
 
           # Check for dangerous patterns
-          if content =~ /system_prompt\s+<<~TEXT\s*\n(.*?)\n\s*TEXT/m
-            system_prompt = $1
+          if content =~ /system_prompt\s+<<~(\w+)\s*\n(.*?)\n\s*\1/m
+            system_prompt = $2
             has_dangerous = DANGEROUS_PATTERNS.any? { |p| system_prompt.match?(p) }
             has_safeguard = SAFEGUARD_PATTERNS.any? { |p| system_prompt.match?(p) } ||
                            STOP_CONDITION_PATTERNS.any? { |p| system_prompt.match?(p) }

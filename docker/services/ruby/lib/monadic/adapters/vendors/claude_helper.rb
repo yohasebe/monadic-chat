@@ -1795,6 +1795,11 @@ module ClaudeHelper
 
         tool_call["input"] = input_hash
 
+        # Skip server_tool_use (e.g., web_search_20250305) in context —
+        # these are executed server-side and don't need tool_result blocks.
+        # Including them would cause "tool_use ids without tool_result" errors.
+        next if tool_call["type"] == "server_tool_use"
+
         context.last["content"] << {
           "type" => "tool_use",
           "id" => tool_call["id"],

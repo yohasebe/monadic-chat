@@ -316,7 +316,11 @@ module MonadicSharedTools
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
                 .post(endpoint, json: body)
       parsed = JSON.parse(res.body.to_s)
-      raise "API error: #{parsed.dig("error", "message") || parsed["error"] || res.status}" if parsed["error"] || res.status >= 400
+      if parsed["error"] || res.status >= 400
+        err = parsed["error"]
+        msg = err.is_a?(Hash) ? (err["message"] || err.to_s) : (err || res.status)
+        raise "API error: #{msg}"
+      end
 
       # Extract text from Responses API output format
       output = parsed["output"] || []

@@ -1011,13 +1011,15 @@ let loadedApp = "Chat";
         // These should be displayed in temp card, not status-message
         const isAgentProgress = (
           data["source"] && (
-            data["source"] === "GPT5CodexAgent" ||
-            data["source"] === "ClaudeOpusAgent" ||
-            data["source"] === "GrokCode" ||
+            data["source"] === "OpenAICodeAgent" ||
+            data["source"] === "ClaudeCodeAgent" ||
+            data["source"] === "GrokCodeAgent" ||
             data["source"] === "ImageGenerator" ||
             data["source"] === "VideoAnalyzer" ||
             data["source"] === "SecondOpinion" ||
             data["source"] === "ParallelDispatch" ||
+            data["source"] === "ParallelCodeExecution" ||
+            data["source"] === "MultiProviderVerification" ||
             // Add other agent sources as needed
             data["source"].includes("Agent") ||
             data["source"].includes("Generator") ||
@@ -1035,31 +1037,31 @@ let loadedApp = "Chat";
             let iconHtml = '<i class="fas fa-laptop-code"></i>';
 
             // Select appropriate message based on agent source and time elapsed
-            if (data["source"] === "GPT5CodexAgent") {
+            if (data["source"] === "OpenAICodeAgent") {
               iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
               if (minutes <= 1) {
-                messageKey = 'gpt5CodexGenerating';
+                messageKey = 'openaiCodeGenerating';
               } else if (minutes <= 2) {
-                messageKey = 'gpt5CodexStructuring';
+                messageKey = 'openaiCodeStructuring';
               } else if (minutes <= 3) {
-                messageKey = 'gpt5CodexAnalyzing';
+                messageKey = 'openaiCodeAnalyzing';
               } else if (minutes <= 4) {
-                messageKey = 'gpt5CodexOptimizing';
+                messageKey = 'openaiCodeOptimizing';
               } else {
-                messageKey = 'gpt5CodexFinalizing';
+                messageKey = 'openaiCodeFinalizing';
               }
-            } else if (data["source"] === "ClaudeOpusAgent") {
+            } else if (data["source"] === "ClaudeCodeAgent") {
               iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
               if (minutes <= 1) {
-                messageKey = 'claudeOpusGenerating';
+                messageKey = 'claudeCodeGenerating';
               } else if (minutes <= 2) {
-                messageKey = 'claudeOpusStructuring';
+                messageKey = 'claudeCodeStructuring';
               } else if (minutes <= 3) {
-                messageKey = 'claudeOpusAnalyzing';
+                messageKey = 'claudeCodeAnalyzing';
               } else if (minutes <= 4) {
-                messageKey = 'claudeOpusOptimizing';
+                messageKey = 'claudeCodeOptimizing';
               } else {
-                messageKey = 'claudeOpusFinalizing';
+                messageKey = 'claudeCodeFinalizing';
               }
             } else {
               // For other agents, use generic progress messages
@@ -1092,17 +1094,73 @@ let loadedApp = "Chat";
               displayContent += ` - ${remainingText}`;
             }
             displayContent += '...';
-          } else if (data["source"] === "ParallelDispatch" && data["parallel_progress"]) {
-            // Parallel dispatch progress with task indicators
-            const iconHtml = '<i class="fas fa-network-wired" style="color: #10b981;"></i>';
+          } else if (data["step_progress"]) {
+            // Unified step progress renderer (sequential & parallel modes)
+            const sp = data["step_progress"];
+            const spMode = sp["mode"] || "sequential";
+            const spCurrent = sp["current"] || 0;
+            const spSteps = sp["steps"] || [];
+
+            // Choose icon and accent colour based on source
+            let spIcon, spColor;
+            switch (data["source"]) {
+              case "OpenAICodeAgent":
+                spIcon = "fa-laptop-code"; spColor = "#4285f4"; break;
+              case "ClaudeCodeAgent":
+                spIcon = "fa-laptop-code"; spColor = "#6f42c1"; break;
+              case "GrokCodeAgent":
+                spIcon = "fa-laptop-code"; spColor = "#6b7280"; break;
+              case "ParallelDispatch":
+                spIcon = "fa-network-wired"; spColor = "#10b981"; break;
+              case "ParallelCodeExecution":
+                spIcon = "fa-code"; spColor = "#10b981"; break;
+              case "MultiProviderVerification":
+                spIcon = "fa-people-arrows"; spColor = "#7c3aed"; break;
+              default:
+                spIcon = "fa-laptop-code"; spColor = "#6b7280"; break;
+            }
+
+            const spHeader = `<i class="fas ${spIcon}" style="color: ${spColor};"></i> ${data["content"] || "Processing..."}`;
+            const indicators = spSteps.map((name, i) => {
+              let icon;
+              if (spMode === "sequential") {
+                if (i < spCurrent) {
+                  icon = `<i class="fas fa-check" style="color: ${spColor};"></i>`;
+                } else if (i === spCurrent) {
+                  icon = '<span class="parallel-task-spinner"></span>';
+                } else {
+                  icon = '<span class="step-pending-dot"></span>';
+                }
+              } else {
+                // parallel mode
+                icon = i < spCurrent
+                  ? `<i class="fas fa-check" style="color: ${spColor};"></i>`
+                  : '<span class="parallel-task-spinner"></span>';
+              }
+              return `<div style="margin: 2px 0;">${icon} ${name}</div>`;
+            }).join('');
+            displayContent = `${spHeader}<div style="margin-top: 4px;"><small>${indicators}</small></div>`;
+          } else if (
+            (data["source"] === "ParallelDispatch" || data["source"] === "MultiProviderVerification") &&
+            data["parallel_progress"]
+          ) {
+            // Legacy parallel_progress renderer (backward compatibility)
+            const isMultiProvider = data["source"] === "MultiProviderVerification";
+            const iconHtml = isMultiProvider
+              ? '<i class="fas fa-people-arrows" style="color: #7c3aed;"></i>'
+              : '<i class="fas fa-network-wired" style="color: #10b981;"></i>';
             const pp = data["parallel_progress"];
             const completed = pp["completed"] || 0;
             const total = pp["total"] || 0;
-            displayContent = `${iconHtml} Parallel tasks: ${completed}/${total} completed`;
+            const label = isMultiProvider
+              ? `Provider opinions: ${completed}/${total} completed`
+              : `Parallel tasks: ${completed}/${total} completed`;
+            displayContent = `${iconHtml} ${label}`;
             if (pp["task_names"]) {
+              const checkColor = isMultiProvider ? "#7c3aed" : "#10b981";
               const indicators = pp["task_names"].map((name, i) => {
                 const icon = i < completed
-                  ? '<i class="fas fa-check" style="color: #10b981;"></i>'
+                  ? `<i class="fas fa-check" style="color: ${checkColor};"></i>`
                   : '<span class="parallel-task-spinner"></span>';
                 return `<div style="margin: 2px 0;">${icon} ${name}</div>`;
               }).join('');
@@ -1111,10 +1169,12 @@ let loadedApp = "Chat";
           } else if (!waitContent.includes('<i class="fas')) {
             // Add icon if not already present in fallback content
             let iconHtml = '<i class="fas fa-laptop-code"></i>';
-            if (data["source"] === "GPT5CodexAgent") {
+            if (data["source"] === "OpenAICodeAgent") {
               iconHtml = '<i class="fas fa-laptop-code" style="color: #4285f4;"></i>';
-            } else if (data["source"] === "ClaudeOpusAgent") {
+            } else if (data["source"] === "ClaudeCodeAgent") {
               iconHtml = '<i class="fas fa-laptop-code" style="color: #6f42c1;"></i>';
+            } else if (data["source"] === "GrokCodeAgent") {
+              iconHtml = '<i class="fas fa-laptop-code" style="color: #6b7280;"></i>';
             }
             displayContent = `${iconHtml} ${waitContent}`;
           }

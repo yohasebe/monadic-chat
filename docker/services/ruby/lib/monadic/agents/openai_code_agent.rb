@@ -4,9 +4,20 @@
 # This module provides a common implementation for apps that need to
 # delegate complex coding tasks to OpenAI Code via the Responses API.
 
+require_relative "../utils/step_progress"
+
 module Monadic
   module Agents
     module OpenAICodeAgent
+      include Monadic::Utils::StepProgress
+
+      OPENAI_CODE_STEPS = [
+        "Analyzing requirements",
+        "Generating code",
+        "Structuring solution",
+        "Optimizing implementation",
+        "Finalizing"
+      ].freeze
       # Check if the user has access to OpenAI Code model
       # @return [Boolean] true if OpenAI Code is available
       def has_openai_code_access?
@@ -428,17 +439,29 @@ module Monadic
                   minutes = (elapsed / 60).floor
                   remaining = actual_timeout - elapsed.to_i
 
-                  # Build message with guards
-                  progress_message = build_progress_message(minutes, remaining)
+                  # Map elapsed time to step index
+                  step_index = case minutes
+                               when 0      then 0
+                               when 1..2   then 1
+                               when 3..4   then 2
+                               when 5..9   then 3
+                               else             4
+                               end
 
-                  # Create complete fragment object with i18n data
+                  # Build step_progress fragment
                   fragment = {
                     "type" => "wait",
-                    "content" => progress_message,
+                    "content" => OPENAI_CODE_STEPS[step_index],
                     "source" => "OpenAICodeAgent",
                     "elapsed" => elapsed.to_i,
                     "minutes" => minutes,
-                    "remaining" => remaining.to_i
+                    "remaining" => remaining.to_i,
+                    "step_progress" => {
+                      "mode" => "sequential",
+                      "current" => step_index,
+                      "total" => OPENAI_CODE_STEPS.length,
+                      "steps" => OPENAI_CODE_STEPS
+                    }
                   }
 
                   # Send through block if available

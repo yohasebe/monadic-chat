@@ -3860,6 +3860,18 @@ mjx-container[display="false"] {
   margin-right: 2px;
 }
 
+/* Step progress - pending step indicator (sequential mode) */
+.step-pending-dot {
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 2px;
+  opacity: 0.5;
+}
+
 /* Tool execution status in temp card header */
 #tool-status {
   font-size: 0.75rem;

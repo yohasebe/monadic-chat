@@ -4,9 +4,18 @@
 # This module provides a common implementation for apps that need to
 # delegate complex coding tasks to Grok-Code-Fast-1 via the xAI API.
 
+require_relative "../utils/step_progress"
+
 module Monadic
   module Agents
     module GrokCodeAgent
+      include Monadic::Utils::StepProgress
+
+      GROK_CODE_STEPS = [
+        "Analyzing requirements",
+        "Generating code",
+        "Finalizing"
+      ].freeze
       # Check if the user has access to Grok-Code model
       # @return [Boolean] true if Grok-Code is available
       def has_grok_code_access?
@@ -34,10 +43,11 @@ module Monadic
       # @param timeout [Integer] Request timeout in seconds (optional)
       # @param model [String] Model to use (optional, defaults to grok-code-fast-1)
       # @return [Hash] Response with :code, :success, :model, and optionally :error
-      def call_grok_code(prompt:, app_name: nil, timeout: nil, model: nil)
+      def call_grok_code(prompt:, app_name: nil, timeout: nil, model: nil, &block)
         begin
           # Set timeout value
           actual_timeout = timeout || GROK_CODE_DEFAULT_TIMEOUT
+          progress_thread = nil
 
           if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
             app_label = app_name || self.class.name
@@ -77,6 +87,29 @@ module Monadic
             puts "[GrokCodeAgent] Using model: #{actual_model}"
           end
 
+          # Send initial step_progress
+          initial_fragment = {
+            "type" => "wait",
+            "content" => GROK_CODE_STEPS[0],
+            "source" => "GrokCodeAgent",
+            "minutes" => 0,
+            "step_progress" => {
+              "mode" => "sequential",
+              "current" => 0,
+              "total" => GROK_CODE_STEPS.length,
+              "steps" => GROK_CODE_STEPS
+            }
+          }
+          if block
+            block.call(initial_fragment)
+          elsif defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_progress_fragment)
+            WebSocketHelper.send_progress_fragment(initial_fragment, Thread.current[:websocket_session_id])
+          end
+
+          # Start progress thread
+          parent_session_id = Thread.current[:websocket_session_id]
+          progress_thread = start_grok_progress_thread(parent_session_id, &block)
+
           # Create a proper session object for the API call using abstraction layer
           session = build_session(prompt: prompt, model: actual_model)
 
@@ -85,7 +118,7 @@ module Monadic
           begin
             require 'timeout'
             Timeout::timeout(actual_timeout) do
-              results = api_request("user", session, call_depth: 0)
+              results = api_request("user", session, call_depth: 0, &block)
             end
           rescue Timeout::Error
             return {
@@ -94,6 +127,8 @@ module Monadic
               timeout: true,
               success: false
             }
+          ensure
+            cleanup_grok_progress_thread(progress_thread)
           end
 
           # Parse the response
@@ -144,6 +179,7 @@ module Monadic
           end
 
         rescue StandardError => e
+          cleanup_grok_progress_thread(progress_thread) if progress_thread
           {
             error: "Error calling Grok-Code: #{e.message}",
             suggestion: "Try breaking the task into smaller pieces",
@@ -267,6 +303,63 @@ module Monadic
                    "While it can handle many coding tasks, Grok-Code-Fast-1 would provide " \
                    "more specialized code generation capabilities."
         }
+      end
+
+      # Progress thread that advances through steps at 30-second intervals
+      def start_grok_progress_thread(session_id, &block)
+        Thread.new do
+          Thread.current.report_on_exception = false
+          begin
+            start_time = Time.now
+            last_step = 0
+
+            while !Thread.current[:should_stop]
+              60.times do  # 30 seconds (60 * 0.5s)
+                sleep 0.5
+                break if Thread.current[:should_stop]
+              end
+              break if Thread.current[:should_stop]
+
+              elapsed = Time.now - start_time
+              step_index = [(elapsed / 30).floor, GROK_CODE_STEPS.length - 1].min
+              next if step_index == last_step
+
+              last_step = step_index
+              fragment = {
+                "type" => "wait",
+                "content" => GROK_CODE_STEPS[step_index],
+                "source" => "GrokCodeAgent",
+                "minutes" => (elapsed / 60).floor,
+                "step_progress" => {
+                  "mode" => "sequential",
+                  "current" => step_index,
+                  "total" => GROK_CODE_STEPS.length,
+                  "steps" => GROK_CODE_STEPS
+                }
+              }
+
+              if block
+                block.call(fragment)
+              elsif defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_progress_fragment)
+                WebSocketHelper.send_progress_fragment(fragment, session_id)
+              end
+            end
+          rescue StandardError
+            # Progress is best-effort
+          end
+        end
+      end
+
+      def cleanup_grok_progress_thread(thread)
+        return unless thread
+
+        begin
+          thread[:should_stop] = true
+          thread.join(1.0)
+          thread.kill if thread.alive?
+        rescue StandardError
+          # Silent cleanup
+        end
       end
     end
   end

@@ -1,9 +1,19 @@
 # frozen_string_literal: true
 
+require_relative "../utils/step_progress"
+
 module Monadic
   module Agents
     module ClaudeCodeAgent
+      include Monadic::Utils::StepProgress
+
       CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'.freeze
+
+      CLAUDE_CODE_STEPS = [
+        "Analyzing requirements",
+        "Generating code",
+        "Finalizing"
+      ].freeze
 
       # Keyword argument interface matching GPT5CodexAgent pattern
       def call_claude_code(prompt:, app_name: 'ClaudeCodeAgent', max_tokens: 8000, temperature: 0.3, reasoning_effort: 'medium', &block)
@@ -41,13 +51,24 @@ module Monadic
           }
         end
 
-        progress_payload = {
-          'type' => 'wait',
-          'content' => 'Claude Code is generating code…',
-          'source' => 'ClaudeCodeAgent',
-          'minutes' => 0
+        # Send initial step_progress (step 0 = Analyzing)
+        initial_fragment = {
+          "type" => "wait",
+          "content" => CLAUDE_CODE_STEPS[0],
+          "source" => "ClaudeCodeAgent",
+          "minutes" => 0,
+          "step_progress" => {
+            "mode" => "sequential",
+            "current" => 0,
+            "total" => CLAUDE_CODE_STEPS.length,
+            "steps" => CLAUDE_CODE_STEPS
+          }
         }
-        block.call(progress_payload) if block
+        block.call(initial_fragment) if block
+
+        # Start progress thread for continuous updates
+        parent_session_id = Thread.current[:websocket_session_id]
+        progress_thread = start_claude_progress_thread(parent_session_id, &block)
 
         parameters = {
           model: CLAUDE_MODEL,
@@ -77,6 +98,8 @@ module Monadic
         end
       rescue => e
         { success: false, error: "Claude Code generation failed: #{e.message}" }
+      ensure
+        cleanup_claude_progress_thread(progress_thread)
       end
 
       private
@@ -87,6 +110,63 @@ module Monadic
 
         content = content.gsub(/```\w*\n?/, '').gsub(/```\s*$/, '').strip
         content
+      end
+
+      # Progress thread that advances through steps at 40-second intervals
+      def start_claude_progress_thread(session_id, &block)
+        Thread.new do
+          Thread.current.report_on_exception = false
+          begin
+            start_time = Time.now
+            last_step = 0
+
+            while !Thread.current[:should_stop]
+              80.times do  # 40 seconds (80 * 0.5s)
+                sleep 0.5
+                break if Thread.current[:should_stop]
+              end
+              break if Thread.current[:should_stop]
+
+              elapsed = Time.now - start_time
+              step_index = [(elapsed / 40).floor, CLAUDE_CODE_STEPS.length - 1].min
+              next if step_index == last_step
+
+              last_step = step_index
+              fragment = {
+                "type" => "wait",
+                "content" => CLAUDE_CODE_STEPS[step_index],
+                "source" => "ClaudeCodeAgent",
+                "minutes" => (elapsed / 60).floor,
+                "step_progress" => {
+                  "mode" => "sequential",
+                  "current" => step_index,
+                  "total" => CLAUDE_CODE_STEPS.length,
+                  "steps" => CLAUDE_CODE_STEPS
+                }
+              }
+
+              if block
+                block.call(fragment)
+              elsif defined?(WebSocketHelper) && WebSocketHelper.respond_to?(:send_progress_fragment)
+                WebSocketHelper.send_progress_fragment(fragment, session_id)
+              end
+            end
+          rescue StandardError
+            # Progress is best-effort
+          end
+        end
+      end
+
+      def cleanup_claude_progress_thread(thread)
+        return unless thread
+
+        begin
+          thread[:should_stop] = true
+          thread.join(1.0)
+          thread.kill if thread.alive?
+        rescue StandardError
+          # Silent cleanup
+        end
       end
     end
   end

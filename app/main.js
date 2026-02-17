@@ -77,6 +77,8 @@ let lastUpdateCheckResult = null; // Store the last update check result
 // Preference for browser launch: 'external' or 'internal'
 // Default browser mode: 'internal' for internal Electron view
 let browserMode = 'internal';
+// Menu Bar Mode: tracks whether the user enabled menu-bar-only mode (macOS)
+let menuBarModeActive = false;
 
 // Internal browser window reference and opener
 let webviewWindow = null;
@@ -1420,9 +1422,10 @@ function initializeApp() {
       app.setLoginItemSettings({ openAtLogin });
     }
 
-    // Apply Menu Bar Mode — hide Dock icon (macOS only)
+    // Apply Menu Bar Mode (macOS only)
     if (process.platform === 'darwin') {
-      if (settings.MENU_BAR_MODE === 'true') {
+      menuBarModeActive = settings.MENU_BAR_MODE === 'true';
+      if (menuBarModeActive) {
         app.dock.hide();
       }
     }
@@ -1514,6 +1517,33 @@ function initializeApp() {
       showSearchWithGoogle: false
     });
 
+    // Menu Bar Mode: show Dock (and menu bar) when any window is focused,
+    // hide Dock when all windows lose focus (macOS only)
+    if (process.platform === 'darwin') {
+      let dockBlurTimer = null;
+
+      app.on('browser-window-focus', () => {
+        if (!menuBarModeActive) return;
+        if (dockBlurTimer) { clearTimeout(dockBlurTimer); dockBlurTimer = null; }
+        if (!app.dock.isVisible()) {
+          app.dock.show();
+        }
+      });
+
+      app.on('browser-window-blur', () => {
+        if (!menuBarModeActive) return;
+        // Debounce: focus may be transferring between our own windows
+        if (dockBlurTimer) clearTimeout(dockBlurTimer);
+        dockBlurTimer = setTimeout(() => {
+          dockBlurTimer = null;
+          const anyFocused = BrowserWindow.getAllWindows().some(w => !w.isDestroyed() && w.isFocused());
+          if (!anyFocused) {
+            app.dock.hide();
+          }
+        }, 200);
+      });
+    }
+
     createMainWindow();
     
     updateStatus();
@@ -1602,7 +1632,85 @@ function initializeApp() {
           case 'exit':
             quitApp(mainWindow);
             break;
-          // (removed) capture-chat-demo command
+          // Container build commands
+          case 'build':
+            openMainWindow();
+            dockerManager.runCommand('build',
+              formatMessage(null, 'messages.buildingMonadicChat'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_ruby_container':
+            openMainWindow();
+            dockerManager.runCommand('build_ruby_container',
+              formatMessage(null, 'messages.buildingRubyContainer'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_python_container':
+            openMainWindow();
+            dockerManager.runCommand('build_python_container',
+              formatMessage(null, 'messages.buildingPythonContainer'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_user_containers':
+            openMainWindow();
+            dockerManager.runCommand('build_user_containers',
+              formatMessage(null, 'messages.buildingUserContainers'),
+              'Building', 'Stopped', false);
+            break;
+          case 'build_ollama_container':
+            openMainWindow();
+            dockerManager.runCommand('build_ollama_container',
+              formatMessage(null, 'messages.buildingOllamaContainer'),
+              'Building', 'Stopped', false);
+            break;
+          // JupyterLab commands
+          case 'start-jupyter':
+            if (dockerManager.isServerMode()) {
+              openMainWindow();
+              dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                title: i18n.t('menu.jupyterDisabled'),
+                message: i18n.t('menu.jupyterDisabledMessage'),
+                detail: i18n.t('menu.jupyterDisabledDetail'),
+                buttons: [i18n.t('dialogs.ok')]
+              });
+              break;
+            }
+            openMainWindow();
+            dockerManager.runCommand('start-jupyter',
+              formatMessage(null, 'messages.startingJupyterLab'),
+              'Starting', 'Running');
+            break;
+          case 'stop-jupyter':
+            if (dockerManager.isServerMode()) {
+              openMainWindow();
+              dialog.showMessageBox(mainWindow, {
+                type: 'warning',
+                title: i18n.t('menu.jupyterDisabled'),
+                message: i18n.t('menu.jupyterDisabledMessage'),
+                detail: i18n.t('menu.jupyterDisabledDetail'),
+                buttons: [i18n.t('dialogs.ok')]
+              });
+              break;
+            }
+            openMainWindow();
+            dockerManager.runCommand('stop-jupyter',
+              formatMessage(null, 'messages.stoppingJupyterLab'),
+              'Starting', 'Running');
+            break;
+          // Document DB commands
+          case 'import-db':
+            openMainWindow();
+            dockerManager.runCommand('import-db',
+              formatMessage(null, 'messages.importingDocumentDB'),
+              'Importing', 'Stopped');
+            break;
+          case 'export-db':
+            openMainWindow();
+            dockerManager.runCommand('export-db',
+              formatMessage(null, 'messages.exportingDocumentDB'),
+              'Exporting', 'Stopped');
+            break;
         }
       } catch (error) {
         console.error('Error during app initialization:', error);
@@ -2422,7 +2530,11 @@ function updateStatusIndicator(status) {
     // Send both the original status and translated version
     mainWindow.webContents.send('update-status-indicator', status, translatedStatus);
   }
-  
+  // Also update the settings window if open
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('update-status-indicator', status, translatedStatus);
+  }
+
   // Update tray menu to reflect the new status
   updateContextMenu(false);
 }
@@ -2965,9 +3077,11 @@ function sendSettingsToRenderer(webContents) {
     settings.OPEN_AT_LOGIN = app.getLoginItemSettings().openAtLogin ? 'true' : 'false';
   }
   if (process.platform === 'darwin') {
-    settings.MENU_BAR_MODE = app.dock.isVisible() ? 'false' : 'true';
+    settings.MENU_BAR_MODE = menuBarModeActive ? 'true' : 'false';
   }
   settings.APP_VERSION = app.getVersion();
+  settings.DOCKER_STATUS = currentStatus || 'Stopped';
+  settings.MET_REQUIREMENTS = metRequirements ? 'true' : 'false';
   webContents.send('load-settings', settings);
 }
 
@@ -3316,6 +3430,12 @@ function saveSettings(data) {
             // Default values will be used (4567, 5070, 8889)
         }
         
+        // Normalize install option booleans to string 'true'/'false'
+        const installOptionKeys = ['INSTALL_LATEX','PYOPT_NLTK','PYOPT_SPACY','PYOPT_SCIKIT','PYOPT_GENSIM','PYOPT_LIBROSA','PYOPT_MEDIAPIPE','PYOPT_TRANSFORMERS','IMGOPT_IMAGEMAGICK'];
+        installOptionKeys.forEach(k => {
+            if (k in data) data[k] = data[k] ? 'true' : 'false';
+        });
+
         // Override existing settings with new data (empty string values are included)
         Object.assign(envConfig, data);
         // Write the updated configuration back to the file
@@ -3388,12 +3508,12 @@ ipcMain.on('save-settings', (_event, data) => {
     });
   }
 
-  // Apply Menu Bar Mode — hide/show Dock icon immediately (macOS only)
+  // Apply Menu Bar Mode (macOS only)
+  // The blur handler will auto-hide the Dock when focus leaves all windows.
   if (process.platform === 'darwin') {
-    const menuBarMode = data.MENU_BAR_MODE === true || data.MENU_BAR_MODE === 'true';
-    if (menuBarMode) {
-      app.dock.hide();
-    } else {
+    menuBarModeActive = data.MENU_BAR_MODE === true || data.MENU_BAR_MODE === 'true';
+    // Ensure Dock is visible while settings window is still focused
+    if (!app.dock.isVisible()) {
       app.dock.show();
     }
   }

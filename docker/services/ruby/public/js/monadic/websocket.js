@@ -1017,6 +1017,7 @@ let loadedApp = "Chat";
             data["source"] === "ImageGenerator" ||
             data["source"] === "VideoAnalyzer" ||
             data["source"] === "SecondOpinion" ||
+            data["source"] === "ParallelDispatch" ||
             // Add other agent sources as needed
             data["source"].includes("Agent") ||
             data["source"].includes("Generator") ||
@@ -1091,6 +1092,22 @@ let loadedApp = "Chat";
               displayContent += ` - ${remainingText}`;
             }
             displayContent += '...';
+          } else if (data["source"] === "ParallelDispatch" && data["parallel_progress"]) {
+            // Parallel dispatch progress with task indicators
+            const iconHtml = '<i class="fas fa-network-wired" style="color: #10b981;"></i>';
+            const pp = data["parallel_progress"];
+            const completed = pp["completed"] || 0;
+            const total = pp["total"] || 0;
+            displayContent = `${iconHtml} Parallel tasks: ${completed}/${total} completed`;
+            if (pp["task_names"]) {
+              const indicators = pp["task_names"].map((name, i) => {
+                const icon = i < completed
+                  ? '<i class="fas fa-check" style="color: #10b981;"></i>'
+                  : '<span class="parallel-task-spinner"></span>';
+                return `<div style="margin: 2px 0;">${icon} ${name}</div>`;
+              }).join('');
+              displayContent += `<div style="margin-top: 4px;"><small>${indicators}</small></div>`;
+            }
           } else if (!waitContent.includes('<i class="fas')) {
             // Add icon if not already present in fallback content
             let iconHtml = '<i class="fas fa-laptop-code"></i>';

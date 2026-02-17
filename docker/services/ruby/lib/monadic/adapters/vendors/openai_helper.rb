@@ -1218,8 +1218,13 @@ module OpenAIHelper
       end
     end
 
+    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
+    is_initial_greeting = body["messages"].length == 1 &&
+                          (body["messages"][0]["role"] == "system" || body["messages"][0]["role"] == "developer")
+
     # Use unified system prompt injector for user message augmentation
-    if last_text.to_s != "" && body.dig("messages", -1, "content")
+    # Skip prompt_suffix for initial greeting to avoid conflicting language instructions
+    if last_text.to_s != "" && body.dig("messages", -1, "content") && !is_initial_greeting
       augmented_text = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: last_text.to_s,
         session: session,
@@ -1719,6 +1724,14 @@ module OpenAIHelper
         end
       end
       
+      # Force text-only response when force-stop is active (e.g., after parallel dispatch
+      # or verification sets call_depth_per_turn = 9999). Prevents the model from attempting
+      # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+        responses_body.delete("tools")
+        responses_body.delete("tool_choice")
+      end
+
       # Use responses body instead
       body = responses_body
       

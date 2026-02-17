@@ -114,4 +114,58 @@ RSpec.describe "MonadicSharedTools::Registry - Planning & Verification" do
       end
     end
   end
+
+  describe "parallel_dispatch tool group" do
+    it "is registered in the registry" do
+      expect(MonadicSharedTools::Registry.group_exists?(:parallel_dispatch)).to be true
+    end
+
+    it "is listed in available groups" do
+      expect(MonadicSharedTools::Registry.available_groups).to include(:parallel_dispatch)
+    end
+
+    it "references the correct module" do
+      expect(MonadicSharedTools::Registry.module_name_for(:parallel_dispatch)).to eq("MonadicSharedTools::ParallelDispatch")
+    end
+
+    it "has a default hint" do
+      hint = MonadicSharedTools::Registry.default_hint_for(:parallel_dispatch)
+      expect(hint).not_to be_empty
+      expect(hint).to include("dispatch_parallel_tasks")
+    end
+
+    describe "dispatch_parallel_tasks tool" do
+      let(:tools) { MonadicSharedTools::Registry.tools_for(:parallel_dispatch) }
+      let(:tool) { tools.find { |t| t.name == "dispatch_parallel_tasks" } }
+
+      it "defines the dispatch_parallel_tasks tool" do
+        expect(tool).not_to be_nil
+      end
+
+      it "has a description mentioning parallel" do
+        expect(tool.description).to include("parallel")
+      end
+
+      it "requires a 'tasks' parameter as array" do
+        param = tool.parameters.find { |p| p[:name] == :tasks }
+        expect(param).not_to be_nil
+        expect(param[:type]).to eq("array")
+        expect(param[:required]).to be true
+      end
+
+      it "has tasks items with object schema" do
+        param = tool.parameters.find { |p| p[:name] == :tasks }
+        expect(param[:items]).to be_a(Hash)
+        expect(param[:items][:type]).to eq("object")
+        expect(param[:items][:required]).to include("id", "prompt")
+      end
+
+      it "has optional 'timeout' parameter" do
+        param = tool.parameters.find { |p| p[:name] == :timeout }
+        expect(param).not_to be_nil
+        expect(param[:type]).to eq("integer")
+        expect(param[:required]).to be false
+      end
+    end
+  end
 end

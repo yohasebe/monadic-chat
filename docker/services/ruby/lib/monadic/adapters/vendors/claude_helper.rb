@@ -1235,6 +1235,14 @@ module ClaudeHelper
       end
     end
 
+    # Force text-only response when force-stop is active (e.g., after parallel dispatch
+    # or verification sets call_depth_per_turn = 9999). Prevents the model from attempting
+    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
     # Capability audit (optional)
     if CONFIG["EXTRA_LOGGING"]
       begin
@@ -1811,14 +1819,16 @@ module ClaudeHelper
 
     if text_result || tool_calls.any?
 
-      if session[:call_depth_per_turn] > MAX_FUNC_CALLS
-        # Send notice fragment
+      if session[:call_depth_per_turn] > MAX_FUNC_CALLS && tool_calls.any?
+        # Only block when the model tries to call MORE tools beyond the depth limit.
+        # Text-only responses (e.g., synthesis after parallel dispatch) must pass through
+        # even when call_depth_per_turn has been force-set by shared tools.
         res = {
           "type" => "fragment",
           "content" => "NOTICE: Maximum function call depth exceeded"
         }
         block&.call res
-        
+
         # Create a mock HTML response to properly end the conversation
         html_res = {
           "type" => "html",
@@ -1831,7 +1841,7 @@ module ClaudeHelper
           }
         }
         block&.call html_res
-        
+
         # Return immediately to end the conversation
         return [{ "type" => "message", "content" => "DONE", "finish_reason" => "stop" }]
       end

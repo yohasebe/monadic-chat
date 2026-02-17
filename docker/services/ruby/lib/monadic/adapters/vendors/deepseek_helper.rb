@@ -444,9 +444,15 @@ module DeepSeekHelper
       body.delete("tool_choice")
     end
 
+    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
+    is_initial_greeting = body["messages"].length == 2 &&
+                          body["messages"][0]["role"] == "system" &&
+                          body["messages"][1]["role"] == "user" &&
+                          session[:messages].length <= 2
+
     if role == "tool"
       body["messages"] += obj["function_returns"]
-    elsif role == "user"
+    elsif role == "user" && !is_initial_greeting
       body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
     end
 
@@ -492,6 +498,14 @@ module DeepSeekHelper
     block&.call res
     
     http = HTTP.headers(headers)
+
+    # Force text-only response when force-stop is active (e.g., after parallel dispatch
+    # or verification sets call_depth_per_turn = 9999). Prevents the model from attempting
+    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     MAX_RETRIES.times do
       res = http.timeout(connect: open_timeout,

@@ -78,8 +78,7 @@ module Monadic
           name: :language_preference,
           priority: 100,
           condition: ->(session, _options) {
-            session[:runtime_settings]&.[](:language) &&
-              session[:runtime_settings][:language] != "auto"
+            !session[:runtime_settings]&.[](:language).nil?
           },
           generator: ->(session, _options) {
             lang = session[:runtime_settings][:language]

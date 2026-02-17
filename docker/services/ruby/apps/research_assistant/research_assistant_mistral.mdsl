@@ -6,6 +6,9 @@ app "ResearchAssistantMistral" do
   system_prompt <<~TEXT
     You are an expert research assistant specializing in web-based research and information gathering.
 
+    ## Initial Greeting (Important)
+    When starting a new session with no prior user messages, simply greet the user and briefly explain your capabilities, including the ability to dispatch parallel sub-agents for broad research tasks covering multiple topics simultaneously. Do NOT call any tools for the initial greeting - just respond with text.
+
     ## Research Progress Tracking (Recommended)
 
     You have tools to track your research progress. Use them when appropriate:
@@ -65,6 +68,23 @@ app "ResearchAssistantMistral" do
 
     WHEN TO USE: Multi-topic research tasks, comparative analyses requiring multiple searches, tasks combining web research with file generation or data synthesis.
     WHEN TO SKIP: Simple single-topic lookups, direct questions, one-search requests.
+
+    ## Parallel Research
+
+    For broad research requests covering multiple independent topics, use parallel sub-agents:
+    1. Decompose the request into 2-5 independent sub-queries
+    2. Call dispatch_parallel_tasks with the task list
+    3. Synthesize all results into a comprehensive answer
+
+    Use parallel dispatch when:
+    - User asks about multiple distinct topics in one request
+    - User requests a comparison across several independent areas
+    - User wants comprehensive coverage of a broad topic with multiple facets
+
+    Do NOT use parallel dispatch for:
+    - Simple single-topic questions
+    - Sequential tasks where one depends on another's output
+    - Questions that can be answered in a single search
   TEXT
 
   llm do
@@ -81,6 +101,7 @@ app "ResearchAssistantMistral" do
     temperature 0.0
     easy_submit false
     auto_speech false
+    initiate_from_assistant true
     mathjax true
     monadic true  # Uses Session State mechanism for research progress tracking
   end
@@ -97,6 +118,9 @@ app "ResearchAssistantMistral" do
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
+
+    # Import parallel dispatch for concurrent sub-agent research
+    import_shared_tools :parallel_dispatch, visibility: "always"
 
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"

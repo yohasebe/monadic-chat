@@ -69,7 +69,7 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[0][:content]).to include('Japanese')
       end
 
-      it 'excludes language injection when set to auto' do
+      it 'includes language matching injection when set to auto' do
         session = {
           runtime_settings: { language: 'auto' }
         }
@@ -77,7 +77,10 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
 
         result = described_class.build_injections(session: session, options: options)
 
-        expect(result).to be_empty
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:language_preference)
+        expect(result[0][:content]).to include('LANGUAGE MATCHING')
+        expect(result[0][:content]).to include('Default to English')
       end
     end
 

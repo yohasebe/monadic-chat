@@ -10,6 +10,8 @@ const settingsTranslations = {
         apiKeys: "API Keys",
         voice: "Voice & Audio",
         services: "Services",
+        installOptions: "Install Options",
+        actions: "Actions",
         about: "About"
       },
       labels: {
@@ -51,7 +53,34 @@ const settingsTranslations = {
         checkForUpdates: "Check for Updates",
         developer: "Developer",
         homepage: "Homepage",
-        sourceCode: "Source Code"
+        sourceCode: "Source Code",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Required for Concept Visualizer / Syntax Tree",
+        installLatexItem: "Install LaTeX (minimal set for diagrams)",
+        installPythonTitle: "Python Libraries (CPU)",
+        installPythonDesc: "Pip-installed libraries for Python runtime. Models/datasets are not included.",
+        installToolsTitle: "System Tools (CLI)",
+        installToolsDesc: "OS-level command-line tools available system-wide.",
+        actionStatusLabel: "Docker Status",
+        actionLifecycleTitle: "Container Lifecycle",
+        actionStart: "Start",
+        actionStop: "Stop",
+        actionRestart: "Restart",
+        actionBuildsTitle: "Container Builds",
+        actionBuildsDesc: "Containers must be stopped before building.",
+        actionBuildAll: "Build All",
+        actionBuildRuby: "Build Ruby",
+        actionBuildPython: "Build Python",
+        actionBuildUser: "Build User",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Build Ollama",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "Start JupyterLab",
+        actionStopJupyter: "Stop JupyterLab",
+        actionDocDBTitle: "Document Database",
+        actionImportDB: "Import",
+        actionExportDB: "Export",
+        actionNote: "Executing an action will save any unsaved settings and close this window. Progress will be shown in the main window."
       },
       buttons: {
         showApiKeys: "Show API Keys",
@@ -66,7 +95,9 @@ const settingsTranslations = {
         saveAndClose: "Save and Close",
         modeChanged: "Mode Changed",
         modeChangeMessage: "Mode setting has been changed. The application needs to be restarted for this change to take effect. Please close and restart Monadic Chat manually.",
-        ok: "OK"
+        ok: "OK",
+        actionConfirmMessage: "You have unsaved settings. Save and execute this action?",
+        actionSaveAndExecute: "Save & Execute"
       }
     }
   },
@@ -80,6 +111,8 @@ const settingsTranslations = {
         apiKeys: "APIキー",
         voice: "音声・オーディオ",
         services: "サービス",
+        installOptions: "インストールオプション",
+        actions: "アクション",
         about: "Monadic Chatについて"
       },
       labels: {
@@ -121,7 +154,34 @@ const settingsTranslations = {
         checkForUpdates: "アップデートを確認",
         developer: "開発者",
         homepage: "ホームページ",
-        sourceCode: "ソースコード"
+        sourceCode: "ソースコード",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Concept Visualizer / Syntax Tree に必要",
+        installLatexItem: "LaTeX をインストール（図表用の最小セット）",
+        installPythonTitle: "Pythonライブラリ（CPU）",
+        installPythonDesc: "Python実行環境のpipライブラリ。モデル/データは含まれません。",
+        installToolsTitle: "システムツール（CLI）",
+        installToolsDesc: "OSレベルのコマンドラインツールとして利用できます。",
+        actionStatusLabel: "Dockerステータス",
+        actionLifecycleTitle: "コンテナの操作",
+        actionStart: "開始",
+        actionStop: "停止",
+        actionRestart: "再起動",
+        actionBuildsTitle: "コンテナのビルド",
+        actionBuildsDesc: "ビルド前にコンテナを停止する必要があります。",
+        actionBuildAll: "すべてビルド",
+        actionBuildRuby: "Rubyをビルド",
+        actionBuildPython: "Pythonをビルド",
+        actionBuildUser: "ユーザーをビルド",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Ollamaをビルド",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "JupyterLabを開始",
+        actionStopJupyter: "JupyterLabを停止",
+        actionDocDBTitle: "ドキュメントデータベース",
+        actionImportDB: "インポート",
+        actionExportDB: "エクスポート",
+        actionNote: "アクションを実行すると、未保存の設定を保存してこのウィンドウを閉じます。進捗はメインウィンドウに表示されます。"
       },
       buttons: {
         showApiKeys: "APIキーを表示",
@@ -136,7 +196,9 @@ const settingsTranslations = {
         saveAndClose: "保存して閉じる",
         modeChanged: "モード変更",
         modeChangeMessage: "モード設定が変更されました。この変更を有効にするにはアプリケーションの再起動が必要です。Monadic Chatを手動で閉じて再起動してください。",
-        ok: "OK"
+        ok: "OK",
+        actionConfirmMessage: "未保存の設定があります。保存してからアクションを実行しますか？",
+        actionSaveAndExecute: "保存して実行"
       }
     }
   },
@@ -150,6 +212,8 @@ const settingsTranslations = {
         apiKeys: "API密钥",
         voice: "语音和音频",
         services: "服务",
+        installOptions: "安装选项",
+        actions: "操作",
         about: "关于"
       },
       labels: {
@@ -191,7 +255,34 @@ const settingsTranslations = {
         checkForUpdates: "检查更新",
         developer: "开发者",
         homepage: "主页",
-        sourceCode: "源代码"
+        sourceCode: "源代码",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Concept Visualizer / Syntax Tree 需要",
+        installLatexItem: "安装 LaTeX（用于图表的最小集）",
+        installPythonTitle: "Python 库（CPU）",
+        installPythonDesc: "用于 Python 运行时的 pip 库。不包含模型/数据。",
+        installToolsTitle: "系统工具（CLI）",
+        installToolsDesc: "操作系统层面的命令行工具，系统范围可用。",
+        actionStatusLabel: "Docker 状态",
+        actionLifecycleTitle: "容器生命周期",
+        actionStart: "启动",
+        actionStop: "停止",
+        actionRestart: "重启",
+        actionBuildsTitle: "容器构建",
+        actionBuildsDesc: "构建前必须停止容器。",
+        actionBuildAll: "全部构建",
+        actionBuildRuby: "构建 Ruby",
+        actionBuildPython: "构建 Python",
+        actionBuildUser: "构建用户容器",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "构建 Ollama",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "启动 JupyterLab",
+        actionStopJupyter: "停止 JupyterLab",
+        actionDocDBTitle: "文档数据库",
+        actionImportDB: "导入",
+        actionExportDB: "导出",
+        actionNote: "执行操作将保存未保存的设置并关闭此窗口。进度将显示在主窗口中。"
       },
       buttons: {
         showApiKeys: "显示API密钥",
@@ -206,7 +297,9 @@ const settingsTranslations = {
         saveAndClose: "保存并关闭",
         modeChanged: "模式已更改",
         modeChangeMessage: "模式设置已更改。此更改需要重新启动应用程序才能生效。请手动关闭并重启Monadic Chat。",
-        ok: "确定"
+        ok: "确定",
+        actionConfirmMessage: "您有未保存的设置。是否保存并执行此操作？",
+        actionSaveAndExecute: "保存并执行"
       }
     }
   },
@@ -220,6 +313,8 @@ const settingsTranslations = {
         apiKeys: "API 키",
         voice: "음성 및 오디오",
         services: "서비스",
+        installOptions: "설치 옵션",
+        actions: "작업",
         about: "정보"
       },
       labels: {
@@ -261,7 +356,34 @@ const settingsTranslations = {
         checkForUpdates: "업데이트 확인",
         developer: "개발자",
         homepage: "홈페이지",
-        sourceCode: "소스 코드"
+        sourceCode: "소스 코드",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Concept Visualizer / Syntax Tree에 필요",
+        installLatexItem: "LaTeX 설치 (도표용 최소 세트)",
+        installPythonTitle: "Python 라이브러리 (CPU)",
+        installPythonDesc: "Python 런타임용 pip 라이브러리입니다. 모델/데이터는 포함되지 않습니다.",
+        installToolsTitle: "시스템 도구 (CLI)",
+        installToolsDesc: "OS 수준의 명령줄 도구를 전체 시스템에서 사용할 수 있습니다.",
+        actionStatusLabel: "Docker 상태",
+        actionLifecycleTitle: "컨테이너 수명주기",
+        actionStart: "시작",
+        actionStop: "중지",
+        actionRestart: "재시작",
+        actionBuildsTitle: "컨테이너 빌드",
+        actionBuildsDesc: "빌드 전에 컨테이너를 중지해야 합니다.",
+        actionBuildAll: "모두 빌드",
+        actionBuildRuby: "Ruby 빌드",
+        actionBuildPython: "Python 빌드",
+        actionBuildUser: "사용자 빌드",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Ollama 빌드",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "JupyterLab 시작",
+        actionStopJupyter: "JupyterLab 중지",
+        actionDocDBTitle: "문서 데이터베이스",
+        actionImportDB: "가져오기",
+        actionExportDB: "내보내기",
+        actionNote: "작업을 실행하면 저장되지 않은 설정을 저장하고 이 창을 닫습니다. 진행 상황은 메인 창에 표시됩니다."
       },
       buttons: {
         showApiKeys: "API 키 표시",
@@ -276,7 +398,9 @@ const settingsTranslations = {
         saveAndClose: "저장하고 닫기",
         modeChanged: "모드 변경됨",
         modeChangeMessage: "모드 설정이 변경되었습니다. 이 변경 사항을 적용하려면 애플리케이션을 다시 시작해야 합니다. Monadic Chat를 수동으로 닫고 다시 시작하세요.",
-        ok: "확인"
+        ok: "확인",
+        actionConfirmMessage: "저장되지 않은 설정이 있습니다. 저장하고 작업을 실행하시겠습니까?",
+        actionSaveAndExecute: "저장 후 실행"
       }
     }
   },
@@ -290,6 +414,8 @@ const settingsTranslations = {
         apiKeys: "Claves API",
         voice: "Voz y Audio",
         services: "Servicios",
+        installOptions: "Opciones de Instalación",
+        actions: "Acciones",
         about: "Acerca de"
       },
       labels: {
@@ -331,7 +457,34 @@ const settingsTranslations = {
         checkForUpdates: "Buscar Actualizaciones",
         developer: "Desarrollador",
         homepage: "Página principal",
-        sourceCode: "Código fuente"
+        sourceCode: "Código fuente",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Requerido para Concept Visualizer / Syntax Tree",
+        installLatexItem: "Instalar LaTeX (conjunto mínimo para diagramas)",
+        installPythonTitle: "Librerías de Python (CPU)",
+        installPythonDesc: "Librerías instaladas con pip para el entorno de Python. No incluye modelos/datos.",
+        installToolsTitle: "Herramientas del sistema (CLI)",
+        installToolsDesc: "Herramientas de línea de comandos a nivel del sistema, disponibles globalmente.",
+        actionStatusLabel: "Estado de Docker",
+        actionLifecycleTitle: "Ciclo de vida de contenedores",
+        actionStart: "Iniciar",
+        actionStop: "Detener",
+        actionRestart: "Reiniciar",
+        actionBuildsTitle: "Construcción de contenedores",
+        actionBuildsDesc: "Los contenedores deben estar detenidos antes de construir.",
+        actionBuildAll: "Construir todo",
+        actionBuildRuby: "Construir Ruby",
+        actionBuildPython: "Construir Python",
+        actionBuildUser: "Construir usuario",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Construir Ollama",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "Iniciar JupyterLab",
+        actionStopJupyter: "Detener JupyterLab",
+        actionDocDBTitle: "Base de datos de documentos",
+        actionImportDB: "Importar",
+        actionExportDB: "Exportar",
+        actionNote: "Ejecutar una acción guardará la configuración no guardada y cerrará esta ventana. El progreso se mostrará en la ventana principal."
       },
       buttons: {
         showApiKeys: "Mostrar Claves API",
@@ -346,7 +499,9 @@ const settingsTranslations = {
         saveAndClose: "Guardar y cerrar",
         modeChanged: "Modo Cambiado",
         modeChangeMessage: "La configuración del modo ha cambiado. La aplicación debe reiniciarse para que este cambio surta efecto. Por favor, cierre y reinicie Monadic Chat manualmente.",
-        ok: "OK"
+        ok: "OK",
+        actionConfirmMessage: "Tiene configuraciones sin guardar. ¿Guardar y ejecutar esta acción?",
+        actionSaveAndExecute: "Guardar y ejecutar"
       }
     }
   },
@@ -360,6 +515,8 @@ const settingsTranslations = {
         apiKeys: "Clés API",
         voice: "Voix et Audio",
         services: "Services",
+        installOptions: "Options d'Installation",
+        actions: "Actions",
         about: "À propos"
       },
       labels: {
@@ -401,7 +558,34 @@ const settingsTranslations = {
         checkForUpdates: "Vérifier les mises à jour",
         developer: "Développeur",
         homepage: "Page d'accueil",
-        sourceCode: "Code source"
+        sourceCode: "Code source",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Nécessaire pour Concept Visualizer / Syntax Tree",
+        installLatexItem: "Installer LaTeX (ensemble minimal pour les diagrammes)",
+        installPythonTitle: "Bibliothèques Python (CPU)",
+        installPythonDesc: "Bibliothèques pip pour l'environnement Python. Modèles/données non inclus.",
+        installToolsTitle: "Outils système (CLI)",
+        installToolsDesc: "Outils en ligne de commande au niveau du système, disponibles globalement.",
+        actionStatusLabel: "État de Docker",
+        actionLifecycleTitle: "Cycle de vie des conteneurs",
+        actionStart: "Démarrer",
+        actionStop: "Arrêter",
+        actionRestart: "Redémarrer",
+        actionBuildsTitle: "Construction des conteneurs",
+        actionBuildsDesc: "Les conteneurs doivent être arrêtés avant la construction.",
+        actionBuildAll: "Tout construire",
+        actionBuildRuby: "Construire Ruby",
+        actionBuildPython: "Construire Python",
+        actionBuildUser: "Construire utilisateur",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Construire Ollama",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "Démarrer JupyterLab",
+        actionStopJupyter: "Arrêter JupyterLab",
+        actionDocDBTitle: "Base de données de documents",
+        actionImportDB: "Importer",
+        actionExportDB: "Exporter",
+        actionNote: "L'exécution d'une action enregistrera les paramètres non sauvegardés et fermera cette fenêtre. La progression sera affichée dans la fenêtre principale."
       },
       buttons: {
         showApiKeys: "Afficher les Clés API",
@@ -416,7 +600,9 @@ const settingsTranslations = {
         saveAndClose: "Enregistrer et fermer",
         modeChanged: "Mode Modifié",
         modeChangeMessage: "Le paramètre de mode a été modifié. L'application doit être redémarrée pour que ce changement prenne effet. Veuillez fermer et redémarrer Monadic Chat manuellement.",
-        ok: "OK"
+        ok: "OK",
+        actionConfirmMessage: "Vous avez des paramètres non enregistrés. Enregistrer et exécuter cette action ?",
+        actionSaveAndExecute: "Enregistrer et exécuter"
       }
     }
   },
@@ -430,6 +616,8 @@ const settingsTranslations = {
         apiKeys: "API-Schlüssel",
         voice: "Sprache und Audio",
         services: "Dienste",
+        installOptions: "Installationsoptionen",
+        actions: "Aktionen",
         about: "Über"
       },
       labels: {
@@ -471,7 +659,34 @@ const settingsTranslations = {
         checkForUpdates: "Nach Updates suchen",
         developer: "Entwickler",
         homepage: "Startseite",
-        sourceCode: "Quellcode"
+        sourceCode: "Quellcode",
+        installLatexTitle: "LaTeX",
+        installLatexDesc: "Erforderlich für Concept Visualizer / Syntax Tree",
+        installLatexItem: "LaTeX installieren (Minimalsatz für Diagramme)",
+        installPythonTitle: "Python-Bibliotheken (CPU)",
+        installPythonDesc: "Per pip installierte Bibliotheken für die Python-Laufzeit. Modelle/Datasets sind nicht enthalten.",
+        installToolsTitle: "Systemwerkzeuge (CLI)",
+        installToolsDesc: "Befehlszeilenwerkzeuge auf Betriebssystemebene, systemweit verfügbar.",
+        actionStatusLabel: "Docker-Status",
+        actionLifecycleTitle: "Container-Lebenszyklus",
+        actionStart: "Starten",
+        actionStop: "Stoppen",
+        actionRestart: "Neustarten",
+        actionBuildsTitle: "Container erstellen",
+        actionBuildsDesc: "Container müssen vor dem Erstellen gestoppt werden.",
+        actionBuildAll: "Alles erstellen",
+        actionBuildRuby: "Ruby erstellen",
+        actionBuildPython: "Python erstellen",
+        actionBuildUser: "Benutzer erstellen",
+        actionOllamaTitle: "Ollama",
+        actionBuildOllama: "Ollama erstellen",
+        actionJupyterTitle: "JupyterLab",
+        actionStartJupyter: "JupyterLab starten",
+        actionStopJupyter: "JupyterLab stoppen",
+        actionDocDBTitle: "Dokumentendatenbank",
+        actionImportDB: "Importieren",
+        actionExportDB: "Exportieren",
+        actionNote: "Das Ausführen einer Aktion speichert nicht gespeicherte Einstellungen und schließt dieses Fenster. Der Fortschritt wird im Hauptfenster angezeigt."
       },
       buttons: {
         showApiKeys: "API-Schlüssel anzeigen",
@@ -486,7 +701,9 @@ const settingsTranslations = {
         saveAndClose: "Speichern und schließen",
         modeChanged: "Modus geändert",
         modeChangeMessage: "Die Moduseinstellung wurde geändert. Die Anwendung muss neu gestartet werden, damit diese Änderung wirksam wird. Bitte schließen und starten Sie Monadic Chat manuell neu.",
-        ok: "OK"
+        ok: "OK",
+        actionConfirmMessage: "Sie haben nicht gespeicherte Einstellungen. Speichern und diese Aktion ausführen?",
+        actionSaveAndExecute: "Speichern & Ausführen"
       }
     }
   }

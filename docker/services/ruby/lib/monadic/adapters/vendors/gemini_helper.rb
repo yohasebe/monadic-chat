@@ -1853,6 +1853,15 @@ module GeminiHelper
       else
         # For non-Jupyter apps, keep AUTO to allow follow-up tool calls
       end
+
+      # Force text-only response when call depth indicates forced termination
+      # (e.g., after parallel dispatch or verification sets call_depth_per_turn = 9999).
+      # Without this, Gemini ignores the "Do NOT call any more tools" text instruction
+      # and attempts tool calls, which hit MAX_FUNC_CALLS and truncate the response.
+      if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+        body.delete("tools")
+        body.delete("toolConfig")
+      end
     end
 
     # Remove empty function_declarations to avoid API error

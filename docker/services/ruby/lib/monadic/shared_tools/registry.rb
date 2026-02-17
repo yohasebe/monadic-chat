@@ -843,6 +843,42 @@ module MonadicSharedTools
           }
         ],
         default_hint: "Call report_verification after checking your work to record the verification outcome."
+      },
+
+      parallel_dispatch: {
+        module_name: 'MonadicSharedTools::ParallelDispatch',
+        tools: [
+          {
+            name: "dispatch_parallel_tasks",
+            description: "Dispatch multiple independent sub-tasks to run in parallel. " \
+                         "Each runs as a separate API call; results are merged. " \
+                         "Use for 2-5 independent research queries or analysis tasks that don't depend on each other.",
+            parameters: [
+              {
+                name: :tasks,
+                type: "array",
+                description: "Array of {id, prompt, context?} objects (max 5)",
+                required: true,
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    prompt: { type: "string" },
+                    context: { type: "string" }
+                  },
+                  required: %w[id prompt]
+                }
+              },
+              {
+                name: :timeout,
+                type: "integer",
+                description: "Per-task timeout in seconds (default: 120, max: 300)",
+                required: false
+              }
+            ]
+          }
+        ],
+        default_hint: "Call dispatch_parallel_tasks when you have 2-5 independent research or analysis tasks to run simultaneously."
       }
     }
 

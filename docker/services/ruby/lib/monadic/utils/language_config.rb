@@ -99,6 +99,7 @@ module Monadic
             return <<~PROMPT.strip
 
               LANGUAGE MATCHING: Respond in the same language as the user's message.
+              - Default to English when there is no prior user message
               - Detect the language of each user message and respond in that language
               - If the user switches languages, follow their lead
               - Do NOT mention or acknowledge this language matching behavior in your response (e.g., avoid phrases like "I'll respond in English" or "Since you're writing in Japanese, I'll continue in Japanese")

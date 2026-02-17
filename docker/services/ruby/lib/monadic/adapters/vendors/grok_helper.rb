@@ -997,6 +997,13 @@ module GrokHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
+    # Force text-only response when force-stop is active (e.g., after parallel dispatch
+    # or verification sets call_depth_per_turn = 9999). Prevents the model from attempting
+    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
 
     # Debug final request for web search
     if CONFIG["EXTRA_LOGGING"]

@@ -934,14 +934,15 @@ module CohereHelper
     # Handle non-tool messages and update session
     if role != "tool"
       message ||= "Hi there!"
-      
+
       html = if message != ""
                markdown_to_html(message)
              else
                message
              end
 
-      if role == "user"
+      # Skip user card for initiate_from_assistant (obj["message"] is nil/empty)
+      if role == "user" && obj["message"].to_s.strip != ""
         res = { "type" => "user",
                 "content" => {
                   "mid" => request_id,
@@ -1037,6 +1038,7 @@ module CohereHelper
     # Add context messages with appropriate roles
     context.each do |msg|
       next if msg["text"].to_s.strip.empty?  # Skip empty messages
+      next if msg["role"] == "system"  # System prompt already added above with augmentation
       
       # Debug logging for message construction
       if CONFIG["EXTRA_LOGGING"]
@@ -1127,15 +1129,24 @@ module CohereHelper
       end
     end
 
+    # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
+    # After the context loop, if only the system message exists in messages,
+    # this is the first turn with no prior conversation exchanges
+    is_initial_greeting = messages.length == 1 && messages[0]["role"] == "system"
+
     # Add current user message if not a tool call
     if role != "tool"
       # Use unified system prompt injector for user message augmentation
+      # Skip prompt_suffix for initial greeting to avoid conflicting language instructions
+      suffix_options = if is_initial_greeting
+                         {}
+                       else
+                         { prompt_suffix: obj["prompt_suffix"] }
+                       end
       current_message = Monadic::Utils::SystemPromptInjector.augment_user_message(
         base_message: message,
         session: session,
-        options: {
-          prompt_suffix: obj["prompt_suffix"]
-        }
+        options: suffix_options
       )
       
       # Check if the current message has images
@@ -1296,7 +1307,19 @@ module CohereHelper
           
           # Combine all messages into a single conversation context
           conversation_text = format_conversation_as_single_text(messages)
-          
+
+          # Add language reminder at the end of flattened text (high salience position)
+          # In single-text format, LANGUAGE MATCHING is buried in the middle and gets ignored
+          lang = session[:runtime_settings]&.[](:language)
+          if lang == "auto"
+            conversation_text += "\n\nIMPORTANT: Respond in the same language as the user's latest message (after 'Now, the user asks:'). Default to English if unclear."
+          elsif lang && lang != ""
+            lang_info = Monadic::Utils::LanguageConfig::LANGUAGES[lang]
+            if lang_info
+              conversation_text += "\n\nIMPORTANT: You MUST respond in #{lang_info[:english]}."
+            end
+          end
+
           # Replace messages with single user message containing the conversation
           body["messages"] = [
             {
@@ -1457,11 +1480,8 @@ module CohereHelper
         end
       end
 
-      # Set tool_choice to encourage tool usage when tools are present
-      # Cohere supports: "REQUIRED" (force), "NONE" (prevent), or omit for auto
-      if body["tools"] && !body["tools"].empty?
-        body["tool_choice"] = "auto"
-      end
+      # Cohere v2 API does not support the tool_choice parameter.
+      # Omitting it defaults to auto mode (model decides when to use tools).
     end # end of role != "tool"
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice

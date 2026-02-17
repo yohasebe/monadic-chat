@@ -369,6 +369,12 @@ a:focus-visible {
   a:hover {
     transition: background-color 0.01ms, color 0.01ms;
   }
+
+  /* Essential progress spinners must keep animating */
+  .parallel-task-spinner {
+    animation-duration: 0.8s !important;
+    animation-iteration-count: infinite !important;
+  }
 }
 
 /* Reduce default font size to approx. 90% (match internal Zoom Out) */
@@ -2481,8 +2487,16 @@ h1 {
   font-size: 0.85em;
 }
 
+.custom-dropdown-group > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 .custom-dropdown-group .group-toggle-icon {
   margin-left: auto;
+  flex-shrink: 0;
   font-size: 0.8em;
   color: #777;
 }
@@ -3829,6 +3843,23 @@ mjx-container[display="false"] {
   vertical-align: middle !important;
 }
 
+/* Parallel dispatch task spinner */
+@keyframes parallel-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.parallel-task-spinner {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  border: 2px solid #d1d5db;
+  border-top-color: #6b7280;
+  border-radius: 50%;
+  animation: parallel-spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
 /* Tool execution status in temp card header */
 #tool-status {
   font-size: 0.75rem;
@@ -3836,7 +3867,8 @@ mjx-container[display="false"] {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 260px;
-  color: #6b7280;
+  color: #4b5563;
+  font-weight: 500;
 }
 #tool-status .tool-call-count {
   font-weight: 600;

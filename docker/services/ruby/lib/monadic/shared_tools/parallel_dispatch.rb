@@ -10,6 +10,8 @@ module MonadicSharedTools
     MAX_PARALLEL_TASKS = 5
     DEFAULT_TIMEOUT = 120
     MAX_TIMEOUT = 300
+    SUB_AGENT_MAX_TOKENS = 4096
+    ANTHROPIC_API_VERSION = "2023-06-01"
 
     # Provider configuration for direct API calls (no tools in request body).
     # Grouped by API format family so sub-agents never trigger tool loops.
@@ -78,7 +80,12 @@ module MonadicSharedTools
       end
 
       # --- Configuration ---
-      model = session&.dig(:parameters, "model") || "gpt-4.1"
+      model = session&.dig(:parameters, "model")
+      unless model
+        # Use provider-appropriate default from PROVIDER_CONFIG rather than hardcoding
+        provider_cfg = resolve_provider_config
+        model = SystemDefaults.get_default_model(provider_cfg[:api_key_env]&.sub("_API_KEY", "")&.downcase) || "gpt-4.1"
+      end
       timeout_val = [(timeout || DEFAULT_TIMEOUT), MAX_TIMEOUT].min
 
       # Resolve websearch: explicit param > session setting > false
@@ -173,7 +180,7 @@ module MonadicSharedTools
     def resolve_provider_config
       ancestor_names = self.class.ancestors.map { |a| a.name.to_s }
       PROVIDER_CONFIG.each do |helper_name, config|
-        return config if ancestor_names.any? { |a| a.include?(helper_name) }
+        return config if ancestor_names.any? { |a| a.end_with?(helper_name) }
       end
       PROVIDER_CONFIG["OpenAIHelper"] # fallback
     end
@@ -228,9 +235,9 @@ module MonadicSharedTools
       }
       # OpenAI newer models use max_completion_tokens; others use max_tokens
       if endpoint.include?("api.openai.com")
-        body["max_completion_tokens"] = 4096
+        body["max_completion_tokens"] = SUB_AGENT_MAX_TOKENS
       else
-        body["max_tokens"] = 4096
+        body["max_tokens"] = SUB_AGENT_MAX_TOKENS
       end
       res = HTTP.headers(headers)
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
@@ -245,12 +252,12 @@ module MonadicSharedTools
       headers = {
         "Content-Type" => "application/json",
         "x-api-key" => api_key,
-        "anthropic-version" => "2023-06-01"
+        "anthropic-version" => ANTHROPIC_API_VERSION
       }
       body = {
         "model" => model,
         "messages" => [{ "role" => "user", "content" => prompt }],
-        "max_tokens" => 4096,
+        "max_tokens" => SUB_AGENT_MAX_TOKENS,
         "temperature" => 0.0
       }
       res = HTTP.headers(headers)
@@ -266,7 +273,7 @@ module MonadicSharedTools
       target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
       body = {
         "contents" => [{ "role" => "user", "parts" => [{ "text" => prompt }] }],
-        "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => 4096 }
+        "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => SUB_AGENT_MAX_TOKENS }
       }
       res = HTTP.headers("Content-Type" => "application/json")
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
@@ -344,7 +351,7 @@ module MonadicSharedTools
       body = {
         "contents" => [{ "role" => "user", "parts" => [{ "text" => prompt }] }],
         "tools" => [{ "google_search" => {} }],
-        "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => 4096 }
+        "generationConfig" => { "temperature" => 0.0, "maxOutputTokens" => SUB_AGENT_MAX_TOKENS }
       }
       res = HTTP.headers("Content-Type" => "application/json")
                 .timeout(write: timeout_secs, connect: 10, read: timeout_secs)
@@ -359,12 +366,12 @@ module MonadicSharedTools
       headers = {
         "Content-Type" => "application/json",
         "x-api-key" => api_key,
-        "anthropic-version" => "2023-06-01"
+        "anthropic-version" => ANTHROPIC_API_VERSION
       }
       body = {
         "model" => model,
         "messages" => [{ "role" => "user", "content" => prompt }],
-        "max_tokens" => 4096,
+        "max_tokens" => SUB_AGENT_MAX_TOKENS,
         "temperature" => 0.0,
         "tools" => [{ "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }]
       }

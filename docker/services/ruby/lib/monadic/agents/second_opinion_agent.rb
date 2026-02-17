@@ -2,6 +2,9 @@ require_relative "../utils/system_defaults"
 
 module SecondOpinionAgent
 
+  SECOND_OPINION_TIMEOUT = 130   # seconds per provider thread
+  SECOND_OPINION_MAX_TOKENS = 4096
+
   PROVIDER_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
     "claude" => "ANTHROPIC_API_KEY",
@@ -69,17 +72,21 @@ module SecondOpinionAgent
             results << { provider: pname, result: { comments: "Error: #{e.message}", validity: "error", model: pname } }
           end
         ensure
-          completed_mutex.synchronize { completed << pname }
+          count = completed_mutex.synchronize do
+            completed << pname
+            completed.length
+          end
           send_multi_provider_progress(
-            "Querying providers: #{completed.length}/#{available.length} completed",
+            "Querying providers: #{count}/#{available.length} completed",
             ws_session_id, available, completed
           )
         end
       end
     end
 
-    # Wait for all threads with timeout
-    threads.each { |t| t.join(130) }
+    # Wait for all threads with timeout, then kill any hung threads
+    threads.each { |t| t.join(SECOND_OPINION_TIMEOUT) }
+    threads.each { |t| t.kill if t.alive? }
 
     # Force-stop further tool calls
     session[:call_depth_per_turn] = 9999 if session.is_a?(Hash)
@@ -154,9 +161,9 @@ module SecondOpinionAgent
     # Use max_completion_tokens for OpenAI (required for newer models like gpt-5.x)
     # Use max_tokens for other providers
     if target_provider == "openai"
-      parameters["max_completion_tokens"] = 4000
+      parameters["max_completion_tokens"] = SECOND_OPINION_MAX_TOKENS
     else
-      parameters["max_tokens"] = 4000
+      parameters["max_tokens"] = SECOND_OPINION_MAX_TOKENS
     end
     
     # Delegate reasoning configuration to the provider implementation
@@ -319,10 +326,13 @@ module SecondOpinionAgent
       # For Claude, check if the model name is incomplete (missing full date)
       if provider_normalized == "claude" && model.to_s =~ /claude.*sonnet.*\d{4}-\d{2}$/
         # Model name appears to be cut off (ends with YYYY-MM instead of YYYYMMDD)
-        puts "SecondOpinionAgent WARNING: Incomplete Claude model name detected: #{model}"
-        # Use default model instead
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "SecondOpinionAgent WARNING: Incomplete Claude model name detected: #{model}"
+        end
         model = get_default_model_for_provider(provider_normalized)
-        puts "SecondOpinionAgent INFO: Using default model: #{model}"
+        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          puts "SecondOpinionAgent INFO: Using default model: #{model}"
+        end
       end
       return [provider_normalized, model]
     end

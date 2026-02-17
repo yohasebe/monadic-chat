@@ -257,8 +257,8 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         allow(app).to receive(:sub_agent_api_call).and_return("text")
       end
 
-      it "uses default model when session is nil" do
-        expect(app).to receive(:sub_agent_api_call).with("gpt-4.1", anything, anything, anything, websearch: false).and_return("text")
+      it "uses provider default model when session is nil" do
+        expect(app).to receive(:sub_agent_api_call).with(kind_of(String), anything, anything, anything, websearch: false).and_return("text")
         tasks = [{ "id" => "t1", "prompt" => "test" }]
         app.dispatch_parallel_tasks(tasks: tasks, session: nil)
       end

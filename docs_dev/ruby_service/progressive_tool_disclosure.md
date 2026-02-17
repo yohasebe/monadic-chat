@@ -193,6 +193,11 @@ end
    - Structured execution plan proposal
    - User approval before multi-step execution
 
+6. **`verification`** (1 tool)
+   - Self-verification of tool outputs before presenting to user
+   - Automatic retry limit enforcement (3 attempts)
+   - Temp card UI status display (passed/issues_found/fixed/limit_reached)
+
 ### Conditionally Available
 
 1. **`web_automation`** (4 tools)

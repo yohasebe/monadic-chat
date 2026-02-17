@@ -54,6 +54,14 @@
 
 **このツールを使用するアプリ**: 全ツール対応アプリ（Code Interpreter、Research Assistant、Coding Assistant、Jupyter Notebook、AutoForge、Math Tutor 等）
 
+#### 検証（1ツール）
+- ユーザーに結果を提示する前に、自己検証の結果を記録
+- ステータス: passed（合格）、issues_found（問題発見）、fixed（修正済み）をサポート
+- 検証が合格するか、リトライ上限（3回）に達すると自動的にツールループを停止
+- 処理中、テンポラリカードUIに検証ステータスが表示される
+
+**このツールを使用するアプリ**: Code Interpreter、Jupyter Notebook、AutoForge、Mermaid Grapher、Chord Accompanist（全プロバイダー）
+
 ### 条件付き利用可能
 
 これらのツールグループは、特定のコンテナまたはAPIキーが利用可能である必要があります：

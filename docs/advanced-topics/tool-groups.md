@@ -54,6 +54,14 @@ These tool groups are always available and don't require additional setup:
 
 **Apps using this**: All tool-enabled apps (Code Interpreter, Research Assistant, Coding Assistant, Jupyter Notebook, AutoForge, Math Tutor, etc.)
 
+#### Verification (1 tool)
+- Record the outcome of self-verifying work before presenting it to the user
+- Supports statuses: passed, issues found, fixed
+- Automatically stops the tool loop when verification passes or the retry limit (3 attempts) is reached
+- Verification status is displayed in the temporary card UI during processing
+
+**Apps using this**: Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, Chord Accompanist (all providers)
+
 ### Conditionally Available
 
 These tool groups require specific containers or API keys to be available:

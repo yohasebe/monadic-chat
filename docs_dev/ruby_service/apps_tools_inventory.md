@@ -181,6 +181,30 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
+### 12. verification
+**Module:** `MonadicSharedTools::Verification`
+**Default Visibility:** Always
+**Description:** Record the outcome of self-verifying work before presenting results to the user. Enforces a retry limit and stops the tool loop on success.
+
+**Tools:**
+- `report_verification` - Record the verification outcome after checking work
+
+**Parameters:**
+- `result_summary` (string, required) - Brief description of what was produced and needs verification
+- `checks_performed` (array of strings, required) - List of verification checks performed
+- `status` (string, required) - Verification outcome: "passed", "issues_found", or "fixed"
+- `issues` (array of strings, optional) - Issues found (when status is "issues_found" or "fixed")
+- `fixes_applied` (array of strings, optional) - Fixes applied (when status is "fixed")
+
+**Behavior:**
+- Sets `session[:call_depth_per_turn] = 9999` on "passed" or "fixed" to stop the tool loop
+- Enforces `MAX_VERIFICATION_RETRIES` (3) consecutive "issues_found" before force-stopping
+- Stores `session[:verification_wait_message]` for temp card UI display via `send_verification_notification` in vendor helpers
+
+**Default PTD Hint:** "Call report_verification after checking your work to record the verification outcome."
+
+---
+
 ## App-by-App Tools Inventory
 
 ### Auto Forge (3 providers: Claude, Grok, OpenAI)
@@ -481,12 +505,13 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | `:content_analysis_openai` | Content Reader, Speech Draft Helper, Video Describer | 3 |
 | `:web_automation` | Auto Forge, Visual Web Explorer | 2 |
 | `:planning` | All tool-enabled apps | 22 |
+| `:verification` | Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, Chord Accompanist | 15 |
 
 ### By Visibility Setting
 
 | Visibility | Tool Groups | Count |
 |------------|------------|-------|
-| **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation, planning | 6 |
+| **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation, planning, verification | 7 |
 | **Conditional** | web_search_tools, web_automation, content_analysis_openai | 3 |
 
 ### Apps with Most Tool Imports
@@ -552,6 +577,7 @@ Located in `/docker/services/ruby/lib/monadic/shared_tools/`:
 - `jupyter_operations.rb` - Notebook management
 - `app_creation.rb` - App introspection and creation
 - `planning.rb` - Plan-Approve-Execute pattern
+- `verification.rb` - Self-Verification Protocol
 
 ### App-Specific Tools
 Located in `/docker/services/ruby/apps/{app_name}/`:

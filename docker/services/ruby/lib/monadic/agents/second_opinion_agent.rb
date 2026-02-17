@@ -166,7 +166,7 @@ module SecondOpinionAgent
     else
       parameters["max_tokens"] = SECOND_OPINION_MAX_TOKENS
     end
-    
+
     # Delegate reasoning configuration to the provider implementation
     # Each provider class knows how to configure its own reasoning models
     if respond_to?(:configure_reasoning_params)
@@ -176,6 +176,12 @@ module SecondOpinionAgent
       # Use simple default configuration
       parameters["temperature"] = 0.7
     end
+
+    # Disable extended thinking for second opinion evaluations.
+    # Thinking tokens count against maxOutputTokens for some providers (e.g., Gemini),
+    # which can truncate the structured response (COMMENTS/VALIDITY sections).
+    # Set after configure_reasoning_params to ensure it's not overridden.
+    parameters["reasoning_effort"] = "none"
 
     begin
       # Use the provider's helper to send the query

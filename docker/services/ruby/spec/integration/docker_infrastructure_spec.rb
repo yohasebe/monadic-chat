@@ -124,11 +124,11 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
       end
       expect(selenium_ready).to eq(true)
 
-      # Try multiple test URLs (local first, then fallback to external)
+      # Try multiple test URLs — prefer network-independent targets first
       test_urls = [
-        "http://host.docker.internal:4567/",  # Local Monadic Chat server
-        "https://example.com/",               # Reliable external fallback
-        "https://httpbin.org/html"            # Original test URL
+        "http://localhost:4444/",              # Selenium Grid's own UI (always reachable from within the container)
+        "http://host.docker.internal:4567/",   # Local Monadic Chat server
+        "https://example.com/"                 # External fallback
       ]
 
       success = false
@@ -139,8 +139,8 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
         command = "docker exec monadic-chat-python-container python /monadic/scripts/cli_tools/webpage_fetcher.py " \
                   "--url \"#{test_url}\" --filepath \"/tmp/\" --mode \"png\" --timeout-sec 30"
 
-        # Use longer timeout for the test itself
-        result = `timeout 120 #{command} 2>&1`
+        # webpage_fetcher.py handles its own timeout via --timeout-sec
+        result = `#{command} 2>&1`
         last_result = result
 
         # Debug output
@@ -162,13 +162,9 @@ RSpec.describe "Docker Infrastructure Integration", type: :integration do
         end
       end
 
-      # Assert that at least one URL succeeded
-      if success
-        expect(last_result).to match(/Successfully saved screenshot|saved to.*\.png/i)
-      else
-        # Skip test if all URLs failed (likely network issue)
-        skip "Selenium screenshot test skipped - network connectivity issues (tried #{test_urls.join(', ')})"
-      end
+      # All URLs should be reachable — localhost:4444 requires no external network
+      expect(success).to eq(true),
+        "Selenium screenshot failed for all URLs: #{test_urls.join(', ')}\nLast output: #{last_result}"
     end
   end
 

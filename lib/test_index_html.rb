@@ -3,6 +3,67 @@
 require 'json'
 
 class TestIndexHTML
+  # Parse test result JSON into unified stats hash.
+  # Supports RSpec format (examples[]) and Jest format (testResults[].assertionResults[]).
+  # Returns nil for non-JSON files or parse errors.
+  def self.parse_suite_stats(json_path, suite_name)
+    return nil unless File.exist?(json_path) && json_path.end_with?('.json')
+
+    data = JSON.parse(File.read(json_path))
+    stats = { total: 0, passed: 0, failed: 0, pending: 0, failures: [] }
+
+    if data.key?('examples')
+      # RSpec format
+      data['examples'].each do |ex|
+        stats[:total] += 1
+        case ex['status']
+        when 'passed'
+          stats[:passed] += 1
+        when 'failed'
+          stats[:failed] += 1
+          stats[:failures] << {
+            suite: suite_name,
+            description: ex['full_description'] || ex['description'],
+            location: "#{ex['file_path']}:#{ex['line_number']}",
+            message: ex.dig('exception', 'message')
+          }
+        when 'pending'
+          stats[:pending] += 1
+        end
+      end
+    elsif data.key?('testResults')
+      # Jest format
+      data['testResults'].each do |tr|
+        (tr['assertionResults'] || []).each do |ar|
+          stats[:total] += 1
+          case ar['status']
+          when 'passed'
+            stats[:passed] += 1
+          when 'failed'
+            stats[:failed] += 1
+            msg = (ar['failureMessages'] || []).first
+            # Strip ANSI escape codes for display
+            clean_msg = msg&.gsub(/\e\[[0-9;]*m/, '')
+            stats[:failures] << {
+              suite: suite_name,
+              description: ar['fullName'] || ar['title'],
+              location: tr['name'] || '',
+              message: clean_msg
+            }
+          when 'pending', 'skipped', 'todo'
+            stats[:pending] += 1
+          end
+        end
+      end
+    else
+      return nil
+    end
+
+    stats
+  rescue JSON::ParserError
+    nil
+  end
+
   def self.generate(results_dir, run_id, suites, output_path)
     html = <<~HTML
       <!DOCTYPE html>
@@ -78,6 +139,7 @@ class TestIndexHTML
           .suite .status.failed { color: #dc3545; }
           .suite a { color: #007bff; text-decoration: none; font-size: 0.9em; }
           .suite a:hover { text-decoration: underline; }
+          .suite .counts { font-size: 0.85em; color: #666; margin: 5px 0; }
           .stats { margin: 20px 0; padding: 15px; background: white; border-radius: 8px; }
           .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; text-align: center; }
           .stat-item { padding: 10px; }
@@ -99,41 +161,24 @@ class TestIndexHTML
           </div>
     HTML
 
-    # Collect stats from all JSON files
+    # Parse stats from all suites (single pass, used for both banner and cards)
     total_tests = 0
     total_passed = 0
     total_failed = 0
     total_pending = 0
     all_failures = []
 
-    suites.each do |suite|
-      json_file = File.join(output_dir, suite[:file])
-      next unless File.exist?(json_file) && suite[:file].end_with?('.json')
-
-      begin
-        data = JSON.parse(File.read(json_file))
-        examples = data['examples'] || []
-
-        examples.each do |ex|
-          total_tests += 1
-          case ex['status']
-          when 'passed'
-            total_passed += 1
-          when 'failed'
-            total_failed += 1
-            all_failures << {
-              suite: suite[:name],
-              description: ex['full_description'] || ex['description'],
-              location: "#{ex['file_path']}:#{ex['line_number']}",
-              message: ex.dig('exception', 'message')
-            }
-          when 'pending'
-            total_pending += 1
-          end
-        end
-      rescue JSON::ParserError
-        # Skip malformed JSON files
+    suite_data = suites.map do |suite|
+      json_path = File.join(output_dir, suite[:file])
+      stats = parse_suite_stats(json_path, suite[:name])
+      if stats
+        total_tests += stats[:total]
+        total_passed += stats[:passed]
+        total_failed += stats[:failed]
+        total_pending += stats[:pending]
+        all_failures.concat(stats[:failures])
       end
+      suite.merge(stats: stats)
     end
 
     # Stats section
@@ -161,17 +206,30 @@ class TestIndexHTML
           <div class="suites">
     HTML
 
-    # Suite cards
-    suites.each do |suite|
-      status = suite[:status] ? 'passed' : 'failed'
-      status_class = suite[:status] ? 'passed' : 'failed'
-      status_text = suite[:status] ? '✅ Passed' : '❌ Failed'
+    # Suite cards (badge derived from JSON stats when available, boolean fallback otherwise)
+    suite_data.each do |suite|
+      stats = suite[:stats]
+      if stats
+        has_failures = stats[:failed] > 0
+        status_class = has_failures ? 'failed' : 'passed'
+        status_text = has_failures ? '❌ Failed' : '✅ Passed'
+        counts_parts = []
+        counts_parts << "#{stats[:passed]} passed" if stats[:passed] > 0
+        counts_parts << "#{stats[:failed]} failed" if stats[:failed] > 0
+        counts_parts << "#{stats[:pending]} pending" if stats[:pending] > 0
+        counts_line = counts_parts.any? ? "<p class=\"counts\">#{counts_parts.join(', ')}</p>" : ''
+      else
+        status_class = suite[:status] ? 'passed' : 'failed'
+        status_text = suite[:status] ? '✅ Passed' : '❌ Failed'
+        counts_line = ''
+      end
       file_link = suite[:file]
 
       html << <<~SUITE
             <div class="suite #{status_class}">
               <h2>#{suite[:name].to_s.capitalize}</h2>
               <p class="status #{status_class}">#{status_text}</p>
+              #{counts_line}
               <a href="#{file_link}">View Results (#{file_link})</a>
             </div>
       SUITE

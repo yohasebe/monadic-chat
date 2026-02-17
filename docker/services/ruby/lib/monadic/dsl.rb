@@ -593,6 +593,11 @@ module MonadicDSL
             props[name.to_s]["items"] = param[:items] || { "type" => "object" }
           end
 
+          # Add empty properties for object types (required by Gemini to avoid MALFORMED_FUNCTION_CALL)
+          if param[:type] == "object"
+            props[name.to_s]["properties"] = {}
+          end
+
           # Gemini-specific enum handling
           if tool.enum_values[name]
             props[name.to_s]["enum"] = tool.enum_values[name]
@@ -1082,27 +1087,14 @@ module MonadicDSL
 
     # Import shared tools at app level (delegates to ToolConfiguration)
     # This allows import_shared_tools to be called outside of tools {} block
+    # Uses a persistent ToolConfiguration to accumulate tools across multiple calls
     def import_shared_tools(*groups, **options)
-      # Get current provider
       provider = @state.settings[:provider].to_s.downcase.to_sym
+      @tool_config ||= ToolConfiguration.new(@state, provider)
 
-      # Create or get existing tool configuration
-      tool_config = ToolConfiguration.new(@state, provider)
+      @tool_config.import_shared_tools(*groups, **options)
 
-      # If tools are already defined, we need to merge with existing configuration
-      if @state.settings[:tools]
-        # Load existing tools into tool_config
-        existing_tools = @state.settings[:tools]
-        if existing_tools.is_a?(Hash) && existing_tools[:tools]
-          tool_config.instance_variable_set(:@tools, existing_tools[:tools])
-        end
-      end
-
-      # Import the shared tools
-      tool_config.import_shared_tools(*groups, **options)
-
-      # Update state with the new configuration
-      @state.settings[:tools] = tool_config.to_h
+      @state.settings[:tools] = @tool_config.to_h
     end
   end
 

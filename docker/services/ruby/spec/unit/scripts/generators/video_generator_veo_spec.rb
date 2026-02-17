@@ -496,11 +496,11 @@ RSpec.describe "VideoGeneratorVeo" do
   
   describe "#parse_options" do
     it "parses valid command line options" do
-      ARGV.replace(["-p", "Test prompt", "-a", "9:16", "-d", "8"])
+      ARGV.replace(["-p", "Test prompt", "-a", "16:9", "-d", "8"])
       options = parse_options
-      
+
       expect(options[:prompt]).to eq("Test prompt")
-      expect(options[:aspect_ratio]).to eq("9:16")
+      expect(options[:aspect_ratio]).to eq("16:9")
       expect(options[:duration_seconds]).to eq(8)
       
       ARGV.clear

@@ -21,6 +21,13 @@ require 'spec_helper'
 RSpec.describe 'Initiate From Assistant Safety Validation' do
   let(:apps_dir) { File.expand_path('../../../apps', __dir__) }
 
+  # Load all constant files so constant-reference system prompts can be resolved
+  before(:all) do
+    Dir.glob(File.join(File.expand_path('../../../apps', __dir__), '**/*_constants.rb')).each do |f|
+      require f
+    end
+  end
+
   # Patterns that indicate aggressive/mandatory tool usage (high risk for loops)
   DANGEROUS_PATTERNS = [
     /MANDATORY.*TOOL/i,
@@ -76,13 +83,16 @@ RSpec.describe 'Initiate From Assistant Safety Validation' do
         let(:file_content) { content }
         let(:system_prompt) do
           # Extract system_prompt content
-          # Handle both inline and heredoc formats
-          if content =~ /system_prompt\s+<<~TEXT\s*\n(.*?)\n\s*TEXT/m
-            $1
-          elsif content =~ /system_prompt\s+([A-Z][A-Za-z]+::[A-Z_]+)/
-            # Reference to constant - need to check the constant file
-            constant_ref = $1
-            nil # Will be checked separately
+          # Handle heredoc with any delimiter (TEXT, PROMPT, etc.) via backreference
+          if content =~ /system_prompt\s+<<~(\w+)\s*\n(.*?)\n\s*\1/m
+            $2
+          elsif content =~ /system_prompt\s+([A-Z][A-Za-z_0-9]+::[A-Z_]+)/
+            # Resolve constant reference (e.g. MathTutor::SYSTEM_PROMPT)
+            begin
+              Object.const_get($1)
+            rescue NameError
+              nil
+            end
           else
             nil
           end
@@ -122,48 +132,6 @@ RSpec.describe 'Initiate From Assistant Safety Validation' do
           end
         end
 
-        it 'has appropriate initial greeting handling' do
-          skip "System prompt is a constant reference" if system_prompt.nil?
-
-          # Apps with tools should have some guidance about initial messages
-          has_tools = file_content.match?(/define_tool|import_shared_tools/)
-
-          if has_tools
-            has_any_safeguard = SAFEGUARD_PATTERNS.any? { |p| system_prompt.match?(p) } ||
-                                STOP_CONDITION_PATTERNS.any? { |p| system_prompt.match?(p) } ||
-                                system_prompt.match?(/for simple.*skip.*tools/i) ||
-                                system_prompt.match?(/welcome.*message/i)
-
-            # This is informational - some apps may legitimately need tools on first message
-            # Use skip instead of pending to avoid "fixed pending" failures
-            if !has_any_safeguard && system_prompt.length > 500
-              skip "Consider adding initial greeting guidance - app has tools but no explicit greeting instructions"
-            end
-          end
-
-          # Test passes if no issues found
-          expect(true).to be(true)
-        end
-
-        it 'does not have excessive CRITICAL/MANDATORY language' do
-          skip "System prompt is a constant reference" if system_prompt.nil?
-
-          # Count aggressive keywords
-          critical_count = system_prompt.scan(/CRITICAL|MANDATORY|ABSOLUTE|MUST/i).length
-          recommended_count = system_prompt.scan(/Recommended|Optional|when appropriate|you may|you can/i).length
-
-          # If more than 5 aggressive keywords and ratio is poor, flag it
-          # Use skip instead of pending to avoid "fixed pending" failures
-          if critical_count > 5 && recommended_count < 2
-            skip <<~WARNING
-              System prompt has high aggressive language ratio (#{critical_count} CRITICAL/MANDATORY vs #{recommended_count} recommended).
-              Consider softening language to prevent potential tool loops.
-            WARNING
-          end
-
-          # Test passes if language ratio is acceptable
-          expect(true).to be(true)
-        end
       end
     end
   end

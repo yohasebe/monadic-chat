@@ -46,7 +46,7 @@ function collectKeys(obj, prefix = '') {
 }
 
 const EXPECTED_LANGUAGES = ['en', 'ja', 'zh', 'ko', 'es', 'fr', 'de'];
-const EXPECTED_CATEGORIES = ['general', 'system', 'apiKeys', 'voice', 'services', 'about'];
+const EXPECTED_CATEGORIES = ['general', 'system', 'apiKeys', 'voice', 'services', 'installOptions', 'actions', 'about'];
 
 describe('Settings Translations', () => {
   test('all expected languages are present', () => {

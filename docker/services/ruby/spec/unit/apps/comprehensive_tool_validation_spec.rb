@@ -94,7 +94,7 @@ RSpec.describe 'Comprehensive Tool Validation' do
       providers: %w[OpenAI Claude Gemini Grok Cohere Mistral DeepSeek]
     },
     'second_opinion' => {
-      tools: %w[second_opinion_agent],
+      tools: %w[second_opinion_agent parallel_second_opinions],
       agents: [],
       # Note: Perplexity excluded - does not support tool calling
       providers: %w[OpenAI Claude Gemini Grok Mistral Cohere DeepSeek Ollama]

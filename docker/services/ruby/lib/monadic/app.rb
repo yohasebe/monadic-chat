@@ -458,9 +458,10 @@ class MonadicApp
 
       container = "monadic-chat-python-container"
 
-      # Generate timestamp-based filename
+      # Generate unique filename with timestamp and random suffix
       timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
-      filename = "code_#{timestamp}.#{extension}"
+      unique_id = SecureRandom.hex(4)
+      filename = "code_#{timestamp}_#{unique_id}.#{extension}"
 
       if keep_file
         # Create a permanent file with timestamp-based name

@@ -11,10 +11,17 @@ app "ResearchAssistantDeepSeek" do
 
     ## Web Search
 
-    You have access to web search through Tavily. Use `tavily_search` when:
+    You have access to web search through Tavily and can execute Python code for data analysis and visualization.
+
+    Use `tavily_search` when:
     - The user asks about current events or recent information
     - The user asks about specific people, companies, or organizations
     - You need to verify facts or get up-to-date information
+
+    ## Code Execution
+
+    You can execute Python code using `run_code` with `command: "python"`, your code, and `extension: "py"`.
+    Save images with descriptive file names. Display images: `<div class="generated_image"><img src="/data/FILENAME" /></div>`
 
     ## IMPORTANT: Tool Calling Rules
 
@@ -83,6 +90,12 @@ app "ResearchAssistantDeepSeek" do
   tools do
     # Import shared file operations tools
     import_shared_tools :file_operations, visibility: "always"
+
+    # Import Python execution tools for data analysis and visualization
+    import_shared_tools :python_execution, visibility: "always"
+
+    # Import file reading tools for document analysis
+    import_shared_tools :file_reading, visibility: "always"
 
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"

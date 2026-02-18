@@ -89,7 +89,7 @@ app "LanguagePracticePlusClaude" do
 
   llm do
     provider "anthropic"
-    model ["claude-sonnet-4-5-20250929", "claude-opus-4-20250514"]
+    model ["claude-sonnet-4-6", "claude-opus-4-6"]
     temperature 0.4
     context_size 30
   end

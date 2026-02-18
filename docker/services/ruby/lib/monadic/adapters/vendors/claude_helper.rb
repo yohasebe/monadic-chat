@@ -147,7 +147,7 @@ module ClaudeHelper
           # Return fallback models if API call fails during testing
           fallback_models = [
             "claude-opus-4-6",
-            "claude-sonnet-4-5-20250929",
+            "claude-sonnet-4-6",
             "claude-sonnet-4-20250514",
             "claude-haiku-4-5-20251001"
           ]
@@ -158,7 +158,7 @@ module ClaudeHelper
         # Return fallback models if any error occurs
         fallback_models = [
           "claude-opus-4-6",
-          "claude-sonnet-4-5-20250929",
+          "claude-sonnet-4-6",
           "claude-sonnet-4-20250514",
           "claude-haiku-4-5-20251001"
         ]
@@ -2158,8 +2158,6 @@ module ClaudeHelper
         block&.call res
         return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => "Repeated errors detected. Stopping." } }] }]
       end
-
-      # Making recursive api_request with role 'tool'
 
       # Return Array
       api_request("tool", session, call_depth: call_depth, &block)

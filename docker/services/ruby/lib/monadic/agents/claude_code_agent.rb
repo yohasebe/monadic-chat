@@ -7,7 +7,7 @@ module Monadic
     module ClaudeCodeAgent
       include Monadic::Utils::StepProgress
 
-      CLAUDE_MODEL = 'claude-sonnet-4-5-20250929'.freeze
+      CLAUDE_MODEL = 'claude-sonnet-4-6'.freeze
 
       CLAUDE_CODE_STEPS = [
         "Analyzing requirements",

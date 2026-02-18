@@ -4,7 +4,7 @@
       "model": "gpt-5.2"
     },
     "anthropic": {
-      "model": "claude-sonnet-4-5-20250929"
+      "model": "claude-sonnet-4-6"
     },
     "cohere": {
       "model": "command-a-reasoning-08-2025"

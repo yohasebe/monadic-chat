@@ -585,6 +585,7 @@ module DeepSeekHelper
     texts = {}
     tools = {}
     finish_reason = nil
+    fragment_sequence = 0
     @dsml_abort_streaming = false  # Flag for early abort on malformed DSML
 
     chunk_count = 0
@@ -719,10 +720,11 @@ module DeepSeekHelper
                     res = {
                       "type" => "fragment",
                       "content" => fragment,
-                      "index" => choice["message"]["content"].length - fragment.length,
+                      "sequence" => fragment_sequence,
                       "timestamp" => Time.now.to_f,
-                      "is_first" => choice["message"]["content"].length == fragment.length
+                      "is_first" => fragment_sequence == 0
                     }
+                    fragment_sequence += 1
                     block&.call res
                   end
 
@@ -1149,10 +1151,11 @@ module DeepSeekHelper
             res = {
               "type" => "fragment",
               "content" => extracted_content,
-              "index" => 0,
+              "sequence" => fragment_sequence,
               "timestamp" => Time.now.to_f,
-              "is_first" => true
+              "is_first" => fragment_sequence == 0
             }
+            fragment_sequence += 1
             block&.call res
           rescue JSON::ParserError
             # If parsing fails, use the original content
@@ -1160,10 +1163,11 @@ module DeepSeekHelper
             res = {
               "type" => "fragment",
               "content" => message,
-              "index" => 0,
+              "sequence" => fragment_sequence,
               "timestamp" => Time.now.to_f,
-              "is_first" => true
+              "is_first" => fragment_sequence == 0
             }
+            fragment_sequence += 1
             block&.call res
           end
         end

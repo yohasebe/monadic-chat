@@ -1997,10 +1997,11 @@ module CohereHelper
           res = {
             "type" => "fragment",
             "content" => default_response,
-            "index" => 0,
+            "sequence" => fragment_sequence,
             "timestamp" => Time.now.to_f,
-            "is_first" => true
+            "is_first" => fragment_sequence == 0
           }
+          fragment_sequence += 1
           block&.call res
           
           # Send DONE message to complete the stream

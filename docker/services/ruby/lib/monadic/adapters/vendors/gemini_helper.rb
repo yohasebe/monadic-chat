@@ -2536,13 +2536,13 @@ module GeminiHelper
       if app_name.include?("ImageGenerator") && app_name.include?("Gemini")
         # Provide fallback greeting for Gemini Image Generator
         fallback_greeting = "Welcome! I can generate and edit images using Gemini. Describe the image you want, or upload an image to edit it!"
-        res = { "type" => "fragment", "content" => fallback_greeting }
+        res = { "type" => "fragment", "content" => fallback_greeting, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
         block&.call res
         result = [fallback_greeting]
       elsif app_name.include?("VideoGenerator") && app_name.include?("Gemini")
         # Provide fallback greeting for Gemini Video Generator
         fallback_greeting = "Welcome! I can create videos using Google's Veo. Simply describe your video or upload an image to animate!"
-        res = { "type" => "fragment", "content" => fallback_greeting }
+        res = { "type" => "fragment", "content" => fallback_greeting, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
         block&.call res
         result = [fallback_greeting]
       elsif app_name.include?("JupyterNotebook") && app_name.include?("Gemini")
@@ -2577,7 +2577,7 @@ module GeminiHelper
             success_msg += "\n\nAccess it at: <a href='#{link}' target='_blank'>#{filename}</a>"
           end
 
-          res = { "type" => "fragment", "content" => success_msg }
+          res = { "type" => "fragment", "content" => success_msg, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
           block&.call res
           result = [success_msg]
         else
@@ -2595,13 +2595,13 @@ module GeminiHelper
               error_summary = "Notebook execution errors occurred."
             end
             error_msg = "Errors occurred during notebook execution.\n\n#{error_summary}"
-            res = { "type" => "fragment", "content" => error_msg }
+            res = { "type" => "fragment", "content" => error_msg, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
             block&.call res
             result = [error_msg]
           else
             # No successful result and no error - provide generic message
             fallback_msg = "JupyterLab is ready. Please describe the notebook you'd like to create or the task you want to accomplish."
-            res = { "type" => "fragment", "content" => fallback_msg }
+            res = { "type" => "fragment", "content" => fallback_msg, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
             block&.call res
             result = [fallback_msg]
           end
@@ -2632,7 +2632,7 @@ module GeminiHelper
               if action_input.is_a?(String) && !action_input.strip.empty?
                 # Send the extracted content as a replacement fragment
                 # Using is_first: true will clear the temp-card content and replace with new content
-                res = { "type" => "fragment", "content" => action_input, "is_first" => true }
+                res = { "type" => "fragment", "content" => action_input, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
                 block&.call res
                 # Update result to contain only the extracted content
                 result = [action_input]
@@ -2681,7 +2681,7 @@ module GeminiHelper
 
           # Send content to client before returning
           if final_content && !final_content.empty?
-            block&.call({ "type" => "fragment", "content" => final_content })
+            block&.call({ "type" => "fragment", "content" => final_content, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true })
           end
           block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
 
@@ -2706,11 +2706,12 @@ module GeminiHelper
 
             # Inject HTML for the image
             image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"#{image_file}\" />\n</div>"
-            
-            # Send the HTML as a fragment
+
+            # Send the HTML as a supplementary fragment (not first — appends to existing content)
             res = {
               "type" => "fragment",
-              "content" => image_html
+              "content" => image_html,
+              "timestamp" => Time.now.to_f
             }
             block&.call res
           end
@@ -2889,10 +2890,11 @@ module GeminiHelper
             # Extract and send the HTML portion separately
             if final_result =~ /(<div class="generated_image">.*?<\/div>)/m
               image_html = $1
-              # Send the image HTML as a fragment to the frontend
+              # Send the image HTML as a supplementary fragment (not first — appends to existing content)
               res = {
                 "type" => "fragment",
-                "content" => image_html
+                "content" => image_html,
+                "timestamp" => Time.now.to_f
               }
               block&.call res
               
@@ -3445,7 +3447,7 @@ module GeminiHelper
         end
         
         # Send error message to client for better visibility
-        res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>" }
+        res = { "type" => "fragment", "content" => "<span class='text-danger'>#{error_message}</span>", "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
         block&.call res
       end
     end
@@ -3481,7 +3483,7 @@ module GeminiHelper
                   </div>
                 HTML
 
-                res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+                res = { "type" => "fragment", "content" => video_html, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
                 block&.call res
 
                 # Send DONE message to complete the response
@@ -3508,7 +3510,7 @@ module GeminiHelper
                   </div>
                 HTML
 
-                res = { "type" => "fragment", "content" => image_html, "is_first" => true }
+                res = { "type" => "fragment", "content" => image_html, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
                 block&.call res
 
                 # Send DONE message to complete the response
@@ -3550,7 +3552,7 @@ module GeminiHelper
               </div>
             HTML
 
-            res = { "type" => "fragment", "content" => video_html, "is_first" => true }
+            res = { "type" => "fragment", "content" => video_html, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
             block&.call res
 
             # Send DONE message to complete the response

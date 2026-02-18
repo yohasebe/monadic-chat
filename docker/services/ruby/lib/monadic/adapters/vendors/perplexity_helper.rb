@@ -851,7 +851,7 @@ module PerplexityHelper
     if !body["stream"]
       obj = JSON.parse(res.body)
       frag = obj.dig("choices", 0, "message", "content")
-      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
+      block&.call({ "type" => "fragment", "content" => frag, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true, "finish_reason" => "stop" })
       block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
       [obj]
     else
@@ -1104,9 +1104,8 @@ module PerplexityHelper
                 "type" => "fragment",
                 "content" => fragment,
                 "sequence" => fragment_sequence,
-                "timestamp" => Time.now.to_f
-                # Don't send is_first flag to prevent spinner from disappearing
-                # "is_first" => fragment_sequence == 0
+                "timestamp" => Time.now.to_f,
+                "is_first" => fragment_sequence == 0
               }
 
               if CONFIG["EXTRA_LOGGING"]

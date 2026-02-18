@@ -2379,7 +2379,7 @@ module OpenAIHelper
         tool_call_id: tool_call["id"],
         role: "tool",
         name: function_name,
-        content: function_return.to_s
+        content: function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
       }
 
       if CONFIG["EXTRA_LOGGING"]
@@ -2394,8 +2394,8 @@ module OpenAIHelper
     # For Image/Video Generator apps, skip the recursive api_request after successful generation
     # This prevents the model from seeing the tool result and calling the tool again
     app_name = session[:parameters]["app_name"].to_s
+    # Image/Video Generator intercept — requires @clear_orchestration_history
     if @clear_orchestration_history && (app_name.include?("ImageGenerator") || app_name.include?("VideoGenerator"))
-      # Check if we have a successful generation result in the context
       context.each do |ctx|
         next unless ctx[:content].is_a?(String)
         response_content = ctx[:content]

@@ -55,8 +55,8 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 
 **A**: While most features require internet access to communicate with language model APIs, you can use Monadic Chat offline with Ollama:
 
-1. Build the Ollama container (Actions → Build Ollama Container)
-2. Models are downloaded during the build process
+1. Install Ollama on your system ([ollama.com](https://ollama.com/download))
+2. Pull the models you need (e.g., `ollama pull qwen3:4b`)
 3. Once models are downloaded, you can use the Chat app with Ollama provider offline
 
 Note that other features like web search, image generation, and cloud-based language models still require internet access.

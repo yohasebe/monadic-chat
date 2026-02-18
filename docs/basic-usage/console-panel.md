@@ -58,9 +58,6 @@ Build the Docker image and container (`monadic-chat-python-container`) used by t
 **Build User Containers** <br />
 Build the Docker images and containers defined by the user. Note that user-defined containers are not automatically built when starting Monadic Chat - you must use this menu option to build them manually after adding or modifying user container definitions.
 
-**Build Ollama Container** <br />
-Build the Docker image and container (`monadic-chat-ollama-container`) for running local language models via Ollama. This container is not built automatically with "Build All" to save resources. You must explicitly choose this option to use Ollama features.
-
 **Start JupyterLab** <br />
 Launch JupyterLab. It can be accessed at [http://localhost:8889](http://localhost:8889)
 
@@ -98,7 +95,6 @@ Open the `~/monadic/config` folder. This folder contains configuration files for
 - `env`: Configuration file (can be configured through GUI).
 - `pysetup.sh`: Script for setting up the Python environment (optional, user-created).
 - `rbsetup.sh`: Script for setting up the Ruby environment (optional, user-created).
-- `olsetup.sh`: Script for setting up Ollama models (optional, user-created).
 - `compose.yml`: Docker Compose configuration file (auto-generated when user containers are present).
 
 

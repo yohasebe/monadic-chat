@@ -8,7 +8,6 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 - **Python** (`monadic-chat-python-container`): Flask API for Python tools & embeddings
 - **PostgreSQL/PGVector** (`monadic-chat-pgvector-container`): Vector database for embeddings
 - **Selenium** (`monadic-chat-selenium-container`): Web automation for capture/search
-- **Ollama** (`monadic-chat-ollama-container`): Local LLM support (optional)
 
 ## Container Lifecycle
 

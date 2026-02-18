@@ -790,33 +790,12 @@ Example format:
 Please format all numbered lists following these rules to ensure proper rendering.
 PROMPT
 
-# Check if Ollama container is available (for development mode)
-def check_ollama_available
-  # If ENV already set (e.g., in Docker), use that
-  return ENV["OLLAMA_AVAILABLE"] == "true" if ENV["OLLAMA_AVAILABLE"]
-  
-  # Otherwise, check if Docker is available and Ollama container exists
-  begin
-    # Check if docker command exists
-    docker_available = system("which docker > /dev/null 2>&1")
-    return false unless docker_available
-    
-    # Check if Ollama container exists
-    ollama_exists = `docker ps -a --format "{{.Names}}" 2>/dev/null`.include?("monadic-chat-ollama-container")
-    return ollama_exists
-  rescue StandardError => e
-    # If any error occurs, assume Ollama is not available
-    return false
-  end
-end
-
 # Initialize CONFIG with default values
 CONFIG = {
   "DISTRIBUTED_MODE" => "off",  # Default to off/standalone mode
   "EXTRA_LOGGING" => ENV["EXTRA_LOGGING"] == "true" || false,  # Check ENV first, then default to false
   "DEBUG_MODE" => ENV["DEBUG_MODE"] == "true" || false,  # Check if running in debug mode
   "JUPYTER_PORT" => "8889",     # Default Jupyter port
-  "OLLAMA_AVAILABLE" => check_ollama_available,  # Check if Ollama container is available
   "WEBSOCKET_PROGRESS_ENABLED" => ENV["WEBSOCKET_PROGRESS_ENABLED"] != "false",  # Default to true, can be disabled via ENV
   "AUTO_TTS_REALTIME_MODE" => false,  # Default to post-completion mode (false); set to true for realtime TTS during streaming
   "AUTO_TTS_MAX_BYTES" => 400  # Maximum bytes for auto TTS in post-completion mode (default: 400 bytes ≈ 130 Japanese chars or 400 ASCII chars)

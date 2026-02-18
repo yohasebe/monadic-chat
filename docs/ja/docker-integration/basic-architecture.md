@@ -124,11 +124,9 @@ PostgreSQL 上にテキストエンベディングのベクトルデータを保
 
 ?> 追加のDockerコンテナを導入する方法については、[Dockerコンテナの追加](../advanced-topics/adding-containers.md)を参照してください。
   
-## オプションのDockerコンテナ :id=optional-containers
+## Ollama連携（ネイティブ） :id=ollama-integration
 
-Monadic Chatは、以下のようなオプションのDockerコンテナをサポートしています：
-
-- **Ollamaコンテナ**（`monadic-chat-ollama-container`）：[Ollama](https://ollama.com) を使用してローカルLLMを提供します。このコンテナはアクション → Ollamaコンテナのビルドを使用してオンデマンドでビルドされます（「すべてビルド」には含まれません）。モデルは`~/monadic/ollama/`に保存され、コンテナの再ビルド後も保持されます。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
+Monadic Chatは、ローカルLLMの実行に[Ollama](https://ollama.com)をサポートしています。OllamaはホストOS上でネイティブに動作し（Dockerコンテナ内ではありません）、GPU アクセラレーション（macOSのMetal、Linux/WindowsのCUDA）を直接利用できます。[https://ollama.com/download](https://ollama.com/download) からOllamaをインストールし、`ollama pull <model>` コマンドでモデルを管理してください。設定方法は[Ollamaの利用](../advanced-topics/ollama.md)を参照してください。
 
 ## コンテナネットワークアーキテクチャ :id=network-architecture
 

@@ -676,40 +676,28 @@ class DockerManager {
                 translatedOutput = formatMessage('ruby', 'messages.customRubySetup');
               } else if (output.includes('Custom Python setup script')) {
                 translatedOutput = formatMessage('python', 'messages.customPythonSetup');
-              } else if (output.includes('Custom Ollama setup script')) {
-                translatedOutput = formatMessage('ollama', 'messages.customOllamaSetup');
               } else if (output.includes('Checking container integrity')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.checkingContainerIntegrity')}</p>`;
               } else if (output.includes('Starting Docker...')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.startingDocker')}</p>`;
-              } else if (output.includes('Building Ollama container...')) {
-                translatedOutput = `[HTML]: <p>${i18n.t('messages.buildingOllama')}</p>`;
               } else if (output.includes('Build of Ruby container has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildRubyFinished');
               } else if (output.includes('Build of Python container has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildPythonFinished');
               } else if (output.includes('Build of user containers has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildUserFinished');
-              } else if (output.includes('Build of Ollama container has finished')) {
-                translatedOutput = formatMessage('success', 'messages.buildOllamaFinished');
               } else if (output.includes('Build of Monadic Chat has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildMonadicFinished');
               } else if (output.includes('Container failed to build')) {
                 translatedOutput = formatMessage('error', 'messages.containerFailedBuild');
               } else if (output.includes('No user containers to build')) {
                 translatedOutput = formatMessage('info', 'messages.noUserContainers');
-              } else if (output.includes('Ollama container failed to build')) {
-                translatedOutput = formatMessage('error', 'messages.ollamaContainerFailed');
               } else if (output.includes('Build logs are available')) {
                 translatedOutput = formatMessage('info', 'messages.buildLogsAvailable');
               } else if (output.includes('Please check the following log files')) {
                 translatedOutput = formatMessage('warning', 'messages.checkLogFiles');
               } else if (output.includes('All containers are available')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.allContainersAvailable')}</p>`;
-              } else if (output.includes('Starting Ollama container')) {
-                translatedOutput = `[HTML]: <p>${i18n.t('messages.startingOllamaContainer')}</p>`;
-              } else if (output.includes('Updating Ruby container to detect Ollama')) {
-                translatedOutput = `[HTML]: <p>${i18n.t('messages.updatingRubyContainer')}</p>`;
               } else if (output.includes('Running Containers')) {
                 translatedOutput = `[HTML]: <p><b>${i18n.t('messages.runningContainers')}</b></p>`;
               } else if (output.includes('You can directly access the containers')) {
@@ -1657,12 +1645,6 @@ function initializeApp() {
               formatMessage(null, 'messages.buildingUserContainers'),
               'Building', 'Stopped', false);
             break;
-          case 'build_ollama_container':
-            openMainWindow();
-            dockerManager.runCommand('build_ollama_container',
-              formatMessage(null, 'messages.buildingOllamaContainer'),
-              'Building', 'Stopped', false);
-            break;
           // JupyterLab commands
           case 'start-jupyter':
             if (dockerManager.isServerMode()) {
@@ -2242,21 +2224,6 @@ function updateApplicationMenu() {
               openMainWindow();
               dockerManager.runCommand('build_user_containers',
                 formatMessage(null, 'messages.buildingUserContainers'),
-                'Building',
-                'Stopped',
-                false);
-            },
-            enabled: currentStatus === 'Stopped' || currentStatus === 'Uninstalled'
-          },
-          {
-            type: 'separator'
-          },
-          {
-            label: i18n.t('menu.buildOllamaContainer'),
-            click: () => {
-              openMainWindow();
-              dockerManager.runCommand('build_ollama_container',
-                formatMessage(null, 'messages.buildingOllamaContainer'),
                 'Building',
                 'Stopped',
                 false);

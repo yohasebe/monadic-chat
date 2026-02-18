@@ -172,8 +172,6 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 The `pysetup.sh` and `rbsetup.sh` files in the repository are placeholder scripts that get replaced during container build with user-provided versions from `~/monadic/config/`. Always commit the original placeholder versions to Git. Before committing changes, reset these files using one of the methods below:
 
-Note: The `olsetup.sh` script is only created by users in `~/monadic/config/` for Ollama model installation and has no placeholder version in the repository.
-
 #### Method 1: Using the Reset Script
 
 Run the provided reset script:
@@ -356,6 +354,5 @@ This is especially important for packaged Electron apps to maintain proper conta
 Users who want to customize their containers should place custom scripts in:
 - `~/monadic/config/pysetup.sh` for Python customizations
 - `~/monadic/config/rbsetup.sh` for Ruby customizations
-- `~/monadic/config/olsetup.sh` for Ollama model installations
 
 These user-provided scripts will be automatically used when building containers locally, replacing the placeholder scripts during the build process. However, they won't be committed to the Git repository.

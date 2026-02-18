@@ -53,7 +53,6 @@ app "ChatOllama" do
   display_name "Chat"
   
   features do
-    disabled !CONFIG["OLLAMA_AVAILABLE"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false

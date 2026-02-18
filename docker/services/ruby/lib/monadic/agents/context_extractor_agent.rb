@@ -100,7 +100,7 @@ module ContextExtractorAgent
     "mistral" => "https://api.mistral.ai/v1/chat/completions",
     "cohere" => "https://api.cohere.ai/v2/chat",
     "deepseek" => "https://api.deepseek.com/v1/chat/completions",
-    "ollama" => "http://ollama:11434/api/chat"
+    "ollama" => "http://host.docker.internal:11434/api/chat"
   }.freeze
 
   # Detect the dominant language of the conversation text

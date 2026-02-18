@@ -8,7 +8,7 @@ module OllamaHelper
   include BaseVendorHelper
   include MonadicPerformance
   include FunctionCallErrorHandler
-  define_timeouts "OLLAMA", open: 5, read: 60, write: 60
+  define_timeouts "OLLAMA", open: 5, read: 600, write: 60
   MAX_RETRIES = 5
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
@@ -18,12 +18,13 @@ module OllamaHelper
     SystemDefaults.get_default_model('ollama')) || 'qwen3:4b'
 
   ENDPOINT_CANDIDATES = [
-    "http://monadic-chat-ollama-container:11434/api",
     "http://host.docker.internal:11434/api",
     "http://localhost:11434/api"
   ].freeze
 
   @cached_endpoint = nil
+
+  ENDPOINT_PROBE_TIMEOUT = 2  # seconds — keep short to avoid blocking startup
 
   def self.find_endpoint
     return @cached_endpoint if @cached_endpoint
@@ -31,8 +32,10 @@ module OllamaHelper
     ENDPOINT_CANDIDATES.each do |endpoint|
       url = endpoint.sub("/api", "")
       begin
-        return @cached_endpoint = endpoint if HTTP.get(url).status.success?
-      rescue HTTP::Error
+        res = HTTP.timeout(connect: ENDPOINT_PROBE_TIMEOUT, read: ENDPOINT_PROBE_TIMEOUT)
+                   .get(url)
+        return @cached_endpoint = endpoint if res.status.success?
+      rescue HTTP::Error, HTTP::TimeoutError, Errno::ECONNREFUSED, SocketError, Errno::EHOSTUNREACH
         next
       end
     end
@@ -212,7 +215,7 @@ module OllamaHelper
     ollama_endpoint = OllamaHelper.find_endpoint
 
     unless ollama_endpoint
-      res = { "type" => "error", "content" => "Ollama service is not available. Please ensure the Ollama container is running." }
+      res = { "type" => "error", "content" => "Ollama service is not available. Please ensure Ollama is running on your system." }
       block&.call res
       return [res]
     end

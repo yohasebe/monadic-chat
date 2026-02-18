@@ -63,7 +63,6 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `monadic-chat-python-container`
 - `monadic-chat-selenium-container`
 - `monadic-chat-pgvector-container`
-- `monadic-chat-ollama-container` (if Ollama is installed)
 - `monadic-chat-web-container` (legacy)
 - `monadic-chat-container` (legacy)
 
@@ -73,7 +72,6 @@ Alternatively, you can manually delete only the Monadic Chat-related Docker cont
 - `yohasebe/python`
 - `yohasebe/selenium`
 - `yohasebe/pgvector`
-- `yohasebe/ollama` (if Ollama is installed)
 
 #### Volumes
 

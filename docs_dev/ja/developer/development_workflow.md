@@ -162,8 +162,6 @@ grep -A5 "tools do" apps/your_app/your_app_provider.mdsl
 
 リポジトリ内の`pysetup.sh`と`rbsetup.sh`ファイルはプレースホルダースクリプトで、コンテナビルド中に`~/monadic/config/`からユーザー提供のバージョンに置き換えられます。常にオリジナルのプレースホルダーバージョンをGitにコミットしてください。変更をコミットする前に、以下のいずれかの方法でこれらのファイルをリセットします：
 
-注意：`olsetup.sh`スクリプトはOllamaモデルインストール用にユーザーが`~/monadic/config/`に作成するもので、リポジトリにプレースホルダーバージョンはありません。
-
 #### 方法1：リセットスクリプトの使用
 
 提供されたリセットスクリプトを実行します：
@@ -346,7 +344,6 @@ docker compose -p "monadic-chat" [command]
 コンテナをカスタマイズしたいユーザーは、以下の場所にカスタムスクリプトを配置する必要があります：
 - Pythonのカスタマイズには`~/monadic/config/pysetup.sh`
 - Rubyのカスタマイズには`~/monadic/config/rbsetup.sh`
-- Ollamaモデルインストールには`~/monadic/config/olsetup.sh`
 
 これらのユーザー提供スクリプトは、ローカルでコンテナをビルドする際に自動的に使用され、ビルドプロセス中にプレースホルダースクリプトを置き換えます。ただし、Gitリポジトリにはコミットされません。
 

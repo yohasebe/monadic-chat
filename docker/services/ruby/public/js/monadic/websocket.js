@@ -2187,9 +2187,9 @@ let loadedApp = "Chat";
                 // Add group header to custom dropdown with conditional styling
                 const groupClass = allAppsDisabled ? ' all-disabled' : '';
                 // Special handling for Ollama - it doesn't require an API key
-                const disabledMessage = group === "Ollama" ? "(Ollama container not available)" : "(API key required)";
+                const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
                 const groupTitle = allAppsDisabled ?
-                  (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required for this provider"') : '';
+                  (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
                 $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
                   <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
                   <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
@@ -2217,7 +2217,7 @@ let loadedApp = "Chat";
                   const disabledClass = isDisabled ? ' disabled' : '';
                   // Special handling for Ollama apps
                   const disabledTitle = isDisabled ?
-                    (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required"') : '';
+                    (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"') : '';
                   const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                     <span style="margin-right: 8px;">${appIcon}</span>
                     <span>${displayText}</span></div>`);
@@ -3015,9 +3015,9 @@ let loadedApp = "Chat";
                 const allAppsDisabled = specialApps[group].every(([key, value]) => value.disabled === "true");
                 $("#apps").append(`<option disabled>──${group}──</option>`);
                 const groupClass = allAppsDisabled ? ' all-disabled' : '';
-                const disabledMessage = group === "Ollama" ? "(Ollama container not available)" : "(API key required)";
+                const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
                 const groupTitle = allAppsDisabled ?
-                  (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required for this provider"') : '';
+                  (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
                 $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
                   <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
                   <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
@@ -3036,7 +3036,7 @@ let loadedApp = "Chat";
                   }
                   const disabledClass = isDisabled ? ' disabled' : '';
                   const disabledTitle = isDisabled ?
-                    (group === "Ollama" ? ' title="Ollama container not available"' : ' title="API key required"') : '';
+                    (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"') : '';
                   const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
                     <span style="margin-right: 8px;">${appIcon}</span>
                     <span>${displayText}</span></div>`);

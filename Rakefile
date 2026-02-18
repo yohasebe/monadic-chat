@@ -1496,41 +1496,21 @@ namespace :spec_e2e do
   
   desc "Run E2E tests for Ollama provider"
   task :ollama do
-    # Check if Ollama container exists
-    ollama_exists = `docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "^yohasebe/ollama:" 2>/dev/null`.strip
-    
-    if ollama_exists.empty?
+    # Check if native Ollama is running
+    ollama_ok = system("curl -sf http://localhost:11434/ > /dev/null 2>&1")
+
+    unless ollama_ok
       puts "\n" + "="*60
-      puts "Ollama container not found"
+      puts "Ollama is not running"
       puts "="*60
-      puts "\nThe Ollama container needs to be built before running tests."
-      puts "\nTo build the Ollama container:"
-      puts "  1. In the UI: Actions → Build Ollama Container"
-      puts "  2. Or run: ./docker/monadic.sh build_ollama_container"
-      puts "\nNote: Building will download the default model (llama3.2)"
-      puts "      which may take some time depending on your connection."
+      puts "\nPlease install and start Ollama before running tests."
+      puts "\nInstall Ollama: https://ollama.com/download"
+      puts "\nAfter installing, start it and pull a model:"
+      puts "  ollama pull qwen3:4b"
       puts "="*60 + "\n"
       exit 0
     end
-    
-    # Check if Ollama container is running
-    ollama_running = `docker ps --format "{{.Names}}" | grep -E "^monadic-chat-ollama-container$" 2>/dev/null`.strip
-    
-    if ollama_running.empty?
-      puts "\nStarting Ollama container..."
-      system("docker start monadic-chat-ollama-container")
-      
-      # Wait a moment for the container to start
-      sleep 2
-      
-      # Verify it started
-      ollama_running = `docker ps --format "{{.Names}}" | grep -E "^monadic-chat-ollama-container$" 2>/dev/null`.strip
-      if ollama_running.empty?
-        puts "\nFailed to start Ollama container. Please check Docker logs."
-        exit 1
-      end
-    end
-    
+
     Dir.chdir("docker/services/ruby") do
       sh "./spec/e2e/run_e2e_tests.sh ollama"
     end

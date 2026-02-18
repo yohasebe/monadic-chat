@@ -3,20 +3,6 @@
 # Prepare log directory
 mkdir -p /monadic/log
 
-# Check if Ollama container exists (skip if docker command not available)
-if command -v docker > /dev/null 2>&1; then
-  if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -q "monadic-chat-ollama-container"; then
-    export OLLAMA_AVAILABLE="true"
-    echo "Ollama container detected" >> /monadic/log/server.log
-  else
-    export OLLAMA_AVAILABLE="false"
-    echo "Ollama container not found" >> /monadic/log/server.log
-  fi
-else
-  export OLLAMA_AVAILABLE="false"
-  echo "Docker command not available, assuming Ollama not available" >> /monadic/log/server.log
-fi
-
 # Print server start message
 echo "[SERVER STARTED]" >> /monadic/log/server.log
 echo "Starting Falcon server at $(date)" >> /monadic/log/server.log

@@ -819,15 +819,6 @@
             </div>
 
             <div class="setting-group">
-              <label data-i18n="settings.labels.actionOllamaTitle">Ollama</label>
-              <div class="action-btn-group">
-                <button type="button" class="action-btn" id="action-build-ollama" disabled>
-                  <i class="fas fa-horse"></i> <span data-i18n="settings.labels.actionBuildOllama">Build Ollama</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="setting-group">
               <label data-i18n="settings.labels.actionJupyterTitle">JupyterLab</label>
               <div class="action-btn-group">
                 <button type="button" class="action-btn" id="action-start-jupyter" disabled>
@@ -963,7 +954,6 @@
           'action-build-ruby': s === 'Stopped' || s === 'Uninstalled',
           'action-build-python': s === 'Stopped' || s === 'Uninstalled',
           'action-build-user': s === 'Stopped' || s === 'Uninstalled',
-          'action-build-ollama': s === 'Stopped' || s === 'Uninstalled',
           'action-start-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-stop-jupyter': (s === 'Running' || s === 'Ready') && met,
           'action-import-db': s === 'Stopped' && met,
@@ -985,7 +975,6 @@
         'action-build-ruby': 'build_ruby_container',
         'action-build-python': 'build_python_container',
         'action-build-user': 'build_user_containers',
-        'action-build-ollama': 'build_ollama_container',
         'action-start-jupyter': 'start-jupyter',
         'action-stop-jupyter': 'stop-jupyter',
         'action-import-db': 'import-db',

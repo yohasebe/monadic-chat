@@ -39,14 +39,13 @@ When Monadic Chat starts for the first time, the following directory structure i
 
 ```
 ~/monadic/
-├── config/         # Configuration files (env, rbsetup.sh, pysetup.sh, olsetup.sh)
+├── config/         # Configuration files (env, rbsetup.sh, pysetup.sh)
 ├── data/           # Shared folder (accessible from containers as /monadic/data)
 │   ├── apps/       # Custom applications
 │   ├── helpers/    # Helper Ruby files
 │   ├── plugins/    # Plugins with their own apps and helpers
 │   └── scripts/    # Executable scripts accessible from all containers
-├── log/            # Log files (server.log, docker_build.log, etc.)
-└── ollama/         # Ollama model storage (if Ollama container is built)
+└── log/            # Log files (server.log, docker_build.log, etc.)
 ```
 
 

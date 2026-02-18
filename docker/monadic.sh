@@ -248,7 +248,6 @@ include:
   - "${ROOT_DIR}/services/pgvector/compose.yml"
   - "${ROOT_DIR}/services/python/compose.yml"
   - "${ROOT_DIR}/services/selenium/compose.yml"
-  - "${ROOT_DIR}/services/ollama/compose.yml"
 ${compose_user}
 
 networks:
@@ -287,24 +286,20 @@ ensure_data_dir() {
   local data_dir
   local log_dir
   local config_dir
-  local ollama_dir
 
   if [[ -f "/.dockerenv" ]]; then
     data_dir="/monadic/data"
     log_dir="/monadic/log"
     config_dir="/monadic/config"
-    ollama_dir="/monadic/ollama"
   else
     data_dir="${HOME_DIR}/monadic/data"
     log_dir="${HOME_DIR}/monadic/log"
     config_dir="${HOME_DIR}/monadic/config"
-    ollama_dir="${HOME_DIR}/monadic/ollama"
   fi
 
   mkdir -p "${data_dir}"
   mkdir -p "${log_dir}"
   mkdir -p "${config_dir}"
-  mkdir -p "${ollama_dir}"
 
   safe_rm "${log_dir}/command.log"
   safe_rm "${log_dir}/jupyter.log"
@@ -312,10 +307,9 @@ ensure_data_dir() {
   # remove extra.log if it exists
   safe_rm "${log_dir}/extra.log"
 
-  # clear rbsetup.sh, pysetup.sh and olsetup.sh in the root dir by overwriting default comments
+  # clear rbsetup.sh and pysetup.sh in the root dir by overwriting default comments
   echo "# This file is overwritten by rbsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ruby/rbsetup.sh"
   echo "# This file is overwritten by pysetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/python/pysetup.sh"
-  echo "# This file is overwritten by olsetup.sh prepared by the user in the shared folder." > "${ROOT_DIR}/services/ollama/olsetup.sh"
 
   safe_touch "${config_dir}/env"
 
@@ -335,13 +329,6 @@ ensure_data_dir() {
     fi
   fi
 
-  # Only show Ollama setup message when building Ollama container
-  if [[ -f "${config_dir}/olsetup.sh" && -s "${config_dir}/olsetup.sh" ]]; then
-    cp -f "${config_dir}/olsetup.sh" "${ROOT_DIR}/services/ollama/olsetup.sh"
-    if [[ "$container_type" == "ollama" || "$container_type" == "" ]]; then
-      echo "[HTML]: <p><i class='fa-solid fa-horse' style='color:#333333;'></i> Custom Ollama setup script (olsetup.sh) detected. To use it, please build the Ollama container from the menu.</p>"
-    fi
-  fi
 }
 
 # Function to start Docker based on OS
@@ -738,93 +725,6 @@ build_selenium_container() {
   fi
 
   remove_older_images yohasebe/selenium
-  remove_project_dangling_images
-  release_build_lock
-}
-
-# Function to build Ollama container
-build_ollama_container() {
-  local _lock_acquired=false
-  if acquire_build_lock; then _lock_acquired=true; fi
-  if [ "${_lock_acquired}" != true ]; then
-    return 1
-  fi
-  local log_file="${HOME_DIR}/monadic/log/docker_build.log"
-
-  # Create directory if it doesn't exist
-  mkdir -p "$(dirname "${log_file}")"
-
-  # Build Ollama container with the ollama profile
-  echo "Building Ollama container..." | tee -a "${log_file}"
-
-  # Use docker compose with the ollama profile to build only the Ollama container
-  # Use the main compose file which includes all service definitions
-  ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama build ollama_service 2>&1 | tee -a "${log_file}"
-
-  # Check if the build was successful
-  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
-    echo "Ollama container built successfully" | tee -a "${log_file}"
-
-    # Start the container temporarily to download models
-    echo "Starting Ollama container to download models..." | tee -a "${log_file}"
-    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama up -d ollama_service 2>&1 | tee -a "${log_file}"
-
-    # Wait for Ollama service to be ready
-    echo "Waiting for Ollama service to be ready..." | tee -a "${log_file}"
-    OLLAMA_READY=false
-    for i in {1..30}; do
-      # Use ollama's built-in command to check if service is ready
-      if ${DOCKER} exec monadic-chat-ollama-container ollama list >/dev/null 2>&1; then
-        OLLAMA_READY=true
-        echo "Ollama service is ready." | tee -a "${log_file}"
-        break
-      fi
-      echo "Waiting for Ollama service... ($i/30)" | tee -a "${log_file}"
-      sleep 2
-    done
-
-    if [ "$OLLAMA_READY" = false ]; then
-      echo "ERROR: Ollama service failed to start" | tee -a "${log_file}"
-      return 1
-    fi
-
-    # Check if olsetup.sh exists in the container and run it
-    if ${DOCKER} exec monadic-chat-ollama-container test -f /monadic/olsetup.sh 2>/dev/null; then
-      echo "Running custom model setup..." | tee -a "${log_file}"
-      # Make sure the script is executable
-      ${DOCKER} exec monadic-chat-ollama-container chmod +x /monadic/olsetup.sh 2>&1 | tee -a "${log_file}"
-      ${DOCKER} exec monadic-chat-ollama-container /monadic/olsetup.sh 2>&1 | tee -a "${log_file}"
-      echo "Custom model setup completed." | tee -a "${log_file}"
-    else
-      echo "No custom setup script found. Downloading default model..." | tee -a "${log_file}"
-      # Read default model from system_defaults.json, with env var override
-      DEFAULTS_FILE="${SCRIPT_DIR}/services/ruby/config/system_defaults.json"
-      DEFAULTS_MODEL=$(grep -A1 '"ollama"' "$DEFAULTS_FILE" 2>/dev/null | grep '"model"' | sed 's/.*: *"\([^"]*\)".*/\1/')
-      DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-${DEFAULTS_MODEL:-qwen3:4b}}"
-      echo "Default model: ${DEFAULT_MODEL}" | tee -a "${log_file}"
-      ${DOCKER} exec monadic-chat-ollama-container ollama pull "${DEFAULT_MODEL}" 2>&1 | tee -a "${log_file}"
-      echo "Default model downloaded." | tee -a "${log_file}"
-    fi
-
-    # Stop the container after model download
-    echo "Stopping Ollama container..." | tee -a "${log_file}"
-    ${DOCKER} compose -f "${ROOT_DIR}/services/compose.yml" -p "monadic-chat" --profile ollama stop ollama_service 2>&1 | tee -a "${log_file}"
-
-    # Restart Ruby container if it's running to update OLLAMA_AVAILABLE environment variable
-    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
-      echo "Restarting Ruby container to detect Ollama..." | tee -a "${log_file}"
-      ${DOCKER} restart monadic-chat-ruby-container 2>&1 | tee -a "${log_file}"
-      echo "Ruby container restarted." | tee -a "${log_file}"
-    fi
-
-    echo "Ollama container setup completed. Models are now available." | tee -a "${log_file}"
-  else
-    echo "Failed to build Ollama container" | tee -a "${log_file}"
-    release_build_lock
-    return 1
-  fi
-
-  remove_older_images yohasebe/ollama
   remove_project_dangling_images
   release_build_lock
 }
@@ -1522,21 +1422,6 @@ start_docker_compose() {
     echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
   fi
 
-  # Start Ollama container if the image exists and container is not already running (it uses a profile so needs explicit start)
-  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
-    # Check if Ollama container is already running
-    if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ollama-container$"; then
-      echo "[HTML]: <p>Starting Ollama container...</p>"
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile ollama up -d ollama_service"
-
-      # Restart Ruby container to update OLLAMA_AVAILABLE environment variable
-      # Wait a moment for Ollama to start
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Ollama...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-    fi
-  fi
-
   # Wait for all containers to be fully running before listing
   # This prevents race conditions where containers are in 'restarting' state
   sleep 3
@@ -1804,21 +1689,6 @@ build_selenium_container)
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
     echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Selenium container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
-  fi
-  ;;
-build_ollama_container)
-  ensure_data_dir "ollama" &&
-
-  while ! "${DOCKER}" info > /dev/null 2>&1; do
-    sleep ${DOCKER_CHECK_INTERVAL}
-  done
-
-  build_ollama_container
-
-  if ${DOCKER} images | grep -q "yohasebe/ollama"; then
-    echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ollama container has finished: Check the console panel for details.</p><hr />"
-  else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Ollama container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
   ;;
 build)

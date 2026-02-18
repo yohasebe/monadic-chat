@@ -4,9 +4,9 @@
 
 **A**: 音声認識、音声合成、テキストエンベディングの作成などの機能を使用しない場合は、OpenAIのAPIトークンは必ずしも必要ではありません。Anthropic Claude、Google Gemini、Cohere、Mistral AI、Perplexity、DeepSeek、xAI GrokなどのAPIを使用することもできます。
 
-商用のAPIを使いたくない場合は、Ollamaコンテナを使用してローカル言語モデルを実行できます：
-1. Actions → Build Ollama Container でOllamaコンテナをビルド
-2. `olsetup.sh`スクリプトを使用してモデルをインストールするか、デフォルトモデルをダウンロード
+商用のAPIを使いたくない場合は、Ollamaを使用してローカル言語モデルを実行できます：
+1. [https://ollama.com/download](https://ollama.com/download) からOllamaをインストール
+2. `ollama pull <model>` コマンドでモデルを取得（例：`ollama pull llama3.2`）
 3. Ollamaプロバイダーを選択してChatアプリを使用
 
 Monadic ChatでOllamaを使用する詳細については、[Ollamaの利用](../advanced-topics/ollama.md) を参照してください。

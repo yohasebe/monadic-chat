@@ -3,7 +3,6 @@ include:
   - pgvector/compose.yml
   - python/compose.yml
   - selenium/compose.yml
-  - ollama/compose.yml
 
 networks:
   monadic-chat-network:

@@ -124,11 +124,9 @@ The following containers enable additional features:
 
 ?> For more information on adding Docker containers to extend the functionality of Monadic Chat, see [Adding Docker Containers](../advanced-topics/adding-containers.md).
 
-## Optional Docker Containers :id=optional-containers
+## Ollama Integration (Native) :id=ollama-integration
 
-In addition to the standard containers, Monadic Chat supports optional containers:
-
-- **Ollama Container** (`monadic-chat-ollama-container`): Provides local LLMs via [Ollama](https://ollama.com). This container is built on demand using Actions → Build Ollama Container (not included in "Build All"). Models are stored in `~/monadic/ollama/` and persist across container rebuilds. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
+Monadic Chat supports [Ollama](https://ollama.com) for running local LLMs. Ollama runs natively on the host OS (not in a Docker container), which provides direct access to GPU acceleration (Metal on macOS, CUDA on Linux/Windows). Install Ollama from [https://ollama.com/download](https://ollama.com/download) and manage models using the `ollama pull <model>` command. See [Using Ollama](../advanced-topics/ollama.md) for setup instructions.
 
 ## Container Network Architecture :id=network-architecture
 

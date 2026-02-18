@@ -24,6 +24,8 @@ services:
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/entrypoint.sh"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - monadic-chat-network
     healthcheck:

@@ -11,8 +11,7 @@ Your Monadic Chat user directory (`~/monadic/`) contains:
 ├── config/           # Your configuration files
 │   ├── env           # API keys and settings
 │   ├── rbsetup.sh    # Ruby setup script (optional)
-│   ├── pysetup.sh    # Python setup script (optional)
-│   └── olsetup.sh    # Ollama setup script (optional)
+│   └── pysetup.sh    # Python setup script (optional)
 ├── data/             # Your data and custom content
 │   ├── apps/         # Your custom apps go here
 │   ├── scripts/      # Your custom scripts

@@ -30,11 +30,6 @@ When you start Monadic Chat, the availability of each container is displayed in 
   docker exec -it monadic-chat-selenium-container bash
   ```
 
-- **Ollama Container** (`monadic-chat-ollama-container`): Local LLM support (when built)
-  ```shell
-  docker exec -it monadic-chat-ollama-container bash
-  ```
-
 ?> **Development Tip**: When developing locally, you can stop the Ruby container and run the application on your host machine while keeping other containers running.
 
 ## JupyterLab

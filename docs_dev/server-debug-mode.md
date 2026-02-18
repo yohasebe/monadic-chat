@@ -33,8 +33,7 @@ When you run `rake server:debug`, the following is automatically configured:
 
 1. **`EXTRA_LOGGING=true`** - Enables detailed provider/debug logging
 2. **`DEBUG_MODE=true`** - Enables local documentation serving
-3. **Ollama detection** - Checks for Ollama container availability
-4. **Config loading** - Loads `~/monadic/config/env` for API keys
+3. **Config loading** - Loads `~/monadic/config/env` for API keys
 
 Example output:
 ```

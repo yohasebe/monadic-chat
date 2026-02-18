@@ -133,7 +133,6 @@ Monadic Chat supports two application modes that control network accessibility:
 
 | Variable | Description | Default | Note |
 |----------|-------------|---------|------|
-| `OLLAMA_AVAILABLE` | Ollama container availability | (auto-detected) | Set by system |
 | `POSTGRES_HOST` | PostgreSQL host | `monadic-chat-pgvector-container` | For Docker networking |
 | `POSTGRES_PORT` | PostgreSQL port | `5432` | Standard PostgreSQL port |
 | `POSTGRES_USER` | PostgreSQL user | `postgres` | Database user |

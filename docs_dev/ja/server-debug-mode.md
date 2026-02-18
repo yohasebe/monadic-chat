@@ -31,8 +31,7 @@ open http://localhost:4567/docs_dev/      # 内部ドキュメント
 
 1. **`EXTRA_LOGGING=true`** - 詳細なプロバイダー/デバッグログを有効化
 2. **`DEBUG_MODE=true`** - ローカルドキュメント配信を有効化
-3. **Ollama検出** - Ollamaコンテナの利用可能性をチェック
-4. **設定読み込み** - APIキーのために`~/monadic/config/env`を読み込み
+3. **設定読み込み** - APIキーのために`~/monadic/config/env`を読み込み
 
 実行例：
 ```

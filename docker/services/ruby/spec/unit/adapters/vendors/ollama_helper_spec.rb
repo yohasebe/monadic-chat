@@ -28,16 +28,12 @@ RSpec.describe OllamaHelper do
     end
 
     describe 'ENDPOINT_CANDIDATES' do
-      it 'contains exactly 3 candidates' do
-        expect(OllamaHelper::ENDPOINT_CANDIDATES.size).to eq(3)
+      it 'contains exactly 2 candidates' do
+        expect(OllamaHelper::ENDPOINT_CANDIDATES.size).to eq(2)
       end
 
-      it 'includes Docker container endpoint as first candidate' do
-        expect(OllamaHelper::ENDPOINT_CANDIDATES.first).to include('monadic-chat-ollama-container')
-      end
-
-      it 'includes host.docker.internal as second candidate' do
-        expect(OllamaHelper::ENDPOINT_CANDIDATES[1]).to include('host.docker.internal')
+      it 'includes host.docker.internal as first candidate' do
+        expect(OllamaHelper::ENDPOINT_CANDIDATES.first).to include('host.docker.internal')
       end
 
       it 'includes localhost as last candidate' do

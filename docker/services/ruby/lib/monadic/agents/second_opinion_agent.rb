@@ -14,8 +14,7 @@ module SecondOpinionAgent
     "mistral" => "MISTRAL_API_KEY",
     "grok" => "XAI_API_KEY",
     "deepseek" => "DEEPSEEK_API_KEY",
-    "perplexity" => "PERPLEXITY_API_KEY",
-    "ollama" => "OLLAMA_AVAILABLE"
+    "perplexity" => "PERPLEXITY_API_KEY"
   }.freeze
 
   def parallel_second_opinions(user_query: "", agent_response: "", providers: [], session: {})
@@ -32,11 +31,20 @@ module SecondOpinionAgent
     skipped = []
     providers.each do |p|
       normalized = normalize_provider_name(p.to_s)
-      env_key = PROVIDER_API_KEYS[normalized]
-      if env_key && (defined?(CONFIG) ? CONFIG[env_key] : ENV[env_key])
-        available << normalized
+      if normalized == "ollama"
+        # Ollama doesn't use API keys; use cached endpoint probe to avoid blocking I/O
+        if defined?(OllamaHelper) && OllamaHelper.instance_variable_get(:@cached_endpoint)
+          available << normalized
+        else
+          skipped << p.to_s
+        end
       else
-        skipped << p.to_s
+        env_key = PROVIDER_API_KEYS[normalized]
+        if env_key && (defined?(CONFIG) ? CONFIG[env_key] : ENV[env_key])
+          available << normalized
+        else
+          skipped << p.to_s
+        end
       end
     end
 

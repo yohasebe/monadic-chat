@@ -11,12 +11,16 @@ if defined?(Monadic::Utils::SSLConfiguration)
 end
 
 # Parse command line arguments for the prompt and size
-options = {} # Default size
+options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: image_generator_grok.rb [options]"
 
   opts.on("-p", "--prompt PROMPT", "The prompt to generate an image for") do |prompt|
     options[:prompt] = prompt
+  end
+
+  opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)") do |ratio|
+    options[:aspect_ratio] = ratio
   end
 
 end.parse!
@@ -27,7 +31,7 @@ unless options[:prompt]
   exit
 end
 
-def generate_image(prompt, num_retrials: 3)
+def generate_image(prompt, aspect_ratio: nil, num_retrials: 3)
   revised_prompt = nil # Initialize to avoid undefined variable
   
   begin
@@ -50,11 +54,12 @@ def generate_image(prompt, num_retrials: 3)
     }
 
     body = {
-      model: "grok-2-image-1212",
+      model: "grok-imagine-image",
       prompt: prompt,
       n: 1,
       response_format: "b64_json"
     }
+    body[:aspect_ratio] = aspect_ratio if aspect_ratio
 
     res = HTTP.headers(headers).post(url, json: body)
   rescue HTTP::Error, HTTP::TimeoutError => e
@@ -107,11 +112,11 @@ rescue StandardError => e
   num_retrials -= 1
   if num_retrials.positive?
     sleep 1
-    return generate_image(prompt, num_retrials: num_retrials)
+    return generate_image(prompt, aspect_ratio: aspect_ratio, num_retrials: num_retrials)
   else
     return { original_prompt: prompt, success: false, message: "Error: Image generation failed after multiple attempts." }
   end
 end
 
-res = generate_image(options[:prompt])
+res = generate_image(options[:prompt], aspect_ratio: options[:aspect_ratio])
 puts JSON.pretty_generate(res)

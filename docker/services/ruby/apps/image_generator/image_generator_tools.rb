@@ -474,14 +474,16 @@ class ImageGeneratorGrok < MonadicApp
   # @param prompt [String] Text description of the desired image
   # @param session [Object] Session object (automatically provided)
   # @return [String] Generated image information from the script
-  def generate_image_with_grok(prompt:, session: nil)
+  def generate_image_with_grok(prompt:, aspect_ratio: nil, session: nil)
     # Input validation
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
 
+    if aspect_ratio && !%w[1:1 16:9 9:16 4:3 3:4].include?(aspect_ratio)
+      raise ArgumentError, "Invalid aspect_ratio: #{aspect_ratio}. Must be one of: 1:1, 16:9, 9:16, 4:3, 3:4"
+    end
+
     # Call the method from MediaGenerationHelper (via MonadicHelper)
-    # Note: The actual implementation doesn't use model, n, size, or output_format parameters
-    # It calls a Ruby script that handles these internally
-    result_json = super(prompt: prompt)
+    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio)
 
     # Parse result and store filename if successful (for continuous reference)
     if session

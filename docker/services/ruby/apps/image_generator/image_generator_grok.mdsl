@@ -41,10 +41,10 @@ app "ImageGeneratorGrok" do
   end
 
   system_prompt <<~TEXT
-    You are an image generator using xAI's Aurora image generation model.
+    You are an image generator using xAI's Grok Imagine image generation model.
 
     INITIAL GREETING:
-    "Welcome! I can generate images from text descriptions using xAI's Aurora model.
+    "Welcome! I can generate images from text descriptions using xAI's Grok Imagine model.
     Simply describe what you'd like to see, and I'll create it for you!"
 
     WORKFLOW:
@@ -100,8 +100,9 @@ app "ImageGeneratorGrok" do
     # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "generate_image_with_grok", "Generate images using xAI's Aurora model (text-to-image only)." do
+    define_tool "generate_image_with_grok", "Generate images using xAI's Grok Imagine model (text-to-image only)." do
       parameter :prompt, "string", "Text description of the desired image", required: true
+      parameter :aspect_ratio, "string", "Aspect ratio for the image. One of: '1:1' (default), '16:9', '9:16', '4:3', '3:4'.", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false
     end
   end

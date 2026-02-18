@@ -379,8 +379,17 @@ a:focus-visible {
 
 /* Reduce default font size to approx. 90% (match internal Zoom Out) */
 
-html, body, input, button, select, textarea {
+html, body, input, select, textarea {
   font-size: 14px;
+}
+
+button, .btn {
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  min-width: 3.5rem;
 }
 
 html {
@@ -428,7 +437,6 @@ textarea {
 /* Focus-visible for keyboard navigation */
 
 .btn-hover-lift:focus-visible {
-  transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   outline: 2px solid var(--focus-outline);
   outline-offset: 2px;
@@ -445,11 +453,9 @@ textarea {
 /* ============================================ */
 @layer components {
 
-/* Fix: base layer `button { font-size: 14px }` overrides Bootstrap vendor layer,
-   making .btn-sm render at 14px instead of the intended smaller size.
-   This restores proper sizing to match Electron main window buttons (13px). */
+/* Small buttons: slightly smaller font than base .btn (13px) */
 .btn-sm {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 /* ============================================== */
@@ -1036,7 +1042,6 @@ div.card-body.role-system {
   background-color: #007bff; /* Blue on hover */
   border-color: #007bff;
   box-shadow: 0 3px 10px rgba(0,123,255,0.4);
-  transform: translateY(-2px);
 }
 
 #back_to_top a i,
@@ -3573,10 +3578,16 @@ img.base64-image,
 /* Migrated from index.erb inline styles        */
 /* ============================================ */
 
-/* Toggle button margin */
+/* Toggle button margin and compact sizing */
 #interaction-toggle-all,
 .stats-toggle-button {
   margin-left: 0.5rem !important;
+}
+
+#interaction-toggle-all {
+  font-size: 11px;
+  padding: 0.15rem 0.4rem;
+  vertical-align: middle;
 }
 
 /* Enhanced dropdown styling */
@@ -3777,19 +3788,19 @@ img.base64-image,
 }
 
 #status-message.text-success {
-  color: #198754 !important;
+  color: #0a4a2e !important;
 }
 
 #status-message.text-warning {
-  color: #fd7e14 !important;
+  color: #6c3507 !important;
 }
 
 #status-message.text-danger {
-  color: #dc3545 !important;
+  color: #861b29 !important;
 }
 
 #status-message.text-info {
-  color: #0d6efd !important;
+  color: #05326e !important;
 }
 
 #status-message.text-secondary {
@@ -4744,7 +4755,7 @@ i.fas.fa-bolt,
 }
 
 .dark-theme #status-message.text-warning {
-  color: #ffb74d !important;
+  color: #f59e0b !important;
 }
 
 .dark-theme #status-message.text-danger {
@@ -4752,7 +4763,7 @@ i.fas.fa-bolt,
 }
 
 .dark-theme #status-message.text-info {
-  color: #90caf9 !important;
+  color: #60a5fa !important;
 }
 
 .dark-theme #status-message.text-secondary {
@@ -4976,21 +4987,26 @@ i.fas.fa-bolt,
 
 @media (hover: hover) {
   #interaction-check-all:hover,
-  #interaction-uncheck-all:hover,
-  #interaction-toggle-all:hover {
+  #interaction-uncheck-all:hover {
     color: var(--json-label-primary);
-    transform: translateY(-1px);
+  }
+
+  /* Toggle-all is a .btn-secondary — keep white text on dark bg */
+  #interaction-toggle-all:hover {
+    color: #ffffff;
   }
 
   .dark-theme #interaction-check-all:hover,
-  .dark-theme #interaction-uncheck-all:hover,
-  .dark-theme #interaction-toggle-all:hover {
+  .dark-theme #interaction-uncheck-all:hover {
     color: #aaa;
+  }
+
+  .dark-theme #interaction-toggle-all:hover {
+    color: #ffffff;
   }
 
   .toggle-text:hover {
     color: #555;
-    transform: translateY(-1px);
   }
 
   .dark-theme .toggle-text:hover {
@@ -5476,7 +5492,6 @@ i.fas.fa-bolt,
 
 @media (hover: hover) {
   .btn-hover-lift:hover:not(:disabled) {
-    transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 
@@ -5498,7 +5513,6 @@ i.fas.fa-bolt,
   #theme-system:hover:not(:disabled),
   #theme-light:hover:not(:disabled),
   #theme-dark:hover:not(:disabled) {
-    transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 

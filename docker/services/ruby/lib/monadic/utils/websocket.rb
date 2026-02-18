@@ -2229,6 +2229,14 @@ module WebSocketHelper
 
               # Always use message content - monadic apps will have JSON in content field
               text = content["text"] || content["message"]["content"]
+
+              # Append tool HTML fragments (e.g., ABC notation from Music Advisor).
+              # Tools store HTML in session[:tool_html_fragments]; the ABC block
+              # extraction below (lines ~2278) will handle them through the normal pipeline.
+              if session[:tool_html_fragments]
+                stored_fragments = session.delete(:tool_html_fragments)
+                text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
+              end
               pp "[DEBUG] WebSocket - text extraction: content keys = #{content.keys}, text = #{text.class}:#{text.to_s[0..100]}..." if session["parameters"]["app_name"]&.include?("Perplexity")
               # Extract thinking content uniformly from message
               thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
@@ -2915,7 +2923,8 @@ module WebSocketHelper
               end
 
               if fragment["type"] == "error"
-                fragment_error = { "type" => "error", "content" => fragment }.to_json
+                error_content = fragment["content"] || fragment.to_s
+                fragment_error = { "type" => "error", "content" => error_content }.to_json
                 if ws_session_id
                   WebSocketHelper.send_to_session(fragment_error, ws_session_id)
                 else

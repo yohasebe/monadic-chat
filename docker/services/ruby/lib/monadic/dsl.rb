@@ -1606,7 +1606,7 @@ module MonadicDSL
                     # Use environment variable with string interpolation in generated code
                     # Include provider-specific default fallback value if no env var
                     default_model = case provider_name
-                                    when /anthropic|claude/ then "claude-sonnet-4-5-20250929"
+                                    when /anthropic|claude/ then "claude-sonnet-4-6"
                                     when /openai|gpt/ then "gpt-4.1"
                                     when /cohere|command/ then "command-a-reasoning-08-2025"
                                     when /gemini|google/ then "gemini-3-flash-preview"
@@ -1614,7 +1614,7 @@ module MonadicDSL
                                     when /grok|xai/ then "grok-2"
                                     when /perplexity/ then "sonar"
                                     when /deepseek/ then "deepseek-chat"
-                                    when /ollama/ then "(defined?(OllamaHelper) && (OllamaHelper.list_models.first || OllamaHelper::DEFAULT_MODEL)) || 'qwen3:4b'"
+                                    when /ollama/ then defined?(OllamaHelper) ? OllamaHelper::DEFAULT_MODEL : "qwen3:4b"
                                     else "gpt-4.1" # Default fallback
                                     end
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"
@@ -1627,10 +1627,12 @@ module MonadicDSL
     # Construct disabled logic based on API key availability and server mode restrictions
     if provider_config.api_key_name.nil?
       # For providers that don't need API keys (like Ollama)
+      # Check if provider has an endpoint availability method (e.g., OllamaHelper.find_endpoint)
+      ollama_check = provider_name == "ollama" ? "(defined?(OllamaHelper) && OllamaHelper.find_endpoint.nil?)" : "false"
       if jupyter_disabled_in_server
-        disabled_condition = "(defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\")"
+        disabled_condition = "(defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\") || #{ollama_check}"
       else
-        disabled_condition = "false"  # Never disabled if no API key needed
+        disabled_condition = ollama_check
       end
     elsif jupyter_disabled_in_server
       disabled_condition = "!defined?(CONFIG) || !CONFIG[\"#{provider_config.api_key_name}\"] || (defined?(CONFIG) && CONFIG[\"DISTRIBUTED_MODE\"] == \"server\")"

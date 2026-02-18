@@ -245,7 +245,7 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
         result = app.cohere_sub_call(
           "https://api.cohere.ai/v2/chat",
           CONFIG["COHERE_API_KEY"],
-          "command-a-03-2025",
+          "command-a-vision-07-2025",
           enriched,
           timeout
         )

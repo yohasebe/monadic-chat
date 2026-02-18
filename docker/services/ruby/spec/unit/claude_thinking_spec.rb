@@ -202,7 +202,7 @@ RSpec.describe "Claude Thinking Content Extraction" do
 
   describe "Model compatibility" do
     it "supports Claude 3.7 Sonnet with extended thinking" do
-      model_name = "claude-sonnet-4-5-20250929"
+      model_name = "claude-sonnet-4-6"
 
       # Check if model supports extended thinking
       supports_thinking = model_name.include?("sonnet")

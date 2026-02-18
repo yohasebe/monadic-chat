@@ -23,10 +23,10 @@ RSpec.describe 'Comprehensive Tool Validation' do
       agents: %w[openai_code_agent claude_code_agent grok_code_agent],
       providers: %w[OpenAI Claude Grok]
     },
-    'chord_accompanist' => {
-      tools: %w[validate_abc_syntax validate_chord_progression analyze_abc_error],
+    'music_advisor' => {
+      tools: %w[play_chord play_scale play_interval play_progression generate_backing_track],
       agents: [],
-      providers: %w[Claude]  # Only Claude version exists
+      providers: %w[OpenAI Claude]
     },
     'code_interpreter' => {
       tools: [],
@@ -445,8 +445,11 @@ RSpec.describe 'Comprehensive Tool Validation' do
             mdsl_content = File.read(mdsl_file)
             mdsl_tools = mdsl_content.scan(/define_tool\s+"(\w+)"/).flatten
 
-            # Find corresponding Ruby files
+            # Find corresponding Ruby files (app dir + included modules from lib/)
             ruby_files = Dir.glob(File.join(app_base_dir, app_name, '*.rb'))
+            lib_base = File.expand_path('../../../lib/monadic', __dir__)
+            ruby_files += Dir.glob(File.join(lib_base, 'agents', '*.rb'))
+            ruby_files += Dir.glob(File.join(lib_base, 'shared_tools', '*.rb'))
             ruby_content = ruby_files.map { |f| File.read(f) }.join("\n")
 
             mdsl_tools.each do |tool_name|

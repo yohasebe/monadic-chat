@@ -23,10 +23,10 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
   # Apps with custom tools that need validation
   # Format: app_dir => [expected_tools]
   TOOL_APPS = {
-    'chord_accompanist' => {
-      mdsl_patterns: ['chord_accompanist_*.mdsl'],
-      ruby_patterns: ['chord_accompanist_*_tools.rb'],
-      expected_tools: %w[validate_chord_progression validate_abc_syntax analyze_abc_error]
+    'music_advisor' => {
+      mdsl_patterns: ['music_advisor_*.mdsl'],
+      ruby_patterns: ['music_advisor_*tools.rb'],
+      expected_tools: %w[play_chord play_scale play_interval play_progression generate_backing_track]
     },
     'mermaid_grapher' => {
       mdsl_patterns: ['mermaid_grapher*.mdsl'],

@@ -23,11 +23,9 @@ RSpec.describe 'Tool Method Invocation Validation' do
   # Format: { app_class_name => { tool_name => { required_args } } }
   let(:apps_with_tools) do
     {
-      # Chord Accompanist - the app that had the bug
-      'ChordAccompanistClaude' => {
-        'validate_abc_syntax' => { code: 'X:1\nT:Test\nM:4/4\nK:C\n|C D E F|' },
-        # 'validate_chord_progression' => { chords: 'C, Am, F, G', key: 'C' },  # This calls send_query which needs full setup
-        'analyze_abc_error' => { code: 'invalid', error: 'parse error' }
+      # Music Advisor - replaced Chord Accompanist
+      'MusicAdvisorOpenAI' => {
+        # All tools require send_command to Python container, so just test respond_to
       },
 
       # Code Interpreter tools
@@ -154,51 +152,54 @@ RSpec.describe 'Tool Method Invocation Validation' do
     # Test that specific tool methods can be called with proper arguments
     # (without actually calling external APIs)
 
-    context 'ChordAccompanistClaude' do
+    context 'MusicAdvisorOpenAI' do
       let(:app_class) do
-        # Load the class if not already loaded
-        tools_file = File.join(app_base_dir, 'chord_accompanist', 'chord_accompanist_claude_tools.rb')
+        tools_file = File.join(app_base_dir, 'music_advisor', 'music_advisor_tools.rb')
         require tools_file if File.exist?(tools_file)
-        Object.const_get('ChordAccompanistClaude') if Object.const_defined?('ChordAccompanistClaude')
+        Object.const_get('MusicAdvisorOpenAI') if Object.const_defined?('MusicAdvisorOpenAI')
       end
 
-      it 'has validate_abc_syntax method that accepts code parameter' do
-        skip 'ChordAccompanistClaude not loaded' unless app_class
+      it 'has play_chord method that accepts chord_name parameter' do
+        skip 'MusicAdvisorOpenAI not loaded' unless app_class
 
         instance = app_class.new
-        expect(instance).to respond_to(:validate_abc_syntax)
+        expect(instance).to respond_to(:play_chord)
 
-        # Check method accepts keyword argument
-        method = instance.method(:validate_abc_syntax)
+        method = instance.method(:play_chord)
         params = method.parameters
-        expect(params.any? { |type, name| name == :code }).to be true
+        expect(params.any? { |type, name| name == :chord_name }).to be true
       end
 
-      it 'has analyze_abc_error method that accepts code and error parameters' do
-        skip 'ChordAccompanistClaude not loaded' unless app_class
+      it 'has play_scale method that accepts scale_name and root parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless app_class
 
         instance = app_class.new
-        expect(instance).to respond_to(:analyze_abc_error)
+        expect(instance).to respond_to(:play_scale)
 
-        method = instance.method(:analyze_abc_error)
+        method = instance.method(:play_scale)
         params = method.parameters
-        expect(params.any? { |type, name| name == :code }).to be true
-        expect(params.any? { |type, name| name == :error }).to be true
+        expect(params.any? { |type, name| name == :scale_name }).to be true
+        expect(params.any? { |type, name| name == :root }).to be true
       end
 
-      it 'includes ClaudeHelper and has access to send_query' do
-        skip 'ChordAccompanistClaude not loaded' unless app_class
+      it 'has play_interval method that accepts root and interval parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless app_class
 
         instance = app_class.new
-        expect(instance).to respond_to(:send_query)
+        expect(instance).to respond_to(:play_interval)
+
+        method = instance.method(:play_interval)
+        params = method.parameters
+        expect(params.any? { |type, name| name == :root }).to be true
+        expect(params.any? { |type, name| name == :interval }).to be true
       end
 
-      it 'does NOT have call_claude method (the bug we fixed)' do
-        skip 'ChordAccompanistClaude not loaded' unless app_class
+      it 'has play_progression and generate_backing_track methods' do
+        skip 'MusicAdvisorOpenAI not loaded' unless app_class
 
         instance = app_class.new
-        # This should fail - call_claude doesn't exist
-        expect(instance).not_to respond_to(:call_claude)
+        expect(instance).to respond_to(:play_progression)
+        expect(instance).to respond_to(:generate_backing_track)
       end
     end
 

@@ -370,7 +370,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
         result = app.anthropic_sub_call(
           "https://api.anthropic.com/v1/messages",
-          "key", "claude-sonnet-4-5-20250929", "test", 120
+          "key", "claude-sonnet-4-6", "test", 120
         )
         expect(result).to eq("Hello from Claude")
       end
@@ -617,7 +617,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         end
 
         app.anthropic_websearch_sub_call(
-          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-5-20250929", "test", 120
+          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-6", "test", 120
         )
       end
 
@@ -634,7 +634,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
         allow(mock_response).to receive(:status).and_return(200)
 
         result = app.anthropic_websearch_sub_call(
-          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-5-20250929", "test", 120
+          "https://api.anthropic.com/v1/messages", "key", "claude-sonnet-4-6", "test", 120
         )
         expect(result).to eq("Answer from Claude\n with citations")
       end
@@ -707,7 +707,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
 
     it "routes Claude to anthropic_websearch_sub_call when websearch: true" do
       expect(app).to receive(:anthropic_websearch_sub_call).and_return("result")
-      app.sub_agent_api_call("claude-sonnet-4-5-20250929", "test", claude_cfg, 120, websearch: true)
+      app.sub_agent_api_call("claude-sonnet-4-6", "test", claude_cfg, 120, websearch: true)
     end
 
     it "routes Perplexity to openai_compat_sub_call (native search) when websearch: true" do

@@ -25,79 +25,49 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Chord Accompanist Tools
+  # Music Advisor Tools
   # ============================================
-  describe 'ChordAccompanist Tools' do
+  describe 'MusicAdvisor Tools' do
     let(:app_class) do
-      tools_file = File.join(app_base_dir, 'chord_accompanist', 'chord_accompanist_claude_tools.rb')
+      tools_file = File.join(app_base_dir, 'music_advisor', 'music_advisor_tools.rb')
       require tools_file if File.exist?(tools_file)
-      Object.const_get('ChordAccompanistClaude') if Object.const_defined?('ChordAccompanistClaude')
+      Object.const_get('MusicAdvisorOpenAI') if Object.const_defined?('MusicAdvisorOpenAI')
     end
 
     let(:instance) { app_class&.new }
 
-    describe '#validate_abc_syntax' do
-      it 'returns success for valid ABC notation' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
-
-        valid_abc = <<~ABC
-          X:1
-          T:Test Tune
-          M:4/4
-          K:C
-          |C D E F|G A B c|
-        ABC
-
-        result = instance.validate_abc_syntax(code: valid_abc)
-
-        expect(result).to be_a(Hash)
-        # Should have success key or valid structure
-        expect(result.key?('valid') || result.key?(:valid) || result.key?('success')).to be true
-      end
-
-      it 'returns error information for invalid ABC notation' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
-
-        invalid_abc = "This is not ABC notation at all!!!"
-
-        result = instance.validate_abc_syntax(code: invalid_abc)
-
-        expect(result).to be_a(Hash)
-        # Should indicate invalid or have error info
-      end
-
-      it 'handles empty input gracefully' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
-
-        result = instance.validate_abc_syntax(code: "")
-
-        expect(result).to be_a(Hash)
-        # Should not raise exception
-      end
-
-      it 'handles nil input gracefully' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
-
-        # Method should handle nil without crashing
-        expect { instance.validate_abc_syntax(code: nil) }.not_to raise_error
+    describe '#play_chord' do
+      it 'responds to play_chord with required parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        expect(instance).to respond_to(:play_chord)
       end
     end
 
-    describe '#analyze_abc_error' do
-      it 'returns analysis for error' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
-
-        result = instance.analyze_abc_error(code: "X:1\nK:C\n|invalid|", error: "parse error at line 3")
-
-        expect(result).to be_a(Hash)
+    describe '#play_scale' do
+      it 'responds to play_scale with required parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        expect(instance).to respond_to(:play_scale)
       end
+    end
 
-      it 'handles empty error gracefully' do
-        skip 'ChordAccompanistClaude not loaded' unless instance
+    describe '#play_interval' do
+      it 'responds to play_interval with required parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        expect(instance).to respond_to(:play_interval)
+      end
+    end
 
-        result = instance.analyze_abc_error(code: "test", error: "")
+    describe '#play_progression' do
+      it 'responds to play_progression with required parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        expect(instance).to respond_to(:play_progression)
+      end
+    end
 
-        expect(result).to be_a(Hash)
+    describe '#generate_backing_track' do
+      it 'responds to generate_backing_track with required parameters' do
+        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        expect(instance).to respond_to(:generate_backing_track)
       end
     end
   end

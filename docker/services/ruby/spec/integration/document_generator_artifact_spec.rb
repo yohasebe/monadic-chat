@@ -54,7 +54,7 @@ RSpec.describe 'Document Generator Integration', :api, :artifacts do
     it 'accepts Skills API request format' do
       api_key = ENV['ANTHROPIC_API_KEY']
       app = APPS['DocumentGeneratorClaude']
-      model = app.settings['model'] || 'claude-sonnet-4-5-20250929'
+      model = app.settings['model'] || 'claude-sonnet-4-6'
 
       uri = URI('https://api.anthropic.com/v1/messages')
 

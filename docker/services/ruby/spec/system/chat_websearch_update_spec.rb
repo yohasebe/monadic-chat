@@ -95,7 +95,7 @@ RSpec.describe "Chat Apps Web Search Update", type: :system do
 
   def generate_chat_app_template(provider, api_key)
     model = case provider
-    when "claude" then "claude-sonnet-4-5-20250929"
+    when "claude" then "claude-sonnet-4-6"
     when "gemini" then "gemini-1.5-flash"
     when "mistral" then "mistral-large-latest"
     when "cohere" then "command-a-reasoning-08-2025"

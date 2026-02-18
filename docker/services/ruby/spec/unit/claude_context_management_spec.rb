@@ -8,7 +8,7 @@ RSpec.describe "Claude Context Management" do
     end
 
     it "returns true for Claude Sonnet 4.5" do
-      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-sonnet-4-5-20250929")).to be true
+      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-sonnet-4-6")).to be true
     end
 
     it "returns false for Claude Haiku 3" do

@@ -176,9 +176,9 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     },
 
     # Specialized apps
-    'ChordAccompanist' => {
+    'MusicAdvisor' => {
       prompt: 'What chords work with C major?',
-      expectation: 'Chords that work with C major'
+      expectation: 'Music theory response about chords'
     },
     'SecondOpinion' => {
       prompt: 'Get a second opinion on whether water is wet.',
@@ -312,7 +312,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
   describe 'Tool Invocation Matrix' do
     # Test tool-aware apps respond without errors (tool calls are valid responses)
     TOOL_TEST_CASES = {
-      'ChordAccompanist' => {
+      'MusicAdvisor' => {
         prompt: 'What chords go well with C major?',
         expectation: 'Response about chords or music theory'
       },

@@ -123,7 +123,7 @@ RSpec.describe "ParallelDispatch Web Search Integration", :integration do
         result = app.anthropic_websearch_sub_call(
           "https://api.anthropic.com/v1/messages",
           CONFIG["ANTHROPIC_API_KEY"],
-          "claude-sonnet-4-5-20250929",
+          "claude-sonnet-4-6",
           query,
           timeout
         )

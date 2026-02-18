@@ -26,7 +26,7 @@ describe('Model Specification', () => {
   it('should contain major AI models', () => {
     // Test for some key model categories
     expect(modelSpec['gpt-4.1']).toBeDefined();
-    expect(modelSpec['claude-sonnet-4-5-20250929']).toBeDefined();
+    expect(modelSpec['claude-sonnet-4-6']).toBeDefined();
     expect(modelSpec['gemini-2.5-flash']).toBeDefined();
     expect(modelSpec['command-a-vision-07-2025']).toBeDefined();
     expect(modelSpec['command-a-reasoning-08-2025']).toBeDefined();
@@ -56,10 +56,10 @@ describe('Model Specification', () => {
   
   describe('Anthropic Models', () => {
     it('should have correct parameters for Claude models', () => {
-      const model = modelSpec['claude-sonnet-4-5-20250929'];
+      const model = modelSpec['claude-sonnet-4-6'];
 
       // Check essential parameters
-      expect(model.context_window).toEqual([1, 1000000]);
+      expect(model.context_window).toEqual([1, 200000]);
       expect(model.max_output_tokens).toEqual([[1, 64000], 64000]);
       expect(model.thinking_budget).toEqual({
         min: 1024,
@@ -67,13 +67,14 @@ describe('Model Specification', () => {
         max: null
       });
       expect(model.supports_thinking).toBe(true);
+      expect(model.supports_adaptive_thinking).toBe(true);
       expect(model.tool_capability).toBe(true);
       expect(model.vision_capability).toBe(true);
     });
-    
+
     it('should have different vision capabilities for different Claude models', () => {
-      // Claude Sonnet 4.5 should have vision support
-      expect(modelSpec['claude-sonnet-4-5-20250929'].vision_capability).toBe(true);
+      // Claude Sonnet 4.6 should have vision support
+      expect(modelSpec['claude-sonnet-4-6'].vision_capability).toBe(true);
 
       // Claude Haiku 4.5 has vision support
       expect(modelSpec['claude-haiku-4-5-20251001'].vision_capability).toBe(true);
@@ -83,8 +84,11 @@ describe('Model Specification', () => {
       expect(modelSpec['claude-opus-4-6'].supports_adaptive_thinking).toBe(true);
     });
 
+    it('should mark Sonnet 4.6 as supporting adaptive thinking', () => {
+      expect(modelSpec['claude-sonnet-4-6'].supports_adaptive_thinking).toBe(true);
+    });
+
     it('should not mark older Claude models as supporting adaptive thinking', () => {
-      expect(modelSpec['claude-sonnet-4-5-20250929'].supports_adaptive_thinking).toBeUndefined();
       expect(modelSpec['claude-haiku-4-5-20251001'].supports_adaptive_thinking).toBeUndefined();
     });
   });

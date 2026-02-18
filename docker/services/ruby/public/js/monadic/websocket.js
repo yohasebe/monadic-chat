@@ -378,6 +378,7 @@ window.handleFragmentMessage = function(fragment) {
     // If this is a final fragment, clean up
     if (fragment.final) {
       window._lastProcessedIndex = -1;
+      window._lastProcessedSequence = -1;
     }
   }
 };
@@ -3984,6 +3985,7 @@ let loadedApp = "Chat";
           $("#temp-card .card-text").empty(); // Clear any existing content
           $("#temp-card").show();
           window._lastProcessedIndex = -1; // Reset index tracking
+          window._lastProcessedSequence = -1; // Reset sequence tracking
 
           // Move existing temp card to the end of #discourse to ensure correct position
           const tempCard = $("#temp-card");
@@ -4004,6 +4006,8 @@ let loadedApp = "Chat";
             </div>
           `);
           $("#discourse").append(tempCard);
+          window._lastProcessedIndex = -1;
+          window._lastProcessedSequence = -1;
         }
 
         $("#temp-card .status").hide();

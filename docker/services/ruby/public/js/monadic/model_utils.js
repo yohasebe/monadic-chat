@@ -387,16 +387,18 @@ function getModelsForApp(appConfig) {
       // models is a JSON string from server
       try {
         const parsedModels = JSON.parse(appConfig["models"]);
-        return parsedModels;
+        if (parsedModels.length > 0) {
+          return parsedModels;
+        }
       } catch (e) {
         console.error(`Failed to parse models JSON:`, e);
-        return [];
       }
-    } else if (appConfig["model"]) {
-      return [appConfig["model"]];
-    } else {
-      return [];
     }
+    // Fallback: use configured default model if available
+    if (appConfig["model"]) {
+      return [appConfig["model"]];
+    }
+    return [];
   }
 }
 
@@ -412,9 +414,13 @@ function getDefaultModelForApp(appConfig, availableModels) {
   const providerKey = getProviderKey(appConfig["group"]);
   const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || {};
   
-  // Check for Ollama's special behavior
-  if (providerConfig.selectFirstModel && !appConfig["model"]) {
-    return availableModels[0]; // Select first available model for Ollama
+  // Check for Ollama's special behavior: prefer first available model
+  // when configured model is absent or not installed
+  if (providerConfig.selectFirstModel) {
+    if (!appConfig["model"] || !availableModels.includes(appConfig["model"])) {
+      return availableModels[0];
+    }
+    return appConfig["model"];
   }
   
   // Check if provider shows all models (like OpenAI)

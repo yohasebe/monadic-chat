@@ -63,7 +63,8 @@ RUN uv pip install --no-cache \
       lxml~=6.0 pygraphviz~=1.14 graphviz~=0.21 pydotplus~=2.0 networkx~=3.6 pyvis~=0.3 \
       svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
       pyecharts~=2.0 pyecharts-snapshot~=0.2 \
-      opencv-python~=4.11 moviepy~=2.0
+      opencv-python~=4.11 moviepy~=2.0 \
+      midiutil
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
@@ -89,7 +90,7 @@ RUN find /monadic/scripts -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod
 RUN mkdir -p /monadic/data/scripts
 
 # Set environment variables (visible to LLM)
-ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
+ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
 

@@ -334,9 +334,10 @@
       $(this).addClass("sourcecode");
       $(this).find("pre").addClass("sourcecode");
       var abcElement = $(this);
-      var abcId = '' + Date.now();
+      var abcId = '' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
       var abcText = abcElement.find("pre").text().trim();
       abcText = abcText.split("\n").map(function(line) { return line.trim(); }).join("\n");
+
       var instrument = "";
       var instrumentMatch = abcText.match(/^%%tablature\s+(.*)/);
       if (instrumentMatch) {
@@ -347,16 +348,28 @@
       var abcSVG = 'abc-svg-' + abcId;
       var abcMidi = 'abc-midi-' + abcId;
       addToggleSourceCode(abcElement, "Toggle ABC Notation");
-      abcElement.after('<div>&nbsp;</div>');
-      abcElement.after('<div id="' + abcMidi + '" class="abc-midi"></div>');
-      abcElement.after('<div id="' + abcSVG + '" class="abc-svg"></div>');
+
+      // Create DOM elements directly (avoids ABCJS ID lookup timing issues)
+      var svgDiv = document.createElement('div');
+      svgDiv.id = abcSVG;
+      svgDiv.className = 'abc-svg';
+      var midiDiv = document.createElement('div');
+      midiDiv.id = abcMidi;
+      midiDiv.className = 'abc-midi';
+      var spacerDiv = document.createElement('div');
+      spacerDiv.innerHTML = '&nbsp;';
+
+      abcElement.after(spacerDiv);
+      abcElement.after(midiDiv);
+      abcElement.after(svgDiv);
+
       var abcOptions = {
         add_classes: true,
         clickListener: self.abcClickListener,
         responsive: "resize",
         soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
-        staffwidth: 1200,
+        staffwidth: 740,
         paddingtop: 10,
         paddingbottom: 10,
         format: {
@@ -380,8 +393,16 @@
       } else if (instrument === "bass") {
         abcOptions.tablature = [{ instrument: "bass", label: "Base (%T)", tuning: ["E,", "A,", "D", "G"] }];
       }
-      var visualObj = ABCJS.renderAbc(abcSVG, abcText, abcOptions)[0];
-      if (ABCJS.synth.supportsAudio()) {
+
+      // Pass DOM element directly to renderAbc for reliable rendering
+      var renderResult = ABCJS.renderAbc(svgDiv, abcText, abcOptions);
+      if (!renderResult || renderResult.length === 0) {
+        console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
+      }
+      var visualObj = renderResult ? renderResult[0] : null;
+
+      // Always set up ABCJS MIDI synth for playback
+      if (visualObj && ABCJS.synth.supportsAudio()) {
         var synthControl = new ABCJS.synth.SynthController();
         var cursorControl = new abcCursorControl('#' + abcSVG);
         synthControl.load('#' + abcMidi, cursorControl, {
@@ -392,8 +413,10 @@
           displayWarp: true
         });
         synthControl.setTune(visualObj, false, {});
+      } else if (!visualObj) {
+        midiDiv.innerHTML = "<div class='audio-error'>Failed to parse ABC notation.</div>";
       } else {
-        document.querySelector(abcMidi).innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
+        midiDiv.innerHTML = "<div class='audio-error'>Audio is not supported in this browser.</div>";
       }
     });
   }

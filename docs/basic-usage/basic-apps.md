@@ -26,7 +26,7 @@ The table below shows which apps are available for which AI model providers.
 | Voice Interpreter | ✅ | | ✅ | | | | | | |
 | Novel Writer | ✅ | | | | | | ✅ | | |
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
-| Video Generator | ✅ | | | | ✅ | | | | |
+| Video Generator | ✅ | | | | ✅ | ✅ | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Mermaid Grapher | ✅ | | | | | | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | | |
@@ -41,7 +41,7 @@ The table below shows which apps are available for which AI model providers.
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | | |
-| Chord Accompanist | | ✅ | | | | | | | |
+| Music Advisor | ✅ | ✅ | | | | | | | |
 | Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
@@ -586,21 +586,21 @@ Auto Forge is available for the providers shown in the availability table.
 
 ![Auto Forge workflow](../assets/images/workflows/workflow-autoforge.svg ':size=500')
 
-### Chord Accompanist :id=chord-accompanist
+### Music Advisor :id=music-advisor
 
-![Chord Accompanist app icon](../assets/icons/music.png ':size=40')
+![Music Advisor app icon](../assets/icons/music.png ':size=40')
 
-Generate chord accompaniment patterns in ABC notation. The AI creates accompaniment arrangements based on your specifications including genre, tempo, instrumentation, and chord progressions.
+An interactive music theory advisor with audio playback. The AI explains music concepts and generates audio examples for chords, scales, intervals, progressions, and backing tracks directly in the browser.
 
 **Key Features:**
-- **Multiple genres**: Jazz, bossa nova, pop, rock, and more
-- **ABC notation output**: Standard music notation that can be rendered and played
-- **Chord validation**: Built-in music theory validation for chord progressions
-- **Customizable patterns**: Specify tempo, time signature, key, and instrumentation
+- **Audio playback**: Chords, scales, intervals, and progressions rendered as sheet music with in-browser MIDI synthesis
+- **Backing tracks**: Multi-instrument backing tracks (chords + bass) with style-specific patterns (jazz, bossa nova, pop, rock, ballad)
+- **Algorithmic melody**: Generate melodies automatically using chord-scale theory, Euclidean rhythms, and contour shaping (lyrical, rhythmic, jazz, latin, gentle styles)
+- **Guitar-specific patterns**: Bossa nova arpeggios, rock power chords, ballad fingerpicking
+- **Walking bass**: Jazz walking bass with chromatic approach notes, bossa 2-beat feel
+- **Comprehensive music theory**: 46 chord types, 15 scales, all church modes, slash chords, enharmonic spelling
 
-Chord Accompanist is currently available for Claude.
-
-![Chord Accompanist workflow](../assets/images/workflows/workflow-chord-accompanist.svg ':size=500')
+Music Advisor is available for OpenAI and Claude.
 
 ### Document Generator :id=document-generator
 

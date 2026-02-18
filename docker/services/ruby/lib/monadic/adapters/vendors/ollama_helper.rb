@@ -23,18 +23,45 @@ module OllamaHelper
   ].freeze
 
   @cached_endpoint = nil
+  @cache_checked_at = nil
 
   ENDPOINT_PROBE_TIMEOUT = 2  # seconds — keep short to avoid blocking startup
+  CACHE_TTL = 30              # seconds — revalidate cached endpoint periodically
 
   def self.find_endpoint
-    return @cached_endpoint if @cached_endpoint
+    # Return cached endpoint if still fresh
+    if @cached_endpoint && @cache_checked_at && (Time.now - @cache_checked_at) < CACHE_TTL
+      return @cached_endpoint
+    end
 
+    # Revalidate cached endpoint if TTL expired
+    if @cached_endpoint
+      url = @cached_endpoint.sub("/api", "")
+      begin
+        res = HTTP.timeout(connect: ENDPOINT_PROBE_TIMEOUT, read: ENDPOINT_PROBE_TIMEOUT)
+                   .get(url)
+        if res.status.success?
+          @cache_checked_at = Time.now
+          return @cached_endpoint
+        end
+      rescue HTTP::Error, HTTP::TimeoutError, Errno::ECONNREFUSED, SocketError, Errno::EHOSTUNREACH
+        # Cached endpoint is stale
+      end
+      @cached_endpoint = nil
+      @cache_checked_at = nil
+    end
+
+    # Probe all candidates
     ENDPOINT_CANDIDATES.each do |endpoint|
       url = endpoint.sub("/api", "")
       begin
         res = HTTP.timeout(connect: ENDPOINT_PROBE_TIMEOUT, read: ENDPOINT_PROBE_TIMEOUT)
                    .get(url)
-        return @cached_endpoint = endpoint if res.status.success?
+        if res.status.success?
+          @cached_endpoint = endpoint
+          @cache_checked_at = Time.now
+          return endpoint
+        end
       rescue HTTP::Error, HTTP::TimeoutError, Errno::ECONNREFUSED, SocketError, Errno::EHOSTUNREACH
         next
       end
@@ -44,6 +71,7 @@ module OllamaHelper
 
   def self.reset_endpoint_cache
     @cached_endpoint = nil
+    @cache_checked_at = nil
   end
 
   MAX_RETRIES.times do
@@ -118,35 +146,54 @@ module OllamaHelper
     }
 
     body.merge!(options)
-    target_uri = "#{ollama_endpoint}/chat"
     http = HTTP.headers(headers)
 
-    success = false
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      if res.status.success?
-        success = true
-        break
+    res = nil
+    last_error = nil
+    MAX_RETRIES.times do |attempt|
+      begin
+        current_endpoint = OllamaHelper.find_endpoint
+        unless current_endpoint
+          last_error = StandardError.new("Ollama endpoint not found")
+          sleep RETRY_DELAY
+          next
+        end
+        target_uri = "#{current_endpoint}/chat"
+
+        res = http.timeout(connect: open_timeout,
+                           write: write_timeout,
+                           read: read_timeout).post(target_uri, json: body)
+        if res.status.success?
+          last_error = nil
+          break
+        end
+        sleep RETRY_DELAY
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        last_error = e
+        STDERR.puts "[Ollama] send_query attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        OllamaHelper.reset_endpoint_cache
+        sleep RETRY_DELAY
       end
-      sleep RETRY_DELAY
     end
 
-    if res.status.success?
+    return "Error: Ollama is not reachable. (#{last_error.message})" if last_error
+
+    if res&.status&.success?
       JSON.parse(res.body).dig("message", "content")
     else
-      error = JSON.parse(res.body)["error"]
+      error = begin
+        JSON.parse(res.body)["error"]
+      rescue StandardError
+        res.body.to_s
+      end
       STDERR.puts "[Ollama API Error] #{error}" if CONFIG["EXTRA_LOGGING"]
       "ERROR: #{error}"
     end
-  rescue StandardError
-    "Error: The request could not be completed."
+  rescue StandardError => e
+    "Error: The request could not be completed. (#{e.message})"
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    num_retrial = 0
-
     # Initialize call_depth_per_turn on user turns
     if role == "user"
       session[:call_depth_per_turn] = 0
@@ -280,7 +327,15 @@ module OllamaHelper
       }
     end
 
-    if role == "user"
+    if role == "tool"
+      # When processing tool results, use the function_returns context
+      # which includes the full conversation + assistant tool_calls + tool responses
+      if obj["function_returns"]
+        body["messages"] = obj["function_returns"].compact.map do |msg|
+          { "role" => msg["role"], "content" => msg["content"] || msg["text"] || "" }
+        end
+      end
+    elsif role == "user"
       # Use unified system prompt injector for user message augmentation
       if body["messages"].last && body["messages"].last["content"]
         augmented_content = Monadic::Utils::SystemPromptInjector.augment_user_message(
@@ -294,29 +349,53 @@ module OllamaHelper
       end
     end
 
-    target_uri = "#{ollama_endpoint}/chat"
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    # Don't send initial spinner - let the client handle it
-    # The spinner will be shown automatically when the request starts
-    # res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
-    # block&.call res
+    res = nil
+    last_error = nil
+    MAX_RETRIES.times do |attempt|
+      begin
+        # Re-resolve endpoint on each retry (cache may have been cleared)
+        current_endpoint = OllamaHelper.find_endpoint
+        unless current_endpoint
+          last_error = StandardError.new("Ollama endpoint not found")
+          STDERR.puts "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" if CONFIG["EXTRA_LOGGING"]
+          sleep RETRY_DELAY
+          next
+        end
+        target_uri = "#{current_endpoint}/chat"
 
-    success = false
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      if res.status.success?
-        success = true
-        break
+        res = http.timeout(connect: open_timeout,
+                           write: write_timeout,
+                           read: read_timeout).post(target_uri, json: body)
+        if res.status.success?
+          last_error = nil
+          break
+        end
+        sleep RETRY_DELAY
+      rescue HTTP::Error, HTTP::TimeoutError => e
+        last_error = e
+        STDERR.puts "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        OllamaHelper.reset_endpoint_cache
+        sleep RETRY_DELAY
       end
-      sleep RETRY_DELAY
     end
 
-    unless res.status.success?
-      error_report = JSON.parse(res.body)
+    if last_error
+      error_message = "Ollama is not reachable. Please ensure Ollama is running. (#{last_error.message})"
+      STDERR.puts "[Ollama] #{error_message}" if CONFIG["EXTRA_LOGGING"]
+      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      block&.call res
+      return [res]
+    end
+
+    unless res&.status&.success?
+      error_report = begin
+        JSON.parse(res.body)
+      rescue StandardError
+        res.body.to_s
+      end
       STDERR.puts "[Ollama API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
       block&.call res
@@ -324,21 +403,10 @@ module OllamaHelper
     end
 
     process_json_data(app, session, res.body, call_depth, &block)
-  rescue HTTP::Error, HTTP::TimeoutError
-    if num_retrial < MAX_RETRIES
-      num_retrial += 1
-      sleep RETRY_DELAY
-      retry
-    else
-      error_message = "The request has timed out."
-      STDERR.puts "[Ollama] #{error_message}" if CONFIG["EXTRA_LOGGING"]
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
-      block&.call res
-      [res]
-    end
   rescue StandardError => e
     STDERR.puts "[Ollama] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     STDERR.puts "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    OllamaHelper.reset_endpoint_cache
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
     [res]
@@ -379,7 +447,9 @@ module OllamaHelper
           res = {
             "type" => "fragment",
             "content" => fragment,
-            "sequence" => fragment_sequence
+            "sequence" => fragment_sequence,
+            "timestamp" => Time.now.to_f,
+            "is_first" => fragment_sequence == 0
           }
 
           if CONFIG["EXTRA_LOGGING"]
@@ -397,6 +467,8 @@ module OllamaHelper
     rescue StandardError => e
       STDERR.puts "[Ollama Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
       STDERR.puts "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      # Connection dropped mid-stream — invalidate cached endpoint
+      OllamaHelper.reset_endpoint_cache
     end
 
     if CONFIG["EXTRA_LOGGING"]

@@ -1,0 +1,83 @@
+app "CodingAssistantOllama" do
+  description do
+    en <<~TEXT
+    Programming help with code suggestions and explanations. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    コードの提案と説明によるプログラミング支援。 <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    提供代码建议和解释的编程帮助。 <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    코드 제안과 설명을 통한 프로그래밍 지원. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Ayuda de programación con sugerencias y explicaciones de código. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Aide à la programmation avec suggestions et explications de code. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Programmierhilfe mit Code-Vorschlägen und Erklärungen. <a href="https://yohasebe.github.io/monadic-chat/#/advanced-topics/ollama" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "laptop-code"
+
+  system_prompt <<~PROMPT
+  You are a friendly but professional software engineer who answers various questions, writes computer program code, makes decent suggestions, and gives helpful advice in response to a user's prompt.
+
+  ## File Operations
+
+  You have access to file operation tools. When saving files:
+  - Use the `write_file_to_shared_folder` function
+  - Keep file content simple and avoid excessive special characters
+  - For code files, ensure proper escaping of quotes and special characters
+  - Call the function ONCE with complete content - do not repeat the call
+
+  ## Code Presentation
+
+  It is often not possible to present a very long block of code in a single response. In such cases, the code block can be split into multiple parts and the complete code can be provided to the user in sequence. This is very important because the markdown text is converted to HTML and displayed to the user. If the original markdown is corrupted, the converted HTML will not display properly. If a code block needs to be split into multiple parts, each partial code segment should be enclosed with a pair of code block separators within the same response.
+
+  First, briefly inform the user in English that they can provide prompts describing the problem or task they wish to solve. Also, if there is code to be used in the session, code to be modified, or a dataset to be used, let the user know that the code or data to be retained should be sent with the `Role` in the message sending screen set to `System`.
+
+  Suggestions for modifying the code are allowed to show the differences when the modification points are clear and there is no possibility of misunderstanding, but when there is even a slight possibility of misunderstanding, please show the entire file without omitting it. Note that only one file is shown in one response. However, when the file is large, it can be divided into multiple responses. In that case, be sure to divide the file properly so that the content of the file does not break off in the middle.
+
+  ## Plan-Approve-Execute Protocol
+
+  For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+  1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+  2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+  3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+  WHEN TO USE: Multi-file project creation, tasks involving reading existing code then modifying it, refactoring across multiple files, complex code generation with dependencies.
+  WHEN TO SKIP: Simple single-file edits, quick code explanations, direct questions about programming concepts.
+  PROMPT
+
+  llm do
+    provider "ollama"
+  end
+
+  display_name "Coding Assistant"
+
+  features do
+    easy_submit false
+    auto_speech false
+    mathjax false
+    initiate_from_assistant false
+    group "Ollama"
+  end
+
+  tools do
+    import_shared_tools :file_operations, visibility: "always"
+    import_shared_tools :planning, visibility: "always"
+  end
+end

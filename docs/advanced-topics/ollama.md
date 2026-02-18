@@ -2,68 +2,59 @@
 
 ## Setup
 
-Ollama is now built into Monadic Chat as an optional feature. To use Ollama:
+Monadic Chat connects directly to Ollama running on your host machine. This provides full GPU acceleration (Metal on macOS, CUDA on Linux) and eliminates the need for a separate Docker container.
 
-1. Make sure Monadic Chat is stopped (Actions → Stop)
-2. Go to Actions → Build Ollama Container (this is separate from "Build All")
-3. Wait for the build to complete (this may take several minutes on first build)
-4. Start Monadic Chat (Actions → Start)
-5. You should now see the Ollama apps in the Ollama group
+### 1. Install Ollama
 
-!> The Ollama container is not built automatically with "Build All" to save resources. You must explicitly choose "Build Ollama Container" to use this feature.
+Download and install Ollama for your operating system:
+
+- **macOS**: [Download from ollama.com](https://ollama.com/download/mac)
+- **Windows**: [Download from ollama.com](https://ollama.com/download/windows)
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+
+### 2. Pull a Model
+
+After installation, pull at least one model:
+
+```bash
+ollama pull qwen3:4b
+```
+
+You can browse available models at [Ollama Library](https://ollama.com/library).
+
+### 3. Start Ollama
+
+Ensure Ollama is running before starting Monadic Chat. On macOS and Windows, the Ollama app starts automatically at login. On Linux, you may need to start it manually:
+
+```bash
+ollama serve
+```
+
+!> **Linux users**: By default, Ollama only listens on `127.0.0.1` (localhost). Since Monadic Chat's backend runs inside a Docker container, it connects to the host via `host.docker.internal`, which resolves to the Docker bridge gateway IP — not `127.0.0.1`. To allow connections from Docker containers, start Ollama with `OLLAMA_HOST=0.0.0.0 ollama serve`, or enable **"Expose Ollama to the network"** in the Ollama app settings. This is not required on macOS or Windows, where Docker Desktop handles this transparently.
+
+### 4. Start Monadic Chat
+
+Start Monadic Chat normally. The Ollama apps will appear in the Ollama group. If Ollama is not running, the apps will show an error message when you try to use them.
 
 ## Adding Language Models
 
-### Using olsetup.sh (Recommended)
-
-You can automate model installation by creating an `olsetup.sh` file in your config directory:
-
-1. Create `~/monadic/config/olsetup.sh` with your desired models:
+Use the `ollama` command to manage models directly on your system:
 
 ```bash
-#!/bin/bash
-# Example olsetup.sh - Install models
-# See https://ollama.com/library for available models
+# List installed models
+ollama list
 
-echo "Installing Ollama models..."
-
-# Install your desired models (replace with your choices)
-ollama pull qwen3:4b
+# Pull a new model
 ollama pull gemma3:4b
 
-# Add more models as needed
-# ollama pull <model-name>:<tag>
+# Run a model (downloads if not present)
+ollama run llama3.2
 
-echo "Model installation complete!"
+# Remove a model
+ollama rm <model-name>
 ```
 
-2. Make it executable:
-```bash
-chmod +x ~/monadic/config/olsetup.sh
-```
-
-3. Build the Ollama container (Actions → Build Ollama Container)
-
-The models will be automatically installed during the container build process and stored in `~/monadic/ollama/` for persistence.
-
-!> **Important**: When using `olsetup.sh`, only the models specified in the script will be installed. The default model (defined by the `OLLAMA_DEFAULT_MODEL` environment variable) will NOT be automatically installed unless explicitly included in the script.
-
-### Manual Installation
-
-If no `olsetup.sh` is found, the system will automatically pull the default model (configurable via `OLLAMA_DEFAULT_MODEL` environment variable). You can browse available models at [Ollama Library](https://ollama.com/library).
-
-To manually add more models, connect to the Ollama container from your terminal:
-
-```shell
-$ docker exec -it monadic-chat-ollama-container bash
-$ ollama run <model-name>
-```
-
-After the model finishes downloading, you'll see an interactive Ollama shell prompt (`>>>`). Type `/bye` to exit the shell.
-
-The models you've added will be available for selection in the Ollama apps.
-
-!> Loading locally downloaded models into the Docker container can take some time. Reload the web interface if the model doesn't appear immediately, especially after adding a new model or restarting Monadic Chat.
+Models you install will be automatically available for selection in the Ollama apps. Reload the web interface if a newly added model does not appear immediately.
 
 ## Available Apps
 
@@ -73,14 +64,16 @@ The following apps are available in the Ollama group:
 |-----|-------------|
 | **Chat** | General conversational AI assistant. Supports text and images. |
 | **Chat Plus** | Conversational AI with context tracking. Tracks topics, people, and notes in a sidebar panel. Also supports file operations in the shared folder. |
+| **Coding Assistant** | Programming help with code suggestions and explanations. Supports file operations in the shared folder. |
+| **Language Practice** | Language conversation practice with grammar corrections. |
 | **Second Opinion** | Compares responses from multiple Ollama models for the same prompt. |
 
-Chat Plus uses tool calling to manage session context and file operations. Tool calling requires an Ollama model that supports function calling.
+Chat Plus and Coding Assistant use tool calling for file operations and other features. Tool calling requires an Ollama model that supports function calling.
 
 ## Technical Details
 
-- **Model Storage**: All models are stored in `~/monadic/ollama/` on your host machine for persistence
-- **Default Model**: `OLLAMA_DEFAULT_MODEL` environment variable specifies which model to download during build when no `olsetup.sh` exists
-- **Model Selection**: The web UI automatically selects the first available model from the Ollama service
+- **GPU Acceleration**: Native Ollama uses Metal (macOS) or CUDA (Linux) for hardware-accelerated inference
+- **Default Model**: The default model can be configured via `OLLAMA_DEFAULT_MODEL` in `~/monadic/config/env`
+- **Connection**: Monadic Chat's Ruby backend (running in Docker) connects to host Ollama via `host.docker.internal:11434`
 - **Model List**: The app dynamically checks for available models when the Ollama service is running
-- **Container Management**: Uses Docker profiles for conditional building (profile: `ollama`)
+- **Fallback**: If Ollama is not running, the app returns an error message instead of silently failing

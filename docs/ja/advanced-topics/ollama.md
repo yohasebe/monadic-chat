@@ -2,68 +2,59 @@
 
 ## セットアップ
 
-OllamaはMonadic Chatのオプション機能として組み込まれています。Ollamaを使用するには：
+Monadic Chatはホストマシンで動作するOllamaに直接接続します。これにより完全なGPUアクセラレーション（macOSのMetal、LinuxのCUDA）が利用でき、専用のDockerコンテナが不要になります。
 
-1. Monadic Chatが停止していることを確認（Actions → Stop）
-2. Actions → Build Ollama Containerを選択（これは「Build All」とは別です）
-3. ビルドが完了するまで待ちます（初回ビルド時は数分かかる場合があります）
-4. Monadic Chatを起動（Actions → Start）
-5. OllamaグループにOllamaアプリが表示されます
+### 1. Ollamaのインストール
 
-!> Ollamaコンテナはリソース節約のため「Build All」では自動的にビルドされません。この機能を使用するには明示的に「Build Ollama Container」を選択する必要があります。
+お使いのOSに合わせてOllamaをダウンロード・インストールしてください：
+
+- **macOS**: [ollama.comからダウンロード](https://ollama.com/download/mac)
+- **Windows**: [ollama.comからダウンロード](https://ollama.com/download/windows)
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+
+### 2. モデルの取得
+
+インストール後、少なくとも1つのモデルを取得してください：
+
+```bash
+ollama pull qwen3:4b
+```
+
+利用可能なモデルは [Ollama Library](https://ollama.com/library) で確認できます。
+
+### 3. Ollamaの起動
+
+Monadic Chatを起動する前に、Ollamaが動作していることを確認してください。macOSとWindowsではOllamaアプリはログイン時に自動起動します。Linuxでは手動で起動が必要な場合があります：
+
+```bash
+ollama serve
+```
+
+!> **Linuxユーザーへの注意**: デフォルトではOllamaは`127.0.0.1`（localhost）のみでリッスンします。Monadic ChatのバックエンドはDockerコンテナ内で動作し、`host.docker.internal`経由でホストに接続します。Linuxではこのアドレスはlocalhostではなく、Dockerブリッジのゲートウェイ IPに解決されるため、デフォルト設定ではOllamaに接続できません。Dockerコンテナからの接続を許可するには、`OLLAMA_HOST=0.0.0.0 ollama serve`で起動するか、Ollamaアプリの設定で**「Expose Ollama to the network」**を有効にしてください。macOSやWindowsではDocker Desktopが透過的に処理するため、この設定は不要です。
+
+### 4. Monadic Chatの起動
+
+通常通りMonadic Chatを起動してください。OllamaグループにOllamaアプリが表示されます。Ollamaが起動していない場合、使用しようとするとエラーメッセージが表示されます。
 
 ## 言語モデルの追加
 
-### olsetup.shを使う方法（推奨）
-
-configディレクトリに`olsetup.sh`ファイルを作成することで、モデルのインストールを自動化できます：
-
-1. `~/monadic/config/olsetup.sh`を作成し、必要なモデルを記述します：
+`ollama`コマンドを使用して、システム上で直接モデルを管理できます：
 
 ```bash
-#!/bin/bash
-# olsetup.shの例 - モデルのインストール
-# 利用可能なモデルは https://ollama.com/library を参照
+# インストール済みモデルの一覧
+ollama list
 
-echo "Ollamaモデルをインストール中..."
-
-# 必要なモデルをインストール（お好みのモデルに置き換えてください）
-ollama pull qwen3:4b
+# 新しいモデルの取得
 ollama pull gemma3:4b
 
-# 必要に応じてモデルを追加
-# ollama pull <model-name>:<tag>
+# モデルの実行（未取得の場合はダウンロード）
+ollama run llama3.2
 
-echo "モデルのインストールが完了しました！"
+# モデルの削除
+ollama rm <model-name>
 ```
 
-2. 実行権限を付与します：
-```bash
-chmod +x ~/monadic/config/olsetup.sh
-```
-
-3. Ollamaコンテナをビルドします（Actions → Build Ollama Container）
-
-モデルはコンテナビルドプロセス中に自動的にインストールされ、`~/monadic/ollama/`に永続的に保存されます。
-
-!> **重要**: `olsetup.sh`を使用する場合、スクリプトで指定したモデルのみがインストールされます。デフォルトモデル（`OLLAMA_DEFAULT_MODEL`環境変数で定義）は、スクリプトに明示的に含めない限り自動的にはインストールされません。
-
-### 手動インストール
-
-`olsetup.sh`が見つからない場合、システムは自動的にデフォルトモデル（`OLLAMA_DEFAULT_MODEL`環境変数で設定可能）をプルします。利用可能なモデルは [Ollama Library](https://ollama.com/library) で確認できます。
-
-さらにモデルを手動で追加するには、ターミナルからOllamaコンテナーに接続します：
-
-```shell
-$ docker exec -it monadic-chat-ollama-container bash
-$ ollama run <model-name>
-```
-
-`ollama`のインタラクティブシェルが起動して、モデルのダウンロードが完了すると、`>>>`プロンプトが表示されます。`/bye`と入力してシェルを終了します。
-
-ターミナルからダウンロードしたモデルは、Ollamaアプリを選択するとモデルのセレクターに選択肢として表示されます。
-
-!> ローカルでダウンロードしたモデルは、ロードに時間がかかる場合があります。コンテナを再構築した後や、Monadic Chatを再起動した後、webインターフェイスにモデルが表示されるまでに時間がかかることがあります。そのような時は少し時間を空けてからwebインターフェイスをリロードしてください。
+インストールしたモデルは、Ollamaアプリのモデル選択で自動的に利用可能になります。新しく追加したモデルがすぐに表示されない場合は、Webインターフェースをリロードしてください。
 
 ## 利用可能なアプリ
 
@@ -73,15 +64,16 @@ Ollamaグループでは以下のアプリが利用できます：
 |--------|------|
 | **Chat** | 汎用会話AIアシスタント。テキストと画像をサポート。 |
 | **Chat Plus** | コンテキスト追跡機能付き会話AI。トピック、人物、メモをサイドバーパネルで管理。共有フォルダへのファイル操作もサポート。 |
+| **Coding Assistant** | コードの提案と説明によるプログラミング支援。共有フォルダへのファイル操作もサポート。 |
+| **Language Practice** | 文法訂正付き言語会話練習。 |
 | **Second Opinion** | 同じプロンプトに対して複数のOllamaモデルのレスポンスを比較。 |
 
-Chat Plusはセッションコンテキスト管理やファイル操作にツール呼び出しを使用します。ツール呼び出しには、関数呼び出しをサポートするOllamaモデルが必要です。
+Chat PlusとCoding Assistantはファイル操作などの機能にツール呼び出しを使用します。ツール呼び出しには、関数呼び出しをサポートするOllamaモデルが必要です。
 
 ## 技術詳細
 
-- **モデル保存場所**: すべてのモデルはホストマシンの`~/monadic/ollama/`に永続的に保存されます
-- **デフォルトモデル**: `OLLAMA_DEFAULT_MODEL`環境変数は`olsetup.sh`が存在しない場合のビルド時ダウンロードモデルを指定
-- **モデル選択**: Web UIはOllamaサービスから利用可能な最初のモデルを自動選択します
-- **モデルリスト**: アプリはOllamaサービス実行時に利用可能なモデルを動的にチェックします
-- **コンテナ管理**: 条件付きビルドのためにDockerプロファイル（profile: `ollama`）を使用します
-
+- **GPUアクセラレーション**: ネイティブOllamaはMetal（macOS）またはCUDA（Linux）によるハードウェアアクセラレーション推論を使用
+- **デフォルトモデル**: `~/monadic/config/env`の`OLLAMA_DEFAULT_MODEL`でデフォルトモデルを設定可能
+- **接続方法**: Monadic ChatのRubyバックエンド（Docker内）はホストのOllamaに`host.docker.internal:11434`経由で接続
+- **モデルリスト**: Ollamaサービス実行時に利用可能なモデルを動的にチェック
+- **フォールバック**: Ollamaが起動していない場合、サイレントに失敗するのではなくエラーメッセージを返す

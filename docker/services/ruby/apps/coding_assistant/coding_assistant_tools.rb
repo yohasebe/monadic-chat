@@ -90,3 +90,9 @@ class CodingAssistantPerplexity < MonadicApp
   include MonadicHelper
   include MonadicSharedTools::FileOperations
 end
+
+class CodingAssistantOllama < MonadicApp
+  include OllamaHelper if defined?(OllamaHelper)
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations
+end

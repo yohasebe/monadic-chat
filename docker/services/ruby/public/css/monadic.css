@@ -1517,6 +1517,18 @@ div.diagram {
   color: #888;
 }
 
+.generated-audio-player {
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 4px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.generated-audio-player audio {
+  accent-color: #0a9ecc;
+}
+
 .unselectable {
   user-select: none;
 }
@@ -2081,6 +2093,19 @@ legend {
 }
 
 /* END: IMAGE GENERATOR STYLE IMPROVEMENTS */
+
+/* START: MUSIC ADVISOR AUDIO STYLES */
+
+.generated_audio {
+  margin-top: 0.5em;
+  margin-bottom: 16px;
+}
+
+.generated_audio audio {
+  margin-top: 0.5em;
+}
+
+/* END: MUSIC ADVISOR AUDIO STYLES */
 
 .json-content {
   font-size: 0.9rem;
@@ -4880,6 +4905,11 @@ i.fas.fa-bolt,
 }
 .dark-theme #tool-status .fa-cog {
   color: #f59e0b;
+}
+
+.dark-theme .generated-audio-player {
+  background: #2a2a2e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 } /* end @layer dark-theme */

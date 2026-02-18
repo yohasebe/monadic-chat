@@ -80,10 +80,12 @@ module MonadicHelper
   end
 
 
-  def generate_image_with_grok(prompt: "")
+  def generate_image_with_grok(prompt: "", aspect_ratio: nil)
     require 'json'
 
-    command = "image_generator_grok.rb -p \"#{prompt}\""
+    parts = ["image_generator_grok.rb", "-p \"#{prompt}\""]
+    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
+    command = parts.join(' ')
 
     # Use block form to get detailed stdout/stderr/status for better error reporting
     stdout = ""
@@ -115,6 +117,80 @@ module MonadicHelper
       return JSON.generate({
         success: false,
         message: "Failed to parse image generator response: #{e.message}",
+        raw_stdout: stdout,
+        raw_stderr: stderr
+      })
+    end
+  end
+
+  # Adapter for xAI Grok Imagine video generation
+  # Accepts keyword args: prompt, duration, aspect_ratio, resolution, image_path
+  def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil,
+                                       image_path: nil, max_wait: 420, session: nil)
+    # Resolve image_path from session if not provided directly
+    if image_path.nil? && session && session[:messages]
+      last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
+      if last_user_msg && last_user_msg["images"] && !last_user_msg["images"].empty?
+        image_path = last_user_msg["images"].first["name"] || last_user_msg["images"].first["filename"]
+        image_path = File.basename(image_path) if image_path && !image_path.to_s.strip.empty?
+      end
+    end
+
+    # Fallback to last used image when none uploaded this turn
+    if image_path.to_s.strip.empty? && session && session[:grok_last_video_image]
+      image_path = session[:grok_last_video_image]
+    end
+
+    # Build CLI command
+    parts = []
+    parts << "video_generator_grok.rb"
+    parts << "-p \"#{prompt}\""
+    parts << "-d #{duration}" if duration
+    parts << "-a \"#{aspect_ratio}\"" if aspect_ratio
+    parts << "-r #{resolution}" if resolution
+    parts << "--max-wait #{max_wait}"
+
+    if image_path && !image_path.to_s.strip.empty?
+      parts << "-i \"#{image_path}\""
+      session[:grok_last_video_image] = File.basename(image_path) if session
+    end
+
+    cmd = parts.join(' ')
+
+    stdout = ""
+    stderr = ""
+    status = nil
+
+    send_command(command: cmd, container: "ruby") do |out, err, stat|
+      stdout = out
+      stderr = err
+      status = stat
+    end
+
+    begin
+      json_start = stdout.index('{')
+      if json_start
+        json_str = stdout[json_start..-1]
+        parsed = JSON.parse(json_str)
+
+        if session && parsed["success"]
+          session[:grok_last_video_request_id] = parsed["request_id"] if parsed["request_id"]
+          session[:grok_last_video_filename] = parsed["filename"] if parsed["filename"]
+        end
+
+        return JSON.generate(parsed)
+      else
+        return JSON.generate({
+          success: false,
+          message: "No valid JSON response from video generator",
+          raw_stdout: stdout,
+          raw_stderr: stderr
+        })
+      end
+    rescue JSON::ParserError => e
+      return JSON.generate({
+        success: false,
+        message: "Failed to parse video generator response: #{e.message}",
         raw_stdout: stdout,
         raw_stderr: stderr
       })

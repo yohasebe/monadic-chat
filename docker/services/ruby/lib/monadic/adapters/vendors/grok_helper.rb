@@ -1198,7 +1198,6 @@ module GrokHelper
     usage_input_tokens = nil
     usage_output_tokens = nil
     usage_total_tokens = nil
-    started = false
 
     res.each do |chunk|
       chunk = chunk.force_encoding("UTF-8")
@@ -1259,23 +1258,6 @@ module GrokHelper
               if fragment && !fragment.empty?
                 id = json["response_id"] || json["item_id"] || "default"
                 texts[id] ||= String.new
-
-                if !started
-                  started = true
-                  # For first Grok fragment, add an invisible zero-width space at the start
-                  if fragment.length > 0
-                    res_event = {
-                      "type" => "fragment",
-                      "content" => "\u200B" + fragment,
-                      "index" => 0,
-                      "timestamp" => Time.now.to_f,
-                      "is_first" => true
-                    }
-                    block&.call res_event
-                  end
-                  texts[id] << fragment
-                  next
-                end
 
                 texts[id] << fragment
 
@@ -1689,6 +1671,30 @@ module GrokHelper
           response_parts << "Error processing image generation result: #{e.message}"
         end
 
+      when "generate_video_with_grok_imagine"
+        begin
+          if result_content.is_a?(String)
+            content_json = JSON.parse(result_content)
+            if content_json["success"] && content_json["filename"]
+              response_parts << "<div class=\"prompt\" style=\"margin-bottom: 15px;\">"
+              response_parts << "  <b>Video Generated</b>"
+              response_parts << "</div>"
+              response_parts << "<div class=\"generated_video\">"
+              response_parts << "  <video controls width=\"600\">"
+              response_parts << "    <source src=\"/data/#{content_json["filename"]}\" type=\"video/mp4\" />"
+              response_parts << "  </video>"
+              response_parts << "</div>"
+            else
+              error_msg = content_json["message"] || content_json["error"] || "Video generation failed"
+              response_parts << error_msg
+            end
+          else
+            response_parts << result_content
+          end
+        rescue JSON::ParserError => e
+          response_parts << "Error processing video generation result: #{e.message}"
+        end
+
       else
         response_parts << "Executed: #{result_name}"
       end
@@ -1884,6 +1890,31 @@ module GrokHelper
           end
         end
 
+        # Extract video filename and request_id from generate_video_with_grok_imagine
+        if function_name == "generate_video_with_grok_imagine" && function_return.is_a?(String)
+          begin
+            video_result = JSON.parse(function_return)
+            if video_result["success"] && video_result["filename"]
+              obj["current_video_filename"] = video_result["filename"]
+              session[:grok_last_video_filename] = video_result["filename"] if session
+              session[:grok_last_video_request_id] = video_result["request_id"] if session && video_result["request_id"]
+
+              if CONFIG["EXTRA_LOGGING"]
+                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+                extra_log.puts("\n[#{Time.now}] Stored video filename: #{video_result["filename"]}")
+                extra_log.puts("Session persisted grok_last_video_filename") if session
+                extra_log.close
+              end
+            end
+          rescue JSON::ParserError => e
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts("\n[#{Time.now}] Failed to parse video generator response: #{e.message}")
+              extra_log.close
+            end
+          end
+        end
+
         # Log tool execution
         if CONFIG["EXTRA_LOGGING"]
           extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1985,8 +2016,9 @@ module GrokHelper
     # Build a helpful response that includes actual results
     response_content = build_tool_response(tool_results)
 
-    # Check if this is an image generation or Jupyter operation that we've already built a complete response for
+    # Check if this is an image/video generation or Jupyter operation that we've already built a complete response for
     has_image_generation = tool_results.any? { |r| (r["name"] || r[:name]) == "generate_image_with_grok" }
+    has_video_generation = tool_results.any? { |r| (r["name"] || r[:name]) == "generate_video_with_grok_imagine" }
     has_jupyter_operation = tool_results.any? { |r|
       %w[create_jupyter_notebook add_jupyter_cells create_and_populate_jupyter_notebook].include?(r["name"] || r[:name])
     }
@@ -1998,6 +2030,14 @@ module GrokHelper
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete image response")
+        extra_log.close
+      end
+    elsif has_video_generation && response_content.include?("<video")
+      # We have a complete HTML response for video generation, no need to call Grok
+      skip_api_call = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete video response")
         extra_log.close
       end
     elsif has_jupyter_operation && response_content.include?("<a href=")

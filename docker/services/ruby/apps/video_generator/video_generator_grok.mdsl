@@ -1,0 +1,158 @@
+app "VideoGeneratorGrok" do
+  description do
+    en <<~TEXT
+    Generate videos from text descriptions. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ja <<~TEXT
+    テキスト説明からビデオ生成。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    zh <<~TEXT
+    从文本描述生成视频。 <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    ko <<~TEXT
+    텍스트 설명에서 비디오 생성. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    es <<~TEXT
+    Generar videos desde descripciones de texto. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    fr <<~TEXT
+    Générer des vidéos à partir de descriptions textuelles. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+
+    de <<~TEXT
+    Videos aus Textbeschreibungen generieren. <a href="https://yohasebe.github.io/monadic-chat/#/basic-usage/basic-apps?id=video-generator" target="_blank"><i class="fa-solid fa-circle-info"></i></a>
+    TEXT
+  end
+
+  icon "fa-solid fa-film"
+
+  display_name "Video Generator"
+
+  llm do
+    provider "xai"
+    model "grok-4-1-fast-non-reasoning"
+    temperature 0.0
+    context_size 10
+  end
+
+  system_prompt <<~TEXT
+    You help users create videos using xAI's Grok Imagine Video model.
+
+    INITIAL GREETING (IMPORTANT - First message only):
+    For your VERY FIRST message, respond ONLY with this greeting text. Do NOT call any tools:
+
+    "Welcome! I can create videos using xAI's Grok Imagine Video:
+    - Resolution: 480p or 720p
+    - Duration: 1-15 seconds
+    - Aspect ratios: 16:9, 9:16, 1:1
+    - Native audio generation
+
+    Capabilities: text-to-video, image-to-video
+    Simply describe your video or upload an image to animate!"
+
+    CRITICAL: The first message must be a plain text greeting. Do NOT output JSON, do NOT call tools, do NOT use action/action_input format.
+
+    WORKFLOW:
+
+    1. **Text-to-Video:**
+       - User describes a video → call generate_video_with_grok_imagine(prompt: "...")
+       - Pass user's prompt unchanged
+
+    2. **Image-to-Video (New Upload):**
+       - User uploads an image with video description
+       - Call generate_video_with_grok_imagine directly
+       - The system automatically retrieves uploaded images from session
+       - The uploaded image filename is automatically saved for later reuse
+
+    3. **Image-to-Video (Reuse Previous Image):**
+       - User wants to create another video with the previously used image
+       - First, call monadic_load_state(app: "VideoGeneratorGrok", key: "last_images") to get the filename
+       - If data exists and not null, call generate_video_with_grok_imagine(prompt: "...", image_path: filename)
+       - If data is null, tell the user no previous image exists
+
+    NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
+
+    PARAMETER DETECTION:
+    - Duration: 1-15 seconds (default: 5)
+    - Aspect ratio: 16:9 (default), 9:16 (vertical/portrait), 1:1 (square)
+    - Resolution: 720p (default), 480p (for faster generation)
+
+    RESULT DISPLAY:
+    Success - Output raw HTML (NO markdown code blocks):
+    <div class="prompt" style="margin-bottom: 15px;">
+      <b>Prompt</b>: [user's prompt]
+    </div>
+    <div class="generated_video">
+      <video controls width="600">
+        <source src="/data/[filename]" type="video/mp4" />
+      </video>
+    </div>
+
+    Error:
+    <div class="error-message" style="background-color: #ffebee; color: #c62828; padding: 15px; border-radius: 5px; margin: 10px 0;">
+      <b>Video Generation Failed</b><br/>
+      [error message]
+    </div>
+
+    RULES:
+    - Always call tools for video operations
+    - Do not modify user's prompt
+    - For reusing previous image, ALWAYS call monadic_load_state with app: "VideoGeneratorGrok" first
+    - NEVER retry automatically on error
+    - Video generation may take several minutes
+
+    ## Plan-Approve-Execute Protocol
+
+    For complex tasks requiring 3 or more distinct steps, follow this protocol:
+
+    1. **PLAN**: Call `propose_plan` with a numbered step-by-step plan. Each step should specify what action will be taken, which tool will be used, and what the expected outcome is.
+    2. **APPROVE**: Present the plan to the user and wait for their response. If they approve, proceed. If they request changes, call `propose_plan` again with the modified plan. If they cancel, acknowledge and wait.
+    3. **EXECUTE**: Carry out each approved step using the appropriate tools and report progress after each step.
+
+    WHEN TO USE: Multi-video generation projects, iterative prompt refinement with style variations.
+    WHEN TO SKIP: Single video generation, quick prompt-to-video.
+  TEXT
+
+  features do
+    disabled !CONFIG["XAI_API_KEY"]
+    easy_submit false
+    auto_speech false
+    initiate_from_assistant true
+    image_generation "upload_only"
+    video_generation true
+    monadic true
+    group "xAI"
+  end
+
+  context_schema do
+    field :styles, icon: "fa-palette", label: "Styles", description: "Visual styles and preferences"
+    field :prompts, icon: "fa-pen", label: "Prompts", description: "Key video descriptions used"
+    field :notes, icon: "fa-sticky-note", label: "Notes", description: "Important preferences to remember"
+  end
+
+  tools do
+    # Import planning tools for Plan-Approve-Execute protocol
+    import_shared_tools :planning, visibility: "always"
+
+    define_tool "generate_video_with_grok_imagine", "Generate 1-15 second videos using xAI's Grok Imagine Video model (480p or 720p, with native audio)." do
+      parameter :prompt, "string", "The prompt to generate a video from (should be descriptive for best results).", required: true
+      parameter :duration, "integer", "Video duration in seconds (1-15, default: 5).", required: false
+      parameter :aspect_ratio, "string", "Aspect ratio: '16:9' (default), '9:16' (vertical), '1:1' (square).", required: false
+      parameter :resolution, "string", "Resolution: '720p' (default) or '480p'.", required: false
+      parameter :image_path, "string", "Optional: Filename of image in the shared folder for image-to-video generation (e.g., 'photo.jpg').", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+
+    define_tool "monadic_load_state", "Load monadic session state for this app/key. Use this to retrieve the last used image filename for reuse." do
+      parameter :app, "string", "App name (defaults to current app)", required: false
+      parameter :key, "string", "State key to load", required: true
+      parameter :default, "object", "Default value if state is missing", required: false
+      parameter :session, "object", "Session object (automatically provided)", required: false
+    end
+  end
+end

@@ -412,6 +412,40 @@
           displayProgress: true,
           displayWarp: true
         });
+
+        // Force compact sizing on ABCJS audio controls via inline styles.
+        // This bypasses CSS cascade/layer issues that can leave controls oversized.
+        var audioEl = midiDiv.querySelector('.abcjs-inline-audio');
+        if (audioEl) {
+          audioEl.style.height = '26px';
+          audioEl.style.padding = '0 5px';
+          audioEl.style.boxSizing = 'border-box';
+          var btns = midiDiv.querySelectorAll('.abcjs-btn');
+          for (var b = 0; b < btns.length; b++) {
+            btns[b].style.width = '28px';
+            btns[b].style.height = '26px';
+            btns[b].style.padding = '4px';
+            btns[b].style.boxSizing = 'border-box';
+          }
+          var svgs = midiDiv.querySelectorAll('.abcjs-btn svg');
+          for (var s = 0; s < svgs.length; s++) {
+            svgs[s].style.width = '100%';
+            svgs[s].style.height = '100%';
+          }
+          var progBg = midiDiv.querySelector('.abcjs-midi-progress-background');
+          if (progBg) {
+            progBg.style.height = '10px';
+          }
+          var clock = midiDiv.querySelector('.abcjs-midi-clock');
+          if (clock) {
+            clock.style.fontSize = '16px';
+          }
+          var tempoWrap = midiDiv.querySelector('.abcjs-tempo-wrapper');
+          if (tempoWrap) {
+            tempoWrap.style.fontSize = '10px';
+          }
+        }
+
         synthControl.setTune(visualObj, false, {});
       } else if (!visualObj) {
         midiDiv.innerHTML = "<div class='audio-error'>Failed to parse ABC notation.</div>";

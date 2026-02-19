@@ -71,6 +71,9 @@
       document.getElementById('head-pylibs-text').textContent = get('categories.python.title','Python Libraries (CPU)');
       document.getElementById('help-pylibs').textContent = get('categories.python.help','');
       document.querySelector('label[for=INSTALL_LATEX]')?.lastChild && (document.querySelector('label[for=INSTALL_LATEX]').lastChild.textContent = '');
+      // Music Analysis
+      document.getElementById('head-music-text').textContent = get('categories.music.title','Music Analysis');
+      document.getElementById('help-music').textContent = get('categories.music.help','');
       // Tools
       document.getElementById('head-tools-text').textContent = get('categories.tools.title','System Tools (CLI)');
       document.getElementById('help-tools').textContent = get('categories.tools.help','');
@@ -84,7 +87,7 @@
       setLabel('PYOPT_SPACY','categories.python.items.spacy','spaCy (3.7.5)');
       setLabel('PYOPT_SCIKIT','categories.python.items.scikit','scikit-learn');
       setLabel('PYOPT_GENSIM','categories.python.items.gensim','gensim');
-      setLabel('PYOPT_LIBROSA','categories.python.items.librosa','librosa');
+      setLabel('PYOPT_LIBROSA','categories.music.items.librosa','librosa + madmom');
       setLabel('PYOPT_MEDIAPIPE','categories.python.items.mediapipe','mediapipe (CPU)');
       setLabel('PYOPT_TRANSFORMERS','categories.python.items.transformers','transformers (CPU only)');
       setLabel('IMGOPT_IMAGEMAGICK','categories.tools.items.imagemagick','ImageMagick (convert/mogrify)');
@@ -232,10 +235,14 @@
         <label class="row" for="PYOPT_SPACY"><input type="checkbox" id="PYOPT_SPACY" /> <span class="item-label">spaCy (3.7.5)</span></label>
         <label class="row" for="PYOPT_SCIKIT"><input type="checkbox" id="PYOPT_SCIKIT" /> <span class="item-label">scikit-learn</span></label>
         <label class="row" for="PYOPT_GENSIM"><input type="checkbox" id="PYOPT_GENSIM" /> <span class="item-label">gensim</span></label>
-        <label class="row" for="PYOPT_LIBROSA"><input type="checkbox" id="PYOPT_LIBROSA" /> <span class="item-label">librosa</span></label>
         <label class="row" for="PYOPT_MEDIAPIPE"><input type="checkbox" id="PYOPT_MEDIAPIPE" /> <span class="item-label">mediapipe (CPU)</span></label>
         <label class="row" for="PYOPT_TRANSFORMERS"><input type="checkbox" id="PYOPT_TRANSFORMERS" /> <span class="item-label">transformers (CPU only)</span></label>
         <div class="help" id="help-pylibs">Pip-installed libraries for Python runtime. Models/datasets are not included; add them via your pysetup.sh if needed.</div>
+      </div>
+      <div class="category" style="border-left-color:#FF9800;">
+        <h2><i class="fa-solid fa-music" style="color:#FF9800;"></i> <span id="head-music-text">Music Analysis</span></h2>
+        <label class="row" for="PYOPT_LIBROSA"><input type="checkbox" id="PYOPT_LIBROSA" /> <span class="item-label">librosa + madmom</span></label>
+        <div class="help" id="help-music">Required for Music Lab. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).</div>
       </div>
       <div class="category" style="border-left-color:#9C27B0;">
         <h2><i class="fa-solid fa-wrench" style="color:#9C27B0;"></i> <span id="head-tools-text">System Tools (CLI)</span></h2>

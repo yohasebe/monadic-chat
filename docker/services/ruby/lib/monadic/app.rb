@@ -15,10 +15,20 @@ Dir.glob(File.expand_path("agents/**/*.rb", __dir__)).sort.each do |rb|
   require rb
 end
 
-user_helpers_dir = File.join(Monadic::Utils::Environment.plugins_path, "**/helpers")
+# Load user helpers from ~/monadic/data/helpers/
+direct_helpers_dir = Monadic::Utils::Environment.helpers_path
+if Dir.exist?(direct_helpers_dir)
+  Dir.glob(File.join(direct_helpers_dir, "**", "*.rb")).sort.each do |rb|
+    require rb
+  end
+end
 
-Dir.glob(File.expand_path(user_helpers_dir + "/**/*.rb")).sort.each do |rb|
-  require rb
+# Load per-app helpers from ~/monadic/data/apps/*/helpers/
+user_apps_dir = Monadic::Utils::Environment.apps_path
+if Dir.exist?(user_apps_dir)
+  Dir.glob(File.join(user_apps_dir, "*", "helpers", "**", "*.rb")).sort.each do |rb|
+    require rb
+  end
 end
 
 # Require new monadic modules

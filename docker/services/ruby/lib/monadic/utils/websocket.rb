@@ -607,7 +607,7 @@ module WebSocketHelper
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
-        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "mathjax", "mermaid", "abc", "monadic", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video"].include?(p.to_s)
+        elsif ["auto_speech", "easy_submit", "initiate_from_assistant", "mathjax", "mermaid", "abc", "monadic", "pdf_vector_storage", "websearch", "jupyter", "image_generation", "video", "audio_upload"].include?(p.to_s)
           # Preserve boolean values for feature flags
           # These need to be actual booleans, not strings, for proper JavaScript evaluation
           apps[k][p] = m
@@ -914,6 +914,7 @@ module WebSocketHelper
           res_hash["segment_index"] = 0
           res_hash["total_segments"] = 1
           res_hash["is_segment"] = false  # Not segmented
+          res_hash["sequence_id"] = "tts_#{SecureRandom.hex(8)}"
 
           if ws_session_id
             WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
@@ -934,11 +935,26 @@ module WebSocketHelper
             WebSocketHelper.broadcast_to_all(progress_message.to_json)
           end
         else
-          puts "[TTS] Single request failed: #{res_hash&.dig("content") || "Unknown error"}"
+          # Forward error to frontend so user sees what went wrong
+          error_content = res_hash&.dig("content") || "Unknown TTS error"
+          puts "[TTS] Single request failed: #{error_content}"
+          error_message = { "type" => "error", "content" => error_content }.to_json
+          if ws_session_id
+            WebSocketHelper.send_to_session(error_message, ws_session_id)
+          else
+            WebSocketHelper.broadcast_to_all(error_message)
+          end
         end
       rescue => e
         puts "[TTS] Single request exception: #{e.message}"
         puts "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" if CONFIG["EXTRA_LOGGING"]
+        # Forward exception as error to frontend
+        error_message = { "type" => "error", "content" => "TTS error: #{e.message}" }.to_json
+        if ws_session_id
+          WebSocketHelper.send_to_session(error_message, ws_session_id)
+        else
+          WebSocketHelper.broadcast_to_all(error_message)
+        end
       end
 
       # Send completion message
@@ -1940,6 +1956,8 @@ module WebSocketHelper
                                       speed: speed,
                                       response_format: response_format,
                                       language: language)
+            # Add unique ID to prevent false duplicate detection on frontend
+            res_hash["sequence_id"] = "tts_#{SecureRandom.hex(8)}" if res_hash&.dig("type") == "audio"
           end
 
           # Send TTS response to session only
@@ -2230,7 +2248,7 @@ module WebSocketHelper
               # Always use message content - monadic apps will have JSON in content field
               text = content["text"] || content["message"]["content"]
 
-              # Append tool HTML fragments (e.g., ABC notation from Music Advisor).
+              # Append tool HTML fragments (e.g., ABC notation from Music Lab).
               # Tools store HTML in session[:tool_html_fragments]; the ABC block
               # extraction below (lines ~2278) will handle them through the normal pipeline.
               if session[:tool_html_fragments]

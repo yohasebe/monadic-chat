@@ -380,6 +380,11 @@
     pendingAudioSegments = {};
     sequenceRetryCount = 0;
     failedSequences.clear();
+
+    // Clear duplicate-detection set so replaying the same audio works after queue reset
+    if (window.wsHandlers && typeof window.wsHandlers.clearProcessedAudioIds === 'function') {
+      window.wsHandlers.clearProcessedAudioIds();
+    }
     if (sequenceCheckTimer) {
       clearTimeout(sequenceCheckTimer);
       sequenceCheckTimer = null;

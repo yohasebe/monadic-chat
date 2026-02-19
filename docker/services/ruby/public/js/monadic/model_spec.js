@@ -653,14 +653,6 @@ const modelSpec = {
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
   },
-  "command-a-translate-08-2025": {
-    "context_window" : [1, 16000],
-    "max_output_tokens" : [1, 8000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0]
-  },
   "c4ai-aya-vision-8b": {
     "context_window" : [1, 8000],
     "max_output_tokens" : [1, 4000],

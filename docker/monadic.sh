@@ -219,12 +219,20 @@ wait_for_ruby_ready() {
 }
 
 set_docker_compose() {
-  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
 
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
     home_paths[$i]=$(normalize_path "${home_paths[$i]}")
   done
+
+  # Add app-specific service directories (~/monadic/data/apps/*/services)
+  local apps_dir=$(eval echo "~/monadic/data/apps")
+  if [ -d "$apps_dir" ]; then
+    for app_svc in "$apps_dir"/*/services; do
+      [ -d "$app_svc" ] && home_paths+=("$(normalize_path "$app_svc")")
+    done
+  fi
 
   # Remove non-existent paths and empty strings
   home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
@@ -736,11 +744,19 @@ build_user_containers() {
   if [ "${_lock_acquired}" != true ]; then
     return 1
   fi
-  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+  local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
   for i in "${!home_paths[@]}"; do
     home_paths[$i]=$(eval echo "${home_paths[$i]}")
     home_paths[$i]=$(normalize_path "${home_paths[$i]}")
   done
+
+  # Add app-specific service directories (~/monadic/data/apps/*/services)
+  local apps_dir=$(eval echo "~/monadic/data/apps")
+  if [ -d "$apps_dir" ]; then
+    for app_svc in "$apps_dir"/*/services; do
+      [ -d "$app_svc" ] && home_paths+=("$(normalize_path "$app_svc")")
+    done
+  fi
 
   # Remove non-existent paths and empty strings
   home_paths=($(printf "%s\n" "${home_paths[@]}" | sort -u | grep -v '^$'))
@@ -1251,14 +1267,22 @@ start_docker_compose() {
   # Check for user containers
   if [[ "$COMPOSE_MAIN" != "${ROOT_DIR}/services/compose.yml" ]]; then
     # We have user compose files, check if they need to be built
-    local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services" "~/monadic/data/plugins/")
+    local home_paths=("${HOME_DIR}/monadic/data/services" "~/monadic/data/services")
     local user_compose_files=()
-    
+
     for i in "${!home_paths[@]}"; do
       home_paths[$i]=$(eval echo "${home_paths[$i]}")
       home_paths[$i]=$(normalize_path "${home_paths[$i]}")
     done
-    
+
+    # Add app-specific service directories (~/monadic/data/apps/*/services)
+    local apps_dir=$(eval echo "~/monadic/data/apps")
+    if [ -d "$apps_dir" ]; then
+      for app_svc in "$apps_dir"/*/services; do
+        [ -d "$app_svc" ] && home_paths+=("$(normalize_path "$app_svc")")
+      done
+    fi
+
     # Find user compose files
     for home_path in "${home_paths[@]}"; do
       while IFS= read -r file; do

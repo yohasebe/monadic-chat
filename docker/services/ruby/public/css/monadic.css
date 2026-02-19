@@ -1522,6 +1522,49 @@ div.diagram {
   color: #888;
 }
 
+.abc-midi {
+  margin: 8px 0 12px;
+}
+
+/* Override ABCJS player controls — force compact size regardless of .abcjs-large */
+.abc-midi .abcjs-inline-audio {
+  height: 26px !important;
+  padding: 0 5px !important;
+}
+
+.abc-midi .abcjs-btn {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 5px 4px !important;
+  font-size: 14px !important;
+}
+
+.abc-midi .abcjs-midi-progress-background {
+  height: 10px !important;
+  border: 2px solid #ccc !important;
+}
+
+.abc-midi .abcjs-midi-progress-indicator {
+  height: 14px !important;
+  top: -4px !important;
+  width: 20px !important;
+}
+
+.abc-midi .abcjs-midi-clock {
+  font-size: 16px !important;
+  margin-right: 2px !important;
+  margin-left: 4px !important;
+}
+
+.abc-midi .abcjs-midi-tempo {
+  font-size: 10px !important;
+  width: 42px !important;
+}
+
+.abc-midi .abcjs-tempo-wrapper {
+  font-size: 10px !important;
+}
+
 .generated-audio-player {
   background: #fff;
   border-radius: 8px;
@@ -2099,7 +2142,7 @@ legend {
 
 /* END: IMAGE GENERATOR STYLE IMPROVEMENTS */
 
-/* START: MUSIC ADVISOR AUDIO STYLES */
+/* START: MUSIC LAB AUDIO STYLES */
 
 .generated_audio {
   margin-top: 0.5em;
@@ -2110,7 +2153,7 @@ legend {
   margin-top: 0.5em;
 }
 
-/* END: MUSIC ADVISOR AUDIO STYLES */
+/* END: MUSIC LAB AUDIO STYLES */
 
 .json-content {
   font-size: 0.9rem;

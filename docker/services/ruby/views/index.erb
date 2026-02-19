@@ -231,8 +231,7 @@
     <!-- Font Awesome CSS (local or CDN) -->
     <link rel="stylesheet" href="vendor/css/all.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';this.integrity='sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
 
-    <!-- ABC.js CSS (local or CDN) -->
-    <link rel="stylesheet" href="vendor/css/abcjs-audio.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.min.css'">
+    <!-- ABC.js CSS loaded via vendor-layers.css @layer(vendor) for proper cascade control -->
 
     <!-- highlight.js CSS (local or CDN) -->
     <link id="hljs-theme" rel="stylesheet" href="vendor/css/github.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/styles/github.min.css';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
@@ -738,6 +737,7 @@
                     <button id="image-file" class="btn btn-sm btn-warning text-nowrap me-2" title="Attach image file to message" data-i18n="ui.image" data-i18n-title="ui.attachImage"><i class="fas fa-image"></i> Image</button>
                     <button id="doc" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from document file" data-i18n="ui.fromFile" data-i18n-title="ui.importFromDoc"><i class="fa-solid fa-file-arrow-up"></i> From file</button>
                     <button id="url" class="btn btn-sm btn-warning text-nowrap me-2" title="Import text from web URL" data-i18n="ui.fromURL" data-i18n-title="ui.importFromWeb"><i class="fa-solid fa-globe"></i> From URL</button>
+                    <button id="audio-upload" class="btn btn-sm btn-warning text-nowrap me-2" style="display: none;" title="Upload audio or MIDI file for analysis" data-i18n="ui.audioUpload" data-i18n-title="ui.uploadAudioMidi"><i class="fas fa-music"></i> <span data-i18n="ui.audioUpload">Audio/MIDI</span></button>
                   </div>
                 </div>
               </div>
@@ -964,6 +964,28 @@
               <span class="visually-hidden">Loading . . .</span>
             </div>
             <button type="submit" id="convertDoc" value="doc" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.convert">Convert</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal fade" id="audioUploadModal" tabindex="-1" aria-labelledby="audioUploadModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="audioUploadModalLabel"><i class="fas fa-music"></i> <span data-i18n="ui.modals.audioUploadTitle">Upload Audio/MIDI</span></h5>
+            <button type="button" class="btn btn-sm btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <label for="audioFile" class="form-label" data-i18n="ui.modals.audioFileLabel">Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)</label>
+            <input class="form-control form-control-sm" id="audioFile" type="file" name="audioFile" accept=".mp3,.wav,.m4a,.ogg,.flac,.mid,.midi">
+          </div>
+          <div class="modal-footer">
+            <div></div>
+            <div class="spinner-border" role="status" id="audio-upload-spinner" style="display: none;">
+              <span class="visually-hidden">Loading . . .</span>
+            </div>
+            <button type="submit" id="uploadAudioBtn" class="btn btn-sm btn-primary" disabled data-i18n="ui.modals.upload">Upload</button>
           </div>
         </div>
       </div>

@@ -78,6 +78,7 @@ scripts/deploy/rsync.sh
 # Test output files
 test_text_*
 test_tts_input_*
+.test_tmp/
 
 /icons/menu_icons/
 /icons/app_icons/

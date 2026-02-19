@@ -3,36 +3,42 @@
 require 'json'
 
 module RealAudioTestHelper
+  # Directory for test-generated files (inside shared volume so Docker can access)
+  TEST_TMP_DIR = File.join(Dir.home, "monadic", "data", ".test_tmp")
+
   # Generate real audio using TTS CLI tool
   def generate_real_audio_file(text, options = {})
     # Validate input
     raise "Text cannot be empty" if text.nil? || text.empty?
-    
+
     provider = options[:provider] || "openai"
     voice = options[:voice] || "alloy"
     speed = options[:speed] || 1.0
     output_format = options[:format] || "mp3"
-    
+
     # Validate provider
     valid_providers = %w[openai openai-tts openai-tts-hd openai-tts-4o elevenlabs gemini webspeech]
     unless valid_providers.include?(provider)
       raise "Invalid provider: #{provider}"
     end
-    
+
+    # Ensure test tmp directory exists
+    FileUtils.mkdir_p(TEST_TMP_DIR)
+
     # Generate unique filename
     timestamp = Time.now.to_i
-    audio_file = File.join(Dir.home, "monadic", "data", "test_audio_#{timestamp}.#{output_format}")
-    
+    audio_file = File.join(TEST_TMP_DIR, "test_audio_#{timestamp}.#{output_format}")
+
     # Create temporary text file for TTS tool
     text_file = "/tmp/test_text_#{timestamp}.txt"
-    
+
     # Use TTS CLI tool to generate audio (it expects a text file)
     # Properly escape the text for shell
     escaped_text = text.gsub('"', '\\"').gsub("'", "\\'").gsub('$', '\\$').gsub('`', '\\`')
-    
-    # Write text to a file in the shared volume
+
+    # Write text to a file in the test tmp directory
     text_filename = "test_text_#{timestamp}.md"
-    text_path = File.join(Dir.home, "monadic", "data", text_filename)
+    text_path = File.join(TEST_TMP_DIR, text_filename)
     File.write(text_path, text)
     
     # Run locally in development environment
@@ -53,9 +59,9 @@ module RealAudioTestHelper
     # Look for any audio file with the timestamp
     audio_patterns = ["test_text_#{timestamp}.mp3", "test_text_#{timestamp}.wav", "#{timestamp}.mp3"]
     host_path = nil
-    
+
     audio_patterns.each do |pattern|
-      potential_path = File.join(Dir.home, "monadic", "data", pattern)
+      potential_path = File.join(TEST_TMP_DIR, pattern)
       if File.exist?(potential_path)
         host_path = potential_path
         break

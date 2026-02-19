@@ -19,7 +19,7 @@
 
 **A**: No, an OpenAI API token is not mandatory. You have several options:
 
-- **Ollama Plugin**: Use completely free, open-source models running locally
+- **Ollama**: Use completely free, open-source models running locally
 - **Other Providers**: Use Claude, Gemini, Mistral, Cohere, or other providers instead
 - **Limited Features**: Some features work without any API tokens (basic UI exploration)
 

@@ -23,9 +23,9 @@ RSpec.describe 'Tool-Prompt Consistency Validation' do
   # Apps with custom tools that need validation
   # Format: app_dir => [expected_tools]
   TOOL_APPS = {
-    'music_advisor' => {
-      mdsl_patterns: ['music_advisor_*.mdsl'],
-      ruby_patterns: ['music_advisor_*tools.rb'],
+    'music_lab' => {
+      mdsl_patterns: ['music_lab_*.mdsl'],
+      ruby_patterns: ['music_lab_*tools.rb'],
       expected_tools: %w[play_chord play_scale play_interval play_progression generate_backing_track]
     },
     'mermaid_grapher' => {

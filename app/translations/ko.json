@@ -80,9 +80,15 @@
           "spacy": "spaCy (3.7.5)",
           "scikit": "scikit-learn",
           "gensim": "gensim",
-          "librosa": "librosa",
           "mediapipe": "mediapipe (CPU 전용)",
           "transformers": "transformers (CPU 전용)"
+        }
+      },
+      "music": {
+        "title": "음악 분석",
+        "help": "Music Lab에 필요합니다. 오디오 분석 라이브러리를 설치합니다 (코드 감지, 템포/키 추정 등).",
+        "items": {
+          "librosa": "librosa + madmom"
         }
       },
       "tools": {

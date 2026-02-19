@@ -417,6 +417,95 @@ describe('Form Handlers', () => {
     });
   });
   
+  describe('uploadAudioFile', () => {
+    it('should upload audio file with correct parameters', async () => {
+      const origFormData = global.FormData;
+      const formAppendMock = jest.fn();
+
+      class MockFormData {
+        constructor() {
+          this.append = formAppendMock;
+        }
+      }
+
+      global.FormData = MockFormData;
+
+      const ajaxSpy = jest.spyOn($, 'ajax').mockImplementation((options) => {
+        setTimeout(() => options.success({ success: true, filename: 'song.mp3' }), 10);
+        return { promise: jest.fn().mockReturnThis() };
+      });
+
+      const audioFile = { name: 'song.mp3', type: 'audio/mpeg' };
+      await formHandlers.uploadAudioFile(audioFile);
+
+      expect(formAppendMock).toHaveBeenCalledWith('audioFile', audioFile);
+      expect(ajaxSpy).toHaveBeenCalled();
+      expect(ajaxSpy.mock.calls[0][0].url).toBe('/upload_audio');
+      expect(ajaxSpy.mock.calls[0][0].type).toBe('POST');
+      expect(ajaxSpy.mock.calls[0][0].processData).toBe(false);
+      expect(ajaxSpy.mock.calls[0][0].contentType).toBe(false);
+
+      global.FormData = origFormData;
+      ajaxSpy.mockRestore();
+    });
+
+    it('should upload MIDI file', async () => {
+      const origFormData = global.FormData;
+      const formAppendMock = jest.fn();
+
+      class MockFormData {
+        constructor() {
+          this.append = formAppendMock;
+        }
+      }
+
+      global.FormData = MockFormData;
+
+      const ajaxSpy = jest.spyOn($, 'ajax').mockImplementation((options) => {
+        setTimeout(() => options.success({ success: true, filename: 'piece.mid' }), 10);
+        return { promise: jest.fn().mockReturnThis() };
+      });
+
+      const midiFile = { name: 'piece.mid', type: 'audio/midi' };
+      await formHandlers.uploadAudioFile(midiFile);
+
+      expect(formAppendMock).toHaveBeenCalledWith('audioFile', midiFile);
+      expect(ajaxSpy).toHaveBeenCalled();
+
+      global.FormData = origFormData;
+      ajaxSpy.mockRestore();
+    });
+
+    it('should reject null file input', async () => {
+      try {
+        await formHandlers.uploadAudioFile(null);
+        expect('this should not be reached').toBe('test should have thrown');
+      } catch (error) {
+        expect(error.message).toBe('Please select an audio or MIDI file');
+      }
+    });
+
+    it('should have 60 second timeout', async () => {
+      const origFormData = global.FormData;
+      class MockFormData {
+        constructor() { this.append = jest.fn(); }
+      }
+      global.FormData = MockFormData;
+
+      const ajaxSpy = jest.spyOn($, 'ajax').mockImplementation((options) => {
+        expect(options.timeout).toBe(60000);
+        setTimeout(() => options.success({ success: true, filename: 'test.wav' }), 10);
+        return { promise: jest.fn().mockReturnThis() };
+      });
+
+      const audioFile = { name: 'test.wav', type: 'audio/wav' };
+      await formHandlers.uploadAudioFile(audioFile);
+
+      global.FormData = origFormData;
+      ajaxSpy.mockRestore();
+    });
+  });
+
   describe('setupUrlValidation', () => {
     it('should add validators to URL inputs', () => {
       // Create mock elements

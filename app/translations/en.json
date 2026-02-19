@@ -69,9 +69,15 @@
           "spacy": "spaCy (3.7.5)",
           "scikit": "scikit-learn",
           "gensim": "gensim",
-          "librosa": "librosa",
           "mediapipe": "mediapipe (CPU)",
           "transformers": "transformers (CPU only)"
+        }
+      },
+      "music": {
+        "title": "Music Analysis",
+        "help": "Required for Music Lab. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).",
+        "items": {
+          "librosa": "librosa + madmom"
         }
       },
       "tools": {

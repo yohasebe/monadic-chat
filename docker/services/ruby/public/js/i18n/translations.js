@@ -59,6 +59,8 @@ const webUITranslations = {
       attachImage: "Attach image file to message",
       importFromDoc: "Import text from document file",
       importFromWeb: "Import text from web URL",
+      audioUpload: "Audio/MIDI",
+      uploadAudioMidi: "Upload audio or MIDI file for analysis",
       startStopVoice: "Start/stop voice input recording",
       monadicChatInfo: "Monadic Chat Info",
       monadicChatStatus: "Monadic Chat Status",
@@ -192,7 +194,10 @@ const webUITranslations = {
         fileToImportLabel: "File to import (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "File to import",
         documentToConvert: "Document to convert (pdf, docx, pptx, xlsx, and text files)",
-        urlToFetch: "URL of the page to fetch"
+        urlToFetch: "URL of the page to fetch",
+        audioUploadTitle: "Upload Audio/MIDI",
+        audioFileLabel: "Audio or MIDI file (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "Upload"
       },
       messages: {
         starting: "Starting Docker containers...",
@@ -401,6 +406,8 @@ const webUITranslations = {
       importFromDoc: "文書ファイルからテキストをインポート",
       fromURL: "URLから",
       importFromWeb: "WebのURLからテキストをインポート",
+      audioUpload: "音声/MIDI",
+      uploadAudioMidi: "分析用の音声/MIDIファイルをアップロード",
       speechInput: "音声入力",
       importFile: "ファイルをインポート",
       importFromWeb: "Web URLからテキストをインポート",
@@ -531,7 +538,10 @@ const webUITranslations = {
         fileToImportLabel: "インポートするファイル (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "インポートするファイル",
         documentToConvert: "変換するドキュメント (pdf, docx, pptx, xlsx, およびテキストファイル)",
-        urlToFetch: "取得するページのURL"
+        urlToFetch: "取得するページのURL",
+        audioUploadTitle: "音声/MIDIアップロード",
+        audioFileLabel: "音声/MIDIファイル (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "アップロード"
       },
       messages: {
         starting: "Dockerコンテナを起動しています...",
@@ -834,6 +844,8 @@ const webUITranslations = {
       attachImage: "将图像文件附加到消息",
       importFromDoc: "从文档文件导入文本",
       importFromWeb: "从Web URL导入文本",
+      audioUpload: "音频/MIDI",
+      uploadAudioMidi: "上传音频或MIDI文件进行分析",
       startStopVoice: "开始/停止语音输入",
       appCategories: {
         general: "通用",
@@ -868,7 +880,10 @@ const webUITranslations = {
         fileToImportLabel: "要导入的文件 (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "要导入的文件",
         documentToConvert: "要转换的文档 (pdf, docx, pptx, xlsx 和文本文件)",
-        urlToFetch: "要获取的页面URL"
+        urlToFetch: "要获取的页面URL",
+        audioUploadTitle: "上传音频/MIDI",
+        audioFileLabel: "音频或MIDI文件 (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "上传"
       },
       messages: {
         starting: "正在启动Docker容器...",
@@ -1198,6 +1213,8 @@ const webUITranslations = {
       attachImage: "메시지에 이미지 파일 첨부",
       importFromDoc: "문서 파일에서 텍스트 가져오기",
       importFromWeb: "웹 URL에서 텍스트 가져오기",
+      audioUpload: "오디오/MIDI",
+      uploadAudioMidi: "분석을 위한 오디오 또는 MIDI 파일 업로드",
       startStopVoice: "음성 입력 시작/중지",
       appCategories: {
         general: "일반",
@@ -1232,7 +1249,10 @@ const webUITranslations = {
         fileToImportLabel: "가져올 파일 (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "가져올 파일",
         documentToConvert: "변환할 문서 (pdf, docx, pptx, xlsx 및 텍스트 파일)",
-        urlToFetch: "가져올 페이지의 URL"
+        urlToFetch: "가져올 페이지의 URL",
+        audioUploadTitle: "오디오/MIDI 업로드",
+        audioFileLabel: "오디오 또는 MIDI 파일 (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "업로드"
       },
       messages: {
         starting: "Docker 컨테이너를 시작하는 중...",
@@ -1535,6 +1555,8 @@ const webUITranslations = {
       attachImage: "Adjuntar archivo de imagen al mensaje",
       importFromDoc: "Importar texto desde archivo de documento",
       importFromWeb: "Importar texto desde URL web",
+      audioUpload: "Audio/MIDI",
+      uploadAudioMidi: "Subir archivo de audio o MIDI para análisis",
       startStopVoice: "Iniciar/detener grabación de voz",
       appCategories: {
         general: "General",
@@ -1569,7 +1591,10 @@ const webUITranslations = {
         fileToImportLabel: "Archivo para importar (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Archivo para importar",
         documentToConvert: "Documento para convertir (pdf, docx, pptx, xlsx y archivos de texto)",
-        urlToFetch: "URL de la página para obtener"
+        urlToFetch: "URL de la página para obtener",
+        audioUploadTitle: "Subir Audio/MIDI",
+        audioFileLabel: "Archivo de audio o MIDI (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "Subir"
       },
       messages: {
         starting: "Iniciando contenedores Docker...",
@@ -1872,6 +1897,8 @@ const webUITranslations = {
       attachImage: "Joindre un fichier image au message",
       importFromDoc: "Importer du texte depuis un document",
       importFromWeb: "Importer du texte depuis une URL web",
+      audioUpload: "Audio/MIDI",
+      uploadAudioMidi: "Télécharger un fichier audio ou MIDI pour analyse",
       startStopVoice: "Démarrer/arrêter l'enregistrement vocal",
       appCategories: {
         general: "Général",
@@ -1906,7 +1933,10 @@ const webUITranslations = {
         fileToImportLabel: "Fichier à importer (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Fichier à importer",
         documentToConvert: "Document à convertir (pdf, docx, pptx, xlsx et fichiers texte)",
-        urlToFetch: "URL de la page à récupérer"
+        urlToFetch: "URL de la page à récupérer",
+        audioUploadTitle: "Télécharger Audio/MIDI",
+        audioFileLabel: "Fichier audio ou MIDI (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "Télécharger"
       },
       messages: {
         starting: "Démarrage des conteneurs Docker...",
@@ -2209,6 +2239,8 @@ const webUITranslations = {
       attachImage: "Bilddatei an Nachricht anhängen",
       importFromDoc: "Text aus Dokumentdatei importieren",
       importFromWeb: "Text aus Web-URL importieren",
+      audioUpload: "Audio/MIDI",
+      uploadAudioMidi: "Audio- oder MIDI-Datei zur Analyse hochladen",
       startStopVoice: "Sprachaufnahme starten/stoppen",
       appCategories: {
         general: "Allgemein",
@@ -2243,7 +2275,10 @@ const webUITranslations = {
         fileToImportLabel: "Zu importierende Datei (.pdf, .jpg, .jpeg, .png, .gif)",
         fileToImport: "Zu importierende Datei",
         documentToConvert: "Zu konvertierendes Dokument (pdf, docx, pptx, xlsx und Textdateien)",
-        urlToFetch: "URL der abzurufenden Seite"
+        urlToFetch: "URL der abzurufenden Seite",
+        audioUploadTitle: "Audio/MIDI Hochladen",
+        audioFileLabel: "Audio- oder MIDI-Datei (mp3, wav, m4a, ogg, flac, mid, midi)",
+        upload: "Hochladen"
       },
       messages: {
         starting: "Docker-Container werden gestartet...",

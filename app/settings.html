@@ -118,20 +118,9 @@
       background-color: #d1d1d6;
     }
 
-    #save-message {
-      display: none;
-      color: #28a745;
-      font-size: 18px;
-    }
-
-    #save-message i {
-      animation: checkmark 0.5s ease-in-out;
-    }
-
-    @keyframes checkmark {
-      0% { transform: scale(0); opacity: 0; }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); opacity: 1; }
+    #save-settings-btn.saved {
+      background-color: #28a745;
+      color: #fff;
     }
 
     /* ─── Content Area ─── */
@@ -489,7 +478,7 @@
           </li>
         </ul>
         <div id="sidebar-footer">
-          <button type="submit" form="settings-form">
+          <button type="button" id="save-settings-btn">
             <i class="fas fa-save"></i>
             <span data-i18n="settings.buttons.save">Save</span>
           </button>
@@ -497,7 +486,6 @@
             <i class="fas fa-xmark"></i>
             <span data-i18n="settings.buttons.close">Close</span>
           </button>
-          <span id="save-message" title="Settings saved"><i class="fas fa-check-circle"></i></span>
         </div>
       </nav>
 
@@ -754,16 +742,21 @@
                 <label for="pyopt-gensim">gensim</label>
               </div>
               <div class="checkbox-row">
-                <input type="checkbox" id="pyopt-librosa">
-                <label for="pyopt-librosa">librosa</label>
-              </div>
-              <div class="checkbox-row">
                 <input type="checkbox" id="pyopt-mediapipe">
                 <label for="pyopt-mediapipe">mediapipe (CPU)</label>
               </div>
               <div class="checkbox-row">
                 <input type="checkbox" id="pyopt-transformers">
                 <label for="pyopt-transformers">transformers (CPU only)</label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <label data-i18n="settings.labels.installMusicTitle">Music Analysis</label>
+              <small class="text-muted" data-i18n="settings.labels.installMusicDesc">Required for Music Lab. Installs audio analysis libraries (chord detection, tempo/key estimation, etc.).</small>
+              <div class="checkbox-row" style="margin-top: 8px;">
+                <input type="checkbox" id="pyopt-librosa">
+                <label for="pyopt-librosa">librosa + madmom</label>
               </div>
             </div>
 
@@ -1086,11 +1079,15 @@
 
         window.electronAPI.saveSettings(data);
 
-        // Show save confirmation
-        const saveMessage = document.getElementById('save-message');
-        saveMessage.setAttribute('title', settingsI18n.t('settings.messages.settingsSaved'));
-        saveMessage.style.display = 'inline-block';
-        setTimeout(() => { saveMessage.style.display = 'none'; }, 2000);
+        // Show save confirmation on the button itself (icon + color only)
+        const saveBtn = document.getElementById('save-settings-btn');
+        const saveIcon = saveBtn.querySelector('i');
+        saveBtn.classList.add('saved');
+        saveIcon.className = 'fas fa-check';
+        setTimeout(() => {
+          saveBtn.classList.remove('saved');
+          saveIcon.className = 'fas fa-save';
+        }, 1500);
 
         settingsInitialSnapshot = takeSettingsSnapshot();
         settingsDirty = false;
@@ -1364,6 +1361,11 @@
       // ─── Check for Updates ───
       document.getElementById('check-for-updates-btn').addEventListener('click', () => {
         window.electronAPI.checkForUpdates();
+      });
+
+      // ─── Save Button ───
+      document.getElementById('save-settings-btn').addEventListener('click', () => {
+        document.getElementById('settings-form').dispatchEvent(new Event('submit', { cancelable: true }));
       });
 
       // ─── Close Button ───

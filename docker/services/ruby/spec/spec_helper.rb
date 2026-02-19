@@ -203,6 +203,12 @@ RSpec.configure do |config|
   # config.after(:suite) do
   #   DockerContainerManager.stop_containers
   # end
+
+  # Clean up test temporary files after all tests
+  config.after(:suite) do
+    test_tmp = File.join(Dir.home, "monadic", "data", ".test_tmp")
+    FileUtils.rm_rf(test_tmp) if Dir.exist?(test_tmp)
+  end
 end
 
 # Minimal constants needed for tests

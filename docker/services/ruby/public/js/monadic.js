@@ -806,6 +806,7 @@ $(function () {
       $("#voice").prop("disabled", true);
       $("#doc").prop("disabled", true);
       $("#url").prop("disabled", true);
+      $("#audio-upload").prop("disabled", true);
       $("#select-role").prop("disabled", true);
       document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
       
@@ -1886,6 +1887,12 @@ $(function () {
       $("#pdf-panel").hide();
     }
 
+    if (toBool(apps[appValue]["audio_upload"])) {
+      $("#audio-upload").show();
+    } else {
+      $("#audio-upload").hide();
+    }
+
     // Image button visibility is handled by adjustImageUploadButton() based on model capabilities
 
     let model;
@@ -2466,7 +2473,7 @@ $(function () {
     // Ensure UI controls are properly enabled by default
     // This prevents UI getting stuck in disabled state
     function ensureControlsEnabled() {
-      $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
+      $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #audio-upload").prop("disabled", false);
       $("#message").prop("disabled", false);
       $("#select-role").prop("disabled", false);
       $("#monadic-spinner").hide();
@@ -3164,6 +3171,67 @@ $(function () {
       const errorMessage = error.statusText || error.message || "Unknown error";
       const convertErrorMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.convertError') : 'Error converting document';
       setAlert(`${convertErrorMsg}: ${errorMessage}`, "error");
+    }
+  });
+
+  // Audio/MIDI upload button
+  $("#audio-upload").on("click", function (event) {
+    event.preventDefault();
+    $("#audioFile").val("");
+    if (formHandlers && formHandlers.showModalWithFocus) {
+      formHandlers.showModalWithFocus('audioUploadModal', 'audioFile', function() {
+        $('#audioFile').val('');
+        $('#uploadAudioBtn').prop('disabled', true);
+      });
+    } else {
+      $("#audioUploadModal").modal("show");
+    }
+  });
+
+  // Audio file input validation
+  if (formHandlers && formHandlers.setupFileValidation) {
+    formHandlers.setupFileValidation(
+      document.getElementById('audioFile'),
+      document.getElementById('uploadAudioBtn')
+    );
+  } else {
+    $("#audioFile").on("change", function() {
+      $('#uploadAudioBtn').prop('disabled', !this.files || this.files.length === 0);
+    });
+  }
+
+  // Audio/MIDI upload submit
+  $("#uploadAudioBtn").on("click", async function () {
+    const file = $("#audioFile")[0].files[0];
+    if (!file) return;
+    try {
+      $("#audioUploadModal button").prop("disabled", true);
+      $("#audio-upload-spinner").show();
+      const response = await formHandlers.uploadAudioFile(file);
+      if (response && response.success) {
+        const filename = response.filename;
+        const message = $("#message").val().replace(/\n+$/, "");
+        const instruction = `Please analyze the file: ${filename}`;
+        $("#message").val(message ? `${message}\n\n${instruction}` : instruction);
+        if (uiUtils && uiUtils.autoResize) {
+          uiUtils.autoResize(document.getElementById('message'), 100);
+        }
+        $("#audio-upload-spinner").hide();
+        $("#audioUploadModal button").prop('disabled', false);
+        $("#audioUploadModal").modal("hide");
+        $("#message").focus();
+      } else {
+        const errorMsg = response && response.error ? response.error : "Upload failed";
+        $("#audio-upload-spinner").hide();
+        $("#audioUploadModal button").prop('disabled', false);
+        $("#audioUploadModal").modal("hide");
+        setAlert(errorMsg, "error");
+      }
+    } catch (error) {
+      $("#audio-upload-spinner").hide();
+      $("#audioUploadModal button").prop("disabled", false);
+      $("#audioUploadModal").modal("hide");
+      setAlert("Upload error: " + (error.statusText || error.message || "Unknown error"), "error");
     }
   });
 

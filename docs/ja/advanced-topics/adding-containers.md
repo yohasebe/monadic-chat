@@ -4,14 +4,14 @@
 
 ## コンテナ追加の方法
 
-新たなDockerコンテナを利用可能にするには、`~/monadic/data/services`または`~/monadic/data/plugins`に新しいフォルダを作成して、以下のファイルを配置します：
+新たなDockerコンテナを利用可能にするには、`~/monadic/data/services`または`~/monadic/data/apps/<アプリ名>/services`に新しいフォルダを作成して、以下のファイルを配置します：
 
 - `compose.yml`
 - `Dockerfile`
 - コンテナで必要なその他のファイル
 
 コンテナをビルドするには、Actionsメニューの `Build User Containers` オプションを使用します。このプロセスでは：
-1. `services`と`plugins`ディレクトリ内のユーザーコンテナを検索
+1. `services`ディレクトリおよびアプリ固有の`services`フォルダ内のユーザーコンテナを検索
 2. 各コンテナを`--no-cache`フラグでビルド
 3. ネットワークとボリュームマウントを自動設定
 4. ビルドプロセスを`~/monadic/log/docker_build.log`に記録

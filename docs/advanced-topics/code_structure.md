@@ -15,7 +15,6 @@ Your Monadic Chat user directory (`~/monadic/`) contains:
 ├── data/             # Your data and custom content
 │   ├── apps/         # Your custom apps go here
 │   ├── scripts/      # Your custom scripts
-│   ├── plugins/      # MCP server plugins
 │   └── help/         # Help system documents
 └── logs/             # Application logs
 ```

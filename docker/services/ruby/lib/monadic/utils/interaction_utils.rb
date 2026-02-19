@@ -643,7 +643,7 @@ module InteractionUtils
         end
         
         # For ElevenLabs, suppress "something_went_wrong" errors since audio often still works
-        if provider == "elevenlabs" && 
+        if provider&.start_with?("elevenlabs") &&
            (error_report.dig("detail", "status") == "something_went_wrong" ||
             error_report["detail"].to_s.include?("something_went_wrong"))
           # Log the error but don't send to client

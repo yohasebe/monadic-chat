@@ -1,7 +1,7 @@
 require 'json'
 require 'shellwords'
 
-module MusicAdvisorTools
+module MusicLabTools
   def play_chord(chord_name:, voicing: nil, instrument: nil, octave: nil, session: nil)
     params = { "chord_name" => chord_name }
     params["voicing"] = voicing if voicing
@@ -108,6 +108,7 @@ module MusicAdvisorTools
 
   def format_analysis_result(result)
     file_name = result["file_name"] || "unknown"
+    file_type = result["file_type"] || "audio"
     duration = result["duration_seconds"] || 0
     dur_min = (duration / 60).to_i
     dur_sec = (duration % 60).to_i
@@ -115,15 +116,23 @@ module MusicAdvisorTools
     tempo = result.dig("tempo", "bpm") || 0
     key_name = result.dig("key", "key") || "Unknown"
     key_mode = result.dig("key", "mode") || "unknown"
-    key_conf = result.dig("key", "confidence") || 0
     beats_per_bar = result.dig("time_signature", "beats_per_bar") || 4
     note_value = result.dig("time_signature", "note_value") || 4
 
     lines = []
-    lines << "## Audio Analysis: #{file_name}"
+    heading = file_type == "midi" ? "MIDI Analysis" : "Audio Analysis"
+    lines << "## #{heading}: #{file_name}"
     lines << "- Duration: #{dur_min}:#{format('%02d', dur_sec)}"
     lines << "- Tempo: #{tempo.round(1)} BPM"
-    lines << "- Key: #{key_name} #{key_mode} (confidence: #{(key_conf * 100).round}%)"
+
+    if file_type == "midi"
+      key_source = result.dig("key", "source") || "unknown"
+      lines << "- Key: #{key_name} #{key_mode} (source: #{key_source})"
+    else
+      key_conf = result.dig("key", "confidence") || 0
+      lines << "- Key: #{key_name} #{key_mode} (confidence: #{(key_conf * 100).round}%)"
+    end
+
     lines << "- Time Signature: #{beats_per_bar}/#{note_value}"
 
     if result["truncated"]
@@ -131,23 +140,39 @@ module MusicAdvisorTools
       lines << "- Note: Only first 5 minutes analyzed (full duration: #{(orig / 60).round(1)} min)"
     end
 
+    # Tracks (MIDI only)
+    tracks = result["tracks"] || []
+    if tracks.any?
+      lines << ""
+      lines << "## Tracks:"
+      tracks.each_with_index do |t, i|
+        name = t["name"] || t["instrument"] || "Unknown"
+        if t["is_drum"]
+          lines << "#{i + 1}. #{name} (Drums) - #{t['note_count']} hits"
+        else
+          instrument = t["instrument"] || "Unknown"
+          pitch_range = t["pitch_range"].to_s.empty? ? "" : ", #{t['pitch_range']}"
+          lines << "#{i + 1}. #{name} (#{instrument}) - #{t['note_count']} notes#{pitch_range}"
+        end
+      end
+    end
+
     chords = result["chords"] || []
     if chords.any?
-      chord_method = result["chord_method"] || "unknown"
+      chord_method = result["chord_method"] || (file_type == "midi" ? "piano_roll" : "unknown")
       lines << ""
       lines << "## Chord Progression (method: #{chord_method}):"
-      # Show first 60 seconds of chords in detail, then summarize
-      detail_chords = chords.select { |c| c["time"].to_f < 60 }
-      detail_chords.each do |c|
-        time = c["time"].to_f
-        t_min = (time / 60).to_i
-        t_sec = (time % 60).to_i
-        lines << "#{t_min}:#{format('%02d', t_sec)} - #{c['chord']} (#{c['duration']}s)"
-      end
-      remaining = chords.length - detail_chords.length
-      if remaining > 0
-        unique_remaining = chords[detail_chords.length..].map { |c| c["chord"] }.uniq
-        lines << "... and #{remaining} more chord changes (#{unique_remaining.length} unique chords)"
+      lines << ""
+
+      # Build bar-aligned chord chart
+      bar_chords = quantize_chords_to_bars(chords, tempo, beats_per_bar)
+      if bar_chords.any?
+        bar_chords.each_slice(4) do |row|
+          cells = row.map { |bc| bc.center(12) }
+          lines << "| #{cells.join(' | ')} |"
+        end
+        lines << ""
+        lines << "_#{bar_chords.length} bars, #{bar_chords.uniq.length} unique chords_"
       end
     end
 
@@ -173,6 +198,30 @@ module MusicAdvisorTools
     min = (seconds / 60).to_i
     sec = (seconds % 60).to_i
     "#{min}:#{format('%02d', sec)}"
+  end
+
+  def quantize_chords_to_bars(chords, tempo, beats_per_bar)
+    return [] if chords.empty? || tempo.to_f <= 0 || beats_per_bar.to_f <= 0
+
+    bar_duration = (beats_per_bar.to_f / tempo.to_f) * 60.0
+    last_chord = chords.last
+    total_duration = last_chord["time"].to_f + (last_chord["duration"]&.to_f || 2.0)
+    total_bars = (total_duration / bar_duration).ceil
+    total_bars = [total_bars, 200].min
+
+    bars = Array.new(total_bars, nil)
+    chords.each do |c|
+      bar_index = (c["time"].to_f / bar_duration).floor
+      next if bar_index >= total_bars
+      bars[bar_index] ||= c["chord"]
+    end
+
+    # Fill nil bars with the preceding chord
+    bars.each_with_index do |b, i|
+      bars[i] = bars[i - 1] if b.nil? && i > 0
+    end
+    bars[0] ||= chords.first["chord"]
+    bars.compact
   end
 
   def build_music_command(action, params)
@@ -207,12 +256,22 @@ module MusicAdvisorTools
   end
 end
 
-class MusicAdvisorOpenAI < MonadicApp
+class MusicLabOpenAI < MonadicApp
   include OpenAIHelper if defined?(OpenAIHelper)
-  include MusicAdvisorTools
+  include MusicLabTools
 end
 
-class MusicAdvisorClaude < MonadicApp
+class MusicLabClaude < MonadicApp
   include ClaudeHelper if defined?(ClaudeHelper)
-  include MusicAdvisorTools
+  include MusicLabTools
+end
+
+class MusicLabGemini < MonadicApp
+  include GeminiHelper if defined?(GeminiHelper)
+  include MusicLabTools
+end
+
+class MusicLabGrok < MonadicApp
+  include GrokHelper if defined?(GrokHelper)
+  include MusicLabTools
 end

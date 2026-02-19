@@ -63,33 +63,6 @@ When defining an app by combining these elements, the folder structure will look
                 └── Dockerfile
 ```
 
-## Creating a Plugin
-
-As you add more and more files to the `apps`, `helpers`, and `services` folders directly under the shared folder, it may become difficult to manage the code or difficult to redistribute. You can consolidate additional apps into a single folder and develop them as plugins.
-
-To create a plugin, create a folder under `~/monadic/data/plugins` and create `apps` and other folders directly under the plugin folder to store the necessary files.
-
-```text
-~/
-└── monadic
-    └── data
-        └── plugins
-            └── my_plugin
-                ├── apps
-                │   └── my_app
-                │       ├── my_app_openai.mdsl
-                │       ├── my_app_claude.mdsl
-                │       └── my_app_tools.rb
-                ├── helpers
-                │   └── my_helper.rb
-                └── services
-                    └── my_service
-                        ├── compose.yml
-                        └── Dockerfile
-```
-
-The above file structure is an example of a plugin that includes an app, a helper, and a service; a rather complex plugin structure. You can create a simpler plugin structure by omitting the `helpers` and `services` folders.
-
 ## Best Practices for MDSL Development
 
 ### Always Use Facade Pattern

@@ -813,12 +813,17 @@ module MonadicDSL
         formatted
       end
 
-      if conditional_metadata.any?
+      # ツールが存在する場合は常に基本情報を設定
+      if @tools.any?
         @state.settings[:progressive_tools] ||= {}
         @state.settings[:progressive_tools][:provider] = @provider
-        @state.settings[:progressive_tools][:conditional] = conditional_metadata
-        @state.settings[:progressive_tools][:always_visible] = @tools.select { |t| t.visibility == :always }.map(&:name)
         @state.settings[:progressive_tools][:all_tool_names] = @tools.map(&:name)
+        @state.settings[:progressive_tools][:always_visible] = @tools.select { |t| t.visibility == :always }.map(&:name)
+      end
+
+      # 条件付きツールがある場合のみ追加設定
+      if conditional_metadata.any?
+        @state.settings[:progressive_tools][:conditional] = conditional_metadata
       end
 
       wrapper = PROVIDER_WRAPPERS[@provider] || PROVIDER_WRAPPERS[:default]

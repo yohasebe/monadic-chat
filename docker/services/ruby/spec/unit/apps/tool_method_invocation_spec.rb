@@ -23,8 +23,8 @@ RSpec.describe 'Tool Method Invocation Validation' do
   # Format: { app_class_name => { tool_name => { required_args } } }
   let(:apps_with_tools) do
     {
-      # Music Advisor - replaced Chord Accompanist
-      'MusicAdvisorOpenAI' => {
+      # Music Lab - replaced Chord Accompanist
+      'MusicLabOpenAI' => {
         # All tools require send_command to Python container, so just test respond_to
       },
 
@@ -152,15 +152,15 @@ RSpec.describe 'Tool Method Invocation Validation' do
     # Test that specific tool methods can be called with proper arguments
     # (without actually calling external APIs)
 
-    context 'MusicAdvisorOpenAI' do
+    context 'MusicLabOpenAI' do
       let(:app_class) do
-        tools_file = File.join(app_base_dir, 'music_advisor', 'music_advisor_tools.rb')
+        tools_file = File.join(app_base_dir, 'music_lab', 'music_lab_tools.rb')
         require tools_file if File.exist?(tools_file)
-        Object.const_get('MusicAdvisorOpenAI') if Object.const_defined?('MusicAdvisorOpenAI')
+        Object.const_get('MusicLabOpenAI') if Object.const_defined?('MusicLabOpenAI')
       end
 
       it 'has play_chord method that accepts chord_name parameter' do
-        skip 'MusicAdvisorOpenAI not loaded' unless app_class
+        skip 'MusicLabOpenAI not loaded' unless app_class
 
         instance = app_class.new
         expect(instance).to respond_to(:play_chord)
@@ -171,7 +171,7 @@ RSpec.describe 'Tool Method Invocation Validation' do
       end
 
       it 'has play_scale method that accepts scale_name and root parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless app_class
+        skip 'MusicLabOpenAI not loaded' unless app_class
 
         instance = app_class.new
         expect(instance).to respond_to(:play_scale)
@@ -183,7 +183,7 @@ RSpec.describe 'Tool Method Invocation Validation' do
       end
 
       it 'has play_interval method that accepts root and interval parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless app_class
+        skip 'MusicLabOpenAI not loaded' unless app_class
 
         instance = app_class.new
         expect(instance).to respond_to(:play_interval)
@@ -195,7 +195,7 @@ RSpec.describe 'Tool Method Invocation Validation' do
       end
 
       it 'has play_progression and generate_backing_track methods' do
-        skip 'MusicAdvisorOpenAI not loaded' unless app_class
+        skip 'MusicLabOpenAI not loaded' unless app_class
 
         instance = app_class.new
         expect(instance).to respond_to(:play_progression)

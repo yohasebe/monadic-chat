@@ -64,14 +64,19 @@ RUN uv pip install --no-cache \
       svgwrite~=1.4 cairosvg~=2.8 tinycss~=0.4 cssselect~=1.3 pygal~=3.1 \
       pyecharts~=2.0 pyecharts-snapshot~=0.2 \
       opencv-python~=4.11 moviepy~=2.0 \
-      midiutil
+      midiutil pretty_midi
 
 # Optional Python libs (each in its own layer for cache efficiency)
 RUN if [ "$PYOPT_NLTK" = "true" ]; then uv pip install --no-cache nltk || true; else echo "skip nltk"; fi
 RUN if [ "$PYOPT_SPACY" = "true" ]; then uv pip install --no-cache spacy~=3.7.5 || true; else echo "skip spacy"; fi
 RUN if [ "$PYOPT_SCIKIT" = "true" ]; then uv pip install --no-cache scikit-learn || true; else echo "skip scikit"; fi
 RUN if [ "$PYOPT_GENSIM" = "true" ]; then uv pip install --no-cache gensim || true; else echo "skip gensim"; fi
-RUN if [ "$PYOPT_LIBROSA" = "true" ]; then uv pip install --no-cache librosa || true; else echo "skip librosa"; fi
+RUN if [ "$PYOPT_LIBROSA" = "true" ]; then \
+      uv pip install --no-cache librosa soundfile && \
+      uv pip install --no-cache Cython numpy && \
+      uv pip install --no-cache --no-build-isolation madmom \
+      || echo "madmom build failed; librosa-only mode"; \
+    else echo "skip librosa+madmom"; fi
 RUN if [ "$PYOPT_MEDIAPIPE" = "true" ]; then uv pip install --no-cache mediapipe || echo 'mediapipe wheel not available; skipped'; else echo "skip mediapipe"; fi
 RUN if [ "$PYOPT_TRANSFORMERS" = "true" ]; then uv pip install --no-cache transformers accelerate onnxruntime || true; else echo "skip transformers"; fi
 

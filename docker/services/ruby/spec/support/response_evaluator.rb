@@ -479,7 +479,7 @@ module ResponseEvaluator
     'MathTutor' => 'Mathematics teaching and problem solving',
     'LanguagePractice' => 'Language learning practice',
     'LanguagePracticePlus' => 'Enhanced language learning with tools',
-    'MusicAdvisor' => 'Music theory advice with audio examples',
+    'MusicLab' => 'Music theory advice with audio examples',
     'SecondOpinion' => 'Get alternative AI perspective',
     'ImageGenerator' => 'Image generation',
     'VideoGenerator' => 'Video generation',
@@ -593,7 +593,7 @@ module ResponseEvaluator
       ]
     },
 
-    'MusicAdvisor' => {
+    'MusicLab' => {
       pass_patterns: [
         /chord|scale|interval|progression|music|theory/i
       ]

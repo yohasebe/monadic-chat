@@ -4,6 +4,22 @@
     - Execute 2-5 independent Python code snippets simultaneously
     - Real-time progress display via step_progress parallel mode
     - Available across all 7 Code Interpreter provider variants
+  - **Music Lab** (renamed from Music Advisor):
+    - Audio file analysis using librosa + madmom (tempo, key, time signature, chord progressions, sections)
+    - MIDI file analysis using pretty_midi (tracks, instruments, note statistics, chord progressions)
+    - Audio/MIDI upload button with drag-and-drop modal UI
+    - HPSS (Harmonic-Percussive Source Separation) for improved chord detection accuracy
+    - Audio analysis libraries (librosa + madmom) available as optional install via Install Options
+    - Added Gemini and Grok provider support (now available for OpenAI, Claude, Gemini, Grok)
+    - Bar-aligned chord chart display for analysis results (4 bars per line, lead-sheet style)
+    - Key-aware ABC notation with proper key signatures (eliminates per-note accidentals)
+    - Default instrument changed from piano quarter notes to synth pad whole notes for progression playback
+    - Analysis no longer auto-plays — playback on user request only
+  - **ElevenLabs TTS Fix**: Fixed intermittent silent failures in text-to-speech playback
+    - Error responses now forwarded to frontend (previously swallowed silently)
+    - Added unique sequence IDs to prevent false duplicate audio detection
+  - **ABCJS Player Fix**: Fixed oversized playback controls via inline style enforcement and CSS layer correction
+  - **Security**: Added path traversal protection and server-side file extension validation for file upload routes
 
 - [November 15, 2024] Recent Updates
   - **Claude Structured Outputs Support**: Added monadic mechanism for Claude models

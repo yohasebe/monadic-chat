@@ -80,9 +80,15 @@
           "spacy": "spaCy (3.7.5)",
           "scikit": "scikit-learn",
           "gensim": "gensim",
-          "librosa": "librosa",
           "mediapipe": "mediapipe (solo CPU)",
           "transformers": "transformers (solo CPU)"
+        }
+      },
+      "music": {
+        "title": "Análisis musical",
+        "help": "Requerido para Music Lab. Instala bibliotecas de análisis de audio (detección de acordes, estimación de tempo/tonalidad, etc.).",
+        "items": {
+          "librosa": "librosa + madmom"
         }
       },
       "tools": {

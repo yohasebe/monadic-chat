@@ -974,16 +974,17 @@ end
 def load_app_files
   apps_to_load = {}
   base_app_dir = File.join(__dir__, "..", "apps")
-  user_plugins_dir = Monadic::Utils::Environment.user_plugins_path
+  user_apps_dir = Monadic::Utils::Environment.apps_path
 
   # Initialize global error tracking variable
   $MONADIC_LOADING_ERRORS = []
 
+  # 1. Built-in apps (docker/services/ruby/apps/)
   Dir["#{File.join(base_app_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
     basename = File.basename(file)
     next if basename.start_with?("_") # ignore files that start with an underscore
     next if file.include?("/test/") # ignore test directories
-    
+
     # If the basename already exists as a key, create a unique key by adding a suffix
     if apps_to_load.key?(basename)
       unique_basename = "#{basename}_#{SecureRandom.hex(4)}"
@@ -993,13 +994,15 @@ def load_app_files
     end
   end
 
-  if Dir.exist?(user_plugins_dir)
-    Dir["#{File.join(user_plugins_dir, "**", "apps", "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
+  # 2. User apps (~/monadic/data/apps/)
+  if Dir.exist?(user_apps_dir)
+    Dir["#{File.join(user_apps_dir, "**") + File::SEPARATOR}*.{rb,mdsl}"].sort.each do |file|
       basename = File.basename(file)
-      next if basename.start_with?("_") # ignore files that start with an underscore
-      next if file.include?("/test/") # ignore test directories
-      
-      # If the basename already exists as a key, create a unique key by adding a suffix
+      next if basename.start_with?("_")
+      next if file.include?("/test/")
+      next if file.include?("/helpers/") # skip helper directories inside app folders
+      next if file.include?("/services/") # skip service directories inside app folders
+
       if apps_to_load.key?(basename)
         unique_basename = "#{basename}_#{SecureRandom.hex(4)}"
         apps_to_load[unique_basename] = file
@@ -2022,6 +2025,33 @@ post "/load" do
 end
 
 # Convert a document file to text
+ALLOWED_AUDIO_EXTS = %w[.mp3 .wav .m4a .ogg .flac .mid .midi].freeze
+
+post "/upload_audio" do
+  content_type :json
+  if params["audioFile"]
+    begin
+      file_handler = params["audioFile"]["tempfile"]
+      filename = File.basename(params["audioFile"]["filename"])
+      ext = File.extname(filename).downcase
+      unless ALLOWED_AUDIO_EXTS.include?(ext)
+        file_handler.close
+        return { success: false, error: "Unsupported file type: #{ext}" }.to_json
+      end
+      user_data_dir = Monadic::Utils::Environment.data_path
+      dest_path = File.join(user_data_dir, filename)
+      File.open(dest_path, "wb") { |f| f.write(file_handler.read) }
+      file_handler.close
+      utf8_filename = filename.force_encoding("UTF-8")
+      { success: true, filename: utf8_filename }.to_json
+    rescue => e
+      { success: false, error: "Upload failed: #{e.message}" }.to_json
+    end
+  else
+    { success: false, error: "No file selected" }.to_json
+  end
+end
+
 post "/document" do
   # For AJAX requests, respond with JSON
   if request.xhr?
@@ -2032,8 +2062,8 @@ post "/document" do
         doc_file_handler = params["docFile"]["tempfile"]
         # name the file based on datetime if no title is provided
         doc_label = params["docLabel"].encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        # get filename from the file handler
-        filename = params["docFile"]["filename"]
+        # get filename from the file handler (basename prevents path traversal)
+        filename = File.basename(params["docFile"]["filename"])
 
         user_data_dir = Monadic::Utils::Environment.data_path
 

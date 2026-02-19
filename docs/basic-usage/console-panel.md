@@ -87,7 +87,6 @@ Open the folder shared between the host and Docker containers. It can be used fo
 - `apps`: Folder for storing additional applications.
 - `helpers`: Folder for storing helper files containing functions used by apps.
 - `scripts`: Folder for storing executable scripts that can be run within containers.
-- `plugins`: Folder for organizing Monadic Chat plugins.
 
 **Open Config Folder** <br />
 Open the `~/monadic/config` folder. This folder contains configuration files for Monadic Chat. The following files are included:

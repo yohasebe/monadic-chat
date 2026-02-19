@@ -25,48 +25,48 @@ RSpec.describe 'Tool Method Behavior' do
   end
 
   # ============================================
-  # Music Advisor Tools
+  # Music Lab Tools
   # ============================================
-  describe 'MusicAdvisor Tools' do
+  describe 'MusicLab Tools' do
     let(:app_class) do
-      tools_file = File.join(app_base_dir, 'music_advisor', 'music_advisor_tools.rb')
+      tools_file = File.join(app_base_dir, 'music_lab', 'music_lab_tools.rb')
       require tools_file if File.exist?(tools_file)
-      Object.const_get('MusicAdvisorOpenAI') if Object.const_defined?('MusicAdvisorOpenAI')
+      Object.const_get('MusicLabOpenAI') if Object.const_defined?('MusicLabOpenAI')
     end
 
     let(:instance) { app_class&.new }
 
     describe '#play_chord' do
       it 'responds to play_chord with required parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        skip 'MusicLabOpenAI not loaded' unless instance
         expect(instance).to respond_to(:play_chord)
       end
     end
 
     describe '#play_scale' do
       it 'responds to play_scale with required parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        skip 'MusicLabOpenAI not loaded' unless instance
         expect(instance).to respond_to(:play_scale)
       end
     end
 
     describe '#play_interval' do
       it 'responds to play_interval with required parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        skip 'MusicLabOpenAI not loaded' unless instance
         expect(instance).to respond_to(:play_interval)
       end
     end
 
     describe '#play_progression' do
       it 'responds to play_progression with required parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        skip 'MusicLabOpenAI not loaded' unless instance
         expect(instance).to respond_to(:play_progression)
       end
     end
 
     describe '#generate_backing_track' do
       it 'responds to generate_backing_track with required parameters' do
-        skip 'MusicAdvisorOpenAI not loaded' unless instance
+        skip 'MusicLabOpenAI not loaded' unless instance
         expect(instance).to respond_to(:generate_backing_track)
       end
     end

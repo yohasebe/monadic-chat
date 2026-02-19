@@ -244,12 +244,39 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   }
 }
 
+/**
+ * Uploads an audio or MIDI file for analysis
+ * @param {File} file - The audio/MIDI file to upload
+ * @returns {Promise} - Promise resolving to the upload response
+ */
+function uploadAudioFile(file) {
+  if (!file) {
+    throw new Error("Please select an audio or MIDI file");
+  }
+  const formData = new FormData();
+  formData.append("audioFile", file);
+  return new Promise((resolve, reject) => {
+    $.ajax({
+      url: "/upload_audio",
+      type: "POST",
+      data: formData,
+      processData: false,
+      contentType: false,
+      dataType: "json",
+      timeout: 60000,
+      success: resolve,
+      error: reject
+    });
+  });
+}
+
 // Export functions to window for browser environment
 window.formHandlers = {
   uploadPdf,
   convertDocument,
   fetchWebpage,
   importSession,
+  uploadAudioFile,
   setupUrlValidation,
   setupFileValidation,
   showModalWithFocus

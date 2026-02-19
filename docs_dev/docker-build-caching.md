@@ -164,7 +164,7 @@ The build system tracks the following install options:
 - `PYOPT_SPACY`: spaCy NLP library
 - `PYOPT_SCIKIT`: scikit-learn machine learning library
 - `PYOPT_GENSIM`: Topic modeling library
-- `PYOPT_LIBROSA`: Audio analysis library
+- `PYOPT_LIBROSA`: Audio analysis libraries (librosa + madmom) — required for Music Lab audio file analysis
 - `PYOPT_MEDIAPIPE`: Computer vision framework
 - `PYOPT_TRANSFORMERS`: Hugging Face Transformers
 - `IMGOPT_IMAGEMAGICK`: ImageMagick image processing

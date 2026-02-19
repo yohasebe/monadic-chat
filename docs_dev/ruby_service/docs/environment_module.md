@@ -21,12 +21,13 @@ conn = PG.connect(Monadic::Utils::Environment.postgres_params)
 # Get paths
 data_path = Monadic::Utils::Environment.data_path
 scripts_path = Monadic::Utils::Environment.scripts_path
-plugins_path = Monadic::Utils::Environment.plugins_path
+apps_path = Monadic::Utils::Environment.apps_path
 ```
 
 ## Available Methods
 - `in_container?` - Returns true if running inside Docker container
 - `data_path` - Returns correct data directory path
-- `scripts_path` - Returns correct scripts directory path  
-- `plugins_path` - Returns correct plugins directory path
+- `scripts_path` - Returns correct scripts directory path
+- `apps_path` - Returns correct apps directory path
+- `helpers_path` - Returns correct helpers directory path
 - `postgres_params(database: nil)` - Returns PostgreSQL connection parameters

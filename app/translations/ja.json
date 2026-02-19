@@ -69,9 +69,15 @@
           "spacy": "spaCy (3.7.5)",
           "scikit": "scikit-learn",
           "gensim": "gensim",
-          "librosa": "librosa",
           "mediapipe": "mediapipe（CPUのみ）",
           "transformers": "transformers（CPUのみ）"
+        }
+      },
+      "music": {
+        "title": "音楽分析",
+        "help": "Music Lab に必要。音声分析ライブラリ（コード検出、テンポ/キー推定など）をインストールします。",
+        "items": {
+          "librosa": "librosa + madmom"
         }
       },
       "tools": {

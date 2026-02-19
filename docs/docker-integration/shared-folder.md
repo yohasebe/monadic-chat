@@ -43,7 +43,6 @@ When Monadic Chat starts for the first time, the following directory structure i
 ├── data/           # Shared folder (accessible from containers as /monadic/data)
 │   ├── apps/       # Custom applications
 │   ├── helpers/    # Helper Ruby files
-│   ├── plugins/    # Plugins with their own apps and helpers
 │   └── scripts/    # Executable scripts accessible from all containers
 └── log/            # Log files (server.log, docker_build.log, etc.)
 ```
@@ -99,7 +98,3 @@ send_command(
 - Working directory is set to `/monadic/data` when executing commands
 - Scripts can access other files in the shared folder using relative paths
 - This mechanism allows extending Monadic Chat's functionality without modifying core code
-
-`plugins`
-
-This folder is for organizing Monadic Chat plugins. Each plugin should reside in its own subfolder and can contain its own `apps` and `helpers` subfolders to keep the plugin's code self-contained. Note that plugin folders cannot contain a `scripts` subfolder; scripts should be placed in the main `scripts` directory at the root of the Shared Folder.

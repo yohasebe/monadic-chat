@@ -21,12 +21,13 @@ conn = PG.connect(Monadic::Utils::Environment.postgres_params)
 # パスを取得
 data_path = Monadic::Utils::Environment.data_path
 scripts_path = Monadic::Utils::Environment.scripts_path
-plugins_path = Monadic::Utils::Environment.plugins_path
+apps_path = Monadic::Utils::Environment.apps_path
 ```
 
 ## 利用可能なメソッド
 - `in_container?` - Dockerコンテナ内で実行している場合にtrueを返す
 - `data_path` - 正しいデータディレクトリパスを返す
 - `scripts_path` - 正しいスクリプトディレクトリパスを返す
-- `plugins_path` - 正しいプラグインディレクトリパスを返す
+- `apps_path` - 正しいアプリディレクトリパスを返す
+- `helpers_path` - 正しいヘルパーディレクトリパスを返す
 - `postgres_params(database: nil)` - PostgreSQL接続パラメータを返す

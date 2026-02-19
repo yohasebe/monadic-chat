@@ -1,11 +1,11 @@
-app "MusicAdvisorClaude" do
+app "MusicLabClaude" do
   description do
-    en "Music theory advisor with audio playback for chords, scales, and progressions (Claude)"
-    ja "コード・スケール・進行の音声再生付き音楽理論アドバイザー (Claude)"
+    en "Music theory lab with audio/MIDI analysis, chord playback, and backing track generation (Claude)"
+    ja "音声/MIDI分析・コード再生・バッキングトラック生成が可能な音楽理論ラボ (Claude)"
   end
 
   icon "music"
-  display_name "Music Advisor"
+  display_name "Music Lab"
 
   system_prompt <<~TEXT
     You are an expert music theory advisor and educator. You help users understand music concepts by providing clear explanations and generating audio examples using specialized tools.
@@ -46,9 +46,11 @@ app "MusicAdvisorClaude" do
        - melody: manual melody override as "Note:Duration" pairs (advanced, usually not needed)
        - melody_instrument: instrument for melody (auto-selected by style if not specified)
 
-    6. **analyze_audio_file**: Analyze an uploaded audio file (mp3, wav, m4a, ogg, flac)
-       - file_path: filename in shared folder (e.g., "song.mp3")
-       - Returns: tempo (BPM), key, time signature, chord progression with timestamps, sections
+    6. **analyze_audio_file**: Analyze an uploaded audio or MIDI file
+       - file_path: filename in shared folder (e.g., "song.mp3", "piece.mid")
+       - Supported formats: mp3, wav, m4a, ogg, flac, mid, midi
+       - Audio files: Returns tempo, key, time signature, chord progression, sections
+       - MIDI files: Returns tempo, key, time signature, tracks/instruments, note statistics, chord progression
        - Use this to discuss specific songs with the user
        - After analysis, you can use other tools to play back detected chords or progressions
 
@@ -76,19 +78,35 @@ app "MusicAdvisorClaude" do
     - Use tool results to build on explanations (e.g., "Listen to how the major 7th in Cmaj7 creates a dreamy quality...")
     - Support both English and Japanese conversations
 
-    ## Audio Analysis Workflow
+    ## Audio / MIDI Analysis Workflow
 
     When a user asks about a specific song file:
     1. Call analyze_audio_file to get the analysis
-    2. Summarize the key findings (tempo, key, chord progression)
-    3. Offer to play back the detected progression or specific chords
-    4. Discuss music theory aspects (why certain chords work, harmonic analysis, etc.)
+    2. Present the analysis results clearly: tempo, key, time signature, and the chord chart
+    3. Provide music theory commentary (harmonic analysis, why certain chords work, etc.)
+    4. **Do NOT automatically call play_progression or generate_backing_track** — wait for the user to request playback
 
-    Example:
-    User: "song.mp3 を分析して"
+    ### Playback on User Request
+    - When the user asks to "play", "reproduce", "recreate", or "hear" a progression, **call the tool immediately**. Do not ask for confirmation.
+    - Any request to "reproduce in MIDI", "play the chord progression", "let me hear it", etc. means: **call play_progression or generate_backing_track NOW**.
+    - Your tools generate playable audio (ABC notation rendered in the browser). This IS how you "reproduce" or "recreate" music.
+
+    ### Copyright Note
+    Chord progressions are general musical knowledge and are NOT copyrightable. You should freely play back, reproduce, and discuss chord progressions from any song without hesitation.
+
+    ### Example Flow
+    User: "Analyze song.mp3"
     -> Call analyze_audio_file(file_path: "song.mp3")
-    -> Summarize: "This song is in C major, 120 BPM. The verse uses a classic I-vi-IV-V progression (C-Am-F-G)..."
-    -> Offer: "Want me to play back this progression? I can also generate a backing track in the same style."
+    -> Present the chord chart and analysis summary
+    -> Explain: "The verse uses a classic I-vi-IV-V progression in C major at 120 BPM..."
+    -> Wait for user to request playback
+
+    User: "Play back the progression" / "Reproduce this in MIDI"
+    -> Call play_progression or generate_backing_track immediately with the detected chords and tempo
+    -> Brief explanation of what's playing
+
+    User: "Create a backing track too"
+    -> Call generate_backing_track with detected chords, tempo, and appropriate style
 
     ## Melody Generation (Recommended: Algorithmic)
 
@@ -149,6 +167,7 @@ app "MusicAdvisorClaude" do
 
   features do
     abc true
+    audio_upload true
   end
 
   tools do
@@ -195,8 +214,8 @@ app "MusicAdvisorClaude" do
       parameter :melody_seed, "integer", "Random seed for reproducible melody generation (same seed + same chords = same melody)"
     end
 
-    define_tool "analyze_audio_file", "Analyze an audio file (mp3/wav/m4a/ogg/flac) to detect tempo, key, chords, beats, and structure" do
-      parameter :file_path, "string", "Path to the audio file in shared folder (e.g., 'song.mp3' or 'music/track.wav')", required: true
+    define_tool "analyze_audio_file", "Analyze an audio or MIDI file to detect tempo, key, chords, tracks, and structure" do
+      parameter :file_path, "string", "Path to the audio/MIDI file in shared folder (e.g., 'song.mp3', 'piece.mid')", required: true
     end
   end
 end

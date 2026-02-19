@@ -1148,6 +1148,11 @@ function resetParams() {
     } else {
       $("#pdf-panel").hide();
     }
+    if (toBool(params["audio_upload"])) {
+      $("#audio-upload").show();
+    } else {
+      $("#audio-upload").hide();
+    }
     // Reset the flag after loading is complete
     window.isLoadingParams = false;
   }, 500);

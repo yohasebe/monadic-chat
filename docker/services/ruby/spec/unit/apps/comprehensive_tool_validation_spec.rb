@@ -23,10 +23,10 @@ RSpec.describe 'Comprehensive Tool Validation' do
       agents: %w[openai_code_agent claude_code_agent grok_code_agent],
       providers: %w[OpenAI Claude Grok]
     },
-    'music_advisor' => {
+    'music_lab' => {
       tools: %w[play_chord play_scale play_interval play_progression generate_backing_track],
       agents: [],
-      providers: %w[OpenAI Claude]
+      providers: %w[OpenAI Claude Gemini Grok]
     },
     'code_interpreter' => {
       tools: [],

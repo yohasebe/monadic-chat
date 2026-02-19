@@ -4,14 +4,14 @@
 
 ## How to Add Containers
 
-To make a new Docker container available, create a new folder within `~/monadic/data/services` or `~/monadic/data/plugins` and place the following files inside:
+To make a new Docker container available, create a new folder within `~/monadic/data/services` or `~/monadic/data/apps/<your_app>/services` and place the following files inside:
 
 - `compose.yml`
 - `Dockerfile`
 - Any additional files needed by your container
 
 To build your container, use the `Build User Containers` option in the Actions menu. This process:
-1. Searches for user containers in both `services` and `plugins` directories
+1. Searches for user containers in `services` directories and app-specific `services` folders
 2. Builds each container with the `--no-cache` flag
 3. Automatically configures networking and volume mounts
 4. Logs the build process to `~/monadic/log/docker_build.log`

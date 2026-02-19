@@ -41,7 +41,7 @@ The table below shows which apps are available for which AI model providers.
 | Coding Assistant | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Jupyter Notebook | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Auto Forge | ✅ | ✅ | | | | ✅ | | | |
-| Music Advisor | ✅ | ✅ | | | | | | | |
+| Music Lab | ✅ | ✅ | ✅ | | ✅ | | | | |
 | Document Generator | | ✅ | | | | | | | |
 | Monadic Chat Help | ✅ | | | | | | | | |
 
@@ -586,13 +586,14 @@ Auto Forge is available for the providers shown in the availability table.
 
 ![Auto Forge workflow](../assets/images/workflows/workflow-autoforge.svg ':size=500')
 
-### Music Advisor :id=music-advisor
+### Music Lab :id=music-lab
 
-![Music Advisor app icon](../assets/icons/music.png ':size=40')
+![Music Lab app icon](../assets/icons/music.png ':size=40')
 
-An interactive music theory advisor with audio playback. The AI explains music concepts and generates audio examples for chords, scales, intervals, progressions, and backing tracks directly in the browser.
+An interactive music theory lab with audio/MIDI analysis, chord playback, and backing track generation. The AI explains music concepts and generates audio examples directly in the browser.
 
 **Key Features:**
+- **Audio/MIDI analysis**: Upload audio files (mp3, wav, m4a, ogg, flac) or MIDI files (mid, midi) to detect tempo, key, time signature, chord progressions, and song structure. MIDI analysis also extracts track/instrument information.
 - **Audio playback**: Chords, scales, intervals, and progressions rendered as sheet music with in-browser MIDI synthesis
 - **Backing tracks**: Multi-instrument backing tracks (chords + bass) with style-specific patterns (jazz, bossa nova, pop, rock, ballad)
 - **Algorithmic melody**: Generate melodies automatically using chord-scale theory, Euclidean rhythms, and contour shaping (lyrical, rhythmic, jazz, latin, gentle styles)
@@ -600,7 +601,9 @@ An interactive music theory advisor with audio playback. The AI explains music c
 - **Walking bass**: Jazz walking bass with chromatic approach notes, bossa 2-beat feel
 - **Comprehensive music theory**: 46 chord types, 15 scales, all church modes, slash chords, enharmonic spelling
 
-Music Advisor is available for OpenAI and Claude.
+Audio analysis requires the optional **Audio Analysis** package (librosa + madmom) — enable it in **Actions → Install Options** and rebuild the Python container.
+
+Music Lab is available for OpenAI, Claude, Gemini, and Grok.
 
 ### Document Generator :id=document-generator
 

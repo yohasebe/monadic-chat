@@ -53,15 +53,6 @@ module Monadic
         File.join(data_path, 'helpers')
       end
 
-      def plugins_path
-        File.join(data_path, 'plugins')
-      end
-
-      # Alias for plugins_path (for backward compatibility)
-      def user_plugins_path
-        plugins_path
-      end
-
       def log_path
         resolve_path('/monadic/log')
       end

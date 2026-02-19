@@ -315,6 +315,100 @@ def build_abc_chord(midi_notes, duration="", use_flats=False):
     return "[" + "".join(abc_notes) + "]" + duration
 
 
+def build_key_abc_map(key_root_pc):
+    """Build pitch class to ABC note mapping for a major key signature.
+
+    Returns (abc_key_name, abc_notes) where abc_notes[pc] gives the ABC base
+    note string for that pitch class, with the key signature taken into account.
+    Diatonic notes need no accidental prefix; chromatic notes get ^ or _.
+    """
+    LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+    BASE_PCS = [0, 2, 4, 5, 7, 9, 11]
+    SHARP_ROOTS = [0, 7, 2, 9, 4, 11, 6]
+    FLAT_ROOTS_LIST = [5, 10, 3, 8, 1]
+    SHARP_LETTER_IDX = [3, 0, 4, 1, 5, 2, 6]   # F C G D A E B
+    FLAT_LETTER_IDX = [6, 2, 5, 1, 4, 0, 3]     # B E A D G C F
+    KEY_NAMES_SHARP = {0: "C", 7: "G", 2: "D", 9: "A", 4: "E", 11: "B", 6: "F#"}
+    KEY_NAMES_FLAT = {5: "F", 10: "Bb", 3: "Eb", 8: "Ab", 1: "Db"}
+
+    if key_root_pc in SHARP_ROOTS:
+        n_sharps = SHARP_ROOTS.index(key_root_pc)
+        n_flats = 0
+        abc_key = KEY_NAMES_SHARP[key_root_pc]
+        prefer_flats = False
+    elif key_root_pc in FLAT_ROOTS_LIST:
+        n_flats = FLAT_ROOTS_LIST.index(key_root_pc) + 1
+        n_sharps = 0
+        abc_key = KEY_NAMES_FLAT[key_root_pc]
+        prefer_flats = True
+    else:
+        return "C", list(ABC_NOTES_SHARP)
+
+    letter_pc = list(BASE_PCS)
+    if n_sharps > 0:
+        for i in range(n_sharps):
+            letter_pc[SHARP_LETTER_IDX[i]] = (letter_pc[SHARP_LETTER_IDX[i]] + 1) % 12
+    elif n_flats > 0:
+        for i in range(n_flats):
+            letter_pc[FLAT_LETTER_IDX[i]] = (letter_pc[FLAT_LETTER_IDX[i]] - 1) % 12
+
+    pc_to_letter = {pc: LETTERS[i] for i, pc in enumerate(letter_pc)}
+
+    abc_notes = [None] * 12
+    for pc in range(12):
+        if pc in pc_to_letter:
+            abc_notes[pc] = pc_to_letter[pc]
+        else:
+            natural_match = None
+            for i, base_pc in enumerate(BASE_PCS):
+                if base_pc == pc and letter_pc[i] != pc:
+                    natural_match = "=" + LETTERS[i]
+                    break
+            if natural_match:
+                abc_notes[pc] = natural_match
+            elif prefer_flats:
+                upper_pc = (pc + 1) % 12
+                if upper_pc in pc_to_letter:
+                    abc_notes[pc] = "_" + pc_to_letter[upper_pc]
+                else:
+                    abc_notes[pc] = ABC_NOTES_FLAT[pc]
+            else:
+                lower_pc = (pc - 1) % 12
+                if lower_pc in pc_to_letter:
+                    abc_notes[pc] = "^" + pc_to_letter[lower_pc]
+                else:
+                    abc_notes[pc] = ABC_NOTES_SHARP[pc]
+
+    return abc_key, abc_notes
+
+
+def midi_to_abc_note_in_key(midi_num, key_abc_notes):
+    """Convert MIDI number to ABC notation using key-aware spelling."""
+    octave = (midi_num // 12) - 1
+    pc = midi_num % 12
+    note = key_abc_notes[pc]
+    letter = note[-1]
+    prefix = note[:-1]
+
+    if octave >= 5:
+        base = prefix + letter.lower()
+        return base + "'" * (octave - 5)
+    elif octave == 4:
+        return note
+    elif octave == 3:
+        return note + ","
+    else:
+        return note + "," * (4 - octave)
+
+
+def build_abc_chord_in_key(midi_notes, duration, key_abc_notes):
+    """Build ABC chord notation using key-aware spelling."""
+    if len(midi_notes) == 1:
+        return midi_to_abc_note_in_key(midi_notes[0], key_abc_notes) + duration
+    notes = [midi_to_abc_note_in_key(n, key_abc_notes) for n in midi_notes]
+    return "[" + "".join(notes) + "]" + duration
+
+
 def output_result(abc_notation, description, notes):
     """Output result as JSON with ABC notation for browser-side ABCJS playback."""
     return {
@@ -384,7 +478,13 @@ def action_chord(params):
     octave = validate_octave(params)
 
     root_pc, root_name, intervals, quality, bass_pc = parse_chord_with_bass(chord_name)
-    use_flats = root_pc in FLAT_ROOTS
+    # Respect user's enharmonic spelling: C# → sharps, Db → flats
+    if '#' in root_name:
+        use_flats = False
+    elif 'b' in root_name:
+        use_flats = True
+    else:
+        use_flats = root_pc in FLAT_ROOTS
     intervals = apply_voicing(intervals, voicing)
 
     base_midi = root_pc + (octave + 1) * 12
@@ -422,7 +522,13 @@ def action_scale(params):
     instrument = params.get("instrument", "piano")
 
     root_pc, root_name = parse_root(root)
-    use_flats = root_pc in FLAT_ROOTS
+    # Respect user's enharmonic spelling: C# → sharps, Db → flats
+    if '#' in root_name:
+        use_flats = False
+    elif 'b' in root_name:
+        use_flats = True
+    else:
+        use_flats = root_pc in FLAT_ROOTS
     scale_key = scale_name.lower().replace(" ", "_").replace("-", "_")
     intervals = SCALE_TYPES.get(scale_key)
     if intervals is None:
@@ -460,7 +566,13 @@ def action_interval(params):
     instrument = params.get("instrument", "piano")
 
     root_pc, root_name = parse_root(root)
-    use_flats = root_pc in FLAT_ROOTS
+    # Respect user's enharmonic spelling: C# → sharps, Db → flats
+    if '#' in root_name:
+        use_flats = False
+    elif 'b' in root_name:
+        use_flats = True
+    else:
+        use_flats = root_pc in FLAT_ROOTS
     interval_key = interval.lower().replace(" ", "_").replace("-", "_")
     semitones = INTERVAL_TYPES.get(interval_key)
     if semitones is None:
@@ -502,7 +614,7 @@ def action_progression(params):
         chords = [c.strip() for c in chords.split(",")]
 
     tempo = validate_tempo(params)
-    instrument = params.get("instrument", "piano")
+    instrument = params.get("instrument", "synth_pad")
     bars_per_chord = max(1, min(4, int(params.get("bars_per_chord", 1))))
     octave = validate_octave(params)
 
@@ -529,23 +641,23 @@ def action_progression(params):
         except ValueError as e:
             return {"success": False, "error": f"Invalid chord '{chord_name}': {e}"}
 
-    # Determine enharmonic spelling from key analysis
+    # Determine key and build key-aware ABC note map
     chord_seq = [{"root_pc": cd["root_pc"], "quality": cd["quality"]} for cd in chord_data]
     key_pcs = _detect_key(chord_seq)
-    use_flats = key_pcs[0] in FLAT_ROOTS
+    abc_key, key_abc_notes = build_key_abc_map(key_pcs[0])
 
     # Build ABC with line breaks every 4 bars
     gm_prog = GM_INSTRUMENTS.get(instrument, 0)
     abc_bars = []
     for cd in chord_data:
-        abc_chord = build_abc_chord(cd["midi_notes"], "2", use_flats)
-        bar_content = f' "{cd["name"]}"{abc_chord} {abc_chord} {abc_chord} {abc_chord}'
+        abc_chord = build_abc_chord_in_key(cd["midi_notes"], "8", key_abc_notes)
+        bar_content = f' "{cd["name"]}"{abc_chord}'
         for _ in range(bars_per_chord):
             abc_bars.append(bar_content)
 
     progression_str = " - ".join(chords)
     title = f"Progression: {progression_str}"
-    header = f"X:1\nT:{title}\nM:4/4\nL:1/8\nQ:1/4={tempo}\nK:C clef=treble\n%%MIDI program {gm_prog}"
+    header = f"X:1\nT:{title}\nM:4/4\nL:1/8\nQ:1/4={tempo}\nK:{abc_key} clef=treble\n%%MIDI program {gm_prog}"
     abc = header + "\n" + _format_bars(abc_bars)
 
     all_notes = []
@@ -556,20 +668,27 @@ def action_progression(params):
     return output_result(abc, description, all_notes)
 
 
-def _chord_pattern(voiced_notes, style, chord_instrument="piano", use_flats=False, root_pc=None):
+def _chord_pattern(voiced_notes, style, chord_instrument="piano", key_abc_notes=None, root_pc=None):
     """Return a bar of chord voicing with style-appropriate rhythm (L:1/8, 8 units/bar).
 
     Guitar instruments use arpeggiated patterns; keyboard instruments use block chords.
     root_pc is needed for rock power chords (root + 5th from actual chord root).
+    key_abc_notes: dict from build_key_abc_map() for key-aware spelling; falls back to C major if None.
     """
-    abc_chord = build_abc_chord(voiced_notes, "", use_flats)
+    def _note(midi):
+        return midi_to_abc_note_in_key(midi, key_abc_notes) if key_abc_notes else midi_to_abc_note(midi, False)
+
+    def _chord(notes, dur):
+        return build_abc_chord_in_key(notes, dur, key_abc_notes) if key_abc_notes else build_abc_chord(notes, dur, False)
+
+    abc_chord = _chord(voiced_notes, "")
     is_guitar = "guitar" in chord_instrument
 
     if is_guitar:
         # Convert voiced notes to sorted ABC note names
         notes = sorted(voiced_notes)
         n = len(notes)
-        abc_n = [midi_to_abc_note(m, use_flats) for m in notes]
+        abc_n = [_note(m) for m in notes]
 
         if style == "bossa":
             # Bossa nova: syncopated arpeggio (João Gilberto-inspired)
@@ -588,7 +707,7 @@ def _chord_pattern(voiced_notes, style, chord_instrument="piano", use_flats=Fals
                 root_midi = root_candidates[0] if root_candidates else notes[0]
             else:
                 root_midi = notes[0]
-            power = build_abc_chord([root_midi, root_midi + 7], "", use_flats)
+            power = _chord([root_midi, root_midi + 7], "")
             return f" {power}2 z {power} {power}2 z2"
         elif style == "ballad":
             # Ballad: Travis-style fingerpicking
@@ -619,18 +738,22 @@ def _chord_pattern(voiced_notes, style, chord_instrument="piano", use_flats=Fals
         return f" {abc_chord}4 z2 {abc_chord}2"
 
 
-def _bass_pattern(bass_note_midi, style, quality="", use_flats=False, next_bass_midi=None):
+def _bass_pattern(bass_note_midi, style, quality="", key_abc_notes=None, next_bass_midi=None):
     """Return a bar of bass with style-appropriate rhythm (L:1/8, 8 units/bar).
 
     Jazz uses walking bass with chromatic approach to the next chord root.
     Bossa/ballad use sparse 2-beat feel. Rock drives with root-fifth-octave.
+    key_abc_notes: dict from build_key_abc_map() for key-aware spelling; falls back to C major if None.
     """
-    root = midi_to_abc_note(bass_note_midi, use_flats)
-    fifth = midi_to_abc_note(bass_note_midi + 7, use_flats)
+    def _note(midi):
+        return midi_to_abc_note_in_key(midi, key_abc_notes) if key_abc_notes else midi_to_abc_note(midi, False)
+
+    root = _note(bass_note_midi)
+    fifth = _note(bass_note_midi + 7)
     intervals = CHORD_TYPES.get(quality, [0, 4, 7])
     color_interval = intervals[1] if len(intervals) >= 2 else 4
-    color_tone = midi_to_abc_note(bass_note_midi + color_interval, use_flats)
-    octave_up = midi_to_abc_note(bass_note_midi + 12, use_flats)
+    color_tone = _note(bass_note_midi + color_interval)
+    octave_up = _note(bass_note_midi + 12)
     if style == "bossa":
         # 2-beat feel: root on beat 1, fifth on beat 3
         return f" {root}4 {fifth}4"
@@ -647,7 +770,7 @@ def _bass_pattern(bass_note_midi, style, quality="", use_flats=False, next_bass_
             if not candidates:
                 candidates = [approach_base]
             approach_midi = min(candidates, key=lambda c: abs(c - fifth_midi))
-            approach = midi_to_abc_note(approach_midi, use_flats)
+            approach = _note(approach_midi)
             return f" {root}2 {color_tone}2 {fifth}2 {approach}2"
         else:
             return f" {root}2 {color_tone}2 {fifth}2 {octave_up}2"
@@ -794,10 +917,10 @@ def action_backing(params):
         cd["voiced_notes"] = voiced
         prev_voicing = voiced
 
-    # Determine enharmonic spelling from key analysis
+    # Determine key and build key-aware ABC note map
     key_seq = [{"root_pc": cd["root_pc"], "quality": cd["quality"]} for cd in chord_data]
     detected_key = _detect_key(key_seq)
-    use_flats = detected_key[0] in FLAT_ROOTS
+    abc_key, key_abc_notes = build_key_abc_map(detected_key[0])
 
     # Parse optional melody (D-mode: LLM-specified notes)
     melody_data = parse_melody(params.get("melody"))
@@ -857,7 +980,7 @@ def action_backing(params):
     lines.append("M:4/4")
     lines.append("L:1/8")
     lines.append(f"Q:1/4={tempo}")
-    lines.append("K:C")
+    lines.append(f"K:{abc_key}")
 
     # --- Prepare bars for each voice ---
 
@@ -873,7 +996,7 @@ def action_backing(params):
             if midi_num is None:
                 abc_melody_tokens.append(f"z{dur_str}")
             else:
-                abc_melody_tokens.append(f"{midi_to_abc_note(midi_num, use_flats)}{dur_str}")
+                abc_melody_tokens.append(f"{midi_to_abc_note_in_key(midi_num, key_abc_notes)}{dur_str}")
 
         token_idx = 0
         for cd in chord_data:
@@ -906,7 +1029,7 @@ def action_backing(params):
     # Chord bars with voice-led voicings and style-appropriate rhythm
     chord_bars = []
     for cd in chord_data:
-        pattern = _chord_pattern(cd["voiced_notes"], style, chord_instrument, use_flats,
+        pattern = _chord_pattern(cd["voiced_notes"], style, chord_instrument, key_abc_notes,
                                  root_pc=cd["root_pc"])
         if not has_melody:
             pattern = f' "{cd["name"]}"' + pattern.lstrip()
@@ -917,7 +1040,7 @@ def action_backing(params):
     for i, cd in enumerate(chord_data):
         next_bass = chord_data[i + 1]["bass_note"] if i + 1 < len(chord_data) else chord_data[0]["bass_note"]
         bass_bars.append(_bass_pattern(cd["bass_note"], style, quality=cd["quality"],
-                                       use_flats=use_flats, next_bass_midi=next_bass))
+                                       key_abc_notes=key_abc_notes, next_bass_midi=next_bass))
 
     # --- Emit interleaved voice blocks, 4 bars per system ---
     bars_per_line = 4

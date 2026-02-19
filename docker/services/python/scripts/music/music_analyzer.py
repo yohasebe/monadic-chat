@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-Music Analyzer - Analyzes audio files to detect tempo, key, chords, beats, and structure.
+Music Analyzer - Analyzes audio and MIDI files to detect tempo, key, chords, beats, and structure.
 
 Requires: librosa, soundfile
-Optional: madmom (for better chord recognition)
+Optional: madmom (for better chord recognition), pretty_midi (for MIDI analysis)
 
 Usage:
     music_analyzer.py analyze --params '{"file_path": "/monadic/data/song.mp3"}'
+    music_analyzer.py analyze --params '{"file_path": "/monadic/data/piece.mid"}'
 
 Output: JSON with analysis results (tempo, key, chords, beats, sections, etc.)
 """
@@ -343,6 +344,250 @@ def estimate_time_signature(y, sr):
         return 4, 4
 
 
+def analyze_midi(params):
+    """Analyze a MIDI file using pretty_midi."""
+    try:
+        import pretty_midi
+    except ImportError:
+        return {"success": False,
+                "error": "pretty_midi is not installed. "
+                         "Install with: uv pip install pretty_midi"}
+
+    import numpy as np
+
+    file_path = params.get("file_path")
+    if not file_path:
+        return {"success": False, "error": "file_path is required"}
+
+    if not os.path.exists(file_path):
+        return {"success": False,
+                "error": f"File not found: {file_path}. "
+                         "Make sure the file is in the shared folder (~/monadic/data/)."}
+
+    file_name = os.path.basename(file_path)
+
+    try:
+        midi = pretty_midi.PrettyMIDI(file_path)
+    except Exception as e:
+        return {"success": False,
+                "error": f"Failed to load MIDI file: {e}"}
+
+    # --- Duration ---
+    duration = midi.get_end_time()
+
+    # --- Tempo ---
+    tempo_times, tempos = midi.get_tempo_changes()
+    if len(tempos) > 0:
+        bpm = float(tempos[0])
+        tempo_changes = [{"time": round(float(t), 2), "bpm": round(float(b), 1)}
+                         for t, b in zip(tempo_times, tempos)]
+    else:
+        bpm = 120.0
+        tempo_changes = []
+
+    # --- Time signature ---
+    beats_per_bar = 4
+    note_value = 4
+    if midi.time_signature_changes:
+        ts = midi.time_signature_changes[0]
+        beats_per_bar = ts.numerator
+        note_value = ts.denominator
+
+    # --- Key signature ---
+    key_name = "Unknown"
+    key_mode = "unknown"
+    key_source = "none"
+    if midi.key_signature_changes:
+        ks = midi.key_signature_changes[0]
+        key_name = pretty_midi.key_number_to_key_name(ks.key_number)
+        # pretty_midi returns e.g. "C major" or "A minor"
+        parts = key_name.split()
+        if len(parts) == 2:
+            key_name = parts[0]
+            key_mode = parts[1]
+        key_source = "midi_metadata"
+    else:
+        # Estimate key from note content using chroma
+        try:
+            piano_roll = midi.get_piano_roll(fs=100)
+            if piano_roll.shape[1] > 0:
+                # Build chroma from piano roll (128 pitches -> 12 chroma)
+                chroma = np.zeros((12, piano_roll.shape[1]))
+                for pitch in range(128):
+                    chroma[pitch % 12] += piano_roll[pitch]
+                key_name, key_mode, _ = detect_key(chroma, 100, 1)
+                key_source = "estimated"
+        except Exception:
+            pass
+
+    # --- Tracks / instruments ---
+    tracks = []
+    note_names_list = ["C", "C#", "D", "D#", "E", "F",
+                       "F#", "G", "G#", "A", "A#", "B"]
+    for inst in midi.instruments:
+        note_count = len(inst.notes)
+        if note_count == 0:
+            if inst.is_drum:
+                tracks.append({
+                    "name": inst.name or "Drums",
+                    "program": inst.program,
+                    "instrument": "Drum Kit",
+                    "note_count": 0,
+                    "pitch_range": "",
+                    "is_drum": True
+                })
+            continue
+
+        pitches = [n.pitch for n in inst.notes]
+        min_pitch = min(pitches)
+        max_pitch = max(pitches)
+        min_note = f"{note_names_list[min_pitch % 12]}{min_pitch // 12 - 1}"
+        max_note = f"{note_names_list[max_pitch % 12]}{max_pitch // 12 - 1}"
+
+        if inst.is_drum:
+            inst_name = "Drum Kit"
+        else:
+            inst_name = pretty_midi.program_to_instrument_name(inst.program)
+
+        tracks.append({
+            "name": inst.name or inst_name,
+            "program": inst.program,
+            "instrument": inst_name,
+            "note_count": note_count,
+            "pitch_range": f"{min_note}-{max_note}",
+            "is_drum": inst.is_drum
+        })
+
+    # --- Chord detection from piano roll ---
+    chords = []
+    try:
+        piano_roll = midi.get_piano_roll(fs=100)
+        if piano_roll.shape[1] > 0:
+            chroma = np.zeros((12, piano_roll.shape[1]))
+            for pitch in range(128):
+                chroma[pitch % 12] += piano_roll[pitch]
+
+            # Use librosa-style chord detection via template matching
+            chords = _detect_chords_from_chroma(chroma, fs=100,
+                                                duration=min(duration, MAX_ANALYSIS_DURATION))
+    except Exception:
+        pass
+
+    # --- Build summary ---
+    duration_min = int(duration // 60)
+    duration_sec = int(duration % 60)
+    track_summary = ", ".join(
+        t["name"] or t["instrument"] for t in tracks[:5]
+    )
+    if len(tracks) > 5:
+        track_summary += f", ... (+{len(tracks) - 5} more)"
+
+    description = (f"MIDI file: {duration_min}:{duration_sec:02d}, "
+                   f"{bpm:.0f} BPM, {key_name} {key_mode}, "
+                   f"{len(tracks)} tracks ({track_summary})")
+
+    return {
+        "success": True,
+        "file_type": "midi",
+        "file_name": file_name,
+        "duration_seconds": round(duration, 1),
+        "tempo": {
+            "bpm": round(bpm, 1),
+            "tempo_changes": tempo_changes
+        },
+        "key": {
+            "key": key_name,
+            "mode": key_mode,
+            "source": key_source
+        },
+        "time_signature": {
+            "beats_per_bar": beats_per_bar,
+            "note_value": note_value
+        },
+        "tracks": tracks,
+        "chords": chords,
+        "description": description
+    }
+
+
+def _detect_chords_from_chroma(chroma, fs=100, duration=None):
+    """Detect chords from a chroma matrix using template matching.
+
+    Works for both MIDI piano roll chroma and audio chroma features.
+    """
+    import numpy as np
+
+    note_names = ["C", "C#", "D", "D#", "E", "F",
+                  "F#", "G", "G#", "A", "A#", "B"]
+    enharmonic_map = {
+        "C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb"
+    }
+
+    major_template = np.array([1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0], dtype=float)
+    minor_template = np.array([1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0], dtype=float)
+
+    # Segment into ~0.5s windows
+    frames_per_segment = max(1, int(0.5 * fs))
+    n_segments = chroma.shape[1] // frames_per_segment
+
+    chords = []
+    prev_chord = None
+    chord_start = 0.0
+
+    for seg in range(n_segments):
+        start_frame = seg * frames_per_segment
+        end_frame = start_frame + frames_per_segment
+        seg_chroma = np.mean(chroma[:, start_frame:end_frame], axis=1)
+        seg_time = start_frame / fs
+
+        if duration and seg_time > duration:
+            break
+
+        best_corr = -1
+        best_chord = "N.C."
+        for root in range(12):
+            maj_rot = np.roll(major_template, root)
+            min_rot = np.roll(minor_template, root)
+
+            norm = np.linalg.norm(seg_chroma) + 1e-10
+            corr_maj = np.dot(seg_chroma, maj_rot) / (norm * np.linalg.norm(maj_rot))
+            corr_min = np.dot(seg_chroma, min_rot) / (norm * np.linalg.norm(min_rot))
+
+            root_name = note_names[root]
+            if corr_maj > best_corr:
+                best_corr = corr_maj
+                best_chord = enharmonic_map.get(root_name, root_name)
+            if corr_min > best_corr:
+                best_corr = corr_min
+                name = enharmonic_map.get(root_name, root_name)
+                best_chord = f"{name}m"
+
+        if best_chord != prev_chord:
+            if prev_chord is not None:
+                chord_dur = round(seg_time - chord_start, 2)
+                if chord_dur > 0.1:
+                    chords.append({
+                        "time": round(chord_start, 2),
+                        "duration": chord_dur,
+                        "chord": prev_chord
+                    })
+            prev_chord = best_chord
+            chord_start = seg_time
+
+    # Append last chord
+    if prev_chord is not None:
+        last_time = (chroma.shape[1] - 1) / fs
+        chord_dur = round(last_time - chord_start, 2)
+        if chord_dur > 0.1:
+            chords.append({
+                "time": round(chord_start, 2),
+                "duration": chord_dur,
+                "chord": prev_chord
+            })
+
+    return chords
+
+
 def analyze_audio(params):
     """Main analysis function - orchestrates all analysis components."""
     import librosa
@@ -359,9 +604,13 @@ def analyze_audio(params):
 
     file_name = os.path.basename(file_path)
 
-    # Check supported formats
-    supported_exts = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma"}
+    # Route MIDI files to dedicated analyzer
     ext = os.path.splitext(file_path)[1].lower()
+    if ext in {".mid", ".midi"}:
+        return analyze_midi(params)
+
+    # Check supported audio formats
+    supported_exts = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac", ".wma"}
     if ext not in supported_exts:
         return {"success": False,
                 "error": f"Unsupported format: {ext}. "
@@ -502,22 +751,27 @@ def main():
 
     args = parser.parse_args()
 
-    # Check core dependencies first
-    available, missing = check_dependencies()
-    if missing:
-        error = {
-            "success": False,
-            "error": f"Required libraries not installed: {', '.join(missing)}. "
-                     "Install with: uv pip install " + " ".join(missing),
-        }
-        print(json.dumps(error))
-        sys.exit(1)
-
     try:
         params = json.loads(args.params)
     except json.JSONDecodeError as e:
         print(json.dumps({"success": False, "error": f"Invalid JSON params: {e}"}))
         sys.exit(1)
+
+    # MIDI files only need pretty_midi, not librosa/soundfile.
+    # Skip the heavy dependency check for MIDI-only analysis.
+    file_path = params.get("file_path", "")
+    is_midi = os.path.splitext(file_path)[1].lower() in {".mid", ".midi"}
+
+    if not is_midi:
+        available, missing = check_dependencies()
+        if missing:
+            error = {
+                "success": False,
+                "error": f"Required libraries not installed: {', '.join(missing)}. "
+                         "Install with: uv pip install " + " ".join(missing),
+            }
+            print(json.dumps(error))
+            sys.exit(1)
 
     try:
         result = ACTIONS[args.action](params)

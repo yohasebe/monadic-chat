@@ -1,7 +1,7 @@
-app "MusicLabOpenAI" do
+app "MusicLabGrok" do
   description do
-    en "Music theory lab with audio/MIDI analysis, chord playback, and backing track generation (OpenAI)"
-    ja "音声/MIDI分析・コード再生・バッキングトラック生成が可能な音楽理論ラボ (OpenAI)"
+    en "Music theory lab with audio/MIDI analysis, chord playback, and backing track generation (Grok)"
+    ja "音声/MIDI分析・コード再生・バッキングトラック生成が可能な音楽理論ラボ (Grok)"
   end
 
   icon "music"
@@ -158,9 +158,8 @@ app "MusicLabOpenAI" do
   TEXT
 
   llm do
-    provider "openai"
-    model "gpt-5.2"
-    reasoning_effort "none"
+    provider "xai"
+    model "grok-3"
     temperature 0.5
     context_size 20
   end

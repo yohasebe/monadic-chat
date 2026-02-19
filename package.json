@@ -156,7 +156,8 @@
   },
   "overrides": {
     "semver": "^7.5.3",
-    "minimatch": "^9.0.3",
+    "minimatch": "^10.2.1",
+    "ajv": "^8.18.0",
     "js-yaml": "^4.1.1",
     "glob": "^10.5.0"
   }

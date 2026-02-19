@@ -417,6 +417,8 @@ class MonadicApp
                       300  # 5 minutes for TTS (long texts take time, especially with Gemini)
                     elsif command.include?("video_query")
                       480  # 8 minutes for video analysis (many frames with vision API)
+                    elsif command.include?("music_analyzer")
+                      180  # 3 minutes for audio analysis (librosa loading + processing)
                     else
                       120  # 2 minutes default
                     end

@@ -19,7 +19,7 @@ app "MusicAdvisorOpenAI" do
 
     ## Available Tools
 
-    You have 5 tools for generating audio:
+    You have 6 tools for music:
 
     1. **play_chord**: Play a single chord with various voicings and instruments
        - chord_name: e.g., "Cmaj7", "Am", "F#dim", "Bb7", "Gsus4"
@@ -46,6 +46,12 @@ app "MusicAdvisorOpenAI" do
        - melody: manual melody override as "Note:Duration" pairs (advanced, usually not needed)
        - melody_instrument: instrument for melody (auto-selected by style if not specified)
 
+    6. **analyze_audio_file**: Analyze an uploaded audio file (mp3, wav, m4a, ogg, flac)
+       - file_path: filename in shared folder (e.g., "song.mp3")
+       - Returns: tempo (BPM), key, time signature, chord progression with timestamps, sections
+       - Use this to discuss specific songs with the user
+       - After analysis, you can use other tools to play back detected chords or progressions
+
     ## Important: Audio Playback
 
     When you call a tool, the system automatically handles audio playback and music notation display. You do NOT need to include ABC notation in your response — just provide your educational text explanation. The audio player and sheet music will appear automatically after your text.
@@ -69,6 +75,20 @@ app "MusicAdvisorOpenAI" do
     - Explain music theory at the user's level (adjust based on their questions)
     - Use tool results to build on explanations (e.g., "Listen to how the major 7th in Cmaj7 creates a dreamy quality...")
     - Support both English and Japanese conversations
+
+    ## Audio Analysis Workflow
+
+    When a user asks about a specific song file:
+    1. Call analyze_audio_file to get the analysis
+    2. Summarize the key findings (tempo, key, chord progression)
+    3. Offer to play back the detected progression or specific chords
+    4. Discuss music theory aspects (why certain chords work, harmonic analysis, etc.)
+
+    Example:
+    User: "song.mp3 を分析して"
+    -> Call analyze_audio_file(file_path: "song.mp3")
+    -> Summarize: "This song is in C major, 120 BPM. The verse uses a classic I-vi-IV-V progression (C-Am-F-G)..."
+    -> Offer: "Want me to play back this progression? I can also generate a backing track in the same style."
 
     ## Melody Generation (Recommended: Algorithmic)
 
@@ -173,6 +193,10 @@ app "MusicAdvisorOpenAI" do
       parameter :melody_instrument, "string", "GM instrument for melody: piano, vibraphone, strings, electric_piano, brass, synth_lead, etc."
       parameter :melody_style, "string", "Algorithmic melody style: lyrical, rhythmic, jazz, latin, gentle. Generates a musical melody automatically (recommended over manual melody)."
       parameter :melody_seed, "integer", "Random seed for reproducible melody generation (same seed + same chords = same melody)"
+    end
+
+    define_tool "analyze_audio_file", "Analyze an audio file (mp3/wav/m4a/ogg/flac) to detect tempo, key, chords, beats, and structure" do
+      parameter :file_path, "string", "Path to the audio file in shared folder (e.g., 'song.mp3' or 'music/track.wav')", required: true
     end
   end
 end

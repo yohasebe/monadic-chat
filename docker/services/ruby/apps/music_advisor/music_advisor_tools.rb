@@ -53,6 +53,30 @@ module MusicAdvisorTools
     run_music_action("backing", params, session)
   end
 
+  def analyze_audio_file(file_path:, session: nil)
+    # Normalize path to /monadic/data/ (the shared folder inside the container)
+    container_path = if file_path.start_with?("/monadic/data")
+                       file_path
+                     else
+                       "/monadic/data/#{file_path}"
+                     end
+
+    params = { "file_path" => container_path }
+    json_params = JSON.generate(params)
+    cmd = "python3 /monadic/scripts/music/music_analyzer.py analyze --params #{Shellwords.escape(json_params)}"
+    stdout = send_command(command: cmd, container: "python")
+    result = parse_music_result(stdout)
+
+    if result.is_a?(Hash) && result["success"]
+      format_analysis_result(result)
+    else
+      error_msg = result.is_a?(Hash) ? result["error"] : "Unknown error"
+      "Error: #{error_msg}"
+    end
+  rescue => e
+    "Error: Audio analysis failed: #{e.message}"
+  end
+
   private
 
   def run_music_action(action, params, session)
@@ -80,6 +104,75 @@ module MusicAdvisorTools
     end
   rescue => e
     "Error: Music generation failed: #{e.message}"
+  end
+
+  def format_analysis_result(result)
+    file_name = result["file_name"] || "unknown"
+    duration = result["duration_seconds"] || 0
+    dur_min = (duration / 60).to_i
+    dur_sec = (duration % 60).to_i
+
+    tempo = result.dig("tempo", "bpm") || 0
+    key_name = result.dig("key", "key") || "Unknown"
+    key_mode = result.dig("key", "mode") || "unknown"
+    key_conf = result.dig("key", "confidence") || 0
+    beats_per_bar = result.dig("time_signature", "beats_per_bar") || 4
+    note_value = result.dig("time_signature", "note_value") || 4
+
+    lines = []
+    lines << "## Audio Analysis: #{file_name}"
+    lines << "- Duration: #{dur_min}:#{format('%02d', dur_sec)}"
+    lines << "- Tempo: #{tempo.round(1)} BPM"
+    lines << "- Key: #{key_name} #{key_mode} (confidence: #{(key_conf * 100).round}%)"
+    lines << "- Time Signature: #{beats_per_bar}/#{note_value}"
+
+    if result["truncated"]
+      orig = result["original_duration_seconds"] || 0
+      lines << "- Note: Only first 5 minutes analyzed (full duration: #{(orig / 60).round(1)} min)"
+    end
+
+    chords = result["chords"] || []
+    if chords.any?
+      chord_method = result["chord_method"] || "unknown"
+      lines << ""
+      lines << "## Chord Progression (method: #{chord_method}):"
+      # Show first 60 seconds of chords in detail, then summarize
+      detail_chords = chords.select { |c| c["time"].to_f < 60 }
+      detail_chords.each do |c|
+        time = c["time"].to_f
+        t_min = (time / 60).to_i
+        t_sec = (time % 60).to_i
+        lines << "#{t_min}:#{format('%02d', t_sec)} - #{c['chord']} (#{c['duration']}s)"
+      end
+      remaining = chords.length - detail_chords.length
+      if remaining > 0
+        unique_remaining = chords[detail_chords.length..].map { |c| c["chord"] }.uniq
+        lines << "... and #{remaining} more chord changes (#{unique_remaining.length} unique chords)"
+      end
+    end
+
+    sections = result["sections"] || []
+    if sections.any?
+      lines << ""
+      lines << "## Sections:"
+      sections.each do |s|
+        s_start = s["start"].to_f
+        s_end = s["end"].to_f
+        lines << "#{s['label'].capitalize}: #{format_time(s_start)} - #{format_time(s_end)}"
+      end
+    end
+
+    lines << ""
+    lines << "## Summary"
+    lines << result["description"] if result["description"]
+
+    lines.join("\n")
+  end
+
+  def format_time(seconds)
+    min = (seconds / 60).to_i
+    sec = (seconds % 60).to_i
+    "#{min}:#{format('%02d', sec)}"
   end
 
   def build_music_command(action, params)

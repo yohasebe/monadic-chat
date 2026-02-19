@@ -1245,28 +1245,7 @@ module MonadicDSL
     
     def model(value = nil)
       provider_name = @state.settings[:provider].to_s.downcase
-      provider_env_var = nil
-
-      # Determine the environment variable based on provider
-      if provider_name.include?("anthropic") || provider_name.include?("claude")
-        provider_env_var = "ANTHROPIC_DEFAULT_MODEL"
-      elsif provider_name.include?("openai") || provider_name.include?("gpt")
-        provider_env_var = "OPENAI_DEFAULT_MODEL"
-      elsif provider_name.include?("cohere") || provider_name.include?("command")
-        provider_env_var = "COHERE_DEFAULT_MODEL"
-      elsif provider_name.include?("gemini") || provider_name.include?("google")
-        provider_env_var = "GEMINI_DEFAULT_MODEL"
-      elsif provider_name.include?("mistral")
-        provider_env_var = "MISTRAL_DEFAULT_MODEL"
-      elsif provider_name.include?("grok") || provider_name.include?("xai")
-        provider_env_var = "GROK_DEFAULT_MODEL"
-      elsif provider_name.include?("perplexity")
-        provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
-      elsif provider_name.include?("deepseek")
-        provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
-      elsif provider_name.include?("ollama")
-        provider_env_var = "OLLAMA_DEFAULT_MODEL"
-      end
+      provider_env_var = ProviderConfig.new(provider_name).default_model_env
 
       # If a value is provided, it takes precedence over environment variables
       if value
@@ -1425,6 +1404,7 @@ module MonadicDSL
       "anthropic" => {
         helper_module: 'ClaudeHelper',
         api_key: 'ANTHROPIC_API_KEY',
+        default_model_env: 'ANTHROPIC_DEFAULT_MODEL',
         display_group: 'Anthropic',
         aliases: ['claude', 'anthropicclaude']
       },
@@ -1432,6 +1412,7 @@ module MonadicDSL
       "gemini" => {
         helper_module: 'GeminiHelper',
         api_key: 'GEMINI_API_KEY',
+        default_model_env: 'GEMINI_DEFAULT_MODEL',
         display_group: 'Google',
         aliases: ['google', 'googlegemini']
       },
@@ -1439,13 +1420,15 @@ module MonadicDSL
       "cohere" => {
         helper_module: 'CohereHelper',
         api_key: 'COHERE_API_KEY',
+        default_model_env: 'COHERE_DEFAULT_MODEL',
         display_group: 'Cohere',
-        aliases: ['commandr', 'coherecommandr']
+        aliases: ['command', 'commandr', 'coherecommandr']
       },
       # Mistral
       "mistral" => {
         helper_module: 'MistralHelper',
         api_key: 'MISTRAL_API_KEY',
+        default_model_env: 'MISTRAL_DEFAULT_MODEL',
         display_group: 'Mistral',
         aliases: ['mistralai']
       },
@@ -1453,6 +1436,7 @@ module MonadicDSL
       "deepseek" => {
         helper_module: 'DeepSeekHelper',
         api_key: 'DEEPSEEK_API_KEY',
+        default_model_env: 'DEEPSEEK_DEFAULT_MODEL',
         display_group: 'DeepSeek',
         aliases: ['deep seek']
       },
@@ -1460,6 +1444,7 @@ module MonadicDSL
       "perplexity" => {
         helper_module: 'PerplexityHelper',
         api_key: 'PERPLEXITY_API_KEY',
+        default_model_env: 'PERPLEXITY_DEFAULT_MODEL',
         display_group: 'Perplexity',
         aliases: []
       },
@@ -1467,6 +1452,7 @@ module MonadicDSL
       "xai" => {
         helper_module: 'GrokHelper',
         api_key: 'XAI_API_KEY',
+        default_model_env: 'GROK_DEFAULT_MODEL',
         display_group: 'xAI',
         aliases: ['grok', 'xaigrok']
       },
@@ -1474,13 +1460,15 @@ module MonadicDSL
       "openai" => {
         helper_module: 'OpenAIHelper',
         api_key: 'OPENAI_API_KEY',
+        default_model_env: 'OPENAI_DEFAULT_MODEL',
         display_group: 'OpenAI',
-        aliases: []
+        aliases: ['gpt']
       },
       # Ollama (local)
       "ollama" => {
         helper_module: 'OllamaHelper',
         api_key: nil,  # Ollama doesn't need an API key
+        default_model_env: 'OLLAMA_DEFAULT_MODEL',
         display_group: 'Ollama',
         aliases: ['local', 'ollama-local']
       }
@@ -1510,6 +1498,11 @@ module MonadicDSL
     # Get standard provider key
     def standard_key
       @config[:standard_key] || @provider_name
+    end
+
+    # Get default model environment variable name (e.g., "ANTHROPIC_DEFAULT_MODEL")
+    def default_model_env
+      @config[:default_model_env]
     end
     
     # Get model list using the appropriate helper
@@ -1581,27 +1574,7 @@ module MonadicDSL
     
     # Get appropriate environment variable name based on provider
     provider_name = state.settings[:provider].to_s.downcase
-    provider_env_var = nil
-    
-    if provider_name.include?("anthropic") || provider_name.include?("claude")
-      provider_env_var = "ANTHROPIC_DEFAULT_MODEL"
-    elsif provider_name.include?("openai") || provider_name.include?("gpt")
-      provider_env_var = "OPENAI_DEFAULT_MODEL"
-    elsif provider_name.include?("cohere") || provider_name.include?("command")
-      provider_env_var = "COHERE_DEFAULT_MODEL"
-    elsif provider_name.include?("gemini") || provider_name.include?("google")
-      provider_env_var = "GEMINI_DEFAULT_MODEL"
-    elsif provider_name.include?("mistral")
-      provider_env_var = "MISTRAL_DEFAULT_MODEL"
-    elsif provider_name.include?("grok") || provider_name.include?("xai")
-      provider_env_var = "GROK_DEFAULT_MODEL"
-    elsif provider_name.include?("perplexity")
-      provider_env_var = "PERPLEXITY_DEFAULT_MODEL"
-    elsif provider_name.include?("deepseek")
-      provider_env_var = "DEEPSEEK_DEFAULT_MODEL"
-    elsif provider_name.include?("ollama")
-      provider_env_var = "OLLAMA_DEFAULT_MODEL"
-    end
+    provider_env_var = provider_config.default_model_env
 
     # Determine model value for class definition
     model_value = if state.settings[:model]

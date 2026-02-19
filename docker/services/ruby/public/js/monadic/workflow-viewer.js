@@ -342,11 +342,11 @@ const WorkflowViewer = (function () {
         var arrow = (names.length > 0) ? (isExp ? '\u25be ' : '\u25b8 ') : '';
         var gLock = (g.visibility === 'conditional') ? '\uD83D\uDD12 ' : '';
         toolBody.push(arrow + gLock + titleCase(g.name.replace(/_/g, ' ')) + ' (' + names.length + ')');
-        if (isExp) names.forEach(function (n) { toolBody.push('\u00a0\u00a0\u00a0\u00a0' + titleCase(n.replace(/_/g, ' '))); });
+        if (isExp) names.forEach(function (n) { toolBody.push('\u00a0\u00a0\u00a0\u00a0<span data-tool="' + escHtml(n) + '">' + titleCase(n.replace(/_/g, ' ')) + '</span>'); });
       });
       inlineTools.forEach(function (t) {
         var tLock = (t.visibility === 'conditional') ? '\uD83D\uDD12 ' : '';
-        toolBody.push(tLock + titleCase(t.name.replace(/_/g, ' ')));
+        toolBody.push(tLock + '<span data-tool="' + escHtml(t.name) + '">' + titleCase(t.name.replace(/_/g, ' ')) + '</span>');
       });
 
       var toolId = nid();
@@ -1206,6 +1206,16 @@ const WorkflowViewer = (function () {
       var countStr = callCount ? ' (' + callCount + ')' : '';
       headingEl.innerHTML = 'Tools <span style="font-weight:normal;opacity:0.7">\u2014 ' + escHtml(displayName) + countStr + '</span>';
     }
+    var allToolSpans = state.shape.node.querySelectorAll('[data-tool]');
+    allToolSpans.forEach(function (span) {
+      if (span.getAttribute('data-tool') === toolName) {
+        span.style.fontWeight = 'bold';
+        span.style.color = colours().toolBdr;
+      } else {
+        span.style.fontWeight = '';
+        span.style.color = '';
+      }
+    });
   }
 
   function resetToolHeading() {
@@ -1215,6 +1225,11 @@ const WorkflowViewer = (function () {
     if (!state || !state.shape || !state.shape.node) return;
     var headingEl = state.shape.node.querySelector('b');
     if (headingEl) headingEl.textContent = 'Tools';
+    var allToolSpans = state.shape.node.querySelectorAll('[data-tool]');
+    allToolSpans.forEach(function (span) {
+      span.style.fontWeight = '';
+      span.style.color = '';
+    });
   }
 
   // ── Public API ─────────────────────────────────────────────
@@ -1338,6 +1353,14 @@ const WorkflowViewer = (function () {
           if (data.error) throw new Error(data.error);
           currentData = data;
           updateTitle(data.display_name || data.app_name || name);
+          if (!expandedGroups[currentApp]) {
+            expandedGroups[currentApp] = new Set();
+            (data.shared_tool_groups || []).forEach(function (g) {
+              if ((g.tool_names || []).length > 0) {
+                expandedGroups[currentApp].add('tg:' + g.name);
+              }
+            });
+          }
           container.innerHTML = '';
           createGraph();
           renderGraph(buildGraphData(data, getExpanded()));

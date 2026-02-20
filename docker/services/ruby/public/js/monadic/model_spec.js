@@ -753,6 +753,47 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true
   },
+  "gemini-3.1-pro-preview": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "reasoning_effort": [["low", "high"], "low"],
+    "supports_thinking": true,
+    "supports_thinking_level": true,
+    "thinking_level": [["low", "high"], "low"],
+    "thinking_budget": {
+      "min": 1024,
+      "max": 32768,
+      "can_disable": false,
+      "presets": {
+        "low": 8000,
+        "high": 20000
+      }
+    },
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  "gemini-3.1-pro-preview-customtools": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
   "gemini-2.5-flash-lite": {
     "context_window" : [1048576],
     "max_output_tokens" : [1, 65536],

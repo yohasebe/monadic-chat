@@ -23,10 +23,14 @@ end
 #
 # GEMINI MODEL VERSIONS:
 #
+# Gemini 3.1 (gemini-3.1-pro-preview, gemini-3.1-pro-preview-customtools):
+#   - Latest model optimized for software engineering and tool usage
+#   - customtools variant prioritizes custom tools over built-in tools
+#
 # Gemini 3 (gemini-3-flash-preview, gemini-3-pro-preview):
 #   - Full support for monadic mode + function calling simultaneously
 #   - No special workarounds required
-#   - Default model for all Gemini apps
+#   - Default flash model for general Gemini apps
 #
 # Gemini 2.5 (gemini-2.5-flash, gemini-2.5-pro) - Legacy Support:
 #   - Has limitation: cannot support function calling and structured JSON output simultaneously

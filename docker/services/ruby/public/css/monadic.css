@@ -5072,8 +5072,8 @@ i.fas.fa-bolt,
   }
   
   .navbar-container {
-    padding-bottom: 20px;
-    margin-bottom: -20px;
+    padding: 0;
+    margin: 0;
   }
 
   #toggle-menu {
@@ -5114,15 +5114,8 @@ i.fas.fa-bolt,
   }
 
   #main-nav .navbar-brand {
-    height: 65px;
+    height: auto;
     padding: 0;
-  }
-
-  #main-nav .navbar-brand > div:first-child {
-    margin: 0;
-    display: flex;
-    align-items: center;
-    height: 100%;
   }
 
   #main-nav .navbar-brand img {

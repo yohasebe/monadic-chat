@@ -159,7 +159,8 @@ app "MusicLabGemini" do
 
   llm do
     provider "gemini"
-    model ["gemini-3.1-pro-preview-customtools", "gemini-3-flash-preview", "gemini-2.5-flash"]
+    model ["gemini-3.1-pro-preview", "gemini-3.1-pro-preview-customtools", "gemini-3-flash-preview"]
+    reasoning_effort "none"
     temperature 0.5
     context_size 20
   end

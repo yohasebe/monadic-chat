@@ -656,7 +656,10 @@ def action_progression(params):
             abc_bars.append(bar_content)
 
     progression_str = " - ".join(chords)
-    title = f"Progression: {progression_str}"
+    if len(progression_str) > 40:
+        title = f"Progression ({len(chords)} chords, {tempo}bpm)"
+    else:
+        title = f"Progression: {progression_str}"
     header = f"X:1\nT:{title}\nM:4/4\nL:1/8\nQ:1/4={tempo}\nK:{abc_key} clef=treble\n%%MIDI program {gm_prog}"
     abc = header + "\n" + _format_bars(abc_bars)
 
@@ -972,10 +975,14 @@ def action_backing(params):
     # This is more reliable for ABCJS multi-voice rendering than block layout.
     lines = []
     lines.append("X:1")
-    if has_melody:
-        title = f"Backing: {progression_str} ({style}) + melody"
+    if len(progression_str) > 40:
+        short_prog = f"{len(chords)} chords"
     else:
-        title = f"Backing Track: {progression_str} ({style})"
+        short_prog = progression_str
+    if has_melody:
+        title = f"Backing: {short_prog} ({style}) + melody"
+    else:
+        title = f"Backing Track: {short_prog} ({style})"
     lines.append(f"T:{title}")
     lines.append("M:4/4")
     lines.append("L:1/8")

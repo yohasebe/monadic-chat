@@ -4,7 +4,7 @@ process.env.ELECTRON_NO_ATTACH_CONSOLE = '1';
 process.env.ELECTRON_ENABLE_LOGGING = '0';
 process.env.ELECTRON_DEBUG_EXCEPTION_LOGGING = '0';
 
-const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, powerMonitor } = require('electron');
+const { app, dialog, shell, Menu, Tray, BrowserWindow, ipcMain, nativeTheme, nativeImage, powerMonitor } = require('electron');
 const { autoUpdater } = require('electron-updater');
 // electron-context-menu is ESM-only; loaded dynamically in app.whenReady()
 let extendedContextMenu = null;
@@ -1487,7 +1487,13 @@ function initializeApp() {
     // Set up Docker status polling
     setInterval(updateDockerStatus, 5000);
 
-    tray = new Tray(path.join(iconDir, 'Stopped.png'));
+    if (process.platform === 'darwin') {
+      const stoppedImg = nativeImage.createFromPath(path.join(iconDir, 'StoppedTemplate.png'));
+      stoppedImg.setTemplateImage(true);
+      tray = new Tray(stoppedImg);
+    } else {
+      tray = new Tray(path.join(iconDir, 'Stopped.png'));
+    }
     tray.setToolTip('Monadic Chat');
     tray.setContextMenu(contextMenu);
 
@@ -1929,18 +1935,21 @@ function updateStatus() {
 // Update the tray image based on the current status
 function updateTrayImage(status) {
   if (tray) {
-    // Map status to appropriate icon filenames
     let iconFile = status;
-    
-    // Special handling for Ready status to use Running icon
     if (status === 'Ready') {
       iconFile = 'Running';
     }
-    
-    
-    // Try to use the mapped icon file, fallback to Building.png if there's an error
     try {
-      tray.setImage(path.join(iconDir, `${iconFile}.png`));
+      if (process.platform === 'darwin') {
+        let image = nativeImage.createFromPath(path.join(iconDir, `${iconFile}Template.png`));
+        if (image.isEmpty()) {
+          image = nativeImage.createFromPath(path.join(iconDir, 'BuildingTemplate.png'));
+        }
+        image.setTemplateImage(true);
+        tray.setImage(image);
+      } else {
+        tray.setImage(path.join(iconDir, `${iconFile}.png`));
+      }
     } catch (error) {
       console.error(`Error loading tray icon for status ${status}:`, error);
       tray.setImage(path.join(iconDir, 'Building.png'));

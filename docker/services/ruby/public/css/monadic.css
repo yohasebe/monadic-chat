@@ -1501,6 +1501,14 @@ div.diagram {
   margin: 20px 0;
 }
 
+.abc-svg {
+  max-width: 760px;
+}
+
+.abc-svg svg {
+  display: block;
+}
+
 .abc-svg .highlight {
   fill: #0a9ecc;
 }
@@ -1523,7 +1531,8 @@ div.diagram {
 }
 
 .abc-midi {
-  margin: 8px 0 12px;
+  max-width: 760px;
+  margin: 2px 0 12px;
 }
 
 /* Override ABCJS player controls — force compact size regardless of .abcjs-large */

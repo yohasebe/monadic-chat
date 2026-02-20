@@ -356,10 +356,6 @@
       var midiDiv = document.createElement('div');
       midiDiv.id = abcMidi;
       midiDiv.className = 'abc-midi';
-      var spacerDiv = document.createElement('div');
-      spacerDiv.innerHTML = '&nbsp;';
-
-      abcElement.after(spacerDiv);
       abcElement.after(midiDiv);
       abcElement.after(svgDiv);
 
@@ -370,10 +366,10 @@
         soundfont: "https://paulrosen.github.io/midi-js-soundfonts/FluidR3_GM/",
         scale: 0.65,
         staffwidth: 740,
-        paddingtop: 10,
-        paddingbottom: 10,
+        paddingtop: 6,
+        paddingbottom: 2,
         format: {
-          titlefont: '"itim-music,Itim" 14',
+          titlefont: '"itim-music,Itim" 11',
           gchordfont: '"itim-music,Itim" 9',
           vocalfont: '"itim-music,Itim" 9',
           annotationfont: '"itim-music,Itim" 9',
@@ -400,6 +396,36 @@
         console.error('[applyAbc] ABCJS.renderAbc returned empty result for:', abcText.substring(0, 100));
       }
       var visualObj = renderResult ? renderResult[0] : null;
+
+      // Trim excess bottom whitespace from the viewBox set by ABCJS responsive mode.
+      // ABCJS responsive:"resize" creates a viewBox that is often taller than the
+      // actual notation content, producing a visible gap before the MIDI player.
+      // We measure the real content bounds via child <g> getBBox() and shrink the
+      // viewBox height accordingly.
+      var svgEl = svgDiv.querySelector('svg');
+      if (svgEl) {
+        var vb = svgEl.getAttribute('viewBox');
+        if (vb) {
+          var parts = vb.split(/[\s,]+/).map(Number);
+          if (parts.length === 4) {
+            var maxBottom = 0;
+            var children = svgEl.children;
+            for (var ci = 0; ci < children.length; ci++) {
+              if (children[ci].tagName === 'g') {
+                try {
+                  var gb = children[ci].getBBox();
+                  var bottom = gb.y + gb.height;
+                  if (bottom > maxBottom) maxBottom = bottom;
+                } catch(e) { /* getBBox may fail on hidden elements */ }
+              }
+            }
+            // Only trim if we found content and it's meaningfully shorter than viewBox
+            if (maxBottom > 0 && maxBottom + 8 < parts[3]) {
+              svgEl.setAttribute('viewBox', parts[0] + ' ' + parts[1] + ' ' + parts[2] + ' ' + (maxBottom + 8));
+            }
+          }
+        }
+      }
 
       // Always set up ABCJS MIDI synth for playback
       if (visualObj && ABCJS.synth.supportsAudio()) {

@@ -338,6 +338,16 @@ module Monadic
           icon: "fa-image",
           label: "image input",
           description: "Image upload and processing capability"
+        },
+        abc: {
+          icon: "fa-music",
+          label: "music",
+          description: "ABC music notation and playback"
+        },
+        audio_upload: {
+          icon: "fa-microphone",
+          label: "audio input",
+          description: "Audio file upload and analysis"
         }
       }.freeze
     end

@@ -344,5 +344,8 @@ app "CodeInterpreterGemini" do
 
     # Import parallel Python execution tools
     import_shared_tools :parallel_python_execution, visibility: "always"
+
+    # Import image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
   end
 end

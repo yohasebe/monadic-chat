@@ -113,6 +113,9 @@ app "SpeechDraftHelperOpenAI" do
     # Import shared content analysis tools (conditional - requires OpenAI API key)
     import_shared_tools :content_analysis_openai, visibility: "conditional"
 
+    # Import shared image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
+
     define_tool "fetch_text_from_file", "Fetch text content from a file" do
       parameter :file, "string", "The filename to read", required: true
     end

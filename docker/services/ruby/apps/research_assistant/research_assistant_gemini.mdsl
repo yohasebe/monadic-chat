@@ -147,6 +147,9 @@ app "ResearchAssistantGemini" do
     # Import web automation for Selenium-based page content extraction
     import_shared_tools :web_automation, visibility: "conditional"
 
+    # Import image analysis tools (conditional - requires any vision provider API key)
+    import_shared_tools :image_analysis, visibility: "conditional"
+
     # Research progress management tools
     define_tool "load_research_progress", "Load current research progress (topics, findings, sources) from session state" do
       parameter :session, "object", "Session object (automatically provided)", required: false

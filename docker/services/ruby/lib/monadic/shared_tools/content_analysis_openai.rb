@@ -37,27 +37,6 @@ module Monadic
         {
           type: "function",
           function: {
-            name: "analyze_image",
-            description: "Analyze and describe the contents of an image file using OpenAI's vision capabilities",
-            parameters: {
-              type: "object",
-              properties: {
-                message: {
-                  type: "string",
-                  description: "Question or instruction about the image"
-                },
-                image_path: {
-                  type: "string",
-                  description: "The filename of the image to analyze"
-                }
-              },
-              required: ["message", "image_path"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
             name: "analyze_audio",
             description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
             parameters: {

@@ -37,6 +37,7 @@ require_relative "./app_extensions"
 class MonadicApp
   include MonadicAgent
   include MonadicHelper
+  include ImageAnalysisAgent
   include StringUtils
   include MonadicChat::AppExtensions
 

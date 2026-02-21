@@ -549,8 +549,29 @@ module MonadicSharedTools
             ]
           },
           {
+            name: "analyze_audio",
+            description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
+            parameters: [
+              {
+                name: :audio,
+                type: "string",
+                description: "The filename of the audio to analyze",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: "Call request_tool(\"content_analysis_openai\") when you need to analyze video or audio content using OpenAI's multimodal capabilities.",
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
+      },
+
+      image_analysis: {
+        module_name: 'MonadicSharedTools::ImageAnalysis',
+        tools: [
+          {
             name: "analyze_image",
-            description: "Analyze and describe the contents of an image file using OpenAI's vision capabilities",
+            description: "Analyze and describe the contents of an image file using vision capabilities",
             parameters: [
               {
                 name: :message,
@@ -565,23 +586,11 @@ module MonadicSharedTools
                 required: true
               }
             ]
-          },
-          {
-            name: "analyze_audio",
-            description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
-            parameters: [
-              {
-                name: :audio,
-                type: "string",
-                description: "The filename of the audio to analyze",
-                required: true
-              }
-            ]
           }
         ],
-        default_hint: "Call request_tool(\"content_analysis_openai\") when you need to analyze video, image, or audio content using OpenAI's multimodal capabilities.",
+        default_hint: 'Call request_tool("image_analysis") when you need to analyze image content.',
         visibility: 'conditional',
-        available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
+        available_when: -> { MonadicSharedTools::ImageAnalysis.available? }
       },
 
       session_context: {

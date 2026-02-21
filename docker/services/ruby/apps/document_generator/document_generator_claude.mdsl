@@ -99,7 +99,7 @@ app "DocumentGeneratorClaude" do
     disabled !CONFIG["ANTHROPIC_API_KEY"]
     easy_submit false
     auto_speech false
-    websearch false
+    websearch true
     group "Anthropic"
     skills ["xlsx", "pptx", "docx", "pdf"]
   end

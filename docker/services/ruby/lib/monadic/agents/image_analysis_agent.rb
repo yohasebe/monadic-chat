@@ -66,7 +66,7 @@ module ImageAnalysisAgent
   private
 
   def prepare_image_for_analysis(image_path)
-    return "ERROR: Invalid file path (path traversal not allowed)" if image_path.to_s.include?("..")
+    return "ERROR: Invalid file path (path traversal not allowed)" if image_path.to_s.match?(%r{(?:\A|/)\.\.(?:/|\z)})
 
     # Resolve path — check absolute, then shared volume locations
     path = if File.exist?(image_path)

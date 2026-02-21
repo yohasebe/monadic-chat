@@ -143,14 +143,6 @@ Extracts structured JSON context from conversations. Uses direct HTTP calls (not
 
 Generates simulated user responses for testing and demo purposes. Multi-provider with app lookup.
 
-### CommandOutputAgent (MonadicAgent)
-
-**File**: `agents/command_output_agent.rb`
-**Module**: `MonadicAgent`
-**Public method**: `command_output_agent(prompt, content)`
-
-Parses command output into structured JSON. Currently hardcodes `gpt-4.1`.
-
 ---
 
 ## Design Patterns
@@ -285,7 +277,6 @@ end
 
 ```ruby
 class MonadicApp
-  include MonadicAgent
   include MonadicHelper
   include ImageAnalysisAgent
   include AudioTranscriptionAgent
@@ -359,7 +350,6 @@ end
 | ImageAnalysisAgent | Top-level | Yes | 4 (OpenAI, Claude, Gemini, Grok) | `image_analysis_agent` | `:image_analysis` |
 | AudioTranscriptionAgent | Top-level | Yes | 2 (OpenAI, Gemini) | `audio_transcription_agent` | `:audio_transcription` |
 | VideoAnalyzeAgent | Top-level | Yes | 4 (via ImageAnalysisAgent) | `analyze_video` | `:video_analysis` |
-| CommandOutputAgent | Top-level (`MonadicAgent`) | Yes | 1 (OpenAI) | `command_output_agent` | — |
 | OpenAICodeAgent | `Monadic::Agents::` | No | 1 (OpenAI) | `call_openai_code` | — |
 | GrokCodeAgent | `Monadic::Agents::` | No | 1 (xAI) | `call_grok_code` | — |
 | ClaudeCodeAgent | `Monadic::Agents::` | No | 1 (Claude) | `call_claude_code` | — |
@@ -376,7 +366,6 @@ spec/unit/agents/
 ├── ai_user_agent_spec.rb
 ├── audio_transcription_agent_spec.rb
 ├── claude_code_agent_spec.rb
-├── command_output_agent_spec.rb
 ├── context_extractor_agent_spec.rb
 ├── grok_code_agent_spec.rb
 ├── image_analysis_agent_spec.rb

@@ -156,28 +156,54 @@
         "visual_web_explorer"
       ]
     },
-    "content_analysis_openai": {
-      "module": "MonadicSharedTools::ContentAnalysisOpenAI",
+    "image_analysis": {
+      "module": "MonadicSharedTools::ImageAnalysis",
       "visibility": "conditional",
-      "description": "Analyze video, image, and audio content using OpenAI's multimodal capabilities",
+      "description": "Analyze image content using provider-independent vision capabilities (OpenAI, Claude, Gemini, Grok)",
       "tools": [
         {
-          "name": "analyze_video",
-          "description": "Analyze video content and generate description"
-        },
-        {
           "name": "analyze_image",
-          "description": "Analyze and describe image contents using OpenAI vision"
-        },
+          "description": "Analyze and describe image contents using vision capabilities"
+        }
+      ],
+      "used_by_apps": 16,
+      "apps": [
+        "content_reader",
+        "speech_draft_helper",
+        "code_interpreter (7 providers)",
+        "research_assistant (7 providers)",
+        "coding_assistant (1 provider)"
+      ]
+    },
+    "audio_transcription": {
+      "module": "MonadicSharedTools::AudioTranscription",
+      "visibility": "conditional",
+      "description": "Transcribe audio content using provider-independent STT capabilities (OpenAI, Gemini)",
+      "tools": [
         {
           "name": "analyze_audio",
-          "description": "Analyze and transcribe audio using OpenAI's Whisper"
+          "description": "Transcribe audio files"
         }
       ],
       "used_by_apps": 3,
       "apps": [
         "content_reader",
         "speech_draft_helper",
+        "video_describer"
+      ]
+    },
+    "video_analysis": {
+      "module": "MonadicSharedTools::VideoAnalysis",
+      "visibility": "conditional",
+      "description": "Analyze video content using provider-independent vision and audio transcription",
+      "tools": [
+        {
+          "name": "analyze_video",
+          "description": "Analyze video and generate description (multi-frame vision + audio transcription)"
+        }
+      ],
+      "used_by_apps": 1,
+      "apps": [
         "video_describer"
       ]
     },
@@ -353,7 +379,9 @@
       "web_search_tools": 4,
       "python_execution": 3,
       "file_reading": 3,
-      "content_analysis_openai": 3,
+      "image_analysis": 16,
+      "audio_transcription": 3,
+      "video_analysis": 1,
       "web_automation": 2,
       "jupyter_operations": 1,
       "app_creation": 0
@@ -374,8 +402,8 @@
       },
       {
         "app": "content_reader",
-        "imports": 3,
-        "groups": ["file_operations", "web_search_tools", "content_analysis_openai"]
+        "imports": 5,
+        "groups": ["file_operations", "web_search_tools", "image_analysis", "audio_transcription", "planning"]
       }
     ],
     "visibility_distribution": {

@@ -82,17 +82,39 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### 6. content_analysis_openai
-**Module:** `MonadicSharedTools::ContentAnalysisOpenAI`
-**Default Visibility:** Conditional (available when OpenAI API is configured)
-**Description:** Analyze video, image, and audio content using OpenAI's multimodal capabilities
+### 6. image_analysis
+**Module:** `MonadicSharedTools::ImageAnalysis`
+**Default Visibility:** Conditional (available when any vision provider API key is configured)
+**Description:** Analyze image content using provider-independent vision capabilities (OpenAI, Claude, Gemini, Grok)
 
 **Tools:**
-- `analyze_video` - Analyze video and generate description (image recognition + audio transcription)
-- `analyze_image` - Analyze and describe image contents using OpenAI vision
-- `analyze_audio` - Analyze and transcribe audio using OpenAI's Whisper
+- `analyze_image` - Analyze and describe image contents using vision capabilities
 
-**Default PTD Hint:** "Call request_tool(\"content_analysis_openai\") when you need to analyze video, image, or audio content using OpenAI's multimodal capabilities."
+**Default PTD Hint:** "Call request_tool(\"image_analysis\") when you need to analyze image content."
+
+---
+
+### 7. audio_transcription
+**Module:** `MonadicSharedTools::AudioTranscription`
+**Default Visibility:** Conditional (available when OpenAI or Gemini API key is configured)
+**Description:** Transcribe audio content using provider-independent STT capabilities (OpenAI, Gemini)
+
+**Tools:**
+- `analyze_audio` - Transcribe audio files
+
+**Default PTD Hint:** "Call request_tool(\"audio_transcription\") when you need to transcribe audio content."
+
+---
+
+### 8. video_analysis
+**Module:** `MonadicSharedTools::VideoAnalysis`
+**Default Visibility:** Conditional (available when any vision provider API key is configured)
+**Description:** Analyze video content using provider-independent vision and audio transcription
+
+**Tools:**
+- `analyze_video` - Analyze video and generate description (multi-frame vision + audio transcription)
+
+**Default PTD Hint:** "Call request_tool(\"video_analysis\") when you need to analyze video content."
 
 ---
 
@@ -277,7 +299,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:content_analysis_openai [conditional]`<br/>`:planning [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:web_search_tools [conditional]`<br/>`:image_analysis [conditional]`<br/>`:audio_transcription [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `fetch_text_from_pdf` - Extract text from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `fetch_text_from_file` - Read text from file |
 
 ---
@@ -414,7 +436,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:file_operations [always]`<br/>`:content_analysis_openai [conditional]`<br/>`:planning [always]` |
+| **Imported Tools** | `:file_operations [always]`<br/>`:image_analysis [conditional]`<br/>`:audio_transcription [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `fetch_text_from_file` - Fetch text from file<br/>• `fetch_text_from_pdf` - Extract from PDF<br/>• `fetch_text_from_office` - Extract from Office files<br/>• `list_providers_and_voices` - List TTS providers and voices<br/>• `text_to_speech` - Convert text to speech MP3 |
 
 ---
@@ -441,7 +463,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 | Field | Details |
 |-------|---------|
-| **Imported Tools** | `:content_analysis_openai [conditional]`<br/>`:planning [always]` |
+| **Imported Tools** | `:video_analysis [always]`<br/>`:audio_transcription [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
 
 ---
@@ -502,7 +524,9 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | `:python_execution` | Code Interpreter, Jupyter Notebook, Math Tutor | 3 |
 | `:file_reading` | Code Interpreter, Jupyter Notebook, Math Tutor | 3 |
 | `:jupyter_operations` | Jupyter Notebook | 1 |
-| `:content_analysis_openai` | Content Reader, Speech Draft Helper, Video Describer | 3 |
+| `:image_analysis` | Content Reader, Speech Draft Helper, Code Interpreter, Research Assistant, Coding Assistant (16 apps) | 16 |
+| `:audio_transcription` | Content Reader, Speech Draft Helper, Video Describer | 3 |
+| `:video_analysis` | Video Describer | 1 |
 | `:web_automation` | Auto Forge, Visual Web Explorer | 2 |
 | `:planning` | All tool-enabled apps | 22 |
 | `:verification` | Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, Chord Accompanist | 15 |
@@ -512,12 +536,12 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Visibility | Tool Groups | Count |
 |------------|------------|-------|
 | **Always** | file_operations, python_execution, file_reading, jupyter_operations, app_creation, planning, verification | 7 |
-| **Conditional** | web_search_tools, web_automation, content_analysis_openai | 3 |
+| **Conditional** | web_search_tools, web_automation, image_analysis, audio_transcription, video_analysis | 5 |
 
 ### Apps with Most Tool Imports
 
 1. **Jupyter Notebook** - 5 shared tool groups (jupyter_operations, python_execution, file_operations, file_reading, planning)
-2. **Content Reader** - 4 shared tool groups (file_operations, web_search_tools, content_analysis_openai, planning)
+2. **Content Reader** - 5 shared tool groups (file_operations, web_search_tools, image_analysis, audio_transcription, planning)
 3. **Research Assistant** - 3 shared tool groups (file_operations, web_search_tools, planning)
 
 ### Provider-Specific Custom Tools
@@ -573,7 +597,9 @@ Located in `/docker/services/ruby/lib/monadic/shared_tools/`:
 - `file_reading.rb` - File parsing (PDF, Office, text)
 - `web_search_tools.rb` - Web search integration
 - `web_automation.rb` - Selenium-based web interaction
-- `content_analysis_openai.rb` - Multimodal content analysis
+- `image_analysis.rb` - Provider-independent image analysis
+- `audio_transcription.rb` - Provider-independent audio transcription
+- `video_analysis.rb` - Provider-independent video analysis
 - `jupyter_operations.rb` - Notebook management
 - `app_creation.rb` - App introspection and creation
 - `planning.rb` - Plan-Approve-Execute pattern

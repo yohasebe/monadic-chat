@@ -205,9 +205,17 @@ end
    - Screenshot capture, web scraping
    - Used by: Visual Web Explorer, AutoForge
 
-2. **`video_analysis_openai`** (1 tool)
-   - Requires: OpenAI API key
-   - Video content analysis
+2. **`image_analysis`** (1 tool)
+   - Requires: Any vision provider API key (OpenAI, Anthropic, Gemini, or xAI)
+   - Provider-independent image analysis
+
+3. **`audio_transcription`** (1 tool)
+   - Requires: OpenAI or Gemini API key
+   - Provider-independent audio transcription
+
+4. **`video_analysis`** (1 tool)
+   - Requires: Any vision provider API key
+   - Provider-independent video analysis (multi-frame vision + audio)
 
 ## Benefits
 

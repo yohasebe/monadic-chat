@@ -86,27 +86,218 @@ module MonadicSharedTools
           }
         }
       },
+    ].freeze
+
+    INTERACTIVE_TOOLS = [
       {
         type: "function",
         function: {
-          name: "capture_webpage_text",
-          description: "Extract text content from a web page by capturing screenshots and using image recognition to read them. Works reliably with modern JavaScript-heavy sites, SPAs, and dynamically rendered content.",
+          name: "start_browser",
+          description: "Start an interactive browser session (non-headless) and navigate to a URL. The browser is visible via noVNC at http://localhost:7900 so users can watch in real time.",
           parameters: {
             type: "object",
             properties: {
               url: {
                 type: "string",
-                description: "The URL of the web page to extract text from"
+                description: "The URL to open in the browser"
               }
             },
             required: ["url"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_navigate",
+          description: "Navigate the interactive browser to a new URL within the existing session.",
+          parameters: {
+            type: "object",
+            properties: {
+              url: {
+                type: "string",
+                description: "The URL to navigate to"
+              }
+            },
+            required: ["url"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_click",
+          description: "Click an element on the page identified by a CSS selector.",
+          parameters: {
+            type: "object",
+            properties: {
+              selector: {
+                type: "string",
+                description: "CSS selector of the element to click (e.g., '#submit-btn', '.nav-link', 'button:nth-of-type(2)')"
+              },
+              description: {
+                type: "string",
+                description: "Brief description of what is being clicked (for user context)"
+              }
+            },
+            required: ["selector"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_type",
+          description: "Type text into an input field identified by a CSS selector.",
+          parameters: {
+            type: "object",
+            properties: {
+              selector: {
+                type: "string",
+                description: "CSS selector of the input element"
+              },
+              text: {
+                type: "string",
+                description: "Text to type into the element"
+              }
+            },
+            required: ["selector", "text"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_screenshot",
+          description: "Take a screenshot of the current browser page.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_get_page_info",
+          description: "Get the current page title, URL, and a list of interactive elements (links, buttons, inputs) with their CSS selectors.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_scroll",
+          description: "Scroll the browser page. Supports relative scrolling (up/down by pixel amount) and absolute scrolling (top/bottom to jump to page extremes).",
+          parameters: {
+            type: "object",
+            properties: {
+              direction: {
+                type: "string",
+                enum: ["up", "down", "top", "bottom"],
+                description: "Scroll direction: 'up'/'down' for relative scrolling, 'top'/'bottom' to jump to page extremes (default: down)"
+              },
+              amount: {
+                type: "integer",
+                description: "Scroll amount in pixels for up/down directions (default: 500, ignored for top/bottom)"
+              }
+            },
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_press_key",
+          description: "Send a key press to the browser. Optionally focus an element first by CSS selector. Useful for submitting forms (Enter), closing dialogs (Escape), tab navigation (Tab), and menu navigation (Arrow keys).",
+          parameters: {
+            type: "object",
+            properties: {
+              key: {
+                type: "string",
+                enum: ["Enter", "Escape", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Backspace", "Space"],
+                description: "The key to press"
+              },
+              selector: {
+                type: "string",
+                description: "Optional CSS selector of an element to focus before pressing the key"
+              }
+            },
+            required: ["key"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_select",
+          description: "Select an option from a <select> dropdown element. Match by value or visible text. If no match is found, returns the list of available options.",
+          parameters: {
+            type: "object",
+            properties: {
+              selector: {
+                type: "string",
+                description: "CSS selector of the <select> element"
+              },
+              value: {
+                type: "string",
+                description: "Option value to select (matches the 'value' attribute)"
+              },
+              text: {
+                type: "string",
+                description: "Option text to select (partial match on visible text)"
+              }
+            },
+            required: ["selector"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_back",
+          description: "Navigate back in the browser history (like clicking the browser's Back button).",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "browser_forward",
+          description: "Navigate forward in the browser history (like clicking the browser's Forward button).",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "stop_browser",
+          description: "Stop the interactive browser session and close the browser.",
+          parameters: {
+            type: "object",
+            properties: {},
+            required: []
           }
         }
       }
     ].freeze
 
     def self.tools
-      TOOLS
+      TOOLS + INTERACTIVE_TOOLS
     end
 
     # Track screenshots for the current session
@@ -157,7 +348,7 @@ module MonadicSharedTools
         # Create image gallery HTML
         gallery_html = create_screenshot_gallery(screenshots)
 
-        {
+        response = {
           success: true,
           message: "Successfully captured #{screenshots.length} screenshots.",
           screenshots: screenshots,
@@ -165,6 +356,11 @@ module MonadicSharedTools
           gallery_html: gallery_html,
           display_instruction: "Display the images using the gallery_html provided."
         }
+
+        # Send the first screenshot as _image for LLM vision (Claude)
+        response[:_image] = screenshots.first if screenshots.first
+
+        response
       elsif output.include?("ERROR:")
         {
           success: false,
@@ -230,81 +426,399 @@ module MonadicSharedTools
       }
     end
 
-    def capture_webpage_text(url:)
-      # Check if Selenium is available
+    # Interactive browser methods
+
+    MAX_BROWSER_ACTIONS = 20
+    MAX_CONSECUTIVE_SAME_ACTION = 3
+
+    def browser_action_guard!(action_name = nil)
+      @browser_action_count ||= 0
+      @browser_action_count += 1
+
+      # Check total action limit
+      if @browser_action_count > MAX_BROWSER_ACTIONS
+        return {
+          success: false,
+          error: "Action limit reached (#{MAX_BROWSER_ACTIONS} actions). Call stop_browser to end the session, then start_browser to begin a new one.",
+          action_count: @browser_action_count
+        }
+      end
+
+      # Check consecutive same-action limit
+      if action_name
+        @browser_last_action ||= nil
+        @browser_consecutive_count ||= 0
+
+        if action_name == @browser_last_action
+          @browser_consecutive_count += 1
+        else
+          @browser_last_action = action_name
+          @browser_consecutive_count = 1
+        end
+
+        if @browser_consecutive_count > MAX_CONSECUTIVE_SAME_ACTION
+          return {
+            success: false,
+            error: "Same action '#{action_name}' called #{@browser_consecutive_count} times consecutively. Try a different approach: use browser_screenshot to see the current page, or ask the user which element to interact with.",
+            suggestion: "If you cannot find the right element, ask the user for guidance instead of retrying.",
+            actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+          }
+        end
+      end
+
+      nil
+    end
+
+    def start_browser(url:)
       if error = check_selenium_or_error
         return error
       end
 
-      # Validate URL
       unless url =~ /\A#{URI::regexp(['http', 'https'])}\z/
         return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
-      # Capture screenshots of the full page
-      result = capture_viewport_screenshots(url: url, preset: "desktop")
+      # Reset all counters on new session
+      @browser_action_count = 0
+      @browser_last_action = nil
+      @browser_consecutive_count = 0
 
-      unless result[:success] && result[:screenshots] && !result[:screenshots].empty?
-        return {
-          success: false,
-          error: "Failed to capture screenshots of the page."
-        }
+      output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)}", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      # Build response with noVNC link and screenshot
+      response = {
+        success: true,
+        message: "Browser session started (max #{MAX_BROWSER_ACTIONS} actions). Users can watch at: http://localhost:7900",
+        novnc_url: "http://localhost:7900",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
-      screenshots = result[:screenshots]
-      analysis_prompt = "Extract all text content from this webpage screenshot. Format the output as clean Markdown with proper headings, lists, and paragraphs. Include all visible text but exclude navigation elements and advertisements if possible."
+      response
+    end
 
-      # Process each screenshot with image recognition and collect results
-      extracted_parts = []
-      errors = []
-
-      screenshots.each_with_index do |filename, index|
-        image_path = File.join(Monadic::Utils::Environment.data_path, filename)
-
-        # Validate image path
-        unless validate_file_path(image_path)
-          errors << "Invalid path for screenshot #{index + 1}: #{filename}"
-          next
-        end
-
-        unless File.exist?(image_path)
-          errors << "Screenshot file not found: #{filename}"
-          next
-        end
-
-        begin
-          text_result = analyze_image(message: analysis_prompt, image_path: image_path)
-          if text_result && !text_result.strip.empty?
-            extracted_parts << text_result.strip
-          end
-        rescue => e
-          errors << "Image recognition failed for screenshot #{index + 1}: #{e.message}"
-        end
+    def browser_navigate(url:)
+      if limit_error = browser_action_guard!("navigate")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
       end
 
-      if extracted_parts.empty?
-        return {
-          success: false,
-          error: "Image recognition returned no text from #{screenshots.length} screenshots.",
-          details: errors.empty? ? nil : errors
-        }
+      unless url =~ /\A#{URI::regexp(['http', 'https'])}\z/
+        return { success: false, error: "Invalid URL format. Please provide a valid HTTP or HTTPS URL." }
       end
 
-      # Combine text from all screenshots
-      combined_content = extracted_parts.join("\n\n---\n\n")
+      output = send_command(command: "web_navigator.py --action navigate --url #{Shellwords.escape(url)}", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Navigated to #{result.dig(:page_info, :url) || url}",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_click(selector:, description: nil)
+      if limit_error = browser_action_guard!("click")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action click --selector #{Shellwords.escape(selector)}", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Clicked element: #{description || selector}",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_type(selector:, text:)
+      if limit_error = browser_action_guard!("type")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action type --selector #{Shellwords.escape(selector)} --text #{Shellwords.escape(text)}", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Typed text into #{selector}",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_screenshot
+      if limit_error = browser_action_guard!("screenshot")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action screenshot", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Screenshot captured.",
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_get_page_info
+      if limit_error = browser_action_guard!("get_page_info")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action get_page_info", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
 
       {
         success: true,
-        message: "Text extracted from #{extracted_parts.length}/#{screenshots.length} screenshots using image recognition.",
-        content: combined_content,
-        method: "image_recognition",
-        screenshots: screenshots,
-        gallery_html: create_screenshot_gallery(screenshots),
-        errors: errors.empty? ? nil : errors
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+    end
+
+    def browser_scroll(direction: "down", amount: 500)
+      if limit_error = browser_action_guard!("scroll")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action scroll --direction #{Shellwords.escape(direction)} --amount #{amount.to_i}", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      scroll_msg = %w[top bottom].include?(direction) ? "Scrolled to #{direction} of page" : "Scrolled #{direction} by #{amount}px"
+      response = {
+        success: true,
+        message: scroll_msg,
+        scroll: result[:scroll],
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_press_key(key:, selector: nil)
+      if limit_error = browser_action_guard!("press_key")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      cmd = "web_navigator.py --action press_key --key #{Shellwords.escape(key)}"
+      cmd += " --selector #{Shellwords.escape(selector)}" if selector
+
+      output = send_command(command: cmd, container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Pressed key: #{key}#{selector ? " on #{selector}" : ""}",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_select(selector:, value: nil, text: nil)
+      unless value || text
+        return { success: false, error: "Either 'value' or 'text' parameter is required for browser_select." }
+      end
+
+      if limit_error = browser_action_guard!("select")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      cmd = "web_navigator.py --action select --selector #{Shellwords.escape(selector)}"
+      cmd += " --value #{Shellwords.escape(value)}" if value
+      cmd += " --text #{Shellwords.escape(text)}" if text
+
+      output = send_command(command: cmd, container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Selected option in #{selector}",
+        selected: result[:selected],
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_back
+      if limit_error = browser_action_guard!("back")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action back", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Navigated back",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def browser_forward
+      if limit_error = browser_action_guard!("forward")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      output = send_command(command: "web_navigator.py --action forward", container: "python")
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Navigated forward",
+        page_info: result[:page_info],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
+    def stop_browser
+      output = send_command(command: "web_navigator.py --action stop", container: "python")
+      result = parse_navigator_response(output)
+
+      {
+        success: true,
+        message: result[:message] || "Browser session ended."
       }
     end
 
     private
+
+    def parse_navigator_response(output)
+      # The output from send_command includes prefix text; find the JSON portion
+      json_match = output.match(/\{.+\}/m)
+      unless json_match
+        return { success: false, error: "No JSON response from web navigator. Output: #{output[0..200]}" }
+      end
+
+      begin
+        parsed = JSON.parse(json_match[0], symbolize_names: true)
+        parsed
+      rescue JSON::ParserError => e
+        { success: false, error: "Failed to parse navigator response: #{e.message}" }
+      end
+    end
 
     def create_screenshot_gallery(screenshots)
       return "" if screenshots.empty?

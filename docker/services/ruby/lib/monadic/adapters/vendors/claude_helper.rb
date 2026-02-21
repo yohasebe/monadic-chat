@@ -25,9 +25,6 @@ module ClaudeHelper
 
   define_timeouts "CLAUDE", open: 10, read: 600, write: 120
 
-  MIN_PROMPT_CACHING = 1024
-  MAX_PC_PROMPTS = 4
-
   # ENV key for emergency override
   LEGACY_MODE_ENV = "CLAUDE_LEGACY_MODE"
 
@@ -248,7 +245,8 @@ module ClaudeHelper
     body = {
       "model" => model,
       "max_tokens" => max_tokens_value,
-      "temperature" => options["temperature"] || 0.7
+      "temperature" => options["temperature"] || 0.7,
+      "cache_control" => { "type" => "ephemeral" }
     }
     
     # Extract system message - Claude API expects this as a top-level parameter
@@ -497,18 +495,9 @@ module ClaudeHelper
     obj["use_native_websearch"] = use_native_websearch
 
     system_prompts = []
-    system_prompt_count = 0
-    
+
     session[:messages].each do |msg|
       next unless msg["role"] == "system"
-      
-      # Count system prompts
-      system_prompt_count += 1
-
-      # Check tokens only for the first MAX_PC_PROMPTS system prompts
-      if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS
-        check_num_tokens(msg)
-      end
 
       # Use unified system prompt injector only for the first system prompt
       if system_prompts.empty?
@@ -537,20 +526,12 @@ module ClaudeHelper
       end
 
       sp = { type: "text", text: text }
-      
+
       if CONFIG["EXTRA_LOGGING"] && system_prompts.empty?
         puts "[DEBUG] First system prompt created:"
         puts "  - Text length: #{text.length}"
         puts "  - First 200 chars: #{text[0..200].inspect}"
         puts "  - Last 200 chars: #{text[-200..-1].inspect}" if text.length > 200
-      end
-      
-      # Add cache_control only for the first MAX_PC_PROMPTS system prompts with sufficient tokens
-      if obj["prompt_caching"] && system_prompt_count <= MAX_PC_PROMPTS && msg["tokens"] && msg["tokens"] > MIN_PROMPT_CACHING
-        sp["cache_control"] = {
-          "type" => "ephemeral",
-          "ttl" => "1h"
-        }
       end
 
       system_prompts << sp
@@ -758,7 +739,8 @@ module ClaudeHelper
     body = {
       "system" => system_prompts,
       "model" => obj["model"],
-      "stream" => supports_streaming
+      "stream" => supports_streaming,
+      "cache_control" => { "type" => "ephemeral" }
     }
 
     # Add context management for supported models
@@ -1093,11 +1075,7 @@ module ClaudeHelper
                 "data" => file["data"].split(",")[1]
               }
             }
-            doc["cache_control"] = {
-              "type" => "ephemeral",
-              "ttl" => "1h"
-            } if obj["prompt_caching"]
-            # PDF is better inserted before the text 
+            # PDF is better inserted before the text
             # https://docs.anthropic.com/en/docs/build-with-claude/pdf-support#optimize-pdf-processing
             content.unshift(doc)
           else
@@ -1120,10 +1098,6 @@ module ClaudeHelper
                 "data" => file["data"].split(",")[1]
               }
             }
-            img["cache_control"] = {
-              "type" => "ephemeral",
-              "ttl" => "1h"
-            } if obj["prompt_caching"]
             content << img
           end
         end
@@ -1960,17 +1934,6 @@ module ClaudeHelper
     end
   end
 
-  def check_num_tokens(msg)
-    t = msg["tokens"]
-    if t
-      new_t = t.to_i
-    else
-      new_t = MonadicApp::TOKENIZER.count_tokens(msg["text"]).to_i
-      msg["tokens"] = new_t
-    end
-    new_t > MIN_PROMPT_CACHING
-  end
-
   def process_functions(app, session, tools, context, call_depth, &block)
     content = []
     obj = session[:parameters]
@@ -2135,11 +2098,25 @@ module ClaudeHelper
         extra_log.close
       end
 
-      content << {
+      tool_result_entry = {
         type: "tool_result",
-        tool_use_id: tool_call["id"],
-        content: tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
+        tool_use_id: tool_call["id"]
       }
+
+      # Check for _image key in tool return for direct image injection
+      if tool_return.is_a?(Hash) && tool_return[:_image]
+        clean_return = tool_return.reject { |k, _| k.to_s.start_with?("_") }
+        result_content = [
+          { type: "text", text: JSON.generate(clean_return) }
+        ]
+        image_block = build_tool_image_block(tool_return[:_image])
+        result_content << image_block if image_block
+        tool_result_entry[:content] = result_content
+      else
+        tool_result_entry[:content] = tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
+      end
+
+      content << tool_result_entry
     end
 
     # Only add tool results message if there are actual results to send
@@ -2175,6 +2152,40 @@ module ClaudeHelper
     end
   end
 
+
+  # Build a Claude image block from a screenshot filename for tool result injection.
+  # Returns nil if the file doesn't exist or exceeds 2MB after base64 encoding.
+  def build_tool_image_block(filename)
+    return nil unless filename.is_a?(String) && !filename.empty?
+
+    image_path = File.join(Monadic::Utils::Environment.data_path, filename)
+    return nil unless File.exist?(image_path)
+
+    # Determine media type from extension
+    ext = File.extname(filename).downcase.delete(".")
+    media_type = case ext
+                 when "png" then "image/png"
+                 when "jpg", "jpeg" then "image/jpeg"
+                 when "gif" then "image/gif"
+                 when "webp" then "image/webp"
+                 else "image/png"
+                 end
+
+    raw_data = File.binread(image_path)
+    base64_data = Base64.strict_encode64(raw_data)
+
+    # Skip if base64 data exceeds 2MB (protect context window)
+    return nil if base64_data.bytesize > 2 * 1024 * 1024
+
+    {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: media_type,
+        data: base64_data
+      }
+    }
+  end
 
   def sanitize_data(data)
     if data.is_a? String

@@ -110,6 +110,8 @@ module VideoAnalyzeAgent
 
   # Read the frames JSON file from the shared volume
   def read_frames_json(json_path)
+    return "ERROR: Invalid file path (path traversal not allowed)" if json_path.to_s.include?("..")
+
     # Strip leading ./ and resolve to shared volume
     clean_path = json_path.sub(%r{\A\./}, "")
 

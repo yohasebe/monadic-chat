@@ -89,6 +89,8 @@ module AudioTranscriptionAgent
 
   # Resolve audio file path from shared volume
   def resolve_audio_path(audio_path)
+    return "ERROR: Invalid file path (path traversal not allowed)" if audio_path.to_s.include?("..")
+
     clean_path = audio_path.to_s.sub(%r{\A\./}, "")
 
     path = if File.exist?(audio_path.to_s)

@@ -177,12 +177,12 @@ RSpec.describe SecondOpinionAgent do
           user_query: "What is the capital of France?",
           agent_response: "The capital of France is Paris",
           provider: "claude",
-          model: "claude-3-haiku-20240307"
+          model: "claude-haiku-4-5-20251001"
         )
-        
+
         expect(result[:comments]).to be_a(String)
         expect(result[:comments].strip).not_to be_empty
-        expect(result[:model]).to include("claude-3-haiku")
+        expect(result[:model]).to include("claude-haiku")
       end
     
       it "gets a second opinion from Gemini" do
@@ -208,9 +208,9 @@ RSpec.describe SecondOpinionAgent do
           user_query: "Simple math",
           agent_response: "1 + 1 = 2",
           provider: "anthropic",  # Should normalize to claude
-          model: "claude-3-haiku-20240307"
+          model: "claude-haiku-4-5-20251001"
         )
-        
+
         expect(result[:model]).to include("claude")
         expect(result[:comments]).not_to be_empty
         

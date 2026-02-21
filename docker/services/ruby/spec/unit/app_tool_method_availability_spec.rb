@@ -78,7 +78,7 @@ RSpec.describe 'App Tool Method Availability' do
       # Known helper methods from each provider
       claude_helper_methods = %w[
         send_query api_request process_json_data
-        check_num_tokens process_functions sanitize_data
+        process_functions sanitize_data
       ]
 
       openai_helper_methods = %w[

@@ -11,12 +11,12 @@ RSpec.describe "Claude Context Management" do
       expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-sonnet-4-6")).to be true
     end
 
-    it "returns false for Claude Haiku 3" do
-      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-3-haiku-20240307")).to be false
+    it "returns false for Claude Haiku 4.5" do
+      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-haiku-4-5-20251001")).to be false
     end
 
     it "returns false for older Claude models" do
-      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-3-haiku-20240307")).to be false
+      expect(Monadic::Utils::ModelSpec.supports_context_management?("claude-haiku-4-5-20251001")).to be false
     end
 
     it "returns false for non-Claude models" do

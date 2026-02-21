@@ -596,19 +596,6 @@ const modelSpec = {
       "pdfs-2024-09-25"
     ]
   },
-  "claude-3-haiku-20240307": {
-    "context_window" : [1, 200000],
-    "api_version": "2023-06-01",
-    "max_output_tokens" : [1, 4096],
-    "temperature": [[0.0, 1.0], 1.0],
-    "top_p": [0.0, 1.0],
-    "tool_capability": true,
-    "vision_capability": false,
-    "supports_streaming": true,
-    "supports_pdf": false,
-    "supports_thinking": false,
-    "supports_web_search": false
-  },
   // Cohere models
   "command-a-03-2025": {
     "context_window" : [1, 256000],

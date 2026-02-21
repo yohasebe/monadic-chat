@@ -284,7 +284,7 @@ exclude_tools: [
 | Claude Opus 4 | `claude-opus-4-20250514` | ✅ | ✅ |
 | Claude Sonnet 4.5 | `claude-sonnet-4-5-20250929` | ✅ | ✅ |
 | Claude 3.5 Sonnet | `claude-3-5-sonnet-20241022` | ❌ | ❌ |
-| Claude 3 Haiku | `claude-3-haiku-20240307` | ❌ | ❌ |
+| Claude Haiku 4.5 | `claude-haiku-4-5-20251001` | ❌ | ❌ |
 
 ## Related Documentation
 

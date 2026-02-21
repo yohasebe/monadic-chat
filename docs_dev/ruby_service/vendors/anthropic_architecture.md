@@ -360,8 +360,8 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(described_class.supports_thinking?('claude-sonnet-4-5-20250929')).to be true
     end
 
-    it 'returns false for Claude Haiku 3' do
-      expect(described_class.supports_thinking?('claude-3-haiku-20240307')).to be false
+    it 'returns false for Claude Haiku 4.5' do
+      expect(described_class.supports_thinking?('claude-haiku-4-5-20251001')).to be false
     end
   end
 

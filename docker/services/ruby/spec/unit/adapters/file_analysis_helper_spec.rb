@@ -14,37 +14,28 @@ RSpec.describe MonadicHelper do
 
     def initialize
       @settings = { "model" => "gpt-4.1" }
-      @agent_calls = []
+      @image_agent_calls = []
+      @audio_agent_calls = []
     end
 
     # Mock image_analysis_agent method
     def image_analysis_agent(message:, image_path:)
-      @agent_calls << { message: message, image_path: image_path }
+      @image_agent_calls << { message: message, image_path: image_path }
       "Image analysis result: #{message}"
     end
 
-    def agent_calls
-      @agent_calls
+    # Mock audio_transcription_agent method
+    def audio_transcription_agent(audio_path:, model: nil, response_format: "text", lang_code: nil)
+      @audio_agent_calls << { audio_path: audio_path, model: model, response_format: response_format }
+      "Transcription result for: #{audio_path}"
     end
 
-    # Mock send_command method for analyze_audio tests
-    def send_command(command:, container:)
-      @last_command = command
-      @last_container = container
-
-      if command.include?("stt_query.rb")
-        '{"text": "This is a test audio transcription."}'
-      else
-        "Command executed: #{command}"
-      end
+    def image_agent_calls
+      @image_agent_calls
     end
 
-    def last_command
-      @last_command
-    end
-
-    def last_container
-      @last_container
+    def audio_agent_calls
+      @audio_agent_calls
     end
   end
 
@@ -57,8 +48,8 @@ RSpec.describe MonadicHelper do
         image_path: "/tmp/test_image.png"
       )
 
-      expect(helper.agent_calls.size).to eq(1)
-      call = helper.agent_calls.last
+      expect(helper.image_agent_calls.size).to eq(1)
+      call = helper.image_agent_calls.last
       expect(call[:message]).to eq("What is in this image?")
       expect(call[:image_path]).to eq("/tmp/test_image.png")
       expect(result).to include("Image analysis result")
@@ -70,7 +61,7 @@ RSpec.describe MonadicHelper do
         image_path: "/tmp/test_image.png"
       )
 
-      call = helper.agent_calls.last
+      call = helper.image_agent_calls.last
       expect(call[:message]).to include('\\"main\\"')
     end
 
@@ -81,7 +72,7 @@ RSpec.describe MonadicHelper do
       )
 
       expect(result).to be_a(String)
-      call = helper.agent_calls.last
+      call = helper.image_agent_calls.last
       expect(call[:message]).to eq("")
     end
 
@@ -93,7 +84,7 @@ RSpec.describe MonadicHelper do
         image_path: special_path
       )
 
-      call = helper.agent_calls.last
+      call = helper.image_agent_calls.last
       expect(call[:image_path]).to eq(special_path)
     end
 
@@ -104,74 +95,63 @@ RSpec.describe MonadicHelper do
         model: "gpt-5"
       )
 
-      expect(helper.agent_calls.size).to eq(1)
+      expect(helper.image_agent_calls.size).to eq(1)
     end
   end
 
   describe '#analyze_audio' do
-    it 'analyzes audio with default model' do
-      audio_path = "/tmp/test_audio.mp3"
-
+    it 'delegates to audio_transcription_agent' do
       result = helper.analyze_audio(
-        audio: audio_path,
+        audio: "/tmp/test_audio.mp3",
         model: "gpt-4o-transcribe"
       )
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include(audio_path)
-      expect(helper.last_command).to include('gpt-4o-transcribe')
-      expect(helper.last_command).to include('"." "json" ""')  # output dir, format, lang
-      expect(helper.last_container).to eq('ruby')
-      expect(result).to include('test audio transcription')
+      expect(helper.audio_agent_calls.size).to eq(1)
+      call = helper.audio_agent_calls.last
+      expect(call[:audio_path]).to eq("/tmp/test_audio.mp3")
+      expect(call[:model]).to eq("gpt-4o-transcribe")
+      expect(result).to include("Transcription result")
     end
 
     it 'uses STT model from settings when available' do
-      audio_path = "/tmp/test_audio.mp3"
       helper.settings["stt_model"] = "gpt-4o-transcribe-diarize"
 
-      result = helper.analyze_audio(
-        audio: audio_path
-      )
+      helper.analyze_audio(audio: "/tmp/test_audio.mp3")
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include('gpt-4o-transcribe-diarize')
-      expect(result).to include('test audio transcription')
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to eq("gpt-4o-transcribe-diarize")
     end
 
     it 'falls back to default when STT model not in settings' do
-      audio_path = "/tmp/test_audio.mp3"
-      # Ensure stt_model is not in settings
       helper.settings.delete("stt_model")
 
-      result = helper.analyze_audio(
-        audio: audio_path
-      )
+      helper.analyze_audio(audio: "/tmp/test_audio.mp3")
 
-      expect(helper.last_command).to include('stt_query.rb')
-      expect(helper.last_command).to include('gpt-4o-mini-transcribe')
-      expect(result).to include('test audio transcription')
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to eq("gpt-4o-mini-transcribe-2025-12-15")
     end
 
     it 'handles different audio formats' do
       formats = %w[mp3 wav m4a webm ogg]
 
       formats.each do |format|
-        audio_path = "/tmp/test_audio.#{format}"
+        helper.analyze_audio(audio: "/tmp/test_audio.#{format}")
+      end
 
-        helper.analyze_audio(audio: audio_path)
-
-        expect(helper.last_command).to include(audio_path)
+      expect(helper.audio_agent_calls.size).to eq(formats.size)
+      helper.audio_agent_calls.each_with_index do |call, i|
+        expect(call[:audio_path]).to include(formats[i])
       end
     end
 
-    it 'uses whisper model' do
-      result = helper.analyze_audio(
+    it 'passes model parameter through to agent' do
+      helper.analyze_audio(
         audio: "/tmp/test.mp3",
         model: "whisper-1"
       )
 
-      expect(helper.last_command).to include('whisper-1')
-      expect(result).to be_a(String)
+      call = helper.audio_agent_calls.last
+      expect(call[:model]).to eq("whisper-1")
     end
   end
 end

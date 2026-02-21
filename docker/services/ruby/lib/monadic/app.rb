@@ -38,6 +38,7 @@ class MonadicApp
   include MonadicAgent
   include MonadicHelper
   include ImageAnalysisAgent
+  include AudioTranscriptionAgent
   include StringUtils
   include MonadicChat::AppExtensions
 

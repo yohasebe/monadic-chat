@@ -521,15 +521,36 @@ module MonadicSharedTools
         available_when: -> { MonadicSharedTools::WebAutomation.available? }
       },
 
-      content_analysis_openai: {
-        module_name: 'MonadicSharedTools::ContentAnalysisOpenAI',
+      audio_transcription: {
+        module_name: 'MonadicSharedTools::AudioTranscription',
+        tools: [
+          {
+            name: "analyze_audio",
+            description: "Transcribe audio from an audio file using speech-to-text capabilities",
+            parameters: [
+              {
+                name: :audio,
+                type: "string",
+                description: "The filename of the audio to transcribe",
+                required: true
+              }
+            ]
+          }
+        ],
+        default_hint: 'Call request_tool("audio_transcription") when you need to transcribe audio content.',
+        visibility: 'conditional',
+        available_when: -> { MonadicSharedTools::AudioTranscription.available? }
+      },
+
+      video_analysis: {
+        module_name: 'MonadicSharedTools::VideoAnalysis',
         tools: [
           {
             name: "analyze_video",
-            description: "Analyze video content and generate description using OpenAI's multimodal capabilities (image recognition + audio transcription)",
+            description: "Analyze video content and generate description using vision capabilities (image recognition + audio transcription)",
             parameters: [
               {
-                name: :filename,
+                name: :file,
                 type: "string",
                 description: "The video file to analyze",
                 required: true
@@ -547,23 +568,11 @@ module MonadicSharedTools
                 required: false
               }
             ]
-          },
-          {
-            name: "analyze_audio",
-            description: "Analyze and transcribe audio from an audio file using OpenAI's Whisper",
-            parameters: [
-              {
-                name: :audio,
-                type: "string",
-                description: "The filename of the audio to analyze",
-                required: true
-              }
-            ]
           }
         ],
-        default_hint: "Call request_tool(\"content_analysis_openai\") when you need to analyze video or audio content using OpenAI's multimodal capabilities.",
+        default_hint: 'Call request_tool("video_analysis") when you need to analyze video content.',
         visibility: 'conditional',
-        available_when: -> { MonadicSharedTools::ContentAnalysisOpenAI.available? }
+        available_when: -> { MonadicSharedTools::VideoAnalysis.available? }
       },
 
       image_analysis: {

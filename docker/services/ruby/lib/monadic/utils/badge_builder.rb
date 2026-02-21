@@ -285,7 +285,8 @@ module Monadic
         web_automation: "fa-globe",
         jupyter_operations: "fa-book",
         file_reading: "fa-book-open",
-        content_analysis_openai: "fa-film",
+        audio_transcription: "fa-microphone",
+        video_analysis: "fa-film",
         app_creation: "fa-puzzle-piece"
       }.freeze
 

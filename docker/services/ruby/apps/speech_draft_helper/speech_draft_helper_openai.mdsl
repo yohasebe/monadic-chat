@@ -110,8 +110,8 @@ app "SpeechDraftHelperOpenAI" do
     # Import shared file operations tools (always visible - Phase 1)
     import_shared_tools :file_operations, visibility: "always"
 
-    # Import shared content analysis tools (conditional - requires OpenAI API key)
-    import_shared_tools :content_analysis_openai, visibility: "conditional"
+    # Import audio transcription tools (conditional - requires OpenAI or Gemini API key)
+    import_shared_tools :audio_transcription, visibility: "conditional"
 
     # Import shared image analysis tools (conditional - requires any vision provider API key)
     import_shared_tools :image_analysis, visibility: "conditional"

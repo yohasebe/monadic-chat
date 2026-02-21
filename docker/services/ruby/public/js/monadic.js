@@ -51,11 +51,6 @@ function sanitizeParamsForSync(source) {
     clone.mathjax = $("#mathjax").prop("checked") || false;
     clone.initiate_from_assistant = $("#initiate-from-assistant").prop("checked") || false;
 
-    // Only sync prompt_caching if the checkbox is enabled (not all models support it)
-    if (!$("#prompt-caching").prop("disabled")) {
-      clone.prompt_caching = $("#prompt-caching").prop("checked") || false;
-    }
-
     // Handle toggle-controlled values
     // If max-tokens-toggle is OFF, don't include max_tokens (use model default)
     if (!$("#max-tokens-toggle").prop("checked")) {

@@ -1184,10 +1184,6 @@ function setParams() {
     params["websearch"] = false;
   }
 
-  if ($("#prompt-caching").prop('checked') && !$("#prompt-caching").prop('disabled')) {
-    params["prompt_caching"] = true;
-  }
-
   // params["initial_prompt"] = $("#initial-prompt").val();
   params["model"] = $("#model").val();
 

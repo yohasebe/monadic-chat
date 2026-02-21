@@ -13,6 +13,8 @@ There are two main categories:
 
 Additional agents handle conversation infrastructure (context extraction, second opinion, AI user simulation, command output parsing).
 
+**Note on structural differences across categories**: The three categories use intentionally different implementation patterns (direct HTTP vs `api_request()`, string returns vs structured hashes, top-level vs namespaced modules). These differences reflect fundamentally different operational requirements and should not be unified into a single pattern.
+
 ### File Location
 
 All agents live in `lib/monadic/agents/`. They are auto-required via `Dir.glob` in `app.rb`:

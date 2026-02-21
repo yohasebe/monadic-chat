@@ -144,6 +144,9 @@ app "ResearchAssistantGemini" do
     # pattern to work around Gemini 3's limitation of not supporting google_search
     # grounding with function_declarations.
 
+    # Import web automation for Selenium-based page content extraction
+    import_shared_tools :web_automation, visibility: "conditional"
+
     # Research progress management tools
     define_tool "load_research_progress", "Load current research progress (topics, findings, sources) from session state" do
       parameter :session, "object", "Session object (automatically provided)", required: false

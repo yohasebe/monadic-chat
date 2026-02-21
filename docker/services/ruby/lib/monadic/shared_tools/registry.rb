@@ -372,36 +372,18 @@ module MonadicSharedTools
           },
           {
             name: "capture_webpage_text",
-            description: "Extract text content from a web page in Markdown format",
+            description: "Extract text content from a web page by capturing screenshots and using image recognition",
             parameters: [
               {
                 name: :url,
                 type: "string",
                 description: "The URL of the web page to extract text from",
                 required: true
-              },
-              {
-                name: :use_image_recognition,
-                type: "boolean",
-                description: "Use image recognition to extract text (useful when HTML parsing fails)",
-                required: false
               }
             ]
           },
-          {
-            name: "debug_application",
-            description: "Debug a generated web application using Selenium",
-            parameters: [
-              {
-                name: :spec,
-                type: "object",
-                description: "Specification with project name to debug",
-                required: true
-              }
-            ]
-          }
         ],
-        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium.",
+        default_hint: "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots or extract webpage text using Selenium.",
         visibility: 'conditional',
         available_when: -> { MonadicSharedTools::WebAutomation.available? }
       },

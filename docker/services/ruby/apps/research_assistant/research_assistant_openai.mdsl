@@ -154,6 +154,9 @@ app "ResearchAssistantOpenAI" do
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
 
+    # Import web automation for Selenium-based page content extraction
+    import_shared_tools :web_automation, visibility: "conditional"
+
     # Research progress management tools
     define_tool "load_research_progress", "Load current research progress (topics, findings, sources) from session state" do
       parameter :session, "object", "Session object (automatically provided)", required: false

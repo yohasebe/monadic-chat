@@ -28,7 +28,7 @@ The table below shows which apps are available for which AI model providers.
 | Image Generator | ✅ | | | | ✅ | ✅ | | | |
 | Video Generator | ✅ | | | | ✅ | ✅ | | | |
 | Mail Composer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Mermaid Grapher | ✅ | | | | | | | | |
+| Mermaid Grapher | ✅ | ✅ | | | ✅ | ✅ | | | |
 | DrawIO Grapher | ✅ | ✅ | | | | | | | |
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
@@ -347,6 +347,7 @@ Mail Composer supports each provider shown in the availability table.
 Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply provide your data or instructions, and the AI will generate and render the appropriate Mermaid code for the diagram.
 
 **Key Features:**
+- **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
 - **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
 - **Real-time validation**: Diagrams are validated using Selenium and the actual Mermaid.js engine before being displayed
 - **Error analysis**: When syntax errors occur, analyzes error patterns and provides fix suggestions
@@ -355,7 +356,10 @@ Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply 
 
 **Usage Tips:**
 - Simply describe what you want to visualize, and the AI will create the appropriate diagram
+- Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
 - All preview images are saved as `mermaid_preview_[timestamp].png` in your shared folder
+
+Mermaid Grapher supports each provider shown in the availability table.
 
 ![Mermaid Grapher workflow](../assets/images/workflows/workflow-mermaid-grapher.svg ':size=500')
 
@@ -363,8 +367,19 @@ Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply 
 
 ![DrawIO Grapher app icon](../assets/icons/diagram-draft.png ':size=40')
 
-Create Draw.io diagrams by describing your requirements. The agent will generate a Draw.io XML file that you can download, import into Draw.io, and edit further. It supports various diagram types, including flowcharts, UML, ER diagrams, and more. The generated `.drawio` file is saved to your shared folder.
+Create Draw.io diagrams by describing your requirements. The agent generates Draw.io XML, validates the structure, and renders a live preview in the browser via noVNC.
 
+**Key Features:**
+- **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
+- **Automatic XML validation and repair**: The agent validates the generated Draw.io XML and attempts to repair common structural issues
+- **Wide diagram type support**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
+- **Preview generation**: A PNG preview image is saved to your shared folder for easy access
+- **Downloadable .drawio files**: The generated `.drawio` file is saved to your shared folder and can be imported into Draw.io for further editing
+
+**Usage Tips:**
+- Simply describe the diagram you need, and the AI will create the appropriate Draw.io XML
+- Open `http://localhost:7900` in a separate browser window (or use the noVNC menu item in Electron) to watch diagrams render live
+- All preview images are saved as `drawio_preview_[timestamp].png` in your shared folder
 
 DrawIO Grapher is available for the providers marked in the availability table. File generation fidelity depends on each provider's tooling support.
 

@@ -94,19 +94,39 @@ app "DrawIOGrapherOpenAI" do
         </diagram>
       </mxfile>
 
-    After generating the diagram XML, use the `write_drawio_file` function to save it as a .drawio file that users can download and import into the Draw.io application.
+    ## Live Browser Preview
+
+    When you call `preview_drawio`, the diagram renders in a live browser visible via noVNC (http://localhost:7900).
+    Users can watch diagram changes in real time through the noVNC viewer window.
+
+    - First `preview_drawio` call opens the browser automatically
+    - Subsequent calls update the same browser with the new diagram
+    - The user sees changes instantly in the noVNC window
+    - Call `stop_drawio_browser` when the diagram session is complete
+    - Share the noVNC URL (http://localhost:7900) with the user on the first preview
+
+    ## Simple Workflow
+
+    When creating a diagram, follow these steps:
+    1. Draft the Draw.io XML following the format guidelines above
+    2. Call `preview_drawio` with the XML content (this validates, saves .drawio file, AND opens/updates live browser)
+    3. If tool returns success, describe the diagram to the user
+    4. If tool returns error, fix the XML and call `preview_drawio` again (maximum 2 attempts total)
+    5. When the user is satisfied, call `stop_drawio_browser` to close the live preview session
+
+    IMPORTANT: After `preview_drawio` succeeds, STOP calling tools and respond to user immediately.
+
+    Note: `write_drawio_file` is also available if you only need to save the file without browser preview.
 
     DO NOT include the raw XML code in your response. Instead, provide a natural language description of the diagram you've created, including:
-    
+
     1. The type of diagram created (flowchart, UML, entity-relationship, etc.)
     2. The main components or elements in the diagram
     3. How these elements are connected or related to each other
     4. Any styling or formatting you've applied
     5. A brief suggestion for how the user might want to modify or enhance the diagram further in Draw.io
-    
-    IMPORTANT: Inform the user that diagram generation and file saving may take a moment to complete. The system will keep the processing indicator active until the file is completely saved and verified. Do not worry if the process takes a few seconds - this ensures the file is properly created.
-    
-    CRITICAL: Only mention that the diagram has been saved as a .drawio file if the `write_drawio_file` function returns a success message. Check the return value from the function - it will contain either a success message ("The file X has been saved") or an error message. If there was an error, do not claim that the file was saved.
+
+    CRITICAL: Only mention that the diagram has been saved if the tool returns a success message. If there was an error, do not claim that the file was saved.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.
 
@@ -134,15 +154,23 @@ app "DrawIOGrapherOpenAI" do
     easy_submit false
     auto_speech false
     initiate_from_assistant false
+    autonomy "high"
   end
-  
+
   tools do
-    # Import planning tools for Plan-Approve-Execute protocol
     import_shared_tools :planning, visibility: "always"
 
-    define_tool "write_drawio_file", "Save Draw.io diagram to file" do
+    define_tool "preview_drawio", "Validate, save, and render Draw.io diagram in live browser (noVNC), saving a screenshot to shared folder" do
       parameter :content, "string", "Draw.io XML content", required: true
       parameter :filename, "string", "Output filename (without extension)", required: false
+    end
+
+    define_tool "write_drawio_file", "Save Draw.io diagram to file (without browser preview)" do
+      parameter :content, "string", "Draw.io XML content", required: true
+      parameter :filename, "string", "Output filename (without extension)", required: false
+    end
+
+    define_tool "stop_drawio_browser", "Close the live Draw.io preview browser session" do
     end
   end
 end

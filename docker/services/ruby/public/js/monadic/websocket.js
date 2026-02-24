@@ -1268,8 +1268,8 @@ let loadedApp = "Chat";
           WorkflowViewer.setActiveTool(data["content"], toolCallCount);
         }
 
-        // Auto-open noVNC window when start_browser is executed (Electron only)
-        if (currentToolName === "start_browser" && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
+        // Auto-open noVNC window when start_browser or preview_mermaid is executed (Electron only)
+        if ((currentToolName === "start_browser" || currentToolName === "preview_mermaid" || currentToolName === "preview_drawio") && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
           window.electronAPI.openNoVNC();
         }
         break;

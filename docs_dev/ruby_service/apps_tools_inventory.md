@@ -318,7 +318,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `write_drawio_file` - Save Draw.io diagram to file |
+| **Custom Tools** | • `preview_drawio` - Validate, save, and render diagram in live browser (noVNC) with screenshot<br/>• `write_drawio_file` - Save Draw.io diagram to file (without browser preview)<br/>• `stop_drawio_browser` - Close the live preview browser session |
 
 ---
 

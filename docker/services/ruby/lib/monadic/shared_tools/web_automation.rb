@@ -499,7 +499,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -531,7 +530,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -559,7 +557,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -587,7 +584,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -663,7 +659,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -694,7 +689,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -731,7 +725,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -759,7 +752,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response
@@ -787,7 +779,6 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
-        response[:_image] = result[:screenshot]
       end
 
       response

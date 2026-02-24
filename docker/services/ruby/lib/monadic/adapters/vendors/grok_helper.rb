@@ -872,6 +872,21 @@ module GrokHelper
         context_messages << tool_message
       end
 
+      # Inject screenshot image as user message for vision-capable models
+      if session[:pending_tool_image]
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(session[:pending_tool_image])
+        if img
+          context_messages << {
+            "role" => "user",
+            "content" => [
+              { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+              { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+            ]
+          }
+        end
+        session.delete(:pending_tool_image)
+      end
+
       # Log the tool results being added
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
@@ -1953,11 +1968,20 @@ module GrokHelper
         next
       end
 
+      # Collect _image for screenshot injection and remove underscore keys from serialized result
+      if function_return.is_a?(Hash) && function_return[:_image]
+        session[:pending_tool_image] = function_return[:_image]
+        clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+        content_str = JSON.generate(clean_return)
+      else
+        content_str = function_return.to_s
+      end
+
       # Format tool result for Responses API (function_call_output format)
       tool_result = {
         "call_id" => tool_call["id"],
         "name" => function_name,
-        "content" => function_return.to_s
+        "content" => content_str
       }
 
       tool_results << tool_result

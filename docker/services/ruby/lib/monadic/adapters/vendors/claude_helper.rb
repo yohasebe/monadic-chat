@@ -2154,35 +2154,17 @@ module ClaudeHelper
 
 
   # Build a Claude image block from a screenshot filename for tool result injection.
-  # Returns nil if the file doesn't exist or exceeds 2MB after base64 encoding.
+  # Delegates to shared ToolImageUtils for file reading and base64 encoding.
   def build_tool_image_block(filename)
-    return nil unless filename.is_a?(String) && !filename.empty?
-
-    image_path = File.join(Monadic::Utils::Environment.data_path, filename)
-    return nil unless File.exist?(image_path)
-
-    # Determine media type from extension
-    ext = File.extname(filename).downcase.delete(".")
-    media_type = case ext
-                 when "png" then "image/png"
-                 when "jpg", "jpeg" then "image/jpeg"
-                 when "gif" then "image/gif"
-                 when "webp" then "image/webp"
-                 else "image/png"
-                 end
-
-    raw_data = File.binread(image_path)
-    base64_data = Base64.strict_encode64(raw_data)
-
-    # Skip if base64 data exceeds 2MB (protect context window)
-    return nil if base64_data.bytesize > 2 * 1024 * 1024
+    img = Monadic::Utils::ToolImageUtils.encode_image_for_api(filename)
+    return nil unless img
 
     {
       type: "image",
       source: {
         type: "base64",
-        media_type: media_type,
-        data: base64_data
+        media_type: img[:media_type],
+        data: img[:base64_data]
       }
     }
   end

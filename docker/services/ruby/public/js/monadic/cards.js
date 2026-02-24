@@ -42,6 +42,12 @@ function createCard(role, badge, html, _lang = "en", mid = "", status = true, im
   // add "?dummy=TIMESTAMP" to the end of the URL to prevent the browser from caching the image
   replaced_html = replaced_html.replace(/<img src="([^"]+)"/g, '<img src="$1?dummy=' + Date.now() + '"');
 
+  // Ensure all <a> tags with href open in a new tab to prevent navigation away from the app
+  replaced_html = replaced_html.replace(/<a\s([^>]*?)>/gi, function(fullMatch, attrs) {
+    if (/target\s*=/i.test(attrs)) return fullMatch;
+    return `<a ${attrs} target="_blank" rel="noopener noreferrer">`;
+  });
+
   let className, roleIcon, roleIconColor;
   if (role === "user") {
     className = "role-user";

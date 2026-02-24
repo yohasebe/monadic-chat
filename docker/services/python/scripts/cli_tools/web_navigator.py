@@ -247,7 +247,9 @@ def action_start(args):
                         "--no-sandbox",
                         "--disable-dev-shm-usage",
                         "--disable-gpu",
-                        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}"
+                        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
+                        "--force-device-scale-factor=2",
+                        "--high-dpi-support=1"
                     ]
                 }
             }
@@ -300,11 +302,37 @@ def action_navigate(args):
     }
 
 
+def _get_window_handles(session_id):
+    """Get all window handles for the session."""
+    r = _wd(f"/session/{session_id}/window/handles")
+    return r.get("value", [])
+
+
+def _switch_to_window(session_id, handle):
+    """Switch to a specific window/tab."""
+    _wd(f"/session/{session_id}/window", method="POST", body={"handle": handle})
+
+
+def _handle_new_tab(session_id, handles_before):
+    """If a new tab opened after an action, switch to it.
+    Returns True if switched to a new tab, False otherwise."""
+    handles_after = _get_window_handles(session_id)
+    new_handles = [h for h in handles_after if h not in handles_before]
+    if new_handles:
+        _switch_to_window(session_id, new_handles[-1])
+        return True
+    return False
+
+
 def action_click(args):
-    """Click an element using JavaScript for reliability."""
+    """Click an element using JavaScript for reliability.
+    Automatically detects and switches to new tabs opened by the click."""
     session_id = _load_session()
     if not session_id:
         return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    # Record window handles before click to detect new tabs
+    handles_before = _get_window_handles(session_id)
 
     selector = args.selector
     js = """
@@ -331,15 +359,28 @@ def action_click(args):
 
     time.sleep(1)
 
+    # Detect and switch to new tab if one was opened (e.g., target="_blank" links)
+    switched = _handle_new_tab(session_id, handles_before)
+
+    if switched:
+        # Extra wait for the new tab to finish loading
+        time.sleep(1)
+
     screenshot = _take_screenshot(session_id)
     page_info = _get_page_info(session_id)
 
-    return {
+    response = {
         "success": True,
         "clicked": result,
         "screenshot": screenshot,
         "page_info": page_info
     }
+
+    if switched:
+        response["tab_switched"] = True
+        response["message"] = "Clicked element opened a new tab; automatically switched to it."
+
+    return response
 
 
 def action_type(args):
@@ -451,7 +492,8 @@ def action_scroll(args):
 
 
 def action_press_key(args):
-    """Send a key press using WebDriver Actions API."""
+    """Send a key press using WebDriver Actions API.
+    Automatically detects and switches to new tabs opened by the key press."""
     session_id = _load_session()
     if not session_id:
         return {"success": False, "error": "No active browser session. Use --action start first."}
@@ -492,6 +534,9 @@ def action_press_key(args):
             return {"success": False, "error": f"Element not found: {args.selector}"}
         time.sleep(0.3)
 
+    # Record window handles before key press (Enter can open new tabs)
+    handles_before = _get_window_handles(session_id)
+
     # Send key via WebDriver Actions API
     actions = {
         "actions": [
@@ -514,15 +559,27 @@ def action_press_key(args):
     _wd(f"/session/{session_id}/actions", method="DELETE")
 
     time.sleep(0.5)
+
+    # Detect and switch to new tab if one was opened
+    switched = _handle_new_tab(session_id, handles_before)
+    if switched:
+        time.sleep(1)
+
     screenshot = _take_screenshot(session_id)
     page_info = _get_page_info(session_id)
 
-    return {
+    response = {
         "success": True,
         "key": key_name,
         "screenshot": screenshot,
         "page_info": page_info
     }
+
+    if switched:
+        response["tab_switched"] = True
+        response["message"] = "Key press opened a new tab; automatically switched to it."
+
+    return response
 
 
 def action_select(args):

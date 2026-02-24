@@ -1741,7 +1741,22 @@ module GeminiHelper
           "parts" => parts
         }
       end
-      
+
+      # Inject screenshot image as user message for vision-capable models
+      if session[:pending_tool_image]
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(session[:pending_tool_image])
+        if img
+          body["contents"] << {
+            "role" => "user",
+            "parts" => [
+              { "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+              { "inlineData" => { "mimeType" => img[:media_type], "data" => img[:base64_data] } }
+            ]
+          }
+        end
+        session.delete(:pending_tool_image)
+      end
+
       # For most apps, we want to stop tool calling after processing results
       # to prevent infinite loops. However, some apps may need multiple sequential calls.
       
@@ -3329,7 +3344,14 @@ module GeminiHelper
             end
           else
             # Standard handling for other functions
-            content = function_return.is_a?(String) ? function_return : function_return.to_json
+            # Detect _image key for screenshot injection and remove underscore keys
+            if function_return.is_a?(Hash) && function_return[:_image]
+              session[:pending_tool_image] = function_return[:_image]
+              clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+              content = JSON.generate(clean_return)
+            else
+              content = function_return.is_a?(String) ? function_return : function_return.to_json
+            end
           end
 
           # Check for repeated errors before adding to tool results

@@ -58,6 +58,29 @@
           return `<pre><code${langClass}>${escaped}</code></pre>`;
         }
       });
+
+      // Override link renderer to always open in new tab
+      const defaultLinkOpen = md.renderer.rules.link_open ||
+        function(tokens, idx, options, _env, self) {
+          return self.renderToken(tokens, idx, options);
+        };
+
+      md.renderer.rules.link_open = function(tokens, idx, options, env, self) {
+        const token = tokens[idx];
+        const targetIdx = token.attrIndex('target');
+        if (targetIdx < 0) {
+          token.attrPush(['target', '_blank']);
+        } else {
+          token.attrs[targetIdx][1] = '_blank';
+        }
+        const relIdx = token.attrIndex('rel');
+        if (relIdx < 0) {
+          token.attrPush(['rel', 'noopener noreferrer']);
+        } else {
+          token.attrs[relIdx][1] = 'noopener noreferrer';
+        }
+        return defaultLinkOpen(tokens, idx, options, env, self);
+      };
     },
 
     /**

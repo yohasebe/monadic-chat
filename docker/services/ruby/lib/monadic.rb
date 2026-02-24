@@ -732,6 +732,7 @@ require_relative "monadic/utils/model_spec_loader"
 require_relative "monadic/utils/language_config"
 require_relative "monadic/utils/selenium_helper"
 require_relative "monadic/utils/tts_text_extractor"
+require_relative "monadic/utils/tool_image_utils"
 
 require_relative "monadic/app"
 require_relative "monadic/dsl"

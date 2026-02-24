@@ -2273,6 +2273,7 @@ module OpenAIHelper
 
     tools = filtered_tools
 
+    pending_tool_image = nil
     tools.each do |tool_call|
       tool_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -2375,17 +2376,41 @@ module OpenAIHelper
         next
       end
 
-     context << {
+      # Collect _image for screenshot injection and remove underscore keys from serialized result
+      if function_return.is_a?(Hash) && function_return[:_image]
+        pending_tool_image = function_return[:_image]
+        clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+        serialized = JSON.generate(clean_return)
+      else
+        pending_tool_image = nil
+        serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+      end
+
+      context << {
         tool_call_id: tool_call["id"],
         role: "tool",
         name: function_name,
-        content: function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+        content: serialized
       }
 
       if CONFIG["EXTRA_LOGGING"]
         duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - tool_start) * 1000).round(1)
         query_preview = argument_hash[:text].to_s[0..80]
         DebugHelper.debug("[ToolTiming] app=#{app} function=#{function_name} duration_ms=#{duration_ms} query=#{query_preview}", category: :metrics, level: :info)
+      end
+    end
+
+    # Inject screenshot image as user message for vision-capable models
+    if pending_tool_image
+      img = Monadic::Utils::ToolImageUtils.encode_image_for_api(pending_tool_image)
+      if img
+        context << {
+          role: "user",
+          content: [
+            { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+            { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+          ]
+        }
       end
     end
 

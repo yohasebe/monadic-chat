@@ -12,6 +12,35 @@ module Monadic
       DEFAULT_SEPARATOR = "\n\n---\n\n"
       USER_MESSAGE_SEPARATOR = "\n\n"
 
+      # Autonomy mode prompts
+      AUTONOMY_HIGH_PROMPT = <<~PROMPT.strip
+        AUTONOMY MODE: HIGH
+
+        You operate with high autonomy. Follow these rules strictly — they OVERRIDE any earlier instructions about confirmation, explanation before actions, or plan approval:
+
+        - Execute actions immediately without asking for user confirmation or approval
+        - Do NOT ask "Is this okay?", "Shall I proceed?", or similar confirmation questions
+        - Do NOT use propose_plan — skip the Plan-Approve-Execute Protocol entirely
+        - When the user's intent is clear, proceed directly with the appropriate tools
+        - After completing a sequence of actions, provide a brief summary of what was done
+        - Only pause to ask the user when:
+          (a) Their intent is genuinely ambiguous
+          (b) You need to enter passwords or sensitive credentials
+          (c) An irreversible destructive action is about to occur
+      PROMPT
+
+      AUTONOMY_LOW_PROMPT = <<~PROMPT.strip
+        AUTONOMY MODE: LOW
+
+        You operate with low autonomy. Follow these rules strictly:
+
+        - Before EVERY action, explain what you plan to do and ask for explicit user confirmation
+        - Never execute any tool without the user's approval first
+        - Always use propose_plan for any task with 2 or more steps
+        - Present each step individually and wait for approval before proceeding
+        - When in doubt, ask rather than assume
+      PROMPT
+
       # STT Diarization warning prompt
       DIARIZATION_STT_PROMPT = <<~PROMPT.strip
         IMPORTANT: Speaker Diarization Context
@@ -83,6 +112,23 @@ module Monadic
           generator: ->(session, _options) {
             lang = session[:runtime_settings][:language]
             Monadic::Utils::LanguageConfig.system_prompt_for_language(lang)
+          }
+        },
+        {
+          name: :autonomy,
+          priority: 90,
+          condition: ->(session, _options) {
+            autonomy = session.dig(:parameters, "autonomy") || session.dig(:parameters, :autonomy)
+            %w[high low].include?(autonomy.to_s)
+          },
+          generator: ->(session, _options) {
+            autonomy = (session.dig(:parameters, "autonomy") || session.dig(:parameters, :autonomy)).to_s
+            case autonomy
+            when "high"
+              AUTONOMY_HIGH_PROMPT
+            when "low"
+              AUTONOMY_LOW_PROMPT
+            end
           }
         },
         {

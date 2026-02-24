@@ -106,6 +106,7 @@
     "restart": "Restart",
     "openConsole": "Open Console",
     "openBrowser": "Open Browser",
+    "openNoVNC": "Open noVNC",
     "openSharedFolder": "Open Shared Folder",
     "openConfigFolder": "Open Config Folder",
     "openLogFolder": "Open Log Folder",

@@ -8,12 +8,14 @@ services:
         PROJECT_TAG: "monadic-chat"
     container_name: monadic-chat-selenium-container
     shm_size: 2gb
+    environment:
+      - SE_VNC_NO_PASSWORD=true
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
     ports:
-      - 4444:4444
-      - 5900:5900
-      - 7900:7900
+      - "127.0.0.1:4444:4444"
+      - "127.0.0.1:5900:5900"
+      - "127.0.0.1:7900:7900"
     networks:
       - monadic-chat-network

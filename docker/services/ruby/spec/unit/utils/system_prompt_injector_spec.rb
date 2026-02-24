@@ -227,6 +227,73 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
       end
     end
 
+    context 'with autonomy setting' do
+      it 'includes high autonomy prompt when autonomy is "high"' do
+        session = {
+          parameters: { "autonomy" => "high" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
+        expect(result[0][:content]).to include('Execute actions immediately')
+        expect(result[0][:content]).to include('Do NOT use propose_plan')
+      end
+
+      it 'includes low autonomy prompt when autonomy is "low"' do
+        session = {
+          parameters: { "autonomy" => "low" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: LOW')
+        expect(result[0][:content]).to include('Before EVERY action')
+        expect(result[0][:content]).to include('Always use propose_plan')
+      end
+
+      it 'excludes autonomy injection when autonomy is "medium"' do
+        session = {
+          parameters: { "autonomy" => "medium" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result).to be_empty
+      end
+
+      it 'excludes autonomy injection when autonomy is not set' do
+        session = {
+          parameters: {}
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result).to be_empty
+      end
+
+      it 'works with symbol key for autonomy' do
+        session = {
+          parameters: { autonomy: "high" }
+        }
+        options = {}
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(1)
+        expect(result[0][:name]).to eq(:autonomy)
+        expect(result[0][:content]).to include('AUTONOMY MODE: HIGH')
+      end
+    end
+
     context 'with multiple conditions met' do
       it 'returns injections in priority order' do
         session = {
@@ -252,6 +319,28 @@ RSpec.describe Monadic::Utils::SystemPromptInjector do
         expect(result[2][:name]).to eq(:stt_diarization_warning)
         expect(result[3][:name]).to eq(:mathjax)
         expect(result[4][:name]).to eq(:system_prompt_suffix)
+      end
+
+      it 'includes autonomy in correct priority order' do
+        session = {
+          runtime_settings: { language: 'en' },
+          parameters: {
+            "autonomy" => "high"
+          }
+        }
+        options = {
+          websearch_enabled: true,
+          reasoning_model: false,
+          websearch_prompt: 'Web search prompt'
+        }
+
+        result = described_class.build_injections(session: session, options: options)
+
+        expect(result.length).to eq(3)
+        # Check priority order: language(100) > autonomy(90) > websearch(80)
+        expect(result[0][:name]).to eq(:language_preference)
+        expect(result[1][:name]).to eq(:autonomy)
+        expect(result[2][:name]).to eq(:websearch)
       end
     end
   end

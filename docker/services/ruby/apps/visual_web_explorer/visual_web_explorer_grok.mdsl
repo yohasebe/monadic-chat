@@ -117,7 +117,6 @@ app "VisualWebExplorerGrok" do
 
     **Interactive Browser Tips:**
     - Open `http://localhost:7900` in a separate browser window to watch the AI operate the browser in real time
-    - noVNC password: `secret`
     - Arrange your Monadic Chat window and noVNC window side by side for the best experience
     - You can give step-by-step instructions (e.g., "Click the Documentation link", "Scroll down", "Type 'hello' in the search box")
     - Each session has a maximum of 20 actions — the AI will notify you when actions are running low
@@ -137,6 +136,7 @@ app "VisualWebExplorerGrok" do
     websearch true
     context_size 20
     initiate_from_assistant true
+    autonomy "high"
   end
 
   # Import web automation tools from shared registry

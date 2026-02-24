@@ -82,6 +82,8 @@ let menuBarModeActive = false;
 
 // Internal browser window reference and opener
 let webviewWindow = null;
+// noVNC viewer window reference
+let novncWindow = null;
 // State for in-page search to filter invisible matches
 // State for in-page search (filtering invisible matches)
 let findState = { term: '', forward: true, requestId: null };
@@ -1137,6 +1139,10 @@ function cleanupAndQuit() {
       settingsWindow.close();
     }
 
+    if (novncWindow && !novncWindow.isDestroyed()) {
+      novncWindow.close();
+    }
+
     // Ensure we bypass any confirmation dialogs
     forceQuit = true;
     
@@ -2014,6 +2020,13 @@ function updateContextMenu(disableControls = false) {
         enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
       },
       {
+        label: i18n.t('menu.openNoVNC'),
+        click: () => {
+          openNoVNCWindow();
+        },
+        enabled: disableControls ? false : (currentStatus === 'Running' || currentStatus === 'Ready')
+      },
+      {
         label: i18n.t('menu.openSharedFolder'),
         click: () => {
           openSharedFolder();
@@ -2312,6 +2325,13 @@ function updateApplicationMenu() {
           label: i18n.t('menu.openBrowser'),
           click: () => {
             shell.openExternal('http://localhost:4567');
+          },
+          enabled: currentStatus === 'Running' || currentStatus === 'Ready'
+        },
+        {
+          label: i18n.t('menu.openNoVNC'),
+          click: () => {
+            openNoVNCWindow();
           },
           enabled: currentStatus === 'Running' || currentStatus === 'Ready'
         },
@@ -2971,6 +2991,64 @@ function openBrowser(url, outside = false, forceOpen = false) {
 // (Removed duplicate openWebViewWindow; unified earlier definition is used)
     });
   }, interval);
+}
+
+function openNoVNCWindow() {
+  if (novncWindow && !novncWindow.isDestroyed()) {
+    novncWindow.focus();
+    return;
+  }
+
+  novncWindow = new BrowserWindow({
+    width: 1300,
+    height: 900,
+    minWidth: 800,
+    minHeight: 600,
+    title: 'noVNC - Browser View',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      devTools: !app.isPackaged
+    }
+  });
+
+  const novncUrl = 'http://localhost:7900';
+  novncWindow.loadURL(novncUrl);
+
+  // Block navigation away from noVNC (e.g., clicking external links in the noVNC UI)
+  novncWindow.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(novncUrl)) {
+      event.preventDefault();
+      shell.openExternal(url).catch(err => console.error('Failed to open external link from noVNC:', err));
+    }
+  });
+
+  // Handle load failure (e.g., Selenium container not running)
+  novncWindow.webContents.on('did-fail-load', (_event, _errorCode, errorDescription) => {
+    console.warn(`[noVNC] Failed to load: ${errorDescription}`);
+    novncWindow.loadURL(`data:text/html,${encodeURIComponent(`
+      <!DOCTYPE html>
+      <html><head><meta charset="utf-8"><style>
+        body { font-family: -apple-system, system-ui, sans-serif; display: flex;
+               align-items: center; justify-content: center; height: 100vh; margin: 0;
+               background: #f5f5f5; color: #333; }
+        .msg { text-align: center; }
+        h2 { margin-bottom: 8px; }
+        button { margin-top: 16px; padding: 8px 20px; font-size: 14px; cursor: pointer;
+                 border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+        button:hover { background: #e8e8e8; }
+      </style></head>
+      <body><div class="msg">
+        <h2>noVNC is not available</h2>
+        <p>The Selenium container may not be running yet.</p>
+        <button onclick="location.href='${novncUrl}'">Retry</button>
+      </div></body></html>
+    `)}`);
+  });
+
+  novncWindow.on('closed', () => {
+    novncWindow = null;
+  });
 }
 
 function openSettingsWindow() {
@@ -3910,6 +3988,10 @@ ipcMain.on('focus-main-window', () => {
 // Open external URLs in the default browser when requested by the renderer
 ipcMain.on('open-external', (_event, url) => {
   shell.openExternal(url).catch(err => console.error('Failed to open external link:', err));
+});
+// Open noVNC viewer window when requested by the webview (e.g., on start_browser tool execution)
+ipcMain.on('open-novnc', () => {
+  openNoVNCWindow();
 });
 
 // ============================================

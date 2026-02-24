@@ -1267,6 +1267,11 @@ let loadedApp = "Chat";
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
           WorkflowViewer.setActiveTool(data["content"], toolCallCount);
         }
+
+        // Auto-open noVNC window when start_browser is executed (Electron only)
+        if (currentToolName === "start_browser" && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
+          window.electronAPI.openNoVNC();
+        }
         break;
       }
 

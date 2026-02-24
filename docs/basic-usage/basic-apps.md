@@ -418,20 +418,28 @@ Draft speeches with the help of an AI assistant. You can ask the assistant to wr
 
 ### Visual Web Explorer :id=visual-web-explorer
 
-Capture web pages as screenshots or extract their text content into Markdown. This app is perfect for creating documentation, archiving web content, or analyzing a page's structure and text.
+Capture web pages as screenshots or interactively browse websites with AI-driven control. This app supports two modes: static screenshot capture and live interactive browser sessions.
 
 **Key Features:**
 - **Screenshot Mode**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
-- **Text Extraction Mode**: Convert web content to clean Markdown format
+- **Interactive Browser Mode**: Open a real Chrome browser that the AI controls — clicking links, filling forms, scrolling pages. Watch the browser in real time via the noVNC window
 - **Image Recognition Option**: When HTML parsing is difficult, image recognition mode enables text extraction using each provider's vision API
 - **Customizable Viewports**: Desktop, tablet, mobile, and print presets
-- **Overlap Control**: Configure overlap between screenshots for seamless reading
-- **Automatic Naming**: Files are named with domain and timestamp
+- **High Autonomy**: The AI operates with high autonomy, executing actions immediately without asking for confirmation at each step
+
+**Interactive Browser Mode:**
+
+In Interactive Browser Mode, the AI controls a real Chrome browser running in the Selenium container. You can watch the browser in real time through the noVNC window:
+
+- **Electron app**: The noVNC window opens automatically when the AI starts a browser session. You can also open it manually from **Open > Open noVNC** in the menu bar
+- **Development mode**: Open `http://localhost:7900` in a separate browser tab
+
+The AI can click elements, type text, scroll pages, navigate between pages, and more — up to 20 actions per session.
 
 **Usage Examples:**
 - `"Capture screenshots of https://github.com"` - Takes multiple screenshots
-- `"Extract text from https://example.com"` - Converts to Markdown
-- `"Extract text from https://example.com with image recognition"` - Uses vision API when needed
+- `"Open https://example.com in the browser and click the About link"` - Interactive browsing
+- `"Search for 'monadic chat' on Google"` - AI navigates and interacts with the page
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 
 Visual Web Explorer is available with the providers marked in the availability table.

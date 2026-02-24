@@ -23,6 +23,7 @@
     "logs": "Abrir Registros",
     "settings": "Configuración",
     "openBrowser": "Navegador",
+    "openNoVNC": "Abrir noVNC",
     "openSharedFolder": "Carpeta Compartida",
     "quit": "Salir",
     "edit": "Editar",

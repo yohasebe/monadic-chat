@@ -193,8 +193,21 @@ features do
   image_generation true   # Enable AI image generation tools in conversation
   monadic true            # REQUIRED for Session State apps - enables context management via tools
   initiate_from_assistant true # Allow assistant to send first message in conversation
+  autonomy "high"         # Set autonomy level: "high", "medium" (default), or "low"
 end
 ```
+
+#### Autonomy Levels
+
+The `autonomy` feature controls how much confirmation the assistant seeks before executing actions:
+
+| Level | Behavior |
+|-------|----------|
+| `"high"` | Execute actions immediately without confirmation. Skip the Plan-Approve-Execute protocol. Only pause for ambiguous intent, passwords, or destructive actions. |
+| `"medium"` | Default behavior. The assistant follows standard confirmation patterns including the Plan-Approve-Execute protocol for multi-step tasks. |
+| `"low"` | Ask for explicit user confirmation before every action. Always use `propose_plan` for tasks with 2 or more steps. |
+
+When omitted, autonomy defaults to `"medium"` (no prompt injection). Visual Web Explorer uses `"high"` to enable smooth interactive browser sessions without repeated confirmation prompts.
 
 ### 5. Tool Definitions
 

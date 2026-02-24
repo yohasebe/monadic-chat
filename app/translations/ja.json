@@ -106,6 +106,7 @@
     "restart": "再起動",
     "openConsole": "コンソールを開く",
     "openBrowser": "ブラウザ",
+    "openNoVNC": "noVNC を開く",
     "openSharedFolder": "共有フォルダ",
     "openConfigFolder": "設定フォルダを開く",
     "openLogFolder": "ログフォルダを開く",

@@ -241,10 +241,6 @@ module MermaidGrapherTools
             background: #f5f5f5;
             margin: 0;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
           }
           .mermaid {
             background: white;
@@ -344,7 +340,7 @@ module MermaidGrapherTools
     sanitized = sanitized.gsub(/\[(.*?)\]/m) do |match|
       inner = match[1..-2]
       inner = inner.gsub(/\n\s*\n+/, "\n")
-      inner = inner.strip.gsub(/\n\s*/, '\\n')
+      inner = inner.strip.gsub(/\n\s*/, '<br/>')
       "[#{inner}]"
     end
     sanitized.lines.map { |line| line.rstrip }.reject(&:empty?).join("\n")
@@ -353,10 +349,18 @@ module MermaidGrapherTools
   def run_full_validation(code, source: nil)
     puts "[DEBUG run_full_validation] Starting validation, source: #{source}" if ENV['DEBUG']
     result = begin
-      puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
-      actual_validation = validate_with_mermaid_cli(code)
-      puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}" if ENV['DEBUG']
-      build_validation_payload(actual_validation)
+      if source == :preview_tool
+        # Skip Selenium validation for preview: the live preview itself tests
+        # rendering, and a headless validation session would block the single
+        # Selenium Grid slot that web_navigator needs for the visible preview.
+        puts "[DEBUG run_full_validation] Using static validation for preview (avoids Selenium slot conflict)" if ENV['DEBUG']
+        build_validation_payload(static_validation(code))
+      else
+        puts "[DEBUG run_full_validation] Attempting Selenium validation..." if ENV['DEBUG']
+        actual_validation = validate_with_mermaid_cli(code)
+        puts "[DEBUG run_full_validation] Selenium validation result: #{actual_validation.inspect}" if ENV['DEBUG']
+        build_validation_payload(actual_validation)
+      end
     rescue => e
       puts "[DEBUG run_full_validation] Selenium validation failed: #{e.message}, falling back to static validation" if ENV['DEBUG']
       build_validation_payload(static_validation(code))

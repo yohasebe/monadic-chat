@@ -1,11 +1,33 @@
 # Mermaid Grapher: Rendering Notes
 
+## Multi-Provider Support
+
+Mermaid Grapher is available for OpenAI, Claude, Gemini, and Grok. All providers share the same tool module (`MermaidGrapherTools`) and differ only in LLM configuration (provider, model, API key gate).
+
+## Live Browser Preview (noVNC)
+
+`preview_mermaid` uses `web_navigator.py` to render diagrams in a non-headless Chrome browser visible via noVNC (`http://localhost:7900`).
+
+- **First call**: `--action start` creates a new browser session and navigates to the generated HTML
+- **Subsequent calls**: `--action navigate` updates the same browser with a new HTML file
+- **Session detection**: checks `/monadic/data/.browser_session_id` file existence
+- **Fallback**: if navigate fails (session expired), automatically falls back to `--action start`
+- **Screenshot**: `--action screenshot` captures the rendered diagram as PNG
+
+The noVNC window auto-opens in Electron when `preview_mermaid` executes (via `websocket.js` trigger).
+
+Call `stop_mermaid_browser` to end the session and clean up HTML files.
+
+### Session Sharing with VWE
+
+Mermaid Grapher and Visual Web Explorer share the same `.browser_session_id` file. `--action start` automatically cleans up any existing session, so switching between apps is safe but will terminate the other app's browser session.
+
 ## Unicode Normalisation
 
 Mermaid.js expects ASCII arrows (`-->`) and plain quotes inside labels. Recent GPT outputs occasionally include:
 
 - Unicode dashes (`–`, `—`, `ー`, etc.) in place of `-`
-- Smart quotes (`“”`, `‘’`, `「」`)
+- Smart quotes (`""`, `''`, `「」`)
 - Full-width slashes (`／`) or repeated blank lines inside brackets
 
 Before validation/rendering we normalise:
@@ -19,15 +41,20 @@ Keep these steps if you touch `sanitize_mermaid_code` or `sanitizeMermaidSource`
 
 ## HTML embedding
 
-When embedding Mermaid code into the preview HTML, we now escape only `<`, `>` and `&`. Quotes stay literal so labels render correctly. Any future change must preserve this behaviour.
+When embedding Mermaid code into the preview HTML, we escape only `<`, `>` and `&`. Quotes stay literal so labels render correctly. Any future change must preserve this behaviour.
 
-## Preview Guard Rails
+## HTML File Lifecycle
 
-`preview_mermaid` refuses to run unless the latest `validate_mermaid_syntax` succeeded for the exact same code. Always check `next_action` in tool responses before re-running tools. Workflow:
+- Preview HTML files are named `mermaid_live_[timestamp].html`
+- During a live session, the latest HTML is kept (browser is displaying it); older files are cleaned up
+- `stop_mermaid_browser` removes all `mermaid_live_*.html` files
+- Validation HTML files (`mermaid_test_*.html`) are cleaned up immediately after use
 
-1. Call `validate_mermaid_syntax` (max 3 retries on failure)
-2. Only on `workflow_status: validation_passed` run `preview_mermaid`
-3. Use the returned `validated_code` in the final answer
+## Validation
+
+`preview_mermaid` runs `run_full_validation` internally before rendering. The validation uses a separate headless Selenium session (inline Python) that does not interfere with the live preview session.
+
+Fallback order: Selenium validation → static syntax validation (if Selenium unavailable).
 
 ## Frontend helper
 

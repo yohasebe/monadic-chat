@@ -1,29 +1,29 @@
-app "MermaidGrapherOpenAI" do
+app "MermaidGrapherGrok" do
   description do
     en <<~TEXT
     Create diagrams using Mermaid markdown syntax.
     TEXT
-    
+
     ja <<~TEXT
     Mermaidマークダウン構文での図表作成。
     TEXT
-    
+
     zh <<~TEXT
     使用Mermaid markdown语法创建图表。
     TEXT
-    
+
     ko <<~TEXT
     Mermaid 마크다운 구문으로 다이어그램 생성.
     TEXT
-    
+
     es <<~TEXT
     Crear diagramas usando sintaxis Mermaid markdown.
     TEXT
-    
+
     fr <<~TEXT
     Créer des diagrammes avec la syntaxe Mermaid markdown.
     TEXT
-    
+
     de <<~TEXT
     Diagramme mit Mermaid-Markdown-Syntax erstellen.
     TEXT
@@ -34,14 +34,25 @@ app "MermaidGrapherOpenAI" do
   system_prompt <<~TEXT
     You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.
 
+    ## Live Browser Preview
+
+    When you call `preview_mermaid`, the diagram renders in a live browser visible via noVNC (http://localhost:7900).
+    Users can watch diagram changes in real time through the noVNC viewer window.
+
+    - First `preview_mermaid` call opens the browser automatically
+    - Subsequent calls update the same browser with the new diagram
+    - The user sees changes instantly in the noVNC window
+    - Call `stop_mermaid_browser` when the diagram session is complete
+    - Share the noVNC URL (http://localhost:7900) with the user on the first preview
 
     ## Simple Workflow
 
     When creating a diagram, follow these steps exactly ONCE:
     1. Draft the Mermaid code using examples below
-    2. Call `preview_mermaid` with the code (this tool validates AND saves preview)
+    2. Call `preview_mermaid` with the code (this tool validates AND saves preview, and opens/updates live browser)
     3. If tool returns success, present the diagram to user
     4. If tool returns error, fix the code and call `preview_mermaid` again (maximum 2 attempts total)
+    5. When the user is satisfied, call `stop_mermaid_browser` to close the live preview session
 
     IMPORTANT: After `preview_mermaid` succeeds, STOP calling tools and respond to user immediately.
 
@@ -146,7 +157,7 @@ app "MermaidGrapherOpenAI" do
     Pay attention to the indentation and spacing in the mermaid code, which are crucial for correct rendering.
 
     ## Additional Diagram Types
-    
+
     For these less common diagram types, use `websearch_agent` to find current syntax:
     - `journey`
     - `quadrantChart`
@@ -163,23 +174,23 @@ app "MermaidGrapherOpenAI" do
     - `architecture-beta`
 
     ## Important Syntax Rules
-    
+
     1. **Node IDs**: Use alphanumeric characters without spaces. Use quotes for labels with special characters.
     2. **Escape Characters**: Use \\[ ] for brackets and \\( ) for parentheses in labels.
     3. **Indentation**: Use consistent 2 or 4 spaces (never tabs).
     4. **Quotes**: Use double quotes for labels containing spaces or special characters.
     5. **Comments**: Use %% for comments in Mermaid code.
-    
+
     ## Critical Diagram-Specific Syntax
-    
+
     **Sankey Diagrams**: Use CSV format (source,target,value) NOT arrow notation:
     - ✅ Correct: `Source,Target,100`
     - ❌ Wrong: `Source --> Target[Target]`
-    
+
     **Flowcharts**: Use proper node syntax:
     - ✅ Correct: `A[Label] --> B[Another Label]`
     - ❌ Wrong: `A --> B[Label]` (missing label for A)
-    
+
     ## Error Handling
 
     If `preview_mermaid` returns an error:
@@ -235,21 +246,22 @@ app "MermaidGrapherOpenAI" do
     WHEN TO SKIP: Simple syntax questions, direct answers.
     Maximum 3 verification attempts per task.
   TEXT
-  
+
   llm do
-    provider "openai"
-    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
-    reasoning_effort "none"
+    provider "xai"
+    model "grok-4-1-fast-non-reasoning"
     temperature 0.0
   end
-  
+
   features do
+    disabled !CONFIG["XAI_API_KEY"]
     mermaid true
     easy_submit false
     auto_speech false
     initiate_from_assistant false
+    autonomy "high"
   end
-  
+
   tools do
     # Import unified web search tools (conditional - native or Tavily)
     import_shared_tools :web_search_tools, visibility: "conditional"
@@ -260,8 +272,11 @@ app "MermaidGrapherOpenAI" do
     # Import verification tools for Self-Verification protocol
     import_shared_tools :verification, visibility: "always"
 
-    define_tool "preview_mermaid", "Validate and save a preview image of Mermaid diagram to shared folder" do
+    define_tool "preview_mermaid", "Validate and render Mermaid diagram in live browser (noVNC), saving a screenshot to shared folder" do
       parameter :code, "string", "Mermaid diagram code to validate and preview", required: true
+    end
+
+    define_tool "stop_mermaid_browser", "Close the live Mermaid preview browser session" do
     end
   end
 end

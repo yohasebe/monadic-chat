@@ -2164,7 +2164,7 @@ function updateApplicationMenu() {
         {
           label: i18n.t('menu.installOptions') || 'Install Options',
           click: () => {
-            openInstallOptionsWindow();
+            openSettingsWindow('install-options');
           }
         },
         { type: 'separator' },
@@ -2538,133 +2538,7 @@ function updateStatusIndicator(status) {
 // IPC handler for programmatic chat capture (no Selenium)
 // (removed) capture-chat-screenshot IPC handler
 
-// ---------------- Install Options Window ----------------
-let installOptionsWindow = null;
-let pendingCloseTimers = { settings: null, installOptions: null };
-function openInstallOptionsWindow() {
-  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-    installOptionsWindow.focus();
-    return;
-  }
-  installOptionsWindow = new BrowserWindow({
-    devTools: !app.isPackaged, // Only enable DevTools in development
-    width: 600,
-    minWidth: 600,
-    height: 400,
-    minHeight: 400,
-    resizable: true,
-    title: 'Install Options',
-    parent: mainWindow,
-    modal: true,
-    show: false,
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-  installOptionsWindow.loadFile(path.join(__dirname, 'installOptions.html'));
-  installOptionsWindow.once('ready-to-show', () => installOptionsWindow.show());
-  // Trigger translation refresh after load
-  installOptionsWindow.webContents.once('did-finish-load', () => {
-    installOptionsWindow.webContents.executeJavaScript(`
-      if (typeof installOptionsReloadTranslations === 'function') {
-        installOptionsReloadTranslations();
-      }
-    `);
-  });
-  installOptionsWindow.on('closed', () => { installOptionsWindow = null; });
-  // Route close attempts to renderer for unsaved-change prompt
-  installOptionsWindow.on('close', (event) => {
-    if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-      event.preventDefault();
-      installOptionsWindow.webContents.send('attempt-close-install-options');
-      // Fallback: force close if renderer does not respond within 3s
-      if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
-      pendingCloseTimers.installOptions = setTimeout(() => {
-        try {
-          if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-            console.warn('[Main] Forcing close of Install Options (renderer unresponsive)');
-            installOptionsWindow.destroy();
-          }
-        } catch (_) { console.warn("[Main] Install options cleanup failed:", _); }
-      }, 3000);
-    }
-  });
-}
-
-// IPC handlers for Install Options
-ipcMain.handle('get-install-options', async () => {
-  const envPath = getEnvPath();
-  const cfg = envPath ? readEnvFile(envPath) : {};
-  // Normalize booleans (strings to true/false)
-  const toBool = (v) => {
-    if (typeof v === 'boolean') return v;
-    if (!v) return false;
-    const s = String(v).toLowerCase();
-    return ['1','true','yes','on'].includes(s);
-  };
-  return {
-    INSTALL_LATEX: toBool(cfg.INSTALL_LATEX),
-    PYOPT_NLTK: toBool(cfg.PYOPT_NLTK),
-    PYOPT_SPACY: toBool(cfg.PYOPT_SPACY),
-    PYOPT_SCIKIT: toBool(cfg.PYOPT_SCIKIT),
-    PYOPT_GENSIM: toBool(cfg.PYOPT_GENSIM),
-    PYOPT_LIBROSA: toBool(cfg.PYOPT_LIBROSA),
-    PYOPT_MEDIAPIPE: toBool(cfg.PYOPT_MEDIAPIPE),
-    PYOPT_TRANSFORMERS: toBool(cfg.PYOPT_TRANSFORMERS),
-    IMGOPT_IMAGEMAGICK: toBool(cfg.IMGOPT_IMAGEMAGICK)
-  };
-});
-
-ipcMain.handle('get-install-options-translations', async () => {
-    try {
-      const panel = (i18n.getSection('menu') || {}).installOptionsPanel || {};
-      const dialogs = i18n.getSection('dialogs') || {};
-      return {
-        panel,
-        dialogs,
-        language: i18n.getLanguage()
-      };
-    } catch (err) {
-      console.error('Failed to build install options translations:', err);
-      return { panel: {}, dialogs: {}, language: i18n.getLanguage() };
-    }
-  });
-
-let installOptionsSaving = false;
-ipcMain.handle('save-install-options', async (_e, options) => {
-  if (installOptionsSaving) {
-    return { success: true, skipped: true };
-  }
-  installOptionsSaving = true;
-  const envPath = getEnvPath();
-  if (!envPath) throw new Error('Config path not found');
-  const cfg = readEnvFile(envPath) || {};
-  const setBool = (k, v) => { cfg[k] = v ? 'true' : 'false'; };
-  setBool('INSTALL_LATEX', !!options.INSTALL_LATEX);
-  setBool('PYOPT_NLTK', !!options.PYOPT_NLTK);
-  setBool('PYOPT_SPACY', !!options.PYOPT_SPACY);
-  setBool('PYOPT_SCIKIT', !!options.PYOPT_SCIKIT);
-  setBool('PYOPT_GENSIM', !!options.PYOPT_GENSIM);
-  setBool('PYOPT_LIBROSA', !!options.PYOPT_LIBROSA);
-  setBool('PYOPT_MEDIAPIPE', !!options.PYOPT_MEDIAPIPE);
-  setBool('PYOPT_TRANSFORMERS', !!options.PYOPT_TRANSFORMERS);
-  setBool('IMGOPT_IMAGEMAGICK', !!options.IMGOPT_IMAGEMAGICK);
-  try {
-    writeEnvFile(envPath, cfg);
-  } catch (err) {
-    console.error('Failed to save install options:', err);
-    dialog.showErrorBox(i18n.t('dialogs.error'), `Failed to save options: ${err.message}`);
-    installOptionsSaving = false;
-    throw new Error(`Failed to save: ${err.message}`);
-  }
-
-  // No rebuild prompt here. Rebuild must be initiated explicitly by the user
-  installOptionsSaving = false;
-  return { success: true };
-});
+let pendingCloseTimers = { settings: null };
 
 // ---------------- Translations loader for renderer ----------------
 ipcMain.handle('get-translations', async (_e, lang) => {
@@ -3051,7 +2925,7 @@ function openNoVNCWindow() {
   });
 }
 
-function openSettingsWindow() {
+function openSettingsWindow(category = null) {
   if (!settingsWindow) {
     const mainBounds = mainWindow.getBounds();
     settingsWindow = new BrowserWindow({
@@ -3090,6 +2964,12 @@ function openSettingsWindow() {
           }
         `);
       }
+      // Navigate to a specific category tab if requested
+      if (category) {
+        settingsWindow.webContents.executeJavaScript(
+          `document.querySelector('[data-category="${category}"]')?.click();`
+        );
+      }
     });
     // Context menu with standard edit actions for mouse operations
     extendedContextMenu({
@@ -3120,6 +3000,12 @@ function openSettingsWindow() {
   } else {
     // Re-open: page already loaded, send fresh settings from disk
     sendSettingsToRenderer(settingsWindow.webContents);
+    // Navigate to a specific category tab if requested
+    if (category) {
+      settingsWindow.webContents.executeJavaScript(
+        `document.querySelector('[data-category="${category}"]')?.click();`
+      );
+    }
   }
   settingsWindow.show();
 }
@@ -3539,9 +3425,6 @@ ipcMain.on('change-ui-language', (_event, language) => {
   if (internalBrowser && !internalBrowser.isDestroyed()) {
     internalBrowser.webContents.send('ui-language-changed', { language });
   }
-  if (installOptionsWindow && !installOptionsWindow.isDestroyed()) {
-    installOptionsWindow.webContents.send('ui-language-changed', { language });
-  }
 });
 
 // Handle settings save from settings window
@@ -3818,10 +3701,6 @@ ipcMain.on('confirm-close-settings', () => {
   if (settingsWindow && !settingsWindow.isDestroyed()) settingsWindow.hide();
 });
 
-ipcMain.on('confirm-close-install-options', () => {
-  if (pendingCloseTimers.installOptions) clearTimeout(pendingCloseTimers.installOptions);
-  if (installOptionsWindow) installOptionsWindow.destroy();
-});
 
 // Handle restart request from renderer process - removed automatic restart functionality
 // as it could interrupt active server instances

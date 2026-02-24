@@ -135,17 +135,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTranslations: (lang) => ipcRenderer.invoke('get-translations', lang)
 });
 
-// Install Options API (isolated renderer access)
-contextBridge.exposeInMainWorld('installOptionsAPI', {
-  get: () => ipcRenderer.invoke('get-install-options'),
-  save: (options) => ipcRenderer.invoke('save-install-options', options),
-  getTranslations: () => ipcRenderer.invoke('get-install-options-translations')
-});
-
-// Install Options window close flow
-contextBridge.exposeInMainWorld('installOptionsWindowAPI', {
-  onAttemptClose: (callback) => ipcRenderer.on('attempt-close-install-options', callback),
-  confirmClose: () => ipcRenderer.send('confirm-close-install-options')
-});
-
 // (removed) experimental captureAPI

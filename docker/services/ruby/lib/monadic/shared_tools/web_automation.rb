@@ -289,6 +289,24 @@ module MonadicSharedTools
       {
         type: "function",
         function: {
+          name: "annotate_elements",
+          description: "Annotate candidate elements with numbered labels on the current page screenshot. Use this when the user's instruction is ambiguous and you need to ask which element they mean. Returns an annotated screenshot showing numbered labels on each candidate element.",
+          parameters: {
+            type: "object",
+            properties: {
+              selectors: {
+                type: "array",
+                items: { type: "string" },
+                description: "Array of CSS selectors for candidate elements (max 9). Get these from browser_get_page_info."
+              }
+            },
+            required: ["selectors"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "stop_browser",
           description: "Stop the interactive browser session and close the browser.",
           parameters: {
@@ -806,6 +824,38 @@ module MonadicSharedTools
       response
     end
 
+    def annotate_elements(selectors:)
+      if limit_error = browser_action_guard!("annotate_elements")
+        return limit_error
+      end
+      if error = check_selenium_or_error
+        return error
+      end
+
+      selectors_json = selectors.take(9).to_json
+      output = send_command(
+        command: "web_navigator.py --action annotate_elements --selectors #{Shellwords.escape(selectors_json)}",
+        container: "python"
+      )
+      result = parse_navigator_response(output)
+      return result unless result[:success]
+
+      response = {
+        success: true,
+        message: "Annotated #{result[:element_count]} elements with numbered labels.",
+        elements: result[:elements],
+        actions_remaining: MAX_BROWSER_ACTIONS - @browser_action_count
+      }
+
+      if result[:screenshot]
+        response[:screenshot] = result[:screenshot]
+        response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
+      end
+
+      response
+    end
+
     def stop_browser
       output = send_command(command: "web_navigator.py --action stop", container: "python")
       result = parse_navigator_response(output)
@@ -845,7 +895,7 @@ module MonadicSharedTools
         html += <<~HTML
           <div class="generated_image">
             <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{filename}</p>
-            <img src="/data/#{filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" />
+            <img src="/data/#{filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" data-screenshot-dpr="2" />
           </div>
         HTML
       end

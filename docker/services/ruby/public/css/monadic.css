@@ -2734,6 +2734,7 @@ h1 {
 
 #screenshotLightbox .modal-content {
   background: transparent !important;
+  overflow: visible !important;
 }
 
 #lightboxPrev:hover,

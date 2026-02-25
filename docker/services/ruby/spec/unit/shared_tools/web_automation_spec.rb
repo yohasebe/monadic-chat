@@ -196,6 +196,82 @@ RSpec.describe "MonadicSharedTools::WebAutomation" do
     end
   end
 
+  describe "#annotate_elements" do
+    before do
+      app.instance_variable_set(:@browser_action_count, 0)
+      app.instance_variable_set(:@browser_last_action, nil)
+      app.instance_variable_set(:@browser_consecutive_count, 0)
+    end
+
+    context "with successful annotation" do
+      before do
+        app.mock_response = JSON.generate({
+          success: true,
+          screenshot: "annotated_001.png",
+          elements: [
+            { index: 1, found: true, selector: "#btn1", tag: "button", text: "Search" },
+            { index: 2, found: true, selector: ".nav-link", tag: "a", text: "About" },
+            { index: 3, found: false, selector: "#missing" }
+          ],
+          element_count: 2
+        })
+      end
+
+      it "includes _image in response" do
+        result = app.annotate_elements(selectors: ["#btn1", ".nav-link", "#missing"])
+        expect(result[:_image]).to eq("annotated_001.png")
+      end
+
+      it "includes gallery_html in response" do
+        result = app.annotate_elements(selectors: ["#btn1", ".nav-link"])
+        expect(result[:gallery_html]).to include("generated_image")
+      end
+
+      it "includes element metadata" do
+        result = app.annotate_elements(selectors: ["#btn1", ".nav-link", "#missing"])
+        expect(result[:elements].length).to eq(3)
+        expect(result[:message]).to include("2 elements")
+      end
+
+      it "includes actions_remaining" do
+        result = app.annotate_elements(selectors: ["#btn1"])
+        expect(result[:actions_remaining]).to eq(19)
+      end
+    end
+
+    context "with action guard" do
+      it "counts as a browser action" do
+        app.mock_response = JSON.generate({
+          success: true, screenshot: "s.png", elements: [], element_count: 0
+        })
+        app.annotate_elements(selectors: ["#btn"])
+        expect(app.instance_variable_get(:@browser_action_count)).to eq(1)
+      end
+
+      it "returns error when action limit exceeded" do
+        app.instance_variable_set(:@browser_action_count, 20)
+        result = app.annotate_elements(selectors: ["#btn"])
+        expect(result[:success]).to be false
+        expect(result[:error]).to include("Action limit reached")
+      end
+    end
+
+    it "caps selectors at 9 and passes to Python" do
+      app.mock_response = JSON.generate({
+        success: true, screenshot: "s.png", elements: [], element_count: 0
+      })
+      selectors = (1..15).map { |i| "#el#{i}" }
+      app.annotate_elements(selectors: selectors)
+      # The command should contain a JSON array of max 9 selectors
+      cmd = app.last_command
+      # Shellwords.escape uses backslash escaping; extract and unescape
+      escaped_json = cmd.match(/--selectors\s+(.+)/)[1]
+      unescaped_json = Shellwords.shellsplit("x #{escaped_json}")[1]
+      parsed_selectors = JSON.parse(unescaped_json)
+      expect(parsed_selectors.length).to eq(9)
+    end
+  end
+
   describe "#browser_action_guard!" do
     it "allows actions up to MAX_BROWSER_ACTIONS" do
       app.instance_variable_set(:@browser_action_count, 0)

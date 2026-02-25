@@ -457,6 +457,56 @@ document.addEventListener("DOMContentLoaded", async function () {
 
 // Fallback implementations are now in shims.js
 
+// ============================================================================
+// Screenshot Lightbox state
+// (file-level scope to ensure accessibility from all event handlers)
+// ============================================================================
+var lightboxImages = [];
+var lightboxIndex = 0;
+
+function updateLightbox() {
+  if (lightboxImages.length === 0) return;
+  $("#lightboxImage").attr("src", lightboxImages[lightboxIndex]);
+  if (lightboxImages.length > 1) {
+    $("#lightboxCounter").text((lightboxIndex + 1) + " / " + lightboxImages.length).show();
+    $("#lightboxPrev").toggle(lightboxIndex > 0);
+    $("#lightboxNext").toggle(lightboxIndex < lightboxImages.length - 1);
+  } else {
+    $("#lightboxCounter").hide();
+    $("#lightboxPrev, #lightboxNext").hide();
+  }
+}
+
+// --- Perceptual hash helpers for visual image dedup ---
+function imagePerceptualHash(imgEl, size) {
+  size = size || 16;
+  try {
+    var c = document.createElement("canvas");
+    c.width = size;
+    c.height = size;
+    var ctx = c.getContext("2d");
+    ctx.drawImage(imgEl, 0, 0, size, size);
+    var data = ctx.getImageData(0, 0, size, size).data;
+    var grays = [];
+    for (var i = 0; i < data.length; i += 4) {
+      grays.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    }
+    var avg = grays.reduce(function(a, b) { return a + b; }, 0) / grays.length;
+    return grays.map(function(g) { return g > avg ? "1" : "0"; }).join("");
+  } catch (e) {
+    return null;
+  }
+}
+
+function hashSimilarity(h1, h2) {
+  if (!h1 || !h2 || h1.length !== h2.length) return 0;
+  var match = 0;
+  for (var i = 0; i < h1.length; i++) {
+    if (h1[i] === h2[i]) match++;
+  }
+  return match / h1.length;
+}
+
 $(function () {
   
   // Make alert draggable immediately when needed instead of storing reference
@@ -826,43 +876,65 @@ $(function () {
       $("#send").trigger("click");
     });
 
-    // Screenshot Lightbox state (shared between MutationObserver and modal controls)
-    let lightboxImages = [];
-    let lightboxIndex = 0;
-
-    function updateLightbox() {
-      if (lightboxImages.length === 0) return;
-      $("#lightboxImage").attr("src", lightboxImages[lightboxIndex]);
-      if (lightboxImages.length > 1) {
-        $("#lightboxCounter").text((lightboxIndex + 1) + " / " + lightboxImages.length).show();
-        $("#lightboxPrev").toggle(lightboxIndex > 0);
-        $("#lightboxNext").toggle(lightboxIndex < lightboxImages.length - 1);
-      } else {
-        $("#lightboxCounter").hide();
-        $("#lightboxPrev, #lightboxNext").hide();
-      }
-    }
-
-    // Add MutationObserver for handling image errors and screenshot lightbox
+    // Add MutationObserver for handling image errors, dedup, and screenshot lightbox
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.addedNodes.length) {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === 1 && node.classList.contains('card')) {
+              // Phase 1: Deduplicate images with the same src (URL) within this card
+              const seenSrcs = new Set();
+              $(node).find(".generated_image img").each(function() {
+                const src = $(this).attr("src");
+                if (src && seenSrcs.has(src)) {
+                  $(this).closest(".generated_image").remove();
+                  return; // continue to next
+                }
+                if (src) seenSrcs.add(src);
+              });
+
+              // Phase 2: Set up load handlers for visual dedup, DPR sizing, errors, click
+              const cardHashes = [];
               $(node).find(".generated_image img").each(function() {
                 const $img = $(this);
+                const imgEl = this;
 
-                // Use one-time event handler to avoid memory leak from multiple handlers
+                // Error handler
                 $img.one("error", function() {
                   const $errorMessage = $("<div>", {
                     class: "image-error-message",
                     text: "NO IMAGE GENERATED"
-                  }).css({
-                    'color': '#dc3545',
-                  });
+                  }).css({ 'color': '#dc3545' });
                   $img.replaceWith($errorMessage);
                 });
+
+                // On load: visual dedup + DPR-aware sizing
+                $img.one("load", function() {
+                  // Visual similarity dedup using perceptual hash
+                  var hash = imagePerceptualHash(imgEl);
+                  if (hash) {
+                    for (var i = 0; i < cardHashes.length; i++) {
+                      if (hashSimilarity(hash, cardHashes[i]) >= 0.90) {
+                        // Near-duplicate — remove this image
+                        $img.closest(".generated_image").remove();
+                        return;
+                      }
+                    }
+                    cardHashes.push(hash);
+                  }
+
+                  // DPR-aware display width for screenshot images
+                  var dpr = parseInt($img.data("screenshot-dpr")) || 0;
+                  if (dpr > 1 && imgEl.naturalWidth > 0) {
+                    imgEl.style.width = (imgEl.naturalWidth / dpr) + "px";
+                  }
+                });
+
+                // Handle already-cached images (browser may not fire load)
+                if (imgEl.complete && imgEl.naturalWidth > 0) {
+                  $img.trigger("load");
+                }
 
                 // Screenshot lightbox: add click handler directly to each image
                 // Skip images marked by image_generation apps (data-action="open")

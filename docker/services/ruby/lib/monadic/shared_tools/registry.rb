@@ -441,6 +441,19 @@ module MonadicSharedTools
             parameters: []
           },
           {
+            name: "annotate_elements",
+            description: "Annotate candidate elements with numbered labels on the screenshot for user disambiguation",
+            parameters: [
+              {
+                name: :selectors,
+                type: "array",
+                description: "Array of CSS selectors for candidate elements (max 9)",
+                required: true,
+                items: { type: "string" }
+              }
+            ]
+          },
+          {
             name: "browser_scroll",
             description: "Scroll the interactive browser page. Supports relative (up/down) and absolute (top/bottom) scrolling.",
             parameters: [

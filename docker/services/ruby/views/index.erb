@@ -1046,7 +1046,9 @@
       <div class="modal-dialog modal-dialog-centered" style="max-width: 95vw;">
         <div class="modal-content" style="background: transparent; border: none; box-shadow: none;">
           <div class="modal-body p-0 text-center position-relative">
-            <img id="lightboxImage" src="" alt="Screenshot" style="max-width: 95vw; max-height: 85vh; object-fit: contain; cursor: pointer; border-radius: 4px;">
+            <div id="lightboxContainer" style="display: inline-block; position: relative;">
+              <img id="lightboxImage" src="" alt="Screenshot" style="max-width: 95vw; max-height: 85vh; object-fit: contain; cursor: pointer; border-radius: 4px;">
+            </div>
             <div id="lightboxCounter" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.6); padding: 4px 12px; border-radius: 12px; font-size: 0.85rem;"></div>
             <button id="lightboxPrev" class="btn btn-sm" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&lsaquo;</button>
             <button id="lightboxNext" class="btn btn-sm" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: white; background: rgba(0,0,0,0.5); border: none; border-radius: 50%; width: 36px; height: 36px; display: none;">&rsaquo;</button>

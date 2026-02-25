@@ -447,6 +447,8 @@ Browse and capture web content with screenshots. When you provide a URL, the AI 
 
 When you ask the AI to interact with a page, it starts a headless browser session in the Selenium container. The AI can click elements, type text, scroll pages, navigate between pages, and more — up to 20 actions per session. After each action, the AI receives a screenshot to verify the result.
 
+When your instruction is ambiguous (e.g., "click the search button" when multiple candidates exist), the AI can annotate candidate elements with numbered labels on a screenshot and ask you to choose the correct one.
+
 For live browser viewing, you can ask the AI to use non-headless mode. This enables real-time viewing via noVNC:
 
 - **Electron app**: Open the noVNC window from **Open > Open noVNC** in the menu bar

@@ -256,7 +256,8 @@ def action_start(args):
         "--disable-gpu",
         f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
         "--force-device-scale-factor=2",
-        "--high-dpi-support=1"
+        "--high-dpi-support=1",
+        "--hide-scrollbars"
     ]
 
     if headless:
@@ -679,6 +680,96 @@ def action_diagram_screenshot(args):
     }
 
 
+def action_annotate_elements(args):
+    """Annotate candidate elements with numbered labels and highlight boxes.
+    Takes a JSON array of CSS selectors, injects visual labels, captures a screenshot,
+    then removes the labels. Returns the annotated screenshot and element metadata."""
+    session_id = _load_session()
+    if not session_id:
+        return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    try:
+        selectors = json.loads(args.selectors)
+    except (json.JSONDecodeError, TypeError):
+        return {"success": False, "error": "Invalid selectors: must be a JSON array of CSS selector strings."}
+
+    if not isinstance(selectors, list) or len(selectors) == 0:
+        return {"success": False, "error": "selectors must be a non-empty array of CSS selector strings."}
+
+    # Cap at 9 elements for readability
+    selectors = selectors[:9]
+
+    # Step 1: Inject numbered labels and highlight boxes for each selector
+    inject_js = """
+    var selectors = arguments[0];
+    var results = [];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (!el) { results.push({index: i+1, found: false, selector: selectors[i]}); continue; }
+      var rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) { results.push({index: i+1, found: false, selector: selectors[i]}); continue; }
+
+      // Highlight box
+      var hl = document.createElement('div');
+      hl.className = 'monadic-annotation-hl';
+      hl.style.cssText = 'position:fixed;top:'+rect.top+'px;left:'+rect.left+'px;' +
+        'width:'+rect.width+'px;height:'+rect.height+'px;' +
+        'border:3px solid #ff0000;background:rgba(255,0,0,0.08);' +
+        'z-index:2147483646;pointer-events:none;border-radius:3px;';
+      document.body.appendChild(hl);
+
+      // Number label (positioned at top-left of element, adjusted for viewport edges)
+      var labelTop = Math.max(2, rect.top - 28);
+      var labelLeft = Math.max(2, rect.left);
+      var label = document.createElement('div');
+      label.className = 'monadic-annotation-label';
+      label.textContent = (i + 1).toString();
+      label.style.cssText = 'position:fixed;top:'+labelTop+'px;left:'+labelLeft+'px;' +
+        'min-width:24px;height:24px;padding:0 6px;' +
+        'background:#ff0000;color:white;' +
+        'border-radius:12px;font:bold 14px/24px sans-serif;text-align:center;' +
+        'z-index:2147483647;pointer-events:none;' +
+        'border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+      document.body.appendChild(label);
+
+      results.push({
+        index: i+1, found: true, selector: selectors[i],
+        tag: el.tagName.toLowerCase(),
+        text: (el.textContent || '').trim().substring(0, 80),
+        rect: {top: Math.round(rect.top), left: Math.round(rect.left),
+               width: Math.round(rect.width), height: Math.round(rect.height)}
+      });
+    }
+    return results;
+    """
+    inject_result = _execute_js(session_id, inject_js, [selectors])
+
+    if "error" in inject_result:
+        return {"success": False, "error": f"Failed to annotate elements: {inject_result['error']}"}
+
+    # Step 2: Capture screenshot with annotations visible
+    screenshot = _take_screenshot(session_id)
+
+    # Step 3: Remove injected annotations
+    cleanup_js = """
+    var els = document.querySelectorAll('.monadic-annotation-label, .monadic-annotation-hl');
+    var count = els.length;
+    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+    return {removed: count};
+    """
+    _execute_js(session_id, cleanup_js)
+
+    elements = inject_result.get("value", [])
+    found_count = len([e for e in elements if e.get("found")])
+
+    return {
+        "success": True,
+        "screenshot": screenshot,
+        "elements": elements,
+        "element_count": found_count
+    }
+
+
 def action_scroll(args):
     """Scroll the page in a direction. Supports up/down (relative) and top/bottom (absolute)."""
     session_id = _load_session()
@@ -953,9 +1044,9 @@ def main():
                         choices=["start", "navigate", "click", "type",
                                  "screenshot", "full_screenshot",
                                  "diagram_screenshot", "extract_svg",
-                                 "get_page_info", "scroll",
-                                 "press_key", "select", "back", "forward",
-                                 "stop"],
+                                 "get_page_info", "annotate_elements",
+                                 "scroll", "press_key", "select",
+                                 "back", "forward", "stop"],
                         help="Action to perform")
     parser.add_argument("--url", help="URL for start/navigate actions")
     parser.add_argument("--selector", help="CSS selector for click/type/press_key/select actions")
@@ -966,6 +1057,8 @@ def main():
                         help="Scroll amount in pixels")
     parser.add_argument("--key", help="Key name for press_key action (e.g., Enter, Escape, Tab)")
     parser.add_argument("--value", help="Value for select action")
+    parser.add_argument("--selectors", type=str,
+                        help="JSON array of CSS selectors for annotate_elements action")
     parser.add_argument("--headless", choices=["true", "false"], default="true",
                         help="Run browser in headless mode (default: true)")
 
@@ -981,6 +1074,7 @@ def main():
         "diagram_screenshot": action_diagram_screenshot,
         "extract_svg": action_extract_svg,
         "get_page_info": action_get_page_info,
+        "annotate_elements": action_annotate_elements,
         "scroll": action_scroll,
         "press_key": action_press_key,
         "select": action_select,

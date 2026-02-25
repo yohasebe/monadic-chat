@@ -435,27 +435,26 @@ Draft speeches with the help of an AI assistant. You can ask the assistant to wr
 
 ### Web Insight :id=web-insight
 
-Capture web pages as screenshots or interactively browse websites with AI-driven control. This app supports two modes: static screenshot capture and live interactive browser sessions.
+Browse and capture web content with screenshots. When you provide a URL, the AI captures the page as viewport-sized screenshots. When interaction is needed (clicking, form filling, navigation), the AI opens a headless browser session and performs actions while returning screenshots for visual feedback.
 
 **Key Features:**
-- **Screenshot Mode**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
-- **Interactive Browser Mode**: Open a real Chrome browser that the AI controls — clicking links, filling forms, scrolling pages. Watch the browser in real time via the noVNC window
-- **Image Recognition Option**: When HTML parsing is difficult, image recognition mode enables text extraction using each provider's vision API
+- **Screenshot Capture**: Capture entire web pages as multiple viewport-sized images with automatic scrolling
+- **Interactive Browsing**: The AI controls a headless Chrome browser — clicking links, filling forms, scrolling pages — and returns screenshots after each action
 - **Customizable Viewports**: Desktop, tablet, mobile, and print presets
 - **High Autonomy**: The AI operates with high autonomy, executing actions immediately without asking for confirmation at each step
 
-**Interactive Browser Mode:**
+**Interactive Browser Sessions:**
 
-In Interactive Browser Mode, the AI controls a real Chrome browser running in the Selenium container. You can watch the browser in real time through the noVNC window:
+When you ask the AI to interact with a page, it starts a headless browser session in the Selenium container. The AI can click elements, type text, scroll pages, navigate between pages, and more — up to 20 actions per session. After each action, the AI receives a screenshot to verify the result.
 
-- **Electron app**: The noVNC window opens automatically when the AI starts a browser session. You can also open it manually from **Open > Open noVNC** in the menu bar
+For live browser viewing, you can ask the AI to use non-headless mode. This enables real-time viewing via noVNC:
+
+- **Electron app**: Open the noVNC window from **Open > Open noVNC** in the menu bar
 - **Development mode**: Open `http://localhost:7900` in a separate browser tab
-
-The AI can click elements, type text, scroll pages, navigate between pages, and more — up to 20 actions per session.
 
 **Usage Examples:**
 - `"Capture screenshots of https://github.com"` - Takes multiple screenshots
-- `"Open https://example.com in the browser and click the About link"` - Interactive browsing
+- `"Open https://example.com and click the About link"` - Interactive browsing
 - `"Search for 'monadic chat' on Google"` - AI navigates and interacts with the page
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 

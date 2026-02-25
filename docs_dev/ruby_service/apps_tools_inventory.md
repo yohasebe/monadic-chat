@@ -71,12 +71,27 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 **Default Visibility:** Conditional (available when Selenium is running)
 **Description:** Capture and interact with web pages using Selenium
 
-**Tools:**
+**Viewport Capture Tools:**
 - `capture_viewport_screenshots` - Capture a web page as multiple viewport-sized screenshots
 - `list_captured_screenshots` - List all screenshots captured in current session
 - `get_viewport_presets` - Get available viewport preset dimensions
 - `capture_webpage_text` - Extract text content from a web page in Markdown format
 - `debug_application` - Debug a generated web application using Selenium
+
+**Interactive Browser Tools:**
+- `start_browser` - Start an interactive browser session (headless by default, `headless: false` for noVNC viewing)
+- `browser_navigate` - Navigate to a URL
+- `browser_click` - Click an element by CSS selector
+- `browser_type` - Type text into an input field
+- `browser_scroll` - Scroll the page (up/down/top/bottom)
+- `browser_press_key` - Press a keyboard key
+- `browser_select` - Select a dropdown option
+- `browser_back` / `browser_forward` - History navigation
+- `browser_screenshot` - Take a screenshot of the current page
+- `browser_get_page_info` - Get page info (title, URL, interactive elements)
+- `stop_browser` - End the browser session
+
+**`_image` Key:** All tools that return screenshots include a `_image` key in the response. This key is consumed by vendor adapters to inject the screenshot into the LLM's next turn as a vision input (OpenAI/Grok: image_url, Gemini: inlineData, Claude: image block). This enables the LLM to visually verify the result of each action.
 
 **Default PTD Hint:** "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium."
 

@@ -487,6 +487,9 @@ module MonadicSharedTools
       @browser_last_action = nil
       @browser_consecutive_count = 0
 
+      # Normalize headless parameter: LLM may send string "false" which is truthy in Ruby
+      headless = headless.to_s != "false"
+
       headless_flag = headless ? "true" : "false"
       output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)} --headless #{headless_flag}", container: "python")
       result = parse_navigator_response(output)
@@ -541,6 +544,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -568,6 +572,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -595,6 +600,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -670,6 +676,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -700,6 +707,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -736,6 +744,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -763,6 +772,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -790,6 +800,7 @@ module MonadicSharedTools
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response

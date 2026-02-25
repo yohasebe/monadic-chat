@@ -10,6 +10,7 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true,
     "feature_constraints": {
       "reasoning_effort": {
@@ -29,6 +30,7 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   "gpt-5-nano": {
@@ -53,6 +55,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_image_generation": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true,
     "streaming_not_supported": true
   },
@@ -68,6 +71,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "api_type": "responses",
     "skip_in_progress_events": true
   },
@@ -82,6 +86,7 @@ const modelSpec = {
     "vision_capability": true,
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "api_type": "responses",
     "skip_in_progress_events": true
   },
@@ -94,6 +99,7 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
+    "supports_file_inputs": true,
     "api_type": "responses",
     "skip_in_progress_events": true
   },
@@ -112,6 +118,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_image_generation": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   // gpt-5.1 models
@@ -126,6 +133,7 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   "gpt-5.1-chat-latest": {
@@ -144,6 +152,27 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_image_generation": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  "gpt-5.3-codex": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high", "xhigh"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "api_type": "responses",
+    "supports_streaming": true,
+    "supports_temperature": false,
+    "supports_top_p": false,
+    "supports_presence_penalty": false,
+    "supports_frequency_penalty": false,
+    "supports_structured_output": true,
+    "is_agent_model": true,
+    "agent_type": "coding",
+    "adaptive_reasoning": true,
+    "supports_web_search": true,
+    "supports_pdf": false,
     "skip_in_progress_events": true
   },
   "gpt-5.2-codex": {
@@ -238,6 +267,7 @@ const modelSpec = {
     "api_type": "responses",
     "supports_web_search": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   // GPT-5.2 Instant (fast, everyday tasks)
@@ -257,6 +287,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_image_generation": true,
     "supports_pdf_upload": true,
+    "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
   // GPT-5.2 Pro (maximum accuracy)
@@ -293,7 +324,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_pdf_upload": true
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -304,7 +336,8 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "supports_pdf_upload": true
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true
   },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
@@ -366,6 +399,7 @@ const modelSpec = {
     "supports_web_search": true,
     "latency_tier": "slow",
     "is_reasoning_model": true,
+    "supports_file_inputs": true,
     "requires_confirmation": true
   },
   "o3-mini": {

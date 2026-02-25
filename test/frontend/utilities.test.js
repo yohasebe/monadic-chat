@@ -545,12 +545,72 @@ describe('Utilities Module', () => {
           count_messages: '1234567', // string number
           count_all_tokens: 9876543  // actual number
         };
-        
+
         const result = formatInfo(info);
-        
+
         // Should format both string and numeric values as localized numbers
         expect(result).toContain('1,234,567');
         expect(result).toContain('9,876,543');
+      });
+    });
+  });
+
+  describe('File Inputs API capability functions', () => {
+    // Pure function implementations mirrored from utilities.js for unit testing
+    // (avoids jQuery dependency when requiring the module)
+    function isFileInputsSupportedForModel(selectedModel) {
+      if (!selectedModel || typeof modelSpec === 'undefined') return false;
+      const data = modelSpec[selectedModel];
+      return !!(data && data.supports_file_inputs);
+    }
+
+    function isResponsesApiModel(selectedModel) {
+      if (!selectedModel || typeof modelSpec === 'undefined') return false;
+      const data = modelSpec[selectedModel];
+      return !!(data && data.api_type === "responses");
+    }
+
+    describe('isFileInputsSupportedForModel', () => {
+      it('returns false for null model', () => {
+        expect(isFileInputsSupportedForModel(null)).toBe(false);
+      });
+
+      it('returns false for undefined model', () => {
+        expect(isFileInputsSupportedForModel(undefined)).toBe(false);
+      });
+
+      it('returns true when modelSpec has supports_file_inputs', () => {
+        global.modelSpec = { 'gpt-5': { supports_file_inputs: true } };
+        expect(isFileInputsSupportedForModel('gpt-5')).toBe(true);
+        delete global.modelSpec;
+      });
+
+      it('returns false for model without the flag', () => {
+        global.modelSpec = { 'gpt-3.5-turbo': {} };
+        expect(isFileInputsSupportedForModel('gpt-3.5-turbo')).toBe(false);
+        delete global.modelSpec;
+      });
+    });
+
+    describe('isResponsesApiModel', () => {
+      it('returns false for null model', () => {
+        expect(isResponsesApiModel(null)).toBe(false);
+      });
+
+      it('returns false for undefined model', () => {
+        expect(isResponsesApiModel(undefined)).toBe(false);
+      });
+
+      it('returns true when modelSpec has api_type responses', () => {
+        global.modelSpec = { 'gpt-5': { api_type: 'responses' } };
+        expect(isResponsesApiModel('gpt-5')).toBe(true);
+        delete global.modelSpec;
+      });
+
+      it('returns false for chat completions model', () => {
+        global.modelSpec = { 'gpt-4o': {} };
+        expect(isResponsesApiModel('gpt-4o')).toBe(false);
+        delete global.modelSpec;
       });
     });
   });

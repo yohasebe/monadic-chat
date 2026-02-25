@@ -22,6 +22,9 @@ This document defines the canonical property names used across providers in `mod
 - supports_pdf_upload: boolean
   - Whether the model accepts PDF file uploads. If false and `supports_pdf` is true, use URL-only (e.g., Perplexity via `pdf_url`).
 
+- supports_file_inputs: boolean
+  - Whether the model supports the OpenAI File Inputs API for extended document types (XLSX, DOCX, PPTX, CSV, TXT, etc.). When true, the UI shows "File" button with extended accept list, and the backend uses file_id caching for efficiency.
+
 - supports_web_search: boolean
   - Whether the model has native web search capability.
 
@@ -85,15 +88,18 @@ Helpers should prefer accessors over reading raw properties when possible:
 - ModelSpec.supports_verbosity?(model)
 - ModelSpec.get_verbosity_options(model)
 - ModelSpec.responses_api?(model)
+- ModelSpec.supports_file_inputs?(model)
 
 These accessors apply conservative defaults (e.g., streaming defaults to true when undefined) in line with existing helper behavior.
 
 ## UI Guidance
 
-- Image/PDF button
+- Image/PDF/File button (3-tier)
   - Show button when the app supports images and `vision_capability` is true.
-  - If `supports_pdf_upload` is true, label as "Image/PDF" and allow `.pdf` in file input.
+  - If `supports_file_inputs` is true, label as "File" and allow extended formats (.xlsx, .docx, .pptx, .csv, .txt, etc.).
+  - Else if `supports_pdf_upload` is true, label as "Image/PDF" and allow `.pdf` in file input.
   - Otherwise, label as "Image" and do not allow `.pdf`.
+  - URL input section shown only when `api_type === "responses"` and file/PDF is enabled.
   - For URL-only PDFs (e.g., Perplexity), keep `supports_pdf_upload: false` and instruct users to include PDF URLs in the message.
 
 ## Adding Models

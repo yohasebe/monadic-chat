@@ -13,6 +13,7 @@ require_relative "../../utils/model_spec"
 require_relative "../../utils/pdf_storage_config"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
+require_relative "../../utils/openai_file_inputs_cache"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 module OpenAIHelper
@@ -1068,12 +1069,30 @@ module OpenAIHelper
       if msg["images"] && role == "user" && !image_generation
         msg["images"].each do |img|
           messages_containing_img = true
-          if img["type"] == "application/pdf"
-            # PDFs need special handling
+          if img["type"] == "application/pdf" || document_type?(img["type"])
+            # Documents (PDF, XLSX, DOCX, etc.) — try file_id cache first
+            file_id = resolve_file_id_for_input(session, img)
+            if file_id
+              message["content"] << {
+                "type" => "file",
+                "file" => { "file_id" => file_id }
+              }
+            else
+              # Fallback to inline base64
+              message["content"] << {
+                "type" => "file",
+                "file" => {
+                  "file_data" => img["data"],
+                  "filename" => img["title"]
+                }
+              }
+            end
+          elsif img["source"] == "url"
+            # URL reference — store for Responses API conversion
             message["content"] << {
               "type" => "file",
               "file" => {
-                "file_data" => img["data"],
+                "file_url" => img["data"],
                 "filename" => img["title"]
               }
             }
@@ -1452,12 +1471,18 @@ module OpenAIHelper
                     "image_url" => item["image_url"]["url"]
                   }
                 when "file"
-                  # For Responses API, convert PDF file format
-                  {
-                    "type" => "input_file",
-                    "filename" => item["file"]["filename"],
-                    "file_data" => item["file"]["file_data"]
-                  }
+                  # For Responses API, convert document file format
+                  if item["file"]["file_id"]
+                    { "type" => "input_file", "file_id" => item["file"]["file_id"] }
+                  elsif item["file"]["file_url"]
+                    { "type" => "input_file", "url" => item["file"]["file_url"] }
+                  else
+                    {
+                      "type" => "input_file",
+                      "filename" => item["file"]["filename"],
+                      "file_data" => item["file"]["file_data"]
+                    }
+                  end
                 else
                   item  # Keep as is for unknown types
                 end
@@ -2273,7 +2298,7 @@ module OpenAIHelper
 
     tools = filtered_tools
 
-    pending_tool_image = nil
+    pending_tool_images = nil
     tools.each do |tool_call|
       tool_start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
@@ -2377,12 +2402,13 @@ module OpenAIHelper
       end
 
       # Collect _image for screenshot injection and remove underscore keys from serialized result
+      # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
       if function_return.is_a?(Hash) && function_return[:_image]
-        pending_tool_image = function_return[:_image]
+        pending_tool_images = Array(function_return[:_image])
         clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
         serialized = JSON.generate(clean_return)
       else
-        pending_tool_image = nil
+        pending_tool_images = nil
         serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
       end
 
@@ -2400,15 +2426,21 @@ module OpenAIHelper
       end
     end
 
-    # Inject screenshot image as user message for vision-capable models
-    if pending_tool_image
-      img = Monadic::Utils::ToolImageUtils.encode_image_for_api(pending_tool_image)
-      if img
+    # Inject screenshot image(s) as user message for vision-capable models
+    # Supports multiple images for tiled screenshots
+    if pending_tool_images&.any?
+      image_parts = pending_tool_images.filter_map do |img_filename|
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+        next unless img
+
+        { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+      end
+      if image_parts.any?
         context << {
           role: "user",
           content: [
             { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-            { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+            *image_parts
           ]
         }
       end
@@ -3453,5 +3485,41 @@ module OpenAIHelper
     rescue HTTP::Error, HTTP::TimeoutError
       nil
     end
+  end
+
+  # Document MIME types supported by OpenAI File Inputs API
+  DOCUMENT_MIME_TYPES = %w[
+    application/pdf
+    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+    application/vnd.openxmlformats-officedocument.wordprocessingml.document
+    application/vnd.openxmlformats-officedocument.presentationml.presentation
+    text/csv text/plain text/markdown text/html text/xml application/json
+  ].freeze
+
+  # Check if a MIME type is a document (non-image) type supported by File Inputs API
+  def document_type?(mime_type)
+    return false if mime_type.nil? || mime_type.empty?
+
+    DOCUMENT_MIME_TYPES.include?(mime_type)
+  end
+
+  # Attempt to resolve a file_id from the OpenAI File Inputs cache.
+  # Returns file_id string on success, nil on failure (caller falls back to base64).
+  def resolve_file_id_for_input(session, img)
+    return nil unless img["data"].is_a?(String) && img["data"].include?(";base64,")
+
+    # Parse data URI → mime_type, base64_data
+    _header, base64_data = img["data"].split(";base64,", 2)
+    return nil if base64_data.nil? || base64_data.empty?
+
+    filename = img["title"] || "document"
+    mime_type = img["type"] || "application/octet-stream"
+
+    Monadic::Utils::OpenAIFileInputsCache.resolve_or_upload(
+      session, base64_data, filename, mime_type
+    )
+  rescue StandardError => e
+    puts "[OpenAIHelper] resolve_file_id_for_input error: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+    nil
   end
 end

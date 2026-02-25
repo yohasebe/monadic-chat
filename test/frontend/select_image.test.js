@@ -491,4 +491,168 @@ describe('Select Image Module', () => {
   
   // Additional test sections for modal interactions would be added here
   // These tests might require more complex setup and are omitted for brevity
+
+  describe('File Inputs API helpers', () => {
+    // These functions are defined directly (not requiring the module with jQuery dependencies)
+    // Mirror the pure functions from select_image.js for unit testing
+
+    function getDocumentIcon(mimeType) {
+      const icons = {
+        'application/pdf': 'fa-file-pdf',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'fa-file-excel',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'fa-file-word',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'fa-file-powerpoint',
+        'text/csv': 'fa-file-csv',
+        'text/plain': 'fa-file-lines',
+        'text/markdown': 'fa-file-lines',
+        'text/html': 'fa-file-code',
+        'text/xml': 'fa-file-code',
+        'application/json': 'fa-file-code'
+      };
+      return icons[mimeType] || 'fa-file';
+    }
+
+    function isDocumentType(mimeType) {
+      return mimeType && !mimeType.startsWith('image/') && mimeType !== 'application/pdf';
+    }
+
+    function getMimeTypeFromExtension(ext) {
+      const map = {
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'csv': 'text/csv', 'txt': 'text/plain', 'md': 'text/markdown',
+        'json': 'application/json', 'html': 'text/html', 'xml': 'text/xml',
+        'pdf': 'application/pdf', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+        'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp'
+      };
+      return map[(ext || '').toLowerCase()] || 'application/octet-stream';
+    }
+
+    describe('getDocumentIcon', () => {
+      it('returns fa-file-pdf for PDF MIME type', () => {
+        expect(getDocumentIcon('application/pdf')).toBe('fa-file-pdf');
+      });
+
+      it('returns fa-file-excel for XLSX MIME type', () => {
+        expect(getDocumentIcon('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe('fa-file-excel');
+      });
+
+      it('returns fa-file-word for DOCX MIME type', () => {
+        expect(getDocumentIcon('application/vnd.openxmlformats-officedocument.wordprocessingml.document')).toBe('fa-file-word');
+      });
+
+      it('returns fa-file-powerpoint for PPTX MIME type', () => {
+        expect(getDocumentIcon('application/vnd.openxmlformats-officedocument.presentationml.presentation')).toBe('fa-file-powerpoint');
+      });
+
+      it('returns fa-file-csv for CSV MIME type', () => {
+        expect(getDocumentIcon('text/csv')).toBe('fa-file-csv');
+      });
+
+      it('returns fa-file-code for JSON MIME type', () => {
+        expect(getDocumentIcon('application/json')).toBe('fa-file-code');
+      });
+
+      it('returns fa-file for unknown MIME type', () => {
+        expect(getDocumentIcon('application/unknown')).toBe('fa-file');
+      });
+    });
+
+    describe('isDocumentType', () => {
+      it('returns true for XLSX', () => {
+        expect(isDocumentType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')).toBe(true);
+      });
+
+      it('returns true for CSV', () => {
+        expect(isDocumentType('text/csv')).toBe(true);
+      });
+
+      it('returns true for plain text', () => {
+        expect(isDocumentType('text/plain')).toBe(true);
+      });
+
+      it('returns false for images', () => {
+        expect(isDocumentType('image/jpeg')).toBe(false);
+        expect(isDocumentType('image/png')).toBe(false);
+      });
+
+      it('returns false for PDF (PDF has its own handling)', () => {
+        expect(isDocumentType('application/pdf')).toBe(false);
+      });
+
+      it('returns false for null/undefined', () => {
+        expect(isDocumentType(null)).toBeFalsy();
+        expect(isDocumentType(undefined)).toBeFalsy();
+      });
+    });
+
+    describe('getMimeTypeFromExtension', () => {
+      it('maps xlsx to correct MIME type', () => {
+        expect(getMimeTypeFromExtension('xlsx'))
+          .toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      });
+
+      it('maps docx to correct MIME type', () => {
+        expect(getMimeTypeFromExtension('docx'))
+          .toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      });
+
+      it('maps csv to text/csv', () => {
+        expect(getMimeTypeFromExtension('csv')).toBe('text/csv');
+      });
+
+      it('maps json to application/json', () => {
+        expect(getMimeTypeFromExtension('json')).toBe('application/json');
+      });
+
+      it('returns octet-stream for unknown extensions', () => {
+        expect(getMimeTypeFromExtension('xyz')).toBe('application/octet-stream');
+      });
+
+      it('is case-insensitive', () => {
+        expect(getMimeTypeFromExtension('XLSX'))
+          .toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      });
+    });
+
+    describe('URL protocol validation', () => {
+      // Use Node's built-in URL (not jsdom's potentially overridden version)
+      const NodeURL = require('url').URL;
+
+      // Mirrors the validation logic in select_image.js URL handler
+      function isValidFileUrl(urlString) {
+        try {
+          const url = new NodeURL(urlString);
+          return url.protocol.startsWith('http');
+        } catch {
+          return false;
+        }
+      }
+
+      it('accepts https:// URLs', () => {
+        expect(isValidFileUrl('https://example.com/data.csv')).toBe(true);
+      });
+
+      it('accepts http:// URLs', () => {
+        expect(isValidFileUrl('http://example.com/report.xlsx')).toBe(true);
+      });
+
+      it('rejects javascript: protocol', () => {
+        expect(isValidFileUrl('javascript:alert(1)')).toBe(false);
+      });
+
+      it('rejects data: protocol', () => {
+        expect(isValidFileUrl('data:text/html,<script>alert(1)</script>')).toBe(false);
+      });
+
+      it('rejects ftp: protocol', () => {
+        expect(isValidFileUrl('ftp://files.example.com/doc.pdf')).toBe(false);
+      });
+
+      it('rejects invalid URLs', () => {
+        expect(isValidFileUrl('not-a-url')).toBe(false);
+      });
+    });
+  });
 });

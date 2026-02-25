@@ -363,6 +363,10 @@ module Monadic
         def is_reasoning_model?(model_name)
           get_model_property(model_name, "is_reasoning_model") == true
         end
+
+        def supports_file_inputs?(model_name)
+          !!get_model_property(model_name, "supports_file_inputs")
+        end
         
         def reload!
           @spec = nil

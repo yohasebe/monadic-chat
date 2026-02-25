@@ -1025,6 +1025,14 @@
           <div class="modal-body">
             <label for="imageFile" class="form-label" data-i18n="ui.modals.fileToImportLabel">File to import (.pdf, .jpg, .jpeg, .png, .gif)</label>
             <input class="form-control form-control-sm" id="imageFile" type="file" name="imageFile" accept=".pdf,.jpg,.jpeg,.png,.gif">
+            <div id="url-input-section" style="display: none;">
+              <hr class="my-2">
+              <label for="imageUrlInput" class="form-label" data-i18n="ui.modals.fileUrlLabel">Or enter file URL</label>
+              <div class="input-group input-group-sm">
+                <input type="url" class="form-control" id="imageUrlInput" placeholder="https://...">
+                <button class="btn btn-outline-primary" id="addUrlFile" type="button" data-i18n="ui.add">Add</button>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <div id="select_image_error" class="size-error text-warning mb-2"></div>

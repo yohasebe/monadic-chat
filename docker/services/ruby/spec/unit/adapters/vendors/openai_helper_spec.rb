@@ -126,4 +126,78 @@ RSpec.describe OpenAIHelper do
       expect(result).not_to match(/[^a-z0-9_\-]/)
     end
   end
+
+  describe '#document_type?' do
+    it 'returns true for PDF' do
+      expect(helper.document_type?("application/pdf")).to be true
+    end
+
+    it 'returns true for XLSX' do
+      expect(helper.document_type?("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")).to be true
+    end
+
+    it 'returns true for DOCX' do
+      expect(helper.document_type?("application/vnd.openxmlformats-officedocument.wordprocessingml.document")).to be true
+    end
+
+    it 'returns true for CSV' do
+      expect(helper.document_type?("text/csv")).to be true
+    end
+
+    it 'returns true for plain text' do
+      expect(helper.document_type?("text/plain")).to be true
+    end
+
+    it 'returns false for images' do
+      expect(helper.document_type?("image/jpeg")).to be false
+      expect(helper.document_type?("image/png")).to be false
+    end
+
+    it 'returns false for nil' do
+      expect(helper.document_type?(nil)).to be false
+    end
+  end
+
+  describe '#resolve_file_id_for_input' do
+    let(:session) { {} }
+
+    before do
+      stub_const("CONFIG", { "OPENAI_API_KEY" => "test-key", "EXTRA_LOGGING" => nil })
+    end
+
+    it 'returns nil for non-base64 data' do
+      img = { "data" => "not-base64", "title" => "test.pdf", "type" => "application/pdf" }
+      expect(helper.resolve_file_id_for_input(session, img)).to be_nil
+    end
+
+    it 'returns nil for missing data key' do
+      img = { "title" => "test.pdf", "type" => "application/pdf" }
+      expect(helper.resolve_file_id_for_input(session, img)).to be_nil
+    end
+
+    it 'returns file_id on successful upload' do
+      fake_response = instance_double(Net::HTTPOK, code: "200", body: '{"id": "file-xyz789"}')
+      allow_any_instance_of(Net::HTTP).to receive(:request).and_return(fake_response)
+
+      img = {
+        "data" => "data:application/pdf;base64,SGVsbG8=",
+        "title" => "test.pdf",
+        "type" => "application/pdf"
+      }
+      result = helper.resolve_file_id_for_input(session, img)
+      expect(result).to eq("file-xyz789")
+    end
+
+    it 'returns nil on error without raising' do
+      allow_any_instance_of(Net::HTTP).to receive(:request).and_raise(Errno::ECONNREFUSED)
+
+      img = {
+        "data" => "data:application/pdf;base64,SGVsbG8=",
+        "title" => "test.pdf",
+        "type" => "application/pdf"
+      }
+      expect { helper.resolve_file_id_for_input(session, img) }.not_to raise_error
+      expect(helper.resolve_file_id_for_input(session, img)).to be_nil
+    end
+  end
 end

@@ -1,11 +1,60 @@
 //////////////////////////////
-// Read image/PDF file contents 
+// Read image/PDF/document file contents
 //////////////////////////////
 
 // PDF support depends on model capability (supports_pdf_upload in model_spec)
+// File Inputs support depends on model capability (supports_file_inputs in model_spec)
 
 const MAX_PDF_SIZE = 35; // Maximum PDF file size in MB
+const MAX_FILE_SIZE = 50; // Maximum file size in MB for File Inputs API documents
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
+
+// File extensions accepted by OpenAI File Inputs API
+const FILE_INPUTS_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml';
+
+// Helper: get Font Awesome icon class for a MIME type
+function getDocumentIcon(mimeType) {
+  const icons = {
+    'application/pdf': 'fa-file-pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'fa-file-excel',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'fa-file-word',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'fa-file-powerpoint',
+    'text/csv': 'fa-file-csv',
+    'text/plain': 'fa-file-lines',
+    'text/markdown': 'fa-file-lines',
+    'text/html': 'fa-file-code',
+    'text/xml': 'fa-file-code',
+    'application/json': 'fa-file-code'
+  };
+  return icons[mimeType] || 'fa-file';
+}
+
+// Helper: check if a MIME type is a document (non-image, non-PDF)
+function isDocumentType(mimeType) {
+  return mimeType && !mimeType.startsWith('image/') && mimeType !== 'application/pdf';
+}
+
+// MIME type mapping from file extensions
+function getMimeTypeFromExtension(ext) {
+  const map = {
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'csv': 'text/csv',
+    'txt': 'text/plain',
+    'md': 'text/markdown',
+    'json': 'application/json',
+    'html': 'text/html',
+    'xml': 'text/xml',
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'webp': 'image/webp'
+  };
+  return map[(ext || '').toLowerCase()] || 'application/octet-stream';
+}
 const selectFileButton = $("#image-file");
 let images = []; // Store multiple images/PDFs
 let currentMaskData = null; // Store current mask data for image editing
@@ -14,9 +63,9 @@ let currentMaskData = null; // Store current mask data for image editing
 function limitImageCount() {
   // Keep only the last MAX_IMAGES images
   if (images.length > MAX_IMAGES) {
-    // Remove oldest non-PDF images first (keep PDFs as they're often needed for context)
-    const nonPdfImages = images.filter(img => img.type !== 'application/pdf');
-    const pdfImages = images.filter(img => img.type === 'application/pdf');
+    // Remove oldest non-document images first (keep PDFs/documents as they're often needed for context)
+    const nonPdfImages = images.filter(img => img.type === undefined || img.type.startsWith('image/'));
+    const pdfImages = images.filter(img => img.type && !img.type.startsWith('image/'));
     
     if (nonPdfImages.length > 0) {
       // Keep newest non-PDF images plus all PDFs
@@ -35,8 +84,46 @@ function limitImageCount() {
 // Modal event listener for cleanup when hidden
 $("#imageModal").on("hidden.bs.modal", function () {
   $('#imageFile').val('');
+  $('#imageUrlInput').val('');
   $('#uploadImage').prop('disabled', true);
   $(this).find(".size-error").html("");
+});
+
+// URL file add handler (Phase 3: URL reference for Responses API models)
+$(document).on("click", "#addUrlFile", function () {
+  const urlInput = $('#imageUrlInput').val().trim();
+  if (!urlInput) return;
+
+  try {
+    const url = new URL(urlInput);
+    // Only allow http(s) URLs to prevent javascript: or data: URI injection
+    if (!url.protocol.startsWith('http')) {
+      $("#select_image_error").html('<i class="fas fa-exclamation-circle"></i> Only HTTP/HTTPS URLs are supported');
+      return;
+    }
+    const pathname = url.pathname;
+    const ext = pathname.split('.').pop();
+    const filename = decodeURIComponent(pathname.split('/').pop() || 'file').replace(/[<>"'&]/g, '_');
+    const mimeType = getMimeTypeFromExtension(ext);
+
+    const fileData = {
+      title: filename,
+      data: urlInput,
+      type: mimeType,
+      source: "url"
+    };
+
+    images.push(fileData);
+    limitImageCount();
+    updateFileDisplay(images);
+
+    $('#imageUrlInput').val('');
+    $("#select_image_error").html("");
+  } catch (e) {
+    $("#select_image_error").html(`
+      <i class="fas fa-exclamation-circle"></i> Invalid URL
+    `);
+  }
 });
 
 // Clear images array when page is unloaded to free memory
@@ -58,21 +145,38 @@ $("#imageFile").on("change", function() {
 selectFileButton.on("click", function () {
   const selectedModel = $("#model").val();
   const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
+  const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
   const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
-  // Update modal UI based on model capabilities and app settings
-  if (isPdfEnabled && (!isImageGenerationApp || allowPdfInImageApp)) {
+  // Update modal UI based on model capabilities and app settings (3-tier)
+  if (isFileInputsEnabled && !isImageGenerationApp) {
+    // Tier 1: Full File Inputs API support (images + PDF + documents)
+    $("#imageModalLabel").html('<i class="fas fa-file"></i> <span data-i18n="ui.modals.selectFile">Select File</span>');
+    $("#imageFile").attr('accept', FILE_INPUTS_ACCEPT);
+    const fileLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportAll') : 'File to import (images, PDF, XLSX, DOCX, CSV, etc.)';
+    $("label[for='imageFile']").text(fileLabel);
+  } else if (isPdfEnabled && (!isImageGenerationApp || allowPdfInImageApp)) {
+    // Tier 2: PDF + images
     $("#imageModalLabel").html('<i class="fas fa-file"></i> Select Image or PDF File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');
     const pdfLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportPdf') : 'File to import (.jpg, .jpeg, .png, .gif, .webp, .pdf)';
     $("label[for='imageFile']").text(pdfLabel);
   } else {
+    // Tier 3: Images only
     $("#imageModalLabel").html('<i class="fas fa-image"></i> Select Image File');
     $("#imageFile").attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
     const imageLabel = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.fileToImportImage') : 'File to import (.jpg, .jpeg, .png, .gif, .webp)';
     $("label[for='imageFile']").text(imageLabel);
+  }
+
+  // Show/hide URL input section for Responses API models
+  const isResponsesApi = window.isResponsesApiModel ? window.isResponsesApiModel(selectedModel) : false;
+  if (isResponsesApi && (isFileInputsEnabled || isPdfEnabled)) {
+    $("#url-input-section").show();
+  } else {
+    $("#url-input-section").hide();
   }
 
   $("#imageModal").modal("show");
@@ -87,20 +191,39 @@ $("#uploadImage").on("click", function () {
   const file = fileInput.files[0];
   const selectedModel = $("#model").val();
   const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
+  const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
   const currentApp = $("#apps").val();
   const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
   const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
   if (file) {
-    // Check file size for PDF files (35MB limit)
+    const fileSizeInMB = file.size / (1024 * 1024);
+    const isDocument = isDocumentType(file.type);
+
+    // Size checks
     if (file.type === 'application/pdf') {
-      const fileSizeInMB = file.size / (1024 * 1024);
       if (fileSizeInMB > MAX_PDF_SIZE) {
         $("#select_image_error").html(`
-            <i class="fas fa-exclamation-circle"></i> 
+            <i class="fas fa-exclamation-circle"></i>
             PDF file size must be less than ${MAX_PDF_SIZE}MB.<br />
             Current size: ${fileSizeInMB.toFixed(1)}MB
         `);
+        return;
+      }
+    } else if (isDocument) {
+      if (fileSizeInMB > MAX_FILE_SIZE) {
+        $("#select_image_error").html(`
+            <i class="fas fa-exclamation-circle"></i>
+            File size must be less than ${MAX_FILE_SIZE}MB.<br />
+            Current size: ${fileSizeInMB.toFixed(1)}MB
+        `);
+        return;
+      }
+      // Document files require File Inputs API support
+      if (!isFileInputsEnabled) {
+        const docRestrictionMsg = getTranslation('ui.messages.docModelRestriction', 'This file type requires a model that supports File Inputs');
+        setAlert(docRestrictionMsg, "error");
+        $("#imageModal").modal("hide");
         return;
       }
     }
@@ -135,6 +258,20 @@ $("#uploadImage").on("click", function () {
           currentPdfData = fileData; // Store the most recent PDF data globally
           images.push(fileData); // Add the PDF to existing images array
           limitImageCount();     // Limit the number of images in memory
+          updateFileDisplay(images);
+          $("#imageModal").modal("hide");
+          $("#imageModal button").prop("disabled", false);
+        });
+      } else if (isDocument) {
+        // Process document file (XLSX, DOCX, CSV, etc.) — no resize, raw base64
+        fileToBase64(file, function(base64) {
+          const fileData = {
+            title: file.name,
+            data: `data:${file.type};base64,${base64}`,
+            type: file.type
+          };
+          images.push(fileData);
+          limitImageCount();
           updateFileDisplay(images);
           $("#imageModal").modal("hide");
           $("#imageModal button").prop("disabled", false);
@@ -223,11 +360,33 @@ function updateFileDisplay(files) {
 
   // Create display elements for each file
   files.forEach((file, index) => {
-    if (file.type === 'application/pdf') {
+    if (file.source === 'url') {
+      // Display URL-referenced file with link icon
+      const icon = getDocumentIcon(file.type);
+      $("#image-used").append(`
+        <div class="file-container">
+          <i class="fas fa-link"></i> <i class="fas ${icon}"></i> ${file.title}
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `);
+    } else if (file.type === 'application/pdf') {
       // Display PDF file with icon and title
       $("#image-used").append(`
         <div class="file-container">
           <i class="fas fa-file-pdf"></i> ${file.title}
+          <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `);
+    } else if (isDocumentType(file.type)) {
+      // Display document file (XLSX, DOCX, CSV, etc.) with appropriate icon
+      const icon = getDocumentIcon(file.type);
+      $("#image-used").append(`
+        <div class="file-container">
+          <i class="fas ${icon}"></i> ${file.title}
           <button class='btn btn-secondary btn-sm remove-file' data-index='${index}' tabindex="99">
             <i class="fas fa-times"></i>
           </button>
@@ -391,6 +550,9 @@ window.imageToBase64 = imageToBase64;
 window.updateFileDisplay = updateFileDisplay;
 window.limitImageCount = limitImageCount;
 window.clearAllImages = clearAllImages;
+window.getDocumentIcon = getDocumentIcon;
+window.isDocumentType = isDocumentType;
+window.getMimeTypeFromExtension = getMimeTypeFromExtension;
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
@@ -398,7 +560,12 @@ if (typeof module !== 'undefined' && module.exports) {
     fileToBase64,
     imageToBase64,
     updateFileDisplay,
-    limitImageCount
+    limitImageCount,
+    getDocumentIcon,
+    isDocumentType,
+    getMimeTypeFromExtension,
+    MAX_FILE_SIZE,
+    MAX_PDF_SIZE
   };
 }
 

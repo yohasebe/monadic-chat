@@ -28,7 +28,7 @@ Monadic Chatコンソールの`Actions/Start JupyterLab`メニューを使用し
 - **Concept Visualizer**: 生成された概念図（SVG形式）
 - **Mermaid Grapher**: 生成されたダイアグラムのプレビュー画像（PNG形式）
 - **DrawIO Grapher**: 生成されたダイアグラムファイル（.drawio形式）およびプレビュー画像（PNG形式）
-- **Visual Web Explorer**: キャプチャされたウェブサイトのスクリーンショット（PNG形式）
+- **Web Insight**: キャプチャされたウェブサイトのスクリーンショット（PNG形式）
 
 ファイルはタイムスタンプまたは一意の識別子を含むファイル名で共有フォルダに直接保存されます。不要なファイルは定期的に削除することをお勧めします。
 

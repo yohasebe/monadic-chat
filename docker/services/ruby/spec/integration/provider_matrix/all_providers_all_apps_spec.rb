@@ -214,7 +214,7 @@ RSpec.describe 'All Providers × All Apps Matrix', :api, :matrix do
     ContentReader
     PDFNavigator
     VideoDescriber
-    VisualWebExplorer
+    WebInsight
     VoiceChat
     VoiceInterpreter
   ].freeze

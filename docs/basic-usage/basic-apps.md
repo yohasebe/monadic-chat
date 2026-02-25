@@ -33,7 +33,7 @@ The table below shows which apps are available for which AI model providers.
 | Syntax Tree | ✅ | ✅ | | | | | | | |
 | Concept Visualizer | ✅ | ✅ | | | | | | | |
 | Speech Draft Helper | ✅ | | | | | | | | |
-| Visual Web Explorer | ✅ | ✅ | | | ✅ | ✅ | | | |
+| Web Insight | ✅ | ✅ | | | ✅ | ✅ | | | |
 | Video Describer | ✅ | | | | | | | | |
 | PDF Navigator | ✅ | | | | | | | | |
 | Content Reader | ✅ | | | | | | | | |
@@ -433,7 +433,7 @@ Draft speeches with the help of an AI assistant. You can ask the assistant to wr
 
 ## Content Analysis :id=content-analysis
 
-### Visual Web Explorer :id=visual-web-explorer
+### Web Insight :id=web-insight
 
 Capture web pages as screenshots or interactively browse websites with AI-driven control. This app supports two modes: static screenshot capture and live interactive browser sessions.
 
@@ -459,9 +459,9 @@ The AI can click elements, type text, scroll pages, navigate between pages, and 
 - `"Search for 'monadic chat' on Google"` - AI navigates and interacts with the page
 - `"Take mobile screenshots of https://example.com"` - Uses mobile viewport preset
 
-Visual Web Explorer is available with the providers marked in the availability table.
+Web Insight is available with the providers marked in the availability table.
 
-![Visual Web Explorer workflow](../assets/images/workflows/workflow-visual-web-explorer.svg ':size=500')
+![Web Insight workflow](../assets/images/workflows/workflow-web-insight.svg ':size=500')
 
 ### Video Describer
 

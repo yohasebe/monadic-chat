@@ -143,16 +143,16 @@ RSpec.describe "Gemini Research Assistant Integration" do
     end
   end
 
-  # Visual Web Explorer compatibility tests don't need API calls
-  describe "Visual Web Explorer compatibility" do
-    it "loads Visual Web Explorer Gemini app" do
-      # Visual Web Explorer should also benefit from this pattern
-      expect(APPS).to have_key("VisualWebExplorerGemini")
+  # Web Insight compatibility tests don't need API calls
+  describe "Web Insight compatibility" do
+    it "loads Web Insight Gemini app" do
+      # Web Insight should also benefit from this pattern
+      expect(APPS).to have_key("WebInsightGemini")
     end
 
-    it "Visual Web Explorer has both websearch and function declarations" do
-      app = APPS["VisualWebExplorerGemini"]
-      skip "VisualWebExplorerGemini not loaded" unless app
+    it "Web Insight has both websearch and function declarations" do
+      app = APPS["WebInsightGemini"]
+      skip "WebInsightGemini not loaded" unless app
 
       settings = app.settings
 
@@ -170,9 +170,9 @@ RSpec.describe "Gemini Research Assistant Integration" do
       end
     end
 
-    it "Visual Web Explorer has navigation tools" do
-      app = APPS["VisualWebExplorerGemini"]
-      skip "VisualWebExplorerGemini not loaded" unless app
+    it "Web Insight has navigation tools" do
+      app = APPS["WebInsightGemini"]
+      skip "WebInsightGemini not loaded" unless app
 
       settings = app.settings
       tools = settings["tools"]
@@ -186,9 +186,9 @@ RSpec.describe "Gemini Research Assistant Integration" do
                      []
                    end
 
-      skip "No tool declarations found for VisualWebExplorerGemini" if tool_names.empty?
+      skip "No tool declarations found for WebInsightGemini" if tool_names.empty?
 
-      # Check for typical Visual Web Explorer tools (screenshot capture or web content)
+      # Check for typical Web Insight tools (screenshot capture or web content)
       expect(tool_names.any? { |n| n.include?("screenshot") || n.include?("navigate") || n.include?("capture") || n.include?("webpage") }).to be true
     end
   end

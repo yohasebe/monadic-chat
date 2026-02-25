@@ -1523,10 +1523,10 @@ namespace :spec_e2e do
     end
   end
   
-  desc "Run E2E tests for Visual Web Explorer"
-  task :visual_web_explorer do
+  desc "Run E2E tests for Web Insight"
+  task :web_insight do
     Dir.chdir("docker/services/ruby") do
-      sh "./spec/e2e/run_e2e_tests.sh visual_web_explorer"
+      sh "./spec/e2e/run_e2e_tests.sh web_insight"
     end
   end
   

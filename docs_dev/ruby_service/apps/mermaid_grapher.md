@@ -20,7 +20,7 @@ Call `stop_mermaid_browser` to end the session and clean up HTML files.
 
 ### Session Sharing with VWE
 
-Mermaid Grapher and Visual Web Explorer share the same `.browser_session_id` file. `--action start` automatically cleans up any existing session, so switching between apps is safe but will terminate the other app's browser session.
+Mermaid Grapher and Web Insight share the same `.browser_session_id` file. `--action start` automatically cleans up any existing session, so switching between apps is safe but will terminate the other app's browser session.
 
 ## Unicode Normalisation
 

@@ -203,7 +203,7 @@ end
 1. **`web_automation`** (4 tools)
    - Requires: Selenium and Python containers
    - Screenshot capture, web scraping
-   - Used by: Visual Web Explorer, AutoForge
+   - Used by: Web Insight, AutoForge
 
 2. **`image_analysis`** (1 tool)
    - Requires: Any vision provider API key (OpenAI, Anthropic, Gemini, or xAI)

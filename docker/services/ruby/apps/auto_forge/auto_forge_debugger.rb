@@ -54,7 +54,7 @@ module AutoForge
     private
 
     def execute_debug_script(html_path, options = {})
-      # Use send_command from MonadicApp (same as visual_web_explorer)
+      # Use send_command from MonadicApp (same as web_insight)
       # This handles Docker execution properly through the established pattern
 
       # The HTML file is already in ~/monadic/data which is mounted as /monadic/data in containers

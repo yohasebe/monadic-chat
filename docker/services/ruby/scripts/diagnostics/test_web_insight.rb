@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# Test script to check Visual Web Explorer app loading
+# Test script to check Web Insight app loading
 
 require 'bundler/setup'
 require 'active_support'
@@ -43,11 +43,11 @@ end
 require_relative '../../lib/monadic/dsl'
 
 # Now try to load the app
-puts "Testing Visual Web Explorer app loading..."
+puts "Testing Web Insight app loading..."
 puts "-" * 50
 
-mdsl_file = File.join(__dir__, '../../apps/visual_web_explorer/visual_web_explorer_openai.mdsl')
-rb_file = File.join(__dir__, '../../apps/visual_web_explorer/visual_web_explorer_openai.rb')
+mdsl_file = File.join(__dir__, '../../apps/web_insight/web_insight_openai.mdsl')
+rb_file = File.join(__dir__, '../../apps/web_insight/web_insight_openai.rb')
 
 puts "MDSL file exists: #{File.exist?(mdsl_file)}"
 puts "Ruby file exists: #{File.exist?(rb_file)}"

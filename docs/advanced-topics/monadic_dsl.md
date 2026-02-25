@@ -207,7 +207,7 @@ The `autonomy` feature controls how much confirmation the assistant seeks before
 | `"medium"` | Default behavior. The assistant follows standard confirmation patterns including the Plan-Approve-Execute protocol for multi-step tasks. |
 | `"low"` | Ask for explicit user confirmation before every action. Always use `propose_plan` for tasks with 2 or more steps. |
 
-When omitted, autonomy defaults to `"medium"` (no prompt injection). Visual Web Explorer uses `"high"` to enable smooth interactive browser sessions without repeated confirmation prompts.
+When omitted, autonomy defaults to `"medium"` (no prompt injection). Web Insight uses `"high"` to enable smooth interactive browser sessions without repeated confirmation prompts.
 
 ### 5. Tool Definitions
 

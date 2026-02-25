@@ -477,7 +477,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 
 ---
 
-### Visual Web Explorer (4 providers: Claude, Gemini, Grok, OpenAI)
+### Web Insight (4 providers: Claude, Gemini, Grok, OpenAI)
 
 | Field | Details |
 |-------|---------|
@@ -527,7 +527,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | `:image_analysis` | Content Reader, Speech Draft Helper, Code Interpreter, Research Assistant, Coding Assistant (16 apps) | 16 |
 | `:audio_transcription` | Content Reader, Speech Draft Helper, Video Describer | 3 |
 | `:video_analysis` | Video Describer | 1 |
-| `:web_automation` | Auto Forge, Visual Web Explorer | 2 |
+| `:web_automation` | Auto Forge, Web Insight | 2 |
 | `:planning` | All tool-enabled apps | 22 |
 | `:verification` | Code Interpreter, Jupyter Notebook, AutoForge, Mermaid Grapher, Chord Accompanist | 15 |
 

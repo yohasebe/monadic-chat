@@ -71,25 +71,42 @@ module MermaidGrapherTools
     # 4. Wait for Mermaid rendering
     sleep(3)
 
-    # 5. Capture screenshot
-    ss_output = send_command(command: "web_navigator.py --action screenshot", container: "python")
+    # 5. Capture full-page screenshot (resizes viewport or tiles for tall content)
+    ss_output = send_command(command: "web_navigator.py --action full_screenshot", container: "python")
     ss_result = parse_mermaid_response(ss_output)
 
-    if ss_result[:success] && ss_result[:screenshot]
+    if ss_result[:success] && ss_result[:tiled] && ss_result[:screenshots]
+      # Tiled mode: multiple overlapping screenshots for tall diagrams
+      image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
+      if image_files.any?
+        {
+          success: true,
+          filename: image_files.first,
+          tile_count: image_files.size,
+          message: "Preview captured as #{image_files.size} tiled images. Please verify the diagram rendering.",
+          validated_code: sanitized_code,
+          _image: image_files
+        }
+      else
+        format_tool_response(build_preview_payload(
+          success: false,
+          error: "Failed to process tiled screenshots",
+          validated_code: sanitized_code
+        ))
+      end
+    elsif ss_result[:success] && ss_result[:screenshot]
+      # Single image mode: diagram fits in one capture
       src = File.join(shared_volume, ss_result[:screenshot])
       dst = File.join(shared_volume, screenshot_filename)
       FileUtils.cp(src, dst) if File.exist?(src)
 
-      tool_payload = {
+      {
         success: true,
         filename: screenshot_filename,
-        message: "Preview image saved as '#{screenshot_filename}' in the shared folder. Live preview visible at http://localhost:7900",
-        novnc_url: "http://localhost:7900",
-        validated_code: sanitized_code
+        message: "Preview image saved as '#{screenshot_filename}'. Please verify the diagram rendering.",
+        validated_code: sanitized_code,
+        _image: screenshot_filename
       }
-      combined_payload = build_preview_payload(tool_payload)
-      combined_payload[:validated_code] ||= sanitized_code
-      format_tool_response(combined_payload)
     else
       format_tool_response(build_preview_payload(
         success: false,
@@ -212,6 +229,18 @@ module MermaidGrapherTools
 
   private
 
+  # Copy tiled screenshot files to stable filenames and return the list
+  def copy_screenshot_tiles(tile_filenames, base_name, shared_volume)
+    tile_filenames.each_with_index.filter_map do |tile_file, idx|
+      src = File.join(shared_volume, tile_file)
+      next unless File.exist?(src)
+
+      dst_name = "#{base_name}_tile#{idx + 1}.png"
+      FileUtils.cp(src, File.join(shared_volume, dst_name))
+      dst_name
+    end
+  end
+
   # Check if a web_navigator browser session is active
   def mermaid_session_active?
     session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
@@ -237,16 +266,13 @@ module MermaidGrapherTools
         <meta charset="utf-8">
         <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
         <style>
-          body {
-            background: #f5f5f5;
+          html, body {
             margin: 0;
             padding: 20px;
+            background: white;
           }
           .mermaid {
-            background: white;
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: inline-block;
           }
         </style>
       </head>

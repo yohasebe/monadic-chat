@@ -1770,10 +1770,26 @@ function applyCollapseStates() {
   updateItemStates();
 }
 
+// Check if the selected model supports OpenAI File Inputs API (XLSX, DOCX, etc.)
+function isFileInputsSupportedForModel(selectedModel) {
+  if (!selectedModel || typeof modelSpec === 'undefined') return false;
+  const data = modelSpec[selectedModel];
+  return !!(data && data.supports_file_inputs);
+}
+
+// Check if the selected model uses the Responses API
+function isResponsesApiModel(selectedModel) {
+  if (!selectedModel || typeof modelSpec === 'undefined') return false;
+  const data = modelSpec[selectedModel];
+  return !!(data && data.api_type === "responses");
+}
+
 // Export functions to window for browser environment
 window.isPdfSupportedForModel = isPdfSupportedForModel;
 window.isImageGenerationApp = isImageGenerationApp;
 window.isMaskEditingEnabled = isMaskEditingEnabled;
+window.isFileInputsSupportedForModel = isFileInputsSupportedForModel;
+window.isResponsesApiModel = isResponsesApiModel;
 
 // Function to update badges for an app
 function updateAppBadges(selectedApp) {
@@ -2067,6 +2083,8 @@ if (typeof module !== 'undefined' && module.exports) {
     applyCollapseStates,
     isPdfSupportedForModel,
     isImageGenerationApp,
-    isMaskEditingEnabled
+    isMaskEditingEnabled,
+    isFileInputsSupportedForModel,
+    isResponsesApiModel
   };
 }

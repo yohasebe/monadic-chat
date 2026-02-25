@@ -433,6 +433,7 @@ const isElementInViewport = window.isElementInViewport;
 // applyMathJax, mermaid_config, sanitizeMermaidSource, applyMermaid now in ws-content-renderer.js
 const applyMathJax = window.applyMathJax;
 const applyMermaid = window.applyMermaid;
+const applyDrawIO = window.applyDrawIO;
 
 // ABC notation, toggle, and source-code helpers now in ws-content-renderer.js
 const applyToggle = window.applyToggle;
@@ -1268,8 +1269,9 @@ let loadedApp = "Chat";
           WorkflowViewer.setActiveTool(data["content"], toolCallCount);
         }
 
-        // Auto-open noVNC window when start_browser or preview_mermaid is executed (Electron only)
-        if ((currentToolName === "start_browser" || currentToolName === "preview_mermaid" || currentToolName === "preview_drawio") && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
+        // Auto-open noVNC window when start_browser is executed (Electron only)
+        // Note: preview_mermaid/preview_drawio use _image injection instead of noVNC
+        if (currentToolName === "start_browser" && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
           window.electronAPI.openNoVNC();
         }
         break;
@@ -3566,6 +3568,10 @@ let loadedApp = "Chat";
             applyMermaid(htmlContent);
           }
 
+          if (typeof applyDrawIO === 'function') {
+            applyDrawIO(htmlContent);
+          }
+
           if (toBool(params["mathjax"])) {
             applyMathJax(htmlContent);
           }
@@ -4138,6 +4144,10 @@ let loadedApp = "Chat";
 
         if (toBool(params["mermaid"])) {
           applyMermaid(htmlContent);
+        }
+
+        if (typeof applyDrawIO === 'function') {
+          applyDrawIO(htmlContent);
         }
 
         if (toBool(params["mathjax"])) {

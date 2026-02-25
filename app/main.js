@@ -2886,12 +2886,22 @@ function openNoVNCWindow() {
     }
   });
 
-  const novncUrl = 'http://localhost:7900';
+  const novncBaseUrl = 'http://localhost:7900';
+  const novncUrl = `${novncBaseUrl}/?autoconnect=1&resize=scale`;
   novncWindow.loadURL(novncUrl);
+
+  // Hide the noVNC control bar once the page loads
+  novncWindow.webContents.on('did-finish-load', () => {
+    novncWindow.webContents.insertCSS(`
+      #noVNC_control_bar_anchor {
+        display: none !important;
+      }
+    `).catch(() => {});
+  });
 
   // Block navigation away from noVNC (e.g., clicking external links in the noVNC UI)
   novncWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(novncUrl)) {
+    if (!url.startsWith(novncBaseUrl)) {
       event.preventDefault();
       shell.openExternal(url).catch(err => console.error('Failed to open external link from noVNC:', err));
     }

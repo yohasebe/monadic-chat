@@ -245,6 +245,30 @@
       console.error('Mermaid rendering error:', error);
     }
 
+    // Trim excess whitespace from Mermaid-rendered SVGs.
+    // Mermaid sometimes generates viewBoxes larger than the actual diagram content,
+    // leaving empty space on the right and below. Measure real content bounds via
+    // getBBox() and shrink the viewBox + max-width accordingly.
+    element.find(".diagram:not(.drawio-diagram) svg").each(function() {
+      var svgEl = this;
+      try {
+        var bbox = svgEl.getBBox();
+        if (!bbox || bbox.width <= 0 || bbox.height <= 0) return;
+
+        var padding = 8;
+        var newX = Math.floor(bbox.x - padding);
+        var newY = Math.floor(bbox.y - padding);
+        var newW = Math.ceil(bbox.width + padding * 2);
+        var newH = Math.ceil(bbox.height + padding * 2);
+
+        svgEl.setAttribute('viewBox', newX + ' ' + newY + ' ' + newW + ' ' + newH);
+        // Constrain SVG to its content width — prevents stretching to full container
+        svgEl.style.maxWidth = newW + 'px';
+      } catch(e) {
+        // getBBox() may fail in non-browser environments — graceful fallback
+      }
+    });
+
     element.find(".diagram").each(function (index) {
       var diagram = $(this);
       if (diagram.is(':visible')) {
@@ -267,6 +291,150 @@
         });
         diagram.after(downloadButton);
       }
+    });
+  }
+
+  // ── DrawIO viewer lazy loader ─────────────────────────────────────
+
+  var drawioViewerLoaded = false;
+  var drawioViewerLoading = false;
+  var drawioViewerCallbacks = [];
+
+  function ensureDrawIOViewer(callback) {
+    if (drawioViewerLoaded && typeof window.GraphViewer !== 'undefined') {
+      callback();
+      return;
+    }
+    drawioViewerCallbacks.push(callback);
+    if (drawioViewerLoading) return;
+
+    drawioViewerLoading = true;
+
+    // Suppress auto-init: viewer-static.min.js ends with an IIFE that calls
+    //   if (window.onDrawioViewerLoad) window.onDrawioViewerLoad();
+    //   else GraphViewer.processElements();
+    // By defining onDrawioViewerLoad, we prevent the automatic processElements()
+    // call so we can invoke it manually at the right time in our callback.
+    window.onDrawioViewerLoad = function() {
+      // intentionally empty — auto-init suppressed
+    };
+
+    function onLoadSuccess() {
+      drawioViewerLoaded = true;
+      drawioViewerLoading = false;
+      var cbs = drawioViewerCallbacks.slice();
+      drawioViewerCallbacks = [];
+      cbs.forEach(function(cb) { try { cb(); } catch(e) { console.error(e); } });
+    }
+
+    function onAllFailed() {
+      drawioViewerLoading = false;
+      var cbs = drawioViewerCallbacks.slice();
+      drawioViewerCallbacks = [];
+      cbs.forEach(function(cb) { try { cb(new Error('Failed to load DrawIO viewer')); } catch(e) {} });
+    }
+
+    // Try local file first, then CDN fallback (same pattern as mermaid.min.js)
+    var script = document.createElement('script');
+    script.src = 'vendor/js/viewer-static.min.js';
+    script.onload = onLoadSuccess;
+    script.onerror = function() {
+      // Fallback to CDN
+      script.remove();
+      var cdnScript = document.createElement('script');
+      cdnScript.src = 'https://viewer.diagrams.net/js/viewer-static.min.js';
+      cdnScript.onload = onLoadSuccess;
+      cdnScript.onerror = onAllFailed;
+      document.head.appendChild(cdnScript);
+    };
+    document.head.appendChild(script);
+  }
+
+  // ── DrawIO ────────────────────────────────────────────────────────
+
+  function applyDrawIO(element) {
+    var drawioElements = element.find(".drawio-code");
+    if (drawioElements.length === 0) return;
+
+    var pendingRenders = [];
+
+    drawioElements.each(function(index) {
+      var el = $(this);
+      el.addClass("sourcecode");
+      el.find("pre").addClass("sourcecode");
+
+      var rawText = el.find("pre").text().trim();
+      // .text() already fully unescapes HTML entities — no manual unescaping needed
+      var xmlContent = rawText;
+
+      el.find("pre").text(rawText);
+      addToggleSourceCode(el, "Toggle DrawIO Diagram");
+
+      var containerId = 'drawio-diagram-' + index + '-' + Date.now();
+
+      // Build DOM programmatically to avoid HTML parser issues with XML in attributes
+      var wrapper = document.createElement('div');
+      wrapper.className = 'diagram-wrapper';
+
+      var diagramDiv = document.createElement('div');
+      diagramDiv.className = 'diagram drawio-diagram';
+      diagramDiv.id = containerId;
+
+      var mxgraphDiv = document.createElement('div');
+      mxgraphDiv.className = 'mxgraph';
+      // Set data-mxgraph via DOM API — bypasses HTML parser entirely
+      mxgraphDiv.setAttribute('data-mxgraph', JSON.stringify({
+        highlight: "#0000ff", nav: true, resize: true, xml: xmlContent
+      }));
+
+      diagramDiv.appendChild(mxgraphDiv);
+      wrapper.appendChild(diagramDiv);
+
+      var errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.id = 'error-' + containerId;
+      errorDiv.style.display = 'none';
+      wrapper.appendChild(errorDiv);
+
+      var diagramContainer = $(wrapper);
+      el.after(diagramContainer);
+      pendingRenders.push({ containerId: containerId, xmlContent: xmlContent, diagramContainer: diagramContainer });
+    });
+
+    if (pendingRenders.length === 0) return;
+
+    ensureDrawIOViewer(function(err) {
+      if (err) {
+        pendingRenders.forEach(function(item) {
+          item.diagramContainer.find('#error-' + item.containerId)
+            .html('<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>').show();
+          item.diagramContainer.find('.diagram').hide();
+        });
+        return;
+      }
+
+      try {
+        if (window.GraphViewer && typeof GraphViewer.processElements === 'function') {
+          GraphViewer.processElements();
+        }
+      } catch(e) { console.error('DrawIO render error:', e); }
+
+      // Download .drawio buttons
+      pendingRenders.forEach(function(item, idx) {
+        var diagram = item.diagramContainer.find('.diagram');
+        if (diagram.is(':visible')) {
+          var btn = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download .drawio</button></div>');
+          btn.on('click', function() {
+            var blob = new Blob([item.xmlContent], { type: 'application/xml;charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = 'diagram-' + (idx + 1) + '.drawio';
+            document.body.appendChild(a); a.click();
+            document.body.removeChild(a); URL.revokeObjectURL(url);
+          });
+          diagram.after(btn);
+        }
+      });
     });
   }
 
@@ -573,6 +741,7 @@
     abcCursorControl: abcCursorControl,
     abcClickListener: abcClickListener,
     applyAbc: applyAbc,
+    applyDrawIO: applyDrawIO,
     applyToggle: applyToggle,
     addToggleSourceCode: addToggleSourceCode,
     formatSourceCode: formatSourceCode,
@@ -585,6 +754,7 @@
   // Backward-compat individual exports
   window.applyMathJax = applyMathJax;
   window.applyMermaid = applyMermaid;
+  window.applyDrawIO = applyDrawIO;
   window.applyAbc = applyAbc;
   window.applyToggle = applyToggle;
   window.addToggleSourceCode = addToggleSourceCode;

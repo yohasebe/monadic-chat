@@ -455,6 +455,207 @@ def action_get_page_info(args):
     }
 
 
+def action_full_screenshot(args):
+    """Take a full-page screenshot. For tall content, captures overlapping tiles."""
+    session_id = _load_session()
+    if not session_id:
+        return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    # Get actual content dimensions
+    dims_js = """return {
+        w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth, window.innerWidth),
+        h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, window.innerHeight)
+    }"""
+    dims_result = _execute_js(session_id, dims_js)
+    dims = dims_result.get("value", {})
+    content_w = dims.get("w", VIEWPORT_WIDTH)
+    content_h = dims.get("h", VIEWPORT_HEIGHT)
+
+    # Threshold: if content fits in ~1.5 viewports, resize and capture as single image
+    # Beyond that, use tiled capture for better Vision API resolution
+    max_single_height = int(VIEWPORT_HEIGHT * 1.5)  # 1350px logical
+
+    if content_h <= max_single_height:
+        # Single image mode: resize viewport to fit content
+        capped_w = min(content_w, 4000)
+        capped_h = min(content_h, 4000)
+        resize_body = {"width": capped_w + 40, "height": capped_h + 40}
+        _wd(f"/session/{session_id}/window/rect", method="POST", body=resize_body)
+        time.sleep(1)
+        _execute_js(session_id, "window.scrollTo(0, 0)")
+        time.sleep(0.5)
+
+        screenshot = _take_screenshot(session_id)
+
+        # Restore viewport
+        _wd(f"/session/{session_id}/window/rect", method="POST",
+            body={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
+
+        if not screenshot:
+            return {"success": False, "error": "Failed to take screenshot."}
+
+        return {
+            "success": True,
+            "screenshot": screenshot,
+            "tiled": False,
+            "dimensions": {"width": content_w, "height": content_h}
+        }
+    else:
+        # Tiled mode: scroll and capture overlapping tiles
+        overlap = 100  # pixels of overlap between tiles
+        step = VIEWPORT_HEIGHT - overlap
+        tiles = []
+        pos = 0
+
+        while pos < content_h:
+            _execute_js(session_id, f"window.scrollTo(0, {pos})")
+            time.sleep(0.5)
+            tile = _take_screenshot(session_id)
+            if tile:
+                tiles.append(tile)
+            # Stop if this tile already covers to near the bottom of content
+            if pos + VIEWPORT_HEIGHT >= content_h - VIEWPORT_HEIGHT * 0.1:
+                break
+            pos += step
+            # Safety: max 10 tiles
+            if len(tiles) >= 10:
+                break
+
+        if not tiles:
+            return {"success": False, "error": "Failed to capture tiled screenshots."}
+
+        # Scroll back to top
+        _execute_js(session_id, "window.scrollTo(0, 0)")
+
+        return {
+            "success": True,
+            "screenshots": tiles,
+            "tiled": True,
+            "tile_count": len(tiles),
+            "dimensions": {"width": content_w, "height": content_h}
+        }
+
+
+def action_extract_svg(args):
+    """Extract SVG element from the current page and save to a file."""
+    session_id = _load_session()
+    if not session_id:
+        return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    # Extract SVG outerHTML from DOM
+    svg_js = """
+    var svg = document.querySelector('svg');
+    if (!svg) return null;
+    // Ensure standalone SVG with xmlns
+    if (!svg.getAttribute('xmlns')) {
+        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+    return svg.outerHTML;
+    """
+    result = _execute_js(session_id, svg_js)
+    svg_content = result.get("value")
+
+    if not svg_content:
+        return {"success": False, "error": "No SVG element found on the page."}
+
+    # Save SVG to file
+    timestamp = int(time.time() * 1000)
+    filename = f"diagram_{timestamp}.svg"
+    filepath = os.path.join(SCREENSHOT_DIR, filename)
+
+    with open(filepath, "w", encoding="utf-8") as f:
+        # Add XML declaration for standalone SVG
+        f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+        f.write(svg_content)
+
+    return {
+        "success": True,
+        "svg_file": filename,
+        "size": len(svg_content)
+    }
+
+
+def action_diagram_screenshot(args):
+    """Take a screenshot of a rendered diagram, waiting for SVG to fully render.
+
+    Unlike full_screenshot which uses scrollHeight (unreliable for async-rendered
+    diagrams like DrawIO), this action polls for an SVG element, reads its exact
+    bounding box, resizes the browser to fit, and takes a pixel-perfect capture.
+    """
+    session_id = _load_session()
+    if not session_id:
+        return {"success": False, "error": "No active browser session. Use --action start first."}
+
+    # Poll for SVG element to appear and stabilize (DrawIO viewer renders async)
+    max_wait = 10  # seconds
+    poll_interval = 0.5
+    elapsed = 0
+    svg_dims = None
+
+    while elapsed < max_wait:
+        dims_js = """
+        var svg = document.querySelector('svg');
+        if (!svg) return null;
+        var rect = svg.getBoundingClientRect();
+        if (rect.width < 10 || rect.height < 10) return null;
+        return {w: Math.ceil(rect.width), h: Math.ceil(rect.height)};
+        """
+        result = _execute_js(session_id, dims_js)
+        dims = result.get("value")
+        if dims and dims.get("w") and dims.get("h"):
+            svg_dims = dims
+            break
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+
+    if not svg_dims:
+        return {"success": False, "error": "SVG element did not appear within timeout."}
+
+    # Wait a bit more for any final rendering (CSS transitions, font loading)
+    time.sleep(1)
+
+    # Re-measure after stabilization
+    result = _execute_js(session_id, """
+    var svg = document.querySelector('svg');
+    if (!svg) return null;
+    var rect = svg.getBoundingClientRect();
+    return {w: Math.ceil(rect.width), h: Math.ceil(rect.height)};
+    """)
+    final_dims = result.get("value")
+    if final_dims and final_dims.get("w") and final_dims.get("h"):
+        svg_dims = final_dims
+
+    # Add padding around the diagram
+    padding = 40
+    target_w = min(svg_dims["w"] + padding * 2, 4000)
+    target_h = min(svg_dims["h"] + padding * 2, 4000)
+
+    # Resize browser window to fit the diagram exactly
+    _wd(f"/session/{session_id}/window/rect", method="POST",
+        body={"width": target_w, "height": target_h})
+    time.sleep(1)
+
+    # Scroll to top-left corner
+    _execute_js(session_id, "window.scrollTo(0, 0)")
+    time.sleep(0.5)
+
+    # Take the screenshot
+    screenshot = _take_screenshot(session_id)
+
+    # Restore original viewport size
+    _wd(f"/session/{session_id}/window/rect", method="POST",
+        body={"width": VIEWPORT_WIDTH, "height": VIEWPORT_HEIGHT})
+
+    if not screenshot:
+        return {"success": False, "error": "Failed to take diagram screenshot."}
+
+    return {
+        "success": True,
+        "screenshot": screenshot,
+        "dimensions": {"width": svg_dims["w"], "height": svg_dims["h"]}
+    }
+
+
 def action_scroll(args):
     """Scroll the page in a direction. Supports up/down (relative) and top/bottom (absolute)."""
     session_id = _load_session()
@@ -727,7 +928,9 @@ def main():
     parser = argparse.ArgumentParser(description="Interactive Web Navigator")
     parser.add_argument("--action", required=True,
                         choices=["start", "navigate", "click", "type",
-                                 "screenshot", "get_page_info", "scroll",
+                                 "screenshot", "full_screenshot",
+                                 "diagram_screenshot", "extract_svg",
+                                 "get_page_info", "scroll",
                                  "press_key", "select", "back", "forward",
                                  "stop"],
                         help="Action to perform")
@@ -749,6 +952,9 @@ def main():
         "click": action_click,
         "type": action_type,
         "screenshot": action_screenshot,
+        "full_screenshot": action_full_screenshot,
+        "diagram_screenshot": action_diagram_screenshot,
+        "extract_svg": action_extract_svg,
         "get_page_info": action_get_page_info,
         "scroll": action_scroll,
         "press_key": action_press_key,

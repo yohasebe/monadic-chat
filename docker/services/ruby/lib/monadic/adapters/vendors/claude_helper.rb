@@ -2104,13 +2104,16 @@ module ClaudeHelper
       }
 
       # Check for _image key in tool return for direct image injection
+      # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
       if tool_return.is_a?(Hash) && tool_return[:_image]
         clean_return = tool_return.reject { |k, _| k.to_s.start_with?("_") }
         result_content = [
           { type: "text", text: JSON.generate(clean_return) }
         ]
-        image_block = build_tool_image_block(tool_return[:_image])
-        result_content << image_block if image_block
+        Array(tool_return[:_image]).each do |img_filename|
+          image_block = build_tool_image_block(img_filename)
+          result_content << image_block if image_block
+        end
         tool_result_entry[:content] = result_content
       else
         tool_result_entry[:content] = tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s

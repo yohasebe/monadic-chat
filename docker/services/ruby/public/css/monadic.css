@@ -1498,7 +1498,13 @@ div.sourcecode-toggle:hover {
 }
 
 div.diagram {
-  margin: 20px 0;
+  margin: 10px 0;
+}
+
+div.diagram svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .abc-svg {

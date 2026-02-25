@@ -206,29 +206,37 @@ window.shims.uiUtils = {
       // Enable the button
       imageFileElement.prop("disabled", false);
       
-      // Update button text based on PDF support and image generation capability (SSOT-aware)
+      // Update button text based on PDF/File Inputs support and image generation capability (SSOT-aware)
       const isPdfEnabled = (typeof window !== 'undefined' && window.isPdfSupportedForModel)
         ? window.isPdfSupportedForModel(selectedModel)
         : /sonnet|gemini|4o|4o-mini|o1|gpt-4\.\d/.test(selectedModel);
-      
-      // If it's an image generation app, show "Image" regardless of PDF support
+      const isFileInputsEnabled = (typeof window !== 'undefined' && window.isFileInputsSupportedForModel)
+        ? window.isFileInputsSupportedForModel(selectedModel)
+        : false;
+
+      // Button text labels
       const imageText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.image') : 'Image';
       const imagePdfText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.imagePdf') : 'Image/PDF';
-      
+      const fileText = typeof webUIi18n !== 'undefined' && webUIi18n.t ? webUIi18n.t('ui.file') : 'File';
+
       if (isImageGenerationApp && !allowPdfInImageApp) {
         imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
       } else if (isImageGenerationApp && allowPdfInImageApp) {
         imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
+      } else if (isFileInputsEnabled) {
+        imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.file">' + fileText + '</span>');
       } else if (isPdfEnabled) {
         imageFileElement.html('<i class="fas fa-file"></i> <span data-i18n="ui.imagePdf">' + imagePdfText + '</span>');
       } else {
         imageFileElement.html('<i class="fas fa-image"></i> <span data-i18n="ui.image">' + imageText + '</span>');
       }
-      
+
       // Update accept attribute if present
       const imageFileInput = $('#imageFile');
       if (imageFileInput.length) {
-        if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
+        if (isFileInputsEnabled && !isImageGenerationApp) {
+          imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
+        } else if ((isImageGenerationApp && !allowPdfInImageApp) || (!isPdfEnabled && !allowPdfInImageApp)) {
           imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp');
         } else {
           imageFileInput.attr('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf');

@@ -34,16 +34,14 @@ app "MermaidGrapherClaude" do
   system_prompt <<~TEXT
     You are tasked with creating visual representations of data structures using mermaid.js. The user will provide nodes, edges, and labels to outline a graph structure.
 
-    ## Live Browser Preview
+    ## Diagram Preview
 
-    When you call `preview_mermaid`, the diagram renders in a live browser visible via noVNC (http://localhost:7900).
-    Users can watch diagram changes in real time through the noVNC viewer window.
+    When you call `preview_mermaid`, the diagram renders in a headless browser and a screenshot is captured for you to verify.
 
-    - First `preview_mermaid` call opens the browser automatically
-    - Subsequent calls update the same browser with the new diagram
-    - The user sees changes instantly in the noVNC window
+    - `preview_mermaid` returns a screenshot image that you can inspect to verify the rendering
+    - The user also sees the diagram as SVG in the chat interface
+    - Subsequent calls update the same browser session with the new diagram
     - Call `stop_mermaid_browser` when the diagram session is complete
-    - Share the noVNC URL (http://localhost:7900) with the user on the first preview
 
     ## Simple Workflow
 
@@ -272,11 +270,24 @@ app "MermaidGrapherClaude" do
     # Import verification tools for Self-Verification protocol
     import_shared_tools :verification, visibility: "always"
 
-    define_tool "preview_mermaid", "Validate and render Mermaid diagram in live browser (noVNC), saving a screenshot to shared folder" do
+    define_tool "validate_mermaid_syntax", "Validate Mermaid diagram syntax without rendering" do
+      parameter :code, "string", "Mermaid diagram code to validate", required: true
+    end
+
+    define_tool "preview_mermaid", "Validate and render Mermaid diagram, capturing a screenshot for verification" do
       parameter :code, "string", "Mermaid diagram code to validate and preview", required: true
     end
 
     define_tool "stop_mermaid_browser", "Close the live Mermaid preview browser session" do
+    end
+
+    define_tool "analyze_mermaid_error", "Analyze Mermaid diagram error and provide fix suggestions" do
+      parameter :code, "string", "Mermaid diagram code that caused the error", required: true
+      parameter :error, "string", "Error message to analyze", required: true
+    end
+
+    define_tool "fetch_mermaid_docs", "Get documentation URL for a Mermaid diagram type" do
+      parameter :diagram_type, "string", "Mermaid diagram type (flowchart, sequence, class, state, er, gantt, pie, sankey, mindmap)", required: true
     end
   end
 end

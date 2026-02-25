@@ -1742,19 +1742,25 @@ module GeminiHelper
         }
       end
 
-      # Inject screenshot image as user message for vision-capable models
-      if session[:pending_tool_image]
-        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(session[:pending_tool_image])
-        if img
+      # Inject screenshot image(s) as user message for vision-capable models
+      # Supports multiple images for tiled screenshots
+      if session[:pending_tool_images]&.any?
+        image_parts = session[:pending_tool_images].filter_map do |img_filename|
+          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+          next unless img
+
+          { "inlineData" => { "mimeType" => img[:media_type], "data" => img[:base64_data] } }
+        end
+        if image_parts.any?
           body["contents"] << {
             "role" => "user",
             "parts" => [
               { "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-              { "inlineData" => { "mimeType" => img[:media_type], "data" => img[:base64_data] } }
+              *image_parts
             ]
           }
         end
-        session.delete(:pending_tool_image)
+        session.delete(:pending_tool_images)
       end
 
       # For most apps, we want to stop tool calling after processing results
@@ -3345,8 +3351,9 @@ module GeminiHelper
           else
             # Standard handling for other functions
             # Detect _image key for screenshot injection and remove underscore keys
+            # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
             if function_return.is_a?(Hash) && function_return[:_image]
-              session[:pending_tool_image] = function_return[:_image]
+              session[:pending_tool_images] = Array(function_return[:_image])
               clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
               content = JSON.generate(clean_return)
             else

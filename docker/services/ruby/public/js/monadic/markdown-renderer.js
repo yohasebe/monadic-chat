@@ -677,6 +677,22 @@
         return `MERMAID_BLOCK_PLACEHOLDER_${index}`;
       });
 
+      // 5. DrawIO diagrams をプレースホルダーに
+      const drawioBlocks = [];
+      // 5a. Fenced code blocks: ```drawio ... ``` (case-insensitive, flexible whitespace)
+      text = text.replace(/```[Dd]raw[Ii][Oo]\s*\n([\s\S]+?)```/g, (match, content) => {
+        const index = drawioBlocks.length;
+        drawioBlocks.push(content);
+        return `DRAWIO_BLOCK_PLACEHOLDER_${index}`;
+      });
+      // 5b. Raw DrawIO XML without code fences (auto-detect <mxfile>...</mxfile>)
+      // Requires <diagram inside to prevent false positives from prose mentions of <mxfile>
+      text = text.replace(/(<\?xml[^>]*\?>\s*\n)?<mxfile\b[\s\S]*?<diagram\b[\s\S]*?<\/mxfile>/g, (match) => {
+        const index = drawioBlocks.length;
+        drawioBlocks.push(match);
+        return `DRAWIO_BLOCK_PLACEHOLDER_${index}`;
+      });
+
       // 5. markdown-it で Markdown → HTML 変換
       let html = md.render(text);
 
@@ -708,6 +724,14 @@
         html = html.replace(
           new RegExp(`MERMAID_BLOCK_PLACEHOLDER_${index}`, 'g'),
           `<div class="mermaid-code"><pre>${escaped}</pre></div>`
+        );
+      });
+
+      drawioBlocks.forEach((content, index) => {
+        const escaped = escapeHtml(content);
+        html = html.replace(
+          new RegExp(`DRAWIO_BLOCK_PLACEHOLDER_${index}`, 'g'),
+          `<div class="drawio-code"><pre>${escaped}</pre></div>`
         );
       });
 
@@ -806,6 +830,17 @@
             }
           } catch (err) {
             console.error('Mermaid rendering failed:', err);
+          }
+        });
+      }
+
+      // 5. DrawIO / applyDrawIO
+      if (typeof window.applyDrawIO === 'function' && window.jQuery) {
+        scheduleTask(() => {
+          try {
+            window.applyDrawIO(window.jQuery(container));
+          } catch (err) {
+            console.error('applyDrawIO failed:', err);
           }
         });
       }

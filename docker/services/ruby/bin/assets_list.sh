@@ -32,6 +32,7 @@ ASSETS=(
   "js,https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js,abcjs-basic-min.min.js"
   "js,https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js,markdown-it.min.js"
   "js,https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js,highlight.min.js"
+  "js,https://viewer.diagrams.net/js/viewer-static.min.js,viewer-static.min.js"
 
   # maxGraph — built from npm source via esbuild (see download_assets.sh)
   # No CDN entry; bundle is generated during Docker build

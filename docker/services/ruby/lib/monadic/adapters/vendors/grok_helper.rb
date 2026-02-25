@@ -872,19 +872,25 @@ module GrokHelper
         context_messages << tool_message
       end
 
-      # Inject screenshot image as user message for vision-capable models
-      if session[:pending_tool_image]
-        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(session[:pending_tool_image])
-        if img
+      # Inject screenshot image(s) as user message for vision-capable models
+      # Supports multiple images for tiled screenshots
+      if session[:pending_tool_images]&.any?
+        image_parts = session[:pending_tool_images].filter_map do |img_filename|
+          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+          next unless img
+
+          { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+        end
+        if image_parts.any?
           context_messages << {
             "role" => "user",
             "content" => [
               { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-              { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+              *image_parts
             ]
           }
         end
-        session.delete(:pending_tool_image)
+        session.delete(:pending_tool_images)
       end
 
       # Log the tool results being added
@@ -1969,8 +1975,9 @@ module GrokHelper
       end
 
       # Collect _image for screenshot injection and remove underscore keys from serialized result
+      # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
       if function_return.is_a?(Hash) && function_return[:_image]
-        session[:pending_tool_image] = function_return[:_image]
+        session[:pending_tool_images] = Array(function_return[:_image])
         clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
         content_str = JSON.generate(clean_return)
       else

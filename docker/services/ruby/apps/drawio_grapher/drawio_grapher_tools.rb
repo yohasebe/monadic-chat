@@ -92,26 +92,24 @@ module DrawIOGrapher
       return "Error: Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
     end
 
-    # 6. Wait for viewer JS initialization
-    sleep(3)
-
-    # 7. Capture screenshot
-    ss_output = send_command(command: "web_navigator.py --action screenshot", container: "python")
+    # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
+    ss_output = send_command(command: "web_navigator.py --action diagram_screenshot", container: "python")
     ss_result = parse_drawio_response(ss_output)
 
     if ss_result[:success] && ss_result[:screenshot]
       src = File.join(shared_volume, ss_result[:screenshot])
       dst = File.join(shared_volume, screenshot_filename)
       FileUtils.cp(src, dst) if File.exist?(src)
-
-      "The file #{filename} has been saved to the shared folder. " \
-      "Preview image saved as '#{screenshot_filename}'. " \
-      "Live preview visible at http://localhost:7900"
-    else
-      "The file #{filename} has been saved to the shared folder. " \
-      "Warning: Could not capture screenshot (#{ss_result[:error] || 'unknown error'}). " \
-      "Live preview may still be visible at http://localhost:7900"
     end
+
+    result = {
+      success: true,
+      filename: filename,
+      message: "The file #{filename} has been saved."
+    }
+    # _image: PNG auto-injected into LLM context for self-verification (NOT displayed to user)
+    result[:_image] = screenshot_filename if File.exist?(File.join(shared_volume, screenshot_filename))
+    result
   rescue StandardError => e
     "Error: Preview generation failed: #{e.message}"
   ensure
@@ -284,7 +282,12 @@ module DrawIOGrapher
   # Build HTML page for Draw.io viewer rendering
   def build_drawio_preview_html(xml_content)
     # XML → JSON string → HTML attribute escape
-    data = { highlight: "#0000ff", nav: true, resize: true, xml: xml_content }
+    data = {
+      highlight: "#0000ff",
+      nav: true,
+      resize: true,
+      xml: xml_content
+    }
     data_json = JSON.generate(data)
     escaped_data = CGI.escapeHTML(data_json)
 
@@ -294,24 +297,15 @@ module DrawIOGrapher
       <head>
         <meta charset="utf-8">
         <style>
-          body {
-            background: #f5f5f5;
+          html, body {
             margin: 0;
             padding: 20px;
-          }
-          .container {
             background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            max-width: 95vw;
           }
         </style>
       </head>
       <body>
-        <div class="container">
-          <div class="mxgraph" data-mxgraph="#{escaped_data}"></div>
-        </div>
+        <div class="mxgraph" data-mxgraph="#{escaped_data}"></div>
         <script src="https://viewer.diagrams.net/js/viewer-static.min.js"></script>
       </body>
       </html>

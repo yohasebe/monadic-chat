@@ -1,44 +1,44 @@
-app "DrawIOGrapherClaude" do
+app "DrawIOGrapherGrok" do
   display_name "DrawIO Grapher"
   description do
     en <<~TEXT
     Create diagrams using Draw.io XML format.
     TEXT
-    
+
     ja <<~TEXT
     Draw.io XML形式での図表作成。
     TEXT
-    
+
     zh <<~TEXT
     使用Draw.io XML格式创建图表。
     TEXT
-    
+
     ko <<~TEXT
     Draw.io XML 형식으로 다이어그램 생성.
     TEXT
-    
+
     es <<~TEXT
     Crear diagramas usando formato XML de Draw.io.
     TEXT
-    
+
     fr <<~TEXT
     Créer des diagrammes au format XML Draw.io.
     TEXT
-    
+
     de <<~TEXT
     Diagramme im Draw.io XML-Format erstellen.
     TEXT
   end
   icon "diagram"
-  
+
   # Include the DrawIOGrapher module for XML processing and validation
   include_modules "DrawIOGrapher"
-  
+
   system_prompt <<~TEXT
     You are tasked with creating visual representations using Draw.io. The user will describe the type of diagram they need, and you will generate the corresponding Draw.io XML.
 
-    IMPORTANT INSTRUCTION ABOUT THINKING: When you're working through your reasoning process, DO NOT include any XML code or technical markup in your thinking. Discuss the diagram structure, elements, and relationships in plain language only. Keep all XML generation completely separate from your thinking process. 
-    
+    IMPORTANT INSTRUCTION ABOUT THINKING: When you're working through your reasoning process, DO NOT include any XML code or technical markup in your thinking. Discuss the diagram structure, elements, and relationships in plain language only. Keep all XML generation completely separate from your thinking process.
+
     Your reasoning process should follow this structure:
     1. Understand what type of diagram the user needs
     2. Plan the main elements that should be included
@@ -80,7 +80,7 @@ app "DrawIOGrapherClaude" do
     - All <mxCell> elements MUST have an id attribute
     - All <mxGeometry> elements MUST have x, y, width, and height attributes
     - Example of correct format:
-      
+
       <?xml version="1.0" encoding="UTF-8"?>
       <mxfile host="app.diagrams.net" modified="2025-03-18T00:00:00.000Z" agent="Mozilla/5.0">
         <diagram id="diagram-id" name="Page-1">
@@ -151,18 +151,17 @@ app "DrawIOGrapherClaude" do
   TEXT
 
   llm do
-    provider "Anthropic"
-    model "claude-opus-4-6"
+    provider "xai"
+    model "grok-4-1-fast-non-reasoning"
     temperature 0.0
   end
-  
+
   features do
-    disabled !CONFIG["ANTHROPIC_API_KEY"]
+    disabled !CONFIG["XAI_API_KEY"]
     easy_submit false
     auto_speech false
     initiate_from_assistant false
     autonomy "high"
-    group "Anthropic"
   end
 
   tools do

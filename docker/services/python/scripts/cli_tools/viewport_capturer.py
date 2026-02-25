@@ -20,6 +20,7 @@ from datetime import datetime
 import re
 from urllib.parse import urlparse
 import logging
+from screenshot_utils import trim_screenshot
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -119,14 +120,15 @@ def take_viewport_screenshots(driver, url, output_dir, viewport_width=1920, view
             filepath = os.path.join(output_dir, filename)
             
             driver.save_screenshot(filepath)
-            
+
             # Verify screenshot was saved and is not empty
             if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                trim_screenshot(filepath)
                 logger.info(f"Saved screenshot {screenshot_count}: {filename}")
                 screenshots.append(filename)
             else:
                 logger.error(f"Failed to save screenshot {screenshot_count}")
-            
+
             # Move to next position
             current_position += scroll_step
             
@@ -144,6 +146,7 @@ def take_viewport_screenshots(driver, url, output_dir, viewport_width=1920, view
                     driver.save_screenshot(filepath)
                     
                     if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                        trim_screenshot(filepath)
                         logger.info(f"Saved final screenshot {screenshot_count}: {filename}")
                         screenshots.append(filename)
                 

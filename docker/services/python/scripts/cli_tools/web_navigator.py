@@ -15,6 +15,12 @@ import time
 
 import requests
 
+# Import trim utility (available alongside this script in cli_tools/)
+try:
+    from screenshot_utils import trim_screenshot
+except ImportError:
+    trim_screenshot = None
+
 WEBDRIVER_URL = "http://selenium_service:4444"
 SESSION_FILE = "/monadic/data/.browser_session_id"
 SCREENSHOT_DIR = "/monadic/data"
@@ -78,6 +84,8 @@ def _take_screenshot(session_id):
     filepath = os.path.join(SCREENSHOT_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(img_data)
+    if trim_screenshot:
+        trim_screenshot(filepath)
     return filename
 
 

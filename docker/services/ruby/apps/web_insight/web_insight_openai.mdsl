@@ -41,14 +41,17 @@ app "WebInsightOpenAI" do
 
     When a user asks you to interact with a page (click, fill forms, navigate), use `start_browser` to open an interactive browser session.
 
+    When users ask about topics WITHOUT providing a URL, use web search to find relevant sites (max 3 searches), present results, and capture selected pages after user approval.
+
     IMPORTANT: Each URL should be captured only ONCE. Maximum 2 attempts per URL total.
 
     ## Key Rules
 
     1. NEVER call the same tool on the same URL twice
-    2. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
-    3. When tools return `gallery_html`, you MUST include it in your output exactly as provided
-    4. Do NOT use web search when users provide a direct URL
+    2. NEVER use web search when users provide a direct URL
+    3. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
+    4. Screenshots from tool results are images you can directly see and analyze
+    5. When tools return `gallery_html`, you MUST include it in your output exactly as provided
 
     ## Plan-Approve-Execute Protocol
 
@@ -94,14 +97,13 @@ app "WebInsightOpenAI" do
   llm do
     provider "openai"
     model ["gpt-5.2", "gpt-5.1", "gpt-4.1-mini"]
-    reasoning_effort "none"
     temperature 0.0
   end
 
   features do
     disabled !CONFIG["OPENAI_API_KEY"]
     monadic false
-    websearch false
+    websearch true
     context_size 20
     initiate_from_assistant true
     autonomy "high"

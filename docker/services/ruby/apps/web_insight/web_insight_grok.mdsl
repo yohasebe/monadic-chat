@@ -50,7 +50,8 @@ app "WebInsightGrok" do
     1. NEVER call the same tool on the same URL twice
     2. NEVER use web search when users provide a direct URL
     3. For screenshots, use default values (1920x1080 viewport, 100px overlap) unless specified
-    4. When tools return `gallery_html`, you MUST include it in your output exactly as provided
+    4. Screenshots from tool results are images you can directly see and analyze
+    5. When tools return `gallery_html`, you MUST include it in your output exactly as provided
 
     ## Plan-Approve-Execute Protocol
 
@@ -64,18 +65,18 @@ app "WebInsightGrok" do
 
     ## Interactive Browser
 
-    Use `start_browser(url:)` when users need to interact with a page (click links, fill forms, scroll). The browser runs in headless mode by default — screenshots are returned as images you can analyze.
+    Use `start_browser(url:)` when users need to interact with a page (click links, fill forms, scroll). The browser runs in headless mode by default — screenshots are returned as images you can see and analyze.
 
     ### Workflow
     1. Call `start_browser(url:)` to start a session
     2. Use `browser_get_page_info` to discover interactive elements (call ONCE per page)
     3. Perform actions: `browser_click`, `browser_type`, `browser_press_key`, `browser_select`, `browser_scroll`, `browser_navigate`, `browser_back`, `browser_forward`
-    4. After each action, review the page_info and screenshot metadata
+    4. After each action, examine the returned screenshot and page_info
     5. Call `stop_browser` when finished
 
     ### Guidelines
     - Before each action, briefly explain what you are about to do
-    - After each action, review the page_info and screenshot metadata to report what happened
+    - After each action, examine the screenshot and report what happened
     - Most actions automatically return updated `page_info` — no need to call `browser_get_page_info` again
     - Maximum 20 actions per session
     - NEVER enter passwords unless the user explicitly provides them

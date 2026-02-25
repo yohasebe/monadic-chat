@@ -182,12 +182,26 @@ end
 # プロバイダー固有の機能:
 features do
   pdf_vector_storage true # PDFアップロードとRAG（検索拡張生成）を有効にする
+  toggle true             # メタ情報やツール使用の折りたたみセクションを有効にする（主にClaudeアプリ向け）
   jupyter true            # Jupyterノートブックインターフェースへのアクセスを有効にする
   image_generation true   # AI画像生成 - サポート値: true、"upload_only"、false
   monadic true            # Session Stateアプリでは必須 - ツールによるコンテキスト管理を有効化
   initiate_from_assistant true # AIメッセージで会話を開始
+  autonomy "high"         # 自律レベルの設定: "high"、"medium"（デフォルト）、"low"
 end
 ```
+
+#### 自律レベル
+
+`autonomy` 機能は、アシスタントがアクション実行前にどの程度確認を求めるかを制御します：
+
+| レベル | 動作 |
+|--------|------|
+| `"high"` | 確認なしでアクションを即座に実行。Plan-Approve-Execute プロトコルをスキップ。意図が曖昧な場合、パスワード、破壊的操作の場合のみ一時停止。 |
+| `"medium"` | デフォルト動作。マルチステップタスクでの Plan-Approve-Execute プロトコルを含む、標準的な確認パターンに従う。 |
+| `"low"` | すべてのアクション実行前にユーザーの明示的な確認を要求。2つ以上のステップがあるタスクでは常に `propose_plan` を使用。 |
+
+省略時のデフォルトは `"medium"`（プロンプト注入なし）です。Visual Web Explorer では、繰り返しの確認プロンプトなしにスムーズなインタラクティブブラウザセッションを実現するため `"high"` を使用しています。
 
 ### 5. ツール定義
 

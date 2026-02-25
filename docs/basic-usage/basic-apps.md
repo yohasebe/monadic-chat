@@ -350,6 +350,7 @@ Visualize your data with [Mermaid.js](https://mermaid.js.org/) diagrams. Simply 
 - **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
 - **Automatic diagram type selection**: The AI chooses the best diagram type for your data (flowchart, sequence, class, state, ER, Gantt, pie, Sankey, mindmap, etc.)
 - **Real-time validation**: Diagrams are validated using Selenium and the actual Mermaid.js engine before being displayed
+- **Visual self-verification**: The AI captures screenshots of rendered diagrams and visually inspects the output to catch layout issues or rendering errors before responding to the user
 - **Error analysis**: When syntax errors occur, analyzes error patterns and provides fix suggestions
 - **Preview generation**: A PNG preview image is saved to your shared folder for easy access
 - **Web search integration**: Can fetch the latest Mermaid.js documentation and examples for unfamiliar diagram types
@@ -373,6 +374,7 @@ Create Draw.io diagrams by describing your requirements. The agent generates Dra
 - **Live browser preview**: Diagrams render in a real browser visible via noVNC (`http://localhost:7900`), so you can watch changes in real time
 - **Automatic XML validation and repair**: The agent validates the generated Draw.io XML and attempts to repair common structural issues
 - **Wide diagram type support**: Flowcharts, UML diagrams (class, sequence, activity), ER diagrams, network diagrams, org charts, mind maps, BPMN, Venn diagrams, wireframes, and more
+- **Visual self-verification**: The AI captures screenshots of rendered diagrams and visually inspects the output to catch layout issues or rendering errors before responding to the user
 - **Preview generation**: A PNG preview image is saved to your shared folder for easy access
 - **Downloadable .drawio files**: The generated `.drawio` file is saved to your shared folder and can be imported into Draw.io for further editing
 

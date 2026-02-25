@@ -3359,6 +3359,12 @@ module GeminiHelper
             else
               content = function_return.is_a?(String) ? function_return : function_return.to_json
             end
+
+            # Store gallery_html for server-side injection (bypasses LLM text reproduction)
+            if function_return.is_a?(Hash) && function_return[:gallery_html]
+              session[:tool_html_fragments] ||= []
+              session[:tool_html_fragments] << function_return[:gallery_html]
+            end
           end
 
           # Check for repeated errors before adding to tool results

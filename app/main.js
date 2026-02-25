@@ -209,6 +209,14 @@ function openWebViewWindow(url, forceReload = false) {
 
   webviewWindow.loadURL(url);
 
+  // Prevent blank windows from opening (e.g., image clicks in lightbox)
+  webviewWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:') || url.startsWith('http:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
   // Open DevTools only if debugging
   if (process.env.DEBUG_CSS) {
     webviewWindow.webContents.openDevTools();

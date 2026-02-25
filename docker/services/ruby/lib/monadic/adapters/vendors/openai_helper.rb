@@ -2408,8 +2408,15 @@ module OpenAIHelper
         clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
         serialized = JSON.generate(clean_return)
       else
-        pending_tool_images = nil
+        # Do NOT clear pending_tool_images here — preserve the last tool's screenshot
+        # (Gemini/Grok/Claude all preserve previous images; only inject the final one)
         serialized = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+      end
+
+      # Store gallery_html for server-side injection (bypasses LLM text reproduction)
+      if function_return.is_a?(Hash) && function_return[:gallery_html]
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << function_return[:gallery_html]
       end
 
       context << {

@@ -836,14 +836,16 @@ module MonadicSharedTools
     def create_screenshot_gallery(screenshots)
       return "" if screenshots.empty?
 
+      @gallery_screenshot_counter ||= 0
       total = screenshots.length
       # Use Monadic Chat's standard image display format
       html = ""
       screenshots.each_with_index do |filename, index|
+        @gallery_screenshot_counter += 1
         html += <<~HTML
           <div class="generated_image">
-            <p><strong>Screenshot #{index + 1}:</strong> #{filename}</p>
-            <img src="/data/#{filename}" alt="Screenshot #{index + 1}" data-gallery-index="#{index}" data-gallery-total="#{total}" />
+            <p><strong>Screenshot #{@gallery_screenshot_counter}:</strong> #{filename}</p>
+            <img src="/data/#{filename}" alt="Screenshot #{@gallery_screenshot_counter}" data-gallery-index="#{index}" data-gallery-total="#{total}" />
           </div>
         HTML
       end

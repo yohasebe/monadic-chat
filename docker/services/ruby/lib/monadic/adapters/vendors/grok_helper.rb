@@ -1984,6 +1984,12 @@ module GrokHelper
         content_str = function_return.to_s
       end
 
+      # Store gallery_html for server-side injection (bypasses LLM text reproduction)
+      if function_return.is_a?(Hash) && function_return[:gallery_html]
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << function_return[:gallery_html]
+      end
+
       # Format tool result for Responses API (function_call_output format)
       tool_result = {
         "call_id" => tool_call["id"],

@@ -2119,6 +2119,12 @@ module ClaudeHelper
         tool_result_entry[:content] = tool_return.is_a?(Hash) || tool_return.is_a?(Array) ? JSON.generate(tool_return) : tool_return.to_s
       end
 
+      # Store gallery_html for server-side injection (bypasses LLM text reproduction)
+      if tool_return.is_a?(Hash) && tool_return[:gallery_html]
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << tool_return[:gallery_html]
+      end
+
       content << tool_result_entry
     end
 

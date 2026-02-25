@@ -826,7 +826,24 @@ $(function () {
       $("#send").trigger("click");
     });
 
-    // Add MutationObserver for handling image errors
+    // Screenshot Lightbox state (shared between MutationObserver and modal controls)
+    let lightboxImages = [];
+    let lightboxIndex = 0;
+
+    function updateLightbox() {
+      if (lightboxImages.length === 0) return;
+      $("#lightboxImage").attr("src", lightboxImages[lightboxIndex]);
+      if (lightboxImages.length > 1) {
+        $("#lightboxCounter").text((lightboxIndex + 1) + " / " + lightboxImages.length).show();
+        $("#lightboxPrev").toggle(lightboxIndex > 0);
+        $("#lightboxNext").toggle(lightboxIndex < lightboxImages.length - 1);
+      } else {
+        $("#lightboxCounter").hide();
+        $("#lightboxPrev, #lightboxNext").hide();
+      }
+    }
+
+    // Add MutationObserver for handling image errors and screenshot lightbox
     // Store the observer in the window object to ensure it can be accessed globally for cleanup
     window.imageErrorObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -846,6 +863,24 @@ $(function () {
                   });
                   $img.replaceWith($errorMessage);
                 });
+
+                // Screenshot lightbox: add click handler directly to each image
+                // Skip images marked by image_generation apps (data-action="open")
+                if (!$img.attr("data-action")) {
+                  $img.on("click", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const $card = $(this).closest(".card");
+                    lightboxImages = [];
+                    $card.find(".generated_image img:not([data-action])").each(function() {
+                      lightboxImages.push($(this).attr("src"));
+                    });
+                    lightboxIndex = lightboxImages.indexOf($(this).attr("src"));
+                    if (lightboxIndex < 0) lightboxIndex = 0;
+                    updateLightbox();
+                    $("#screenshotLightbox").modal("show");
+                  });
+                }
               });
             }
           });
@@ -4331,36 +4366,7 @@ $(function () {
       }
     });
 
-    // Screenshot Lightbox: click on generated_image img to open
-    let lightboxImages = [];
-    let lightboxIndex = 0;
-
-    function updateLightbox() {
-      if (lightboxImages.length === 0) return;
-      $("#lightboxImage").attr("src", lightboxImages[lightboxIndex]);
-      if (lightboxImages.length > 1) {
-        $("#lightboxCounter").text((lightboxIndex + 1) + " / " + lightboxImages.length).show();
-        $("#lightboxPrev").toggle(lightboxIndex > 0);
-        $("#lightboxNext").toggle(lightboxIndex < lightboxImages.length - 1);
-      } else {
-        $("#lightboxCounter").hide();
-        $("#lightboxPrev, #lightboxNext").hide();
-      }
-    }
-
-    $(document).on("click", ".generated_image img", function(e) {
-      e.stopPropagation();
-      const $card = $(this).closest(".card");
-      lightboxImages = [];
-      $card.find(".generated_image img").each(function() {
-        lightboxImages.push($(this).attr("src"));
-      });
-      lightboxIndex = lightboxImages.indexOf($(this).attr("src"));
-      if (lightboxIndex < 0) lightboxIndex = 0;
-      updateLightbox();
-      $("#screenshotLightbox").modal("show");
-    });
-
+    // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
     $("#lightboxImage").on("click", function() {
       $("#screenshotLightbox").modal("hide");
     });
@@ -4375,11 +4381,11 @@ $(function () {
       if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });
 
+    // Arrow key navigation for lightbox (Escape is handled by Bootstrap's keyboard: true default)
     $(document).on("keydown", function(e) {
       if (!$("#screenshotLightbox").hasClass("show")) return;
       if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
       if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
-      if (e.key === "Escape") { $("#screenshotLightbox").modal("hide"); }
     });
   });
 });

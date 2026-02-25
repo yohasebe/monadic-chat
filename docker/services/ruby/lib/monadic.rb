@@ -1226,12 +1226,11 @@ def init_apps
 
         <script>
           document.querySelectorAll('.generated_image img').forEach((img) => {
+            img.setAttribute('data-action', 'open');
+            img.style.cursor = 'pointer';
             img.addEventListener('click', (e) => {
               window.open(e.target.src, '_blank');
             });
-          });
-          document.querySelectorAll('.generated_image img').forEach((img) => {
-            img.style.cursor = 'pointer';
           });
         </script>
       RSUFFIX

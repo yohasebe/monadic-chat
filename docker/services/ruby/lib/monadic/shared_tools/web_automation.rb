@@ -93,13 +93,17 @@ module MonadicSharedTools
         type: "function",
         function: {
           name: "start_browser",
-          description: "Start an interactive browser session (non-headless) and navigate to a URL. The browser is visible via noVNC at http://localhost:7900 so users can watch in real time.",
+          description: "Start an interactive browser session and navigate to a URL. Runs in headless mode by default (screenshots are returned as images). Set headless to false for live viewing via noVNC at http://localhost:7900.",
           parameters: {
             type: "object",
             properties: {
               url: {
                 type: "string",
                 description: "The URL to open in the browser"
+              },
+              headless: {
+                type: "boolean",
+                description: "Run in headless mode (default: true). Set to false for live noVNC viewing."
               }
             },
             required: ["url"]
@@ -469,7 +473,7 @@ module MonadicSharedTools
       nil
     end
 
-    def start_browser(url:)
+    def start_browser(url:, headless: true)
       if error = check_selenium_or_error
         return error
       end
@@ -483,22 +487,29 @@ module MonadicSharedTools
       @browser_last_action = nil
       @browser_consecutive_count = 0
 
-      output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)}", container: "python")
+      headless_flag = headless ? "true" : "false"
+      output = send_command(command: "web_navigator.py --action start --url #{Shellwords.escape(url)} --headless #{headless_flag}", container: "python")
       result = parse_navigator_response(output)
       return result unless result[:success]
 
-      # Build response with noVNC link and screenshot
+      # Build response
       response = {
         success: true,
-        message: "Browser session started (max #{MAX_BROWSER_ACTIONS} actions). Users can watch at: http://localhost:7900",
-        novnc_url: "http://localhost:7900",
         page_info: result[:page_info],
         actions_remaining: MAX_BROWSER_ACTIONS
       }
 
+      if headless
+        response[:message] = "Browser session started in headless mode (max #{MAX_BROWSER_ACTIONS} actions). Screenshots are returned as images."
+      else
+        response[:message] = "Browser session started (max #{MAX_BROWSER_ACTIONS} actions). Users can watch at: http://localhost:7900"
+        response[:novnc_url] = "http://localhost:7900"
+      end
+
       if result[:screenshot]
         response[:screenshot] = result[:screenshot]
         response[:gallery_html] = create_screenshot_gallery([result[:screenshot]])
+        response[:_image] = result[:screenshot]
       end
 
       response
@@ -814,13 +825,14 @@ module MonadicSharedTools
     def create_screenshot_gallery(screenshots)
       return "" if screenshots.empty?
 
+      total = screenshots.length
       # Use Monadic Chat's standard image display format
       html = ""
       screenshots.each_with_index do |filename, index|
         html += <<~HTML
           <div class="generated_image">
             <p><strong>Screenshot #{index + 1}:</strong> #{filename}</p>
-            <img src="/data/#{filename}" alt="Screenshot #{index + 1}" />
+            <img src="/data/#{filename}" alt="Screenshot #{index + 1}" data-gallery-index="#{index}" data-gallery-total="#{total}" />
           </div>
         HTML
       end

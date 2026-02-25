@@ -1269,11 +1269,8 @@ let loadedApp = "Chat";
           WorkflowViewer.setActiveTool(data["content"], toolCallCount);
         }
 
-        // Auto-open noVNC window when start_browser is executed (Electron only)
-        // Note: preview_mermaid/preview_drawio use _image injection instead of noVNC
-        if (currentToolName === "start_browser" && window.electronAPI && typeof window.electronAPI.openNoVNC === 'function') {
-          window.electronAPI.openNoVNC();
-        }
+        // noVNC auto-open disabled: start_browser now defaults to headless mode.
+        // Users can open noVNC manually via Open > Open noVNC menu when using headless: false.
         break;
       }
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Interactive Web Navigator - W3C WebDriver HTTP API client
-Controls a non-headless Chrome browser via Selenium Grid for interactive web browsing.
+Controls a Chrome browser via Selenium Grid for interactive web browsing.
+Supports both headless (default) and non-headless modes.
 Session ID is persisted to allow multiple tool calls to share the same browser session.
 """
 
@@ -230,27 +231,35 @@ def _get_page_info(session_id):
 
 
 def action_start(args):
-    """Start a new browser session (non-headless) and navigate to URL."""
+    """Start a new browser session and navigate to URL.
+    Supports headless (default) and non-headless modes."""
     # Close any existing session first
     old_sid = _load_session()
     if old_sid:
         _wd(f"/session/{old_sid}", method="DELETE")
         _clear_session()
 
-    # Create new session - non-headless so user can watch via noVNC
+    headless = getattr(args, 'headless', 'true') == 'true'
+
+    # Build Chrome options
+    chrome_args = [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
+        "--force-device-scale-factor=2",
+        "--high-dpi-support=1"
+    ]
+
+    if headless:
+        chrome_args.append("--headless=new")
+
     caps = {
         "capabilities": {
             "alwaysMatch": {
                 "browserName": "chrome",
                 "goog:chromeOptions": {
-                    "args": [
-                        "--no-sandbox",
-                        "--disable-dev-shm-usage",
-                        "--disable-gpu",
-                        f"--window-size={VIEWPORT_WIDTH},{VIEWPORT_HEIGHT}",
-                        "--force-device-scale-factor=2",
-                        "--high-dpi-support=1"
-                    ]
+                    "args": chrome_args
                 }
             }
         }
@@ -274,13 +283,19 @@ def action_start(args):
     screenshot = _take_screenshot(session_id)
     page_info = _get_page_info(session_id)
 
-    return {
+    result = {
         "success": True,
         "session_id": session_id,
         "screenshot": screenshot,
         "page_info": page_info,
-        "novnc_url": "http://localhost:7900"
+        "headless": headless
     }
+
+    # Only include noVNC URL for non-headless mode
+    if not headless:
+        result["novnc_url"] = "http://localhost:7900"
+
+    return result
 
 
 def action_navigate(args):
@@ -943,6 +958,8 @@ def main():
                         help="Scroll amount in pixels")
     parser.add_argument("--key", help="Key name for press_key action (e.g., Enter, Escape, Tab)")
     parser.add_argument("--value", help="Value for select action")
+    parser.add_argument("--headless", choices=["true", "false"], default="true",
+                        help="Run browser in headless mode (default: true)")
 
     args = parser.parse_args()
 

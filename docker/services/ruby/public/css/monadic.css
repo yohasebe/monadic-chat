@@ -2718,10 +2718,27 @@ h1 {
   max-width: 100%;
   height: auto;
   display: inline-block;
+  cursor: pointer;
+  transition: transform 0.15s ease;
 }
 
 .generated_image img:hover {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: scale(1.01);
+}
+
+/* Screenshot Lightbox */
+#screenshotLightbox .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
+#screenshotLightbox .modal-content {
+  background: transparent !important;
+}
+
+#lightboxPrev:hover,
+#lightboxNext:hover {
+  background: rgba(0, 0, 0, 0.75) !important;
 }
 
 /* Alternative selector for syntax tree SVGs if needed */

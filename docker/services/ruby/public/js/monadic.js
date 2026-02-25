@@ -4330,5 +4330,56 @@ $(function () {
         $("#deleteConfirmation").modal("hide");
       }
     });
+
+    // Screenshot Lightbox: click on generated_image img to open
+    let lightboxImages = [];
+    let lightboxIndex = 0;
+
+    function updateLightbox() {
+      if (lightboxImages.length === 0) return;
+      $("#lightboxImage").attr("src", lightboxImages[lightboxIndex]);
+      if (lightboxImages.length > 1) {
+        $("#lightboxCounter").text((lightboxIndex + 1) + " / " + lightboxImages.length).show();
+        $("#lightboxPrev").toggle(lightboxIndex > 0);
+        $("#lightboxNext").toggle(lightboxIndex < lightboxImages.length - 1);
+      } else {
+        $("#lightboxCounter").hide();
+        $("#lightboxPrev, #lightboxNext").hide();
+      }
+    }
+
+    $(document).on("click", ".generated_image img", function(e) {
+      e.stopPropagation();
+      const $card = $(this).closest(".card");
+      lightboxImages = [];
+      $card.find(".generated_image img").each(function() {
+        lightboxImages.push($(this).attr("src"));
+      });
+      lightboxIndex = lightboxImages.indexOf($(this).attr("src"));
+      if (lightboxIndex < 0) lightboxIndex = 0;
+      updateLightbox();
+      $("#screenshotLightbox").modal("show");
+    });
+
+    $("#lightboxImage").on("click", function() {
+      $("#screenshotLightbox").modal("hide");
+    });
+
+    $("#lightboxPrev").on("click", function(e) {
+      e.stopPropagation();
+      if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
+    });
+
+    $("#lightboxNext").on("click", function(e) {
+      e.stopPropagation();
+      if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
+    });
+
+    $(document).on("keydown", function(e) {
+      if (!$("#screenshotLightbox").hasClass("show")) return;
+      if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
+      if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
+      if (e.key === "Escape") { $("#screenshotLightbox").modal("hide"); }
+    });
   });
 });

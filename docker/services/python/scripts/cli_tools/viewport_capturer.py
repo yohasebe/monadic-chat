@@ -20,7 +20,7 @@ from datetime import datetime
 import re
 from urllib.parse import urlparse
 import logging
-from screenshot_utils import trim_screenshot
+from screenshot_utils import trim_screenshot, images_are_similar
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -45,6 +45,7 @@ def create_driver():
     chrome_options.add_argument("--force-device-scale-factor=2")  # 2x resolution for better quality
     chrome_options.add_argument("--high-dpi-support=1")  # Enable high DPI support
     chrome_options.add_argument("--force-color-profile=srgb")  # Ensure accurate colors
+    chrome_options.add_argument("--hide-scrollbars")  # Hide scrollbars to prevent trim interference
     
     driver = webdriver.Remote(
         command_executor='http://selenium_service:4444/wd/hub',
@@ -134,22 +135,30 @@ def take_viewport_screenshots(driver, url, output_dir, viewport_width=1920, view
             
             # Check if we've reached the bottom
             if current_position + viewport_height >= total_height:
-                # Take one final screenshot if there's remaining content
-                if current_position < total_height - 10:  # 10px threshold
+                # Only take a final screenshot if significant content remains
+                # (at least 30% of viewport beyond what the last capture covered)
+                remaining = total_height - current_position
+                if remaining > viewport_height * 0.3:
                     driver.execute_script(f"window.scrollTo(0, {total_height - viewport_height})")
                     time.sleep(0.5)
-                    
+
                     screenshot_count += 1
                     filename = f"{base_filename}_viewport_{screenshot_count:03d}.png"
                     filepath = os.path.join(output_dir, filename)
-                    
+
                     driver.save_screenshot(filepath)
-                    
+
                     if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
                         trim_screenshot(filepath)
-                        logger.info(f"Saved final screenshot {screenshot_count}: {filename}")
-                        screenshots.append(filename)
-                
+                        # Deduplicate: skip if visually similar to the previous screenshot
+                        prev_path = os.path.join(output_dir, screenshots[-1]) if screenshots else None
+                        if prev_path and images_are_similar(prev_path, filepath):
+                            logger.info(f"Skipping near-duplicate final screenshot: {filename}")
+                            os.remove(filepath)
+                        else:
+                            logger.info(f"Saved final screenshot {screenshot_count}: {filename}")
+                            screenshots.append(filename)
+
                 break
         
         logger.info(f"Capture complete: {len(screenshots)} screenshots saved")

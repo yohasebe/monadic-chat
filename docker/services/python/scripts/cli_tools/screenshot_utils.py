@@ -4,10 +4,42 @@ Shared screenshot utilities for Web Insight tools.
 """
 
 import logging
+import os
 import numpy as np
 from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+
+def image_phash(filepath, size=16):
+    """Compute a simple perceptual hash (average hash) of an image.
+
+    Resizes to a small grayscale thumbnail and compares each pixel to the
+    mean brightness.  Returns a binary string of length ``size * size``.
+    """
+    try:
+        img = Image.open(filepath).convert("L").resize((size, size), Image.LANCZOS)
+        pixels = list(img.getdata())
+        avg = sum(pixels) / len(pixels)
+        return "".join("1" if p > avg else "0" for p in pixels)
+    except Exception:
+        return None
+
+
+def images_are_similar(path_a, path_b, threshold=0.90):
+    """Return True if two screenshots look visually similar.
+
+    Uses a perceptual hash comparison.  *threshold* is the fraction of
+    matching bits required (0.90 = 90 % identical).
+    """
+    h1 = image_phash(path_a)
+    h2 = image_phash(path_b)
+    if h1 is None or h2 is None or len(h1) != len(h2):
+        return False
+    matching = sum(a == b for a, b in zip(h1, h2))
+    similarity = matching / len(h1)
+    logger.info(f"Image similarity: {similarity:.2%} ({path_a} vs {path_b})")
+    return similarity >= threshold
 
 
 def trim_screenshot(filepath, padding=8, threshold=12, min_trim_pct=0.03):

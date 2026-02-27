@@ -39,6 +39,9 @@ const jquerySelectors = {
   "#clearMask": {
     on: jest.fn()
   },
+  "#undoMask": {
+    on: jest.fn()
+  },
   "#saveMask": {
     on: jest.fn()
   },
@@ -214,6 +217,7 @@ describe('Mask Editor', () => {
       expect($("#brushTool").on).toHaveBeenCalledWith("click", expect.any(Function));
       expect($("#eraserTool").on).toHaveBeenCalledWith("click", expect.any(Function));
       expect($("#clearMask").on).toHaveBeenCalledWith("click", expect.any(Function));
+      expect($("#undoMask").on).toHaveBeenCalledWith("click", expect.any(Function));
       expect($("#maskEditorModal").on).toHaveBeenCalledWith("hidden.bs.modal", expect.any(Function));
     });
   });

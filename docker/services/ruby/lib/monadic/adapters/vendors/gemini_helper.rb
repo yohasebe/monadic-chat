@@ -27,10 +27,9 @@ end
 #   - Latest model optimized for software engineering and tool usage
 #   - customtools variant prioritizes custom tools over built-in tools
 #
-# Gemini 3 (gemini-3-flash-preview, gemini-3-pro-preview):
+# Gemini 3 (gemini-3-flash-preview):
 #   - Full support for monadic mode + function calling simultaneously
 #   - No special workarounds required
-#   - Default flash model for general Gemini apps
 #
 # Gemini 2.5 (gemini-2.5-flash, gemini-2.5-pro) - Legacy Support:
 #   - Has limitation: cannot support function calling and structured JSON output simultaneously
@@ -1075,6 +1074,7 @@ module GeminiHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      session[:images_injected_this_turn] = Set.new
       # Clear tool_results from previous turn to prevent stale data affecting termination logic
       session[:parameters]["tool_results"] = []
     end
@@ -1744,21 +1744,28 @@ module GeminiHelper
 
       # Inject screenshot image(s) as user message for vision-capable models
       # Supports multiple images for tiled screenshots
+      # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
       if session[:pending_tool_images]&.any?
-        image_parts = session[:pending_tool_images].filter_map do |img_filename|
-          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
-          next unless img
+        injected_set = session[:images_injected_this_turn] ||= Set.new
+        new_images = session[:pending_tool_images].reject { |f| injected_set.include?(f) }
 
-          { "inlineData" => { "mimeType" => img[:media_type], "data" => img[:base64_data] } }
-        end
-        if image_parts.any?
-          body["contents"] << {
-            "role" => "user",
-            "parts" => [
-              { "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-              *image_parts
-            ]
-          }
+        if new_images.any?
+          image_parts = new_images.filter_map do |img_filename|
+            img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+            next unless img
+
+            injected_set << img_filename
+            { "inlineData" => { "mimeType" => img[:media_type], "data" => img[:base64_data] } }
+          end
+          if image_parts.any?
+            body["contents"] << {
+              "role" => "user",
+              "parts" => [
+                { "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+                *image_parts
+              ]
+            }
+          end
         end
         session.delete(:pending_tool_images)
       end
@@ -2262,7 +2269,7 @@ module GeminiHelper
               finish_reason = "recitation"
             when "MALFORMED_FUNCTION_CALL"
               # Gemini returned a malformed function call
-              # With gemini-3-pro-preview as default, this should rarely occur
+              # With Gemini 3+ models, this should rarely occur
               if CONFIG["EXTRA_LOGGING"]
                 finish_message = candidate["finishMessage"]
                 File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|

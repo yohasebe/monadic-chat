@@ -294,7 +294,7 @@ const modelSpec = {
   "gpt-5.3-chat-latest": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 16384],
-    "reasoning_effort": [["medium"], "medium"],
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -932,15 +932,6 @@ const modelSpec = {
     "supports_thinking": true
   },
   "mistral-small-latest": {
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
-  "mistral-medium-latest": {
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],

@@ -278,15 +278,6 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
-    # Handle reasoning_effort (top-level for xAI; grok-3-mini deprecated Feb 2026)
-    if options["reasoning_effort"] && model.start_with?("grok-3-mini")
-      case options["reasoning_effort"]
-      when "low", "minimal"
-        body["reasoning_effort"] = "low"
-      when "medium", "high"
-        body["reasoning_effort"] = "high"
-      end
-    end
 
     # Handle websearch via search tools
     websearch = options["websearch"] == true || options["websearch"] == "true"
@@ -622,18 +613,6 @@ module GrokHelper
     body["frequency_penalty"] = frequency_penalty if frequency_penalty
     body["max_output_tokens"] = max_tokens if max_tokens
 
-    # Handle reasoning_effort for models that support it
-    # grok-3-mini supported reasoning_effort (deprecated Feb 2026)
-    reasoning_supported = model.start_with?("grok-3-mini")
-
-    if reasoning_effort && reasoning_supported
-      case reasoning_effort
-      when "low", "minimal"
-        body["reasoning_effort"] = "low"
-      when "medium", "high"
-        body["reasoning_effort"] = "high"
-      end
-    end
 
     if obj["response_format"]
       body["response_format"] = APPS[app].settings["response_format"]

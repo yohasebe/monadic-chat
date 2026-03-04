@@ -149,9 +149,9 @@ RSpec.describe "Gemini toolConfig and thinking mapping" do
       expect(session[:parameters]["model"]).to eq("gemini-2.5-flash")
     end
 
-    it "supports gemini-3-pro-preview model" do
-      session = build_session("gemini-3-pro-preview")
-      expect(session[:parameters]["model"]).to eq("gemini-3-pro-preview")
+    it "supports gemini-3.1-pro-preview model" do
+      session = build_session("gemini-3.1-pro-preview")
+      expect(session[:parameters]["model"]).to eq("gemini-3.1-pro-preview")
     end
   end
 end

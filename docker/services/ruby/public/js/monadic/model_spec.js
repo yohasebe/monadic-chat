@@ -290,6 +290,26 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // GPT-5.3 Instant (smoother everyday tasks, hallucination reduction)
+  "gpt-5.3-chat-latest": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 16384],
+    "reasoning_effort": [["medium"], "medium"],
+    "temperature": [[0.0, 2.0], 1.0],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["medium"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_image_generation": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
   // GPT-5.2 Pro (maximum accuracy)
   "gpt-5.2-pro": {
     "context_window" : [1, 400000],
@@ -522,7 +542,7 @@ const modelSpec = {
   "claude-opus-4-5-20251101": {
     "context_window" : [1, 200000],
     "api_version": "2023-06-01",
-    "max_output_tokens" : [[1, 32000], 32000],
+    "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
     "vision_capability": true,
     "supports_thinking": true,
@@ -639,19 +659,17 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
-    "vision_capability": false,
-    "deprecated": true
+    "vision_capability": false
   },
   "command-a-vision-07-2025": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 8000],
     "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.09], 0.75],
+    "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
     "vision_capability": true,
-    "deprecated": false
   },
   "c4ai-aya-vision-32b": {
     "context_window" : [1, 16000],
@@ -674,24 +692,6 @@ const modelSpec = {
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
   },
-  "c4ai-aya-vision-8b": {
-    "context_window" : [1, 8000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "vision_capability": true
-  },
-  "c4ai-aya-expanse-8b": {
-    "context_window" : [1, 8000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": false
-  },
   "c4ai-aya-expanse-32b": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 4000],
@@ -709,7 +709,6 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
-    "deprecated": false
   },
   "command-r7b-12-2024": {
     "context_window" : [1, 128000],
@@ -719,7 +718,6 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
-    "deprecated": false
   },
   "command-r7b-arabic-02-2025": {
     "context_window" : [1, 128000],
@@ -729,7 +727,6 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
-    "deprecated": false
   },
   // Gemini models
   "gemini-3-flash-preview": {
@@ -748,27 +745,6 @@ const modelSpec = {
       }
     },
     "top_p": [[0.0, 1.0], 0.95],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": true,
-    "supports_pdf": true
-  },
-  "gemini-3-pro-preview": {
-    "context_window" : [1048576],
-    "max_output_tokens" : [1, 65536],
-    "reasoning_effort": [["low", "high"], "low"],
-    "supports_thinking": true,
-    "supports_thinking_level": true,
-    "thinking_level": [["low", "high"], "low"],
-    "thinking_budget": {
-      "min": 1024,
-      "max": 32768,
-      "can_disable": false,
-      "presets": {
-        "low": 8000,
-        "high": 20000
-      }
-    },
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
@@ -814,6 +790,34 @@ const modelSpec = {
     "vision_capability": true,
     "supports_web_search": true,
     "supports_pdf": true
+  },
+  "gemini-3.1-flash-lite-preview": {
+    "context_window" : [1048576],
+    "max_output_tokens" : [1, 65536],
+    "thinking_budget": {
+      "min": 128,
+      "max": 24576,
+      "can_disable": true,
+      "default_disabled": true,
+      "presets": {
+        "none": 0,
+        "low": 512,
+        "medium": 8000,
+        "high": 20000
+      }
+    },
+    "top_p": [[0.0, 1.0], 0.95],
+    "tool_capability": true,
+    "vision_capability": true,
+    "supports_web_search": true,
+    "supports_pdf": true
+  },
+  "gemini-3.1-flash-image-preview": {
+    "context_window": [131072],
+    "max_output_tokens": [1, 32768],
+    "vision_capability": true,
+    "image_generation": true,
+    "supports_web_search": true
   },
   "gemini-2.5-flash-lite": {
     "context_window" : [1048576],
@@ -927,26 +931,6 @@ const modelSpec = {
     "vision_capability": true,
     "supports_thinking": true
   },
-  // pixtral models
-  "pixtral-large-latest": {
-    "max_output_tokens" : [1, 131000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true
-  },
-  "pixtral-12b-latest": {
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "deprecated": true
-  },
   "mistral-small-latest": {
     "max_output_tokens" : [1, 32768],
     "temperature": [[0.0, 1.0], 0.3],
@@ -974,25 +958,6 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "vision_capability": false
-  },
-  // Non-latest pixtral and mistral models
-  "pixtral-12b": {
-    "max_output_tokens" : [1, 8192],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "deprecated": true
-  },
-  "mistral-medium": {
-    "max_output_tokens" : [1, 32768],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true
   },
   // ministral models
   "ministral-3b-latest": {
@@ -1087,29 +1052,6 @@ const modelSpec = {
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
-  "grok-2-vision-1212": {
-    "context_window" : [1, 32768],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "vision_capability": true,
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true,
-    "supports_pdf": false
-  },
-  "grok-2-1212": {
-    "context_window" : [1, 131072],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true,
-    "deprecated": true
-  },
   "grok-3": {
     "context_window" : [1, 131072],
     "temperature": [[0.0, 2.0], 1.0],
@@ -1117,17 +1059,6 @@ const modelSpec = {
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true
-  },
-  "grok-3-mini": {
-    "context_window" : [1, 131072],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "reasoning_effort": [["low", "high"], "low"],
     "supports_web_search": false,
     "supports_parallel_function_calling": true
   },
@@ -1146,6 +1077,19 @@ const modelSpec = {
   "sonar-deep-research": {
     "context_window" : [1, 128000],
     "reasoning_effort": [["none", "low", "medium", "high"], "low"],
+    "supports_web_search": true,
+    "supports_pdf": true,
+    "supports_pdf_upload": false
+  },
+  "sonar-reasoning": {
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 8000],
+    "temperature": [[0.0, 1.99], 0.9],
+    "top_p": [[0.0, 1.0], 0.9],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[0.0, 2.0], 1.0],
+    "is_reasoning_model": true,
+    "reasoning_effort": [["none", "low", "medium", "high"], "medium"],
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_pdf_upload": false
@@ -1199,8 +1143,8 @@ const modelSpec = {
     "reasoning_content": ["disabled", "enabled"]
   },
   "deepseek-reasoner": {
-    "context_window" : [1, 64000],
-    "max_output_tokens" : [1, 8192],
+    "context_window" : [1, 128000],
+    "max_output_tokens" : [1, 64000],
     "temperature": [[0.0, 2.0], 1.0], 
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],

@@ -15,7 +15,7 @@ module ImageAnalysisAgent
     "openai"    => "gpt-4o-mini",
     "anthropic" => "claude-haiku-4-5-20251001",
     "google"    => "gemini-2.0-flash",
-    "xai"       => "grok-2-vision-1212"
+    "xai"       => "grok-4-1-fast-non-reasoning"
   }.freeze
 
   VISION_API_KEYS = {

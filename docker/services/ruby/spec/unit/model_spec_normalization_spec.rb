@@ -32,7 +32,7 @@ RSpec.describe Monadic::Utils::ModelSpec do
     end
 
     it "exposes streaming/tool capability with safe defaults" do
-      model = "grok-2-vision-1212"
+      model = "grok-4-1-fast-non-reasoning"
       # tools default to true when unspecified
       expect(Monadic::Utils::ModelSpec.tool_capability?(model)).to be true
       # streaming defaults to true when unspecified

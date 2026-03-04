@@ -35,7 +35,7 @@ These agents enforce the **Provider Independence** principle: when a Claude app 
 **Included in**: `MonadicApp` (base class)
 **Public method**: `image_analysis_agent(message:, image_path:)`
 
-**Supported providers**: OpenAI (`gpt-4o-mini`), Claude (`claude-haiku-4-5-20251001`), Gemini (`gemini-2.0-flash`), Grok (`grok-2-vision-1212`)
+**Supported providers**: OpenAI (`gpt-4o-mini`), Claude (`claude-haiku-4-5-20251001`), Gemini (`gemini-2.0-flash`), Grok (`grok-4-1-fast-non-reasoning`)
 
 **How it works**:
 1. Reads image file, validates size (10MB limit), determines MIME type

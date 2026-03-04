@@ -14,8 +14,8 @@ module GrokHelper
   include BaseVendorHelper
   include InteractionUtils
   include FunctionCallErrorHandler
-  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
-  MAX_FUNC_CALLS = 50
+  # Maximum tool-call round-trips per user turn.
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.x.ai/v1"
 
   # Responses API search tool definitions
@@ -278,7 +278,7 @@ module GrokHelper
     body["frequency_penalty"] = options["frequency_penalty"] if options["frequency_penalty"]
     body["presence_penalty"] = options["presence_penalty"] if options["presence_penalty"]
 
-    # Handle reasoning_effort (top-level for xAI, grok-3-mini only)
+    # Handle reasoning_effort (top-level for xAI; grok-3-mini deprecated Feb 2026)
     if options["reasoning_effort"] && model.start_with?("grok-3-mini")
       case options["reasoning_effort"]
       when "low", "minimal"
@@ -395,6 +395,7 @@ module GrokHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      session[:images_injected_this_turn] = Set.new
       session[:parameters]["function_returns"] = nil
       session[:parameters]["assistant_function_calls"] = nil
     end
@@ -622,7 +623,7 @@ module GrokHelper
     body["max_output_tokens"] = max_tokens if max_tokens
 
     # Handle reasoning_effort for models that support it
-    # Only grok-3-mini supports reasoning_effort (per xAI docs)
+    # grok-3-mini supported reasoning_effort (deprecated Feb 2026)
     reasoning_supported = model.start_with?("grok-3-mini")
 
     if reasoning_effort && reasoning_supported
@@ -874,21 +875,28 @@ module GrokHelper
 
       # Inject screenshot image(s) as user message for vision-capable models
       # Supports multiple images for tiled screenshots
+      # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
       if session[:pending_tool_images]&.any?
-        image_parts = session[:pending_tool_images].filter_map do |img_filename|
-          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
-          next unless img
+        injected_set = session[:images_injected_this_turn] ||= Set.new
+        new_images = session[:pending_tool_images].reject { |f| injected_set.include?(f) }
 
-          { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
-        end
-        if image_parts.any?
-          context_messages << {
-            "role" => "user",
-            "content" => [
-              { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-              *image_parts
-            ]
-          }
+        if new_images.any?
+          image_parts = new_images.filter_map do |img_filename|
+            img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+            next unless img
+
+            injected_set << img_filename
+            { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+          end
+          if image_parts.any?
+            context_messages << {
+              "role" => "user",
+              "content" => [
+                { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+                *image_parts
+              ]
+            }
+          end
         end
         session.delete(:pending_tool_images)
       end
@@ -970,8 +978,8 @@ module GrokHelper
           candidates = spec.keys.select do |m|
             m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
           end
-          # Prefer grok-2-vision-1212 if defined
-          vision_model = candidates.include?("grok-2-vision-1212") ? "grok-2-vision-1212" : candidates.first
+          # Prefer grok-4-1-fast-non-reasoning for vision tasks
+          vision_model = candidates.include?("grok-4-1-fast-non-reasoning") ? "grok-4-1-fast-non-reasoning" : candidates.first
         rescue StandardError
           vision_model = nil
         end

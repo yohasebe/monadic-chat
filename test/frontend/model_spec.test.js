@@ -101,7 +101,7 @@ describe('Model Specification', () => {
       expect(model.context_window).toEqual([1, 128000]);
       expect(model.max_output_tokens).toEqual([1, 8000]);
       expect(model.temperature).toEqual([[0.0, 1.0], 0.3]);
-      expect(model.top_p).toEqual([[0.01, 0.09], 0.75]);
+      expect(model.top_p).toEqual([[0.01, 0.99], 0.75]);
     });
 
     it('should have different tool capabilities for different Cohere models', () => {

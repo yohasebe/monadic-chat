@@ -584,7 +584,7 @@ class MonadicApp
           if image_files.any?
             output = "#{success}\n\nIMAGE FILES CREATED (verified to exist):\n"
             image_files.each { |f| output += "- #{f}\n" }
-            output += "\nYou can safely display these images using <img src=\"#{image_files.first}\" /> tags."
+            output += "\nThese images are automatically displayed in the chat. Do NOT include <img> tags in your response."
 
             other_files = file_paths - image_files
             if other_files.any?
@@ -732,7 +732,7 @@ class MonadicApp
       "cohere" => "command-a-reasoning-08-2025",
       "gemini" => "gemini-2.5-flash",
       "mistral" => "mistral-large-latest",
-      "grok" => "grok-2-1212",
+      "grok" => "grok-4-1-fast-non-reasoning",
       "perplexity" => "sonar",
       "deepseek" => "deepseek-chat"
     }

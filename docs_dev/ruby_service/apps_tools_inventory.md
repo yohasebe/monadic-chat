@@ -32,6 +32,9 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 - `run_bash_command` - Execute a bash command in the Python container
 - `check_environment` - Check the Python container environment
 - `lib_installer` - Install a library using package manager (pip, uv, or apt)
+- `parallel_run_code` - Execute 2-5 independent Python scripts simultaneously (via `MonadicSharedTools::ParallelPythonExecution`)
+
+**`gallery_html` Display:** When `run_code` output contains image file paths (`/data/*.png`, `/data/*.jpg`, etc.), the tool automatically detects them via `enrich_with_images` and stores gallery HTML in `session[:tool_html_fragments]`. These images are displayed to the user in the chat via server-side injection (no LLM vision injection). `parallel_run_code` aggregates images from all parallel tasks (max 5 images total). Images exceeding 5 MB are excluded.
 
 **Default PTD Hint:** "Call request_tool(\"python_execution\") when you need to run Python code, execute bash commands, or inspect the execution environment."
 
@@ -91,7 +94,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 - `browser_get_page_info` - Get page info (title, URL, interactive elements)
 - `stop_browser` - End the browser session
 
-**`_image` Key:** All tools that return screenshots include a `_image` key in the response. This key is consumed by vendor adapters to inject the screenshot into the LLM's next turn as a vision input (OpenAI/Grok: image_url, Gemini: inlineData, Claude: image block). This enables the LLM to visually verify the result of each action.
+**`_image` Key (Web Insight only):** All tools that return screenshots include a `_image` key in the response. This key is consumed by vendor adapters to inject the screenshot into the LLM's next turn as a vision input (OpenAI/Grok: image_url, Gemini: inlineData, Claude: image block). This is necessary because the LLM cannot know what a web page looks like without seeing it. Note: `_image` is used exclusively by Web Insight; other apps (Mermaid/DrawIO/Auto Forge) use `gallery_html` for user-side display instead.
 
 **Default PTD Hint:** "Call request_tool(\"web_automation\") when you need to capture web pages as screenshots, extract webpage text, or debug web applications using Selenium."
 
@@ -151,6 +154,8 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 - `interrupt_jupyter_execution` - Interrupt running cells
 - `move_jupyter_cell` - Move a cell to a new position
 - `insert_jupyter_cells` - Insert cells at a specific position
+
+**`gallery_html` Display:** When `add_jupyter_cells` executes cells that produce image outputs (matplotlib plots, seaborn charts, PIL images, etc.), the tool automatically extracts `image/png` data from notebook cell outputs (`display_data` / `execute_result`), saves them as PNG files, and stores gallery HTML in `session[:tool_html_fragments]`. Images are extracted in reverse cell order (latest first), limited to 5 images and 5 MB per image. These images are displayed to the user in the chat via server-side injection (no LLM vision injection).
 
 **Default PTD Hint:** "Call request_tool(\"jupyter_operations\") when you need to create, manage, or execute Jupyter notebooks."
 
@@ -250,6 +255,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 |-------|---------|
 | **Imported Tools** | `:planning [always]`<br/>`:web_automation [conditional]` |
 | **Custom Tools** | • `generate_application` - Generate a complete application<br/>• `validate_specification` - Validate app specification<br/>• `list_projects` - List previously generated projects<br/>• `generate_additional_file` - Generate additional project files |
+| **`gallery_html` Display** | `debug_application` captures a Selenium screenshot (`autoforge_debug_*.png`) and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot; it relies on text-based debug reports and user feedback to diagnose issues. |
 
 ---
 
@@ -307,6 +313,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 |-------|---------|
 | **Imported Tools** | `:planning [always]` |
 | **Custom Tools** | • `generate_concept_diagram` - Generate conceptual diagram using LaTeX/TikZ<br/>• `list_diagram_examples` - Show diagram type examples |
+| **`gallery_html` Display** | `generate_concept_diagram` produces a PNG alongside the SVG (via `dvipng` or ImageMagick `convert`) and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the rendered image directly. |
 
 ---
 
@@ -333,7 +340,8 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 | Field | Details |
 |-------|---------|
 | **Imported Tools** | `:planning [always]` |
-| **Custom Tools** | • `preview_drawio` - Validate, save, and render diagram in live browser (noVNC) with screenshot<br/>• `write_drawio_file` - Save Draw.io diagram to file (without browser preview)<br/>• `stop_drawio_browser` - Close the live preview browser session |
+| **Custom Tools** | • `preview_drawio` - Validate, save, and render diagram in live browser with screenshot<br/>• `write_drawio_file` - Save Draw.io diagram to file (without browser preview)<br/>• `stop_drawio_browser` - Close the live preview browser session |
+| **`gallery_html` Display** | `preview_drawio` captures a Selenium screenshot and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot directly. |
 
 ---
 
@@ -389,6 +397,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 |-------|---------|
 | **Imported Tools** | `:python_execution [always]`<br/>`:file_reading [always]`<br/>`:planning [always]` |
 | **Custom Tools** | (none) |
+| **`gallery_html` Display** | Uses `python_execution`'s `enrich_with_images` auto-detection. System prompt directs PNG output so gallery HTML is stored automatically in `session[:tool_html_fragments]` for user-side display. |
 
 ---
 
@@ -398,6 +407,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 |-------|---------|
 | **Imported Tools** | `:web_search_tools [conditional]`<br/>`:planning [always]` |
 | **Custom Tools** | • `validate_mermaid_syntax` - Validate diagram syntax<br/>• `analyze_mermaid_error` - Analyze errors and suggest fixes<br/>• `preview_mermaid` - Save preview image<br/>• `fetch_mermaid_docs` - Get documentation URL |
+| **`gallery_html` Display** | `preview_mermaid` captures Selenium screenshots (single or tiled for tall diagrams) and stores them as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshots directly. |
 
 ---
 

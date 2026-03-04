@@ -24,7 +24,7 @@ module MermaidGrapherTools
     )
   end
 
-  def preview_mermaid(code:)
+  def preview_mermaid(code:, session: nil)
     sanitized_code = sanitize_mermaid_code(code)
 
     # 1. Validate
@@ -79,13 +79,20 @@ module MermaidGrapherTools
       # Tiled mode: multiple overlapping screenshots for tall diagrams
       image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
       if image_files.any?
+        # Store gallery HTML for server-side display (no _image vision injection)
+        if session
+          gallery_html = image_files.map { |img|
+            "<div class=\"generated_image\"><img src=\"/data/#{img}\" /></div>"
+          }.join("\n")
+          session[:tool_html_fragments] ||= []
+          session[:tool_html_fragments] << gallery_html
+        end
         {
           success: true,
           filename: image_files.first,
           tile_count: image_files.size,
-          message: "Preview captured as #{image_files.size} tiled images. Please verify the diagram rendering.",
-          validated_code: sanitized_code,
-          _image: image_files
+          message: "Preview captured as #{image_files.size} tiled images. The images are automatically displayed in the chat.",
+          validated_code: sanitized_code
         }
       else
         format_tool_response(build_preview_payload(
@@ -100,12 +107,17 @@ module MermaidGrapherTools
       dst = File.join(shared_volume, screenshot_filename)
       FileUtils.cp(src, dst) if File.exist?(src)
 
+      # Store gallery HTML for server-side display (no _image vision injection)
+      if session
+        gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{screenshot_filename}\" /></div>"
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << gallery_html
+      end
       {
         success: true,
         filename: screenshot_filename,
-        message: "Preview image saved as '#{screenshot_filename}'. Please verify the diagram rendering.",
-        validated_code: sanitized_code,
-        _image: screenshot_filename
+        message: "Preview image saved as '#{screenshot_filename}'. The image is automatically displayed in the chat.",
+        validated_code: sanitized_code
       }
     else
       format_tool_response(build_preview_payload(

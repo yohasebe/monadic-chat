@@ -545,6 +545,8 @@ Let the AI create and execute Python code in a sandboxed Docker environment. Any
 
 ?> **Note:** For matplotlib plots with Japanese text, the Python container includes Japanese font support (Noto Sans CJK JP) configured through matplotlibrc.
 
+When the code generates plot images, the AI can visually verify the rendered output to detect issues such as garbled text, overlapping labels, or data inconsistencies, and automatically fix and re-execute the code if needed.
+
 Code Interpreter availability matches the provider table. Provider tool-calling specifications may vary, which can affect behavior.
 
 ![Code Interpreter workflow](../assets/images/workflows/workflow-code-interpreter.svg ':size=500')
@@ -571,7 +573,7 @@ Coding Assistant supports the providers indicated in the availability table.
 
 ![Jupyter Notebook app icon](../assets/icons/jupyter-notebook.png ':size=40')
 
-Let the AI create Jupyter Notebooks, add cells, and execute code based on your requests. The app intelligently maintains context of the current notebook, allowing you to seamlessly continue editing and running code in the same notebook across multiple turns. The code runs in a sandboxed Python environment inside a Docker container, and the created notebook is saved to your `Shared Folder`.
+Let the AI create Jupyter Notebooks, add cells, and execute code based on your requests. The app intelligently maintains context of the current notebook, allowing you to seamlessly continue editing and running code in the same notebook across multiple turns. The code runs in a sandboxed Python environment inside a Docker container, and the created notebook is saved to your `Shared Folder`. When cells produce plot images, the AI can visually verify the output and fix issues before presenting results.
 
 ?> You can start or stop JupyterLab by asking the AI agent. Alternatively, you can use the `Start JupyterLab` or `Stop JupyterLab` menu items in the `Console Panel` menu bar.
 <br /><br /><!-- SCREENSHOT: Monadic Chat Actions menu showing Start JupyterLab and Stop JupyterLab options -->

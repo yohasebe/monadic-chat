@@ -1656,7 +1656,8 @@ build_ruby_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Ruby container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_python_container)
@@ -1674,7 +1675,8 @@ build_python_container)
   if ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Python container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_user_containers)
@@ -1697,7 +1699,8 @@ build_user_containers)
   elif ${DOCKER} images | grep -q "monadic-chat"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of user containers has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li><li><code>server.log</code></li></ul>"
   fi
   ;;
 build_selenium_container)
@@ -1712,7 +1715,8 @@ build_selenium_container)
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Selenium container has finished: Check the console panel for details.</p><hr />"
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Selenium container failed to build.</p><p>Please check the following log files in the share folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
   fi
   ;;
 build)
@@ -1747,13 +1751,16 @@ build)
          echo "$container_list" | grep -q "^monadic-chat-pgvector-container$"; then
         echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Build of Monadic Chat has finished and containers are started. Check the console panel for details.</p><hr />"
       else
-        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Build completed but some containers were not created.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+        echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+        echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
       fi
     else
-      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Failed to start containers. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
+      echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+      echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li><li><code>docker_start.log</code></li></ul>"
     fi
   else
-    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container build failed. Please run 'docker system df' to check disk space.</p><p>Please check the following log files:</p><ul><li><code>docker_build.log</code></li></ul>"
+    echo "[HTML]: <p><i class='fa-solid fa-circle-exclamation' style='color: red;'></i>Container failed to build.</p>"
+    echo "[HTML]: <p>Please check the following log files in the shared folder:</p><ul><li><code>docker_build.log</code></li></ul>"
   fi
   ;;
 check)

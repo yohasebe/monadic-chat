@@ -17,8 +17,8 @@ module ClaudeHelper
   include ErrorPatternDetector
   include FunctionCallErrorHandler
   include MonadicPerformance
-  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
-  MAX_FUNC_CALLS = 50
+  # Maximum tool-call round-trips per user turn.
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.anthropic.com/v1"
   MAX_RETRIES = 5
   RETRY_DELAY = 2
@@ -435,6 +435,7 @@ module ClaudeHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      session[:images_injected_this_turn] = Set.new
     end
 
     # Use per-turn counter instead of parameter for tracking
@@ -2105,14 +2106,21 @@ module ClaudeHelper
 
       # Check for _image key in tool return for direct image injection
       # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
+      # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
       if tool_return.is_a?(Hash) && tool_return[:_image]
         clean_return = tool_return.reject { |k, _| k.to_s.start_with?("_") }
         result_content = [
           { type: "text", text: JSON.generate(clean_return) }
         ]
+        injected_set = session[:images_injected_this_turn] ||= Set.new
         Array(tool_return[:_image]).each do |img_filename|
+          next if injected_set.include?(img_filename)
+
           image_block = build_tool_image_block(img_filename)
-          result_content << image_block if image_block
+          if image_block
+            result_content << image_block
+            injected_set << img_filename
+          end
         end
         tool_result_entry[:content] = result_content
       else

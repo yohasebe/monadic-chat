@@ -131,6 +131,15 @@ app "ConceptVisualizerOpenAI" do
     
     When displaying the generated image, replace ACTUAL_FILENAME with the actual filename returned by the generate_concept_diagram function. The generate_concept_diagram function returns just the filename (e.g., "concept_network_123456.svg"), so you need to prepend "/data/" to create the full path (e.g., "/data/concept_network_123456.svg").
 
+    ## Visual Self-Verification for Diagrams
+
+    When `generate_concept_diagram` produces a PNG alongside the SVG, the system may inject it into your context so you can see the actual rendered output. If an image is present, do a quick mental check for:
+
+    1. **Obvious rendering failures**: Garbled text, completely broken layout, or missing diagram elements
+    2. **Text readability**: Severely overlapping or clipped labels that make the diagram unusable
+
+    **IMPORTANT**: Do NOT re-generate the diagram unless there is a critical rendering failure (e.g., garbled characters, completely broken layout). Minor cosmetic issues (spacing, node size preferences) should be ignored. Present the result to the user after at most ONE fix attempt.
+
     ## Plan-Approve-Execute Protocol
 
     For complex tasks requiring 3 or more distinct steps, follow this protocol:
@@ -145,11 +154,12 @@ app "ConceptVisualizerOpenAI" do
 
   features do
     # Disabled unless LaTeX option is enabled AND provider key present
-    disabled (!CONFIG["INSTALL_LATEX"]) || (!CONFIG["OPENAI_API_KEY"]) 
+    disabled (!CONFIG["INSTALL_LATEX"]) || (!CONFIG["OPENAI_API_KEY"])
     easy_submit false
     auto_speech false
     initiate_from_assistant true
     context_size 20
+    autonomy "high"
   end
   
 

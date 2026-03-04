@@ -22,9 +22,10 @@ module OpenAIHelper
   include ErrorPatternDetector
   include FunctionCallErrorHandler
   include MonadicPerformance
-  # Maximum tool calls per user turn - set higher for complex agentic apps like Auto Forge
-  # Auto Forge with GPT-5-Codex may need 30+ calls for complex applications
-  MAX_FUNC_CALLS = 50
+  # Maximum tool-call round-trips per user turn.
+  # Each round-trip may contain multiple parallel tool calls, so effective tool count can be higher.
+  # 20 round-trips is generous for most workflows; Auto Forge complex builds may use 15+.
+  MAX_FUNC_CALLS = 20
   API_ENDPOINT = "https://api.openai.com/v1"
   REASONING_CONTEXT_MAX = 3
 
@@ -513,6 +514,7 @@ module OpenAIHelper
     if role == "user"
       session[:call_depth_per_turn] = 0
       session[:parallel_dispatch_called] = nil
+      session[:images_injected_this_turn] = Set.new
 
       # Reset help topics call tracking for new user turn
       # This allows the AI to perform fresh searches for each user question
@@ -2435,21 +2437,28 @@ module OpenAIHelper
 
     # Inject screenshot image(s) as user message for vision-capable models
     # Supports multiple images for tiled screenshots
+    # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
     if pending_tool_images&.any?
-      image_parts = pending_tool_images.filter_map do |img_filename|
-        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
-        next unless img
+      injected_set = session[:images_injected_this_turn] ||= Set.new
+      new_images = pending_tool_images.reject { |f| injected_set.include?(f) }
 
-        { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
-      end
-      if image_parts.any?
-        context << {
-          role: "user",
-          content: [
-            { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-            *image_parts
-          ]
-        }
+      if new_images.any?
+        image_parts = new_images.filter_map do |img_filename|
+          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+          next unless img
+
+          injected_set << img_filename
+          { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+        end
+        if image_parts.any?
+          context << {
+            role: "user",
+            content: [
+              { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+              *image_parts
+            ]
+          }
+        end
       end
     end
 

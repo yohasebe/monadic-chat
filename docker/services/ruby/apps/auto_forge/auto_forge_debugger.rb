@@ -165,6 +165,11 @@ module AutoForge
 
       formatted[:viewport] = result['viewport'] if result['viewport']
 
+      # Keep screenshot filename for gallery_html display (no _image vision injection)
+      if result['screenshot']
+        formatted[:screenshot] = result['screenshot']
+      end
+
       formatted
     end
   end

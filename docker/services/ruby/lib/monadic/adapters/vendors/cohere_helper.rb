@@ -2048,11 +2048,12 @@ module CohereHelper
   def process_functions(app, session, tool_calls, context, call_depth, &block)
     obj = session[:parameters]
     tool_results = []
-    
+    pending_tool_images = nil
+
     # First, tell the client that function processing is starting
     begin_msg = { "type" => "wait", "content" => "<i class='fas fa-cogs'></i> PROCESSING FUNCTION RESULTS" }
     block&.call begin_msg
-    
+
     tool_calls.each do |tool_call|
       # Extract function name and validate
       function_name = tool_call.dig("function", "name")
@@ -2142,28 +2143,37 @@ module CohereHelper
         next # stop_retrying flag is set — will be checked after the loop
       end
 
+      # Collect _image for visual self-verification and clean underscore keys
+      if function_return.is_a?(Hash) && function_return[:_image]
+        pending_tool_images = Array(function_return[:_image])
+        clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+        serialized_return = JSON.generate(clean_return)
+      else
+        serialized_return = nil
+      end
+
       # Process function return to detect generated images and enhance the response
       processed_return = function_return.to_s
-      
+
       # Check if files were generated (especially images)
       if processed_return.include?("File(s) generated or modified:")
         # Extract file paths
         file_matches = processed_return.scan(/\/data\/[^\s,]+(?:\.\w+)?/)
-        
+
         # For each file path, check if it's an image and enhance the response
         image_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
         image_files = []
-        
+
         file_matches.each do |file_path|
           # Clean up the file path (remove trailing punctuation)
           clean_path = file_path.gsub(/[,;.]$/, '')
-          
+
           # Check if it's an image file
           if image_extensions.any? { |ext| clean_path.downcase.end_with?(ext) }
             image_files << clean_path
           end
         end
-        
+
         # If we found image files, add explicit instructions to the result
         if !image_files.empty?
           processed_return += "\n\nIMPORTANT: Display the generated image(s) using the following HTML:\n"
@@ -2174,19 +2184,22 @@ module CohereHelper
         end
       end
 
+      # Determine content for the tool result document
+      result_content = serialized_return || (function_return.is_a?(Hash) || function_return.is_a?(Array) ?
+                        JSON.generate(function_return) :
+                        processed_return)
+
       # Format tool results maintaining exact tool_call_id
       context << {
         "role" => "tool",
         "tool_call_id" => tool_call_id,
         "content" => [
           {
-            "type" => "document", 
+            "type" => "document",
             "document" => {
               "id" => tool_call_id,
               "data" => {
-                "results" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? 
-                            JSON.generate(function_return) : 
-                            processed_return
+                "results" => result_content
               }
             }
           }
@@ -2217,6 +2230,25 @@ module CohereHelper
         DebugHelper.debug("Cohere progressive tools: unlocked tools = #{unlocked.inspect}", category: :api, level: :info)
       rescue StandardError => e
         DebugHelper.debug("Cohere progressive tools: failed to capture tool requests due to #{e.message}", category: :api, level: :warning)
+      end
+    end
+
+    # Inject tool-generated images as user message for vision-capable models (Cohere v2 format)
+    if pending_tool_images&.any?
+      image_parts = pending_tool_images.filter_map do |img_filename|
+        img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+        next unless img
+
+        { "type" => "image", "image" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" }
+      end
+      if image_parts.any?
+        context << {
+          "role" => "user",
+          "content" => [
+            { "type" => "text", "text" => "[Tool-generated image. Verify the visual output before presenting results.]" },
+            *image_parts
+          ]
+        }
       end
     end
 

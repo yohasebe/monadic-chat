@@ -439,7 +439,7 @@ module AutoForgeTools
     end
   end
 
-  def debug_application(params = {})
+  def debug_application(params = {}, session: nil)
     context = resolve_project_context(params)
 
     unless context[:success]
@@ -467,7 +467,16 @@ module AutoForgeTools
 
     result[:project_name] = context[:project_name]
     result[:html_path] = context[:html_path]
-    format_debug_report(result)
+    report_text = format_debug_report(result)
+
+    # Store screenshot as gallery_html for server-side display (no _image vision injection)
+    if session && result[:screenshot]
+      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{result[:screenshot]}\" /></div>"
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << gallery_html
+    end
+
+    report_text
   rescue => e
     "❌ Debug error: #{e.message.gsub(/<.*?>/, '')[0..200]}"
   end

@@ -24,6 +24,7 @@ app "AutoForgeGrok" do
     easy_submit false
     auto_speech false
     websearch false
+    autonomy "high"
   end
 
   system_prompt <<~TEXT
@@ -89,6 +90,10 @@ app "AutoForgeGrok" do
     WHEN TO USE: After generating or modifying web applications.
     WHEN TO SKIP: Simple specification gathering, listing projects, direct questions.
     Maximum 3 verification attempts per task.
+
+    ### Debug Screenshot Display
+
+    When `debug_application` captures a screenshot, it is automatically displayed in the chat for the user to see. You do NOT see the screenshot directly. If the user reports visual issues (broken layout, missing elements, text problems), use the text-based debug report (JavaScript errors, functionality tests, performance metrics) along with your knowledge of the generated code to diagnose and fix the problem.
   TEXT
 
   # Import web automation tools (includes debug_application) from shared registry

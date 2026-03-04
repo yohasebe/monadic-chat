@@ -787,14 +787,22 @@ module MistralHelper
         body["messages"] << obj["tool_calls_message"]
       end
       
-      # Add the function response to the body
-      body["messages"] += obj["function_returns"].map do |resp|
-        # Ensure content is never nil
-        content = resp[:content] || resp["content"] || "No result returned"
-        { "role" => "tool",
-          "content" => content.to_s,
-          "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
-          "name" => resp[:name] || resp["name"] }
+      # Add the function responses and any injected image messages to the body
+      obj["function_returns"].each do |resp|
+        resp_role = resp[:role] || resp["role"] || "tool"
+        if resp_role == "user"
+          # Image injection message — pass through as-is (content is an array)
+          body["messages"] << { "role" => "user", "content" => resp[:content] || resp["content"] }
+        else
+          # Standard tool result
+          content = resp[:content] || resp["content"] || "No result returned"
+          body["messages"] << {
+            "role" => "tool",
+            "content" => content.to_s,
+            "tool_call_id" => resp[:tool_call_id] || resp["tool_call_id"],
+            "name" => resp[:name] || resp["name"]
+          }
+        end
       end
     end
 
@@ -1100,6 +1108,7 @@ module MistralHelper
 
       # Process tool calls
       function_returns = []
+      pending_tool_images = nil
       tool_calls.each do |tool_call|
         next unless tool_call # Skip nil entries
 
@@ -1189,17 +1198,24 @@ module MistralHelper
           next
         end
 
-        # Add to function returns with proper encoding
-        content = if function_return.is_a?(Hash) || function_return.is_a?(Array)
-                    JSON.generate(function_return)
-                  else
-                    function_return.to_s
-                  end
+        # Collect _image for visual self-verification and clean underscore keys
+        if function_return.is_a?(Hash) && function_return[:_image]
+          pending_tool_images = Array(function_return[:_image])
+          clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+          content = JSON.generate(clean_return)
+        else
+          content = if function_return.is_a?(Hash) || function_return.is_a?(Array)
+                      JSON.generate(function_return)
+                    else
+                      function_return.to_s
+                    end
+        end
+
         # Ensure content is not nil or empty
         content = "No result returned" if content.nil? || content.empty?
         # Ensure UTF-8 encoding
         content = content.encode('UTF-8', invalid: :replace, undef: :replace, replace: '?') unless content.valid_encoding?
-        
+
         function_returns << {
           tool_call_id: tool_call["id"],
           role: "tool",
@@ -1235,6 +1251,25 @@ module MistralHelper
         end
       end
       
+      # Inject tool-generated images as user message for vision-capable models
+      if pending_tool_images&.any?
+        image_parts = pending_tool_images.filter_map do |img_filename|
+          img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+          next unless img
+
+          { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}" } }
+        end
+        if image_parts.any?
+          function_returns << {
+            role: "user",
+            content: [
+              { "type" => "text", "text" => "[Tool-generated image. Verify the visual output before presenting results.]" },
+              *image_parts
+            ]
+          }
+        end
+      end
+
       # Update session with function returns and tool calls message
       session[:parameters]["function_returns"] = function_returns
       session[:parameters]["tool_calls_message"] = tool_calls_message

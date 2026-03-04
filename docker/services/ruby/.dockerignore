@@ -1,0 +1,24 @@
+# Test files
+spec/
+test_text_*
+test_tts_input_*
+.test_tmp/
+.rspec
+.rspec_status
+
+# Development/build config not needed in image
+compose.yml
+Gemfile.lock
+mathjax-config.js
+docs/
+
+# Temporary and generated files
+tmp/
+*.log
+*.tmp
+
+# Bundler config
+.bundle/
+
+# OS artifacts
+.DS_Store

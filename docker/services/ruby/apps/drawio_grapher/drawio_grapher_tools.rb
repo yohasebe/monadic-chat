@@ -46,7 +46,7 @@ module DrawIOGrapher
     write_file_synchronously(validated_content, filepath, filename, data_dir)
   end
 
-  def preview_drawio(content:, filename: "diagram")
+  def preview_drawio(content:, filename: "diagram", session: nil)
     # 1. Handle file extension
     filename = "#{filename}.drawio" unless filename.end_with?(".drawio")
     shared_volume = Monadic::Utils::Environment.shared_volume
@@ -105,10 +105,14 @@ module DrawIOGrapher
     result = {
       success: true,
       filename: filename,
-      message: "The file #{filename} has been saved."
+      message: "The file #{filename} has been saved. The preview image is automatically displayed in the chat."
     }
-    # _image: PNG auto-injected into LLM context for self-verification (NOT displayed to user)
-    result[:_image] = screenshot_filename if File.exist?(File.join(shared_volume, screenshot_filename))
+    # Store gallery HTML for server-side display (no _image vision injection)
+    if session && File.exist?(File.join(shared_volume, screenshot_filename))
+      gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{screenshot_filename}\" /></div>"
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << gallery_html
+    end
     result
   rescue StandardError => e
     "Error: Preview generation failed: #{e.message}"

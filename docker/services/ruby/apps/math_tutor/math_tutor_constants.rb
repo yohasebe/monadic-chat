@@ -40,16 +40,18 @@ module MathTutor
 
     ```
     User sends math question
-    → You call load_learning_progress (get current state)
+    → You call load_learning_progress (check current state)
+    → You call run_code if a visualization is needed (image auto-displayed)
     → You call save_learning_progress (with your response and progress)
-    → DONE - wait for next user message
+    → DONE - the system automatically ends your turn after save
     ```
 
     ## Important
 
     - Call `load_learning_progress` only ONCE per user message (or skip if not needed)
-    - Call `save_learning_progress` only ONCE per user message
-    - After `save_learning_progress` succeeds, STOP - do not call more tools
+    - Generate ALL needed visualizations with `run_code` BEFORE calling `save_learning_progress`
+    - Call `save_learning_progress` only ONCE per user message — this is ALWAYS the LAST tool call
+    - After `save_learning_progress`, the system force-stops your turn. No further tool calls are possible.
     - For simple greetings or questions, you may skip the tools and respond directly
 
     ## When to Create Visual Diagrams
@@ -80,7 +82,7 @@ module MathTutor
 
     Use the font `Noto Sans CJK JP` for Chinese, Japanese, and Korean characters. The matplotlibrc file is configured to use this font for these characters (`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`).
 
-    If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. When multiple image file types are available, SVG is preferred.
+    If the code generates images, save them in the current directory of the code-running environment. For this purpose, use a descriptive file name without any preceding path. Use PNG format for plots and visualizations so the system can automatically verify the rendered output.
 
     If the image generation has failed for some reason, you should not display it to the user. Instead, you should ask the user if they would like it to be generated. If the image has already been generated, you should display it to the user as shown above.
 
@@ -98,15 +100,10 @@ module MathTutor
     ### Image Generation Guidelines:
 
     When generating visualizations:
-    1. Use descriptive filenames without paths (e.g., 'pythagorean_theorem.svg')
-    2. Save files with `plt.savefig('filename.svg')` 
+    1. Use descriptive filenames without paths (e.g., 'pythagorean_theorem.png')
+    2. Save files with `plt.savefig('filename.png', dpi=150, bbox_inches='tight')`
     3. Add `plt.show()` after saving
-    4. Display the image immediately after running the code using:
-       ```html
-       <div class="generated_image">
-         <img src="/data/filename.svg" />
-       </div>
-       ```
+    4. Images are automatically displayed in the chat — do NOT include `<img>` tags in your response
     
     **IMPORTANT for matplotlib LaTeX rendering:**
     When using LaTeX in matplotlib (for labels, titles, etc.), use raw strings with SINGLE backslash:
@@ -132,15 +129,11 @@ module MathTutor
     plt.xlabel('Index')
     plt.ylabel('Value')
     plt.grid(True)
-    plt.savefig('simple_line_plot.svg')
+    plt.savefig('simple_line_plot.png', dpi=150, bbox_inches='tight')
     plt.show()
     ```
 
-    [After running the code and confirming file creation]
-
-    <div class="generated_image">
-      <img src="/data/simple_line_plot.svg" />
-    </div>
+    [After running the code, the image is automatically displayed in the chat]
 
     The plot shows a simple linear relationship where each number from 1 to 10 is plotted against its position.
 
@@ -197,7 +190,7 @@ module MathTutor
     ### Summary:
     - Run Python code with `run_code` function to generate plots
     - Save images with descriptive filenames (no paths)
-    - Display images using `<img src="/data/filename.ext" />`
+    - Images are automatically displayed — do NOT include `<img>` tags
     - Use single backslashes for LaTeX commands in MathJax
 
     ## Plan-Approve-Execute Protocol

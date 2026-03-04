@@ -5,7 +5,7 @@ require_relative '../../lib/monadic/adapters/latex_helper'
 module ConceptVisualizerTools
   include LatexHelper
 
-  def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english")
+  def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english", session: nil)
     return "Error: TikZ code is required." if tikz_code.to_s.empty?
     return "Error: diagram type is required." if diagram_type.to_s.empty?
     
@@ -206,14 +206,33 @@ module ConceptVisualizerTools
       
       if [ -f #{base_filename}.svg ]; then
         echo "Successfully generated #{diagram_type} diagram!"
-        
+
         # Check SVG content
         echo "SVG file preview (first 10 lines):"
         head -n 10 #{base_filename}.svg
-        
+
+        # Generate PNG for visual self-verification via _image pipeline
+        echo "Generating PNG for visual verification..."
+        if [ -f #{base_filename}.dvi ]; then
+          # Prefer dvipng for direct DVI-to-PNG (higher quality)
+          if command -v dvipng >/dev/null 2>&1; then
+            dvipng -D 300 -T tight -bg Transparent -o #{base_filename}.png #{base_filename}.dvi 2>&1
+          elif command -v convert >/dev/null 2>&1; then
+            convert -density 300 #{base_filename}.svg #{base_filename}.png 2>&1
+          fi
+        elif command -v convert >/dev/null 2>&1; then
+          convert -density 300 #{base_filename}.svg #{base_filename}.png 2>&1
+        fi
+
+        if [ -f #{base_filename}.png ]; then
+          echo "PNG file created: #{base_filename}.png"
+        else
+          echo "PNG generation skipped (dvipng/convert not available)"
+        fi
+
         # Clean up intermediate files but keep log for debugging
         rm -f #{base_filename}.aux #{base_filename}.dvi #{base_filename}.pdf
-        
+
         # Show SVG statistics
         echo "Diagram statistics:"
         file_size=$(stat -c%s #{base_filename}.svg 2>/dev/null || stat -f%z #{base_filename}.svg)
@@ -234,12 +253,28 @@ module ConceptVisualizerTools
       command: "bash",
       extension: "sh"
     )
-    
-    # Return the filename if successful
-    if run_result.include?("Successfully generated")
-      "#{base_filename}.svg"
+
+    # Handle both String and Hash return from run_code
+    run_text = run_result.is_a?(Hash) ? run_result[:text] || run_result["text"] || run_result.to_s : run_result.to_s
+
+    # Return the filename if successful, with _image for visual verification
+    if run_text.include?("Successfully generated")
+      data_path = Monadic::Utils::Environment.data_path
+      png_path = File.join(data_path, "#{base_filename}.png")
+      if File.exist?(png_path)
+        # Store gallery HTML for server-side injection (bypasses LLM filename hallucination).
+        # No _image vision injection — avoids tool-call loops.
+        if session
+          gallery_html = "<div class=\"generated_image\"><img src=\"/data/#{base_filename}.png\" /></div>"
+          session[:tool_html_fragments] ||= []
+          session[:tool_html_fragments] << gallery_html
+        end
+        "#{base_filename}.svg"
+      else
+        "#{base_filename}.svg"
+      end
     else
-      "Error generating diagram: #{run_result}"
+      "Error generating diagram: #{run_text}"
     end
   end
 

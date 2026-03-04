@@ -63,6 +63,10 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 - 4444: Selenium Grid
 - 11434: Ollama API (when enabled)
 
+All ports use the `HOST_BINDING` environment variable to control the bind address:
+- **Default** (`127.0.0.1`): Ports are only accessible from localhost (Standalone mode)
+- **Server mode** (`0.0.0.0`): Ports are accessible from the network (set via `HOST_BINDING=0.0.0.0` in `~/monadic/config/env`)
+
 ## Troubleshooting
 
 ### Container won't start

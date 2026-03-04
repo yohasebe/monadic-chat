@@ -16,8 +16,8 @@ services:
         PYOPT_TRANSFORMERS: ${PYOPT_TRANSFORMERS:-false}
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
     ports:
-      - "8889:8889"
-      - "5070:5070"
+      - "${HOST_BINDING:-127.0.0.1}:8889:8889"
+      - "${HOST_BINDING:-127.0.0.1}:5070:5070"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data

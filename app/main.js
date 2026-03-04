@@ -699,13 +699,23 @@ class DockerManager {
               } else if (output.includes('Build of Monadic Chat has finished')) {
                 translatedOutput = formatMessage('success', 'messages.buildMonadicFinished');
               } else if (output.includes('Container failed to build')) {
+                // Preserve any HTML file list (e.g. <ul><li>docker_build.log</li>...) from original output
+                const failUlMatch = output.match(/<ul>[\s\S]*?<\/ul>/);
                 translatedOutput = formatMessage('error', 'messages.containerFailedBuild');
+                if (failUlMatch) {
+                  translatedOutput = translatedOutput.replace('</p>', `</p>${failUlMatch[0]}`);
+                }
               } else if (output.includes('No user containers to build')) {
                 translatedOutput = formatMessage('info', 'messages.noUserContainers');
               } else if (output.includes('Build logs are available')) {
                 translatedOutput = formatMessage('info', 'messages.buildLogsAvailable');
               } else if (output.includes('Please check the following log files')) {
+                // Preserve any HTML file list from original output
+                const checkUlMatch = output.match(/<ul>[\s\S]*?<\/ul>/);
                 translatedOutput = formatMessage('warning', 'messages.checkLogFiles');
+                if (checkUlMatch) {
+                  translatedOutput = translatedOutput.replace('</p>', `</p>${checkUlMatch[0]}`);
+                }
               } else if (output.includes('All containers are available')) {
                 translatedOutput = `[HTML]: <p>${i18n.t('messages.allContainersAvailable')}</p>`;
               } else if (output.includes('Running Containers')) {

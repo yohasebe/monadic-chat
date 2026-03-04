@@ -42,10 +42,12 @@ RSpec.describe ConceptVisualizerOpenAI do
   describe '#generate_concept_diagram' do
     before do
       # Mock the run_code method to avoid actual script execution
-      # Return a mock result that looks like successful execution output
-      mock_result = double('result')
-      allow(mock_result).to receive(:include?).and_return(true)
-      allow(app).to receive(:run_code).and_return(mock_result)
+      # Return a string that includes "Successfully generated" to simulate success
+      allow(app).to receive(:run_code).and_return("Successfully generated diagram!")
+      # Mock data_path and File.exist? for PNG check (default: no PNG)
+      allow(Monadic::Utils::Environment).to receive(:data_path).and_return('/tmp/test_data')
+      allow(File).to receive(:exist?).and_call_original
+      allow(File).to receive(:exist?).with(/\.png$/).and_return(false)
     end
     
     let(:valid_tikz_code) do
@@ -57,7 +59,7 @@ RSpec.describe ConceptVisualizerOpenAI do
     end
     
     context 'with valid inputs' do
-      it 'generates filename with svg extension' do
+      it 'returns SVG filename as string when no PNG exists' do
         result = app.generate_concept_diagram(
           diagram_type: 'mindmap',
           tikz_code: valid_tikz_code,
@@ -66,7 +68,7 @@ RSpec.describe ConceptVisualizerOpenAI do
         )
         expect(result).to match(/^concept_mindmap_\d+\.svg$/)
       end
-      
+
       it 'sanitizes diagram type in filename' do
         result = app.generate_concept_diagram(
           diagram_type: 'Mind Map!',
@@ -75,7 +77,7 @@ RSpec.describe ConceptVisualizerOpenAI do
         )
         expect(result).to match(/^concept_mind_map__\d+\.svg$/)
       end
-      
+
       it 'handles complete LaTeX documents' do
         complete_doc = <<~LATEX
           \\documentclass{article}
@@ -86,13 +88,67 @@ RSpec.describe ConceptVisualizerOpenAI do
           \\end{tikzpicture}
           \\end{document}
         LATEX
-        
+
         result = app.generate_concept_diagram(
           diagram_type: 'test',
           tikz_code: complete_doc,
           title: 'Test'
         )
         expect(result).to match(/^concept_test_\d+\.svg$/)
+      end
+
+      it 'returns SVG filename String when PNG exists (no _image vision injection)' do
+        # Mock data_path and File.exist? to simulate PNG availability
+        data_path = '/tmp/test_data'
+        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_path)
+
+        # We need to capture the base_filename used, so we freeze time
+        allow(Time).to receive_message_chain(:now, :to_i, :to_s).and_return('1234567890')
+        expected_png = File.join(data_path, 'concept_mindmap_1234567890.png')
+
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:exist?).with(expected_png).and_return(true)
+
+        result = app.generate_concept_diagram(
+          diagram_type: 'mindmap',
+          tikz_code: valid_tikz_code,
+          title: 'Test Diagram',
+          language: 'english'
+        )
+        # Returns SVG filename String — no _image key (gallery_html handles display)
+        expect(result).to be_a(String)
+        expect(result).to eq('concept_mindmap_1234567890.svg')
+      end
+    end
+
+    context 'when run_code returns a Hash' do
+      it 'handles Hash return correctly' do
+        allow(app).to receive(:run_code).and_return({ text: "Successfully generated mindmap diagram!" })
+
+        data_path = '/tmp/test_data'
+        allow(Monadic::Utils::Environment).to receive(:data_path).and_return(data_path)
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:exist?).with(anything).and_return(false)
+
+        result = app.generate_concept_diagram(
+          diagram_type: 'mindmap',
+          tikz_code: valid_tikz_code,
+          title: 'Test Diagram'
+        )
+        # When PNG doesn't exist, returns plain string
+        expect(result).to be_a(String)
+        expect(result).to match(/\.svg$/)
+      end
+
+      it 'returns error when Hash result indicates failure' do
+        allow(app).to receive(:run_code).and_return({ text: "LaTeX compilation failed" })
+
+        result = app.generate_concept_diagram(
+          diagram_type: 'mindmap',
+          tikz_code: valid_tikz_code,
+          title: 'Test Diagram'
+        )
+        expect(result).to start_with("Error generating diagram:")
       end
     end
     

@@ -88,9 +88,10 @@ RSpec.describe "FileAnalysisHelper Integration", type: :integration do
       it "handles special characters in image paths" do
         # Create test image with special characters
         special_path = File.join(Monadic::Utils::Environment.data_path, "test image (special).png")
-        
-        # Copy test image to special path
-        FileUtils.cp(@test_image_path, special_path)
+
+        # Create a fresh image for this test (source may be cleaned up by after block)
+        png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].pack("C*")
+        File.binwrite(special_path, png_data)
         
         result = app_instance.analyze_image(
           message: "Test special path",

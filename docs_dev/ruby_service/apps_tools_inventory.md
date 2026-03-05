@@ -255,7 +255,7 @@ These tool groups are defined centrally in `/docker/services/ruby/lib/monadic/sh
 |-------|---------|
 | **Imported Tools** | `:planning [always]`<br/>`:web_automation [conditional]` |
 | **Custom Tools** | • `generate_application` - Generate a complete application<br/>• `validate_specification` - Validate app specification<br/>• `list_projects` - List previously generated projects<br/>• `generate_additional_file` - Generate additional project files |
-| **`gallery_html` Display** | `debug_application` captures a Selenium screenshot (`autoforge_debug_*.png`) and stores it as gallery HTML in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot; it relies on text-based debug reports and user feedback to diagnose issues. |
+| **`gallery_html` Display** | `debug_application` captures a Selenium screenshot (`autoforge_debug_*.png`) and returns it via the `gallery_html` key in its result hash. Vendor helpers automatically extract this key and store it in `session[:tool_html_fragments]` for user-side display. The LLM does not see the screenshot; it relies on text-based debug reports and user feedback to diagnose issues. |
 
 ---
 

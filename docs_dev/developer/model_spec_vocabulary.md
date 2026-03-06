@@ -102,6 +102,36 @@ These accessors apply conservative defaults (e.g., streaming defaults to true wh
   - URL input section shown only when `api_type === "responses"` and file/PDF is enabled.
   - For URL-only PDFs (e.g., Perplexity), keep `supports_pdf_upload: false` and instruct users to include PDF URLs in the message.
 
+## Model Lifecycle Fields
+
+These fields manage model deprecation and migration. They are used by the UI to filter dropdowns and by the session loader to auto-migrate saved sessions.
+
+- deprecated: boolean
+  - When `true`, the model is hidden from UI model dropdowns and flagged by the lint tool.
+
+- sunset_date: string (ISO 8601, "YYYY-MM-DD")
+  - The date when the provider will discontinue the model. The lint tool warns when a sunset date is within 30 days or has passed.
+
+- successor: string
+  - The recommended replacement model name. Used by session auto-migration: when a saved session references a deprecated model, it is transparently replaced with its successor on load, and the user is notified.
+
+### Lifecycle Accessors (Server)
+
+- ModelSpec.deprecated?(model)
+
+### Lifecycle Accessors (Frontend)
+
+- isModelDeprecated(modelName) — returns `true` if the model has `deprecated: true`
+- getModelSuccessor(modelName) — returns the `successor` string, or `null`
+
+### Lint Tool
+
+Run `npm run lint:model-consistency` (or `rake lint:model_consistency`) to check for:
+- MDSL files referencing deprecated or unknown models
+- `system_defaults.json` using deprecated defaults
+- Agent/helper code containing deprecated model references
+- Models with sunset dates within 30 days or already passed
+
 ## Adding Models
 
 When adding a new model SKU, prefer this canonical vocabulary in `model_spec.js`. If a provider exposes additional fields, keep them vendor-scoped and document as needed.

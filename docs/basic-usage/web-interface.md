@@ -47,7 +47,7 @@ You can change the language at any time during a conversation. Your language pre
 Select one of the basic apps. Each app has different default parameters and initial prompts. See [Base Apps](./basic-apps.md) for details.
 
 **Model** <br />
-Select the AI model to use. Available models depend on the selected app.
+Select the AI model to use. Available models depend on the selected app. Deprecated models are automatically excluded from the list.
 
 **Reasoning/Thinking Control** <br />
 Adjust the reasoning depth for models that support advanced thinking. The selector adapts to each provider's terminology (OpenAI: Reasoning Effort, Anthropic: Thinking Level, Google: Thinking Mode, xAI: Reasoning Effort, DeepSeek: Reasoning Mode, Perplexity: Research Depth).
@@ -129,7 +129,7 @@ Click the `Reset` button to clear the current conversation and reset parameters 
 Return to the System Settings panel. Click `Continue Session` to return to your conversation.
 
 **Import**<br />
-Load conversation data from an external JSON file.
+Load conversation data from an external JSON file. If the saved session uses a deprecated model, it is automatically replaced with the recommended successor model, and a notification is displayed.
 
 **Export**<br />
 Save the current conversation to an external JSON file.

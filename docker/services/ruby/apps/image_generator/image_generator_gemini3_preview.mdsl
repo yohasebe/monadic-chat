@@ -92,7 +92,7 @@ app "ImageGeneratorGemini3Preview" do
 
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-2.5-flash"]
+    model ["gemini-3-flash-preview"]
     context_size 10
   end
 

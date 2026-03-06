@@ -159,7 +159,7 @@ app "MusicLabOpenAI" do
 
   llm do
     provider "openai"
-    model "gpt-5.2"
+    model ["gpt-5.4", "gpt-5.2"]
     reasoning_effort "none"
     temperature 0.5
     context_size 20

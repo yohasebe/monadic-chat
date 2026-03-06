@@ -152,7 +152,7 @@ app "DrawIOGrapherOpenAI" do
 
   llm do
     provider "OpenAI"
-    model ["gpt-5.2", "gpt-5.1", "gpt-4.1"]
+    model ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1"]
     reasoning_effort "none"
     temperature 0.0
   end

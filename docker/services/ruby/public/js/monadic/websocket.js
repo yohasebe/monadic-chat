@@ -2628,13 +2628,27 @@ let loadedApp = "Chat";
 
                 // Set model after a delay
                 setTimeout(() => {
-                  if (model) {
-                    $("#model").val(model);
-                    if ($("#model").val() !== model) {
-                      console.error("Failed to set model:", model);
+                  let targetModel = model;
+                  // Auto-migrate deprecated models to their successor
+                  if (targetModel && typeof isModelDeprecated === 'function' && isModelDeprecated(targetModel)) {
+                    const successor = typeof getModelSuccessor === 'function' ? getModelSuccessor(targetModel) : null;
+                    if (successor) {
+                      console.warn(`[Session] Model "${targetModel}" is deprecated, migrating to "${successor}"`);
+                      setTimeout(() => {
+                        if (typeof setAlert === 'function') {
+                          setAlert(`<i class="fas fa-exchange-alt"></i> Model "${targetModel}" has been replaced with "${successor}" (deprecated model).`, "warning");
+                        }
+                      }, 1000);
+                      targetModel = successor;
+                    }
+                  }
+                  if (targetModel) {
+                    $("#model").val(targetModel);
+                    if ($("#model").val() !== targetModel) {
+                      console.error("Failed to set model:", targetModel);
                       // Try again with a longer delay
                       setTimeout(() => {
-                        $("#model").val(model);
+                        $("#model").val(targetModel);
                         $("#model").trigger('change');
                       }, 500);
                     } else {

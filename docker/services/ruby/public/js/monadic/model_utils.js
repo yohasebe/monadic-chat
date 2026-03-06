@@ -265,9 +265,32 @@ function modelRequiresConfirmation(modelName) {
   return getModelSpecWithFallback(modelName, 'requires_confirmation') === true;
 }
 
+/**
+ * Check if a model is deprecated and should be hidden from UI
+ * Falls back to base model if dated version is not found
+ * @param {String} modelName - The model name to check
+ * @returns {Boolean} True if the model is deprecated
+ */
+function isModelDeprecated(modelName) {
+  return getModelSpecWithFallback(modelName, 'deprecated') === true;
+}
+
+/**
+ * Get the successor model for a deprecated model
+ * Falls back to base model if dated version is not found
+ * @param {String} modelName - The deprecated model name
+ * @returns {String|null} Successor model name, or null if not deprecated or no successor
+ */
+function getModelSuccessor(modelName) {
+  if (!isModelDeprecated(modelName)) return null;
+  return getModelSpecWithFallback(modelName, 'successor') || null;
+}
+
 // Export to window for global access
 window.getModelSpecWithFallback = getModelSpecWithFallback;
 window.modelRequiresConfirmation = modelRequiresConfirmation;
+window.isModelDeprecated = isModelDeprecated;
+window.getModelSuccessor = getModelSuccessor;
 
 /**
  * Get the latest dated model from an array of dated models
@@ -361,9 +384,10 @@ function getModelsForApp(appConfig) {
   const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || { showAllModels: false };
 
   if (providerConfig.showAllModels) {
-    // Get all models from modelSpec that match the provider's pattern
+    // Get all models from modelSpec that match the provider's pattern, excluding deprecated
     const allProviderModels = Object.keys(window.modelSpec || {}).filter(model => {
-      return providerConfig.modelPattern && providerConfig.modelPattern.test(model);
+      return providerConfig.modelPattern && providerConfig.modelPattern.test(model)
+        && !isModelDeprecated(model);
     });
 
     // Filter to latest versions only
@@ -371,7 +395,7 @@ function getModelsForApp(appConfig) {
 
     // If MDSL specifies models, merge them with filtered provider models
     if (appConfig["models"] && appConfig["models"].length > 0) {
-      let mdslModels = JSON.parse(appConfig["models"]);
+      let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
       // Merge MDSL models with filtered provider models, removing duplicates
       return [...new Set([...mdslModels, ...filteredModels])];
     } else if (appConfig["model"]) {
@@ -386,7 +410,7 @@ function getModelsForApp(appConfig) {
     if (appConfig["models"] && typeof appConfig["models"] === "string") {
       // models is a JSON string from server
       try {
-        const parsedModels = JSON.parse(appConfig["models"]);
+        const parsedModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
         if (parsedModels.length > 0) {
           return parsedModels;
         }
@@ -395,7 +419,7 @@ function getModelsForApp(appConfig) {
       }
     }
     // Fallback: use configured default model if available
-    if (appConfig["model"]) {
+    if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
       return [appConfig["model"]];
     }
     return [];
@@ -427,29 +451,27 @@ function getDefaultModelForApp(appConfig, availableModels) {
   if (providerConfig.showAllModels) {
     // IMPORTANT: Check single model first - this is the MDSL-specified default
     // appConfig["models"] may contain all provider models from API, not just MDSL models
-    if (appConfig["model"]) {
+    if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
       return appConfig["model"]; // Use MDSL-specified model as default
     } else if (appConfig["models"] && appConfig["models"].length > 0) {
-      let mdslModels = JSON.parse(appConfig["models"]);
-      return mdslModels[0]; // Use first from models list
-    } else {
-      return availableModels[0]; // Fallback to first available
+      let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
+      if (mdslModels.length > 0) return mdslModels[0];
     }
+    return availableModels[0]; // Fallback to first available
   } else {
     // For providers that show only MDSL models
     // Check single model first for consistency
-    if (appConfig["model"]) {
+    if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
       return appConfig["model"];
     } else if (appConfig["models"] && appConfig["models"].length > 0) {
-      let mdslModels = JSON.parse(appConfig["models"]);
-      return mdslModels[0];
-    } else {
-      return availableModels[1] || availableModels[0]; // Skip disabled option if present
+      let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
+      if (mdslModels.length > 0) return mdslModels[0];
     }
+    return availableModels[1] || availableModels[0]; // Skip disabled option if present
   }
 }
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getModelsForApp, getDefaultModelForApp };
+  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor };
 }

@@ -690,7 +690,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     $(`#apps option[value="${defaultApp}"]`).attr('selected', 'selected');
   } else if (calledFor === "loadParams") {
     let app_name = params["app_name"];
-    const modelToSet = params["model"];
+    let modelToSet = params["model"];
     
     // Check if app_name is valid
     if (!app_name) {
@@ -795,6 +795,23 @@ window.loadParams = function(params, calledFor = "loadParams") {
     
     // Check if apps object is available and app exists before triggering change
     if (typeof apps !== 'undefined' && apps && apps[targetApp]) {
+      // Auto-migrate deprecated models to their successor
+      if (modelToSet && typeof isModelDeprecated === 'function' && isModelDeprecated(modelToSet)) {
+        const successor = typeof getModelSuccessor === 'function' ? getModelSuccessor(modelToSet) : null;
+        if (successor) {
+          const deprecatedModel = modelToSet;
+          console.warn(`[Session] Model "${deprecatedModel}" is deprecated, migrating to successor "${successor}"`);
+          modelToSet = successor;
+          setTimeout(() => {
+            if (typeof setAlert === 'function') {
+              setAlert(`<i class="fas fa-exchange-alt"></i> Model "${deprecatedModel}" has been replaced with "${successor}" (deprecated model).`, "warning");
+            }
+          }, 1000);
+        } else {
+          console.warn(`[Session] Model "${modelToSet}" is deprecated but no successor defined`);
+        }
+      }
+
       // Store the model in params before triggering app change
       if (modelToSet) {
         params["model"] = modelToSet;

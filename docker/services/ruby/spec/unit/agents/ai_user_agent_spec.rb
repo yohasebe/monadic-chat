@@ -349,7 +349,7 @@ RSpec.describe AIUserAgent do
       stub_const('CONFIG', {})
 
       model = agent.send(:default_model_for_provider, "openai")
-      expect(model).to eq("gpt-5.2")
+      expect(model).to eq("gpt-5.4")
 
       model = agent.send(:default_model_for_provider, "anthropic")
       expect(model).to eq("claude-sonnet-4-6")

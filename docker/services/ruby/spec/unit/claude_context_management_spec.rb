@@ -20,7 +20,7 @@ RSpec.describe "Claude Context Management" do
     end
 
     it "returns false for non-Claude models" do
-      expect(Monadic::Utils::ModelSpec.supports_context_management?("gpt-4o")).to be false
+      expect(Monadic::Utils::ModelSpec.supports_context_management?("gpt-4.1")).to be false
     end
 
     it "returns false for nil model" do

@@ -49,12 +49,12 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
     },
     'gemini' => {
       api_key_env: 'GEMINI_API_KEY',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       description: 'Google Gemini'
     },
     'xai' => {
       api_key_env: 'XAI_API_KEY',
-      model: 'grok-3-fast',
+      model: 'grok-4-1-fast-non-reasoning',
       description: 'xAI Grok'
     },
     'mistral' => {
@@ -216,7 +216,7 @@ RSpec.describe 'SecondOpinionAgent API Integration', :api, :integration do
           user_query: "Is water safe to drink in developing countries?",
           agent_response: "Generally, you should avoid tap water in developing countries.",
           provider: "gemini",
-          model: "gemini-2.5-flash"
+          model: "gemini-3-flash-preview"
         )
 
         expect(result[:validity]).not_to eq("incomplete"),

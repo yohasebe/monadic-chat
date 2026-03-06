@@ -33,7 +33,7 @@ RSpec.describe "Gemini Tool Continuation Integration", :integration do
       session = {
         parameters: {
           "app_name" => "JupyterNotebookGemini",
-          "model" => "gemini-2.5-flash",
+          "model" => "gemini-3-flash-preview",
           "temperature" => 0.0,
           "max_tokens" => 8192,
           "context_size" => 10,

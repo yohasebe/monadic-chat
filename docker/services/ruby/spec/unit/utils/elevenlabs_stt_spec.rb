@@ -15,7 +15,7 @@ RSpec.describe "ElevenLabs STT Integration" do
     end
 
     it "does not route non-scribe models to ElevenLabs" do
-      other_models = ["gpt-4o-transcribe", "whisper-1", "gemini-2.5-flash"]
+      other_models = ["gpt-4o-transcribe", "whisper-1", "gemini-3-flash-preview"]
       other_models.each do |model|
         expect(model.start_with?("scribe")).to be false
       end

@@ -15,11 +15,11 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
       expect(result.keys).not_to be_empty
       
       # Check for some expected models
-      expect(result).to have_key("gpt-4o")
+      expect(result).to have_key("gpt-4.1")
       expect(result).to have_key("claude-opus-4-20250514")
       
       # Verify structure of a model
-      gpt4 = result["gpt-4o"]
+      gpt4 = result["gpt-4.1"]
       expect(gpt4).to have_key("context_window")
       expect(gpt4).to have_key("max_output_tokens")
       expect(gpt4).to have_key("temperature")
@@ -88,7 +88,7 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
             "temperature" => [[0.0, 2.0], 0.7],
             "tool_capability" => true
           },
-          "gpt-4o" => {
+          "gpt-4.1" => {
             "temperature" => [[0.0, 2.0], 0.5]
           }
         }
@@ -105,11 +105,11 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
         expect(result["test-custom-model"]["context_window"]).to eq([1, 999999])
         
         # Check existing model was modified
-        expect(result["gpt-4o"]["temperature"]).to eq([[0.0, 2.0], 0.5])
+        expect(result["gpt-4.1"]["temperature"]).to eq([[0.0, 2.0], 0.5])
         
         # Check that other gpt-4 properties are preserved
-        expect(result["gpt-4o"]).to have_key("context_window")
-        expect(result["gpt-4o"]).to have_key("tool_capability")
+        expect(result["gpt-4.1"]).to have_key("context_window")
+        expect(result["gpt-4.1"]).to have_key("tool_capability")
       end
     end
     
@@ -122,7 +122,7 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
       result = ModelSpecLoader.load_merged_spec(default_spec_path)
       
       expect(result).to be_a(Hash)
-      expect(result).to have_key("gpt-4o")
+      expect(result).to have_key("gpt-4.1")
       expect(result).to have_key("claude-opus-4-20250514")
     end
   end
@@ -148,7 +148,7 @@ RSpec.describe "ModelSpecLoader Integration", type: :integration do
         
         # Should return default specs
         expect(result).to be_a(Hash)
-        expect(result).to have_key("gpt-4o")
+        expect(result).to have_key("gpt-4.1")
         
         # Clean up
         FileUtils.rm_rf(temp_home)

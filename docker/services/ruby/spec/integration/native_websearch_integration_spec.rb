@@ -321,7 +321,7 @@ RSpec.describe "Native Web Search Integration", :integration do
         session = {
           messages: [],
           parameters: {
-            "model" => "gemini-2.5-flash",
+            "model" => "gemini-3-flash-preview",
             "websearch" => true,
             "temperature" => 0.0,
             "max_tokens" => 1000,

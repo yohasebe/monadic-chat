@@ -367,6 +367,10 @@ module Monadic
         def supports_file_inputs?(model_name)
           !!get_model_property(model_name, "supports_file_inputs")
         end
+
+        def deprecated?(model_name)
+          get_model_property(model_name, "deprecated") == true
+        end
         
         def reload!
           @spec = nil

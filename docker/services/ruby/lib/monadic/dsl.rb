@@ -1584,19 +1584,8 @@ module MonadicDSL
                     state.settings[:model].inspect
                   elsif provider_env_var
                     # Use environment variable with string interpolation in generated code
-                    # Include provider-specific default fallback value if no env var
-                    default_model = case provider_name
-                                    when /anthropic|claude/ then "claude-sonnet-4-6"
-                                    when /openai|gpt/ then "gpt-4.1"
-                                    when /cohere|command/ then "command-a-reasoning-08-2025"
-                                    when /gemini|google/ then "gemini-3-flash-preview"
-                                    when /mistral/ then "mistral-large-latest"
-                                    when /grok|xai/ then "grok-2"
-                                    when /perplexity/ then "sonar"
-                                    when /deepseek/ then "deepseek-chat"
-                                    when /ollama/ then defined?(OllamaHelper) ? OllamaHelper::DEFAULT_MODEL : "qwen3:4b"
-                                    else "gpt-4.1" # Default fallback
-                                    end
+                    # Resolve default from SystemDefaults (env var > system_defaults.json > hardcoded)
+                    default_model = SystemDefaults.get_default_model(provider_config.standard_key) || "gpt-4.1"
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"
                   else
                     # Fallback to default if no model and no environment variable

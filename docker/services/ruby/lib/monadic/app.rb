@@ -7,6 +7,7 @@ require_relative "./utils/string_utils"
 require_relative "./utils/environment"
 require_relative "./utils/flask_app_client"
 require_relative "./utils/progressive_tool_manager"
+require_relative "./utils/system_defaults"
 
 Dir.glob(File.expand_path("adapters/**/*.rb", __dir__)).sort.each do |rb|
   require rb
@@ -725,19 +726,8 @@ class MonadicApp
   def markdownify(text)
     provider = CONFIG["AI_USER_PROVIDER"] || "openai"
     
-    # Default model based on provider
-    provider_defaults = {
-      "openai" => "gpt-4.1",
-      "anthropic" => "claude-sonnet-4-6",
-      "cohere" => "command-a-reasoning-08-2025",
-      "gemini" => "gemini-2.5-flash",
-      "mistral" => "mistral-large-latest",
-      "grok" => "grok-4-1-fast-non-reasoning",
-      "perplexity" => "sonar",
-      "deepseek" => "deepseek-chat"
-    }
-    
-    model = provider_defaults[provider.downcase] || "gpt-4.1"
+    # Default model from SystemDefaults (env var > system_defaults.json > hardcoded fallback)
+    model = SystemDefaults.get_default_model(provider.downcase) || "gpt-4.1"
     sys_prompt = <<~PROMPT
     Convert a text document to markdown format. The text is extracted using the jQuery's text() method. Thus it does not retain the original formatting and structure of the webpage. Do your best to convert the text to markdown format so that it reflects the original structure, formatting, and content of the webpage. If you find program code in the text, make sure to enclose it in code blocks. If you find lists, make sure to convert them to markdown lists. Do not enclose the response in the Markdown code block; just provide the markdown text.
       PROMPT

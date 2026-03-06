@@ -48,7 +48,6 @@ app "MailComposerMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
     temperature 0.3
   end
   

@@ -781,7 +781,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
         return;
       }
       try {
-        const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp]) : [];
+        const showAllModels = $("#show-all-models").prop("checked");
+        const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp], showAllModels) : [];
         if (modelsForApp.length === 0) return;
         const isOpenAIGroup = (apps[targetApp]["group"] || "").toLowerCase() === "openai";
         const markup = typeof listModels === 'function' ? listModels(modelsForApp, isOpenAIGroup) : "";
@@ -914,7 +915,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
     let app_name = params["app_name"];
     $("#apps").val(app_name);
     $(`#apps option[value="${params['app_name']}"]`).attr('selected', 'selected');
-    $("#model").val(params["model"]);
+    // Model selection is handled by proceedWithAppChange after model list rebuild.
+    // Setting it here is either redundant (sync) or harmful (deferred by ensureLoadParams).
   }
 
   // Helper function to normalize boolean values (handles both boolean and string types)
@@ -2031,6 +2033,37 @@ $(document).ready(function() {
         ContextPanel.hide();
       }
     }
+  });
+
+  // Restore "All Models" toggle state from cookie BEFORE registering handlers
+  // to ensure initial app load respects the saved preference
+  const savedShowAll = getCookie("show-all-models");
+  if (savedShowAll === "true") {
+    $("#show-all-models").prop("checked", true);
+  }
+
+  // Handle "All Models" toggle — rebuild model dropdown on change
+  $("#show-all-models").on("change", function() {
+    const showAll = $(this).prop("checked");
+    setCookie("show-all-models", showAll ? "true" : "false", 365);
+
+    const selectedApp = $("#apps").val();
+    const currentApp = apps[selectedApp];
+    if (!currentApp) return;
+
+    const currentModel = $("#model").val();
+    const models = getModelsForApp(currentApp, showAll);
+    const openai = (currentApp["group"] || "").toLowerCase() === "openai";
+    $("#model").html(listModels(models, openai));
+
+    // Restore previous model selection if available in new list
+    if (currentModel && models.includes(currentModel)) {
+      $("#model").val(currentModel);
+    } else {
+      const defaultModel = getDefaultModelForApp(currentApp, models);
+      if (defaultModel) $("#model").val(defaultModel);
+    }
+    $("#model").trigger("change");
   });
 
   // Handle checkbox changes for user-controlled capabilities

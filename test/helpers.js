@@ -506,6 +506,21 @@ const mockFactories = {
   }
 };
 
+/**
+ * Get default model from providerDefaults.
+ * @param {string} provider - Provider key (e.g., "openai", "anthropic")
+ * @param {string} [category="chat"] - Category (chat, code, vision, audio_transcription)
+ * @returns {string|undefined} The default model name (first in list)
+ */
+function getDefaultModel(provider, category = 'chat') {
+  const specPath = path.join(__dirname, '../docker/services/ruby/public/js/monadic/model_spec.js');
+  delete require.cache[require.resolve(specPath)];
+  const spec = require(specPath);
+  const defaults = spec.providerDefaults;
+  if (!defaults || !defaults[provider] || !defaults[provider][category]) return undefined;
+  return defaults[provider][category][0];
+}
+
 // Expose utilities for tests
 module.exports = {
   createJQueryObject,
@@ -513,5 +528,6 @@ module.exports = {
   createWebSocketMock,
   createWindowMock,
   setupTestEnvironment,
-  mockFactories
+  mockFactories,
+  getDefaultModel
 };

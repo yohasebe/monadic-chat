@@ -126,11 +126,16 @@ module Monadic
             }
           end
 
-          # Determine model to use with priority: argument > MDSL config > env var > default
+          # Determine model to use with priority: argument > MDSL config > env var > providerDefaults > fallback
+          openai_code_default = if defined?(Monadic::Utils::ModelSpec)
+                                  Monadic::Utils::ModelSpec.default_code_model("openai") || "gpt-5.3-codex"
+                                else
+                                  "gpt-5.3-codex"
+                                end
           actual_model = model ||
                          @context&.dig(:agents, :code_generator) ||
                          ENV['OPENAI_CODE_MODEL'] ||
-                         "gpt-5.3-codex"
+                         openai_code_default
 
           # Log model selection for debugging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -338,7 +343,12 @@ module Monadic
       # @param prompt [String] The prompt to send
       # @param model [String] The model to use
       # @return [Hash] Session object for api_request
-      def build_session(prompt:, model: "gpt-5.3-codex")
+      def build_session(prompt:, model: nil)
+        model ||= if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.default_code_model("openai") || "gpt-5.3-codex"
+                   else
+                     "gpt-5.3-codex"
+                   end
         # Get the field name for message content
         content_field = message_content_field.to_s
 

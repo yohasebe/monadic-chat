@@ -2001,7 +2001,8 @@ $(function () {
     // Never mutate apps[appValue].group here; app definitions are authoritative.
 
     // Use shared utility function to get models for the app
-    let models = getModelsForApp(apps[appValue]);
+    const showAll = $("#show-all-models").prop("checked");
+    let models = getModelsForApp(apps[appValue], showAll);
 
     if (models.length > 0) {
       let openai = apps[appValue]["group"].toLowerCase() === "openai";
@@ -2049,7 +2050,11 @@ $(function () {
           if ($("#model").val() === model) {
             $("#model").trigger("change");
           } else {
-            console.warn('[Model Debug] Retry failed, model still not set correctly');
+            // Defensive fallback: select first available (non-disabled) option
+            const firstOption = $("#model option:not(:disabled)").first().val();
+            if (firstOption) {
+              $("#model").val(firstOption).trigger("change");
+            }
           }
         }, 100);
       } else {

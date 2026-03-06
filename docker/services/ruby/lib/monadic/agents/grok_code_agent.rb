@@ -76,11 +76,16 @@ module Monadic
             }
           end
 
-          # Determine model to use with priority: argument > MDSL config > env var > default
+          # Determine model to use with priority: argument > MDSL config > env var > providerDefaults > fallback
+          grok_code_default = if defined?(Monadic::Utils::ModelSpec)
+                                Monadic::Utils::ModelSpec.default_code_model("xai") || "grok-code-fast-1"
+                              else
+                                "grok-code-fast-1"
+                              end
           actual_model = model ||
                          @context&.dig(:agents, :code_generator) ||
                          ENV['GROK_CODE_MODEL'] ||
-                         "grok-code-fast-1"
+                         grok_code_default
 
           # Log model selection for debugging
           if defined?(CONFIG) && CONFIG && CONFIG["EXTRA_LOGGING"]
@@ -169,7 +174,7 @@ module Monadic
             {
               code: content,
               success: true,
-              model: "grok-code-fast-1"
+              model: actual_model
             }
           else
             {
@@ -245,7 +250,12 @@ module Monadic
       # @param prompt [String] The prompt to send
       # @param model [String] The model to use
       # @return [Hash] Session object for api_request
-      def build_session(prompt:, model: "grok-code-fast-1")
+      def build_session(prompt:, model: nil)
+        model ||= if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.default_code_model("xai") || "grok-code-fast-1"
+                   else
+                     "grok-code-fast-1"
+                   end
         # Get the field name for message content
         content_field = message_content_field.to_s
 

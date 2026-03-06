@@ -29,7 +29,7 @@
    - 各プロバイダーセクション内でアルファベット順を維持して、差分ノイズを減らします。
 
 3. **必要に応じてデフォルトを更新**
-   - プロバイダーが新しいモデルをデフォルトで表示する場合、`docker/services/ruby/lib/monadic/utils/system_defaults.rb`と`app/main.js`のUIマッピングを更新します。
+   - プロバイダーが新しいモデルをデフォルトで表示する場合、`model_spec.js`の`providerDefaults`（デフォルトモデルのSSot）を更新します。
    - `docs/reference/configuration.md`および日本語版で新しい環境変数を文書化します。
 
 4. **ドキュメントとサンプルを同期**

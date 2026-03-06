@@ -107,7 +107,6 @@ app "ResearchAssistantMistral" do
 
   llm do
     provider "mistral"
-    model "mistral-large-latest"
     context_size 30
   end
 

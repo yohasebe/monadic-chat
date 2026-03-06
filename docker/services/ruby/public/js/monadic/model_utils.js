@@ -4,55 +4,21 @@
  * Provider-specific configuration for model selection behavior
  * This allows customization without hardcoding in helper files
  */
+// Provider-specific model selection behavior.
+// showAllModels defaults to true (omitted = true); only set false for exceptions.
 const PROVIDER_MODEL_BEHAVIOR = {
-  openai: {
-    showAllModels: true,  // Show all available models from modelSpec
-    modelPattern: /^(gpt-|o[13]|chatgpt-)/  // Pattern to identify provider's models
-  },
-  anthropic: {
-    showAllModels: true,  // Show all available Claude models
-    modelPattern: /^claude-/  // Pattern to identify Claude models
-  },
-  claude: {
-    showAllModels: true,  // Alias for anthropic
-    modelPattern: /^claude-/  // Pattern to identify Claude models
-  },
-  gemini: {
-    showAllModels: true,  // Show all available Gemini models
-    modelPattern: /^(gemini-|gemma-)/  // Pattern to identify Gemini/Gemma models
-  },
-  google: {
-    showAllModels: true,  // Alias for gemini
-    modelPattern: /^(gemini-|gemma-)/  // Pattern to identify Gemini/Gemma models
-  },
-  cohere: {
-    showAllModels: true,  // Show all available Cohere models
-    modelPattern: /^command-/  // Pattern to identify Cohere models
-  },
-  mistral: {
-    showAllModels: true,  // Show all available Mistral models
-    modelPattern: /^(mistral-|pixtral-|magistral-|ministral-)/  // Pattern to identify Mistral models
-  },
-  perplexity: {
-    showAllModels: true,  // Show all available Perplexity models
-    modelPattern: /^(sonar|llama-)/  // Pattern to identify Perplexity models
-  },
-  deepseek: {
-    showAllModels: true,  // Show all available DeepSeek models
-    modelPattern: /^deepseek-/  // Pattern to identify DeepSeek models
-  },
-  xai: {
-    showAllModels: true,  // Show all available xAI models
-    modelPattern: /^grok-/  // Pattern to identify xAI models
-  },
-  grok: {
-    showAllModels: true,  // Alias for xai
-    modelPattern: /^grok-/  // Pattern to identify xAI models
-  },
-  ollama: {
-    showAllModels: false,
-    selectFirstModel: true  // Special behavior for Ollama
-  }
+  openai:     { modelPattern: /^(gpt-|o[13]|chatgpt-)/ },
+  anthropic:  { modelPattern: /^claude-/ },
+  claude:     { modelPattern: /^claude-/ },                          // alias for anthropic
+  gemini:     { modelPattern: /^(gemini-|gemma-)/ },
+  google:     { modelPattern: /^(gemini-|gemma-)/ },                 // alias for gemini
+  cohere:     { modelPattern: /^command-/ },
+  mistral:    { modelPattern: /^(mistral-|pixtral-|magistral-|ministral-)/ },
+  perplexity: { modelPattern: /^(sonar|llama-)/ },
+  deepseek:   { modelPattern: /^deepseek-/ },
+  xai:        { modelPattern: /^grok-/ },
+  grok:       { modelPattern: /^grok-/ },                            // alias for xai
+  ollama:     { showAllModels: false, selectFirstModel: true }
 };
 
 /**
@@ -373,42 +339,96 @@ function filterToLatestVersions(models) {
 }
 
 /**
- * Get all available models for a given app, considering provider-specific behavior
- * @param {Object} appConfig - The app configuration object
+ * Filter models for "All Models" mode.
+ *
+ * Policy (documented in docs_dev/developer/model_spec_vocabulary.md):
+ *  1. requires_confirmation: true  → always excluded (expensive / special models)
+ *  2. tool_capability: false       → excluded, EXCEPT for Perplexity whose models
+ *     have no tool support at all (excluding them would leave an empty list)
+ *
+ * @param {Array}  models      - Array of model name strings
+ * @param {String} providerKey - Normalized provider key (e.g. "openai", "perplexity")
+ * @returns {Array} Filtered model names
+ */
+function filterModelsForAllMode(models, providerKey) {
+  if (!models || models.length === 0) return models;
+  const spec = window.modelSpec || {};
+  const skipToolFilter = (providerKey === 'perplexity');
+
+  return models.filter(model => {
+    const ms = spec[model];
+    if (!ms) return true; // Unknown model — keep (may be user-added or API-only)
+
+    // Exclude models requiring confirmation (expensive / special)
+    if (ms.requires_confirmation === true) return false;
+
+    // Exclude models without tool capability (Perplexity exempted)
+    if (!skipToolFilter && ms.tool_capability === false) return false;
+
+    return true;
+  });
+}
+
+/**
+ * Get all available models for a given app, considering provider-specific behavior.
+ *
+ * When showAll is false (default), returns the curated list:
+ *   MDSL models → providerDefaults → single appConfig["model"]
+ * When showAll is true, returns all provider models (with policy filters applied).
+ *
+ * @param {Object}  appConfig - The app configuration object
+ * @param {Boolean} showAll   - When true, show all provider models (default: false)
  * @returns {Array} Array of model names
  */
-function getModelsForApp(appConfig) {
+function getModelsForApp(appConfig, showAll) {
   if (!appConfig) return [];
+  if (showAll === undefined) showAll = false;
 
   const providerKey = getProviderKey(appConfig["group"]);
-  const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || { showAllModels: false };
+  const providerConfig = PROVIDER_MODEL_BEHAVIOR[providerKey] || {};
+  const canShowAll = providerConfig.showAllModels !== false;
 
-  if (providerConfig.showAllModels) {
-    // Get all models from modelSpec that match the provider's pattern, excluding deprecated
+  if (canShowAll && showAll) {
+    // === All-models mode (with policy filters) ===
     const allProviderModels = Object.keys(window.modelSpec || {}).filter(model => {
       return providerConfig.modelPattern && providerConfig.modelPattern.test(model)
         && !isModelDeprecated(model);
     });
-
-    // Filter to latest versions only
     const filteredModels = filterToLatestVersions(allProviderModels);
+    const policyFiltered = filterModelsForAllMode(filteredModels, providerKey);
 
-    // If MDSL specifies models, merge them with filtered provider models
+    // Prepend MDSL models so they appear first
     if (appConfig["models"] && appConfig["models"].length > 0) {
-      let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
-      // Merge MDSL models with filtered provider models, removing duplicates
-      return [...new Set([...mdslModels, ...filteredModels])];
-    } else if (appConfig["model"]) {
-      // If only a single model is specified, still show all filtered provider models
-      return filteredModels;
-    } else {
-      // No model specified, show filtered provider models
-      return filteredModels;
+      try {
+        const mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
+        return [...new Set([...mdslModels, ...policyFiltered])];
+      } catch (e) { console.warn('[model_utils] Failed to parse MDSL models:', e); }
     }
+    return policyFiltered;
+
+  } else if (canShowAll && !showAll) {
+    // === Curated mode: MDSL → providerDefaults → single model ===
+    if (appConfig["models"] && appConfig["models"].length > 0) {
+      try {
+        const parsed = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
+        if (parsed.length > 0) return parsed;
+      } catch (e) { console.warn('[model_utils] Failed to parse MDSL models:', e); }
+    }
+    // providerDefaults fallback
+    const defaults = window.providerDefaults || {};
+    const pdModels = defaults[providerKey] && defaults[providerKey].chat;
+    if (pdModels && pdModels.length > 0) {
+      return pdModels.filter(m => !isModelDeprecated(m));
+    }
+    // Single model fallback
+    if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
+      return [appConfig["model"]];
+    }
+    return [];
+
   } else {
-    // For providers that don't show all models, use MDSL-specified models only
+    // === Ollama etc.: existing logic unchanged ===
     if (appConfig["models"] && typeof appConfig["models"] === "string") {
-      // models is a JSON string from server
       try {
         const parsedModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
         if (parsedModels.length > 0) {
@@ -418,7 +438,6 @@ function getModelsForApp(appConfig) {
         console.error(`Failed to parse models JSON:`, e);
       }
     }
-    // Fallback: use configured default model if available
     if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
       return [appConfig["model"]];
     }
@@ -447,8 +466,8 @@ function getDefaultModelForApp(appConfig, availableModels) {
     return appConfig["model"];
   }
   
-  // Check if provider shows all models (like OpenAI)
-  if (providerConfig.showAllModels) {
+  // Check if provider supports "show all models" toggle
+  if (providerConfig.showAllModels !== false) {
     // IMPORTANT: Check single model first - this is the MDSL-specified default
     // appConfig["models"] may contain all provider models from API, not just MDSL models
     if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
@@ -464,8 +483,10 @@ function getDefaultModelForApp(appConfig, availableModels) {
     if (appConfig["model"] && !isModelDeprecated(appConfig["model"])) {
       return appConfig["model"];
     } else if (appConfig["models"] && appConfig["models"].length > 0) {
-      let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
-      if (mdslModels.length > 0) return mdslModels[0];
+      try {
+        let mdslModels = JSON.parse(appConfig["models"]).filter(m => !isModelDeprecated(m));
+        if (mdslModels.length > 0) return mdslModels[0];
+      } catch (e) { console.warn('[model_utils] Failed to parse models in getDefaultModelForApp:', e); }
     }
     return availableModels[1] || availableModels[0]; // Skip disabled option if present
   }
@@ -473,5 +494,5 @@ function getDefaultModelForApp(appConfig, availableModels) {
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor };
+  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, filterModelsForAllMode };
 }

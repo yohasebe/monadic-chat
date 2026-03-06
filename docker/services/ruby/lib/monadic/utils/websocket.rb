@@ -2146,6 +2146,10 @@ module WebSocketHelper
           session[:monadic_state]&.clear  # Reset conversation context for Session Context panel
           session[:error] = nil
           session[:obj] = nil
+          # Clear provider-specific media references to prevent cross-session leakage
+          session.keys
+            .select { |k| k.is_a?(Symbol) && (k.to_s.match?(/last_image|last_video/) || k == :tool_html_fragments) }
+            .each { |k| session.delete(k) }
           sync_session_state!
         when "LOAD"
           # Store ui_language in session parameters if provided

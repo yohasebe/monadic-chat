@@ -2682,7 +2682,8 @@ let loadedApp = "Chat";
         const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
 
         // Use shared utility function to get models for the app
-        let models = currentApp ? getModelsForApp(currentApp) : [];
+        const showAll = $("#show-all-models").prop("checked");
+        let models = currentApp ? getModelsForApp(currentApp, showAll) : [];
 
         if (currentApp) {
           let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";

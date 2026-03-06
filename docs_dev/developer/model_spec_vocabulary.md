@@ -53,6 +53,9 @@ This document defines the canonical property names used across providers in `mod
 - latency_tier: string
   - Values: "slow" | "normal" (free-form). UI may use this to display notices.
 
+- requires_confirmation: boolean
+  - When `true`, the model is considered expensive or special and requires explicit user confirmation before use. These models are excluded from the "All Models" dropdown to prevent accidental usage.
+
 - supports_parallel_function_calling: boolean
   - Optional. Provider-specific parallel tool semantics.
 
@@ -128,11 +131,70 @@ These fields manage model deprecation and migration. They are used by the UI to 
 
 Run `npm run lint:model-consistency` (or `rake lint:model_consistency`) to check for:
 - MDSL files referencing deprecated or unknown models
-- `system_defaults.json` using deprecated defaults
+- `providerDefaults` models that are deprecated or unknown in modelSpec
 - Agent/helper code containing deprecated model references
 - Models with sunset dates within 30 days or already passed
 
+## providerDefaults (SSOT for Default Models)
+
+Defined in `model_spec.js` after the `modelSpec` object. Maps `provider × category → ordered model list`. The first element is the default.
+
+```javascript
+const providerDefaults = {
+  "openai": {
+    "chat": ["gpt-5.4", "gpt-5.2", ...],
+    "code": ["gpt-5.3-codex", ...],
+    "vision": ["gpt-4.1-mini"],
+    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"]
+  },
+  // ... other providers
+};
+```
+
+**Categories:**
+| Category | Usage |
+|---|---|
+| `chat` | General conversation, UI model dropdowns, MDSL defaults |
+| `code` | Code generation agents (OpenAI Code, Claude Code, Grok Code) |
+| `vision` | Image analysis agent |
+| `audio_transcription` | Audio transcription agent |
+
+**Ruby access** (via `Monadic::Utils::ModelSpec`):
+- `get_provider_default(provider, category)` — first model in list
+- `get_provider_models(provider, category)` — full list
+- `default_chat_model(provider)` / `default_code_model(provider)` / `default_vision_model(provider)` / `default_audio_model(provider)` — convenience accessors
+- Provider key aliases: `"google"→"gemini"`, `"claude"→"anthropic"`, `"grok"→"xai"`
+
+**Electron access** (via `app/main.js`):
+- Uses `require()` to load `model_spec.js` and reads `providerDefaults` directly
+- Sets `*_DEFAULT_MODEL` environment variables from `providerDefaults[provider].chat[0]` when not already configured by the user
+- Replaces the previous `system_defaults.json` dependency
+
+**Priority chain** for default model resolution:
+1. ENV variable (user override)
+2. `providerDefaults` in model_spec.js (SSOT)
+3. Hardcoded fallback
+
+**MDSL behavior**: When a `.mdsl` file omits `model`, the DSL engine automatically populates from `providerDefaults.chat`. Apps that need specific models (e.g., `customtools` variants, Opus tier) keep explicit `model` overrides.
+
+## "All Models" Toggle Filtering Policy
+
+The UI provides an "All" toggle next to the Model dropdown. When OFF (default), only curated models are shown (MDSL `models` → `providerDefaults.chat` → single `model`). When ON, all provider models from `modelSpec` are shown, subject to these exclusion rules:
+
+| Rule | Property | Excluded when | Exception |
+|---|---|---|---|
+| Expensive/special models | `requires_confirmation: true` | Always | None |
+| Tool-incapable models | `tool_capability: false` | Always | **Perplexity** (no tool-capable models exist for this provider) |
+| Deprecated models | `deprecated: true` | Always (both modes) | None |
+
+**Rationale:**
+- `requires_confirmation` models (e.g., `gpt-5.4-pro`, `o1-pro`) are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing.
+- `tool_capability: false` models cannot work with most apps (which define tools). The Perplexity exception exists because all Perplexity models lack tool support — excluding them would leave an empty list.
+- The toggle state is persisted via cookie (`show-all-models`) across sessions.
+
+**Implementation:** `filterModelsForAllMode()` in `model_utils.js`.
+
 ## Adding Models
 
-When adding a new model SKU, prefer this canonical vocabulary in `model_spec.js`. If a provider exposes additional fields, keep them vendor-scoped and document as needed.
+When adding a new model SKU, prefer this canonical vocabulary in `model_spec.js`. If a provider exposes additional fields, keep them vendor-scoped and document as needed. When updating default models, update `providerDefaults` in `model_spec.js` — this is the single source of truth.
 

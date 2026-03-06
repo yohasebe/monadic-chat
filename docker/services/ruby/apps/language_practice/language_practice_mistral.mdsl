@@ -46,7 +46,6 @@ app "LanguagePracticeMistralAI" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
   end
   
   display_name "Language Practice"

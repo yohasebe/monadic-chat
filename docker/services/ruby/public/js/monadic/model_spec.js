@@ -1209,12 +1209,61 @@ const modelSpec = {
   }
 }
 
+// Provider defaults: SSOT for default models per provider and category.
+// First element in each list is the default. Tests and agents reference these
+// instead of hardcoding model names.
+const providerDefaults = {
+  "openai": {
+    "chat": ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1"],
+    "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-4.1"],
+    "vision": ["gpt-4.1-mini"],
+    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"]
+  },
+  "anthropic": {
+    "chat": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+    "code": ["claude-sonnet-4-6"],
+    "vision": ["claude-haiku-4-5-20251001"]
+  },
+  "gemini": {
+    "chat": ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
+    "vision": ["gemini-3.1-flash-lite-preview"],
+    "audio_transcription": ["gemini-3.1-flash-lite-preview"]
+  },
+  "cohere": {
+    "chat": ["command-a-reasoning-08-2025"]
+  },
+  "mistral": {
+    "chat": ["mistral-large-latest"]
+  },
+  "xai": {
+    "chat": ["grok-4-1-fast-non-reasoning"],
+    "code": ["grok-code-fast-1"],
+    "vision": ["grok-4-1-fast-non-reasoning"]
+  },
+  "perplexity": {
+    "chat": ["sonar-reasoning-pro"]
+  },
+  "deepseek": {
+    "chat": ["deepseek-chat", "deepseek-reasoner"]
+  },
+  "ollama": {
+    "chat": ["qwen3:4b"]
+  }
+};
+
 // Expose modelSpec globally for browser environment
 if (typeof window !== 'undefined') {
   window.modelSpec = modelSpec;
+  window.providerDefaults = providerDefaults;
 }
 
 // Support for Jest testing environment (CommonJS)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = modelSpec;
+  // Non-enumerable so Object.keys(module.exports) still returns only model names
+  Object.defineProperty(module.exports, 'providerDefaults', {
+    value: providerDefaults,
+    enumerable: false,
+    configurable: true
+  });
 }

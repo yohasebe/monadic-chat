@@ -974,7 +974,8 @@ module MonadicDSL
     # Initialize default values
     state.features = {}
     state.settings[:provider] = "OpenAI"
-    state.settings[:model] = "gpt-4.1"
+    # model is NOT pre-set here; convert_to_class resolves it per-provider
+    # via providerDefaults (SSOT) or ENV variable
     state.settings[:temperature] = 0.7
     
     # Process the DSL block
@@ -1543,10 +1544,13 @@ module MonadicDSL
     provider_config = ProviderConfig.new(state.settings[:provider])
     helper_module = provider_config.helper_module
     
-    # Build fallback model list using configured models and defaults
+    # Build fallback model list using configured models, providerDefaults, and defaults
     fallback_models = []
     fallback_models.concat(Array(state.settings[:models])) if state.settings[:models]
     fallback_models << state.settings[:model] if state.settings[:model]
+    # Add providerDefaults chat list as additional fallback
+    pd_models = Monadic::Utils::ModelSpec.get_provider_models(provider_config.standard_key, "chat")
+    fallback_models.concat(pd_models) if pd_models
     fallback_models = fallback_models.flatten.compact.map(&:to_s).map(&:strip).reject(&:empty?).uniq
     fallback_literal = if fallback_models.empty?
       "[]"
@@ -1579,18 +1583,24 @@ module MonadicDSL
     provider_env_var = provider_config.default_model_env
 
     # Determine model value for class definition
+    # Priority: MDSL explicit model > ENV > providerDefaults (SSOT) > hardcoded
     model_value = if state.settings[:model]
                     # Use model from MDSL file if specified
                     state.settings[:model].inspect
                   elsif provider_env_var
-                    # Use environment variable with string interpolation in generated code
-                    # Resolve default from SystemDefaults (env var > system_defaults.json > hardcoded)
-                    default_model = SystemDefaults.get_default_model(provider_config.standard_key) || "gpt-4.1"
+                    # Resolve default: providerDefaults (SSOT) > ENV variable
+                    default_model = Monadic::Utils::ModelSpec.get_provider_default(provider_config.standard_key, "chat")
+                    if default_model.nil?
+                      warn "[DSL] No providerDefault for #{provider_config.standard_key}/chat; relying on ENV['#{provider_env_var}']"
+                    end
                     "ENV['#{provider_env_var}'] || #{default_model.inspect}"
                   else
-                    # Fallback to default if no model and no environment variable
-                    # This shouldn't typically happen due to initialization in app method
-                    "\"gpt-4.1\""
+                    # Fallback to providerDefaults (providers without ENV variable, e.g. Ollama)
+                    pd_default = Monadic::Utils::ModelSpec.get_provider_default(provider_config.standard_key, "chat")
+                    if pd_default.nil?
+                      warn "[DSL] No providerDefault for #{provider_config.standard_key}/chat and no ENV variable configured"
+                    end
+                    pd_default.inspect
                   end
 
     # Construct disabled logic based on API key availability and server mode restrictions
@@ -1639,6 +1649,15 @@ module MonadicDSL
     group_value = state.features[:group] || provider_config.display_group
     
     # Use models from state if specified, otherwise use provider's model list
+    # When neither MDSL model nor models is set, inject providerDefaults into settings
+    # so the fallback list is richer for the ProviderModelCache
+    if !state.settings[:models]
+      pd_chat = Monadic::Utils::ModelSpec.get_provider_models(provider_config.standard_key, "chat")
+      if pd_chat && !pd_chat.empty?
+        state.settings[:models] = pd_chat
+      end
+    end
+
     models_value = if state.settings[:models]
                      state.settings[:models].inspect
                    else

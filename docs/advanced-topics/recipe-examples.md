@@ -18,7 +18,7 @@ app "MathTutorOpenAI" do
 
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.7
   end
 
@@ -227,7 +227,7 @@ app "WikipediaOpenAI" do
 
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.3
   end
 

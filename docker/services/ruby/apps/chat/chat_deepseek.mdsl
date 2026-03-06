@@ -43,7 +43,6 @@ app "ChatDeepSeek" do
 
   llm do
     provider "deepseek"
-    model "deepseek-chat"
   end
 
   display_name "Chat"

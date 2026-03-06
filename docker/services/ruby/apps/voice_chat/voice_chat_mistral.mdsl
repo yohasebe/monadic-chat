@@ -43,7 +43,6 @@ app "VoiceChatMistral" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
   end
   
   display_name "Voice Chat"

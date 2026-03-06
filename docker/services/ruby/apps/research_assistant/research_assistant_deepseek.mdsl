@@ -70,7 +70,6 @@ app "ResearchAssistantDeepSeek" do
 
   llm do
     provider "deepseek"
-    model "deepseek-chat"
     context_size 30
   end
 

@@ -7,7 +7,15 @@ module Monadic
     module ClaudeCodeAgent
       include Monadic::Utils::StepProgress
 
-      CLAUDE_MODEL = 'claude-sonnet-4-6'.freeze
+      CLAUDE_MODEL_FALLBACK = 'claude-sonnet-4-6'.freeze
+
+      def self.default_model
+        if defined?(Monadic::Utils::ModelSpec)
+          Monadic::Utils::ModelSpec.default_code_model("anthropic") || CLAUDE_MODEL_FALLBACK
+        else
+          CLAUDE_MODEL_FALLBACK
+        end
+      end
 
       CLAUDE_CODE_STEPS = [
         "Analyzing requirements",
@@ -71,7 +79,7 @@ module Monadic
         progress_thread = start_claude_progress_thread(parent_session_id, &block)
 
         parameters = {
-          model: CLAUDE_MODEL,
+          model: Monadic::Agents::ClaudeCodeAgent.default_model,
           messages: [
             {
               'role' => 'user',
@@ -83,7 +91,7 @@ module Monadic
           reasoning_effort: reasoning_effort
         }
 
-        response = send_query(parameters, model: CLAUDE_MODEL)
+        response = send_query(parameters, model: Monadic::Agents::ClaudeCodeAgent.default_model)
 
         if response.is_a?(Hash) && response[:error]
           return { success: false, error: response[:error] }

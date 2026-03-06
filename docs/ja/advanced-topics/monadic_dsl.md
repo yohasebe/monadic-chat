@@ -127,7 +127,7 @@ end
 
 1. **明示的なMDSL値**: `model "<model-id>"`（最優先）
 2. **環境変数**: `~/monadic/config/env`の`ENV["OPENAI_DEFAULT_MODEL"]`
-3. **システムデフォルト**: `docker/services/ruby/config/system_defaults.json`
+3. **プロバイダーデフォルト**: `model_spec.js`内の`providerDefaults`（SSOT）
 4. **ハードコードされたフォールバック**: 組み込みのデフォルト値
 
 **複数のモデル選択肢**
@@ -447,7 +447,7 @@ app "WikipediaOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
     temperature 0.0
   end
 

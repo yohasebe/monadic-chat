@@ -278,4 +278,51 @@ RSpec.describe GeminiHelper do
       expect(out).to eq(["text"])
     end
   end
+
+  describe 'MIME detection for auto-attach' do
+    # Test the extension-to-MIME mapping used in send_query auto-attach
+
+    def mime_for(filename)
+      case File.extname(filename.to_s).downcase
+      when ".png" then "image/png"
+      when ".jpg", ".jpeg" then "image/jpeg"
+      when ".gif" then "image/gif"
+      when ".webp" then "image/webp"
+      else "image/png"
+      end
+    end
+
+    it 'detects PNG MIME type' do
+      expect(mime_for("image.png")).to eq("image/png")
+    end
+
+    it 'detects JPG MIME type' do
+      expect(mime_for("photo.jpg")).to eq("image/jpeg")
+    end
+
+    it 'detects JPEG MIME type' do
+      expect(mime_for("photo.jpeg")).to eq("image/jpeg")
+    end
+
+    it 'detects GIF MIME type' do
+      expect(mime_for("anim.gif")).to eq("image/gif")
+    end
+
+    it 'detects WebP MIME type' do
+      expect(mime_for("photo.webp")).to eq("image/webp")
+    end
+
+    it 'defaults to PNG for unknown extensions' do
+      expect(mime_for("file.bmp")).to eq("image/png")
+    end
+
+    it 'handles case-insensitive extensions' do
+      expect(mime_for("IMAGE.PNG")).to eq("image/png")
+      expect(mime_for("photo.JPG")).to eq("image/jpeg")
+    end
+
+    it 'handles nil filename' do
+      expect(mime_for(nil)).to eq("image/png")
+    end
+  end
 end

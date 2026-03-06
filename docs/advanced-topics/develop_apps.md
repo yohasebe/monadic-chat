@@ -88,7 +88,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
   end
   
   system_prompt "You are a helpful assistant."
@@ -157,7 +157,7 @@ end
 
 **Benefits:**
 - ✅ **User control**: Users can customize models via `~/monadic/config/env`
-- ✅ **Automatic fallback**: Uses `system_defaults.json` when ENV variable not set
+- ✅ **Automatic fallback**: Uses `providerDefaults` from `model_spec.js` when ENV variable not set
 - ✅ **Future-proof**: No hardcoded model names that become outdated
 - ✅ **Consistency**: Matches system-wide model preferences
 
@@ -166,7 +166,7 @@ end
 Model values are resolved in this order:
 1. Explicit MDSL value (if provided)
 2. Environment variable from `~/monadic/config/env`
-3. System defaults from `docker/services/ruby/config/system_defaults.json`
+3. Provider defaults from `providerDefaults` in `model_spec.js` (SSOT)
 4. Hardcoded fallback
 
 **Alternative: Multiple Model Options**

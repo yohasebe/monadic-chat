@@ -131,7 +131,7 @@ Model values are resolved in this order (highest to lowest):
 
 1. **Explicit MDSL value**: `model "<model-id>"` (highest priority)
 2. **Environment variable**: `ENV["OPENAI_DEFAULT_MODEL"]` from `~/monadic/config/env`
-3. **System defaults**: `docker/services/ruby/config/system_defaults.json`
+3. **Provider defaults**: `providerDefaults` in `model_spec.js` (SSOT)
 4. **Hardcoded fallback**: Built-in default values
 
 **Multiple Model Options**
@@ -427,7 +427,7 @@ app "MermaidGrapherOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.0
   end
   
@@ -479,7 +479,7 @@ app "WikipediaOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to system_defaults.json
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # Falls back to providerDefaults
     temperature 0.3
   end
   

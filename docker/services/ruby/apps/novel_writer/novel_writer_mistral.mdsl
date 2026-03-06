@@ -122,7 +122,6 @@ app "NovelWriterMistral" do
 
   llm do
     provider "mistral"
-    model "mistral-large-latest"
     temperature 0.8
     context_size 40
   end

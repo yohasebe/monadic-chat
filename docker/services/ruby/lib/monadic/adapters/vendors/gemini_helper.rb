@@ -99,14 +99,21 @@ module GeminiHelper
       image_path = File.join(shared_folder, session[:gemini3_last_image])
       if File.exist?(image_path)
         # Load and encode the last generated image
-        image_data = File.read(image_path)
+        image_data = File.binread(image_path)
         image_b64 = Base64.strict_encode64(image_data)
 
         # Add to images parameter for processing
         # Use format compatible with existing image processing (data URL format)
         images ||= []
         images = [images] unless images.is_a?(Array)
-        data_url = "data:image/jpeg;base64,#{image_b64}"
+        mime = case File.extname(session[:gemini3_last_image].to_s).downcase
+               when ".png" then "image/png"
+               when ".jpg", ".jpeg" then "image/jpeg"
+               when ".gif" then "image/gif"
+               when ".webp" then "image/webp"
+               else "image/png"
+               end
+        data_url = "data:#{mime};base64,#{image_b64}"
         images << {
           "data" => data_url,
           "name" => session[:gemini3_last_image]

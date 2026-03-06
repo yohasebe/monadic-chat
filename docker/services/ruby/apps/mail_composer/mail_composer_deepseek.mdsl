@@ -48,7 +48,6 @@ app "MailComposerDeepSeek" do
   
   llm do
     provider "deepseek"
-    model "deepseek-chat"
     temperature 0.3
   end
   

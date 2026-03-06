@@ -71,7 +71,7 @@ These agents enforce the **Provider Independence** principle: when a Claude app 
 **Included in**: `MonadicApp` (base class, but typically called from `VideoDescriberApp`)
 **Public method**: `analyze_video(file:, fps:, query:, session:)`
 
-**Depends on**: `ImageAnalysisAgent` (for `resolve_vision_provider`, `VISION_MODELS`, `VISION_API_KEYS`), `AudioTranscriptionAgent` (for audio track transcription)
+**Depends on**: `ImageAnalysisAgent` (for `resolve_vision_provider`, `vision_model_for`, `VISION_API_KEYS`), `AudioTranscriptionAgent` (for audio track transcription)
 
 **Supported providers**: OpenAI, Claude, Gemini, Grok (same as ImageAnalysisAgent)
 

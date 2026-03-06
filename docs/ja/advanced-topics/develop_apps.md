@@ -165,7 +165,7 @@ app "MyAppOpenAI" do
   
   llm do
     provider "openai"
-    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # system_defaults.jsonにフォールバック
+    model ENV.fetch("OPENAI_DEFAULT_MODEL")  # providerDefaultsにフォールバック
   end
   
   system_prompt "あなたは役立つアシスタントです。"
@@ -234,7 +234,7 @@ end
 
 **利点:**
 - ✅ **ユーザー制御**: ユーザーが`~/monadic/config/env`経由でモデルをカスタマイズ可能
-- ✅ **自動フォールバック**: ENV変数が設定されていない場合に`system_defaults.json`を使用
+- ✅ **自動フォールバック**: ENV変数が設定されていない場合に`model_spec.js`の`providerDefaults`を使用
 - ✅ **将来性**: 古くなるハードコードされたモデル名がない
 - ✅ **一貫性**: システム全体のモデル設定と一致
 
@@ -243,7 +243,7 @@ end
 モデル値は以下の順序で解決されます：
 1. 明示的なMDSL値（提供された場合）
 2. `~/monadic/config/env`からの環境変数
-3. `docker/services/ruby/config/system_defaults.json`のシステムデフォルト
+3. `model_spec.js`内の`providerDefaults`によるプロバイダーデフォルト（SSOT）
 4. ハードコードされたフォールバック
 
 **代替案: 複数のモデル選択肢**

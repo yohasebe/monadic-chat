@@ -13,17 +13,32 @@ require "http"
 # fall back to the first available audio provider (preference: OpenAI -> Gemini).
 
 module AudioTranscriptionAgent
-  AUDIO_MODELS = {
+  # Hardcoded fallbacks used when ModelSpec is unavailable
+  AUDIO_MODELS_FALLBACK = {
     "openai" => "gpt-4o-mini-transcribe-2025-12-15",
     "google" => "gemini-3.1-flash-lite-preview"
   }.freeze
+
+  AUDIO_PROVIDER_MAP = {
+    "openai" => "openai",
+    "google" => "gemini"
+  }.freeze
+
+  def self.audio_model_for(provider)
+    canonical = AUDIO_PROVIDER_MAP[provider]
+    if canonical && defined?(Monadic::Utils::ModelSpec)
+      Monadic::Utils::ModelSpec.default_audio_model(canonical) || AUDIO_MODELS_FALLBACK[provider]
+    else
+      AUDIO_MODELS_FALLBACK[provider]
+    end
+  end
 
   AUDIO_API_KEYS = {
     "openai" => "OPENAI_API_KEY",
     "google" => "GEMINI_API_KEY"
   }.freeze
 
-  AUDIO_PROVIDERS = AUDIO_MODELS.keys.freeze
+  AUDIO_PROVIDERS = AUDIO_MODELS_FALLBACK.keys.freeze
 
   AUDIO_CONNECT_TIMEOUT = 10
   AUDIO_READ_TIMEOUT = 180  # 3 minutes for long audio files
@@ -76,10 +91,10 @@ module AudioTranscriptionAgent
     # 5. Call provider-specific transcription API
     case provider
     when "openai"
-      stt_model = model || AUDIO_MODELS["openai"]
+      stt_model = model || AudioTranscriptionAgent.audio_model_for("openai")
       transcribe_openai(path, stt_model, api_key, response_format, lang_code)
     when "google"
-      transcribe_gemini(path, AUDIO_MODELS["google"], api_key, lang_code)
+      transcribe_gemini(path, AudioTranscriptionAgent.audio_model_for("google"), api_key, lang_code)
     end
   rescue => e
     "ERROR: Audio transcription failed: #{e.message}"

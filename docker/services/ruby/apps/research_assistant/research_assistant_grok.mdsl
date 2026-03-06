@@ -105,7 +105,6 @@ app "ResearchAssistantGrok" do
 
   llm do
     provider "xai"
-    model "grok-4-1-fast-non-reasoning"
     context_size 30
 
     agents do

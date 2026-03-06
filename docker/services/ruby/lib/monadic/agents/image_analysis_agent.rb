@@ -11,12 +11,37 @@ require "http"
 # to the first available vision provider (preference: OpenAI).
 
 module ImageAnalysisAgent
-  VISION_MODELS = {
+  # Hardcoded fallbacks used when ModelSpec is unavailable
+  VISION_MODELS_FALLBACK = {
     "openai"    => "gpt-4.1-mini",
     "anthropic" => "claude-haiku-4-5-20251001",
     "google"    => "gemini-3.1-flash-lite-preview",
     "xai"       => "grok-4-1-fast-non-reasoning"
   }.freeze
+
+  # Provider key mapping for ModelSpec (which uses canonical keys)
+  VISION_PROVIDER_MAP = {
+    "openai"    => "openai",
+    "anthropic" => "anthropic",
+    "google"    => "gemini",
+    "xai"       => "xai"
+  }.freeze
+
+  def self.vision_model_for(provider)
+    canonical = VISION_PROVIDER_MAP[provider]
+    if canonical && defined?(Monadic::Utils::ModelSpec)
+      Monadic::Utils::ModelSpec.default_vision_model(canonical) || VISION_MODELS_FALLBACK[provider]
+    else
+      VISION_MODELS_FALLBACK[provider]
+    end
+  end
+
+  # For backward compatibility — returns a hash like the old constant
+  def self.vision_models
+    VISION_MODELS_FALLBACK.each_with_object({}) do |(provider, fallback), h|
+      h[provider] = vision_model_for(provider)
+    end
+  end
 
   VISION_API_KEYS = {
     "openai"    => "OPENAI_API_KEY",
@@ -25,7 +50,7 @@ module ImageAnalysisAgent
     "xai"       => "XAI_API_KEY"
   }.freeze
 
-  VISION_PROVIDERS = VISION_MODELS.keys.freeze
+  VISION_PROVIDERS = VISION_MODELS_FALLBACK.keys.freeze
 
   IMAGE_CONNECT_TIMEOUT = 10
   IMAGE_READ_TIMEOUT = 60
@@ -47,7 +72,7 @@ module ImageAnalysisAgent
     return "ERROR: No API key for provider '#{provider}'" if api_key.nil? || api_key.empty?
 
     # 4. Call provider-specific Vision API
-    model = VISION_MODELS[provider]
+    model = ImageAnalysisAgent.vision_model_for(provider)
 
     if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
       puts "[ImageAnalysisAgent] Using provider: #{provider}, model: #{model}"

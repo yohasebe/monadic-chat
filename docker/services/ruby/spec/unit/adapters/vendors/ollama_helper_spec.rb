@@ -17,13 +17,9 @@ RSpec.describe OllamaHelper do
         expect(OllamaHelper::DEFAULT_MODEL).not_to be_empty
       end
 
-      it 'matches the value in system_defaults.json' do
-        defaults_path = File.expand_path('../../../../../../config/system_defaults.json', __FILE__)
-        if File.exist?(defaults_path)
-          defaults = JSON.parse(File.read(defaults_path))
-          expected_model = defaults.dig('provider_defaults', 'ollama', 'model')
-          expect(OllamaHelper::DEFAULT_MODEL).to eq(expected_model) if expected_model
-        end
+      it 'matches the value in providerDefaults' do
+        expected_model = Monadic::Utils::ModelSpec.get_provider_default("ollama", "chat")
+        expect(OllamaHelper::DEFAULT_MODEL).to eq(expected_model) if expected_model
       end
     end
 

@@ -13,7 +13,7 @@ module OllamaHelper
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
 
-  # Default model resolved via SystemDefaults (env var > system_defaults.json > hardcoded fallback)
+  # Default model resolved via SystemDefaults (env var > providerDefaults > hardcoded fallback)
   DEFAULT_MODEL = (defined?(SystemDefaults) &&
     SystemDefaults.get_default_model('ollama')) || 'qwen3:4b'
 

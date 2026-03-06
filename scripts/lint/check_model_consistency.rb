@@ -5,7 +5,7 @@
 #
 # Checks for model name inconsistencies across the codebase:
 #   A. MDSL model references vs model_spec.js
-#   B. Default model consistency (system_defaults.json)
+#   B. providerDefaults consistency (all models exist in model_spec.js, none deprecated)
 #   C. Sunset date alerts
 #   D. Agent/helper hardcoded deprecated model references
 #
@@ -22,7 +22,6 @@ module ModelConsistency
   RUBY_SERVICE = ROOT.join("docker", "services", "ruby")
   APPS_DIR = RUBY_SERVICE.join("apps")
   SPEC_FILE = RUBY_SERVICE.join("public", "js", "monadic", "model_spec.js")
-  DEFAULTS_FILE = RUBY_SERVICE.join("config", "system_defaults.json")
 
   # Directories to scan for hardcoded model references (Check D)
   AGENT_DIRS = [
@@ -199,46 +198,89 @@ module ModelConsistency
   end
 
   # -------------------------------------------------------------------------
-  # DefaultsChecker — Check B: system_defaults.json consistency
+  # DefaultsChecker — Check B: providerDefaults consistency
   # -------------------------------------------------------------------------
   module DefaultsChecker
     module_function
 
     def check(spec)
       issues = []
-      return issues unless DEFAULTS_FILE.exist?
+      provider_defaults = load_provider_defaults
+      return issues if provider_defaults.empty?
 
-      defaults = JSON.parse(DEFAULTS_FILE.read)
-      provider_defaults = defaults["provider_defaults"] || {}
       deprecated = SpecLoader.deprecated_models(spec)
 
       # Providers with dynamic/local models not tracked in model_spec.js
       skip_providers = %w[ollama].freeze
 
-      provider_defaults.each do |provider, config|
-        model = config["model"]
-        next unless model
+      provider_defaults.each do |provider, categories|
         next if skip_providers.include?(provider)
+        next unless categories.is_a?(Hash)
 
-        # Default model is deprecated
-        if deprecated.key?(model)
-          info = SpecLoader.sunset_info(spec, model)
-          msg = "default model for '#{provider}' is deprecated"
-          msg += " (sunset: #{info[:sunset_date]})" if info[:sunset_date]
-          msg += " -> successor: #{info[:successor]}" if info[:successor]
-          issues << Issue.new(category: :defaults_deprecated, file: DEFAULTS_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: msg)
-        end
+        categories.each do |category, models|
+          next unless models.is_a?(Array)
 
-        # Default model not in spec
-        unless MdslChecker.model_exists_in_spec?(spec, model)
-          issues << Issue.new(category: :defaults_unknown, file: DEFAULTS_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: "default model for '#{provider}' not found in model_spec.js")
+          models.each do |model|
+            # Default model is deprecated
+            if deprecated.key?(model)
+              info = SpecLoader.sunset_info(spec, model)
+              msg = "providerDefaults #{provider}/#{category} model is deprecated"
+              msg += " (sunset: #{info[:sunset_date]})" if info[:sunset_date]
+              msg += " -> successor: #{info[:successor]}" if info[:successor]
+              issues << Issue.new(category: :defaults_deprecated, file: SPEC_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: msg)
+            end
+
+            # Model not in spec (skip audio_transcription as those may not be in modelSpec)
+            next if category == "audio_transcription"
+
+            unless MdslChecker.model_exists_in_spec?(spec, model)
+              issues << Issue.new(category: :defaults_unknown, file: SPEC_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: "providerDefaults #{provider}/#{category} model not found in model_spec.js")
+            end
+          end
         end
       end
 
       issues
+    end
+
+    def load_provider_defaults
+      return {} unless SPEC_FILE.exist?
+
+      js_content = SPEC_FILE.read
+
+      if js_content =~ /const\s+providerDefaults\s*=\s*\{/
+        start_pos = js_content.index(/const\s+providerDefaults\s*=\s*\{/)
+        start_pos = js_content.index("{", start_pos)
+
+        brace_count = 0
+        end_pos = nil
+
+        js_content[start_pos..-1].each_char.with_index do |char, i|
+          if char == "{"
+            brace_count += 1
+          elsif char == "}"
+            brace_count -= 1
+            if brace_count == 0
+              end_pos = start_pos + i
+              break
+            end
+          end
+        end
+
+        return {} unless end_pos
+
+        json_string = js_content[start_pos..end_pos]
+        json_string = json_string.gsub(%r{//.*$}, "")
+        json_string = json_string.gsub(%r{/\*.*?\*/}m, "")
+        json_string = json_string.gsub(/,(\s*[}\]])/, '\1')
+
+        JSON.parse(json_string)
+      else
+        {}
+      end
     rescue JSON::ParserError => e
-      warn "Warning: Failed to parse system_defaults.json: #{e.message}"
-      []
+      warn "Warning: Failed to parse providerDefaults from model_spec.js: #{e.message}"
+      {}
     end
   end
 

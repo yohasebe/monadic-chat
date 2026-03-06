@@ -8,7 +8,7 @@
 #
 # Dependencies:
 #   - ImageAnalysisAgent (included in MonadicApp) for:
-#     resolve_vision_provider, vision_http_post, VISION_MODELS, VISION_API_KEYS
+#     resolve_vision_provider, vision_http_post, vision_model_for, VISION_API_KEYS
 #   - AudioTranscriptionAgent (included in MonadicApp) for:
 #     audio_transcription_agent (provider-independent STT)
 #   - send_command (from MonadicApp) for:
@@ -150,7 +150,7 @@ module VideoAnalyzeAgent
     api_key = CONFIG[api_key_name]&.strip
     return "ERROR: No API key for provider '#{provider}'" if api_key.nil? || api_key.empty?
 
-    model = ImageAnalysisAgent::VISION_MODELS[provider]
+    model = ImageAnalysisAgent.vision_model_for(provider)
 
     # Apply per-provider frame limit
     max_frames = PROVIDER_FRAME_LIMITS[provider] || VIDEO_MAX_FRAMES

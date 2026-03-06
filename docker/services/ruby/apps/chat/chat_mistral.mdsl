@@ -43,7 +43,6 @@ app "ChatMistralAI" do
   
   llm do
     provider "mistral"
-    model "mistral-large-latest"
   end
   
   display_name "Chat"

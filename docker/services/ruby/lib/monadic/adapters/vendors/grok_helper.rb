@@ -481,13 +481,24 @@ module GrokHelper
         path = File.join(shared_folder, filename)
 
         if File.exist?(path)
+          # Encode as base64 data URL for the xAI API (which requires base64 or URL, not file paths)
+          mime = case File.extname(filename).downcase
+                 when ".png" then "image/png"
+                 when ".jpg", ".jpeg" then "image/jpeg"
+                 when ".gif" then "image/gif"
+                 when ".webp" then "image/webp"
+                 else "image/png"
+                 end
+          base64_data = Base64.strict_encode64(File.binread(path))
+          data_url = "data:#{mime};base64,#{base64_data}"
+
           obj["images"] ||= []
           obj["images"] = [obj["images"]] unless obj["images"].is_a?(Array)
-          obj["images"] << { "data" => "/data/#{filename}", "title" => filename }
+          obj["images"] << { "data" => data_url, "title" => filename }
 
           if CONFIG["EXTRA_LOGGING"]
             extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("\n[#{Time.now}] Grok: Auto-attached last generated image #{filename}")
+            extra_log.puts("\n[#{Time.now}] Grok: Auto-attached last generated image #{filename} (base64)")
             extra_log.puts("  has_uploaded_images=#{has_uploaded_images}")
             extra_log.close
           end
@@ -495,8 +506,12 @@ module GrokHelper
           session[:grok_last_image] = nil
         end
       end
-    rescue StandardError
-      # Conservative: ignore fallback issues
+    rescue StandardError => e
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts "[#{Time.now}] Grok: Auto-attach failed: #{e.class}: #{e.message}"
+        extra_log.close
+      end
     end
 
     # Skip message processing for tool role (but still process context)

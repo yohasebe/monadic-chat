@@ -25,23 +25,36 @@ module PgvectorTestHelper
     $?.success?
   end
   
+  # Check if PostgreSQL is actually accepting connections
+  def pgvector_connectable?
+    conn = PG.connect(postgres_connection_params)
+    conn.close
+    true
+  rescue PG::ConnectionBad
+    false
+  end
+
   # Create a test database
   def create_test_database(db_name)
     conn = PG.connect(postgres_connection_params)
-    
+
     suppress_pg_notices(conn)
     conn.exec("CREATE DATABASE #{db_name}")
     conn.close
   rescue PG::DuplicateDatabase
     # Database already exists, that's fine
+  rescue PG::ConnectionBad => e
+    skip "PostgreSQL is not accepting connections: #{e.message}"
   end
-  
+
   # Drop a test database
   def drop_test_database(db_name)
     conn = PG.connect(postgres_connection_params)
-    
+
     suppress_pg_notices(conn)
     conn.exec("DROP DATABASE IF EXISTS #{db_name}")
     conn.close
+  rescue PG::ConnectionBad
+    # Cannot connect to drop database; silently ignore during cleanup
   end
 end

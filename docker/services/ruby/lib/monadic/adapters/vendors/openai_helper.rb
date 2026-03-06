@@ -2571,6 +2571,24 @@ module OpenAIHelper
             return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
           end
         end
+
+        # Check for error response from image/video generation tool
+        # Prevents unnecessary recursive API call when generation failed
+        if response_content.include?('"error"') || response_content.include?('"success":false') || response_content.include?('"success": false')
+          begin
+            parsed = JSON.parse(response_content)
+            error_msg = parsed["error"] || parsed["message"] || "Media generation failed"
+
+            res = { "type" => "fragment", "content" => error_msg, "is_first" => true }
+            block&.call res
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+          rescue JSON::ParserError
+            # Continue to normal flow
+          end
+        end
       end
     end
 

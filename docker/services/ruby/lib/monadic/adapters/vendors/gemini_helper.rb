@@ -3624,6 +3624,32 @@ module GeminiHelper
             return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
           end
         end
+
+        # Check for error response from image/video generation tool
+        # Prevents unnecessary recursive API call when generation failed
+        if response_content.include?('"error"') || response_content.include?('"success":false') || response_content.include?('"success": false')
+          begin
+            parsed = JSON.parse(response_content)
+            error_msg = parsed["error"] || parsed["message"] || "Media generation failed"
+
+            res = { "type" => "fragment", "content" => error_msg, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true }
+            block&.call res
+
+            res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
+            block&.call res
+
+            if CONFIG["EXTRA_LOGGING"]
+              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+              extra_log.puts "[#{Time.now}] Gemini: Media generation returned error, skipping recursive api_request"
+              extra_log.puts "  Error: #{error_msg}"
+              extra_log.close
+            end
+
+            return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
+          rescue JSON::ParserError
+            # Continue to normal flow if parsing fails
+          end
+        end
       end
     end
 

@@ -1683,12 +1683,13 @@ module GrokHelper
               response_parts << "  <img src=\"/data/#{content_json["filename"]}\">"
               response_parts << "</div>"
             else
-              # Generation failed
-              error_msg = content_json["message"] || "Image generation failed"
+              # Generation failed or success: false
+              error_msg = content_json["error"] || content_json["message"] || "Image generation failed"
               response_parts << error_msg
             end
           else
-            response_parts << result_content
+            # Non-string result (e.g. Hash) — defensive fallback
+            response_parts << result_content.to_s
           end
         rescue JSON::ParserError => e
           response_parts << "Error processing image generation result: #{e.message}"
@@ -2071,12 +2072,29 @@ module GrokHelper
         extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete image response")
         extra_log.close
       end
+    elsif has_image_generation && !response_content.include?("<img")
+      # Image generation was attempted but failed (no <img> tag means error)
+      # Skip recursive API call to prevent temp-card from stacking
+      skip_api_call = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - image generation returned error")
+        extra_log.close
+      end
     elsif has_video_generation && response_content.include?("<video")
       # We have a complete HTML response for video generation, no need to call Grok
       skip_api_call = true
       if CONFIG["EXTRA_LOGGING"]
         extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
         extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete video response")
+        extra_log.close
+      end
+    elsif has_video_generation && !response_content.include?("<video")
+      # Video generation was attempted but failed (no <video> tag means error)
+      skip_api_call = true
+      if CONFIG["EXTRA_LOGGING"]
+        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
+        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - video generation returned error")
         extra_log.close
       end
     elsif has_jupyter_operation && response_content.include?("<a href=")

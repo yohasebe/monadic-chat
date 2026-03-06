@@ -427,7 +427,7 @@ class ImageGeneratorOpenAI < MonadicApp
 
     result_json
   rescue StandardError => e
-    { error: "Image generation failed: #{e.message}" }
+    { success: false, error: "Image generation failed: #{e.message}" }.to_json
   end
 
   private
@@ -534,7 +534,7 @@ class ImageGeneratorGrok < MonadicApp
 
     result_json
   rescue StandardError => e
-    { error: "Image generation failed: #{e.message}" }
+    { success: false, error: "Image generation failed: #{e.message}" }.to_json
   end
 
   private

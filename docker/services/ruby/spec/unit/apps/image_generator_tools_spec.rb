@@ -34,6 +34,56 @@ RSpec.describe "ImageGeneratorTools" do
     end
   end
 
+  describe "ImageGeneratorGrok" do
+    it "is defined as a class" do
+      expect(defined?(ImageGeneratorGrok)).to eq("constant")
+    end
+
+    it "includes required modules" do
+      expect(ImageGeneratorGrok.included_modules).to include(GrokHelper)
+    end
+
+    it "responds to generate_image_with_grok method" do
+      app = ImageGeneratorGrok.new
+      expect(app).to respond_to(:generate_image_with_grok)
+    end
+  end
+
+  describe "Error return values" do
+    it "ImageGeneratorOpenAI returns valid JSON string with success:false on error" do
+      app = ImageGeneratorOpenAI.new
+      # Trigger ArgumentError via empty model
+      result = app.generate_image_with_openai(operation: "generate", model: "", prompt: "test")
+      expect(result).to be_a(String)
+      parsed = JSON.parse(result)
+      expect(parsed["success"]).to eq(false)
+      expect(parsed["error"]).to be_a(String)
+      expect(parsed["error"]).to include("Image generation failed")
+    end
+
+    it "ImageGeneratorGrok returns valid JSON string with success:false on error" do
+      app = ImageGeneratorGrok.new
+      # Trigger ArgumentError via empty prompt
+      result = app.generate_image_with_grok(prompt: "")
+      expect(result).to be_a(String)
+      parsed = JSON.parse(result)
+      expect(parsed["success"]).to eq(false)
+      expect(parsed["error"]).to be_a(String)
+      expect(parsed["error"]).to include("Image generation failed")
+    end
+
+    it "ImageGeneratorGemini3Preview returns valid JSON string with success:false on error" do
+      app = ImageGeneratorGemini3Preview.new
+      # Trigger ArgumentError via empty prompt
+      result = app.generate_image_with_gemini3_preview(prompt: "")
+      expect(result).to be_a(String)
+      parsed = JSON.parse(result)
+      expect(parsed["success"]).to eq(false)
+      expect(parsed["error"]).to be_a(String)
+      expect(parsed["error"]).to include("Image generation failed")
+    end
+  end
+
   describe "Session state integration" do
     # These tests verify the session state behavior but require actual API calls
     # Run with RUN_API=true for full integration testing

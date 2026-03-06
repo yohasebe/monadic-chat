@@ -15,7 +15,7 @@ require "http"
 module AudioTranscriptionAgent
   AUDIO_MODELS = {
     "openai" => "gpt-4o-mini-transcribe-2025-12-15",
-    "google" => "gemini-2.0-flash"
+    "google" => "gemini-3.1-flash-lite-preview"
   }.freeze
 
   AUDIO_API_KEYS = {

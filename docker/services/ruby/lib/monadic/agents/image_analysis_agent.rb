@@ -12,9 +12,9 @@ require "http"
 
 module ImageAnalysisAgent
   VISION_MODELS = {
-    "openai"    => "gpt-4o-mini",
+    "openai"    => "gpt-4.1-mini",
     "anthropic" => "claude-haiku-4-5-20251001",
-    "google"    => "gemini-2.0-flash",
+    "google"    => "gemini-3.1-flash-lite-preview",
     "xai"       => "grok-4-1-fast-non-reasoning"
   }.freeze
 

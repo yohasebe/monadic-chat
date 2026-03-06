@@ -352,13 +352,12 @@ const modelSpec = {
     "skip_in_progress_events": true,
     "requires_confirmation": true
   },
-  // Gemini 3 image preview (image generation only)
+  // Gemini 3 image preview (image generation only) — deprecated
   "gemini-3-pro-image-preview": {
     "context_window": [1, 32000],
     "max_output_tokens": [1, 8192],
     "vision_capability": true,
     "image_generation": true,
-    "api_type": "responses",
     "supports_web_search": false,
     "skip_in_progress_events": true,
     "deprecated": true,
@@ -869,7 +868,8 @@ const modelSpec = {
     "max_output_tokens": [1, 32768],
     "vision_capability": true,
     "image_generation": true,
-    "supports_web_search": true
+    "supports_web_search": true,
+    "skip_in_progress_events": true
   },
   "gemini-2.5-flash-lite": {
     "context_window" : [1048576],

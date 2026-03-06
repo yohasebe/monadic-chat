@@ -56,7 +56,7 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3-pro-image-preview", aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3.1-flash-image-preview", aspect_ratio: nil, image_size: nil, images: nil, session: nil)
     require 'net/http'
     require 'json'
     require 'base64'
@@ -308,7 +308,7 @@ module GeminiHelper
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
       end
 
-      return { success: false, error: "No image returned from gemini-3-pro-image-preview" }.to_json
+      return { success: false, error: "No image returned from Gemini image generation" }.to_json
     else
       error_data = JSON.parse(response.body) rescue {}
       error_message = error_data.dig("error", "message") || "API request failed with status #{response.code}"
@@ -329,8 +329,9 @@ module GeminiHelper
     "imagen4" => "imagen-4.0-generate-001",
     "imagen4-ultra" => "imagen-4.0-ultra-generate-001",
     "imagen4-fast" => "imagen-4.0-fast-generate-001",
-    # Gemini 3 Pro Image Preview (v1beta generateContent)
-    "gemini-3-pro-image-preview" => "gemini-3-pro-image-preview"
+    # Gemini 3.1 Flash Image Preview (v1beta generateContent)
+    "gemini-3.1-flash-image-preview" => "gemini-3.1-flash-image-preview",
+    "gemini-3-pro-image-preview" => "gemini-3.1-flash-image-preview"  # backward compat
   }.freeze
   IMAGE_GENERATION_MODEL = IMAGE_GENERATION_MODELS["imagen4-fast"]  # Default to fast model
   MAX_RETRIES = 5
@@ -4001,8 +4002,8 @@ module GeminiHelper
         return generate_image_with_imagen_direct(prompt: prompt, model: model)
       end
 
-      # Gemini 3 Pro Image Preview uses generateContent on v1 endpoint
-      if model == "gemini-3-pro-image-preview"
+      # Gemini 3.1 Flash Image Preview uses generateContent on v1beta endpoint
+      if model == "gemini-3.1-flash-image-preview" || model == "gemini-3-pro-image-preview"
         # Pass session to support image editing
         return generate_image_with_gemini3_preview(prompt: prompt, model: model, session: session)
       end
@@ -4116,7 +4117,7 @@ module GeminiHelper
       
       # Make API request
       # Use the new image generation model (stable version)
-      model_name = "gemini-2.5-flash-image"
+      model_name = "gemini-3.1-flash-image-preview"
       uri = URI("https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}")
 
       request = Net::HTTP::Post.new(uri)

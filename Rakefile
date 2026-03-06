@@ -305,6 +305,13 @@ namespace :lint do
       system('npm run lint:deprecated-models') || abort('Deprecated model lint failed')
     end
   end
+
+  desc "Check model lifecycle consistency across codebase"
+  task :model_consistency do
+    Dir.chdir(File.expand_path(__dir__)) do
+      system('npm run lint:model-consistency') || abort('Model consistency check failed')
+    end
+  end
 end
 
 # Define the list of files that should have consistent version numbers

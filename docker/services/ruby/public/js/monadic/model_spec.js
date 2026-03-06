@@ -310,6 +310,34 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // GPT-5.4 Thinking (frontier model, 1M context, computer use)
+  "gpt-5.4": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["none", "low", "medium", "high", "xhigh"], "none"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "supports_structured_output": true,
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  // GPT-5.4 Pro (maximum accuracy, 1M context)
+  "gpt-5.4-pro": {
+    "context_window": [1, 1050000],
+    "max_output_tokens": [1, 128000],
+    "tool_capability": true,
+    "vision_capability": false,
+    "supports_structured_output": false,
+    "api_type": "responses",
+    "supports_web_search": false,
+    "supports_pdf_upload": false,
+    "skip_in_progress_events": true,
+    "requires_confirmation": true
+  },
   // GPT-5.2 Pro (maximum accuracy)
   "gpt-5.2-pro": {
     "context_window" : [1, 400000],
@@ -332,7 +360,10 @@ const modelSpec = {
     "image_generation": true,
     "api_type": "responses",
     "supports_web_search": false,
-    "skip_in_progress_events": true
+    "skip_in_progress_events": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-30",
+    "successor": "gemini-3.1-flash-image-preview"
   },
   // gpt-4o models
   "gpt-4o": {
@@ -345,7 +376,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_pdf_upload": true,
-    "supports_file_inputs": true
+    "supports_file_inputs": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-30",
+    "successor": "gpt-4.1"
   },
   "gpt-4o-mini": {
     "context_window" : [1, 128000],
@@ -357,7 +391,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_pdf_upload": true,
-    "supports_file_inputs": true
+    "supports_file_inputs": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-30",
+    "successor": "gpt-4.1-mini"
   },
   // GPT-5-Codex (agent model for coding tasks)
   "gpt-5-codex": {
@@ -678,7 +715,10 @@ const modelSpec = {
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "vision_capability": true
+    "vision_capability": true,
+    "deprecated": true,
+    "sunset_date": "2026-04-04",
+    "successor": "command-a-vision-07-2025"
   },
   "command-a-reasoning-08-2025": {
     "context_window" : [1, 256000],
@@ -699,7 +739,10 @@ const modelSpec = {
     "top_p": [[0.01, 0.99], 0.75],
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": false
+    "tool_capability": false,
+    "deprecated": true,
+    "sunset_date": "2026-04-04",
+    "successor": "command-a-03-2025"
   },
   "command-r-08-2024": {
     "context_window" : [1, 128000],
@@ -709,6 +752,9 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
+    "deprecated": true,
+    "sunset_date": "2026-04-04",
+    "successor": "command-a-03-2025"
   },
   "command-r7b-12-2024": {
     "context_window" : [1, 128000],
@@ -718,6 +764,9 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
+    "deprecated": true,
+    "sunset_date": "2026-04-04",
+    "successor": "command-a-03-2025"
   },
   "command-r7b-arabic-02-2025": {
     "context_window" : [1, 128000],
@@ -727,6 +776,9 @@ const modelSpec = {
     "frequency_penalty": [[0.0, 1.0], 0.0],
     "presence_penalty": [[0.0, 1.0], 0.0],
     "tool_capability": true,
+    "deprecated": true,
+    "sunset_date": "2026-04-04",
+    "successor": "command-a-03-2025"
   },
   // Gemini models
   "gemini-3-flash-preview": {
@@ -838,7 +890,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-07-22",
+    "successor": "gemini-3.1-flash-lite-preview"
   },
   "gemini-2.5-flash": {
     "context_window" : [1048576],
@@ -859,7 +914,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-17",
+    "successor": "gemini-3-flash-preview"
   },
   "gemini-2.5-pro": {
     "context_window" : [1048576],
@@ -879,7 +937,10 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "deprecated": true,
+    "sunset_date": "2026-06-17",
+    "successor": "gemini-3.1-pro-preview"
   },
   // Mistral models
   // codestral models
@@ -1051,7 +1112,10 @@ const modelSpec = {
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
     "supports_web_search": false,
-    "supports_parallel_function_calling": true
+    "supports_parallel_function_calling": true,
+    "deprecated": true,
+    "sunset_date": "2026-02-28",
+    "successor": "grok-4-1-fast-non-reasoning"
   },
   "grok-4-0709": {
     "context_window" : [1, 2000000],

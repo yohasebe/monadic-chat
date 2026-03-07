@@ -414,8 +414,9 @@ module OllamaHelper
 
   def process_json_data(app, session, body, call_depth, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing Ollama streaming response at #{Time.now}")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing Ollama streaming response at #{Time.now}")
+      end
     end
 
     obj = session[:parameters]
@@ -425,7 +426,6 @@ module OllamaHelper
     accumulated_tool_calls = []
     finish_reason = nil
     fragment_sequence = 0
-    is_first_fragment = true
 
     body.each do |chunk|
       begin
@@ -440,7 +440,9 @@ module OllamaHelper
             accumulated_tool_calls << tc
           end
           if CONFIG["EXTRA_LOGGING"]
-            extra_log&.puts("Tool calls detected: #{accumulated_tool_calls.length}")
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("Tool calls detected: #{accumulated_tool_calls.length}")
+            end
           end
         elsif json.dig("message", "content")
           fragment = json.dig("message", "content").to_s
@@ -453,13 +455,14 @@ module OllamaHelper
           }
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log.puts("Fragment: sequence=#{fragment_sequence}, is_first=#{is_first_fragment}, length=#{fragment.length}, content=#{fragment.inspect}")
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("Fragment: sequence=#{fragment_sequence}, length=#{fragment.length}, content=#{fragment.inspect}")
+            end
           end
 
           fragment_sequence += 1
           block&.call res
           texts << fragment
-          is_first_fragment = false
         end
       rescue JSON::ParserError
         # Incomplete JSON, continue buffering
@@ -472,9 +475,10 @@ module OllamaHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log&.puts("Total fragments processed: #{texts.length}")
-      extra_log&.puts("Tool calls accumulated: #{accumulated_tool_calls.length}")
-      extra_log&.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Total fragments processed: #{texts.length}")
+        f.puts("Tool calls accumulated: #{accumulated_tool_calls.length}")
+      end
     end
 
     # Handle tool calls if any were detected
@@ -574,6 +578,12 @@ module OllamaHelper
                          end
       rescue StandardError => e
         function_return = "ERROR: #{e.message}"
+      end
+
+      # Collect gallery HTML for tool-generated images
+      if function_return.is_a?(Hash) && function_return[:gallery_html]
+        session[:tool_html_fragments] ||= []
+        session[:tool_html_fragments] << function_return[:gallery_html]
       end
 
       # Check for repeated errors

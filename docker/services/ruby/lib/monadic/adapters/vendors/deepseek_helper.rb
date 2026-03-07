@@ -1187,6 +1187,7 @@ module DeepSeekHelper
       body.delete("tool_choice")
     end
 
+    res = nil
     MAX_RETRIES.times do
       res = http.timeout(connect: open_timeout,
                          write: write_timeout,

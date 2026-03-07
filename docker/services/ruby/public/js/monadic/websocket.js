@@ -1914,7 +1914,9 @@ let loadedApp = "Chat";
           // Set default STT model if none selected or current selection is disabled
           const currentSTTModel = $("#stt-model").val();
           if (!currentSTTModel || $("#stt-model option:selected").prop("disabled")) {
-            $("#stt-model").val("gpt-4o-mini-transcribe-2025-12-15").trigger("change");
+            const defaultSTTModel = window.providerDefaults?.openai?.audio_transcription?.[0]
+              || "gpt-4o-mini-transcribe-2025-12-15";
+            $("#stt-model").val(defaultSTTModel).trigger("change");
           }
 
           // Set OpenAI TTS as default when it becomes available

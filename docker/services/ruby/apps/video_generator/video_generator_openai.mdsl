@@ -141,7 +141,7 @@ app "VideoGeneratorOpenAI" do
 
     define_tool "generate_video_with_sora", "Generate videos using OpenAI's Sora 2 models. Creates asynchronous video generation jobs." do
       parameter :prompt, "string", "Text description of the video (user's exact words, unmodified)", required: true
-      parameter :model, "string", "Model to use: 'sora-2' (fast, default) or 'sora-2-pro' (high quality). Default: sora-2", required: false, enum: ["sora-2", "sora-2-pro"]
+      parameter :model, "string", "Model to use for video generation. First model is fast default, last is high quality.", required: false, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "video") rescue ["sora-2", "sora-2-pro"])
       parameter :size, "string", "Video resolution. Default: 1280x720", required: false, enum: ["1280x720", "720x1280", "1792x1024", "1024x1792"]
       parameter :seconds, "string", "Video duration in seconds. Default: 8", required: false, enum: ["4", "8", "12"]
       parameter :image_path, "string", "Filename of image in shared folder for image-to-video", required: false

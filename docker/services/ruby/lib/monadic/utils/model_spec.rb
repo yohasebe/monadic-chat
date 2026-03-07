@@ -319,6 +319,10 @@ module Monadic
           get_model_property(model_name, "deprecated") == true
         end
 
+        def ui_hidden?(model_name)
+          get_model_property(model_name, "ui_hidden") == true
+        end
+
         # --- Provider Defaults accessors ---
 
         # Load and cache the providerDefaults object from model_spec.js
@@ -363,6 +367,22 @@ module Monadic
 
         def default_audio_model(provider)
           get_provider_default(provider, "audio_transcription")
+        end
+
+        def default_image_model(provider)
+          get_provider_default(provider, "image")
+        end
+
+        def default_video_model(provider)
+          get_provider_default(provider, "video")
+        end
+
+        def default_tts_model(provider)
+          get_provider_default(provider, "tts")
+        end
+
+        def default_embedding_model(provider)
+          get_provider_default(provider, "embedding")
         end
 
         def reload!

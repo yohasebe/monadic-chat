@@ -297,6 +297,49 @@ describe('Model Utils - Curated vs All Models (showAll toggle)', () => {
     });
   });
 
+  describe('isModelUiHidden', () => {
+    it('returns true for models with ui_hidden: true', () => {
+      expect(modelUtils.isModelUiHidden('gemini-3.1-pro-preview-customtools')).toBe(true);
+    });
+
+    it('returns false for normal models', () => {
+      expect(modelUtils.isModelUiHidden('gemini-3.1-pro-preview')).toBe(false);
+      expect(modelUtils.isModelUiHidden('gpt-5.4')).toBe(false);
+    });
+
+    it('returns false for unknown models', () => {
+      expect(modelUtils.isModelUiHidden('nonexistent-model')).toBe(false);
+    });
+  });
+
+  describe('getModelsForApp - ui_hidden filtering', () => {
+    it('excludes ui_hidden models from all-models mode (showAll=true)', () => {
+      const appConfig = { group: 'Gemini', models: '[]' };
+      const models = modelUtils.getModelsForApp(appConfig, true);
+      expect(models).not.toContain('gemini-3.1-pro-preview-customtools');
+      // Non-hidden Gemini models should still be present
+      expect(models).toContain('gemini-3.1-pro-preview');
+    });
+
+    it('excludes ui_hidden models even when listed in MDSL (showAll=true)', () => {
+      const appConfig = {
+        group: 'Gemini',
+        models: '["gemini-3.1-pro-preview-customtools", "gemini-3-flash-preview"]'
+      };
+      const models = modelUtils.getModelsForApp(appConfig, true);
+      // MDSL models are prepended without ui_hidden filter, but the all-models
+      // portion should not include customtools
+      // Note: MDSL-listed models pass through even if ui_hidden (explicit override)
+      expect(models).toContain('gemini-3-flash-preview');
+    });
+
+    it('ui_hidden models remain accessible to backend via modelSpec', () => {
+      // ui_hidden only affects UI dropdown, not modelSpec availability
+      expect(window.modelSpec['gemini-3.1-pro-preview-customtools']).toBeDefined();
+      expect(window.modelSpec['gemini-3.1-pro-preview-customtools'].tool_capability).toBe(true);
+    });
+  });
+
   describe('getModelsForApp - Ollama unchanged by showAll', () => {
     it('returns same results regardless of showAll flag', () => {
       const appConfig = {

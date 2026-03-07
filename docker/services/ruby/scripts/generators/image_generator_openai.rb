@@ -7,15 +7,34 @@ require "optparse"
 require "fileutils"
 require_relative "../../lib/monadic/utils/ssl_configuration"
 
+begin
+  require_relative "../../lib/monadic/utils/model_spec"
+rescue LoadError
+  # ModelSpec may not be available in standalone mode
+end
+
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
 end
+
+# Resolve image models from providerDefaults SSOT
+def resolve_openai_image_models
+  if defined?(Monadic::Utils::ModelSpec)
+    Monadic::Utils::ModelSpec.get_provider_models("openai", "image") || %w[gpt-image-1.5 chatgpt-image-latest]
+  else
+    %w[gpt-image-1.5 chatgpt-image-latest]
+  end
+rescue
+  %w[gpt-image-1.5 chatgpt-image-latest]
+end
+
+ALLOWED_IMAGE_MODELS = resolve_openai_image_models
 
 # Parse command line arguments
 
 options = {
   operation: "generate",
-  model: "gpt-image-1.5",
+  model: ALLOWED_IMAGE_MODELS.first,
   size: "1024x1024",
   quality: "auto",
   output_format: "png",
@@ -34,10 +53,10 @@ parser = OptionParser.new do |opts|
     end
   end
 
-  opts.on("-m", "--model MODEL", "Model: gpt-image-1.5, chatgpt-image-latest") do |model|
+  opts.on("-m", "--model MODEL", "Model: #{ALLOWED_IMAGE_MODELS.join(', ')}") do |model|
     options[:model] = model
-    unless %w[gpt-image-1.5 chatgpt-image-latest].include?(model)
-      puts "ERROR: Invalid model. Allowed models are gpt-image-1.5, chatgpt-image-latest."
+    unless ALLOWED_IMAGE_MODELS.include?(model)
+      puts "ERROR: Invalid model. Allowed models are #{ALLOWED_IMAGE_MODELS.join(', ')}."
       exit
     end
   end

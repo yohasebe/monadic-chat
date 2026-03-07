@@ -23,6 +23,26 @@ WRITE_TIMEOUT = 60
 MAX_RETRIES = 5
 RETRY_DELAY = 1
 
+# Load ModelSpec for SSOT model resolution (optional — falls back to hardcoded defaults)
+begin
+  require 'monadic/utils/model_spec'
+rescue LoadError
+  # ModelSpec not available in this environment
+end
+
+# Resolve Gemini TTS model via providerDefaults SSOT with hardcoded fallback
+def resolve_gemini_tts_model(provider_label)
+  tts_models = if defined?(Monadic::Utils::ModelSpec)
+                 Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
+               end
+  case provider_label
+  when "gemini-pro"
+    tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
+  else # "gemini-flash", "gemini"
+    tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+  end
+end
+
 # Helper to configure SSL for Net::HTTP
 def configure_net_http_ssl(http)
   return unless http.use_ssl?
@@ -311,15 +331,8 @@ def tts_api_request(text,
       }
     }
 
-    # Use the appropriate Gemini model with TTS capability
-    model_name = case provider
-                 when "gemini-pro"
-                   "gemini-2.5-pro-preview-tts"
-                 when "gemini-flash", "gemini"
-                   "gemini-2.5-flash-preview-tts"
-                 else
-                   "gemini-2.5-flash-preview-tts"
-                 end
+    # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+    model_name = resolve_gemini_tts_model(provider)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
   else # openai
     # Try config file first (primary source of truth)

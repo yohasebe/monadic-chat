@@ -840,7 +840,8 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
     "supports_web_search": true,
-    "supports_pdf": true
+    "supports_pdf": true,
+    "ui_hidden": true
   },
   "gemini-3.1-flash-lite-preview": {
     "context_window" : [1048576],
@@ -1217,7 +1218,11 @@ const providerDefaults = {
     "chat": ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1"],
     "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-4.1"],
     "vision": ["gpt-4.1-mini"],
-    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"]
+    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
+    "image": ["gpt-image-1.5", "chatgpt-image-latest"],
+    "video": ["sora-2", "sora-2-pro"],
+    "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"],
+    "embedding": ["text-embedding-3-large"]
   },
   "anthropic": {
     "chat": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
@@ -1227,7 +1232,10 @@ const providerDefaults = {
   "gemini": {
     "chat": ["gemini-3-flash-preview", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview"],
     "vision": ["gemini-3.1-flash-lite-preview"],
-    "audio_transcription": ["gemini-3.1-flash-lite-preview"]
+    "audio_transcription": ["gemini-3.1-flash-lite-preview"],
+    "image": ["gemini-3.1-flash-image-preview", "imagen-4.0-fast-generate-001", "imagen-4.0-generate-001", "imagen-4.0-ultra-generate-001"],
+    "video": ["veo-3.1-fast-generate-preview", "veo-3.1-generate-preview"],
+    "tts": ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
     "chat": ["command-a-reasoning-08-2025"]
@@ -1238,7 +1246,9 @@ const providerDefaults = {
   "xai": {
     "chat": ["grok-4-1-fast-non-reasoning"],
     "code": ["grok-code-fast-1"],
-    "vision": ["grok-4-1-fast-non-reasoning"]
+    "vision": ["grok-4-1-fast-non-reasoning"],
+    "image": ["grok-imagine-image"],
+    "video": ["grok-imagine-video"]
   },
   "perplexity": {
     "chat": ["sonar-reasoning-pro"]

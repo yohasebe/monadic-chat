@@ -64,7 +64,13 @@ class VideoGeneratorOpenAI < MonadicApp
   end
 
   # Override to add monadic state saving for uploaded images
-  def generate_video_with_sora(prompt:, model: "sora-2", size: "1280x720", seconds: "8", image_path: nil, remix_video_id: nil, session: nil)
+  def generate_video_with_sora(prompt:, model: nil, size: "1280x720", seconds: "8", image_path: nil, remix_video_id: nil, session: nil)
+    # Resolve model via SSOT before validation
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                 Monadic::Utils::ModelSpec.default_video_model("openai")
+               end
+    model ||= "sora-2"
+
     validate_sora_params(prompt: prompt, model: model, size: size, seconds: seconds)
 
     # Call the parent implementation
@@ -94,7 +100,11 @@ class VideoGeneratorOpenAI < MonadicApp
   def validate_sora_params(prompt:, model:, size:, seconds:)
     raise ArgumentError, "Prompt cannot be empty" if prompt.to_s.strip.empty?
 
-    valid_models = %w[sora-2 sora-2-pro]
+    valid_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("openai", "video") || %w[sora-2 sora-2-pro]
+                   else
+                     %w[sora-2 sora-2-pro]
+                   end
     raise ArgumentError, "Invalid model: #{model}" unless valid_models.include?(model)
 
     valid_sizes = %w[1280x720 1920x1080 1080x1920 720x1280 1792x1024 1024x1792]

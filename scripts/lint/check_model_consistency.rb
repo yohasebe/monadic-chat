@@ -230,8 +230,8 @@ module ModelConsistency
               issues << Issue.new(category: :defaults_deprecated, file: SPEC_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: msg)
             end
 
-            # Model not in spec (skip audio_transcription as those may not be in modelSpec)
-            next if category == "audio_transcription"
+            # Model not in spec (skip categories whose models use dedicated APIs, not chat completions)
+            next if %w[audio_transcription image video tts].include?(category)
 
             unless MdslChecker.model_exists_in_spec?(spec, model)
               issues << Issue.new(category: :defaults_unknown, file: SPEC_FILE.relative_path_from(ROOT).to_s, line: nil, model: model, message: "providerDefaults #{provider}/#{category} model not found in model_spec.js")

@@ -5,9 +5,17 @@ require "http"
 require "json"
 require "optparse"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/model_spec"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
+end
+
+# Resolve default image model from providerDefaults SSOT
+def default_grok_image_model
+  Monadic::Utils::ModelSpec.default_image_model("xai") || "grok-imagine-image"
+rescue
+  "grok-imagine-image"
 end
 
 # Parse command line arguments for the prompt and size
@@ -54,7 +62,7 @@ def generate_image(prompt, aspect_ratio: nil, num_retrials: 3)
     }
 
     body = {
-      model: "grok-imagine-image",
+      model: default_grok_image_model,
       prompt: prompt,
       n: 1,
       response_format: "b64_json"

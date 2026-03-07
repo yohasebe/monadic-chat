@@ -6,6 +6,7 @@ require "optparse"
 require "fileutils"
 require "openssl"
 require_relative "../../lib/monadic/utils/ssl_configuration"
+require_relative "../../lib/monadic/utils/model_spec"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -32,9 +33,16 @@ def get_save_path
   "./"
 end
 
+# Resolve default video model from providerDefaults SSOT
+def default_video_model
+  Monadic::Utils::ModelSpec.default_video_model("openai") || "sora-2"
+rescue
+  "sora-2"
+end
+
 # Parse command line arguments
 options = {
-  model: "sora-2",
+  model: default_video_model,
   size: "1280x720",
   seconds: "8",
   max_wait: 420 # 7 minutes maximum wait time for video generation
@@ -47,12 +55,13 @@ parser = OptionParser.new do |opts|
     options[:prompt] = prompt
   end
 
-  opts.on("-m", "--model MODEL", "Model: sora-2, sora-2-pro") do |model|
+  opts.on("-m", "--model MODEL", "Model for video generation") do |model|
+    valid_models = Monadic::Utils::ModelSpec.get_provider_models("openai", "video") || %w[sora-2 sora-2-pro]
     options[:model] = model
-    unless %w[sora-2 sora-2-pro].include?(model)
+    unless valid_models.include?(model)
       puts JSON.generate({
         success: false,
-        error: "Invalid model. Allowed models are sora-2, sora-2-pro."
+        error: "Invalid model. Allowed models are #{valid_models.join(', ')}."
       })
       exit 1
     end

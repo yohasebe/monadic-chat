@@ -124,8 +124,40 @@ RSpec.describe Monadic::Utils::ModelSpec, 'provider defaults' do
       expect(described_class.default_audio_model("openai")).to eq("gpt-4o-mini-transcribe-2025-12-15")
     end
 
+    it '.default_image_model returns the image default' do
+      expect(described_class.default_image_model("openai")).to eq("gpt-image-1.5")
+    end
+
+    it '.default_video_model returns the video default' do
+      expect(described_class.default_video_model("openai")).to eq("sora-2")
+    end
+
+    it '.default_tts_model returns the tts default' do
+      expect(described_class.default_tts_model("openai")).to eq("gpt-4o-mini-tts-2025-12-15")
+    end
+
+    it '.default_image_model returns nil when category does not exist' do
+      expect(described_class.default_image_model("cohere")).to be_nil
+    end
+
+    it '.default_video_model for gemini returns veo model' do
+      expect(described_class.default_video_model("gemini")).to eq("veo-3.1-fast-generate-preview")
+    end
+
+    it '.default_image_model for xai returns grok-imagine-image' do
+      expect(described_class.default_image_model("xai")).to eq("grok-imagine-image")
+    end
+
     it '.default_code_model returns nil when category does not exist' do
       expect(described_class.default_code_model("cohere")).to be_nil
+    end
+
+    it '.default_embedding_model returns the embedding default' do
+      expect(described_class.default_embedding_model("openai")).to eq("text-embedding-3-large")
+    end
+
+    it '.default_embedding_model returns nil for providers without embedding' do
+      expect(described_class.default_embedding_model("anthropic")).to be_nil
     end
   end
 

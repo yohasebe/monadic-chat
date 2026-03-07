@@ -48,12 +48,16 @@ describe('providerDefaults', () => {
   });
 
   describe('category structure', () => {
-    it('openai should have chat, code, vision, and audio_transcription', () => {
+    it('openai should have chat, code, vision, audio_transcription, image, video, tts, and embedding', () => {
       const openai = providerDefaults.openai;
       expect(openai.chat).toBeDefined();
       expect(openai.code).toBeDefined();
       expect(openai.vision).toBeDefined();
       expect(openai.audio_transcription).toBeDefined();
+      expect(openai.image).toBeDefined();
+      expect(openai.video).toBeDefined();
+      expect(openai.tts).toBeDefined();
+      expect(openai.embedding).toBeDefined();
     });
 
     it('anthropic should have chat, code, and vision', () => {
@@ -63,11 +67,22 @@ describe('providerDefaults', () => {
       expect(anthropic.vision).toBeDefined();
     });
 
-    it('gemini should have chat, vision, and audio_transcription', () => {
+    it('gemini should have chat, vision, audio_transcription, image, and video', () => {
       const gemini = providerDefaults.gemini;
       expect(gemini.chat).toBeDefined();
       expect(gemini.vision).toBeDefined();
       expect(gemini.audio_transcription).toBeDefined();
+      expect(gemini.image).toBeDefined();
+      expect(gemini.video).toBeDefined();
+    });
+
+    it('xai should have chat, code, vision, image, and video', () => {
+      const xai = providerDefaults.xai;
+      expect(xai.chat).toBeDefined();
+      expect(xai.code).toBeDefined();
+      expect(xai.vision).toBeDefined();
+      expect(xai.image).toBeDefined();
+      expect(xai.video).toBeDefined();
     });
   });
 
@@ -87,6 +102,34 @@ describe('providerDefaults', () => {
     it('xai code default is grok-code-fast-1', () => {
       expect(providerDefaults.xai.code[0]).toBe('grok-code-fast-1');
     });
+
+    it('openai image default is gpt-image-1.5', () => {
+      expect(providerDefaults.openai.image[0]).toBe('gpt-image-1.5');
+    });
+
+    it('openai video default is sora-2', () => {
+      expect(providerDefaults.openai.video[0]).toBe('sora-2');
+    });
+
+    it('openai tts default is gpt-4o-mini-tts-2025-12-15', () => {
+      expect(providerDefaults.openai.tts[0]).toBe('gpt-4o-mini-tts-2025-12-15');
+    });
+
+    it('gemini image default is gemini-3.1-flash-image-preview', () => {
+      expect(providerDefaults.gemini.image[0]).toBe('gemini-3.1-flash-image-preview');
+    });
+
+    it('gemini video default is veo-3.1-fast-generate-preview', () => {
+      expect(providerDefaults.gemini.video[0]).toBe('veo-3.1-fast-generate-preview');
+    });
+
+    it('xai image default is grok-imagine-image', () => {
+      expect(providerDefaults.xai.image[0]).toBe('grok-imagine-image');
+    });
+
+    it('openai embedding default is text-embedding-3-large', () => {
+      expect(providerDefaults.openai.embedding[0]).toBe('text-embedding-3-large');
+    });
   });
 
   describe('all listed models exist in modelSpec', () => {
@@ -94,7 +137,7 @@ describe('providerDefaults', () => {
     // - Ollama models are dynamic/local and not registered in the static spec
     // - Audio transcription models use dedicated API endpoints, not the chat completions spec
     const skipProviders = new Set(['ollama']);
-    const skipCategories = new Set(['audio_transcription']);
+    const skipCategories = new Set(['audio_transcription', 'image', 'video', 'tts', 'embedding']);
 
     Object.entries(require(path.join(__dirname, '../../docker/services/ruby/public/js/monadic/model_spec.js')).providerDefaults || {}).forEach(([provider, categories]) => {
       if (skipProviders.has(provider)) return;

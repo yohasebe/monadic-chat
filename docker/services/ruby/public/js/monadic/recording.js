@@ -385,7 +385,9 @@ voiceButton.on("click", function () {
             }
             
             let lang_code = $("#conversation-language").val();
-            let stt_model = $("#stt-model").val() || "gpt-4o-mini-transcribe-2025-12-15";
+            let stt_model = $("#stt-model").val()
+              || window.providerDefaults?.openai?.audio_transcription?.[0]
+              || "gpt-4o-mini-transcribe-2025-12-15";
 
             // Extract format from the MIME type
             let format = "webm"; // Default fallback

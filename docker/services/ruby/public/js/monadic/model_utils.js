@@ -252,11 +252,24 @@ function getModelSuccessor(modelName) {
   return getModelSpecWithFallback(modelName, 'successor') || null;
 }
 
+/**
+ * Check if a model should be hidden from the user-facing UI dropdown.
+ * Models with ui_hidden are valid for backend/agent use but not appropriate
+ * for direct user selection (e.g., agent-optimized variants like customtools).
+ * Falls back to base model if dated version is not found.
+ * @param {String} modelName - The model name to check
+ * @returns {Boolean} True if the model should be hidden from UI
+ */
+function isModelUiHidden(modelName) {
+  return getModelSpecWithFallback(modelName, 'ui_hidden') === true;
+}
+
 // Export to window for global access
 window.getModelSpecWithFallback = getModelSpecWithFallback;
 window.modelRequiresConfirmation = modelRequiresConfirmation;
 window.isModelDeprecated = isModelDeprecated;
 window.getModelSuccessor = getModelSuccessor;
+window.isModelUiHidden = isModelUiHidden;
 
 /**
  * Get the latest dated model from an array of dated models
@@ -392,7 +405,8 @@ function getModelsForApp(appConfig, showAll) {
     // === All-models mode (with policy filters) ===
     const allProviderModels = Object.keys(window.modelSpec || {}).filter(model => {
       return providerConfig.modelPattern && providerConfig.modelPattern.test(model)
-        && !isModelDeprecated(model);
+        && !isModelDeprecated(model)
+        && !isModelUiHidden(model);
     });
     const filteredModels = filterToLatestVersions(allProviderModels);
     const policyFiltered = filterModelsForAllMode(filteredModels, providerKey);
@@ -494,5 +508,5 @@ function getDefaultModelForApp(appConfig, availableModels) {
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, filterModelsForAllMode };
+  module.exports = { getModelsForApp, getDefaultModelForApp, isModelDeprecated, getModelSuccessor, isModelUiHidden, filterModelsForAllMode };
 }

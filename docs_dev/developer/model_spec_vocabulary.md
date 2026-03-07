@@ -56,6 +56,9 @@ This document defines the canonical property names used across providers in `mod
 - requires_confirmation: boolean
   - When `true`, the model is considered expensive or special and requires explicit user confirmation before use. These models are excluded from the "All Models" dropdown to prevent accidental usage.
 
+- ui_hidden: boolean
+  - When `true`, the model is hidden from user-facing UI dropdowns (both curated and "All" modes). The model remains valid for backend use by agents and scripts. Use this for behavioral variants optimized for specific agent workflows (e.g., `customtools` for bash+tool prioritization) that are not appropriate for general user selection.
+
 - supports_parallel_function_calling: boolean
   - Optional. Provider-specific parallel tool semantics.
 
@@ -92,6 +95,7 @@ Helpers should prefer accessors over reading raw properties when possible:
 - ModelSpec.get_verbosity_options(model)
 - ModelSpec.responses_api?(model)
 - ModelSpec.supports_file_inputs?(model)
+- ModelSpec.ui_hidden?(model)
 
 These accessors apply conservative defaults (e.g., streaming defaults to true when undefined) in line with existing helper behavior.
 
@@ -126,6 +130,7 @@ These fields manage model deprecation and migration. They are used by the UI to 
 
 - isModelDeprecated(modelName) — returns `true` if the model has `deprecated: true`
 - getModelSuccessor(modelName) — returns the `successor` string, or `null`
+- isModelUiHidden(modelName) — returns `true` if the model has `ui_hidden: true`
 
 ### Lint Tool
 
@@ -145,7 +150,10 @@ const providerDefaults = {
     "chat": ["gpt-5.4", "gpt-5.2", ...],
     "code": ["gpt-5.3-codex", ...],
     "vision": ["gpt-4.1-mini"],
-    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"]
+    "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],
+    "image": ["gpt-image-1.5", "chatgpt-image-latest"],
+    "video": ["sora-2", "sora-2-pro"],
+    "tts": ["gpt-4o-mini-tts-2025-12-15", "tts-1-hd", "tts-1"]
   },
   // ... other providers
 };
@@ -158,11 +166,17 @@ const providerDefaults = {
 | `code` | Code generation agents (OpenAI Code, Claude Code, Grok Code) |
 | `vision` | Image analysis agent |
 | `audio_transcription` | Audio transcription agent |
+| `image` | Image generation (OpenAI, Gemini, xAI) |
+| `video` | Video generation (Sora, Veo, Grok Imagine) |
+| `tts` | Text-to-speech (OpenAI TTS: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1; Gemini TTS: [0]=flash, [1]=pro) |
+| `embedding` | Text embedding (OpenAI: [0]=text-embedding-3-large) |
 
 **Ruby access** (via `Monadic::Utils::ModelSpec`):
 - `get_provider_default(provider, category)` — first model in list
 - `get_provider_models(provider, category)` — full list
 - `default_chat_model(provider)` / `default_code_model(provider)` / `default_vision_model(provider)` / `default_audio_model(provider)` — convenience accessors
+- `default_image_model(provider)` / `default_video_model(provider)` / `default_tts_model(provider)` — media generation accessors
+- `default_embedding_model(provider)` — embedding model accessor
 - Provider key aliases: `"google"→"gemini"`, `"claude"→"anthropic"`, `"grok"→"xai"`
 
 **Electron access** (via `app/main.js`):
@@ -186,6 +200,7 @@ The UI provides an "All" toggle next to the Model dropdown. When OFF (default), 
 | Expensive/special models | `requires_confirmation: true` | Always | None |
 | Tool-incapable models | `tool_capability: false` | Always | **Perplexity** (no tool-capable models exist for this provider) |
 | Deprecated models | `deprecated: true` | Always (both modes) | None |
+| Agent-only models | `ui_hidden: true` | Always (both modes) | None |
 
 **Rationale:**
 - `requires_confirmation` models (e.g., `gpt-5.4-pro`, `o1-pro`) are high-cost and should only be selected intentionally via MDSL or providerDefaults, not through casual browsing.

@@ -2875,7 +2875,11 @@ module WebSocketHelper
             end
             speed = obj["tts_speed"]
             response_format = "mp3"
-            model = "tts-1"
+            model = if defined?(Monadic::Utils::ModelSpec)
+                      Monadic::Utils::ModelSpec.default_tts_model("openai") || "tts-1"
+                    else
+                      "tts-1"
+                    end
             language = obj["conversation_language"] || "auto"
           end
 

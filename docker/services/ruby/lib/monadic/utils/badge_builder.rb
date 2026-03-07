@@ -25,6 +25,11 @@ module Monadic
         'claude_code_agent' => 'code agent'
       }.freeze
 
+      # Map agent type keys to generic badge labels (avoids hardcoding model names)
+      AGENT_TYPE_LABELS = {
+        'code_generator' => 'code generation'
+      }.freeze
+
       # Main entry point for badge generation
       #
       # @param app_settings [Hash] MDSL settings hash
@@ -225,13 +230,15 @@ module Monadic
             # Skip if model_name is nil or empty
             next unless model_name && !model_name.to_s.strip.empty?
 
+            # Use generic label from AGENT_TYPE_LABELS instead of raw model name
+            agent_label = AGENT_TYPE_LABELS[agent_type.to_s] || agent_type.to_s.tr("_", " ")
             badges << {
               type: :capabilities,
               subtype: :backend,
               id: "#{agent_type}_backend",
               icon: "fa-server",
-              label: model_name.to_s,
-              description: "Backend: #{model_name}",
+              label: agent_label,
+              description: agent_label.capitalize,
               order: 4
             }
           end

@@ -366,16 +366,7 @@ module InteractionUtils
         "Authorization" => "Bearer #{api_key}"
       }
 
-      model = case provider
-              when "openai-tts-4o"
-                "gpt-4o-mini-tts-2025-12-15"
-              when "openai-tts-hd"
-                "tts-1-hd"
-              when "openai-tts"
-                "tts-1"
-              else
-                "gpt-4o-mini-tts-2025-12-15"
-              end
+      model = resolve_tts_model(provider)
 
       body = {
         "input" => text_converted,
@@ -511,15 +502,8 @@ module InteractionUtils
         }
       }
       
-      # Use the appropriate Gemini model with TTS capability
-      model_name = case provider
-                   when "gemini-flash"
-                     "gemini-2.5-flash-preview-tts"
-                   when "gemini-pro"
-                     "gemini-2.5-pro-preview-tts"
-                   else
-                     "gemini-2.5-flash-preview-tts" # default
-                   end
+      # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+      model_name = resolve_tts_model(provider)
       # Always use non-streaming endpoint for better performance
       # Gemini TTS returns complete audio in one response anyway
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
@@ -814,16 +798,7 @@ module InteractionUtils
     case provider
     when "openai-tts-4o", "openai-tts", "openai-tts-hd", "openai"
       api_key = settings.api_key
-      model = case provider
-              when "openai-tts-4o"
-                "gpt-4o-mini-tts-2025-12-15"
-              when "openai-tts-hd"
-                "tts-1-hd"
-              when "openai-tts"
-                "tts-1"
-              else
-                "gpt-4o-mini-tts-2025-12-15"
-              end
+      model = resolve_tts_model(provider)
 
       body = {
         "input" => text_converted,
@@ -1069,15 +1044,8 @@ module InteractionUtils
         }
       }
 
-      # Use the appropriate Gemini model with TTS capability
-      model_name = case provider
-                   when "gemini-flash"
-                     "gemini-2.5-flash-preview-tts"
-                   when "gemini-pro"
-                     "gemini-2.5-pro-preview-tts"
-                   else
-                     "gemini-2.5-flash-preview-tts"
-                   end
+      # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
+      model_name = resolve_tts_model(provider)
 
       target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
 
@@ -1550,7 +1518,11 @@ module InteractionUtils
     end.join("\n")
   end
 
-  def stt_api_request(blob, format, lang_code, model = "gpt-4o-transcribe")
+  def stt_api_request(blob, format, lang_code, model = nil)
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                 Monadic::Utils::ModelSpec.default_audio_model("openai")
+               end
+    model ||= "gpt-4o-mini-transcribe-2025-12-15"
     # Route to Gemini API if model starts with "gemini-"
     if model.start_with?("gemini-")
       return gemini_stt_api_request(blob, format, lang_code, model)
@@ -1743,5 +1715,38 @@ module InteractionUtils
 
     msg = session.delete(:verification_wait_message)
     block&.call({ "type" => "wait", "content" => msg })
+  end
+
+  private
+
+  # Resolve TTS provider label to actual model name via providerDefaults.
+  # OpenAI TTS list is ordered: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
+  # Gemini TTS list is ordered: [0]=flash, [1]=pro
+  def resolve_tts_model(provider_label)
+    if provider_label =~ /\Agemini/
+      tts_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
+                   end
+      case provider_label
+      when "gemini-pro"
+        tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
+      else # "gemini-flash", "gemini"
+        tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+      end
+    else
+      tts_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("openai", "tts")
+                   end
+      case provider_label
+      when "openai-tts-4o"
+        tts_models&.[](0) || "gpt-4o-mini-tts-2025-12-15"
+      when "openai-tts-hd"
+        tts_models&.[](1) || "tts-1-hd"
+      when "openai-tts"
+        tts_models&.[](2) || "tts-1"
+      else
+        tts_models&.[](0) || "gpt-4o-mini-tts-2025-12-15"
+      end
+    end
   end
 end

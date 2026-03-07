@@ -595,9 +595,9 @@ module OpenAIHelper
 
     if skip_tools
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'")
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts("[#{Time.now}] OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'")
+        end
       end
       body.delete("tools")
       body.delete("response_format")
@@ -1061,12 +1061,12 @@ module OpenAIHelper
       )
 
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] OpenAI System Prompt Injection:"
-        extra_log.puts "  - Base prompt length: #{initial_prompt.to_s.length}"
-        extra_log.puts "  - Augmented prompt length: #{augmented_prompt.length}"
-        extra_log.puts "  - Injections applied: #{augmented_prompt != initial_prompt.to_s}"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] OpenAI System Prompt Injection:"
+          f.puts "  - Base prompt length: #{initial_prompt.to_s.length}"
+          f.puts "  - Augmented prompt length: #{augmented_prompt.length}"
+          f.puts "  - Injections applied: #{augmented_prompt != initial_prompt.to_s}"
+        end
       end
 
       if augmented_prompt != initial_prompt.to_s
@@ -1411,20 +1411,20 @@ module OpenAIHelper
 
     # Simplified logging for Responses API
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("[#{Time.now}] Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}")
-      if responses_body['input']
-        responses_body['input'].each_with_index do |msg, idx|
-          if msg['content'].is_a?(Array)
-            msg['content'].each do |item|
-              if item['type'] == 'file' || item['type'] == 'input_file'
-                extra_log.puts("  Message #{idx} has #{item['type']}: filename=#{item['filename'] || item.dig('file', 'filename')}")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("[#{Time.now}] Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}")
+        if responses_body['input']
+          responses_body['input'].each_with_index do |msg, idx|
+            if msg['content'].is_a?(Array)
+              msg['content'].each do |item|
+                if item['type'] == 'file' || item['type'] == 'input_file'
+                  f.puts("  Message #{idx} has #{item['type']}: filename=#{item['filename'] || item.dig('file', 'filename')}")
+                end
               end
             end
           end
         end
       end
-      extra_log.close
     end
 
     responses_body
@@ -1710,10 +1710,11 @@ module OpenAIHelper
     # which would cause it to repeatedly call the same tool (e.g., image generation)
     if @clear_orchestration_history
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] OpenAI: Clearing orchestration history in api_request"
-        extra_log.puts "  Original context size: #{context.size}"
-        extra_log.puts "  self.class: #{self.class.name}"
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] OpenAI: Clearing orchestration history in api_request"
+          f.puts "  Original context size: #{context.size}"
+          f.puts "  self.class: #{self.class.name}"
+        end
       end
 
       # Keep only: first message (system) + last user message
@@ -1727,14 +1728,16 @@ module OpenAIHelper
         context.each { |msg| msg["active"] = true }
 
         if CONFIG["EXTRA_LOGGING"]
-          extra_log.puts "  Filtered context size: #{context.size}"
-          extra_log.puts "  First message role: #{first_msg["role"]}"
-          extra_log.puts "  Last user message role: #{last_user_msg["role"]}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "  Filtered context size: #{context.size}"
+            f.puts "  First message role: #{first_msg["role"]}"
+            f.puts "  Last user message role: #{last_user_msg["role"]}"
+          end
         end
       elsif CONFIG["EXTRA_LOGGING"]
-        extra_log.puts "  WARNING: Could not filter context (missing first or last user message)"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "  WARNING: Could not filter context (missing first or last user message)"
+        end
       end
     end
 
@@ -1813,9 +1816,10 @@ module OpenAIHelper
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
 
     obj = session[:parameters]
@@ -1857,16 +1861,20 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             # Log raw JSON data before parsing (for debugging delta issues)
-            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
+            if CONFIG["EXTRA_LOGGING"]
               if json_data.include?("delta") && (json_data.include?("き") || json_data.include?("れ"))
-                extra_log.puts("[RAW JSON BEFORE PARSE - Chat API] #{json_data}")
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts("[RAW JSON BEFORE PARSE - Chat API] #{json_data}")
+                end
               end
             end
 
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
-              extra_log.puts(JSON.pretty_generate(json))
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts(JSON.pretty_generate(json))
+              end
             end
 
             # Check if response model differs from requested model
@@ -1944,15 +1952,6 @@ module OpenAIHelper
     end
 
     result = texts.empty? ? nil : texts.first[1]
-    
-    
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        extra_log.close unless extra_log.closed?
-      rescue StandardError
-        # Already closed, ignore
-      end
-    end
 
     if tools.any?
       assemble_openai_chat_tool_results(app, session, tools, result, &block)
@@ -2477,9 +2476,10 @@ module OpenAIHelper
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing responses API query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing responses API query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
 
     obj = session[:parameters]
@@ -2543,16 +2543,20 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             # Log raw JSON data before parsing (for debugging delta issues)
-            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
+            if CONFIG["EXTRA_LOGGING"]
               if json_data.include?("output_text.delta") && (json_data.include?("き") || json_data.include?("れ"))
-                extra_log.puts("[RAW JSON BEFORE PARSE] #{json_data}")
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts("[RAW JSON BEFORE PARSE] #{json_data}")
+                end
               end
             end
 
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
-              extra_log.puts(JSON.pretty_generate(json))
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts(JSON.pretty_generate(json))
+              end
             end
 
             # Check if response model differs from requested model
@@ -2565,7 +2569,7 @@ module OpenAIHelper
 
             # Dispatch event to handler; returns nil (continue), :skip (next), or Array (early return)
             event_type = json["type"]
-            result = dispatch_openai_response_event(json, event_type, state, query, obj, extra_log, &block)
+            result = dispatch_openai_response_event(json, event_type, state, query, obj, &block)
             if result == :skip
               next
             elsif result.is_a?(Array)
@@ -2590,14 +2594,6 @@ module OpenAIHelper
       buffer = scanner.rest
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        extra_log.close unless extra_log.closed?
-      rescue StandardError
-        # Already closed, ignore
-      end
-    end
-
     # Handle tool calls if any were collected
     tool_result = assemble_openai_tool_results_from_responses(app, session, state, &block)
     return tool_result if tool_result
@@ -2618,7 +2614,7 @@ module OpenAIHelper
 
   # Dispatch a single Responses API SSE event to the appropriate handler.
   # Returns nil to continue, :skip to skip to next event, or Array for early return.
-  private def dispatch_openai_response_event(json, event_type, state, query, obj, extra_log, &block)
+  private def dispatch_openai_response_event(json, event_type, state, query, obj, &block)
     case event_type
     when "response.created"
       # Store model information from response.created event if available
@@ -3016,13 +3012,6 @@ module OpenAIHelper
       res = { "type" => "error", "content" => formatted_error }
       block&.call res
 
-      if CONFIG["EXTRA_LOGGING"]
-        begin
-          extra_log.close unless extra_log.closed?
-        rescue StandardError
-          # Already closed, ignore
-        end
-      end
       return [res]
 
     else

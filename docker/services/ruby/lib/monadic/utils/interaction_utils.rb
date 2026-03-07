@@ -231,17 +231,17 @@ module InteractionUtils
     cached_result = InteractionUtils.api_key_cache.get(api_key)
     if cached_result
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] check_api_key: Using cached result - #{cached_result['type']}"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] check_api_key: Using cached result - #{cached_result['type']}"
+        end
       end
       return cached_result
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] check_api_key: Starting fresh API check"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] check_api_key: Starting fresh API check"
+      end
     end
 
     target_uri = "#{API_ENDPOINT}/models"
@@ -267,9 +267,9 @@ module InteractionUtils
                end
 
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] check_api_key: API check completed in #{elapsed.round(2)}s - result: #{result['type']}"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] check_api_key: API check completed in #{elapsed.round(2)}s - result: #{result['type']}"
+        end
       end
 
       # Cache the result
@@ -280,18 +280,18 @@ module InteractionUtils
       if num_retrial < MAX_RETRIES
         num_retrial += 1
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] check_api_key: Retry #{num_retrial}/#{MAX_RETRIES} after error: #{e.class} - #{e.message}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] check_api_key: Retry #{num_retrial}/#{MAX_RETRIES} after error: #{e.class} - #{e.message}"
+          end
         end
         sleep RETRY_DELAY
         retry
       else
         error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] check_api_key: FAILED after #{MAX_RETRIES} retries - #{e.class}: #{e.message}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] check_api_key: FAILED after #{MAX_RETRIES} retries - #{e.class}: #{e.message}"
+          end
         end
         error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
         # Cache the error result as well

@@ -86,10 +86,10 @@ module GeminiHelper
       }
 
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Gemini3Preview: Checking for user-uploaded images"
-        extra_log.puts "  has_uploaded_images: #{has_uploaded_images}"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Gemini3Preview: Checking for user-uploaded images"
+          f.puts "  has_uploaded_images: #{has_uploaded_images}"
+        end
       end
     end
 
@@ -120,10 +120,10 @@ module GeminiHelper
         }
 
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}"
-          extra_log.puts "  This makes iterative editing work like 'editing uploaded image'"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}"
+            f.puts "  This makes iterative editing work like 'editing uploaded image'"
+          end
         end
 
         # Clear after attaching (one-time use)
@@ -131,9 +131,9 @@ module GeminiHelper
         # Don't clear duplicate flag here - it's managed by process_functions
       else
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] Gemini3Preview: Last generated image file not found: #{image_path}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] Gemini3Preview: Last generated image file not found: #{image_path}"
+          end
         end
         # Clear the reference since file doesn't exist
         session[:gemini3_last_image] = nil
@@ -145,9 +145,9 @@ module GeminiHelper
     if images && images.is_a?(Array)
       inline_images = images
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))"
+        end
       end
     elsif session && session[:messages]
       # Select user messages that have non-empty images array
@@ -156,16 +156,17 @@ module GeminiHelper
       }
 
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Gemini3Preview: Session check"
-        extra_log.puts "  Total messages: #{session[:messages].size}"
-        extra_log.puts "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Gemini3Preview: Session check"
+          f.puts "  Total messages: #{session[:messages].size}"
+          f.puts "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"
 
-        # Debug: Show structure of messages
-        session[:messages].each_with_index do |msg, idx|
-          img_count = msg["images"]&.size || 0
-          has_actual_images = msg["images"]&.any? || false
-          extra_log.puts "  Message #{idx}: role=#{msg["role"]}, images_count=#{img_count}, has_actual_images=#{has_actual_images}"
+          # Debug: Show structure of messages
+          session[:messages].each_with_index do |msg, idx|
+            img_count = msg["images"]&.size || 0
+            has_actual_images = msg["images"]&.any? || false
+            f.puts "  Message #{idx}: role=#{msg["role"]}, images_count=#{img_count}, has_actual_images=#{has_actual_images}"
+          end
         end
       end
 
@@ -174,25 +175,25 @@ module GeminiHelper
 
         # Debug logging
         if CONFIG["EXTRA_LOGGING"]
-          extra_log.puts "  Latest message images type: #{inline_images.class}"
-          extra_log.puts "  Latest message images value: #{inline_images.inspect[0..200]}"
-          if inline_images && inline_images.respond_to?(:size)
-            extra_log.puts "  Found #{inline_images.size} image(s) in latest message"
-            inline_images.each_with_index do |img, idx|
-              img_name = img["name"] || img[:name] || "unnamed"
-              data_preview = (img["data"] || img[:data] || "")[0..50]
-              extra_log.puts "  Image #{idx + 1}: #{img_name} (data: #{data_preview}...)"
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "  Latest message images type: #{inline_images.class}"
+            f.puts "  Latest message images value: #{inline_images.inspect[0..200]}"
+            if inline_images && inline_images.respond_to?(:size)
+              f.puts "  Found #{inline_images.size} image(s) in latest message"
+              inline_images.each_with_index do |img, idx|
+                img_name = img["name"] || img[:name] || "unnamed"
+                data_preview = (img["data"] || img[:data] || "")[0..50]
+                f.puts "  Image #{idx + 1}: #{img_name} (data: #{data_preview}...)"
+              end
+            else
+              f.puts "  inline_images is nil or not an array!"
             end
-          else
-            extra_log.puts "  inline_images is nil or not an array!"
           end
         end
       elsif CONFIG["EXTRA_LOGGING"]
-        extra_log.puts "  No user messages with images found"
-      end
-
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "  No user messages with images found"
+        end
       end
     end
 
@@ -236,18 +237,18 @@ module GeminiHelper
 
     # Debug: Log request details
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] Gemini3Preview API Request:"
-      extra_log.puts "  Model: #{model_id}"
-      extra_log.puts "  Parts count: #{parts.size}"
-      parts.each_with_index do |part, idx|
-        if part[:text]
-          extra_log.puts "  Part #{idx + 1}: text (length: #{part[:text].length})"
-        elsif part[:inline_data]
-          extra_log.puts "  Part #{idx + 1}: image (mime: #{part[:inline_data][:mime_type]}, data length: #{part[:inline_data][:data].length})"
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] Gemini3Preview API Request:"
+        f.puts "  Model: #{model_id}"
+        f.puts "  Parts count: #{parts.size}"
+        parts.each_with_index do |part, idx|
+          if part[:text]
+            f.puts "  Part #{idx + 1}: text (length: #{part[:text].length})"
+          elsif part[:inline_data]
+            f.puts "  Part #{idx + 1}: image (mime: #{part[:inline_data][:mime_type]}, data length: #{part[:inline_data][:data].length})"
+          end
         end
       end
-      extra_log.close
     end
 
     endpoints = [
@@ -304,11 +305,11 @@ module GeminiHelper
           }
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Gemini3Preview: Added generated image to session"
-            extra_log.puts "  Filename: #{filename}"
-            extra_log.puts "  Session now has #{session[:messages].size} messages"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] Gemini3Preview: Added generated image to session"
+              f.puts "  Filename: #{filename}"
+              f.puts "  Session now has #{session[:messages].size} messages"
+            end
           end
         end
 
@@ -1180,10 +1181,11 @@ module GeminiHelper
     # to prevent orchestration model from seeing previous results and making duplicate calls
     if @clear_orchestration_history
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Gemini3Preview: Clearing orchestration history in api_request"
-        extra_log.puts "  Original context size: #{context.size}"
-        extra_log.puts "  self.class: #{self.class.name}"
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Gemini3Preview: Clearing orchestration history in api_request"
+          f.puts "  Original context size: #{context.size}"
+          f.puts "  self.class: #{self.class.name}"
+        end
       end
 
       # Keep only: first message (system) + last user message
@@ -1197,14 +1199,16 @@ module GeminiHelper
         context.each { |msg| msg["active"] = true }
 
         if CONFIG["EXTRA_LOGGING"]
-          extra_log.puts "  Filtered context size: #{context.size}"
-          extra_log.puts "  First message role: #{first_msg["role"]}"
-          extra_log.puts "  Last user message role: #{last_user_msg["role"]}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "  Filtered context size: #{context.size}"
+            f.puts "  First message role: #{first_msg["role"]}"
+            f.puts "  Last user message role: #{last_user_msg["role"]}"
+          end
         end
       elsif CONFIG["EXTRA_LOGGING"]
-        extra_log.puts "  WARNING: Could not filter context (missing first or last user message)"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "  WARNING: Could not filter context (missing first or last user message)"
+        end
       end
     end
 
@@ -2090,9 +2094,10 @@ module GeminiHelper
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
     
     # For media generator apps, we'll need special processing to remove code blocks
@@ -2145,7 +2150,9 @@ module GeminiHelper
           json_obj = JSON.parse(json)
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log.puts(JSON.pretty_generate(json_obj))
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts(JSON.pretty_generate(json_obj))
+            end
           end
 
           # Capture usage metadata if available
@@ -2304,9 +2311,6 @@ module GeminiHelper
       STDERR.puts "Error processing JSON data chunk: #{e.message}"
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
-    end
 
     result = []
 
@@ -2707,9 +2711,9 @@ module GeminiHelper
         react_json = JSON.parse(stripped_fragment)
         if react_json.is_a?(Hash)
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Gemini ReAct: keys=#{react_json.keys}, action_input_class=#{react_json["action_input"].class}"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] Gemini ReAct: keys=#{react_json.keys}, action_input_class=#{react_json["action_input"].class}"
+            end
           end
 
           # Skip only completely empty JSON objects
@@ -3162,10 +3166,10 @@ module GeminiHelper
                 block&.call res
 
                 if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
-                  extra_log.puts "  Filename: #{filename}"
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
+                    f.puts "  Filename: #{filename}"
+                  end
                 end
 
                 # Return the HTML as the result
@@ -3189,10 +3193,10 @@ module GeminiHelper
                 block&.call res
 
                 if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
-                  extra_log.puts "  Filename: #{filename}"
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
+                    f.puts "  Filename: #{filename}"
+                  end
                 end
 
                 # Return the HTML as the result
@@ -3231,10 +3235,10 @@ module GeminiHelper
             block&.call res
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
-              extra_log.puts "  Filename: #{video_filename}"
-              extra_log.close
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
+                f.puts "  Filename: #{video_filename}"
+              end
             end
 
             # Return the HTML as the result
@@ -3256,10 +3260,10 @@ module GeminiHelper
             block&.call res
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts "[#{Time.now}] Gemini: Media generation returned error, skipping recursive api_request"
-              extra_log.puts "  Error: #{error_msg}"
-              extra_log.close
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts "[#{Time.now}] Gemini: Media generation returned error, skipping recursive api_request"
+                f.puts "  Error: #{error_msg}"
+              end
             end
 
             return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
@@ -3421,10 +3425,10 @@ module GeminiHelper
             session[:gemini3_duplicate_check] = true
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts "[#{Time.now}] Gemini3Preview: Saved last generated image: #{generated_filename}"
-              extra_log.puts "  Set duplicate check flag"
-              extra_log.close
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts "[#{Time.now}] Gemini3Preview: Saved last generated image: #{generated_filename}"
+                f.puts "  Set duplicate check flag"
+              end
             end
           else
             error_message = parsed_json["error"]
@@ -3700,21 +3704,21 @@ module GeminiHelper
                 actual_image_path = temp_filename  # Use just the filename, not full path
 
                 if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] Temp file created successfully:"
-                  extra_log.puts "  temp_file_path: #{temp_file_path}"
-                  extra_log.puts "  actual_image_path: #{actual_image_path}"
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "[#{Time.now}] Temp file created successfully:"
+                    f.puts "  temp_file_path: #{temp_file_path}"
+                    f.puts "  actual_image_path: #{actual_image_path}"
+                  end
                 end
               rescue StandardError => e
                 STDERR.puts "ERROR: Failed to process image: #{e.message}"
                 actual_image_path = nil
 
                 if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] ERROR creating temp file: #{e.message}"
-                  extra_log.puts "  #{e.backtrace.first(3).join("\n  ")}"
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "[#{Time.now}] ERROR creating temp file: #{e.message}"
+                    f.puts "  #{e.backtrace.first(3).join("\n  ")}"
+                  end
                 end
               end
             else
@@ -3746,12 +3750,12 @@ module GeminiHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] Final image path decision:"
-      extra_log.puts "  actual_image_path (from session): #{actual_image_path.inspect}"
-      extra_log.puts "  image_path (from LLM param): #{image_path.inspect}"
-      extra_log.puts "  final_image_path (used): #{final_image_path.inspect}"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] Final image path decision:"
+        f.puts "  actual_image_path (from session): #{actual_image_path.inspect}"
+        f.puts "  image_path (from LLM param): #{image_path.inspect}"
+        f.puts "  final_image_path (used): #{final_image_path.inspect}"
+      end
     end
 
     # Construct the command
@@ -3989,11 +3993,11 @@ module GeminiHelper
         end
         
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] Gemini Edit: Using natural language editing"
-          extra_log.puts "  Image: #{original_image['name']}"
-          extra_log.puts "  Edit prompt: #{prompt}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] Gemini Edit: Using natural language editing"
+            f.puts "  Image: #{original_image['name']}"
+            f.puts "  Edit prompt: #{prompt}"
+          end
         end
         
         if original_image && original_image["data"] && original_image["data"].start_with?("data:image/")

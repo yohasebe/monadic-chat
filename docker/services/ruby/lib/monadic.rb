@@ -1802,9 +1802,9 @@ post "/load" do
         session[:parameters] = imported_params
 
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] [Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] [Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}"
+          end
         end
 
         # Check if the first message is a system message
@@ -1826,9 +1826,9 @@ post "/load" do
           end
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] [Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] [Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}"
+            end
           end
         end
 
@@ -1843,9 +1843,9 @@ post "/load" do
           end
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] [Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] [Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}"
+            end
           end
         end
 
@@ -1890,9 +1890,9 @@ post "/load" do
 
         # Debug logging after import (only when EXTRA_LOGGING is enabled)
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts "[#{Time.now}] JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'"
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts "[#{Time.now}] JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'"
+          end
         end
 
         # Push imported data to client via WebSocket (eliminates need for reload)
@@ -1948,9 +1948,9 @@ post "/load" do
           end
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)"
+            end
           end
         rescue => e
           # Log error but don't fail the import - client can still reload manually if needed

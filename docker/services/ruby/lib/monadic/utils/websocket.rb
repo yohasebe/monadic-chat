@@ -41,9 +41,9 @@ module WebSocketHelper
 
     params = get_session_params || {}
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] [sync_session_state!] Session synced: #{session_id}"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] [sync_session_state!] Session synced: #{session_id}"
+      end
     end
 
     WebSocketHelper.update_session_state(
@@ -562,9 +562,9 @@ module WebSocketHelper
       v.settings.each do |p, m|
         # Debug log for reasoning_effort in all OpenAI apps
         if p == "reasoning_effort" && CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
-          extra_log.close
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
+          end
         end
         
         # Handle description specially for multi-language support
@@ -626,14 +626,14 @@ module WebSocketHelper
 
     # Log largest apps
     if CONFIG["EXTRA_LOGGING"] && !largest_app_sizes.empty?
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] Apps data sizes:"
-      largest_app_sizes.sort_by { |_, size| -size }.take(5).each do |name, size|
-        extra_log.puts "  #{name}: #{size} bytes (#{(size / 1024.0).round(2)} KB)"
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] Apps data sizes:"
+        largest_app_sizes.sort_by { |_, size| -size }.take(5).each do |name, size|
+          f.puts "  #{name}: #{size} bytes (#{(size / 1024.0).round(2)} KB)"
+        end
+        total_size = apps.to_json.bytesize
+        f.puts "  TOTAL: #{total_size} bytes (#{(total_size / 1024.0).round(2)} KB)"
       end
-      total_size = apps.to_json.bytesize
-      extra_log.puts "  TOTAL: #{total_size} bytes (#{(total_size / 1024.0).round(2)} KB)"
-      extra_log.close
     end
 
     apps
@@ -658,9 +658,9 @@ module WebSocketHelper
 
     # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})"
+      end
     end
 
     params_for_render = params
@@ -705,10 +705,10 @@ module WebSocketHelper
 
     # Debug logging (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
       params_present = rack_session[:parameters] && !rack_session[:parameters].empty?
-      extra_log.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
+      end
     end
 
     # Send apps message
@@ -739,9 +739,9 @@ module WebSocketHelper
 
     # Debug logging
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent parameters message to session #{ws_session_id}"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] push_apps_data: Sent parameters message to session #{ws_session_id}"
+      end
     end
 
     # Send past_messages with additional delay to ensure parameters is processed first
@@ -757,9 +757,9 @@ module WebSocketHelper
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}"
+      end
     end
 
     # Send info message to hide spinner and show "Ready" status
@@ -783,9 +783,9 @@ module WebSocketHelper
 
     # Debug logging for info message (only when EXTRA_LOGGING is enabled)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts "[#{Time.now}] push_apps_data: Sent info message to hide spinner"
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts "[#{Time.now}] push_apps_data: Sent info message to hide spinner"
+      end
     end
   end
   
@@ -1892,9 +1892,9 @@ module WebSocketHelper
       end
 
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] [WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] [WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})"
+        end
       end
 
       queue = Queue.new
@@ -1918,10 +1918,10 @@ module WebSocketHelper
 
           # Debug logging for all messages when EXTRA_LOGGING is enabled
           if CONFIG["EXTRA_LOGGING"] && msg == "UPDATE_LANGUAGE"
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
-            extra_log.puts("  Full obj: #{obj.inspect}")
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
+              f.puts("  Full obj: #{obj.inspect}")
+            end
           end
 
       case msg
@@ -2068,9 +2068,9 @@ module WebSocketHelper
           end
           
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] CHECK_TOKEN handler started"
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts "[#{Time.now}] CHECK_TOKEN handler started"
+            end
           end
 
           if CONFIG["ERROR"].to_s == "true"
@@ -2079,9 +2079,9 @@ module WebSocketHelper
             token = CONFIG["OPENAI_API_KEY"]
 
             if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts "[#{Time.now}] CHECK_TOKEN: token present=#{!token.nil?}"
-              extra_log.close
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts "[#{Time.now}] CHECK_TOKEN: token present=#{!token.nil?}"
+              end
             end
 
             res = nil
@@ -2089,49 +2089,49 @@ module WebSocketHelper
               res = check_api_key(token) if token
 
               if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts "[#{Time.now}] CHECK_TOKEN: res=#{res.inspect}"
-                extra_log.puts "[#{Time.now}] CHECK_TOKEN: res.is_a?(Hash)=#{res.is_a?(Hash)}, res.key?('type')=#{res.is_a?(Hash) && res.key?('type')}"
-                extra_log.close
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts "[#{Time.now}] CHECK_TOKEN: res=#{res.inspect}"
+                  f.puts "[#{Time.now}] CHECK_TOKEN: res.is_a?(Hash)=#{res.is_a?(Hash)}, res.key?('type')=#{res.is_a?(Hash) && res.key?('type')}"
+                end
               end
 
               if token && res.is_a?(Hash) && res.key?("type")
                 if res["type"] == "error"
                   if CONFIG["EXTRA_LOGGING"]
-                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (error)"
-                    extra_log.close
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                      f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (error)"
+                    end
                   end
                   send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
                 else
                   if CONFIG["EXTRA_LOGGING"]
-                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_verified (success)"
-                    extra_log.close
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                      f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_verified (success)"
+                    end
                   end
                   send_to_client(connection, { "type" => "token_verified",
                             "token" => token, "content" => res["content"],
                             # "models" => res["models"],
                             "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT })
                   if CONFIG["EXTRA_LOGGING"]
-                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                    extra_log.puts "[#{Time.now}] CHECK_TOKEN: token_verified message sent"
-                    extra_log.close
+                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                      f.puts "[#{Time.now}] CHECK_TOKEN: token_verified message sent"
+                    end
                   end
                 end
               else
                 if CONFIG["EXTRA_LOGGING"]
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (invalid response)"
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (invalid response)"
+                  end
                 end
                 send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
               end
             rescue StandardError => e
               if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts "[#{Time.now}] CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}"
-                extra_log.close
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts "[#{Time.now}] CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}"
+                end
               end
               send_to_client(connection, { "type" => "open_ai_api_error", "token" => "", "content" => "" })
             end
@@ -2570,10 +2570,10 @@ module WebSocketHelper
           session[:runtime_settings][:language] = conversation_language || "auto"
           
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("[#{Time.now}] SYSTEM_PROMPT: Set language to #{session[:runtime_settings][:language]}")
-            extra_log.puts("  Full runtime_settings: #{session[:runtime_settings].inspect}")
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("[#{Time.now}] SYSTEM_PROMPT: Set language to #{session[:runtime_settings][:language]}")
+              f.puts("  Full runtime_settings: #{session[:runtime_settings].inspect}")
+            end
           end
           
           # Don't add language to the stored system prompt
@@ -2711,10 +2711,10 @@ module WebSocketHelper
               puts "[DEBUG] Session runtime_settings after update: #{session[:runtime_settings].inspect}"
               
               # Log to file as well
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts("[#{Time.now}] UPDATE_LANGUAGE: #{old_language} -> #{new_language}")
-              extra_log.puts("  Runtime settings: #{session[:runtime_settings].inspect}")
-              extra_log.close
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts("[#{Time.now}] UPDATE_LANGUAGE: #{old_language} -> #{new_language}")
+                f.puts("  Runtime settings: #{session[:runtime_settings].inspect}")
+              end
             end
             
             # Resend apps data with updated language descriptions

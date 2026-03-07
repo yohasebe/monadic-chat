@@ -237,12 +237,12 @@ module MonadicHelper
           
           # Log for debugging
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("\n[#{Time.now}] Corrected fake timestamp in add_jupyter_cells:")
-            extra_log.puts("  Original filename: #{original_filename}")
-            extra_log.puts("  Base name: #{base_name}")
-            extra_log.puts("  Found file: #{filename}")
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("\n[#{Time.now}] Corrected fake timestamp in add_jupyter_cells:")
+              f.puts("  Original filename: #{original_filename}")
+              f.puts("  Base name: #{base_name}")
+              f.puts("  Found file: #{filename}")
+            end
           end
         end
       end

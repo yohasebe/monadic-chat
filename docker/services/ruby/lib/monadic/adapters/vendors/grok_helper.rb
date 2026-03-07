@@ -217,6 +217,619 @@ module GrokHelper
     end.flatten.compact
   end
 
+  # Configure tools for the API request body (app tools + PTD + SSOT + websearch)
+  private def configure_grok_tools(body, model, obj, app, session, role, websearch_native)
+    # Get tools from app settings
+    app_instance = APPS[app]
+    app_tools = app_instance&.settings&.[]("tools")
+
+    if app_instance
+      begin
+        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
+          app_name: app, session: session,
+          app_settings: app_instance.settings, default_tools: app_tools
+        )
+      rescue StandardError => e
+        DebugHelper.debug("Grok: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
+      end
+    end
+
+    # Convert tools to Responses API flattened format
+    app_tools = convert_tools_to_responses_format(app_tools) if app_tools && !app_tools.empty?
+
+    # Include tools based on role and availability
+    if role == "tool"
+      if app_tools && !app_tools.empty?
+        body["tools"] = app_tools
+        body["tool_choice"] = "auto"
+      end
+    elsif obj["tools"] && !obj["tools"].empty?
+      body["tools"] = app_tools || []
+      body["tool_choice"] = obj["tool_choice"] || "auto"
+      body.delete("tool_choice") if body["tools"].nil? || body["tools"].empty?
+    elsif app_tools && !app_tools.empty?
+      body["tools"] = app_tools
+      body["tool_choice"] = obj["tool_choice"] || "auto"
+    else
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    # Parallel function calling
+    if body["tools"] && !body["tools"].empty? && obj["parallel_function_calling"] == false
+      body["parallel_function_calling"] = false
+    end
+
+    # SSOT: remove tools if model is not tool-capable
+    begin
+      spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+      tool_capable = spec_tool_capable.nil? ? true : !!spec_tool_capable
+    rescue StandardError
+      tool_capable = true
+    end
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+      body.delete("parallel_function_calling")
+    end
+
+    if CONFIG["EXTRA_LOGGING"] && body["tools"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] === Grok Final Tools (role: #{role}) ===")
+        f.puts("Number of tools: #{body['tools'].length}")
+        f.puts("Tool names: #{body['tools'].map { |t| t['name'] || t.dig('function', 'name') }.inspect}")
+      end
+    end
+
+    # Add Responses API search tools for native Grok web search
+    if websearch_native
+      body["tools"] ||= []
+
+      web_search_tool = { "type" => "web_search" }
+      if obj["allowed_websites"].is_a?(Array) && !obj["allowed_websites"].empty?
+        web_search_tool["allowed_domains"] = obj["allowed_websites"]
+      end
+      if obj["excluded_websites"].is_a?(Array) && !obj["excluded_websites"].empty?
+        web_search_tool["excluded_domains"] = obj["excluded_websites"]
+      end
+      body["tools"] << web_search_tool
+
+      if obj.fetch("enable_x_search", true)
+        x_search_tool = { "type" => "x_search" }
+        if obj["included_x_handles"].is_a?(Array) && !obj["included_x_handles"].empty?
+          x_search_tool["allowed_x_handles"] = obj["included_x_handles"]
+        end
+        if obj["excluded_x_handles"].is_a?(Array) && !obj["excluded_x_handles"].empty?
+          x_search_tool["excluded_x_handles"] = obj["excluded_x_handles"]
+        end
+        x_search_tool["from_date"] = obj["date_from"] if obj["date_from"]
+        x_search_tool["to_date"] = obj["date_to"] if obj["date_to"]
+        body["tools"] << x_search_tool
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
+        dropped = []
+        dropped << "country=#{obj["web_country"]}" if obj["web_country"]
+        dropped << "safe_search=#{obj["safe_search"]}" if obj["safe_search"]
+        dropped << "post_favorite_count=#{obj["post_favorite_count"]}" if obj["post_favorite_count"]
+        dropped << "post_view_count=#{obj["post_view_count"]}" if obj["post_view_count"]
+        dropped << "enable_news_search" if obj.fetch("enable_news_search", false)
+        dropped << "rss_links" if obj["rss_links"] && !obj["rss_links"].empty?
+        unless dropped.empty?
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts("\n[#{Time.now}] Grok Responses API: dropped unsupported search params: #{dropped.join(', ')}")
+          end
+        end
+      end
+
+      DebugHelper.debug("Grok: Native web search enabled via Responses API tools", category: :api, level: :debug)
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts("\n[#{Time.now}] === Grok API Request Started ===")
+          f.puts("App: #{app}")
+          f.puts("Websearch enabled: true")
+          f.puts("Search tools: #{body["tools"].select { |t| %w[web_search x_search].include?(t["type"]) }.inspect}")
+        end
+      end
+    end
+  end
+
+  # Build context_messages array from context for the API request
+  # Returns [context_messages, messages_containing_img]
+  private def build_grok_messages(context, role, obj, session, body, message_with_snippet, prompt_suffix, data, &block)
+    messages_containing_img = false
+    system_message_modified = false
+    context_messages = context.compact.map do |msg|
+      if msg["role"] == "system" && !system_message_modified
+        system_message_modified = true
+        augmented_text = Monadic::Utils::SystemPromptInjector.augment(
+          base_prompt: msg["text"], session: session,
+          options: {
+            websearch_enabled: false, reasoning_model: false,
+            websearch_prompt: nil, system_prompt_suffix: obj["system_prompt_suffix"]
+          },
+          separator: "\n\n---\n\n"
+        )
+        { "role" => msg["role"], "content" => [{ "type" => "text", "text" => augmented_text }] }
+      else
+        message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
+        if msg["images"] && role == "user"
+          msg["images"].each do |img|
+            messages_containing_img = true
+            message["content"] << {
+              "type" => "image_url",
+              "image_url" => { "url" => img["data"], "detail" => "high" }
+            }
+          end
+        end
+        message
+      end
+    end
+
+    # Handle initiate_from_assistant case
+    if context_messages.length == 1 && context_messages[0]["role"] == "system"
+      initial_message = if app_name = obj["app_name"]
+                          app_name.include?("CodeInterpreter") || app_name.include?("code_interpreter") ?
+                            "Use the check_environment function to verify the Python environment, then introduce yourself and explain what you can do." :
+                            "Please proceed according to your system instructions and introduce yourself."
+                        else
+                          "Please proceed according to your system instructions and introduce yourself."
+                        end
+      context_messages << { "role" => "user", "content" => [{ "type" => "text", "text" => initial_message }] }
+    end
+
+    # Handle tool role - send tool results back
+    if role == "tool" && obj["function_returns"]
+      if obj["assistant_function_calls"]
+        context_messages << {
+          "role" => "assistant",
+          "content" => [{"type" => "text", "text" => ""}],
+          "assistant_function_calls" => obj["assistant_function_calls"]
+        }
+      end
+
+      obj["function_returns"].each do |result|
+        context_messages << {
+          "role" => "tool",
+          "content" => result["content"] || result[:content],
+          "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
+        }
+      end
+
+      # Inject pending tool images
+      if session[:pending_tool_images]&.any?
+        injected_set = session[:images_injected_this_turn] ||= Set.new
+        new_images = session[:pending_tool_images].reject { |f| injected_set.include?(f) }
+
+        if new_images.any?
+          image_parts = new_images.filter_map do |img_filename|
+            img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
+            next unless img
+
+            injected_set << img_filename
+            { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
+          end
+          if image_parts.any?
+            context_messages << {
+              "role" => "user",
+              "content" => [
+                { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
+                *image_parts
+              ]
+            }
+          end
+        end
+        session.delete(:pending_tool_images)
+      end
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts("\n[#{Time.now}] Adding tool results to input for Grok Responses API")
+          f.puts("Assistant function calls: #{obj['assistant_function_calls']&.length || 0} calls")
+          f.puts("Number of tool results: #{obj['function_returns'].length}")
+          f.puts("Total context messages being sent: #{context_messages.length}")
+        end
+      end
+    end
+
+    # Decorate last message with prompt_suffix
+    last_text = context.last["text"]
+    last_text = message_with_snippet if message_with_snippet.to_s != ""
+
+    is_initial_greeting = context_messages.length == 2 &&
+                         context_messages[0]["role"] == "system" &&
+                         context_messages[1]["role"] == "user" &&
+                         session[:messages].length <= 1
+    last_message_is_tool = context_messages.last && context_messages.last["role"] == "tool"
+
+    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && !last_message_is_tool
+      new_text = last_text + "\n\n" + prompt_suffix.strip
+      if context_messages.dig(-1, "content")
+        last_content = context_messages.last["content"]
+        if last_content.is_a?(Array)
+          last_content.each do |content_item|
+            content_item["text"] = new_text if content_item["type"] == "text"
+          end
+        elsif last_content.is_a?(String)
+          context_messages.last["content"] = new_text
+        end
+      end
+    end
+
+    if data
+      context_messages << { "role" => "user", "content" => data.strip }
+    end
+
+    # Vision model switch if needed
+    if messages_containing_img
+      original_model = body["model"]
+      begin
+        spec_vision = Monadic::Utils::ModelSpec.get_model_property(original_model, "vision_capability")
+        current_vision = spec_vision == true
+      rescue StandardError
+        current_vision = false
+      end
+      unless current_vision
+        begin
+          spec = Monadic::Utils::ModelSpec.load_spec
+          candidates = spec.keys.select do |m|
+            m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
+          end
+          vision_model = candidates.include?("grok-4-1-fast-non-reasoning") ? "grok-4-1-fast-non-reasoning" : candidates.first
+        rescue StandardError
+          vision_model = nil
+        end
+        if vision_model && vision_model != original_model
+          body["model"] = vision_model
+          body.delete("stop")
+          if block
+            block.call({
+              "type" => "system_info",
+              "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
+            })
+          end
+        end
+      end
+    end
+
+    [context_messages, messages_containing_img]
+  end
+
+  # Execute the Grok API call with retries, handle streaming/non-streaming dispatch
+  private def execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &block)
+    obj = session[:parameters]
+
+    # Force text-only response when force-stop is active
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] Grok final API request:")
+        f.puts("App: #{app}, Model: #{body['model']}")
+        f.puts("Tools: #{body['tools']&.length || 0}, Input items: #{body['input']&.length || 0}")
+        if body['tools']&.any?
+          f.puts("Tool names: #{body['tools'].map { |t| t['name'] || t.dig('function', 'name') }.inspect}")
+        end
+      end
+    end
+
+    target_uri = "#{API_ENDPOINT}/responses"
+    headers["Accept"] = "text/event-stream"
+    http = HTTP.headers(headers)
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: open_timeout, write: write_timeout, read: read_timeout)
+               .post(target_uri, json: body)
+      break if res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    unless res.status.success?
+      error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] [Grok] API Error: Status #{res.status.code}, Body: #{res.body.to_s[0..2000]}"
+        end
+      end
+
+      formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+        provider: "xAI",
+        message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
+        code: res.status.code
+      )
+      error_res = { "type" => "error", "content" => formatted_error }
+      block&.call error_res
+      return [error_res]
+    end
+
+    if !body["stream"]
+      # Non-streaming: parse Responses API output format
+      parsed = JSON.parse(res.body)
+      output = parsed["output"] || []
+      frag = output.select { |item| item["type"] == "message" }
+                   .flat_map { |item| Array(item["content"]) }
+                   .select { |c| c["type"] == "output_text" }
+                   .map { |c| c["text"] }
+                   .join
+      frag = "" if frag.nil?
+      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+
+      # Check for function calls in output
+      function_calls = output.select { |item| item["type"] == "function_call" }
+      if function_calls.any?
+        tool_calls = function_calls.map do |fc|
+          { "id" => fc["call_id"] || fc["id"], "function" => { "name" => fc["name"], "arguments" => fc["arguments"] || "{}" } }
+        end
+
+        obj["assistant_function_calls"] = function_calls.map do |fc|
+          { "type" => "function_call", "id" => fc["id"], "call_id" => fc["call_id"] || fc["id"],
+            "name" => fc["name"], "arguments" => fc["arguments"] || "{}" }
+        end
+
+        session[:call_depth_per_turn] += 1
+        if session[:call_depth_per_turn] > MAX_FUNC_CALLS
+          return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
+            provider: "xAI", message: "Maximum function call depth exceeded"
+          ) }]
+        end
+
+        return process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block) || []
+      end
+
+      [{ "choices" => [{ "message" => { "role" => "assistant", "content" => frag }, "finish_reason" => "stop" }] }]
+    else
+      body["original_user_model"] = original_user_model
+      process_responses_api_data(app: app, session: session, query: body, res: res.body, call_depth: call_depth, &block)
+    end
+  end
+
+  # Execute a single Grok tool function: parse arguments, dispatch, handle Grok-specific post-processing
+  # Returns [tool_result, error_stop]
+  private def invoke_grok_tool_function(app, session, tool_call, function_name, &block)
+    obj = session[:parameters]
+
+    # Parse arguments
+    function_call = tool_call["function"]
+    begin
+      argument_hash = function_call["arguments"].to_s.strip.empty? ? {} : JSON.parse(function_call["arguments"])
+    rescue JSON::ParserError
+      argument_hash = {}
+    end
+
+    # Fix Jupyter filenames if stored filename exists
+    if obj["current_notebook_filename"] && argument_hash["filename"]
+      jupyter_functions = %w[add_jupyter_cells delete_jupyter_cell update_jupyter_cell
+                            get_jupyter_cells_with_results execute_and_fix_jupyter_cells
+                            restart_jupyter_kernel interrupt_jupyter_execution
+                            move_jupyter_cell insert_jupyter_cells]
+
+      if jupyter_functions.include?(function_name)
+        provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
+        stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
+        shared_volume = Monadic::Utils::Environment.in_container? ? MonadicApp::SHARED_VOL : MonadicApp::LOCAL_SHARED_VOL
+        provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
+
+        if !File.exist?(provided_path)
+          stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
+          provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
+          if stored_base_name == provided_base_name
+            argument_hash["filename"] = stored_filename
+          end
+        end
+      end
+    end
+
+    # Symbolize keys, skip null values
+    argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+      next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
+      memo[k.to_sym] = v
+    end
+
+    # Inject session for tools that need it
+    method_obj = APPS[app].method(function_name.to_sym) rescue nil
+    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
+      argument_hash[:session] = session
+    end
+
+    # Execute function
+    begin
+      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+      send_verification_notification(session, &block) if function_name == "report_verification"
+
+      # Fix HTML-escaped SVG files (Grok-specific)
+      fix_grok_svg_escaping(function_name, function_return)
+
+      # Store Jupyter notebook filename
+      store_grok_notebook_filename(function_name, function_return, obj)
+
+      # Store image/video filenames
+      store_grok_media_filename(function_name, function_return, obj, session)
+
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts("\n[#{Time.now}] Tool executed: #{function_name}, result: #{function_return.to_s[0..200]}...")
+        end
+      end
+
+      Monadic::Utils::TtsTextExtractor.extract_tts_text(
+        app: app, function_name: function_name,
+        argument_hash: argument_hash, session: session
+      )
+    rescue StandardError => e
+      DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
+      function_return = Monadic::Utils::ErrorFormatter.tool_error(
+        provider: "xAI", tool_name: function_name, message: e.message
+      )
+    end
+
+    # Check for repeated errors
+    if handle_function_error(session, function_return, function_name, &block)
+      error_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => function_return.to_s }
+      return [error_result, true]
+    end
+
+    # Collect _image for screenshot injection
+    if function_return.is_a?(Hash) && function_return[:_image]
+      session[:pending_tool_images] = Array(function_return[:_image])
+      clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
+      content_str = JSON.generate(clean_return)
+    else
+      content_str = function_return.to_s
+    end
+
+    # Store gallery_html for server-side injection
+    if function_return.is_a?(Hash) && function_return[:gallery_html]
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << function_return[:gallery_html]
+    end
+
+    tool_result = { "call_id" => tool_call["id"], "name" => function_name, "content" => content_str }
+    [tool_result, false]
+  end
+
+  # Fix HTML-escaped SVG files created by Grok's code generation
+  private def fix_grok_svg_escaping(function_name, function_return)
+    return unless function_name == "run_code" && function_return.to_s.include?("File(s) generated")
+    return unless function_return =~ /File\(s\) generated.*?: ([^;]+)/
+
+    files = $1.split(",").map(&:strip)
+    files.each do |file_path|
+      next unless file_path.end_with?(".svg")
+
+      actual_path = file_path.gsub("/data/", "")
+      full_path = Monadic::Utils::Environment.in_container? ?
+                    File.join("/monadic/data", actual_path) :
+                    File.join(File.expand_path("~/monadic/data"), actual_path)
+
+      begin
+        if File.exist?(full_path)
+          content = File.read(full_path)
+          if content.include?("&lt;svg") || content.include?("&gt;")
+            File.write(full_path, content.gsub("&lt;", "<").gsub("&gt;", ">").gsub("&quot;", '"').gsub("&amp;", "&"))
+          end
+        end
+      rescue StandardError
+        # ignore
+      end
+    end
+  end
+
+  # Store Jupyter notebook filename from creation result
+  private def store_grok_notebook_filename(function_name, function_return, obj)
+    return unless %w[create_jupyter_notebook create_and_populate_jupyter_notebook].include?(function_name)
+    return unless function_return.to_s.include?("created successfully")
+    return unless function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
+
+    obj["current_notebook_filename"] = $1
+    obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{$1}' target='_blank'>Open #{$1}</a>"
+  end
+
+  # Store image/video filenames from generation results
+  private def store_grok_media_filename(function_name, function_return, obj, session)
+    return unless function_return.is_a?(String)
+
+    begin
+      result = JSON.parse(function_return)
+      return unless result["success"] && result["filename"]
+
+      case function_name
+      when "generate_image_with_grok"
+        obj["current_image_filename"] = result["filename"]
+        session[:grok_last_image] = result["filename"]
+      when "generate_video_with_grok_imagine"
+        obj["current_video_filename"] = result["filename"]
+        session[:grok_last_video_filename] = result["filename"]
+        session[:grok_last_video_request_id] = result["request_id"] if result["request_id"]
+      end
+    rescue JSON::ParserError
+      # ignore
+    end
+  end
+
+  # Post-process Grok's response: fix filenames, image paths, notebook URLs
+  private def postprocess_grok_response(new_results, obj)
+    return unless new_results.is_a?(Array) && !new_results.empty?
+
+    content = new_results.dig(0, "choices", 0, "message", "content")
+    return unless content
+
+    # Fix image paths for Code Interpreter
+    if obj["app_name"].to_s.include?("CodeInterpreter") || obj["display_name"].to_s.include?("Code Interpreter")
+      if content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
+        filename = $1
+        unless content.include?("<div class=\"generated_image\">")
+          if content =~ /(Output:.*?```[^`]*```)/m
+            image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
+            content = content.sub($1, $1 + image_html)
+          end
+        end
+      end
+    end
+
+    # Fix notebook filenames
+    if obj["current_notebook_filename"]
+      actual_filename = obj["current_notebook_filename"]
+      base_name = actual_filename.gsub(/_\d{8}_\d{6}\.ipynb$/, '')
+
+      content = content.gsub(/\b#{Regexp.escape(base_name)}\.ipynb\b/i, actual_filename)
+      content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
+      content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,
+                            "http://localhost:8889/lab/tree/#{actual_filename}")
+    end
+
+    # Fix image filenames
+    if obj["current_image_filename"]
+      actual_image_filename = obj["current_image_filename"]
+      content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
+      content = content.gsub(/(?<!\d)\d{10}\.png/i, actual_image_filename)
+      content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
+      content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
+      content = content.gsub(/\/data\/[a-zA-Z0-9_-]+\.png/, "/data/#{actual_image_filename}")
+    end
+
+    new_results[0]["choices"][0]["message"]["content"] = content
+  end
+
+  # Build final text response from streaming results (texts hash, reasoning, usage)
+  private def build_grok_text_response(texts:, query:, finish_reason:, reasoning_content:,
+                                       usage_input_tokens:, usage_output_tokens:, usage_total_tokens:, &block)
+    complete_text = texts.any? ? texts.values.join("") : ""
+    effective_finish = texts.any? ? (finish_reason || "stop") : "stop"
+
+    result = {
+      "choices" => [{
+        "message" => { "role" => "assistant", "content" => complete_text },
+        "finish_reason" => effective_finish
+      }],
+      "model" => query["model"]
+    }
+
+    if usage_input_tokens || usage_output_tokens || usage_total_tokens
+      result["usage"] = {
+        "input_tokens" => usage_input_tokens,
+        "output_tokens" => usage_output_tokens,
+        "total_tokens" => usage_total_tokens
+      }.compact
+    end
+
+    if reasoning_content && !reasoning_content.empty?
+      result["choices"][0]["message"]["thinking"] = reasoning_content.join("")
+    end
+
+    block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => effective_finish })
+    [result]
+  end
+
+  public
+
   # Simple non-streaming query using Responses API
   def send_query(options, model: nil)
     model ||= SystemDefaults.get_default_model('xai')
@@ -440,11 +1053,11 @@ module GrokHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] === Grok websearch parameter check ===")
-      extra_log.puts("obj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})")
-      extra_log.puts("websearch enabled = #{websearch}")
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] === Grok websearch parameter check ===")
+        f.puts("obj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})")
+        f.puts("websearch enabled = #{websearch}")
+      end
     end
 
     message = nil
@@ -497,10 +1110,9 @@ module GrokHelper
           obj["images"] << { "data" => data_url, "title" => filename }
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("\n[#{Time.now}] Grok: Auto-attached last generated image #{filename} (base64)")
-            extra_log.puts("  has_uploaded_images=#{has_uploaded_images}")
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("\n[#{Time.now}] Grok: Auto-attached last generated image #{filename} (base64)")
+            end
           end
         else
           session[:grok_last_image] = nil
@@ -508,9 +1120,9 @@ module GrokHelper
       end
     rescue StandardError => e
       if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Grok: Auto-attach failed: #{e.class}: #{e.message}"
-        extra_log.close
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Grok: Auto-attach failed: #{e.class}: #{e.message}"
+        end
       end
     end
 
@@ -567,15 +1179,6 @@ module GrokHelper
     # This prevents the model from seeing previous tool calls and results,
     # which would cause it to repeatedly call the same tool (e.g., image generation)
     if @clear_orchestration_history
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] Grok: Clearing orchestration history in api_request"
-        extra_log.puts "  Original context size: #{context.size}"
-        extra_log.puts "  self.class: #{self.class.name}"
-      end
-
-      # Keep only: first message (system) + last user message
-      # This prevents orchestration model from seeing tool results that trigger duplicates
       first_msg = context.first
       last_user_msg = context.reverse.find { |msg| msg["role"] == "user" }
 
@@ -583,16 +1186,12 @@ module GrokHelper
         context = [first_msg]
         context << last_user_msg unless first_msg == last_user_msg
         context.each { |msg| msg["active"] = true }
+      end
 
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log.puts "  Filtered context size: #{context.size}"
-          extra_log.puts "  First message role: #{first_msg["role"]}"
-          extra_log.puts "  Last user message role: #{last_user_msg["role"]}"
-          extra_log.close
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts "[#{Time.now}] Grok: Clearing orchestration history (#{context.size} messages)"
         end
-      elsif CONFIG["EXTRA_LOGGING"]
-        extra_log.puts "  WARNING: Could not filter context (missing first or last user message)"
-        extra_log.close
       end
     end
 
@@ -633,539 +1232,16 @@ module GrokHelper
       body["response_format"] = APPS[app].settings["response_format"]
     end
 
-    # Get tools from app settings
-    app_instance = APPS[app]
-    app_tools = app_instance&.settings&.[]("tools")
+    configure_grok_tools(body, model, obj, app, session, role, websearch_native)
 
-    if app_instance
-      begin
-        app_tools = Monadic::Utils::ProgressiveToolManager.visible_tools(
-          app_name: app,
-          session: session,
-          app_settings: app_instance.settings,
-          default_tools: app_tools
-        )
-      rescue StandardError => e
-        DebugHelper.debug("Grok: Progressive tool filtering skipped due to #{e.message}", category: :api, level: :warning) if defined?(DebugHelper)
-      end
-    end
-
-    # Convert tools to Responses API flattened format
-    app_tools = convert_tools_to_responses_format(app_tools) if app_tools && !app_tools.empty?
-
-    # Include tools based on role and availability
-    # When role is "tool" (sending tool results back), we still need to include tools
-    # so the model can make follow-up tool calls (e.g., generate_application after validate_specification)
-    # We just don't force tool_choice to ensure the model can respond naturally
-    if role == "tool"
-      # Include tools but use "auto" for tool_choice to allow natural response or follow-up tool calls
-      if app_tools && !app_tools.empty?
-        body["tools"] = app_tools
-        body["tool_choice"] = "auto"
-      end
-    elsif obj["tools"] && !obj["tools"].empty?
-      # Use app tools if available, otherwise fallback to empty array
-      body["tools"] = app_tools || []
-
-      # Special handling for Code Interpreter apps with Grok
-      if app && app.include?("CodeInterpreter") && body["tools"] && !body["tools"].empty?
-        # Use auto for tool_choice (Responses API context is different from chat completions)
-        body["tool_choice"] = obj["tool_choice"] || "auto"
-      else
-        # Use tool_choice from settings or default
-        body["tool_choice"] = obj["tool_choice"] || "auto"
-      end
-
-      # Remove tool_choice if no tools
-      body.delete("tool_choice") if body["tools"].nil? || body["tools"].empty?
-    elsif app_tools && !app_tools.empty?
-      # If no tools param but app has tools, use them
-      body["tools"] = app_tools
-      body["tool_choice"] = obj["tool_choice"] || "auto"
-    else
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
-
-    # Add parallel_function_calling if specified (default is true for Grok)
-    if body["tools"] && !body["tools"].empty? && obj["parallel_function_calling"] == false
-      body["parallel_function_calling"] = false
-    end
-
-    # SSOT: If the model is not tool-capable, remove tools to avoid unsupported calls
-    begin
-      spec_tool_capable = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
-      tool_capable_source = spec_tool_capable.nil? ? "fallback" : "spec"
-      tool_capable = spec_tool_capable.nil? ? true : !!spec_tool_capable
-    rescue StandardError
-      tool_capable_source = "fallback"
-      tool_capable = true
-    end
-    unless tool_capable
-      body.delete("tools")
-      body.delete("tool_choice")
-      body.delete("parallel_function_calling")
-    end
-
-    # Debug log final tools being sent
-    if CONFIG["EXTRA_LOGGING"] && body["tools"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] === Grok Final Tools (role: #{role}) ===")
-      extra_log.puts("Number of tools: #{body['tools'].length}")
-      extra_log.puts("Tool names: #{body['tools'].map { |t| t['name'] || t.dig('function', 'name') }.inspect}")
-      if role == "tool"
-        extra_log.puts("Including tools in tool response for continued function calling")
-      end
-      extra_log.close
-    end
-
-    # Add Responses API search tools for native Grok web search
-    if websearch_native
-      body["tools"] ||= []
-
-      # Build web_search tool with domain filtering
-      web_search_tool = { "type" => "web_search" }
-      if obj["allowed_websites"].is_a?(Array) && !obj["allowed_websites"].empty?
-        web_search_tool["allowed_domains"] = obj["allowed_websites"]
-      end
-      if obj["excluded_websites"].is_a?(Array) && !obj["excluded_websites"].empty?
-        web_search_tool["excluded_domains"] = obj["excluded_websites"]
-      end
-      body["tools"] << web_search_tool
-
-      # Build x_search tool with handle and date filtering
-      if obj.fetch("enable_x_search", true)
-        x_search_tool = { "type" => "x_search" }
-        if obj["included_x_handles"].is_a?(Array) && !obj["included_x_handles"].empty?
-          x_search_tool["allowed_x_handles"] = obj["included_x_handles"]
-        end
-        if obj["excluded_x_handles"].is_a?(Array) && !obj["excluded_x_handles"].empty?
-          x_search_tool["excluded_x_handles"] = obj["excluded_x_handles"]
-        end
-        x_search_tool["from_date"] = obj["date_from"] if obj["date_from"]
-        x_search_tool["to_date"] = obj["date_to"] if obj["date_to"]
-        body["tools"] << x_search_tool
-      end
-
-      # Log dropped params that are not supported in the Responses API search tools
-      if CONFIG["EXTRA_LOGGING"]
-        dropped = []
-        dropped << "country=#{obj["web_country"]}" if obj["web_country"]
-        dropped << "safe_search=#{obj["safe_search"]}" if obj["safe_search"]
-        dropped << "post_favorite_count=#{obj["post_favorite_count"]}" if obj["post_favorite_count"]
-        dropped << "post_view_count=#{obj["post_view_count"]}" if obj["post_view_count"]
-        dropped << "enable_news_search" if obj.fetch("enable_news_search", false)
-        dropped << "rss_links" if obj["rss_links"] && !obj["rss_links"].empty?
-        unless dropped.empty?
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("\n[#{Time.now}] Grok Responses API: dropped unsupported search params: #{dropped.join(', ')}")
-          extra_log.close
-        end
-      end
-
-      # Debug logging for web search
-      DebugHelper.debug("Grok: Native web search enabled via Responses API tools", category: :api, level: :debug)
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] === Grok API Request Started ===")
-        extra_log.puts("App: #{app}")
-        extra_log.puts("Websearch enabled: #{websearch}")
-        extra_log.puts("Search tools: #{body["tools"].select { |t| %w[web_search x_search].include?(t["type"]) }.inspect}")
-        extra_log.close
-      end
-
-      # Debug logging
-      if DebugHelper.extra_logging?
-        DebugHelper.debug("Grok Live Search enabled via Responses API search tools", category: :api, level: :info)
-      end
-    end
-
-    # Build the messages array for context (intermediate format before conversion)
-
-    messages_containing_img = false
-    system_message_modified = false
-    context_messages = context.compact.map do |msg|
-      if msg["role"] == "system" && !system_message_modified
-        system_message_modified = true
-
-        # Use unified system prompt injector
-        augmented_text = Monadic::Utils::SystemPromptInjector.augment(
-          base_prompt: msg["text"],
-          session: session,
-          options: {
-            websearch_enabled: false,
-            reasoning_model: false,
-            websearch_prompt: nil,
-            system_prompt_suffix: obj["system_prompt_suffix"]
-          },
-          separator: "\n\n---\n\n"
-        )
-
-        { "role" => msg["role"], "content" => [{ "type" => "text", "text" => augmented_text }] }
-      else
-        message = { "role" => msg["role"], "content" => [{ "type" => "text", "text" => msg["text"] }] }
-        if msg["images"] && role == "user"
-          msg["images"].each do |img|
-            messages_containing_img = true
-            message["content"] << {
-              "type" => "image_url",
-              "image_url" => {
-                "url" => img["data"],
-                "detail" => "high"
-              }
-            }
-          end
-        end
-        message
-      end
-    end
-
-    # Handle initiate_from_assistant case where only system message exists
-    if context_messages.length == 1 && context_messages[0]["role"] == "system"
-      # For Code Interpreter apps, use a more specific initial message that encourages tool usage
-      if app && (app.include?("CodeInterpreter") || app.include?("code_interpreter"))
-        initial_message = "Use the check_environment function to verify the Python environment, then introduce yourself and explain what you can do."
-      else
-        initial_message = "Please proceed according to your system instructions and introduce yourself."
-      end
-
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Grok initiate_from_assistant triggered")
-        extra_log.puts("App: #{app}")
-        extra_log.puts("Adding initial user message: #{initial_message}")
-        extra_log.puts("Tools available: #{body['tools']&.length || 0}")
-        extra_log.close
-      end
-
-      context_messages << {
-        "role" => "user",
-        "content" => [{ "type" => "text", "text" => initial_message }]
-      }
-    end
-
-    # Handle tool role - send tool results back to Grok using Responses API format
-    if role == "tool" && obj["function_returns"]
-      # First, add the assistant message with function_calls if it exists
-      if obj["assistant_function_calls"]
-        assistant_message = {
-          "role" => "assistant",
-          "content" => [{"type" => "text", "text" => ""}],
-          "assistant_function_calls" => obj["assistant_function_calls"]
-        }
-        context_messages << assistant_message
-      end
-
-      # Then add tool results (function_call_output format)
-      # The convert_messages_to_input helper will handle the format conversion
-      obj["function_returns"].each do |result|
-        tool_message = {
-          "role" => "tool",
-          "content" => result["content"] || result[:content],
-          "tool_call_id" => result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
-        }
-        context_messages << tool_message
-      end
-
-      # Inject screenshot image(s) as user message for vision-capable models
-      # Supports multiple images for tiled screenshots
-      # Dedup: skip images already injected in this turn to prevent verify→regenerate loops
-      if session[:pending_tool_images]&.any?
-        injected_set = session[:images_injected_this_turn] ||= Set.new
-        new_images = session[:pending_tool_images].reject { |f| injected_set.include?(f) }
-
-        if new_images.any?
-          image_parts = new_images.filter_map do |img_filename|
-            img = Monadic::Utils::ToolImageUtils.encode_image_for_api(img_filename)
-            next unless img
-
-            injected_set << img_filename
-            { "type" => "image_url", "image_url" => { "url" => "data:#{img[:media_type]};base64,#{img[:base64_data]}", "detail" => "high" } }
-          end
-          if image_parts.any?
-            context_messages << {
-              "role" => "user",
-              "content" => [
-                { "type" => "text", "text" => "[Screenshot of the browser after the action above. Use this visual context to continue with your task.]" },
-                *image_parts
-              ]
-            }
-          end
-        end
-        session.delete(:pending_tool_images)
-      end
-
-      # Log the tool results being added
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Adding tool results to input for Grok Responses API")
-        if obj["assistant_function_calls"]
-          extra_log.puts("Assistant function calls: #{obj['assistant_function_calls'].length} calls")
-        end
-        extra_log.puts("Number of tool results: #{obj["function_returns"].length}")
-        obj["function_returns"].each do |result|
-          name = result["name"] || result[:name]
-          call_id = result["call_id"] || result["tool_call_id"] || result[:call_id] || result[:tool_call_id]
-          content_str = (result["content"] || result[:content]).to_s
-          extra_log.puts("  - #{name}: call_id=#{call_id}, content_preview=#{content_str[0..100]}...")
-        end
-        extra_log.puts("Total context messages being sent: #{context_messages.length}")
-        extra_log.close
-      end
-    end
-
-    last_text = context.last["text"]
-
-    # Decorate the last message in the context with the message with the snippet
-    # and the prompt suffix
-    last_text = message_with_snippet if message_with_snippet.to_s != ""
-
-    # CRITICAL FIX: Don't replace the user message content if this is the initial assistant greeting
-    # Check if this is initiate_from_assistant scenario (2 messages: system + user)
-    is_initial_greeting = context_messages.length == 2 &&
-                         context_messages[0]["role"] == "system" &&
-                         context_messages[1]["role"] == "user" &&
-                         session[:messages].length <= 1
-
-    # CRITICAL FIX 2: Don't modify tool result messages!
-    last_message_is_tool = context_messages.last && context_messages.last["role"] == "tool"
-
-    if last_text != "" && prompt_suffix.to_s != "" && !is_initial_greeting && !last_message_is_tool
-      new_text = last_text + "\n\n" + prompt_suffix.strip if prompt_suffix.to_s != ""
-      if context_messages.dig(-1, "content")
-        last_content = context_messages.last["content"]
-        # Check if content is an array (normal case) or string (tool result case)
-        if last_content.is_a?(Array)
-          last_content.each do |content_item|
-            if content_item["type"] == "text"
-              content_item["text"] = new_text
-            end
-          end
-        elsif last_content.is_a?(String)
-          # For user messages that are strings (shouldn't happen for tool results now)
-          context_messages.last["content"] = new_text
-        end
-      end
-    end
-
-    if data
-      context_messages << {
-        "role" => "user",
-        "content" => data.strip
-      }
-    end
-
-    # system_prompt_suffix is now handled by unified system prompt injector above
-
-    if messages_containing_img
-      original_model = body["model"]
-      begin
-        spec_vision = Monadic::Utils::ModelSpec.get_model_property(original_model, "vision_capability")
-        current_vision = spec_vision == true
-      rescue StandardError
-        current_vision = false
-      end
-      unless current_vision
-        # Find a vision-capable Grok model from SSOT
-        begin
-          spec = Monadic::Utils::ModelSpec.load_spec
-          candidates = spec.keys.select do |m|
-            m.start_with?("grok-") && Monadic::Utils::ModelSpec.get_model_property(m, "vision_capability") == true
-          end
-          # Prefer grok-4-1-fast-non-reasoning for vision tasks
-          vision_model = candidates.include?("grok-4-1-fast-non-reasoning") ? "grok-4-1-fast-non-reasoning" : candidates.first
-        rescue StandardError
-          vision_model = nil
-        end
-        if vision_model && vision_model != original_model
-          body["model"] = vision_model
-          body.delete("stop")
-          if block
-            system_msg = {
-              "type" => "system_info",
-              "content" => "Model automatically switched from #{original_model} to #{body['model']} for image processing capability."
-            }
-            block.call system_msg
-          end
-        end
-      end
-    end
+    context_messages, _messages_containing_img = build_grok_messages(
+      context, role, obj, session, body, message_with_snippet, prompt_suffix, data, &block
+    )
 
     # Convert context_messages to Responses API input format
     body["input"] = convert_messages_to_input(context_messages)
 
-    # Capability audit (optional)
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        audit = []
-        audit << "streaming:#{supports_streaming}(#{streaming_source})"
-        audit << "tools:#{tool_capable}(#{tool_capable_source})"
-        begin
-          vision_prop = Monadic::Utils::ModelSpec.get_model_property(body['model'], 'vision_capability')
-          vision_capable = vision_prop == true
-          vision_source = vision_prop.nil? ? 'fallback' : 'spec'
-          audit << "vision:#{vision_capable}(#{vision_source})"
-        rescue StandardError
-          # ignore
-        end
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Grok SSOT capabilities for #{body['model']}: #{audit.join(', ')}")
-        extra_log.close
-      rescue StandardError
-        # ignore logging errors
-      end
-    end
-
-    # Call the Responses API
-    target_uri = "#{API_ENDPOINT}/responses"
-    headers["Accept"] = "text/event-stream"
-    http = HTTP.headers(headers)
-
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
-
-    # Debug final request for web search
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] Grok final API request:")
-      extra_log.puts("App: #{app}")
-      extra_log.puts("URL: #{target_uri}")
-      extra_log.puts("Model: #{body['model']}")
-      extra_log.puts("Tool choice: #{body['tool_choice'].inspect}")
-      extra_log.puts("Number of tools: #{body['tools']&.length || 0}")
-      extra_log.puts("Number of input items: #{body['input']&.length || 0}")
-      # Log last user input for debugging
-      last_user_input = body["input"].is_a?(Array) ? body["input"].reverse.find { |m| m["role"] == "user" } : nil
-      if last_user_input
-        content_preview = last_user_input["content"].to_s[0..100]
-        extra_log.puts("Last user input preview: #{content_preview}")
-      end
-      if body['tools'] && body['tools'].any?
-        extra_log.puts("Tool signatures:")
-        body['tools'].each do |tool|
-          extra_log.puts("  - #{tool['name'] || tool.dig('function', 'name')}: #{(tool['parameters'] || tool.dig('function', 'parameters'))&.dig('properties')&.keys&.inspect}")
-        end
-      end
-      extra_log.puts("Full request body:")
-      extra_log.puts(JSON.pretty_generate(body))
-      extra_log.close
-    end
-
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      break if res.status.success?
-
-      sleep RETRY_DELAY
-    end
-
-    unless res.status.success?
-      begin
-        error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
-
-        # Log the full error response for debugging
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[#{Time.now}] [Grok] API Error Response:"
-            log.puts "  Status: #{res.status.code}"
-            log.puts "  Body: #{res.body.to_s[0..2000]}"
-            log.puts "  Parsed: #{error_data.inspect}"
-          end
-        end
-
-        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-          provider: "xAI",
-          message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
-          code: res.status.code
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
-      rescue StandardError => e
-        DebugHelper.debug("Error parsing API error response: #{e.message}", category: :api, level: :error)
-        DebugHelper.debug("Raw response body: #{res.body.to_s[0..500]}", category: :api, level: :debug)
-        DebugHelper.debug("Response status: #{res.status}", category: :api, level: :debug)
-        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-          provider: "xAI",
-          message: "Unknown error occurred",
-          code: res.status.code
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
-      end
-    end
-
-    # return Array
-    if !body["stream"]
-      # Non-streaming: parse Responses API output format
-      parsed = JSON.parse(res.body)
-      output = parsed["output"] || []
-      # Extract text from output message items
-      frag = output.select { |item| item["type"] == "message" }
-                   .flat_map { |item| Array(item["content"]) }
-                   .select { |c| c["type"] == "output_text" }
-                   .map { |c| c["text"] }
-                   .join
-      # Fallback to empty string if no text found
-      frag = "" if frag.nil?
-      block&.call({ "type" => "fragment", "content" => frag, "finish_reason" => "stop" })
-      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-
-      # Check for function calls in output
-      function_calls = output.select { |item| item["type"] == "function_call" }
-      if function_calls.any?
-        # Build tool_calls in the standard format for process_functions
-        tool_calls = function_calls.map do |fc|
-          {
-            "id" => fc["call_id"] || fc["id"],
-            "function" => {
-              "name" => fc["name"],
-              "arguments" => fc["arguments"] || "{}"
-            }
-          }
-        end
-
-        # Store assistant function calls for context
-        obj["assistant_function_calls"] = function_calls.map do |fc|
-          {
-            "type" => "function_call",
-            "id" => fc["id"],
-            "call_id" => fc["call_id"] || fc["id"],
-            "name" => fc["name"],
-            "arguments" => fc["arguments"] || "{}"
-          }
-        end
-
-        session[:call_depth_per_turn] += 1
-        if session[:call_depth_per_turn] > MAX_FUNC_CALLS
-          return [{ "type" => "error", "content" => Monadic::Utils::ErrorFormatter.api_error(
-            provider: "xAI",
-            message: "Maximum function call depth exceeded"
-          ) }]
-        end
-
-        new_results = process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block)
-        return new_results || []
-      end
-
-      # Wrap in choices format for compatibility
-      [{ "choices" => [{ "message" => { "role" => "assistant", "content" => frag }, "finish_reason" => "stop" }] }]
-    else
-      # Include original model in the query for comparison
-      body["original_user_model"] = original_user_model
-      process_responses_api_data(app: app,
-                                session: session,
-                                query: body,
-                                res: res.body,
-                                call_depth: call_depth, &block)
-    end
+    execute_grok_api_call(headers, body, app, session, call_depth, disable_streaming, original_user_model, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -1198,9 +1274,10 @@ module GrokHelper
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing Grok Responses API query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing Grok Responses API query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
 
     obj = session[:parameters]
@@ -1251,8 +1328,8 @@ module GrokHelper
           begin
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
-              extra_log.puts(JSON.pretty_generate(json))
+            if CONFIG["EXTRA_LOGGING"]
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts(JSON.pretty_generate(json)) }
             end
 
             # Check if response model differs from requested model
@@ -1266,8 +1343,8 @@ module GrokHelper
             case event_type
             when "response.created"
               # Response created - log for debugging
-              if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
-                extra_log.puts("[#{Time.now}] Grok response.created")
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts("[#{Time.now}] Grok response.created") }
               end
 
             when "response.in_progress"
@@ -1393,8 +1470,8 @@ module GrokHelper
 
             when "response.web_search_call.completed"
               # Web search completed
-              if CONFIG["EXTRA_LOGGING"] && extra_log && !extra_log.closed?
-                extra_log.puts("[#{Time.now}] Grok web search completed: item_id=#{json["item_id"]}")
+              if CONFIG["EXTRA_LOGGING"]
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts("[#{Time.now}] Grok web search completed: item_id=#{json["item_id"]}") }
               end
 
             when "response.completed", "response.done"
@@ -1420,13 +1497,6 @@ module GrokHelper
               res_event = { "type" => "error", "content" => formatted_error }
               block&.call res_event
 
-              if CONFIG["EXTRA_LOGGING"]
-                begin
-                  extra_log.close unless extra_log.closed?
-                rescue StandardError
-                  # Already closed, ignore
-                end
-              end
               return [res_event]
 
             else
@@ -1459,10 +1529,7 @@ module GrokHelper
                   block&.call res_event
                 end
               elsif CONFIG["EXTRA_LOGGING"] && event_type
-                # Unknown event type - log if EXTRA_LOGGING
-                if extra_log && !extra_log.closed?
-                  extra_log.puts("[#{Time.now}] Grok unknown event type: #{event_type}")
-                end
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts("[#{Time.now}] Grok unknown event type: #{event_type}") }
               end
             end
 
@@ -1482,14 +1549,6 @@ module GrokHelper
       DebugHelper.debug("JSON parsing error: #{e.message}", category: :api, level: :error)
       DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
       DebugHelper.debug("Error details: #{e.inspect}", category: :api, level: :debug)
-    end
-
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        extra_log.close unless extra_log.closed?
-      rescue StandardError
-        # Already closed, ignore
-      end
     end
 
     # Handle tool calls if any were collected
@@ -1531,12 +1590,10 @@ module GrokHelper
         end
 
         if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("\n[#{Time.now}] Grok tool calls collected from streaming:")
-          tool_calls.each do |tc|
-            extra_log.puts("  - #{tc.dig('function', 'name')}: id=#{tc['id']}")
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts("\n[#{Time.now}] Grok tool calls collected from streaming:")
+            tool_calls.each { |tc| f.puts("  - #{tc.dig('function', 'name')}: id=#{tc['id']}") }
           end
-          extra_log.close
         end
 
         # Process the tools and get results
@@ -1545,54 +1602,12 @@ module GrokHelper
       end
     end
 
-    # Build the result response
-    if texts.any?
-      complete_text = texts.values.join("")
-
-      result = {
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => complete_text
-          },
-          "finish_reason" => finish_reason || "stop"
-        }],
-        "model" => query["model"]
-      }
-
-      # Attach usage if available
-      if usage_input_tokens || usage_output_tokens || usage_total_tokens
-        result["usage"] = {
-          "input_tokens" => usage_input_tokens,
-          "output_tokens" => usage_output_tokens,
-          "total_tokens" => usage_total_tokens
-        }.compact
-      end
-
-      # Add reasoning content to the message if collected
-      if reasoning_content && !reasoning_content.empty?
-        result["choices"][0]["message"]["thinking"] = reasoning_content.join("")
-      end
-
-      res_event = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason || "stop" }
-      block&.call res_event
-      [result]
-    else
-      # Return a properly formatted empty response
-      result = {
-        "choices" => [{
-          "message" => {
-            "role" => "assistant",
-            "content" => ""
-          },
-          "finish_reason" => "stop"
-        }],
-        "model" => query["model"]
-      }
-      res_event = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
-      block&.call res_event
-      [result]
-    end
+    build_grok_text_response(
+      texts: texts, query: query, finish_reason: finish_reason,
+      reasoning_content: reasoning_content,
+      usage_input_tokens: usage_input_tokens, usage_output_tokens: usage_output_tokens,
+      usage_total_tokens: usage_total_tokens, &block
+    )
   rescue StandardError => e
     STDERR.puts "[Grok] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
     STDERR.puts "[Grok] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
@@ -1663,9 +1678,9 @@ module GrokHelper
           response_parts << "<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
 
           if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts("\n[#{Time.now}] Grok auto-injected image HTML for: /data/#{filename}")
-            extra_log.close
+            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+              f.puts("\n[#{Time.now}] Grok auto-injected image HTML for: /data/#{filename}")
+            end
           end
         end
 
@@ -1737,270 +1752,14 @@ module GrokHelper
     tool_results = []
 
     tools.each do |tool_call|
-      function_call = tool_call["function"]
-      function_name = function_call["name"]
+      function_name = tool_call.dig("function", "name")
+      next if function_name.nil?
+
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      begin
-        # Handle empty string arguments for tools with no parameters
-        if function_call["arguments"].to_s.strip.empty?
-          argument_hash = {}
-        else
-          argument_hash = JSON.parse(function_call["arguments"])
-        end
-      rescue JSON::ParserError
-        argument_hash = {}
-      end
-
-      # CRITICAL FIX: Replace incorrect filenames with the stored correct one
-      # This applies to any Jupyter function that takes a filename parameter
-      if obj["current_notebook_filename"] && argument_hash["filename"]
-        jupyter_functions = ["add_jupyter_cells", "delete_jupyter_cell", "update_jupyter_cell",
-                           "get_jupyter_cells_with_results", "execute_and_fix_jupyter_cells",
-                           "restart_jupyter_kernel", "interrupt_jupyter_execution",
-                           "move_jupyter_cell", "insert_jupyter_cells"]
-
-        if jupyter_functions.include?(function_name)
-          provided_filename = argument_hash["filename"].to_s.gsub(/\.ipynb$/, '')
-          stored_filename = obj["current_notebook_filename"].gsub(/\.ipynb$/, '')
-
-          # Check if the provided file actually exists
-          shared_volume = if Monadic::Utils::Environment.in_container?
-                            MonadicApp::SHARED_VOL
-                          else
-                            MonadicApp::LOCAL_SHARED_VOL
-                          end
-          provided_path = File.join(shared_volume, "#{provided_filename}.ipynb")
-
-          # If the provided file doesn't exist, use the stored filename
-          if !File.exist?(provided_path) && obj["current_notebook_filename"]
-            # Extract base names to check if they're related
-            stored_base_name = stored_filename.gsub(/_\d{8}_\d{6}$/, '')
-            provided_base_name = provided_filename.gsub(/_\d{8}_\d{6}$/, '')
-
-            # Only replace if the base names match (same notebook, different timestamp)
-            if stored_base_name == provided_base_name
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("\n[#{Time.now}] Replacing non-existent filename in #{function_name}:")
-                extra_log.puts("  Original: #{argument_hash["filename"]} (file doesn't exist)")
-                extra_log.puts("  Replaced with: #{stored_filename} (stored filename)")
-                extra_log.close
-              end
-              argument_hash["filename"] = stored_filename
-            end
-          end
-        end
-      end
-
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        # skip if the value is nil or null but not if it is of the string class
-        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
-
-        memo[k.to_sym] = v
-        memo
-      end
-
-      # Inject session for tools that need it (e.g., monadic state tools, image generators)
-      # Check if the method accepts a :session parameter and inject it if so
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        argument_hash[:session] = session
-      end
-
-      begin
-        function_return = APPS[app].send(function_name.to_sym, **argument_hash)
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        # GROK-SPECIFIC FIX: Check if SVG files were created with HTML escaping
-        # This is a workaround for Grok's tendency to HTML-escape SVG content
-        if function_name == "run_code" && function_return.to_s.include?("File(s) generated")
-          # Extract file paths from the output
-          if function_return =~ /File\(s\) generated.*?: ([^;]+)/
-            file_list = $1
-            files = file_list.split(",").map(&:strip)
-
-            files.each do |file_path|
-              if file_path.end_with?(".svg")
-                # Convert /data/ path to actual file path
-                actual_path = file_path.gsub("/data/", "")
-
-                # Determine the full path based on environment
-                full_path = if Monadic::Utils::Environment.in_container?
-                              File.join("/monadic/data", actual_path)
-                            else
-                              File.join(File.expand_path("~/monadic/data"), actual_path)
-                            end
-
-                # Check and fix HTML-escaped SVG content
-                begin
-                  if File.exist?(full_path)
-                    content = File.read(full_path)
-                    if content.include?("&lt;svg") || content.include?("&gt;")
-                      fixed_content = content.gsub("&lt;", "<")
-                                            .gsub("&gt;", ">")
-                                            .gsub("&quot;", '"')
-                                            .gsub("&amp;", "&")
-                      File.write(full_path, fixed_content)
-
-                      if CONFIG["EXTRA_LOGGING"]
-                        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                        extra_log.puts("\n[#{Time.now}] Grok: Fixed HTML-escaped SVG file: #{actual_path}")
-                        extra_log.close
-                      end
-                    end
-                  end
-                rescue => e
-                  # Log error but don't fail the entire operation
-                  if CONFIG["EXTRA_LOGGING"]
-                    extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                    extra_log.puts("\n[#{Time.now}] Grok: Failed to fix SVG file #{actual_path}: #{e.message}")
-                    extra_log.close
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        # CRITICAL: If this is create_jupyter_notebook OR create_and_populate_jupyter_notebook,
-        # extract the actual filename with timestamp and store it in session
-        if (function_name == "create_jupyter_notebook" || function_name == "create_and_populate_jupyter_notebook") &&
-           function_return.include?("created successfully")
-          # Extract actual notebook filename with timestamp
-          # Match format: "Notebook filename.ipynb created successfully" (without quotes)
-          if function_return =~ /Notebook\s+(\S+\.ipynb)\s+created successfully/
-            actual_notebook_name = $1
-            # Store in session for subsequent tool calls
-            obj["current_notebook_filename"] = actual_notebook_name
-            obj["current_notebook_link"] = "<a href='http://127.0.0.1:8889/lab/tree/#{actual_notebook_name}' target='_blank'>Open #{actual_notebook_name}</a>"
-
-            if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts("\n[#{Time.now}] Stored notebook name from #{function_name}: #{actual_notebook_name}")
-              extra_log.puts("Stored notebook link: #{obj["current_notebook_link"]}")
-              extra_log.close
-            end
-          end
-        end
-
-        # CRITICAL: If this is generate_image_with_grok, extract the actual filename
-        # and store it in session for post-processing the LLM response
-        if function_name == "generate_image_with_grok" && function_return.is_a?(String)
-          begin
-            # Parse the JSON response
-            image_result = JSON.parse(function_return)
-            if image_result["success"] && image_result["filename"]
-              actual_image_filename = image_result["filename"]
-              # Store in session for post-processing and future edits
-              obj["current_image_filename"] = actual_image_filename
-              session[:grok_last_image] = actual_image_filename if session
-
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("\n[#{Time.now}] Stored image filename: #{actual_image_filename}")
-                extra_log.puts("Session persisted grok_last_image") if session
-                extra_log.close
-              end
-            end
-          rescue JSON::ParserError => e
-            # Log error but don't fail
-            if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts("\n[#{Time.now}] Failed to parse image generator response: #{e.message}")
-              extra_log.close
-            end
-          end
-        end
-
-        # Extract video filename and request_id from generate_video_with_grok_imagine
-        if function_name == "generate_video_with_grok_imagine" && function_return.is_a?(String)
-          begin
-            video_result = JSON.parse(function_return)
-            if video_result["success"] && video_result["filename"]
-              obj["current_video_filename"] = video_result["filename"]
-              session[:grok_last_video_filename] = video_result["filename"] if session
-              session[:grok_last_video_request_id] = video_result["request_id"] if session && video_result["request_id"]
-
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("\n[#{Time.now}] Stored video filename: #{video_result["filename"]}")
-                extra_log.puts("Session persisted grok_last_video_filename") if session
-                extra_log.close
-              end
-            end
-          rescue JSON::ParserError => e
-            if CONFIG["EXTRA_LOGGING"]
-              extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-              extra_log.puts("\n[#{Time.now}] Failed to parse video generator response: #{e.message}")
-              extra_log.close
-            end
-          end
-        end
-
-        # Log tool execution
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("\n[#{Time.now}] Tool executed: #{function_name}")
-          extra_log.puts("Arguments: #{argument_hash.inspect}")
-          extra_log.puts("Result: #{function_return.to_s[0..500]}...")
-          extra_log.close
-        end
-
-        # Extract TTS text from tool parameters if tts_target is configured
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
-        )
-      rescue StandardError => e
-        DebugHelper.debug("Function call error in #{function_name}: #{e.message}", category: :api, level: :error)
-        DebugHelper.debug("Backtrace: #{e.backtrace.join("\n")}", category: :api, level: :debug)
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "xAI",
-          tool_name: function_name,
-          message: e.message
-        )
-      end
-
-      # Use the error handler module to check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        # Stop retrying - add tool result and skip to loop exit
-        tool_result = {
-          "call_id" => tool_call["id"],
-          "name" => function_name,
-          "content" => function_return.to_s
-        }
-        tool_results << tool_result
-        next
-      end
-
-      # Collect _image for screenshot injection and remove underscore keys from serialized result
-      # Supports both single filename (String) and multiple filenames (Array) for tiled screenshots
-      if function_return.is_a?(Hash) && function_return[:_image]
-        session[:pending_tool_images] = Array(function_return[:_image])
-        clean_return = function_return.reject { |k, _| k.to_s.start_with?("_") }
-        content_str = JSON.generate(clean_return)
-      else
-        content_str = function_return.to_s
-      end
-
-      # Store gallery_html for server-side injection (bypasses LLM text reproduction)
-      if function_return.is_a?(Hash) && function_return[:gallery_html]
-        session[:tool_html_fragments] ||= []
-        session[:tool_html_fragments] << function_return[:gallery_html]
-      end
-
-      # Format tool result for Responses API (function_call_output format)
-      tool_result = {
-        "call_id" => tool_call["id"],
-        "name" => function_name,
-        "content" => content_str
-      }
-
-      tool_results << tool_result
+      tool_result, error_stop = invoke_grok_tool_function(app, session, tool_call, function_name, &block)
+      tool_results << tool_result if tool_result
+      next if error_stop
     end
 
     # Store tool results in session for API request
@@ -2008,13 +1767,6 @@ module GrokHelper
 
     # Check if we've reached max call depth
     if call_depth >= MAX_FUNC_CALLS
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Max call depth reached (#{MAX_FUNC_CALLS})")
-        extra_log.close
-      end
-
-      # Return a summary when max depth is reached
       summary = "Completed #{tool_results.length} tool execution(s):\n\n"
       tool_results.each do |result|
         result_content = (result['content'] || result[:content]).to_s
@@ -2044,68 +1796,25 @@ module GrokHelper
     # According to documentation, we must send tool results with function_call_output back to Grok
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] Sending tool results back to Grok (depth: #{call_depth})")
-      extra_log.puts("Number of tool results: #{tool_results.length}")
-      tool_results.each do |result|
-        extra_log.puts("  - #{result['name']}: call_id=#{result['call_id']}")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] Sending tool results back to Grok (depth: #{call_depth})")
+        f.puts("Number of tool results: #{tool_results.length}")
       end
-      extra_log.close
     end
 
     # Build a helpful response that includes actual results
     response_content = build_tool_response(tool_results)
 
-    # Check if this is an image/video generation or Jupyter operation that we've already built a complete response for
+    # Determine if we can skip the recursive API call (media generation or Jupyter with complete response)
     has_image_generation = tool_results.any? { |r| (r["name"] || r[:name]) == "generate_image_with_grok" }
     has_video_generation = tool_results.any? { |r| (r["name"] || r[:name]) == "generate_video_with_grok_imagine" }
     has_jupyter_operation = tool_results.any? { |r|
       %w[create_jupyter_notebook add_jupyter_cells create_and_populate_jupyter_notebook].include?(r["name"] || r[:name])
     }
-    skip_api_call = false
 
-    if has_image_generation && response_content.include?("<img")
-      # We have a complete HTML response for image generation, no need to call Grok
-      skip_api_call = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete image response")
-        extra_log.close
-      end
-    elsif has_image_generation && !response_content.include?("<img")
-      # Image generation was attempted but failed (no <img> tag means error)
-      # Skip recursive API call to prevent temp-card from stacking
-      skip_api_call = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - image generation returned error")
-        extra_log.close
-      end
-    elsif has_video_generation && response_content.include?("<video")
-      # We have a complete HTML response for video generation, no need to call Grok
-      skip_api_call = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete video response")
-        extra_log.close
-      end
-    elsif has_video_generation && !response_content.include?("<video")
-      # Video generation was attempted but failed (no <video> tag means error)
-      skip_api_call = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - video generation returned error")
-        extra_log.close
-      end
-    elsif has_jupyter_operation && response_content.include?("<a href=")
-      # We have a complete response with notebook link, no need to call Grok
-      skip_api_call = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Skipping recursive API call - have complete Jupyter response with link")
-        extra_log.close
-      end
-    end
+    skip_api_call = has_image_generation ||
+                    has_video_generation ||
+                    (has_jupyter_operation && response_content.include?("<a href="))
 
     if skip_api_call
       # Build the response directly without calling Grok
@@ -2123,165 +1832,23 @@ module GrokHelper
         }]
       }]
     else
-      # Make API request with tool results to get Grok's natural language response
-      # Use "tool" as role to indicate we're sending tool results
-      # IMPORTANT: Disable streaming for tool result processing to avoid hanging
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] About to make recursive API request with tool results")
-        extra_log.puts("  Call depth: #{call_depth + 1}")
-        extra_log.puts("  Streaming disabled for tool result processing")
-        extra_log.close
-      end
-
       new_results = api_request("tool", session, call_depth: call_depth + 1, disable_streaming: true, &block)
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] Returned from recursive API request")
-      extra_log.puts("  Results type: #{new_results.class}")
-      extra_log.puts("  Results empty?: #{new_results.nil? || (new_results.respond_to?(:empty?) && new_results.empty?)}")
-      extra_log.close
-    end
-
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] Received response from Grok after tool execution")
-      if new_results && new_results.is_a?(Array) && !new_results.empty?
-        content = new_results.dig(0, "choices", 0, "message", "content")
-        extra_log.puts("Response preview: #{content.to_s[0..200]}...") if content
-      end
-      extra_log.close
-    end
-
-    # CRITICAL FIX: Post-process Grok's response to replace incorrect filenames and fix image paths
-    if new_results && new_results.is_a?(Array) && !new_results.empty?
-      content = new_results.dig(0, "choices", 0, "message", "content")
-
-      # Fix image paths for Code Interpreter
-      if content && (obj["app_name"].to_s.include?("CodeInterpreter") ||
-                     obj["display_name"].to_s.include?("Code Interpreter"))
-        # Check if Grok is showing verification output but not proper image HTML
-        if content =~ /File created: ([^\s]+\.(svg|png|jpg|jpeg|gif)).*Full path: \/monadic\/data/i
-          filename = $1
-          # Check if the HTML is already there
-          unless content.include?("<div class=\"generated_image\">")
-            # Find where to inject the HTML (after the output section)
-            if content =~ /(Output:.*?```[^`]*```)/m
-              output_section = $1
-              # Add the image HTML after the output section
-              image_html = "\n\n<div class=\"generated_image\">\n  <img src=\"/data/#{filename}\" />\n</div>"
-              content = content.sub(output_section, output_section + image_html)
-
-              if CONFIG["EXTRA_LOGGING"]
-                extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                extra_log.puts("\n[#{Time.now}] Grok auto-fixed image display for: /data/#{filename}")
-                extra_log.close
-              end
-            end
-          end
-        end
-      end
-
-      if content && obj["current_notebook_filename"]
-        actual_filename = obj["current_notebook_filename"]
-        base_name = actual_filename.gsub(/_\d{8}_\d{6}\.ipynb$/, '')
-
-        # Replace incorrect filename patterns with the actual filename
-        # Pattern 1: Without timestamp
-        content = content.gsub(/\b#{Regexp.escape(base_name)}\.ipynb\b/i, actual_filename)
-
-        # Pattern 2: With ANY timestamp (catches all fake timestamps including wrong dates)
-        content = content.gsub(/\b#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb\b/i, actual_filename)
-
-        # Pattern 2b: Also catch common placeholder patterns like 20231001_123456
-        content = content.gsub(/\b#{Regexp.escape(base_name)}_202[3-9]\d{4}_\d{6}\.ipynb\b/i, actual_filename)
-
-        # Pattern 3: Fix URLs
-        content = content.gsub(%r{http://localhost:8889/lab/tree/#{Regexp.escape(base_name)}_\d{8}_\d{6}\.ipynb}i,
-                              "http://localhost:8889/lab/tree/#{actual_filename}")
-
-        # Update the response with corrected content
-        new_results[0]["choices"][0]["message"]["content"] = content
-
-      end
-
-      # Post-process image filenames if we have a stored image filename
-      if content && obj["current_image_filename"]
-        actual_image_filename = obj["current_image_filename"]
-
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("\n[#{Time.now}] Starting image filename post-processing")
-          extra_log.puts("  Actual filename: #{actual_image_filename}")
-          extra_log.puts("  Content preview before: #{content[0..200]}...")
-          extra_log.close
-        end
-
-        # Replace various placeholder patterns with the actual filename
-        # Pattern 1: Date-like placeholders (e.g., 20231012-123456.png)
-        content = content.gsub(/\d{8}-\d{6}\.png/i, actual_image_filename)
-
-        # Pattern 2: Timestamp-only placeholders (e.g., 123456789.png)
-        content = content.gsub(/(?<!\d)\d{10}\.png/i, actual_image_filename)
-
-        # Pattern 3: In image src attributes
-        content = content.gsub(/src="\/data\/\d{8}-\d{6}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-        content = content.gsub(/src="\/data\/\d{10}\.png"/i, "src=\"/data/#{actual_image_filename}\"")
-
-        # Pattern 4: Any placeholder-looking filename
-        content = content.gsub(/\/data\/[a-zA-Z0-9_-]+\.png/, "/data/#{actual_image_filename}")
-
-        # Update the response with corrected content
-        new_results[0]["choices"][0]["message"]["content"] = content
-
-        if CONFIG["EXTRA_LOGGING"]
-          extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-          extra_log.puts("\n[#{Time.now}] Post-processed image filename: replaced placeholders with #{actual_image_filename}")
-          extra_log.puts("  Content preview after: #{content[0..200]}...")
-          extra_log.close
-        end
-      elsif CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] No image filename post-processing: current_image_filename not in session")
-        extra_log.puts("  Session keys: #{obj.keys.inspect}")
-        extra_log.close
-      end
-    end
+    # Post-process Grok's response to replace incorrect filenames and fix image paths
+    postprocess_grok_response(new_results, obj)
 
     # If Grok returns empty or inadequate response after tool execution, provide a fallback
-    content_check = new_results.dig(0, "choices", 0, "message", "content").to_s.strip if new_results
-    tool_calls_check = new_results.dig(0, "choices", 0, "message", "tool_calls") if new_results
-    is_inadequate = false
+    content_check = new_results&.dig(0, "choices", 0, "message", "content").to_s.strip
+    tool_calls_check = new_results&.dig(0, "choices", 0, "message", "tool_calls")
 
-    # Check if response is empty or just echoing the prompt
-    # BUT: if there are tool_calls, the response is valid (model wants to call another tool)
-    if new_results.nil? || new_results.empty?
-      is_inadequate = true
-    elsif (!content_check || content_check.empty?) && (!tool_calls_check || tool_calls_check.empty?)
-      # Empty content AND no tool calls = inadequate
-      is_inadequate = true
-    elsif obj["current_image_filename"] && !content_check.include?("<img") && !content_check.include?("generated_image") && (!tool_calls_check || tool_calls_check.empty?)
-      # For image generation, if the response doesn't contain image HTML AND no tool calls, it's inadequate
-      # But if there are tool calls (like generate_image_with_grok), let it proceed
-      is_inadequate = true
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Grok response missing image HTML and no tool calls, using fallback")
-        extra_log.close
-      end
-    end
+    is_inadequate = new_results.nil? || new_results.empty? ||
+                    (content_check.empty? && (tool_calls_check.nil? || tool_calls_check.empty?)) ||
+                    (obj["current_image_filename"] && !content_check.include?("<img") &&
+                     !content_check.include?("generated_image") &&
+                     (tool_calls_check.nil? || tool_calls_check.empty?))
 
     if is_inadequate
-
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("\n[#{Time.now}] Grok returned empty response after tool execution, using fallback")
-        extra_log.close
-      end
-
-      # Build a fallback response based on tool results
       fallback_content = response_content || "Tools executed successfully."
 
       # Add information from session if available

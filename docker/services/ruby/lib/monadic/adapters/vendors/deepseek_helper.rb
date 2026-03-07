@@ -385,71 +385,7 @@ module DeepSeekHelper
       }
     end
 
-    # Debug app loading
-    DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
-    
-    # Get tools from app settings
-    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
-    
-    # Debug logging
-    DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
-    DebugHelper.debug("DeepSeek websearch enabled: #{websearch}", category: :api, level: :debug)
-    
-    # Check if terminal tool was called in previous turn
-    # If so, skip tools to prevent infinite loop
-    skip_tools = obj["_skip_tools_next_request"] == true
-
-    # Clear the flag for future requests (it should only affect the immediate next request)
-    if skip_tools
-      obj.delete("_skip_tools_next_request")
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DeepSeek] Skipping tools due to terminal tool in previous turn")
-        end
-      end
-    end
-
-    # Include tools unless: (1) this is a tool response with skip flag, or (2) terminal tool was just called
-    # Changed: include tools even for role == "tool" unless skip_tools is set
-    # This allows the model to continue calling tools after load_learning_progress,
-    # but stops after save_learning_progress
-    unless skip_tools
-      # Build the tools array
-      if websearch
-        # Always include websearch tools when websearch is enabled
-        body["tools"] = WEBSEARCH_TOOLS.dup
-        # Add any app-specific tools
-        if app_tools && !app_tools.empty?
-          body["tools"].concat(app_tools)
-          body["tools"].uniq!
-        end
-        body["tool_choice"] = "auto"
-
-        # Debug logging for tools
-        DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
-        DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
-        DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
-      elsif app_tools && !app_tools.empty?
-        # Only app tools, no websearch
-        body["tools"] = app_tools
-        body["tool_choice"] = "auto"
-      else
-        # No tools at all - don't send empty array
-        body.delete("tools")
-        body.delete("tool_choice")
-      end
-
-      # Final check: ensure tools is not an empty array
-      if body["tools"] && body["tools"].empty?
-        DebugHelper.debug("DeepSeek: Removing empty tools array", category: :api, level: :debug)
-        body.delete("tools")
-        body.delete("tool_choice")
-      end
-    else
-      # Explicitly remove tools when skip_tools is set
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
+    configure_deepseek_tools(body, app, obj, websearch)
 
     # Detect initiate_from_assistant initial greeting (skip prompt_suffix)
     is_initial_greeting = body["messages"].length == 2 &&
@@ -463,91 +399,9 @@ module DeepSeekHelper
       body["messages"].last["content"] += "\n\n" + APPS[app].settings["prompt_suffix"] if APPS[app].settings["prompt_suffix"]
     end
 
-    # Check if this is a reasoning model (deepseek-reasoner or deepseek-r1)
-    is_reasoning_model = obj["model"].include?("reasoner") || obj["model"].include?("-r1")
+    configure_deepseek_reasoning(body, obj, is_json, role)
 
-    if is_reasoning_model
-      # Reasoner model has specific requirements
-      body.delete("temperature")
-      body.delete("presence_penalty")
-      body.delete("frequency_penalty")
-      # Note: Reasoner now supports tool calling (as of V3.2)
-      # Keep tools and tool_choice if they exist
-
-      # remove the text from the beginning of the message to "---" from the previous messages
-      # Also remove reasoning_content from old messages to conserve bandwidth
-      # (per API docs: "when starting new conversational turns, remove prior reasoning_content")
-      body["messages"] = body["messages"].map.with_index do |msg, idx|
-        msg["content"] = msg["content"]&.sub(/---\n\n/, "") || msg["content"]
-        # Remove reasoning_content from all but the most recent assistant message
-        # to conserve bandwidth while maintaining context
-        if msg["role"] == "assistant" && idx < body["messages"].length - 1
-          msg.delete("reasoning_content")
-        end
-        msg
-      end
-    else
-      # Only set response_format for explicit json mode (not monadic mode)
-      # Monadic apps use tools for state management, not JSON response format
-      if is_json && role != "tool"
-        body["response_format"] ||= { "type" => "json_object" }
-      end
-    end
-
-    target_uri = "#{API_ENDPOINT}/chat/completions"
-    headers["Accept"] = "text/event-stream"
-    
-    # Debug the final API request body
-    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
-    
-    # Send initial spinner/waiting message
-    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
-    block&.call res
-    
-    http = HTTP.headers(headers)
-
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
-
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      if res.status.success?
-        break
-      end
-
-      sleep RETRY_DELAY
-    end
-
-    unless res.status.success?
-      error_report = JSON.parse(res.body)
-      pp error_report
-      formatted_error = format_api_error(error_report, "deepseek")
-      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
-      block&.call res
-      return [res]
-    end
-    
-    # Debug: Log before passing to process_json_data
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("Response status: #{res.status}")
-        log.puts("Response headers: #{res.headers.to_h}")
-        log.puts("About to process streaming response...")
-      end
-    end
-
-    process_json_data(app: app,
-                      session: session,
-                      query: body,
-                      res: res.body,
-                      call_depth: call_depth, &block)
+    execute_deepseek_api_call(headers, body, app, session, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -570,9 +424,10 @@ module DeepSeekHelper
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
 
     obj = session[:parameters]
@@ -600,7 +455,9 @@ module DeepSeekHelper
 
         # Debug: Log first few chunks
         if chunk_count <= 3 && CONFIG["EXTRA_LOGGING"]
-          extra_log.puts("Chunk #{chunk_count}: #{chunk[0..100]}")
+          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+            f.puts("Chunk #{chunk_count}: #{chunk[0..100]}")
+          end
         end
 
         if buffer.valid_encoding? == false
@@ -628,7 +485,9 @@ module DeepSeekHelper
               json = JSON.parse(json_data)
 
               if CONFIG["EXTRA_LOGGING"]
-                extra_log.puts(JSON.pretty_generate(json))
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts(JSON.pretty_generate(json))
+                end
               end
 
               # Process finish reason
@@ -794,11 +653,12 @@ module DeepSeekHelper
     end
 
     if CONFIG["EXTRA_LOGGING"]
-      extra_log.puts("Total chunks received: #{chunk_count}")
-      if @dsml_abort_streaming
-        extra_log.puts("!!! Streaming was ABORTED due to malformed DSML loop !!!")
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Total chunks received: #{chunk_count}")
+        if @dsml_abort_streaming
+          f.puts("!!! Streaming was ABORTED due to malformed DSML loop !!!")
+        end
       end
-      extra_log.close
     end
 
     text_result = texts.empty? ? nil : texts.first[1]
@@ -806,332 +666,10 @@ module DeepSeekHelper
     if text_result
       content = text_result.dig("choices", 0, "message", "content") || ""
 
-      # Check if DeepSeek has output function calls in DSML format
-      # Format: <｜DSML｜function_calls><｜DSML｜invoke name="..."><｜DSML｜param name="...">value</｜DSML｜/param></｜DSML｜/invoke></｜DSML｜/function_calls>
-      # NOTE: DSML is NOT documented in official DeepSeek API docs - model should use native tool_calls
-      # This parser exists as a fallback to handle cases where the model outputs DSML format
-      if content.include?("<｜DSML｜") || content.include?("<|DSML|")
-        DebugHelper.debug("DeepSeek: Detected DSML format in response (model should use native tool_calls)", category: :api, level: :warn)
+      dsml_result = parse_deepseek_dsml_content(content, text_result, tools, obj, app, session, call_depth, &block)
+      return dsml_result if dsml_result.is_a?(Array)
 
-        # Log raw DSML for debugging (first 500 chars to avoid log spam)
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("=== DeepSeek DSML Raw Content (first 500 chars) ===")
-            log.puts(content[0..500])
-            log.puts("=== End DSML Raw Content ===")
-          end
-        end
-
-        # Step 1: Normalize DSML - convert all variations to a standard format
-        # This makes parsing more reliable
-        normalized_content = content.dup
-        # Normalize pipe characters: ｜ (fullwidth) -> | (ASCII)
-        normalized_content.gsub!("｜", "|")
-        # Normalize closing tag format: </|DSML|tag> -> <|DSML|/tag>
-        normalized_content.gsub!(/<\/\|DSML\|(\w+)>/, '<|DSML|/\1>')
-        # Normalize whitespace around tag boundaries (but preserve content whitespace)
-        normalized_content.gsub!(/>\s+<\|DSML\|/, "><|DSML|")
-
-        DebugHelper.debug("DeepSeek: Normalized DSML content", category: :api, level: :verbose)
-
-        # Step 2: Check for malformed DSML patterns
-        dsml_invoke_count = normalized_content.scan(/<\|DSML\|invoke/).length
-        dsml_close_invoke_count = normalized_content.scan(/<\|DSML\|\/invoke>/).length
-        dsml_function_calls_count = normalized_content.scan(/<\|DSML\|function_calls>/).length
-
-        # Also check for alternative close pattern that might have been missed
-        alt_close_count = content.scan(/<\/[｜|]DSML[｜|]invoke>/).length
-        total_close_count = dsml_close_invoke_count + alt_close_count
-
-        # Log DSML tag counts for debugging
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("=== DSML Tag Analysis ===")
-            log.puts("  invoke open tags: #{dsml_invoke_count}")
-            log.puts("  invoke close tags: #{total_close_count}")
-            log.puts("  function_calls tags: #{dsml_function_calls_count}")
-            log.puts("=========================")
-          end
-        end
-
-        # Detect malformed patterns:
-        # 1. Many open invoke tags with no close tags (incomplete loop)
-        # 2. Multiple function_calls blocks (repeating pattern)
-        is_malformed = (dsml_invoke_count > 3 && total_close_count == 0) ||
-                       (dsml_function_calls_count > 2)
-
-        if is_malformed
-          # Malformed DSML - model is in a loop outputting incomplete tags
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("!!! MALFORMED DSML DETECTED !!!")
-              log.puts("  Pattern: #{dsml_invoke_count} open invoke, #{total_close_count} close, #{dsml_function_calls_count} function_calls blocks")
-              log.puts("  Call depth: #{call_depth}, will retry: #{call_depth < 2}")
-            end
-          end
-          DebugHelper.debug("DeepSeek: Detected malformed DSML (#{dsml_invoke_count} open invoke tags, #{total_close_count} close tags, #{dsml_function_calls_count} function_calls blocks) - likely infinite loop", category: :api, level: :warn)
-
-          # Auto-retry without adding error to session (prevents model from "learning" to avoid tools)
-          # Allow up to 4 retries for malformed DSML (call_depth 0, 1, 2, 3)
-          max_dsml_retries = 4
-          if call_depth < max_dsml_retries
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("  Action: Auto-retrying request (attempt #{call_depth + 1} of #{max_dsml_retries})")
-              end
-            end
-
-            # Send a wait message to UI with retry count
-            res = { "type" => "wait", "content" => "<i class='fas fa-redo'></i> RETRYING TOOL CALL (#{call_depth + 1}/#{max_dsml_retries})" }
-            block&.call res
-
-            # Exponential backoff: 1s, 2s, 3s, 4s
-            sleep_time = call_depth + 1
-            sleep sleep_time
-
-            # Retry the request without modifying the session
-            return api_request("user", session, call_depth: call_depth + 1, &block)
-          end
-
-          # All retries exhausted - provide user feedback
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("  Action: All retries exhausted, returning error to user")
-            end
-          end
-
-          # Remove all DSML content and return clean response with helpful message
-          clean_content = content.gsub(/<[｜|]DSML[｜|][^>]*>/, "").gsub(/<\/[｜|]DSML[｜|][^>]*>/, "").strip
-
-          # Provide a user-friendly message about the tool call failure
-          error_notice = "⚠️ **Tool Call Issue**: The AI attempted to use a tool but encountered repeated formatting errors. Please try starting a new conversation.\n\n"
-
-          if clean_content.empty?
-            text_result["choices"][0]["message"]["content"] = error_notice + "I was trying to perform an action but encountered an issue."
-          else
-            text_result["choices"][0]["message"]["content"] = error_notice + clean_content
-          end
-
-          # Send an info message to the UI
-          res = { "type" => "info", "content" => "DeepSeek tool call failed after multiple attempts. Please start a new conversation." }
-          block&.call res
-
-          # Don't process as tool calls - the DSML is malformed
-        else
-          # Step 3: Parse DSML function calls from normalized content
-          tool_calls = []
-
-          # Match invoke blocks with or without parameters
-          # Pattern handles: <|DSML|invoke name="func_name">...</|DSML|/invoke>
-          # Also handle self-closing or empty invoke tags
-          invoke_pattern = /<\|DSML\|invoke\s+name="([^"]+)"(?:\s*\/>|>(.*?)<\|DSML\|\/invoke>)/m
-          normalized_content.scan(invoke_pattern) do |name, params_block|
-            arguments = {}
-
-            # Only parse params if the block exists and has content
-            if params_block && !params_block.strip.empty?
-              # Parse parameters - handle both "param" and "invoke_arg" tag names
-              # Also handle self-closing param tags: <|DSML|param name="x"/>
-              param_pattern = /<\|DSML\|(?:param|invoke_arg)\s+name="([^"]+)"(?:\s*\/>|>(.*?)<\|DSML\|\/(?:param|invoke_arg)>)/m
-              params_block.scan(param_pattern) do |param_name, param_value|
-                # Handle self-closing tags (param_value will be nil)
-                param_value ||= ""
-
-                # Try to parse as JSON, otherwise use as string
-                cleaned_value = param_value.strip
-                begin
-                  # Handle quoted strings that aren't valid JSON
-                  if cleaned_value.start_with?('"') && cleaned_value.end_with?('"')
-                    arguments[param_name] = JSON.parse(cleaned_value)
-                  elsif cleaned_value =~ /\A[\[\{]/
-                    # Looks like JSON array or object
-                    arguments[param_name] = JSON.parse(cleaned_value)
-                  else
-                    # Plain string value
-                    arguments[param_name] = cleaned_value
-                  end
-                rescue JSON::ParserError
-                  arguments[param_name] = cleaned_value
-                end
-              end
-            end
-
-            tool_calls << {
-              "id" => "call_#{SecureRandom.hex(8)}",
-              "type" => "function",
-              "function" => {
-                "name" => name,
-                "arguments" => JSON.generate(arguments)
-              }
-            }
-
-            DebugHelper.debug("DeepSeek: Parsed DSML invoke - name=#{name}, args=#{arguments.keys.join(',')}", category: :api, level: :debug)
-          end
-
-          # Step 4: Fallback parsing for incomplete DSML
-          # If no tool calls found with standard pattern, try to recover from partial DSML
-          if tool_calls.empty? && normalized_content.include?("<|DSML|invoke")
-            DebugHelper.debug("DeepSeek: Standard DSML parsing found no calls, trying fallback recovery", category: :api, level: :debug)
-
-            # Try to extract function names even from incomplete tags
-            # Pattern: <|DSML|invoke name="func_name" (may not have closing bracket)
-            fallback_pattern = /<\|DSML\|invoke\s+name="([^"]+)"/
-            potential_names = normalized_content.scan(fallback_pattern).flatten.uniq
-
-            if potential_names.any?
-              DebugHelper.debug("DeepSeek: Fallback found potential function names: #{potential_names.join(', ')}", category: :api, level: :debug)
-
-              # Try to extract parameters using a more lenient pattern
-              potential_names.each do |func_name|
-                arguments = {}
-
-                # Look for param tags anywhere after the invoke
-                # This is a last-resort fallback
-                param_fallback = /<\|DSML\|(?:param|invoke_arg)\s+name="([^"]+)"[^>]*>([^<]*)/
-                normalized_content.scan(param_fallback) do |param_name, param_value|
-                  cleaned = param_value.strip
-                  arguments[param_name] = cleaned unless cleaned.empty?
-                end
-
-                tool_calls << {
-                  "id" => "call_#{SecureRandom.hex(8)}",
-                  "type" => "function",
-                  "function" => {
-                    "name" => func_name,
-                    "arguments" => JSON.generate(arguments)
-                  }
-                }
-
-                DebugHelper.debug("DeepSeek: Fallback recovered invoke - name=#{func_name}, args=#{arguments.keys.join(',')}", category: :api, level: :debug)
-              end
-            end
-          end
-
-          if tool_calls.any?
-            # Validate function names against registered tools (including websearch tools if enabled)
-            app_tools = APPS[app]&.settings&.[]("tools") || []
-            all_tools = app_tools.dup
-
-            # Include websearch tools if websearch is enabled
-            websearch_enabled = CONFIG["TAVILY_API_KEY"] && (obj["websearch"].to_s == "true" || obj["websearch"] == true)
-            all_tools.concat(WEBSEARCH_TOOLS) if websearch_enabled
-
-            valid_tool_names = all_tools.map { |t|
-              t.dig(:function, :name) || t.dig("function", "name")
-            }.compact
-
-            # Check for invalid function names
-            invalid_calls = tool_calls.select do |tc|
-              func_name = tc.dig("function", "name")
-              !valid_tool_names.include?(func_name)
-            end
-
-            if invalid_calls.any? && call_depth < 1
-              # Retry with correction message
-              invalid_names = invalid_calls.map { |tc| tc.dig("function", "name") }.join(", ")
-              DebugHelper.debug("DeepSeek: Invalid function name(s) detected: #{invalid_names}. Triggering retry.", category: :api, level: :warn)
-
-              correction_message = "Error: The function name '#{invalid_names}' is not valid. " \
-                                   "You must use the exact function name from this list: #{valid_tool_names.join(', ')}. " \
-                                   "Please call the correct function with the proper name."
-
-              # Add correction message to session and retry
-              session[:messages] << {
-                "role" => "user",
-                "text" => correction_message,
-                "active" => true
-              }
-
-              # Return retry result
-              return api_request("user", session, call_depth: call_depth + 1, &block)
-            end
-
-            text_result["choices"][0]["message"]["tool_calls"] = tool_calls
-
-            # Remove DSML content from the response using normalized pattern
-            # First try to remove complete function_calls block
-            clean_content = normalized_content.gsub(/<\|DSML\|function_calls>.*?<\|DSML\|\/function_calls>/m, "")
-            # Also remove any standalone DSML tags that might remain
-            clean_content = clean_content.gsub(/<\|DSML\|[^>]*>/, "").gsub(/<\/\|DSML\|[^>]*>/, "").strip
-            text_result["choices"][0]["message"]["content"] = clean_content
-
-            # IMPORTANT: Save the clean content to session BEFORE processing tool calls
-            # This ensures the streamed content is preserved when a new API request is made
-            if clean_content && !clean_content.empty?
-              request_id = SecureRandom.hex(4)
-              # Include app_name so the message is properly filtered and displayed
-              app_name = session[:parameters]["app_name"] || obj["app_name"]
-              assistant_message = {
-                "role" => "assistant",
-                "text" => clean_content,
-                "html" => markdown_to_html(clean_content, mathjax: true),
-                "lang" => detect_language(clean_content),
-                "mid" => request_id,
-                "active" => true,
-                "app_name" => app_name
-              }
-              session[:messages] << assistant_message
-
-              # Send HTML message IMMEDIATELY so frontend creates a card for this content
-              # This fixes the issue where intermediate messages were saved but not displayed
-              # more_coming flag tells frontend to keep temp-card ready for next streaming
-              html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
-              block&.call html_res
-
-              DebugHelper.debug("DeepSeek: Saved assistant message before DSML tool call (#{clean_content.length} chars)", category: :api, level: :debug)
-            end
-
-            # Set finish reason to function_call
-            text_result["choices"][0]["finish_reason"] = "function_call"
-            finish_reason = "function_call"
-
-            # Add to tools for processing
-            tid = tool_calls.first["id"]
-            tools[tid] = text_result
-
-            DebugHelper.debug("DeepSeek: Converted #{tool_calls.length} DSML function call(s) to tool call format", category: :api, level: :debug)
-          else
-            # DSML detected but no valid tool calls parsed - clean up the content
-            DebugHelper.debug("DeepSeek: DSML detected but no valid tool calls could be parsed", category: :api, level: :warn)
-            clean_content = content.gsub(/<[｜|]DSML[｜|][^>]*>/, "").gsub(/<\/[｜|]DSML[｜|][^>]*>/, "").strip
-            text_result["choices"][0]["message"]["content"] = clean_content.empty? ? content : clean_content
-          end
-        end
-      # Also check for JSON format function calls (legacy handling for websearch)
-      elsif content =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
-        json_match = $1
-        begin
-          # Parse the function call from text
-          func_call = JSON.parse(json_match)
-
-          # Convert text-based function call to proper tool call format
-          if func_call["name"] && func_call["arguments"]
-            text_result["choices"][0]["message"]["tool_calls"] = [{
-              "id" => "call_#{SecureRandom.hex(8)}",
-              "type" => "function",
-              "function" => {
-                "name" => func_call["name"],
-                "arguments" => func_call["arguments"].is_a?(String) ? func_call["arguments"] : JSON.generate(func_call["arguments"])
-              }
-            }]
-
-            # Remove the JSON block from the content
-            text_result["choices"][0]["message"]["content"] = content.gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
-
-            # Set finish reason to function_call
-            text_result["choices"][0]["finish_reason"] = "function_call"
-            finish_reason = "function_call"
-
-            # Add to tools for processing
-            tid = text_result["choices"][0]["message"]["tool_calls"][0]["id"]
-            tools[tid] = text_result
-
-            DebugHelper.debug("DeepSeek: Converted JSON text function call to tool call format", category: :api, level: :debug)
-          end
-        rescue JSON::ParserError => e
-          DebugHelper.debug("DeepSeek: Failed to parse function call from text: #{e.message}", category: :api, level: :debug)
-        end
-      end
+      parse_deepseek_json_function_call(content, text_result, tools) unless dsml_result
       
       # Process JSON responses only for explicit json mode (not monadic mode)
       # Monadic mode uses tools for state management and returns natural language
@@ -1174,32 +712,383 @@ module DeepSeekHelper
       end
     end
 
-    # If we have tool calls, ignore the finish_reason from streaming
-    # as it will be "tool_calls" and we need to wait for the actual completion
-    if tools.any?
-      finish_reason = nil
+    dispatch_deepseek_tool_results(tools, text_result, finish_reason, obj, session, app, call_depth, &block)
+  end
+
+  private
+
+  def configure_deepseek_tools(body, app, obj, websearch)
+    app_tools = APPS[app] && APPS[app].settings["tools"] ? APPS[app].settings["tools"] : []
+
+    DebugHelper.debug("DeepSeek app: #{app}, APPS[app] exists: #{!APPS[app].nil?}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek app_tools from settings: #{app_tools.inspect}", category: :api, level: :debug)
+    DebugHelper.debug("DeepSeek websearch enabled: #{websearch}", category: :api, level: :debug)
+
+    skip_tools = obj["_skip_tools_next_request"] == true
+    if skip_tools
+      obj.delete("_skip_tools_next_request")
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("[#{Time.now}] [DeepSeek] Skipping tools due to terminal tool in previous turn")
+        end
+      end
     end
 
+    unless skip_tools
+      if websearch
+        body["tools"] = WEBSEARCH_TOOLS.dup
+        if app_tools && !app_tools.empty?
+          body["tools"].concat(app_tools)
+          body["tools"].uniq!
+        end
+        body["tool_choice"] = "auto"
+
+        DebugHelper.debug("DeepSeek tools configured: #{body["tools"].map { |t| t.dig(:function, :name) || t.dig("function", "name") }.join(", ")}", category: :api, level: :debug)
+        DebugHelper.debug("DeepSeek tool_choice: #{body["tool_choice"]}", category: :api, level: :debug)
+        DebugHelper.debug("DeepSeek tools full: #{body["tools"].inspect}", category: :api, level: :verbose)
+      elsif app_tools && !app_tools.empty?
+        body["tools"] = app_tools
+        body["tool_choice"] = "auto"
+      else
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+
+      if body["tools"] && body["tools"].empty?
+        DebugHelper.debug("DeepSeek: Removing empty tools array", category: :api, level: :debug)
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    else
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+  end
+
+  def configure_deepseek_reasoning(body, obj, is_json, role)
+    is_reasoning_model = obj["model"].include?("reasoner") || obj["model"].include?("-r1")
+
+    if is_reasoning_model
+      body.delete("temperature")
+      body.delete("presence_penalty")
+      body.delete("frequency_penalty")
+
+      body["messages"] = body["messages"].map.with_index do |msg, idx|
+        msg["content"] = msg["content"]&.sub(/---\n\n/, "") || msg["content"]
+        if msg["role"] == "assistant" && idx < body["messages"].length - 1
+          msg.delete("reasoning_content")
+        end
+        msg
+      end
+    else
+      if is_json && role != "tool"
+        body["response_format"] ||= { "type" => "json_object" }
+      end
+    end
+  end
+
+  # Parse DSML format tool calls from DeepSeek response content.
+  # Returns nil if no DSML detected, :processed if DSML was handled,
+  # or an Array result for early return (retry/error).
+  # Modifies text_result and tools hash in-place.
+  def parse_deepseek_dsml_content(content, text_result, tools, obj, app, session, call_depth, &block)
+    return nil unless content.include?("<｜DSML｜") || content.include?("<|DSML|")
+
+    DebugHelper.debug("DeepSeek: Detected DSML format in response (model should use native tool_calls)", category: :api, level: :warn)
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("=== DeepSeek DSML Raw Content (first 500 chars) ===")
+        log.puts(content[0..500])
+        log.puts("=== End DSML Raw Content ===")
+      end
+    end
+
+    # Normalize DSML variations to a standard format
+    normalized_content = content.dup
+    normalized_content.gsub!("｜", "|")
+    normalized_content.gsub!(/<\/\|DSML\|(\w+)>/, '<|DSML|/\1>')
+    normalized_content.gsub!(/>\s+<\|DSML\|/, "><|DSML|")
+
+    DebugHelper.debug("DeepSeek: Normalized DSML content", category: :api, level: :verbose)
+
+    # Check for malformed DSML patterns
+    dsml_invoke_count = normalized_content.scan(/<\|DSML\|invoke/).length
+    dsml_close_invoke_count = normalized_content.scan(/<\|DSML\|\/invoke>/).length
+    dsml_function_calls_count = normalized_content.scan(/<\|DSML\|function_calls>/).length
+    alt_close_count = content.scan(/<\/[｜|]DSML[｜|]invoke>/).length
+    total_close_count = dsml_close_invoke_count + alt_close_count
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("=== DSML Tag Analysis ===")
+        log.puts("  invoke open tags: #{dsml_invoke_count}")
+        log.puts("  invoke close tags: #{total_close_count}")
+        log.puts("  function_calls tags: #{dsml_function_calls_count}")
+        log.puts("=========================")
+      end
+    end
+
+    is_malformed = (dsml_invoke_count > 3 && total_close_count == 0) ||
+                   (dsml_function_calls_count > 2)
+
+    if is_malformed
+      return handle_deepseek_malformed_dsml(content, text_result, call_depth, session, &block)
+    end
+
+    # Parse DSML function calls from normalized content
+    tool_calls = parse_deepseek_dsml_invocations(normalized_content)
+
+    if tool_calls.any?
+      # Validate function names against registered tools
+      early_return = validate_deepseek_dsml_tool_calls(tool_calls, text_result, tools, obj, app, session, call_depth, &block)
+      return early_return if early_return.is_a?(Array)
+    else
+      # DSML detected but no valid tool calls parsed - clean up the content
+      DebugHelper.debug("DeepSeek: DSML detected but no valid tool calls could be parsed", category: :api, level: :warn)
+      clean_content = content.gsub(/<[｜|]DSML[｜|][^>]*>/, "").gsub(/<\/[｜|]DSML[｜|][^>]*>/, "").strip
+      text_result["choices"][0]["message"]["content"] = clean_content.empty? ? content : clean_content
+    end
+
+    :processed
+  end
+
+  def handle_deepseek_malformed_dsml(content, text_result, call_depth, session, &block)
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("!!! MALFORMED DSML DETECTED !!!")
+        log.puts("  Call depth: #{call_depth}")
+      end
+    end
+
+    max_dsml_retries = 4
+    if call_depth < max_dsml_retries
+      if CONFIG["EXTRA_LOGGING"]
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+          log.puts("  Action: Auto-retrying request (attempt #{call_depth + 1} of #{max_dsml_retries})")
+        end
+      end
+
+      res = { "type" => "wait", "content" => "<i class='fas fa-redo'></i> RETRYING TOOL CALL (#{call_depth + 1}/#{max_dsml_retries})" }
+      block&.call res
+
+      sleep(call_depth + 1)
+
+      return api_request("user", session, call_depth: call_depth + 1, &block)
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("  Action: All retries exhausted, returning error to user")
+      end
+    end
+
+    clean_content = content.gsub(/<[｜|]DSML[｜|][^>]*>/, "").gsub(/<\/[｜|]DSML[｜|][^>]*>/, "").strip
+    error_notice = "⚠️ **Tool Call Issue**: The AI attempted to use a tool but encountered repeated formatting errors. Please try starting a new conversation.\n\n"
+
+    if clean_content.empty?
+      text_result["choices"][0]["message"]["content"] = error_notice + "I was trying to perform an action but encountered an issue."
+    else
+      text_result["choices"][0]["message"]["content"] = error_notice + clean_content
+    end
+
+    res = { "type" => "info", "content" => "DeepSeek tool call failed after multiple attempts. Please start a new conversation." }
+    block&.call res
+
+    :processed
+  end
+
+  def parse_deepseek_dsml_invocations(normalized_content)
+    tool_calls = []
+
+    invoke_pattern = /<\|DSML\|invoke\s+name="([^"]+)"(?:\s*\/>|>(.*?)<\|DSML\|\/invoke>)/m
+    normalized_content.scan(invoke_pattern) do |name, params_block|
+      arguments = {}
+
+      if params_block && !params_block.strip.empty?
+        param_pattern = /<\|DSML\|(?:param|invoke_arg)\s+name="([^"]+)"(?:\s*\/>|>(.*?)<\|DSML\|\/(?:param|invoke_arg)>)/m
+        params_block.scan(param_pattern) do |param_name, param_value|
+          param_value ||= ""
+          cleaned_value = param_value.strip
+          begin
+            if cleaned_value.start_with?('"') && cleaned_value.end_with?('"')
+              arguments[param_name] = JSON.parse(cleaned_value)
+            elsif cleaned_value =~ /\A[\[\{]/
+              arguments[param_name] = JSON.parse(cleaned_value)
+            else
+              arguments[param_name] = cleaned_value
+            end
+          rescue JSON::ParserError
+            arguments[param_name] = cleaned_value
+          end
+        end
+      end
+
+      tool_calls << {
+        "id" => "call_#{SecureRandom.hex(8)}",
+        "type" => "function",
+        "function" => {
+          "name" => name,
+          "arguments" => JSON.generate(arguments)
+        }
+      }
+
+      DebugHelper.debug("DeepSeek: Parsed DSML invoke - name=#{name}, args=#{arguments.keys.join(',')}", category: :api, level: :debug)
+    end
+
+    # Fallback parsing for incomplete DSML
+    if tool_calls.empty? && normalized_content.include?("<|DSML|invoke")
+      DebugHelper.debug("DeepSeek: Standard DSML parsing found no calls, trying fallback recovery", category: :api, level: :debug)
+
+      fallback_pattern = /<\|DSML\|invoke\s+name="([^"]+)"/
+      potential_names = normalized_content.scan(fallback_pattern).flatten.uniq
+
+      if potential_names.any?
+        DebugHelper.debug("DeepSeek: Fallback found potential function names: #{potential_names.join(', ')}", category: :api, level: :debug)
+
+        potential_names.each do |func_name|
+          arguments = {}
+          param_fallback = /<\|DSML\|(?:param|invoke_arg)\s+name="([^"]+)"[^>]*>([^<]*)/
+          normalized_content.scan(param_fallback) do |param_name, param_value|
+            cleaned = param_value.strip
+            arguments[param_name] = cleaned unless cleaned.empty?
+          end
+
+          tool_calls << {
+            "id" => "call_#{SecureRandom.hex(8)}",
+            "type" => "function",
+            "function" => {
+              "name" => func_name,
+              "arguments" => JSON.generate(arguments)
+            }
+          }
+
+          DebugHelper.debug("DeepSeek: Fallback recovered invoke - name=#{func_name}, args=#{arguments.keys.join(',')}", category: :api, level: :debug)
+        end
+      end
+    end
+
+    tool_calls
+  end
+
+  def validate_deepseek_dsml_tool_calls(tool_calls, text_result, tools, obj, app, session, call_depth, &block)
+    app_tools = APPS[app]&.settings&.[]("tools") || []
+    all_tools = app_tools.dup
+
+    websearch_enabled = CONFIG["TAVILY_API_KEY"] && (obj["websearch"].to_s == "true" || obj["websearch"] == true)
+    all_tools.concat(WEBSEARCH_TOOLS) if websearch_enabled
+
+    valid_tool_names = all_tools.map { |t|
+      t.dig(:function, :name) || t.dig("function", "name")
+    }.compact
+
+    invalid_calls = tool_calls.select do |tc|
+      !valid_tool_names.include?(tc.dig("function", "name"))
+    end
+
+    if invalid_calls.any? && call_depth < 1
+      invalid_names = invalid_calls.map { |tc| tc.dig("function", "name") }.join(", ")
+      DebugHelper.debug("DeepSeek: Invalid function name(s) detected: #{invalid_names}. Triggering retry.", category: :api, level: :warn)
+
+      correction_message = "Error: The function name '#{invalid_names}' is not valid. " \
+                           "You must use the exact function name from this list: #{valid_tool_names.join(', ')}. " \
+                           "Please call the correct function with the proper name."
+
+      session[:messages] << {
+        "role" => "user",
+        "text" => correction_message,
+        "active" => true
+      }
+
+      return api_request("user", session, call_depth: call_depth + 1, &block)
+    end
+
+    text_result["choices"][0]["message"]["tool_calls"] = tool_calls
+
+    # Remove DSML content from the response
+    content = text_result.dig("choices", 0, "message", "content") || ""
+    normalized_content = content.dup
+    normalized_content.gsub!("｜", "|")
+    normalized_content.gsub!(/<\/\|DSML\|(\w+)>/, '<|DSML|/\1>')
+    clean_content = normalized_content.gsub(/<\|DSML\|function_calls>.*?<\|DSML\|\/function_calls>/m, "")
+    clean_content = clean_content.gsub(/<\|DSML\|[^>]*>/, "").gsub(/<\/\|DSML\|[^>]*>/, "").strip
+    text_result["choices"][0]["message"]["content"] = clean_content
+
+    if clean_content && !clean_content.empty?
+      request_id = SecureRandom.hex(4)
+      app_name = session[:parameters]["app_name"] || obj["app_name"]
+      assistant_message = {
+        "role" => "assistant",
+        "text" => clean_content,
+        "html" => markdown_to_html(clean_content, mathjax: true),
+        "lang" => detect_language(clean_content),
+        "mid" => request_id,
+        "active" => true,
+        "app_name" => app_name
+      }
+      session[:messages] << assistant_message
+
+      html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
+      block&.call html_res
+
+      DebugHelper.debug("DeepSeek: Saved assistant message before DSML tool call (#{clean_content.length} chars)", category: :api, level: :debug)
+    end
+
+    text_result["choices"][0]["finish_reason"] = "function_call"
+
+    tid = tool_calls.first["id"]
+    tools[tid] = text_result
+
+    DebugHelper.debug("DeepSeek: Converted #{tool_calls.length} DSML function call(s) to tool call format", category: :api, level: :debug)
+    nil
+  end
+
+  def parse_deepseek_json_function_call(content, text_result, tools)
+    return unless content =~ /```json\s*\n?\s*(\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\})\s*\n?\s*```/m
+
+    json_match = $1
+    begin
+      func_call = JSON.parse(json_match)
+
+      if func_call["name"] && func_call["arguments"]
+        text_result["choices"][0]["message"]["tool_calls"] = [{
+          "id" => "call_#{SecureRandom.hex(8)}",
+          "type" => "function",
+          "function" => {
+            "name" => func_call["name"],
+            "arguments" => func_call["arguments"].is_a?(String) ? func_call["arguments"] : JSON.generate(func_call["arguments"])
+          }
+        }]
+
+        text_result["choices"][0]["message"]["content"] = content.gsub(/```json\s*\n?\s*\{.*?"name"\s*:\s*"(tavily_search|tavily_fetch)".*?\}\s*\n?\s*```/m, "").strip
+        text_result["choices"][0]["finish_reason"] = "function_call"
+
+        tid = text_result["choices"][0]["message"]["tool_calls"][0]["id"]
+        tools[tid] = text_result
+
+        DebugHelper.debug("DeepSeek: Converted JSON text function call to tool call format", category: :api, level: :debug)
+      end
+    rescue JSON::ParserError => e
+      DebugHelper.debug("DeepSeek: Failed to parse function call from text: #{e.message}", category: :api, level: :debug)
+    end
+  end
+
+  def dispatch_deepseek_tool_results(tools, text_result, finish_reason, obj, session, app, call_depth, &block)
     if tools.any?
-      # Handle tool/function calls
+      finish_reason = nil
+
       DebugHelper.debug("DeepSeek tools before processing: #{tools.inspect}", category: :api, level: :verbose)
 
       tools_data = tools.first[1].dig("choices", 0, "message", "tool_calls")
-
-      # If tool_calls is not an array, make it one
-      if tools_data && !tools_data.is_a?(Array)
-        tools_data = [tools_data]
-      end
+      tools_data = [tools_data] if tools_data && !tools_data.is_a?(Array)
 
       DebugHelper.debug("DeepSeek tools_data after processing: #{tools_data.inspect}", category: :api, level: :debug)
 
       # Save any content from text_result to session BEFORE processing tool calls
-      # This ensures streamed content is preserved when native tool_calls are used
       if text_result
         content_before_tools = text_result.dig("choices", 0, "message", "content")
         if content_before_tools && !content_before_tools.to_s.strip.empty?
           request_id = SecureRandom.hex(4)
-          # Include app_name so the message is properly filtered and displayed
           app_name = session[:parameters]["app_name"] || obj["app_name"]
           assistant_message = {
             "role" => "assistant",
@@ -1212,7 +1101,6 @@ module DeepSeekHelper
           }
           session[:messages] << assistant_message
 
-          # Log to extra.log for debugging
           if CONFIG["EXTRA_LOGGING"]
             File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
               log.puts("[#{Time.now}] [DeepSeek] Saved assistant message before tool call: #{content_before_tools.length} chars, mid=#{request_id}, app_name=#{app_name}")
@@ -1220,9 +1108,6 @@ module DeepSeekHelper
             end
           end
 
-          # Send HTML message IMMEDIATELY so frontend creates a card for this content
-          # This fixes the issue where intermediate messages were saved but not displayed
-          # more_coming flag tells frontend to keep temp-card ready for next streaming
           html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
 
           if CONFIG["EXTRA_LOGGING"]
@@ -1238,8 +1123,6 @@ module DeepSeekHelper
       end
 
       context = []
-      # DeepSeek API requires content to be null/empty when tool_calls is present
-      # For reasoner model, reasoning_content must also be included
       assistant_msg = {
         "role" => "assistant",
         "content" => nil,
@@ -1252,9 +1135,6 @@ module DeepSeekHelper
         end
       }
 
-      # For reasoning models (deepseek-reasoner, deepseek-r1), include reasoning_content
-      # in the assistant message. This is required by the DeepSeek API for tool calls
-      # with thinking mode. See: https://api-docs.deepseek.com/guides/thinking_mode#tool-calls
       model_name = obj["model"] || ""
       is_reasoning_model = model_name.include?("reasoner") || model_name.include?("-r1")
       if is_reasoning_model
@@ -1267,13 +1147,11 @@ module DeepSeekHelper
 
       context << assistant_msg
 
-      # Check for maximum function call depth
       call_depth += 1
       if call_depth > MAX_FUNC_CALLS
         return [{ "type" => "error", "content" => "ERROR: Call depth exceeded" }]
       end
 
-      # Process function calls and get new results - don't send DONE here
       new_results = process_functions(app, session, tools_data, context, call_depth, &block)
 
       if new_results
@@ -1282,20 +1160,113 @@ module DeepSeekHelper
         [text_result]
       end
     elsif text_result
-      # Only send DONE when there are no tool calls
       res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
       block&.call res
       text_result["choices"][0]["finish_reason"] = finish_reason
       [text_result]
     else
-      # Return done message if no result
       res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
       block&.call res
       [res]
     end
   end
 
-  private
+  def execute_deepseek_api_call(headers, body, app, session, call_depth, &block)
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    headers["Accept"] = "text/event-stream"
+
+    DebugHelper.debug("DeepSeek streaming API final body: #{JSON.pretty_generate(body)}", category: :api, level: :debug)
+
+    res = { "type" => "wait", "content" => "<i class='fas fa-spinner fa-pulse'></i> THINKING" }
+    block&.call res
+
+    http = HTTP.headers(headers)
+
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    MAX_RETRIES.times do
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
+      break if res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    unless res.status.success?
+      error_report = JSON.parse(res.body)
+      pp error_report
+      formatted_error = format_api_error(error_report, "deepseek")
+      res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
+      block&.call res
+      return [res]
+    end
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
+        log.puts("Response status: #{res.status}")
+        log.puts("Response headers: #{res.headers.to_h}")
+        log.puts("About to process streaming response...")
+      end
+    end
+
+    process_json_data(app: app, session: session, query: body,
+                      res: res.body, call_depth: call_depth, &block)
+  end
+
+  def invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
+    begin
+      escaped = tool_call.dig("function", "arguments")
+      argument_hash = if escaped.to_s.strip.empty?
+                        {}
+                      else
+                        JSON.parse(escaped)
+                      end
+    rescue JSON::ParserError
+      argument_hash = {}
+    end
+
+    converted = argument_hash.each_with_object({}) do |(k, v), memo|
+      memo[k.to_sym] = v
+    end
+
+    method_obj = APPS[app].method(function_name.to_sym) rescue nil
+    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
+      converted[:session] = session
+    end
+
+    begin
+      function_return = if converted.empty?
+                          APPS[app].send(function_name.to_sym)
+                        else
+                          APPS[app].send(function_name.to_sym, **converted)
+                        end
+    rescue StandardError => e
+      function_return = "ERROR: #{e.message}"
+    end
+
+    send_verification_notification(session, &block) if function_name == "report_verification"
+
+    # Store gallery_html for server-side injection
+    if function_return.is_a?(Hash) && function_return[:gallery_html]
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << function_return[:gallery_html]
+    end
+
+    content_value = function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
+    entry = {
+      "role" => "tool",
+      "tool_call_id" => tool_call["id"],
+      "name" => function_name,
+      "content" => content_value
+    }
+
+    error_stop = handle_function_error(session, function_return, function_name, &block)
+    [entry, error_stop]
+  end
 
   # Terminal tools that signal the end of a tool-calling sequence
   # After these tools are executed, the model should not call more tools
@@ -1311,69 +1282,19 @@ module DeepSeekHelper
     terminal_tool_called = false
 
     tools.each do |tool_call|
-      function_call = tool_call["function"]
-      function_name = function_call["name"]
+      function_name = tool_call.dig("function", "name")
+      next if function_name.nil?
+
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      # Check if this is a terminal tool (signals end of tool sequence)
       if TERMINAL_TOOLS.include?(function_name)
         terminal_tool_called = true
         DebugHelper.debug("DeepSeek: Terminal tool '#{function_name}' called - will disable tools in next request", category: :api, level: :debug)
       end
 
-      begin
-        escaped = function_call["arguments"]
-        # Handle empty string arguments for tools with no parameters
-        if escaped.to_s.strip.empty?
-          argument_hash = {}
-        else
-          argument_hash = JSON.parse(escaped)
-        end
-      rescue JSON::ParserError
-        argument_hash = {}
-      end
-
-      converted = {}
-      argument_hash.each_with_object(converted) do |(k, v), memo|
-        memo[k.to_sym] = v
-        memo
-      end
-
-      # Inject session for tools that need it (e.g., monadic state tools)
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        converted[:session] = session
-      end
-
-      begin
-      if converted.empty?
-        function_return = APPS[app].send(function_name.to_sym)
-      else
-        function_return = APPS[app].send(function_name.to_sym, **converted)
-      end
-      rescue StandardError => e
-        function_return = "ERROR: #{e.message}"
-      end
-
-      send_verification_notification(session, &block) if function_name == "report_verification"
-
-      # Check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        context << {
-          "role" => "tool",
-          "tool_call_id" => tool_call["id"],
-          "name" => function_name,
-          "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-        }
-        next
-      end
-
-      context << {
-        "role" => "tool",
-        "tool_call_id" => tool_call["id"],
-        "name" => function_name,
-        "content" => function_return.is_a?(Hash) || function_return.is_a?(Array) ? JSON.generate(function_return) : function_return.to_s
-      }
+      tool_entry, error_stop = invoke_deepseek_tool_function(app, session, tool_call, function_name, &block)
+      context << tool_entry if tool_entry
+      next if error_stop
     end
 
     obj["function_returns"] = context

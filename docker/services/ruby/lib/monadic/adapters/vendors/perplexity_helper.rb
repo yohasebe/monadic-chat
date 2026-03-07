@@ -354,12 +354,12 @@ module PerplexityHelper
     
     # Debug log at the very beginning
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] === Perplexity API Request Started ===")
-      extra_log.puts("App: #{app}")
-      extra_log.puts("Model: #{obj["model"]}")
-      extra_log.puts("Note: Perplexity models have built-in web search capability")
-      extra_log.close
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] === Perplexity API Request Started ===")
+        f.puts("App: #{app}")
+        f.puts("Model: #{obj["model"]}")
+        f.puts("Note: Perplexity models have built-in web search capability")
+      end
     end
     
     
@@ -503,41 +503,7 @@ module PerplexityHelper
       body["response_format"] = APPS[app].settings["response_format"]
     end
 
-    # Get tools from app settings
-    app_tools = APPS[app]&.settings&.[]("tools")
-    
-    # Only include tools if this is not a tool response
-    if role != "tool"
-      if obj["tools"] && !obj["tools"].empty?
-        body["tools"] = app_tools || []
-        body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
-      elsif app_tools && !app_tools.empty?
-        # If no tools param but app has tools, use them
-        body["tools"] = app_tools
-        body["tool_choice"] = "auto"
-      else
-        body.delete("tools")
-        body.delete("tool_choice")
-      end
-    end # end of role != "tool"
-
-    # SSOT: If the model is not tool-capable, remove tools/tool_choice
-    begin
-      spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
-      tool_source = spec_tool.nil? ? "fallback" : "spec"
-      tool_capable = spec_tool.nil? ? true : !!spec_tool
-    rescue StandardError
-      tool_source = "fallback"
-      tool_capable = true
-    end
-    if ENV[PERPLEXITY_LEGACY_MODE_ENV] == "true"
-      tool_capable = true
-      tool_source = "legacy"
-    end
-    unless tool_capable
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
+    configure_perplexity_tools(body, obj, app, model, role)
 
     # The context is added to the body
     messages_containing_img = false
@@ -610,9 +576,9 @@ module PerplexityHelper
               # Experimental inline mode: Perplexity expects URLs (pdf_url). Log and skip attaching.
               if CONFIG["EXTRA_LOGGING"]
                 begin
-                  extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-                  extra_log.puts("[#{Time.now}] WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment.")
-                  extra_log.close
+                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                    f.puts("[#{Time.now}] WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment.")
+                  end
                 rescue StandardError
                 end
               end
@@ -694,23 +660,7 @@ module PerplexityHelper
       body["tool_choice"] = "auto"
     end
 
-    # Check if this is a reasoning model (SSOT)
-    if Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"]) 
-      body.delete("temperature")
-      body.delete("tool_choice")
-      body.delete("tools")
-      body.delete("presence_penalty")
-      body.delete("frequency_penalty")
-
-      # remove the text from the beginning of the message to "---" from the previous messages
-      body["messages"] = body["messages"].each do |msg|
-        msg["content"].each do |item|
-          if item["type"] == "text"
-            item["text"] = item["text"].sub(/---\n\n/, "")
-          end
-        end
-      end
-    end
+    configure_perplexity_reasoning(body, obj)
 
     last_text = context.last&.dig("text") || ""
 
@@ -757,110 +707,19 @@ module PerplexityHelper
     # Capability audit (optional)
     if CONFIG["EXTRA_LOGGING"]
       begin
-        audit = []
-        audit << "streaming:#{supports_streaming}(#{streaming_source})"
-        audit << "tools:#{tool_capable}(#{tool_source})"
-        begin
-          vprop = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability")
-          vsrc = vprop.nil? ? "fallback" : "spec"
-          audit << "vision:#{!!vprop}(#{vsrc})"
-        rescue StandardError
+        audit = ["streaming:#{supports_streaming}(#{streaming_source})"]
+        spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") rescue nil
+        audit << "tools:#{spec_tool.nil? ? true : !!spec_tool}(#{spec_tool.nil? ? 'fallback' : 'spec'})"
+        spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability") rescue nil
+        audit << "vision:#{!!spec_vision}(#{spec_vision.nil? ? 'fallback' : 'spec'})"
+        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+          f.puts("[#{Time.now}] Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}")
         end
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts("[#{Time.now}] Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}")
-        extra_log.close
       rescue StandardError
       end
     end
 
-    # Force text-only response when force-stop is active (e.g., after parallel dispatch
-    # or verification sets call_depth_per_turn = FORCE_STOP_DEPTH). Prevents the model from attempting
-    # tool calls that would hit MAX_FUNC_CALLS and truncate the synthesis response.
-    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
-      body.delete("tools")
-      body.delete("tool_choice")
-    end
-
-    # Call the API
-    target_uri = "#{API_ENDPOINT}/chat/completions"
-    headers["Accept"] = "text/event-stream"
-    http = HTTP.headers(headers)
-    
-    # Debug final request
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("\n[#{Time.now}] Perplexity final API request:")
-      extra_log.puts("URL: #{target_uri}")
-      extra_log.puts("Model: #{body["model"]}")
-      if body["attachments"]
-        extra_log.puts("Attachments: #{body["attachments"].map { |a| a["filename"] || a["mime_type"] }.inspect}")
-      end
-      extra_log.puts("Request body (first 1000 chars, attachments omitted):")
-      body_preview = body.dup
-      body_preview.delete("attachments")
-      extra_log.puts(JSON.pretty_generate(body_preview).slice(0, 1000))
-      extra_log.close
-    end
-
-    body["messages"].each do |msg|
-      next unless msg["tool_calls"] || msg[:tool_call]
-
-      if !msg["role"] && !msg[:role]
-        msg["role"] = "assistant"
-      end
-      tool_calls = msg["tool_calls"] || msg[:tool_call]
-      tool_calls.each do |tool_call|
-        tool_call.delete("index")
-      end
-    end
-
-    
-    MAX_RETRIES.times do
-      res = http.timeout(connect: open_timeout,
-                         write: write_timeout,
-                         read: read_timeout).post(target_uri, json: body)
-      break if res.status.success?
-
-      sleep RETRY_DELAY
-    end
-
-    
-    unless res.status.success?
-      begin
-        error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
-        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-          provider: "Perplexity",
-          message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
-          code: res.status.code
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
-      rescue StandardError => e
-        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
-          provider: "Perplexity",
-          message: "Unknown error occurred: #{e.message}"
-        )
-        res = { "type" => "error", "content" => formatted_error }
-        block&.call res
-        return [res]
-      end
-    end
-
-    # return Array
-    if !body["stream"]
-      obj = JSON.parse(res.body)
-      frag = obj.dig("choices", 0, "message", "content")
-      block&.call({ "type" => "fragment", "content" => frag, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true, "finish_reason" => "stop" })
-      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
-      [obj]
-    else
-      process_json_data(app: app,
-                        session: session,
-                        query: body,
-                        res: res.body,
-                        call_depth: call_depth, &block)
-    end
+    execute_perplexity_api_call(headers, body, app, session, call_depth, &block)
   rescue HTTP::Error, HTTP::TimeoutError
     if num_retrial < MAX_RETRIES
       num_retrial += 1
@@ -914,9 +773,10 @@ module PerplexityHelper
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     
     if CONFIG["EXTRA_LOGGING"]
-      extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-      extra_log.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-      extra_log.puts(JSON.pretty_generate(query))
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
+        f.puts(JSON.pretty_generate(query))
+      end
     end
 
     obj = session[:parameters]
@@ -968,19 +828,20 @@ module PerplexityHelper
             # Log first response chunk in detail
             if !started
               started = true
-              extra_log.puts("\n[#{Time.now}] First Perplexity response chunk:")
-              extra_log.puts(JSON.pretty_generate(json))
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts("\n[#{Time.now}] First Perplexity response chunk:")
+                f.puts(JSON.pretty_generate(json))
+                if json.dig("citations") || json.dig("sources") || json.dig("urls")
+                  f.puts("CITATIONS/SOURCES FOUND in response")
+                else
+                  f.puts("NO CITATIONS/SOURCES in this chunk")
+                end
+              end
               # Capture usage metrics if present on first chunk
               if json["usage"]
                 usage_prompt_tokens = json.dig("usage", "prompt_tokens")
                 usage_completion_tokens = json.dig("usage", "completion_tokens")
                 usage_total_tokens = json.dig("usage", "total_tokens")
-              end
-              # Check for citations in the response
-              if json.dig("citations") || json.dig("sources") || json.dig("urls")
-                extra_log.puts("CITATIONS/SOURCES FOUND in response")
-              else
-                extra_log.puts("NO CITATIONS/SOURCES in this chunk")
               end
             end
           end
@@ -989,7 +850,9 @@ module PerplexityHelper
           if !stored_citations && json["citations"]
             stored_citations = json["citations"]
             if CONFIG["EXTRA_LOGGING"]
-              extra_log.puts("[#{Time.now}] Perplexity: Captured #{stored_citations.size} citations from chunk")
+              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                f.puts("[#{Time.now}] Perplexity: Captured #{stored_citations.size} citations from chunk")
+              end
             end
           end
 
@@ -1109,7 +972,9 @@ module PerplexityHelper
               }
 
               if CONFIG["EXTRA_LOGGING"]
-                extra_log.puts("[#{Time.now}] Perplexity fragment #{fragment_sequence}: #{fragment.inspect[0..50]}")
+                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+                  f.puts("[#{Time.now}] Perplexity fragment #{fragment_sequence}: #{fragment.inspect[0..50]}")
+                end
               end
 
               fragment_sequence += 1
@@ -1251,9 +1116,7 @@ module PerplexityHelper
       end
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      extra_log.close
-    end
+    # File handle leaks fixed: all extra_log writes now use File.open block form
 
     if json && !stopped
       stopped = true
@@ -1359,78 +1222,206 @@ module PerplexityHelper
     [res]
   end
 
+  private
+
+  def configure_perplexity_tools(body, obj, app, model, role)
+    app_tools = APPS[app]&.settings&.[]("tools")
+
+    if role != "tool"
+      if obj["tools"] && !obj["tools"].empty?
+        body["tools"] = app_tools || []
+        body["tool_choice"] = "auto" if body["tools"] && !body["tools"].empty?
+      elsif app_tools && !app_tools.empty?
+        body["tools"] = app_tools
+        body["tool_choice"] = "auto"
+      else
+        body.delete("tools")
+        body.delete("tool_choice")
+      end
+    end
+
+    begin
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability")
+      tool_capable = spec_tool.nil? ? true : !!spec_tool
+    rescue StandardError
+      tool_capable = true
+    end
+    tool_capable = true if ENV[PERPLEXITY_LEGACY_MODE_ENV] == "true"
+    unless tool_capable
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+  end
+
+  def configure_perplexity_reasoning(body, obj)
+    return unless Monadic::Utils::ModelSpec.is_reasoning_model?(obj["model"])
+
+    body.delete("temperature")
+    body.delete("tool_choice")
+    body.delete("tools")
+    body.delete("presence_penalty")
+    body.delete("frequency_penalty")
+
+    body["messages"] = body["messages"].each do |msg|
+      msg["content"].each do |item|
+        if item["type"] == "text"
+          item["text"] = item["text"].sub(/---\n\n/, "")
+        end
+      end
+    end
+  end
+
+  def invoke_perplexity_tool_function(app, session, tool_call, function_name, &block)
+    begin
+      escaped = tool_call.dig("function", "arguments")
+      argument_hash = if escaped.to_s.strip.empty?
+                        {}
+                      else
+                        JSON.parse(escaped)
+                      end
+    rescue JSON::ParserError
+      argument_hash = {}
+    end
+
+    argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
+      next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
+
+      memo[k.to_sym] = v
+    end
+
+    method_obj = APPS[app].method(function_name.to_sym) rescue nil
+    if method_obj && method_obj.parameters.any? { |_type, name| name == :session }
+      argument_hash[:session] = session
+    end
+
+    begin
+      function_return = APPS[app].send(function_name.to_sym, **argument_hash)
+
+      send_verification_notification(session, &block) if function_name == "report_verification"
+
+      Monadic::Utils::TtsTextExtractor.extract_tts_text(
+        app: app,
+        function_name: function_name,
+        argument_hash: argument_hash,
+        session: session
+      )
+    rescue StandardError => e
+      STDERR.puts "[Perplexity Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      STDERR.puts "[Perplexity Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      function_return = Monadic::Utils::ErrorFormatter.tool_error(
+        provider: "Perplexity",
+        tool_name: function_name,
+        message: e.message
+      )
+    end
+
+    # Store gallery_html for server-side injection
+    if function_return.is_a?(Hash) && function_return[:gallery_html]
+      session[:tool_html_fragments] ||= []
+      session[:tool_html_fragments] << function_return[:gallery_html]
+    end
+
+    entry = {
+      tool_call_id: tool_call["id"],
+      role: "tool",
+      name: function_name,
+      content: function_return.to_s
+    }
+
+    error_stop = handle_function_error(session, function_return, function_name, &block)
+    [entry, error_stop]
+  end
+
+  def execute_perplexity_api_call(headers, body, app, session, call_depth, &block)
+    if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
+      body.delete("tools")
+      body.delete("tool_choice")
+    end
+
+    target_uri = "#{API_ENDPOINT}/chat/completions"
+    headers["Accept"] = "text/event-stream"
+    http = HTTP.headers(headers)
+
+    if CONFIG["EXTRA_LOGGING"]
+      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
+        f.puts("\n[#{Time.now}] Perplexity final API request:")
+        f.puts("URL: #{target_uri}")
+        f.puts("Model: #{body["model"]}")
+        if body["attachments"]
+          f.puts("Attachments: #{body["attachments"].map { |a| a["filename"] || a["mime_type"] }.inspect}")
+        end
+        f.puts("Request body (first 1000 chars, attachments omitted):")
+        body_preview = body.dup
+        body_preview.delete("attachments")
+        f.puts(JSON.pretty_generate(body_preview).slice(0, 1000))
+      end
+    end
+
+    body["messages"].each do |msg|
+      next unless msg["tool_calls"] || msg[:tool_call]
+
+      msg["role"] = "assistant" if !msg["role"] && !msg[:role]
+      tool_calls = msg["tool_calls"] || msg[:tool_call]
+      tool_calls.each { |tc| tc.delete("index") }
+    end
+
+    res = nil
+    MAX_RETRIES.times do
+      res = http.timeout(connect: open_timeout,
+                         write: write_timeout,
+                         read: read_timeout).post(target_uri, json: body)
+      break if res.status.success?
+
+      sleep RETRY_DELAY
+    end
+
+    unless res.status.success?
+      begin
+        error_data = JSON.parse(res.body) rescue { "message" => res.body.to_s, "status" => res.status }
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Perplexity",
+          message: error_data.dig("error", "message") || error_data["message"] || "Unknown API error",
+          code: res.status.code
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      rescue StandardError => e
+        formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+          provider: "Perplexity",
+          message: "Unknown error occurred: #{e.message}"
+        )
+        res = { "type" => "error", "content" => formatted_error }
+        block&.call res
+        return [res]
+      end
+    end
+
+    if !body["stream"]
+      obj = JSON.parse(res.body)
+      frag = obj.dig("choices", 0, "message", "content")
+      block&.call({ "type" => "fragment", "content" => frag, "sequence" => 0, "timestamp" => Time.now.to_f, "is_first" => true, "finish_reason" => "stop" })
+      block&.call({ "type" => "message", "content" => "DONE", "finish_reason" => "stop" })
+      [obj]
+    else
+      process_json_data(app: app, session: session, query: body,
+                        res: res.body, call_depth: call_depth, &block)
+    end
+  end
+
+  public
+
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
     tools.each do |tool_call|
-      function_call = tool_call["function"]
-      function_name = function_call["name"]
+      function_name = tool_call.dig("function", "name")
+      next if function_name.nil?
+
       block&.call({ "type" => "tool_executing", "content" => function_name })
 
-      begin
-        # Handle empty string arguments for tools with no parameters
-        if function_call["arguments"].to_s.strip.empty?
-          argument_hash = {}
-        else
-          argument_hash = JSON.parse(function_call["arguments"])
-        end
-      rescue JSON::ParserError
-        argument_hash = {}
-      end
-
-      argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
-        # skip if the value is nil or null but not if it is of the string class
-        next if /null/ =~ v.to_s.strip || (v.class != String && v.to_s.strip.empty?)
-
-        memo[k.to_sym] = v
-        memo
-      end
-
-      # Inject session for tools that need it (e.g., monadic state tools)
-      method_obj = APPS[app].method(function_name.to_sym) rescue nil
-      if method_obj && method_obj.parameters.any? { |type, name| name == :session }
-        argument_hash[:session] = session
-      end
-
-      begin
-        function_return = APPS[app].send(function_name.to_sym, **argument_hash)
-
-        send_verification_notification(session, &block) if function_name == "report_verification"
-
-        # Extract TTS text from tool parameters if tts_target is configured
-        Monadic::Utils::TtsTextExtractor.extract_tts_text(
-          app: app,
-          function_name: function_name,
-          argument_hash: argument_hash,
-          session: session
-        )
-      rescue StandardError => e
-        STDERR.puts "[Perplexity Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-        STDERR.puts "[Perplexity Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
-        function_return = Monadic::Utils::ErrorFormatter.tool_error(
-          provider: "Perplexity",
-          tool_name: function_name,
-          message: e.message
-        )
-      end
-
-      # Use the error handler module to check for repeated errors
-      if handle_function_error(session, function_return, function_name, &block)
-        # Stop retrying - add result and skip to loop exit
-        context << {
-          tool_call_id: tool_call["id"],
-          role: "tool",
-          name: function_name,
-          content: function_return.to_s
-        }
-        next
-      end
-
-      context << {
-        tool_call_id: tool_call["id"],
-        role: "tool",
-        name: function_name,
-        content: function_return.to_s
-      }
+      tool_entry, error_stop = invoke_perplexity_tool_function(app, session, tool_call, function_name, &block)
+      context << tool_entry if tool_entry
+      next if error_stop
     end
 
     obj["function_returns"] = context

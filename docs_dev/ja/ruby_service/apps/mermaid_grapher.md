@@ -46,9 +46,18 @@ MermaidコードをプレビューHTMLに埋め込む際、`<`、`>`、`&`のみ
 ## HTMLファイルのライフサイクル
 
 - プレビューHTMLファイルは`mermaid_live_[タイムスタンプ].html`で命名
-- ライブセッション中は最新HTMLを保持（ブラウザが表示中）、古いファイルはクリーンアップ
-- `stop_mermaid_browser`で全`mermaid_live_*.html`ファイルを削除
+- スクリーンショットファイルは`mermaid_preview_[タイムスタンプ].png`で命名
+- ライブセッション中は最新HTMLを保持（ブラウザが表示中）、古いHTMLおよびPNGファイルは`cleanup_old_mermaid_files`でクリーンアップ
+- `stop_mermaid_browser`で全`mermaid_live_*.html`および`mermaid_preview_*.png`ファイルを削除
 - バリデーション用HTMLファイル（`mermaid_test_*.html`）は使用後即座にクリーンアップ
+
+## ビジュアルセルフベリフィケーション (`_image`)
+
+`preview_mermaid`はツールレスポンスハッシュの`_image`キーを介してスクリーンショットファイル名を返す。これによりスクリーンショットがLLMのビジョン入力に注入され、レンダリング結果を検証できる。画像はユーザーには**表示されない** — Mermaidダイアグラムはクライアント側の`MarkdownRenderer`がSVGとして直接レンダリングするため、スクリーンショットの表示は冗長となる。Web Insightが`_image`（LLMビジョン）と`gallery_html`（ユーザー表示）の両方を使用するのとは異なる。
+
+## ラベル言語
+
+MDSLシステムプロンプトはLLMに対し、ノードIDとクラス名には英語を使用する（Mermaidパーサーの要件）がラベルにはユーザーの言語を使用するよう指示する。これにより構文的に有効なダイアグラムでありながら、ユーザーの好む言語で読みやすいラベルが表示される。
 
 ## バリデーション
 

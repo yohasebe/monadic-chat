@@ -46,9 +46,18 @@ When embedding Mermaid code into the preview HTML, we escape only `<`, `>` and `
 ## HTML File Lifecycle
 
 - Preview HTML files are named `mermaid_live_[timestamp].html`
-- During a live session, the latest HTML is kept (browser is displaying it); older files are cleaned up
-- `stop_mermaid_browser` removes all `mermaid_live_*.html` files
+- Screenshot files are named `mermaid_preview_[timestamp].png`
+- During a live session, the latest HTML is kept (browser is displaying it); older HTML and PNG files are cleaned up by `cleanup_old_mermaid_files`
+- `stop_mermaid_browser` removes all `mermaid_live_*.html` and `mermaid_preview_*.png` files
 - Validation HTML files (`mermaid_test_*.html`) are cleaned up immediately after use
+
+## Visual Self-Verification (`_image`)
+
+`preview_mermaid` returns the screenshot filename via the `_image` key in the tool response hash. This injects the screenshot into the LLM's vision input so it can verify the rendered diagram. The image is **not** shown to the user — Mermaid diagrams are rendered as SVG directly by the client-side `MarkdownRenderer`, making screenshots redundant for display. This differs from Web Insight, which uses both `_image` (LLM vision) and `gallery_html` (user display).
+
+## Label Language
+
+MDSL system prompts instruct the LLM to use English for node IDs and class names (Mermaid parser requirement) but the user's language for labels. This ensures diagrams are syntactically valid while displaying readable labels in the user's preferred language.
 
 ## Validation
 

@@ -82,7 +82,7 @@ get "/api/pdf_storage_status" do
     { success: true, mode: mode, vector_store_id: vs_id, local_present: local_present, cloud_present: cloud_present }.to_json
   rescue StandardError => e
     status 500
-    { success: false, error: e.message }.to_json
+    error_json(e.message)
   end
 end
 
@@ -110,7 +110,7 @@ get "/api/ai_user_defaults" do
     { success: true, defaults: result }.to_json
   rescue StandardError => e
     status 500
-    { success: false, error: e.message }.to_json
+    error_json(e.message)
   end
 end
 
@@ -119,13 +119,13 @@ post "/openai/pdf" do
   content_type :json
   action = params["action"] || "upload"
   api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+  return error_json("OpenAI API key not configured") unless api_key && !api_key.empty?
 
   begin
     case action
     when "upload"
       unless params["pdfFile"]
-        return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
+        return error_json("No file selected. Please choose a PDF file to upload.")
       end
 
       file_param = params["pdfFile"]
@@ -175,13 +175,13 @@ post "/openai/pdf" do
         upload_res = HTTP.headers(headers).post("#{api_base}/files", form: form)
         unless upload_res.status.success?
           puts "[OpenAI PDF] File upload failed: status=#{upload_res.status} body=#{upload_res.body.to_s[0..200]}"
-          return { success: false, error: "OpenAI file upload failed: #{upload_res.status}" }.to_json
+          return error_json("OpenAI file upload failed: #{upload_res.status}")
         end
         upload_json = JSON.parse(upload_res.body.to_s) rescue nil
         file_id = upload_json && upload_json["id"]
         unless file_id
           puts "[OpenAI PDF] Invalid file upload response: #{upload_res.body.to_s[0..200]}"
-          return { success: false, error: "OpenAI file upload response invalid" }.to_json
+          return error_json("OpenAI file upload response invalid")
         end
         uploaded_new_file = true
         puts "[OpenAI PDF] Uploaded file: filename=#{filename} file_id=#{file_id}"
@@ -233,13 +233,13 @@ post "/openai/pdf" do
         )
         unless vs_res.status.success?
           puts "[OpenAI PDF] Vector store creation failed: status=#{vs_res.status} body=#{vs_res.body.to_s[0..200]}"
-          return { success: false, error: "Vector store creation failed: #{vs_res.status}" }.to_json
+          return error_json("Vector store creation failed: #{vs_res.status}")
         end
         vs_json = JSON.parse(vs_res.body.to_s) rescue nil
         vs_id = vs_json && vs_json["id"]
         unless vs_id
           puts "[OpenAI PDF] Invalid vector store response: #{vs_res.body.to_s[0..200]}"
-          return { success: false, error: "Vector store creation response invalid" }.to_json
+          return error_json("Vector store creation response invalid")
         end
         puts "[OpenAI PDF] Vector store ready: vs_id=#{vs_id}"
         # persist to fallback meta if ENV is not set
@@ -286,22 +286,22 @@ post "/openai/pdf" do
                 )
                 unless retry_add.status.success?
                   puts "[OpenAI PDF] Add file to vector store failed after retry: status=#{retry_add.status} body=#{retry_add.body.to_s[0..200]}"
-                  return { success: false, error: "Adding file to vector store failed: #{retry_add.status}" }.to_json
+                  return error_json("Adding file to vector store failed: #{retry_add.status}")
                 end
                 uploaded_new_file = true
               else
-                return { success: false, error: "OpenAI file upload response invalid (retry)" }.to_json
+                return error_json("OpenAI file upload response invalid (retry)")
               end
             else
               puts "[OpenAI PDF] File upload (retry) failed: status=#{upload_res.status} body=#{upload_res.body.to_s[0..200]}"
-              return { success: false, error: "OpenAI file upload failed (retry): #{upload_res.status}" }.to_json
+              return error_json("OpenAI file upload failed (retry): #{upload_res.status}")
             end
           rescue StandardError => e
-            return { success: false, error: "OpenAI file attach failed: #{e.message}" }.to_json
+            return error_json("OpenAI file attach failed: #{e.message}")
           end
         else
           puts "[OpenAI PDF] Add file to vector store failed: status=#{add_res.status} body=#{add_res.body.to_s[0..200]}"
-          return { success: false, error: "Adding file to vector store failed: #{add_res.status}" }.to_json
+          return error_json("Adding file to vector store failed: #{add_res.status}")
         end
       end
       puts "[OpenAI PDF] Linked file to vector store: vs_id=#{vs_id} file_id=#{file_id}"
@@ -336,19 +336,15 @@ post "/openai/pdf" do
       end
 
       # Invalidate caches for mode/presence
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError
-        # no-op
-      end
+      bump_pdf_cache_version
       { success: true, filename: filename, vector_store_id: vs_id, file_id: file_id, deduplicated: (!uploaded_new_file) }.to_json
 
     else
       status 400
-      { success: false, error: "Unsupported action" }.to_json
+      error_json("Unsupported action")
     end
   rescue => e
-    { success: false, error: "OpenAI PDF endpoint error: #{e.class}: #{e.message}" }.to_json
+    error_json("OpenAI PDF endpoint error: #{e.class}: #{e.message}")
   end
 end
 
@@ -403,48 +399,13 @@ get "/openai/pdf" do
   content_type :json
   action = params["action"] || "list"
   api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+  return error_json("OpenAI API key not configured") unless api_key && !api_key.empty?
 
   begin
     case action
     when "list"
-      # Resolve VS from session/app ENV/registry/global ENV/fallback
-      app_key = begin
-        (session[:parameters] && session[:parameters]["app_name"]) || "default"
-      rescue StandardError
-        "default"
-      end
-      app_env_vs = begin
-        key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
-        val = CONFIG[key]
-        s = val.to_s.strip
-        s.empty? ? nil : s
-      rescue StandardError
-        nil
-      end
-      reg_vs_id = begin
-        Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
-      rescue StandardError
-        nil
-      end
-      env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
-      vs_meta_path = File.join(Monadic::Utils::Environment.data_path, 'pdf_navigator_openai.json')
-      fallback_vs = nil
-      if File.exist?(vs_meta_path)
-        begin
-          meta = JSON.parse(File.read(vs_meta_path))
-          fallback_vs = meta["vector_store_id"]
-        rescue StandardError
-          fallback_vs = nil
-        end
-      end
-      vs_id = session[:openai_vector_store_id]
-      vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
-      vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
-      vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
-      vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
-      # Keep session in sync for downstream usage
-      session[:openai_vector_store_id] = vs_id if vs_id
+      app_key = resolve_openai_app_key
+      vs_id = resolve_vector_store_id(app_key)
       return { success: true, files: [], vector_store_id: nil }.to_json unless vs_id
       headers = { "Authorization" => "Bearer #{api_key}" }
       api_base = "https://api.openai.com/v1"
@@ -469,14 +430,14 @@ get "/openai/pdf" do
         end
         { success: true, files: files, vector_store_id: vs_id }.to_json
       else
-        { success: false, error: "Failed to fetch file list: #{res.status}" }.to_json
+        error_json("Failed to fetch file list: #{res.status}")
       end
     else
       status 400
-      { success: false, error: "Unsupported action" }.to_json
+      error_json("Unsupported action")
     end
   rescue => e
-    { success: false, error: "OpenAI PDF list error: #{e.class}: #{e.message}" }.to_json
+    error_json("OpenAI PDF list error: #{e.class}: #{e.message}")
   end
 end
 
@@ -484,7 +445,7 @@ delete "/openai/pdf" do
   content_type :json
   action = params["action"] || "clear"
   api_key = CONFIG["OPENAI_API_KEY"]
-  return { success: false, error: "OpenAI API key not configured" }.to_json unless api_key && !api_key.empty?
+  return error_json("OpenAI API key not configured") unless api_key && !api_key.empty?
   begin
     case action
     when "clear"
@@ -585,15 +546,11 @@ delete "/openai/pdf" do
         end
       end
       # Bump session cache version to invalidate mode/presence caches
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError => e
-        Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
-      end
+      bump_pdf_cache_version
       { success: true }.to_json
     when "delete"
       file_id = params["file_id"]
-      return { success: false, error: "file_id required" }.to_json unless file_id
+      return error_json("file_id required") unless file_id
       headers = { "Authorization" => "Bearer #{api_key}" }
       api_base = "https://api.openai.com/v1"
       # Best-effort: remove from vector store (if present), then delete file
@@ -656,21 +613,17 @@ delete "/openai/pdf" do
           Monadic::Utils::ExtraLogger.log { "[Cleanup] Registry file remove failed: #{e.message}" }
         end
         # Bump cache version
-        begin
-          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-        rescue StandardError => e
-          Monadic::Utils::ExtraLogger.log { "[Cleanup] Cache version bump failed: #{e.message}" }
-        end
+        bump_pdf_cache_version
         { success: true }.to_json
       else
-        { success: false, error: "Failed to delete file: #{del_res.status}" }.to_json
+        error_json("Failed to delete file: #{del_res.status}")
       end
     else
       status 400
-      { success: false, error: "Unsupported action" }.to_json
+      error_json("Unsupported action")
     end
   rescue => e
-    { success: false, error: "OpenAI PDF clear error: #{e.class}: #{e.message}" }.to_json
+    error_json("OpenAI PDF clear error: #{e.class}: #{e.message}")
   end
 end
 
@@ -1789,7 +1742,7 @@ post "/load" do
 
         # Validate required fields
         unless json_data["parameters"] && json_data["messages"]
-          return { success: false, error: "Invalid format: missing parameters or messages" }.to_json
+          return error_json("Invalid format: missing parameters or messages")
         end
 
         # Set session data
@@ -1959,12 +1912,12 @@ post "/load" do
 
         { success: true, app_name: json_data['parameters']['app_name'] }.to_json
       rescue JSON::ParserError => e
-        { success: false, error: "Invalid JSON format" }.to_json
+        error_json("Invalid JSON format")
       rescue => e
-        { success: false, error: "Import error: #{e.message}" }.to_json
+        error_json("Import error: #{e.message}")
       end
     else
-      { success: false, error: "No file selected" }.to_json
+      error_json("No file selected")
     end
   else
     # For regular form submissions, maintain original behavior
@@ -2036,7 +1989,7 @@ post "/upload_audio" do
       ext = File.extname(filename).downcase
       unless ALLOWED_AUDIO_EXTS.include?(ext)
         file_handler.close
-        return { success: false, error: "Unsupported file type: #{ext}" }.to_json
+        return error_json("Unsupported file type: #{ext}")
       end
       user_data_dir = Monadic::Utils::Environment.data_path
       dest_path = File.join(user_data_dir, filename)
@@ -2045,10 +1998,10 @@ post "/upload_audio" do
       utf8_filename = filename.force_encoding("UTF-8")
       { success: true, filename: utf8_filename }.to_json
     rescue => e
-      { success: false, error: "Upload failed: #{e.message}" }.to_json
+      error_json("Upload failed: #{e.message}")
     end
   else
-    { success: false, error: "No file selected" }.to_json
+    error_json("No file selected")
   end
 end
 
@@ -2080,7 +2033,7 @@ post "/document" do
         
         # Check if we got any meaningful content
         if markdown.to_s.strip.empty?
-          return { success: false, error: "No content could be extracted from the document" }.to_json
+          return error_json("No content could be extracted from the document")
         end
 
         doc_text = "Filename: " + utf8_filename + "\n---\n" + markdown
@@ -2092,10 +2045,10 @@ post "/document" do
         
         { success: true, content: result }.to_json
       rescue => e
-        { success: false, error: "Error processing document: #{e.message}" }.to_json
+        error_json("Error processing document: #{e.message}")
       end
     else
-      { success: false, error: "No file selected. Please choose a document file to convert." }.to_json
+      error_json("No file selected. Please choose a document file to convert.")
     end
   else
     # For regular form submissions, maintain original behavior
@@ -2150,7 +2103,7 @@ post "/fetch_webpage" do
 
         # Check if we got any meaningful content
         if markdown.to_s.strip.empty?
-          return { success: false, error: "No content could be extracted from the webpage" }.to_json
+          return error_json("No content could be extracted from the webpage")
         end
 
         webpage_text = "URL: " + url_decoded + "\n---\n" + markdown
@@ -2162,10 +2115,10 @@ post "/fetch_webpage" do
 
         { success: true, content: result }.to_json
       rescue => e
-        { success: false, error: "Error fetching webpage: #{e.message}" }.to_json
+        error_json("Error fetching webpage: #{e.message}")
       end
     else
-      { success: false, error: "No URL provided" }.to_json
+      error_json("No URL provided")
     end
   else
     # For regular form submissions, use Selenium
@@ -2199,7 +2152,7 @@ post "/pdf" do
       begin
         # Check if EMBEDDINGS_DB is available
         unless EMBEDDINGS_DB
-          return { success: false, error: "Database connection not available" }.to_json
+          return error_json("Database connection not available")
         end
         pdf_file_handler = params["pdfFile"]["tempfile"]
         temp_file = Tempfile.new("temp_pdf")
@@ -2222,7 +2175,7 @@ post "/pdf" do
 
         # Check if text was extracted successfully
         if pdf.split_text.empty?
-          return { success: false, error: "No text could be extracted from the PDF file" }.to_json
+          return error_json("No text could be extracted from the PDF file")
         end
 
         pdf.split_text.each do |i|
@@ -2240,7 +2193,7 @@ post "/pdf" do
         
         api_key = settings.api_key
         if api_key.nil? || api_key.empty?
-          return { success: false, error: "API key not configured" }.to_json
+          return error_json("API key not configured")
         end
         
         EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: api_key)
@@ -2251,21 +2204,17 @@ post "/pdf" do
           # no-op
         end
         # Invalidate caches for mode/presence
-        begin
-          session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-        rescue StandardError
-          # no-op
-        end
+        bump_pdf_cache_version
         return { success: true, filename: params["pdfFile"]["filename"] }.to_json
       rescue TextEmbeddings::DatabaseError => e
-        return { success: false, error: "Database error: #{e.message}" }.to_json
+        return error_json("Database error: #{e.message}")
       rescue PG::Error => e
-        return { success: false, error: "PostgreSQL error: #{e.message}" }.to_json
+        return error_json("PostgreSQL error: #{e.message}")
       rescue => e
-        return { success: false, error: "Error processing PDF: #{e.class.name} - #{e.message}" }.to_json
+        return error_json("Error processing PDF: #{e.class.name} - #{e.message}")
       end
     else
-      return { success: false, error: "No file selected. Please choose a PDF file to upload." }.to_json
+      return error_json("No file selected. Please choose a PDF file to upload.")
     end
   else
     # For regular form submissions, maintain original behavior
@@ -2302,10 +2251,7 @@ post "/pdf" do
         items_data << { text: i["text"], metadata: { tokens: i["tokens"] } }
       end
       EMBEDDINGS_DB.store_embeddings(doc_data, items_data, api_key: settings.api_key)
-      begin
-        session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
-      rescue StandardError
-      end
+      bump_pdf_cache_version
       return params["pdfFile"]["filename"]
     else
       session[:error] = "Error: No file selected. Please choose a PDF file to upload."
@@ -2334,6 +2280,71 @@ APPS.each do |k, v|
     session[:parameters] = parameters
     redirect "/"
   end
+end
+
+# ──────────────────────────────────────────────────────────────
+# Private helper methods (shared across routes)
+# ──────────────────────────────────────────────────────────────
+
+def error_json(message)
+  { success: false, error: message }.to_json
+end
+
+def resolve_openai_app_key
+  (session[:parameters] && session[:parameters]["app_name"]) || "default"
+rescue StandardError
+  "default"
+end
+
+def openai_pdf_headers(api_key)
+  headers = { "Authorization" => "Bearer #{api_key}", "OpenAI-Beta" => "assistants=v2" }
+  api_base = "https://api.openai.com/v1"
+  [headers, api_base]
+end
+
+def vs_meta_path
+  File.join(Monadic::Utils::Environment.data_path, "pdf_navigator_openai.json")
+end
+
+def bump_pdf_cache_version
+  session[:pdf_cache_version] = (session[:pdf_cache_version] || 0) + 1
+rescue StandardError
+  # no-op
+end
+
+def resolve_vector_store_id(app_key)
+  # Priority: session → app-specific ENV → global ENV → registry → fallback meta
+  app_env_vs = begin
+    key = "OPENAI_VECTOR_STORE_ID__#{app_key.upcase}"
+    val = CONFIG[key]
+    s = val.to_s.strip
+    s.empty? ? nil : s
+  rescue StandardError
+    nil
+  end
+  reg_vs_id = begin
+    Monadic::Utils::DocumentStoreRegistry.get_app(app_key).dig('cloud', 'vector_store_id')
+  rescue StandardError
+    nil
+  end
+  env_vs_id = CONFIG["OPENAI_VECTOR_STORE_ID"].to_s.strip if CONFIG.key?("OPENAI_VECTOR_STORE_ID")
+  fallback_vs = nil
+  if File.exist?(vs_meta_path)
+    begin
+      meta = JSON.parse(File.read(vs_meta_path))
+      fallback_vs = meta["vector_store_id"]
+    rescue StandardError
+      fallback_vs = nil
+    end
+  end
+  vs_id = session[:openai_vector_store_id]
+  vs_id = app_env_vs if (vs_id.nil? || vs_id.empty?) && app_env_vs
+  vs_id = env_vs_id if (vs_id.nil? || vs_id.empty?) && env_vs_id && !env_vs_id.empty?
+  vs_id = reg_vs_id if (vs_id.nil? || vs_id.empty?) && reg_vs_id
+  vs_id = fallback_vs if (vs_id.nil? || vs_id.empty?) && fallback_vs
+  # Keep session in sync for downstream usage
+  session[:openai_vector_store_id] = vs_id if vs_id
+  vs_id
 end
 
 # Note: Signal handling is managed by Falcon server

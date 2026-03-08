@@ -1907,98 +1907,10 @@ window.loadedApp = "Chat";
       }
 
       case "streaming_complete": {
-        // Handle streaming completion
-        window.streamingResponse = false;
-        if (window.UIState) {
-          window.UIState.set('streamingResponse', false);
-          window.UIState.set('isStreaming', false);
+        const wstream = window.WsStreamingHandler;
+        if (wstream && typeof wstream.handleStreamingComplete === 'function') {
+          wstream.handleStreamingComplete(data);
         }
-
-        // Clear any pending spinner check interval
-        if (window.spinnerCheckInterval) {
-          clearInterval(window.spinnerCheckInterval);
-          window.spinnerCheckInterval = null;
-        }
-
-        // Hide the spinner unless we're calling functions or streaming
-        // Note: We check callingFunction and streamingResponse directly here,
-        // not isSystemBusy(), to avoid circular dependency with spinner visibility
-        if (!window.callingFunction && !window.streamingResponse) {
-          // Mark text response as completed
-          window.setTextResponseCompleted(true);
-
-          // CRITICAL: Check foreground state - background tabs should not show spinners
-          const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
-
-          // Check Auto Speech from multiple sources
-          const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-          const checkboxEnabled = $("#check-auto-speech").is(":checked");
-          const autoSpeechActive = window.autoSpeechActive === true;
-          const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
-
-          if (autoSpeechEnabled && !window.ttsPlaybackStarted && inForeground) {
-            // Auto Speech enabled, TTS not started yet, and tab is foreground
-            // NOTE: The SERVER now automatically triggers TTS after streaming completes.
-            // We do NOT set autoSpeechActive here or trigger any TTS from the client.
-            // The server sends audio directly, and the client just plays it.
-            // Setting autoSpeechActive = true here could cause race conditions with
-            // MediaSource audio playback, so we leave it as-is.
-            if (window.debugWebSocket) console.log('[streaming_complete] Auto Speech enabled - server will send audio');
-
-            // NOTE: Do NOT show "Processing audio" spinner here.
-            // The server-triggered TTS will send audio messages directly.
-            // Spinner visibility is handled by the audio playback code.
-          } else {
-            // Check if we can hide spinner (depends on Auto Speech mode)
-            if (typeof window.checkAndHideSpinner === 'function') {
-              window.checkAndHideSpinner();
-            } else {
-              $("#monadic-spinner").hide();
-            }
-          }
-        }
-
-        // Check if system is busy before showing "Ready for input"
-        // Set a proper delay to ensure all DOM updates and async operations are complete
-        setTimeout(function() {
-          // Only show "Ready for input" if system is not busy
-          if (!isSystemBusy()) {
-            const readyText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-            setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-          } else {
-            // If system is still busy, wait and check again
-            let checkInterval = setInterval(function() {
-              if (!isSystemBusy()) {
-                clearInterval(checkInterval);
-                const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-                setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-              }
-            }, BUSY_CHECK_INTERVAL_MS);
-
-            // Safety timeout to prevent infinite checking
-            setTimeout(function() {
-              clearInterval(checkInterval);
-              const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
-              setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
-            }, BUSY_CHECK_MAX_WAIT_MS);
-          }
-
-          // Always ensure UI elements are enabled
-          $("#message").prop("disabled", false);
-          $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-          $("#select-role").prop("disabled", false);
-
-          // Focus on the message input
-          setInputFocus();
-
-          // Reset sequence tracking for next message (realtime TTS)
-          // This ensures each new message starts from seq1
-          if (typeof window.resetSequenceTracking === 'function') {
-            window.resetSequenceTracking();
-          }
-        }, 250); // Initial 250ms delay
-
         break;
       }
 

@@ -86,10 +86,10 @@ RSpec.describe 'Websearch Tavily Configuration' do
   end
 
   describe 'API endpoint integration' do
-    it 'monadic.rb defines /api/environment endpoint' do
-      monadic_rb = File.join(File.dirname(__FILE__), '../../lib/monadic.rb')
-      content = File.read(monadic_rb)
-      
+    it 'api_routes.rb defines /api/environment endpoint' do
+      api_routes_rb = File.join(File.dirname(__FILE__), '../../lib/monadic/routes/api_routes.rb')
+      content = File.read(api_routes_rb)
+
       expect(content).to include('get "/api/environment"')
       expect(content).to include('has_tavily_key')
       expect(content).to include('CONFIG["TAVILY_API_KEY"]')

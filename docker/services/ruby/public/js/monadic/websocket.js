@@ -1607,120 +1607,41 @@ window.loadedApp = "Chat";
       }
 
       case "context_extraction_started": {
-        // Handle context extraction start notification
-        if (typeof ContextPanel !== "undefined") {
-          ContextPanel.showLoading();
-          if (window.debugWebSocket) console.log("[WS] Context extraction started");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleContextExtractionStarted === 'function') {
+          wsh.handleContextExtractionStarted(data);
         }
         break;
       }
 
       case "context_update": {
-        // Handle context update from server (sent by ContextExtractorAgent)
-        // Includes both context data and optional schema for dynamic rendering
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-          WorkflowViewer.setStage('context');
-        }
-        if (typeof ContextPanel !== "undefined") {
-          ContextPanel.hideLoading();
-          if (data.context) {
-            ContextPanel.updateContext(data.context, data.schema || null);
-            if (window.debugWebSocket) console.log("[WS] Context panel updated:", data.context, "schema:", data.schema);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleContextUpdate === 'function') {
+          wsh.handleContextUpdate(data);
         }
         break;
       }
 
       case "language_updated": {
-        // Show notification about language change
-        const languageName = data.language_name || data.language;
-        const languageChangedText = typeof webUIi18n !== 'undefined' ?
-          webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
-        setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
-
-        // Update the selector if needed (in case it was changed server-side)
-        if (data.language && $("#conversation-language").val() !== data.language) {
-          $("#conversation-language").val(data.language);
-        }
-
-        // Update RTL/LTR for message areas based on text direction
-        if (data.text_direction) {
-          if (data.text_direction === "rtl") {
-            $("body").addClass("rtl-messages");
-            if (window.debugWebSocket) console.log("RTL messages enabled for:", data.language);
-          } else {
-            $("body").removeClass("rtl-messages");
-            if (window.debugWebSocket) console.log("LTR messages enabled for:", data.language);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleLanguageUpdated === 'function') {
+          wsh.handleLanguageUpdated(data);
         }
         break;
       }
 
       case "processing_status": {
-        // Show processing status as alert, not in connection-status
-        setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
-
-        // Ensure spinner remains visible
-        if (!$("#monadic-spinner").is(":visible")) {
-          $("#monadic-spinner").show();
-        }
-
-        // Also show as system message
-        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-hourglass-half"></i> </div>');
-        // Handle case where content might be an object
-        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-        $systemDiv.append($('<span>').text(contentText));
-
-        const systemElement = createCard("system",
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-          $systemDiv[0].outerHTML,
-          "en",
-          null,
-          true,
-          []
-        );
-        $("#discourse").append(systemElement);
-        if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(systemElement[0]);
-        }
-
-        // Auto-scroll if enabled
-        if (window.autoScroll) {
-          const chatBottom = document.getElementById('chat-bottom');
-          if (!isElementInViewport(chatBottom)) {
-            window.chatBottom.scrollIntoView(false);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleProcessingStatus === 'function') {
+          wsh.handleProcessingStatus(data);
         }
         break;
       }
 
       case "system_info": {
-        // Display system information in the conversation
-        // Use jQuery's text() method to properly escape the content
-        const $systemDiv = $('<div class="system-info-message"><i class="fas fa-info-circle"></i> </div>');
-        // Handle case where content might be an object
-        const contentText = typeof data.content === 'object' ? JSON.stringify(data.content) : data.content;
-        $systemDiv.append($('<span>').text(contentText));
-
-        const systemElement = createCard("system",
-          "<span class='text-success'><i class='fas fa-database'></i></span> <span class='fw-bold fs-6 text-success'>System</span>",
-          $systemDiv[0].outerHTML,
-          "en",
-          null,
-          true,
-          []
-        );
-        $("#discourse").append(systemElement);
-        if (window.MarkdownRenderer) {
-          window.MarkdownRenderer.applyRenderers(systemElement[0]);
-        }
-
-        // Auto-scroll if enabled
-        if (window.autoScroll) {
-          const chatBottom = document.getElementById('chat-bottom');
-          if (!isElementInViewport(chatBottom)) {
-            window.chatBottom.scrollIntoView(false);
-          }
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSystemInfo === 'function') {
+          wsh.handleSystemInfo(data);
         }
         break;
       }
@@ -1992,36 +1913,9 @@ window.loadedApp = "Chat";
         break;
       }
       case "stt": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleSTTMessage === 'function') {
-          handled = wsHandlers.handleSTTMessage(data);
-        }
-
-        if (!handled) {
-          // Fallback to inline handling
-          $("#message").val($("#message").val() + " " + data["content"]);
-          let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
-          $("#asr-p-value").text(logprob);
-          $("#send, #clear, #voice").prop("disabled", false);
-
-          // Restore original placeholder
-          const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-          $("#message").attr("placeholder", origPlaceholder);
-
-          // Ensure amplitude chart is hidden after processing
-          $("#amplitude").hide();
-
-          if ($("#check-easy-submit").is(":checked")) {
-            if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-              if (window.debugWebSocket) console.log('[Send] Ignoring auto-submit: tab is not foreground');
-            } else {
-              $("#send").click();
-            }
-          }
-          const voiceFinishedText = getTranslation('ui.messages.voiceRecognitionFinished', 'Voice recognition finished');
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${voiceFinishedText}`, "secondary");
-          setInputFocus()
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSTT === 'function') {
+          wsh.handleSTT(data);
         }
         break;
       }
@@ -2220,65 +2114,24 @@ window.loadedApp = "Chat";
         break;
       }
       case "pdf_titles": {
-        const rows = data["content"].map((title, index) => {
-          const safeTitle = String(title).replace(/</g, '&lt;');
-          return `<div class="d-flex align-items-center justify-content-between py-1 border-bottom pdf-db-row">`
-               +   `<span class="pdf-db-name">${safeTitle}</span>`
-               +   `<button id='pdf-del-${index}' type='button' class='btn btn-sm btn-outline-secondary'>`
-               +     `<i class='fa-regular fa-trash-can text-secondary'></i>`
-               +   `</button>`
-               + `</div>`;
-        }).join("");
-        $("#pdf-titles").html(rows || `<span class='text-secondary'>(none)</span>`);
-        data["content"].forEach((title, index) => {
-          $(`#pdf-del-${index}`).off('click').on('click', function () {
-            // Detect iOS/iPadOS
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-            if (isIOS) {
-              // Use standard confirm dialog on iOS
-              const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
-              if (confirm(`${base} ${title}?`)) {
-                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-              }
-            } else {
-              // Use Bootstrap modal on other platforms
-              $("#pdfDeleteConfirmation").modal("show");
-              $("#pdfToDelete").text(title);
-              $("#pdfDeleteConfirmed").off("click").on("click", function (event) {
-                event.preventDefault();
-                ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
-                $("#pdfDeleteConfirmation").modal("hide");
-                $("#pdfToDelete").text("");
-              });
-            }
-          });
-        });
-        break
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handlePDFTitles === 'function') {
+          wsh.handlePDFTitles(data);
+        }
+        break;
       }
       case "pdf_deleted": {
-        if (data["res"] === "success") {
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${data["content"]}`, "info");
-        } else {
-          setAlert(data["content"], "error");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handlePDFDeleted === 'function') {
+          wsh.handlePDFDeleted(data);
         }
-        ws.send(JSON.stringify({ "message": "PDF_TITLES" }));
         break;
       }
       case "change_status": {
-        // change the status of each of the cards according to the data content
-        // if the active status of the card is changed, add or remove "active" class from the child span containing "status" class
-        data["content"].forEach((msg) => {
-          const card = $(`#${msg["mid"]}`);
-          if (card.length) {
-            if (msg["active"]) {
-              card.find(".status").addClass("active");
-            } else {
-              card.find(".status").removeClass("active");
-            }
-          }
-        });
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleChangeStatus === 'function') {
+          wsh.handleChangeStatus(data);
+        }
         break;
       }
       case "past_messages": {
@@ -2335,8 +2188,10 @@ window.loadedApp = "Chat";
       }
 
       case "success": {
-        // Handle success messages from the server
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSuccess === 'function') {
+          wsh.handleSuccess(data);
+        }
         break;
       }
 
@@ -2843,28 +2698,9 @@ window.loadedApp = "Chat";
       }
 
       case "sample_success": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleSampleSuccess === 'function') {
-          handled = wsHandlers.handleSampleSuccess(data);
-        }
-
-        if (!handled) {
-          // Clear any pending timeout to prevent error message
-          if (window.currentSampleTimeout) {
-            clearTimeout(window.currentSampleTimeout);
-            window.currentSampleTimeout = null;
-          }
-
-          // Hide UI elements
-          $("#monadic-spinner").hide();
-          document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-
-          // Show success alert
-          const roleText = data.role === "user" ? "User" :
-                          data.role === "assistant" ? "Assistant" : "System";
-          const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
-          setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");
+        const wsh = window.WsSessionHandler;
+        if (wsh && typeof wsh.handleSampleSuccess === 'function') {
+          wsh.handleSampleSuccess(data);
         }
         break;
       }

@@ -97,8 +97,7 @@ const TOKEN_VERIFY_TIMEOUT_MS = (window.WsAudioConstants || {}).TOKEN_VERIFY_TIM
 const VERIFY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).VERIFY_CHECK_INTERVAL_MS || 1000;
 const RESPONSE_TIMEOUT_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_MS || 30000;
 const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOUT_SLOW_MS || 60000;
-const BUSY_CHECK_INTERVAL_MS = (window.WsAudioConstants || {}).BUSY_CHECK_INTERVAL_MS || 500;
-const BUSY_CHECK_MAX_WAIT_MS = (window.WsAudioConstants || {}).BUSY_CHECK_MAX_WAIT_MS || 10000;
+// BUSY_CHECK_INTERVAL_MS, BUSY_CHECK_MAX_WAIT_MS now in ws-streaming-handler.js
 
 // Stop-button highlighting, checkAndHideSpinner now in ws-auto-speech.js
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};

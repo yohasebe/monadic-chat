@@ -139,7 +139,9 @@ function handleHtml(data) {
       mainPanel.scrollIntoView(false);
     }
 
-    setInputFocus();
+    if (typeof setInputFocus === 'function') {
+      setInputFocus();
+    }
   }
 }
 
@@ -254,7 +256,9 @@ function _handleFinalAssistantMessage(data) {
   // If this is the first assistant message (from initiate_from_assistant), show user panel
   if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
     $("#user-panel").show();
-    setInputFocus();
+    if (typeof setInputFocus === 'function') {
+      setInputFocus();
+    }
   }
 
   document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
@@ -283,7 +287,9 @@ function _handleAutoSpeech(data) {
   const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : !(typeof document !== 'undefined' && document.hidden);
 
   if (!inForeground) {
-    setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+    if (typeof setAutoSpeechSuppressed === 'function') {
+      setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
+    }
     window.autoSpeechActive = false;
     window.autoPlayAudio = false;
   } else if (suppressionActive) {

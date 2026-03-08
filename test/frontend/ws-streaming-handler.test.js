@@ -17,7 +17,12 @@ function createMockElement(id) {
     show: jest.fn().mockReturnThis(),
     prop: jest.fn().mockReturnThis(),
     is: jest.fn().mockReturnValue(false),
-    html: jest.fn().mockReturnThis()
+    html: jest.fn().mockReturnValue(''),
+    empty: jest.fn().mockReturnThis(),
+    detach: jest.fn().mockReturnThis(),
+    append: jest.fn().mockReturnThis(),
+    attr: jest.fn().mockReturnThis(),
+    css: jest.fn().mockReturnThis()
   };
 }
 
@@ -32,7 +37,15 @@ beforeEach(() => {
     '#check-auto-speech': createMockElement('check-auto-speech'),
     '#message': createMockElement('message'),
     '#send, #clear, #image-file, #voice, #doc, #url, #pdf-import': createMockElement('buttons'),
-    '#select-role': createMockElement('select-role')
+    '#send, #clear, #image-file, #voice, #doc, #url': createMockElement('user-buttons'),
+    '#select-role': createMockElement('select-role'),
+    '#temp-card': createMockElement('temp-card'),
+    '#temp-card .card-text': createMockElement('temp-card-text'),
+    '#temp-card .status': createMockElement('temp-card-status'),
+    '#indicator': createMockElement('indicator'),
+    '#discourse': createMockElement('discourse'),
+    '#discourse .card:not(#temp-card) .role-assistant': { length: 0 },
+    '#chat': createMockElement('chat')
   };
 
   global.$ = jest.fn().mockImplementation(selector => {
@@ -61,6 +74,23 @@ beforeEach(() => {
   window.debugWebSocket = false;
   window.resetSequenceTracking = jest.fn();
   window.webUIi18n = undefined;
+  window.messages = [];
+  window.SessionState = { addMessage: jest.fn(), removeMessage: jest.fn() };
+  window.appendCard = jest.fn();
+  window.mainPanel = document.createElement('div');
+  window.isImporting = false;
+  window.skipAssistantInitiation = true;
+  window.isProcessingImport = true;
+  window._lastProcessedIndex = 0;
+  window._lastProcessedSequence = 0;
+
+  // Create cancel_query element in DOM
+  const cancelBtn = document.createElement('div');
+  cancelBtn.id = 'cancel_query';
+  document.body.appendChild(cancelBtn);
+
+  global.isAutoSpeechSuppressed = jest.fn().mockReturnValue(false);
+  global.setAutoSpeechSuppressed = jest.fn();
 });
 
 afterEach(() => {
@@ -235,10 +265,91 @@ describe('ws-streaming-handler', () => {
     });
   });
 
+  describe('handleUser', () => {
+    const userData = {
+      content: {
+        text: 'Hello world',
+        html: '<p>Hello world</p>',
+        mid: 'msg-1',
+        lang: 'en'
+      }
+    };
+
+    it('adds message to SessionState', () => {
+      handlers.handleUser(userData);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ role: 'user', text: 'Hello world', mid: 'msg-1' })
+      );
+    });
+
+    it('calls appendCard with user role', () => {
+      handlers.handleUser(userData);
+      expect(window.appendCard).toHaveBeenCalledWith(
+        'user',
+        expect.stringContaining('User'),
+        expect.stringContaining('Hello world'),
+        'en',
+        'msg-1',
+        true,
+        undefined,
+        expect.any(Number)
+      );
+    });
+
+    it('sets streamingResponse to true', () => {
+      handlers.handleUser(userData);
+      expect(window.streamingResponse).toBe(true);
+    });
+
+    it('sets responseStarted to false', () => {
+      window.responseStarted = true;
+      handlers.handleUser(userData);
+      expect(window.responseStarted).toBe(false);
+    });
+
+    it('updates UIState', () => {
+      handlers.handleUser(userData);
+      expect(window.UIState.set).toHaveBeenCalledWith('streamingResponse', true);
+      expect(window.UIState.set).toHaveBeenCalledWith('isStreaming', true);
+    });
+
+    it('shows spinner', () => {
+      handlers.handleUser(userData);
+      expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+    });
+
+    it('disables message input', () => {
+      handlers.handleUser(userData);
+      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', true);
+    });
+
+    it('resets skipAssistantInitiation', () => {
+      handlers.handleUser(userData);
+      expect(window.skipAssistantInitiation).toBe(false);
+    });
+
+    it('removes temp messages from SessionState', () => {
+      window.messages = [{ text: 'temp', temp: true }];
+      handlers.handleUser(userData);
+      expect(window.SessionState.removeMessage).toHaveBeenCalledWith(0);
+    });
+
+    it('includes images when present', () => {
+      const dataWithImages = {
+        content: { ...userData.content, images: ['img1.png'] }
+      };
+      handlers.handleUser(dataWithImages);
+      expect(window.SessionState.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ images: ['img1.png'] })
+      );
+    });
+  });
+
   describe('module exports', () => {
-    it('exports both handlers', () => {
+    it('exports all three handlers', () => {
       expect(typeof handlers.handleStreamingComplete).toBe('function');
       expect(typeof handlers.handleDefaultMessage).toBe('function');
+      expect(typeof handlers.handleUser).toBe('function');
     });
 
     it('exposes handlers on window.WsStreamingHandler', () => {

@@ -1201,12 +1201,19 @@ const modelSpec = {
   "deepseek-reasoner": {
     "context_window" : [1, 128000],
     "max_output_tokens" : [1, 64000],
-    "temperature": [[0.0, 2.0], 1.0], 
+    "temperature": [[0.0, 2.0], 1.0],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "reasoning_content": ["disabled", "enabled"],
     "tool_capability": true
+  },
+  "text-embedding-3-large": {
+    "context_window": [1, 8191],
+    "max_output_tokens": [1, 0],
+    "embedding_dimensions": 3072,
+    "tool_capability": false,
+    "vision_capability": false
   }
 }
 

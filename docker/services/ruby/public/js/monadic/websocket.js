@@ -1308,71 +1308,9 @@ window.loadedApp = "Chat";
       }
 
       case "web_speech": {
-        // Handle Web Speech API text
-        window.lastTTSMode = 'web_speech';
-        $("#monadic-spinner").hide();
-
-        if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
-          try {
-            // Get text from data
-            const text = data.content || '';
-
-            // Use the browser's Web Speech API directly
-            const utterance = new SpeechSynthesisUtterance(text);
-
-            // Get voice settings from UI
-            const voiceElement = document.getElementById('webspeech-voice');
-            if (voiceElement && voiceElement.value) {
-              // Find the matching voice object
-              const selectedVoice = window.speechSynthesis.getVoices().find(v =>
-                v.name === voiceElement.value);
-
-              if (selectedVoice) {
-                utterance.voice = selectedVoice;
-              }
-            }
-
-            // Get speed setting
-            const speedElement = document.getElementById('tts-speed');
-            if (speedElement && speedElement.value) {
-              utterance.rate = parseFloat(speedElement.value) || 1.0;
-            }
-
-            // Set event handlers for proper button state management
-            utterance.onend = function() {
-              // Remove Stop button highlight when speech ends
-              if (typeof removeStopButtonHighlight === 'function') {
-                removeStopButtonHighlight();
-              }
-            };
-
-            utterance.onerror = function(event) {
-              console.error('Web Speech API error:', event);
-              // Remove Stop button highlight on error
-              if (typeof removeStopButtonHighlight === 'function') {
-                removeStopButtonHighlight();
-              }
-            };
-
-            // Speak the text
-            window.speechSynthesis.speak(utterance);
-          } catch (e) {
-            console.error("Error using Web Speech API:", e);
-            setAlert("Web Speech API error: " + e.message, "warning");
-            // Remove Stop button highlight on error
-            if (typeof removeStopButtonHighlight === 'function') {
-              removeStopButtonHighlight();
-            }
-          }
-        } else {
-          console.error("Web Speech API not available");
-          const notAvailableText = typeof webUIi18n !== 'undefined' ?
-            webUIi18n.t('ui.messages.webSpeechNotAvailable') : 'Web Speech API not available in this browser';
-          setAlert(notAvailableText, "warning");
-          // Remove Stop button highlight if API not available
-          if (typeof removeStopButtonHighlight === 'function') {
-            removeStopButtonHighlight();
-          }
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleWebSpeech === 'function') {
+          tth.handleWebSpeech(data);
         }
         break;
       }
@@ -1546,33 +1484,18 @@ window.loadedApp = "Chat";
       }
 
       case "tts_progress": {
-        // Keep spinner visible during TTS processing
-        // Simple "Processing audio" text without progress counter
-        $("#monadic-spinner")
-          .find("span")
-          .html('<i class="fas fa-headphones fa-pulse"></i> Processing audio');
-
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSProgress === 'function') {
+          tth.handleTTSProgress(data);
+        }
         break;
       }
 
       case "tts_complete": {
-        // For Auto TTS, keep spinner visible until audio actually starts playing
-        // For manual TTS (Play button), hide immediately as before
-        if (!window.autoSpeechActive && !window.autoPlayAudio) {
-          // Manual TTS: hide spinner immediately
-          $("#monadic-spinner").hide();
-
-          // Reset spinner to default state for other operations
-          $("#monadic-spinner")
-            .find("span i")
-            .removeClass("fa-headphones")
-            .addClass("fa-comment");
-          $("#monadic-spinner")
-            .find("span")
-            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSComplete === 'function') {
+          tth.handleTTSComplete(data);
         }
-        // For Auto TTS: spinner will be hidden when audio playback actually starts
-
         break;
       }
 
@@ -1594,10 +1517,9 @@ window.loadedApp = "Chat";
       }
 
       case "tts_notice": {
-        // TTS notice: partial output or skipped due to text length
-        const noticeContent = data.content;
-        if (noticeContent) {
-          showTtsNotice(noticeContent);
+        const tth = window.WsTTSHandler;
+        if (tth && typeof tth.handleTTSNotice === 'function') {
+          tth.handleTTSNotice(data);
         }
         break;
       }

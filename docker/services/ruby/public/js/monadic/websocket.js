@@ -484,15 +484,15 @@ const addToAudioQueue = window.addToAudioQueue;
 const resetSessionState = window.resetSessionState;
 
 
-let responseStarted = false;
-let callingFunction = false;
+window.responseStarted = false;
+window.callingFunction = false;
 // Track if we're currently streaming a response
-let streamingResponse = false; // Keep local variable for backward compatibility
+window.streamingResponse = false;
 // Track whether reasoning/thinking fragments are currently streaming
 let reasoningStreamActive = false;
 // Track tool execution progress across the full tool chain
-let toolCallCount = 0;
-let currentToolName = '';
+window.toolCallCount = 0;
+window.currentToolName = '';
 // Track spinner check interval to prevent duplicates
 window.spinnerCheckInterval = null;
 
@@ -543,8 +543,8 @@ function updateToolStatus(toolName, count) {
 }
 
 function clearToolStatus() {
-  toolCallCount = 0;
-  currentToolName = '';
+  window.toolCallCount = 0;
+  window.currentToolName = '';
   $("#tool-status").hide().empty();
 }
 window.clearToolStatus = clearToolStatus;
@@ -976,7 +976,7 @@ window.loadedApp = "Chat";
       }
 
       case "wait": {
-        callingFunction = true;
+        window.callingFunction = true;
 
         // Check if content is a translation key
         let waitContent = data["content"];
@@ -1227,8 +1227,8 @@ window.loadedApp = "Chat";
       }
 
       case "tool_executing": {
-        toolCallCount++;
-        currentToolName = data["content"];
+        window.toolCallCount++;
+        window.currentToolName = data["content"];
 
         // Show temp card early if hidden (immediate feedback)
         const toolTempCard = $("#temp-card");
@@ -1237,11 +1237,11 @@ window.loadedApp = "Chat";
         }
 
         // Update temp card header with tool name and count
-        updateToolStatus(currentToolName, toolCallCount);
+        updateToolStatus(window.currentToolName, window.toolCallCount);
 
         // Update workflow viewer
         if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
-          WorkflowViewer.setActiveTool(data["content"], toolCallCount);
+          WorkflowViewer.setActiveTool(data["content"], window.toolCallCount);
         }
 
         // noVNC auto-open disabled: start_browser now defaults to headless mode.
@@ -1504,7 +1504,7 @@ window.loadedApp = "Chat";
         $("#monadic-spinner").hide();
 
         // Reset response state
-        responseStarted = false;
+        window.responseStarted = false;
 
         // Set alert to ready state - only if system is not busy
         if (!isSystemBusy()) {
@@ -1576,13 +1576,13 @@ window.loadedApp = "Chat";
         }
 
         // Reset streaming flags
-        streamingResponse = false;
+        window.streamingResponse = false;
         if (window.UIState) {
           window.UIState.set('streamingResponse', false);
           window.UIState.set('isStreaming', false);
         }
-        responseStarted = false;
-        callingFunction = false;
+        window.responseStarted = false;
+        window.callingFunction = false;
 
         // Check if content is a translation key or an object with key and details
         let errorContent = data.content;
@@ -1684,9 +1684,9 @@ window.loadedApp = "Chat";
           }
 
           // Reset response tracking flags to ensure clean state
-          responseStarted = false;
-          callingFunction = false;
-          streamingResponse = false;
+          window.responseStarted = false;
+          window.callingFunction = false;
+          window.streamingResponse = false;
           if (window.UIState) {
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
@@ -1786,7 +1786,7 @@ window.loadedApp = "Chat";
             .html('<i class="fas fa-comment fa-pulse"></i> Starting');
         }
         // For non-initial loads, follow standard logic
-        else if (!callingFunction && !streamingResponse) {
+        else if (!window.callingFunction && !window.streamingResponse) {
           window.setTextResponseCompleted(true);
           if (typeof window.checkAndHideSpinner === 'function') {
             window.checkAndHideSpinner();
@@ -1804,7 +1804,7 @@ window.loadedApp = "Chat";
           setAlert(`<i class='fa-solid fa-bolt'></i> ${noAppsMsg}`, "warning");
         } else {
           // Show "Ready" unless we're calling functions or streaming
-          if (!callingFunction && !streamingResponse) {
+          if (!window.callingFunction && !window.streamingResponse) {
             const readyMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.ready') : 'Ready';
             setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyMsg}`, "success");
           }
@@ -1983,13 +1983,13 @@ window.loadedApp = "Chat";
           // Check if tool calls are pending
           if (data["finish_reason"] === "tool_calls") {
             // Keep spinner visible for tool calls
-            callingFunction = true;
+            window.callingFunction = true;
             $("#monadic-spinner").show();
             const processingToolsText = getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools');
             $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
           } else {
             // No tool calls, ensure callingFunction is false
-            callingFunction = false;
+            window.callingFunction = false;
             if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
               WorkflowViewer.setStage('done');
             }
@@ -2041,7 +2041,7 @@ window.loadedApp = "Chat";
       }
 
       case "html": {
-        responseStarted = false;
+        window.responseStarted = false;
 
         // Reset completion tracking flags at start of new response
         window.setTextResponseCompleted(false);
@@ -2135,9 +2135,9 @@ window.loadedApp = "Chat";
             // If more content is coming (tool calls), prepare for next streaming
             if (moreComing) {
               // Keep input disabled and streaming state active
-              callingFunction = true;
-              streamingResponse = true;
-              responseStarted = false; // Reset for next streaming
+              window.callingFunction = true;
+              window.streamingResponse = true;
+              window.responseStarted = false; // Reset for next streaming
               if (window.UIState) {
                 window.UIState.set('streamingResponse', true);
                 window.UIState.set('isStreaming', true);
@@ -2192,7 +2192,7 @@ window.loadedApp = "Chat";
               $("#select-role").prop("disabled", false);
 
               // Reset streaming flag as response is done
-              streamingResponse = false;
+              window.streamingResponse = false;
               if (window.UIState) {
                 window.UIState.set('streamingResponse', false);
                 window.UIState.set('isStreaming', false);
@@ -2207,7 +2207,7 @@ window.loadedApp = "Chat";
               // Hide spinner unless we're calling functions or streaming
               // Note: We check callingFunction and streamingResponse directly here,
               // not isSystemBusy(), to avoid circular dependency with spinner visibility
-              if (!callingFunction && !streamingResponse) {
+              if (!window.callingFunction && !window.streamingResponse) {
                 // Mark text response as completed
                 window.setTextResponseCompleted(true);
                 // Check if we can hide spinner (depends on Auto Speech mode)
@@ -2323,7 +2323,7 @@ window.loadedApp = "Chat";
           $("#message").show();
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
-          streamingResponse = false;
+          window.streamingResponse = false;
           if (window.UIState) {
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
@@ -2338,7 +2338,7 @@ window.loadedApp = "Chat";
           // Hide spinner unless we're calling functions or streaming
           // Note: We check callingFunction and streamingResponse directly here,
           // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
+          if (!window.callingFunction && !window.streamingResponse) {
             // Mark text response as completed
             window.setTextResponseCompleted(true);
             // Check if we can hide spinner (depends on Auto Speech mode)
@@ -2357,7 +2357,7 @@ window.loadedApp = "Chat";
           $("#message").show();
           $("#message").prop("disabled", false);
           // Reset streaming flag as response is done
-          streamingResponse = false;
+          window.streamingResponse = false;
           if (window.UIState) {
             window.UIState.set('streamingResponse', false);
             window.UIState.set('isStreaming', false);
@@ -2372,7 +2372,7 @@ window.loadedApp = "Chat";
           // Hide spinner unless we're calling functions or streaming
           // Note: We check callingFunction and streamingResponse directly here,
           // not isSystemBusy(), to avoid circular dependency with spinner visibility
-          if (!callingFunction && !streamingResponse) {
+          if (!window.callingFunction && !window.streamingResponse) {
             // Mark text response as completed
             window.setTextResponseCompleted(true);
             // Check if we can hide spinner (depends on Auto Speech mode)
@@ -2488,12 +2488,12 @@ window.loadedApp = "Chat";
         $("#monadic-spinner").show(); // Ensure spinner is visible
 
         // Mark that we're starting a response process
-        streamingResponse = true;
+        window.streamingResponse = true;
         if (window.UIState) {
           window.UIState.set('streamingResponse', true);
           window.UIState.set('isStreaming', true);
         }
-        responseStarted = false; // Will be set to true when streaming starts
+        window.responseStarted = false; // Will be set to true when streaming starts
 
         // Clear any existing interval first
         if (window.spinnerCheckInterval) {
@@ -2508,14 +2508,14 @@ window.loadedApp = "Chat";
           checkCount++;
 
           // Stop checking after 3 seconds or if response has started
-          if (checkCount > 30 || responseStarted || !streamingResponse) {
+          if (checkCount > 30 || window.responseStarted || !window.streamingResponse) {
             clearInterval(window.spinnerCheckInterval);
             window.spinnerCheckInterval = null;
             return;
           }
 
           // Only re-show spinner if it's hidden and we're still waiting for first fragment
-          if (streamingResponse && !responseStarted && !$("#monadic-spinner").is(":visible")) {
+          if (window.streamingResponse && !window.responseStarted && !$("#monadic-spinner").is(":visible")) {
             const processingRequestText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
             $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
@@ -2544,7 +2544,7 @@ window.loadedApp = "Chat";
 
       case "streaming_complete": {
         // Handle streaming completion
-        streamingResponse = false;
+        window.streamingResponse = false;
         if (window.UIState) {
           window.UIState.set('streamingResponse', false);
           window.UIState.set('isStreaming', false);
@@ -2559,7 +2559,7 @@ window.loadedApp = "Chat";
         // Hide the spinner unless we're calling functions or streaming
         // Note: We check callingFunction and streamingResponse directly here,
         // not isSystemBusy(), to avoid circular dependency with spinner visibility
-        if (!callingFunction && !streamingResponse) {
+        if (!window.callingFunction && !window.streamingResponse) {
           // Mark text response as completed
           window.setTextResponseCompleted(true);
 
@@ -2705,12 +2705,12 @@ window.loadedApp = "Chat";
         // Check if this is a fragment message
         if (data.type === "fragment") {
           // Handle fragment messages from all vendors
-          if (!responseStarted) {
+          if (!window.responseStarted) {
             const respondingText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.responding') : 'RESPONDING';
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
+            window.responseStarted = true;
+            window.streamingResponse = true; // Mark that we're streaming
             if (window.UIState) {
               window.UIState.set('streamingResponse', true);
               window.UIState.set('isStreaming', true);
@@ -2721,7 +2721,7 @@ window.loadedApp = "Chat";
           }
 
           // Always update spinner for fragments to ensure continuity
-          if (streamingResponse) {
+          if (window.streamingResponse) {
             const receivingResponseText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
             $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
@@ -2738,13 +2738,13 @@ window.loadedApp = "Chat";
         } else {
           // Handle other default messages (for backward compatibility)
           let content = data["content"];
-          if (!responseStarted || callingFunction) {
+          if (!window.responseStarted || window.callingFunction) {
             const respondingText = typeof webUIi18n !== 'undefined' ?
               webUIi18n.t('ui.messages.responding') : 'RESPONDING';
             setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            callingFunction = false;
-            responseStarted = true;
-            streamingResponse = true; // Mark that we're streaming
+            window.callingFunction = false;
+            window.responseStarted = true;
+            window.streamingResponse = true; // Mark that we're streaming
             if (window.UIState) {
               window.UIState.set('streamingResponse', true);
               window.UIState.set('isStreaming', true);
@@ -3007,7 +3007,7 @@ function handleVisibilityChange() {
   if (!document.hidden) {
     try {
       // Check if actual processing (streaming/function calls) is happening
-      const stillProcessing = streamingResponse === true || callingFunction === true ||
+      const stillProcessing = window.streamingResponse === true || window.callingFunction === true ||
         (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
 
       // Always reset TTS flags and hide stale spinners on visibility change
@@ -3070,7 +3070,7 @@ function handleVisibilityChange() {
         $("#monadic-spinner").show();
 
         // Determine appropriate spinner state based on processing type
-        if (callingFunction) {
+        if (window.callingFunction) {
           const processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
             webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
           $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);

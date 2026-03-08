@@ -4,6 +4,7 @@
 # Handles markdown normalization, HTML conversion, and code block formatting.
 
 require 'cgi'
+require_relative 'extra_logger'
 
 module StringUtils
   # Fix numbered lists in markdown text that may have been disrupted by
@@ -222,7 +223,7 @@ module StringUtils
           end
         rescue => e
           # Log pattern replacement error and continue with original line
-          logger.warn "Pattern replacement error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "Pattern replacement error: #{e.message}" }
           result_lines << line
           # Error occurred but continue processing
 

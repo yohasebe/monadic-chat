@@ -213,7 +213,7 @@ app "MermaidGrapherGrok" do
     Important notes:
     - Keep diagram dimensions within 1800x600 pixels.
     - Avoid using brackets and parentheses directly in the mermaid code. Use escape characters: \\[ ] for brackets and \\( ) for parentheses.
-    - Use English for IDs, class names, and labels. Avoid special characters.
+    - Use English for IDs and class names. Use the user's language for labels. Avoid special characters.
     - Do not use spaces or quotes in IDs and class names.
 
     User-provided data for visualization will be marked as `TARGET DOCUMENT: TITLE`.

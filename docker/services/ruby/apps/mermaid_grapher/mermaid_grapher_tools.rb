@@ -24,7 +24,7 @@ module MermaidGrapherTools
     )
   end
 
-  def preview_mermaid(code:, session: nil)
+  def preview_mermaid(code:)
     sanitized_code = sanitize_mermaid_code(code)
 
     # 1. Validate
@@ -79,15 +79,16 @@ module MermaidGrapherTools
       # Tiled mode: multiple overlapping screenshots for tall diagrams
       image_files = copy_screenshot_tiles(ss_result[:screenshots], "mermaid_preview_#{timestamp}", shared_volume)
       if image_files.any?
-        # No gallery_html injection — Mermaid diagrams are rendered as SVG
-        # directly by the client-side MarkdownRenderer, so screenshots
-        # would be redundant and potentially inconsistent.
+        # No gallery_html — Mermaid diagrams are rendered as SVG directly by
+        # the client-side MarkdownRenderer. Instead, inject via _image so the
+        # LLM can verify the rendered diagram without showing it to the user.
         {
           success: true,
           filename: image_files.first,
           tile_count: image_files.size,
           message: "Preview captured as #{image_files.size} tiled images. The diagram is rendered as SVG in the chat.",
-          validated_code: sanitized_code
+          validated_code: sanitized_code,
+          _image: image_files
         }
       else
         format_tool_response(build_preview_payload(
@@ -102,14 +103,15 @@ module MermaidGrapherTools
       dst = File.join(shared_volume, screenshot_filename)
       FileUtils.cp(src, dst) if File.exist?(src)
 
-      # No gallery_html injection — Mermaid diagrams are rendered as SVG
-      # directly by the client-side MarkdownRenderer, so screenshots
-      # would be redundant and potentially inconsistent.
+      # No gallery_html — Mermaid diagrams are rendered as SVG directly by
+      # the client-side MarkdownRenderer. Instead, inject via _image so the
+      # LLM can verify the rendered diagram without showing it to the user.
       {
         success: true,
         filename: screenshot_filename,
         message: "Preview image saved as '#{screenshot_filename}'. The diagram is rendered as SVG in the chat.",
-        validated_code: sanitized_code
+        validated_code: sanitized_code,
+        _image: screenshot_filename
       }
     else
       format_tool_response(build_preview_payload(
@@ -298,12 +300,15 @@ module MermaidGrapherTools
     )
   end
 
-  # Remove old mermaid_live_*.html files, optionally keeping one
+  # Remove old mermaid_live_*.html and mermaid_preview_*.png files, optionally keeping one HTML
   def cleanup_old_mermaid_files(keep_latest: nil)
     shared_volume = Monadic::Utils::Environment.shared_volume
     Dir.glob(File.join(shared_volume, "mermaid_live_*.html")).each do |f|
       next if keep_latest && File.basename(f) == keep_latest
 
+      FileUtils.rm_f(f)
+    end
+    Dir.glob(File.join(shared_volume, "mermaid_preview_*.png")).each do |f|
       FileUtils.rm_f(f)
     end
   end

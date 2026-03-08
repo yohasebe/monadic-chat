@@ -22,6 +22,8 @@ RSpec.describe 'Tool Method Behavior' do
     Dir.glob(File.join(File.expand_path('../../../lib/monadic/adapters/vendors', __dir__), '*.rb')).each do |f|
       require f rescue nil
     end
+    # Load all apps via DSL loader so MDSL-based classes are available
+    TestAppLoader.load_all_apps unless TestAppLoader.loaded?
   end
 
   # ============================================

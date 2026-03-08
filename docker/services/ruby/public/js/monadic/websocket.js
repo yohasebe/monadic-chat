@@ -71,7 +71,7 @@ if (!window.logTL) {
 }
 
 // OpenAI API token verification
-let verified = null;
+window.verified = null;
 
 const { getMessageAppName, getMessageMonadicFlag, renderMessage } = window.WsContentRenderer || {};
 const { registerAudioElement, stopAllActiveAudio } = window.WsAudioPlayback || {};
@@ -757,10 +757,10 @@ window.loadedApp = "Chat";
 
     // Add timeout for token verification (30 seconds)
     let verificationTimeout = setTimeout(function() {
-      if (!verified) {
+      if (!window.verified) {
         console.warn('[Token Verification] Timeout after 30 seconds');
         // Set to partial to allow proceeding with limited functionality
-        verified = "partial";
+        window.verified = "partial";
 
         // Show timeout error message
         const timeoutText = typeof webUIi18n !== 'undefined' ?
@@ -774,7 +774,7 @@ window.loadedApp = "Chat";
 
     // Check verified status at a regular interval
     let verificationCheckTimer = setInterval(function () {
-      if (verified) {
+      if (window.verified) {
         if (!window.initialLoadComplete) {  // Only send LOAD on initial connection
           // Get UI language from cookie or default to 'en'
           const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
@@ -1700,110 +1700,25 @@ window.loadedApp = "Chat";
       }
 
       case "token_verified": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleTokenVerification === 'function') {
-          handled = wsHandlers.handleTokenVerification(data);
-        } else {
-          // Fallback to inline handling
-          $("#api-token").val(data["token"]);
-          $("#ai-user-initial-prompt").val(data["ai_user_initial_prompt"]);
-          handled = true;
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleTokenVerified === 'function') {
+          wch.handleTokenVerified(data);
         }
-
-        // These operations are still needed regardless of which path handled the message
-        if (handled) {
-          verified = "full";
-          // Don't show "Ready" here - wait until apps_list is fully loaded
-          // This prevents "Ready" from appearing while apps are still being loaded
-          // The status will be updated to "Ready" by the apps_list handler
-
-          // Enable OpenAI TTS options when token is verified
-          $("#openai-tts-4o").prop("disabled", false);
-          $("#openai-tts").prop("disabled", false);
-          $("#openai-tts-hd").prop("disabled", false);
-
-          // Enable OpenAI STT models when token is verified
-          $("#openai-stt-4o-mini").prop("disabled", false);
-          $("#openai-stt-4o").prop("disabled", false);
-          $("#openai-stt-4o-diarize").prop("disabled", false);
-          $("#openai-stt-whisper").prop("disabled", false);
-
-          // Set default STT model if none selected or current selection is disabled
-          const currentSTTModel = $("#stt-model").val();
-          if (!currentSTTModel || $("#stt-model option:selected").prop("disabled")) {
-            const defaultSTTModel = window.providerDefaults?.openai?.audio_transcription?.[0]
-              || "gpt-4o-mini-transcribe-2025-12-15";
-            $("#stt-model").val(defaultSTTModel).trigger("change");
-          }
-
-          // Set OpenAI TTS as default when it becomes available
-          // (unless user has already selected another provider)
-          const currentProvider = $("#tts-provider").val();
-          if (currentProvider === "webspeech") {
-            $("#tts-provider").val("openai-tts-4o").trigger("change");
-          }
-          $("#start").prop("disabled", false);
-          $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
-          // TTS speed is already enabled by default and should remain enabled
-
-          // Update the available AI User providers when token is verified
-          // Check if the function exists before calling it
-          if (typeof window.updateAvailableProviders === 'function') {
-            window.updateAvailableProviders();
-          } else {
-
-          }
-        }
-
         break;
       }
 
       case "open_ai_api_error": {
-        verified = "partial";
-
-        $("#start").prop("disabled", false);
-        $("#send, #clear").prop("disabled", false);
-
-        $("#api-token").val("");
-
-        // Disable OpenAI TTS options when API connection fails
-        $("#openai-tts-4o").prop("disabled", true);
-        $("#openai-tts").prop("disabled", true);
-        $("#openai-tts-hd").prop("disabled", true);
-
-        // Disable OpenAI STT models when API connection fails
-        $("#openai-stt-4o").prop("disabled", true);
-        $("#openai-stt-4o-diarize").prop("disabled", true);
-        $("#openai-stt-4o-mini").prop("disabled", true);
-        $("#openai-stt-whisper").prop("disabled", true);
-
-        const cannotConnectText = getTranslation('ui.messages.cannotConnectToAPI', 'Cannot connect to OpenAI API');
-        setAlert(`<i class='fa-solid fa-bolt'></i> ${cannotConnectText}`, "warning");
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleOpenAIAPIError === 'function') {
+          wch.handleOpenAIAPIError(data);
+        }
         break;
       }
       case "token_not_verified": {
-
-        verified = "partial";
-
-        $("#start").prop("disabled", false);
-        $("#send, #clear").prop("disabled", false);
-
-        $("#api-token").val("");
-
-        // Disable OpenAI TTS options when token is not verified
-        $("#openai-tts-4o").prop("disabled", true);
-        $("#openai-tts").prop("disabled", true);
-        $("#openai-tts-hd").prop("disabled", true);
-
-        // Disable OpenAI STT models when token is not verified
-        $("#openai-stt-4o").prop("disabled", true);
-        $("#openai-stt-4o-diarize").prop("disabled", true);
-        $("#openai-stt-4o-mini").prop("disabled", true);
-        $("#openai-stt-whisper").prop("disabled", true);
-
-        const tokenNotSetText = getTranslation('ui.messages.validTokenNotSet', 'Valid OpenAI token not set');
-        setAlert(`<i class='fa-solid fa-bolt'></i> ${tokenNotSetText}`, "warning");
+        const wch = window.WsConnectionHandler;
+        if (wch && typeof wch.handleTokenNotVerified === 'function') {
+          wch.handleTokenNotVerified(data);
+        }
         break;
       }
       case "apps": {

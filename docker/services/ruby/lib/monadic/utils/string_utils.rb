@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require 'csv'
 require 'commonmarker'
+require_relative 'extra_logger'
 
 module StringUtils
   extend self
@@ -735,15 +736,7 @@ module StringUtils
     
     # Apply markdown normalization to ensure proper parsing
     text = normalize_markdown(text)
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts "[#{Time.now}] Markdown after normalize:"
-          log.puts text
-        end
-      rescue StandardError
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Markdown after normalize:\n#{text}" }
 
     # Pre-process to protect ALL bold markdown from smart punctuation
     # This is critical when mixing Japanese and English text with multiple bold items in one paragraph

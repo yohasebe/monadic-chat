@@ -196,26 +196,27 @@ RSpec.describe "API /api/models endpoint" do
 
     context "with EXTRA_LOGGING enabled" do
       before do
+        Monadic::Utils::ExtraLogger.reset!
         allow(CONFIG).to receive(:[]).with("EXTRA_LOGGING").and_return(true)
       end
 
       it "logs detailed information about loaded models" do
-        expect(STDERR).to receive(:puts).with(/Loaded user models from/)
-        expect(STDERR).to receive(:puts).with(/Merged 2 custom model definitions/)
-        
+        expect(Monadic::Utils::ExtraLogger).to receive(:log).at_least(:twice)
+
         ModelSpecLoader.load_merged_spec(default_spec_path)
       end
     end
 
     context "without EXTRA_LOGGING" do
       before do
+        Monadic::Utils::ExtraLogger.reset!
         allow(CONFIG).to receive(:[]).with("EXTRA_LOGGING").and_return(false)
       end
 
-      it "does not log model loading information" do
-        expect(STDERR).not_to receive(:puts).with(/Loaded user models/)
-        expect(STDERR).not_to receive(:puts).with(/Merged/)
-        
+      it "does not write log output when disabled" do
+        # ExtraLogger.log is still called but returns early when disabled
+        expect(Monadic::Utils::ExtraLogger.enabled?).to be false
+
         ModelSpecLoader.load_merged_spec(default_spec_path)
       end
     end

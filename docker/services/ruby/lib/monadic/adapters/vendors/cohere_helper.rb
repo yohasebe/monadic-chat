@@ -8,6 +8,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/extra_logger"
 
 module CohereHelper
   include BaseVendorHelper
@@ -137,7 +138,7 @@ module CohereHelper
             end
           rescue => e
             # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" }
           end
           
           $MODELS[:cohere] = api_models.sort
@@ -199,7 +200,7 @@ module CohereHelper
             end
           rescue => e
             # If there's any error loading model_spec, just use API models
-            STDERR.puts "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+            Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" }
           end
           
           $MODELS[:cohere] = api_models.sort
@@ -1026,24 +1027,11 @@ module CohereHelper
 
     has_assistant_messages = messages.any? { |m| m["role"] == "assistant" }
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] Cohere reasoning check:"
-        f.puts "  Model: #{obj["model"]}"
-        f.puts "  Reasoning effort: #{obj["reasoning_effort"]}"
-        f.puts "  Has assistant messages: #{has_assistant_messages}"
-        f.puts "  Message count: #{messages.size}"
-        f.puts "  Message roles: #{messages.map { |m| m["role"] }.join(", ")}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Cohere reasoning check:\n  Model: #{obj["model"]}\n  Reasoning effort: #{obj["reasoning_effort"]}\n  Has assistant messages: #{has_assistant_messages}\n  Message count: #{messages.size}\n  Message roles: #{messages.map { |m| m["role"] }.join(", ")}" }
 
     if obj["reasoning_effort"] == "enabled"
       if has_assistant_messages
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] Cohere: Using single-text workaround for reasoning model with history"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Cohere: Using single-text workaround for reasoning model with history" }
 
         conversation_text = format_conversation_as_single_text(messages)
 
@@ -1061,15 +1049,7 @@ module CohereHelper
         body["messages"] = [{ "role" => "user", "content" => conversation_text }]
         body["thinking"] = { "type" => "enabled" }
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "  Single text format applied. New message count: #{body["messages"].size}"
-            f.puts "  Thinking enabled: #{body["thinking"].inspect}"
-            f.puts "  Message preview (first 500 chars):"
-            f.puts "  #{body["messages"][0]["content"][0..500]}..."
-            f.puts "  Total message length: #{body["messages"][0]["content"].length} chars"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "  Single text format applied. New message count: #{body["messages"].size}\n  Thinking enabled: #{body["thinking"].inspect}\n  Message preview (first 500 chars):\n  #{body["messages"][0]["content"][0..500]}...\n  Total message length: #{body["messages"][0]["content"].length} chars" }
       else
         body["thinking"] = { "type" => "enabled" }
         DebugHelper.debug("Cohere: Reasoning enabled for #{obj["model"]} (no assistant messages)", category: :api, level: :info)
@@ -1090,12 +1070,7 @@ module CohereHelper
     progressive_settings = app_settings && (app_settings[:progressive_tools] || app_settings["progressive_tools"])
     progressive_enabled = !!progressive_settings
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "\n=== #{Time.now} COHERE TOOLS CONFIG ==="
-        f.puts "App: #{app}, Progressive: #{progressive_enabled}, Tools count: #{app_tools&.length || 0}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "\n=== COHERE TOOLS CONFIG ===\nApp: #{app}, Progressive: #{progressive_enabled}, Tools count: #{app_tools&.length || 0}" }
 
     if app_settings
       begin
@@ -1182,7 +1157,7 @@ module CohereHelper
                     rescue StandardError
                       { "message" => "Unknown error occurred" }
                     end
-      STDERR.puts "[Cohere API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Cohere API Error] #{error_report}" }
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Cohere",
         message: error_report["message"] || "Unknown API error",
@@ -1307,11 +1282,7 @@ module CohereHelper
     # Include tool results for tool responses
     if role == "tool" && obj["tool_results"]
       messages = messages + obj["tool_results"]
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Cohere: Added #{obj["tool_results"].size} tool result messages to conversation"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Cohere: Added #{obj["tool_results"].size} tool result messages to conversation" }
     end
 
     # Configure reasoning mode
@@ -1356,11 +1327,7 @@ module CohereHelper
     end
 
     # Capability audit
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] Cohere SSOT capabilities for #{obj['model']}: model=#{body['model']}, messages=#{body['messages']&.size}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Cohere SSOT capabilities for #{obj['model']}: model=#{body['model']}, messages=#{body['messages']&.size}" }
 
     # Force text-only response when force-stop is active
     if session[:call_depth_per_turn] && session[:call_depth_per_turn] >= MAX_FUNC_CALLS
@@ -1377,8 +1344,8 @@ module CohereHelper
 
     execute_cohere_api_call(headers, body, app, session, call_depth, &block)
   rescue StandardError => e
-    STDERR.puts "[Cohere] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Cohere] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[Cohere] Unexpected error: #{e.message}" }
+    Monadic::Utils::ExtraLogger.log { "[Cohere] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(provider: "Cohere", message: "Unexpected error: #{e.message}")
     res = { "type" => "error", "content" => formatted_error }
     block&.call res
@@ -1449,12 +1416,8 @@ module CohereHelper
 
   # Process streaming JSON response data
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})" }
+    Monadic::Utils::ExtraLogger.log_json("Query", query)
 
     # Store the request parameters for constructing the final response
     obj = session[:parameters]
@@ -1498,11 +1461,7 @@ module CohereHelper
             json_data = matched.match(pattern)[1]
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts(JSON.pretty_generate(json))
-              end
-            end
+            Monadic::Utils::ExtraLogger.log_json("Cohere stream chunk", json)
 
             # Handle different event types from v2 streaming API
             case json["type"]
@@ -1617,19 +1576,13 @@ module CohereHelper
                                 end
                 
                 # Log error details if finish_reason is ERROR
-                if json["delta"]["finish_reason"] == "ERROR" && CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "\n[#{Time.now}] === COHERE API ERROR ==="
-                    f.puts "Finish reason: ERROR"
-                    if json["delta"]["error"]
-                      f.puts "Error message: #{json["delta"]["error"]}"
-                    end
-                    if json["delta"]["usage"]
-                      f.puts "Usage info: #{json["delta"]["usage"].inspect}"
-                    end
-                    f.puts "Full delta: #{json["delta"].inspect}"
-                    f.puts "=== END ERROR ===\n"
-                  end
+                if json["delta"]["finish_reason"] == "ERROR"
+                  error_lines = ["\n=== COHERE API ERROR ===", "Finish reason: ERROR"]
+                  error_lines << "Error message: #{json["delta"]["error"]}" if json["delta"]["error"]
+                  error_lines << "Usage info: #{json["delta"]["usage"].inspect}" if json["delta"]["usage"]
+                  error_lines << "Full delta: #{json["delta"].inspect}"
+                  error_lines << "=== END ERROR ===\n"
+                  Monadic::Utils::ExtraLogger.log { error_lines.join("\n") }
                 end
                 # Capture usage if present on message-end
                 if json["delta"]["usage"].is_a?(Hash)
@@ -1650,8 +1603,8 @@ module CohereHelper
         end
       end
     rescue StandardError => e
-      STDERR.puts "[Cohere Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Error: #{e.message}" }
+      Monadic::Utils::ExtraLogger.log { "[Cohere Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     end
 
     # Prepare final result from accumulated text
@@ -1748,7 +1701,7 @@ module CohereHelper
         argument_hash: argument_hash, session: session
       )
     rescue StandardError => e
-      STDERR.puts "[Cohere Tools] Function execution error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Cohere Tools] Function execution error: #{e.message}" }
       function_return = Monadic::Utils::ErrorFormatter.tool_error(
         provider: "Cohere", tool_name: function_name, message: e.message
       )

@@ -8,6 +8,7 @@ require_relative "../../utils/function_call_error_handler"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../../utils/system_prompt_injector"
+require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 
@@ -449,25 +450,15 @@ module ClaudeHelper
           separator: "\n\n"
         )
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] Claude System Prompt Injection:"
-            f.puts "  - Base prompt length: #{msg['text'].length}"
-            f.puts "  - Augmented prompt length: #{text.length}"
-            f.puts "  - Injections applied: #{text != msg['text']}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Claude System Prompt Injection:\n  - Base prompt length: #{msg['text'].length}\n  - Augmented prompt length: #{text.length}\n  - Injections applied: #{text != msg['text']}" }
       else
         text = msg["text"]
       end
 
       sp = { type: "text", text: text }
 
-      if CONFIG["EXTRA_LOGGING"] && system_prompts.empty?
-        puts "[DEBUG] First system prompt created:"
-        puts "  - Text length: #{text.length}"
-        puts "  - First 200 chars: #{text[0..200].inspect}"
-        puts "  - Last 200 chars: #{text[-200..-1].inspect}" if text.length > 200
+      if system_prompts.empty?
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] First system prompt created:\n  - Text length: #{text.length}\n  - First 200 chars: #{text[0..200].inspect}#{text.length > 200 ? "\n  - Last 200 chars: #{text[-200..-1].inspect}" : ""}" }
       end
 
       system_prompts << sp
@@ -525,12 +516,8 @@ module ClaudeHelper
       adaptive_effort = nil
       max_tokens = user_max_tokens
 
-      if CONFIG["EXTRA_LOGGING"] && monadic_with_structured_outputs
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude: Thinking mode disabled for monadic app with structured outputs")
-          f.puts("  Model: #{obj["model"]}")
-          f.puts("  App: #{app}")
-        end
+      if monadic_with_structured_outputs
+        Monadic::Utils::ExtraLogger.log { "Claude: Thinking mode disabled for monadic app with structured outputs\n  Model: #{obj["model"]}\n  App: #{app}" }
       end
     end
 
@@ -604,11 +591,7 @@ module ClaudeHelper
       beta_headers << "model-context-window-exceeded-2025-08-26"
       headers["anthropic-beta"] = beta_headers.uniq.join(",") unless beta_headers.empty?
     rescue StandardError => e
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude: Failed to check context management support: #{e.message}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Claude: Failed to check context management support: #{e.message}" }
     end
 
     # Thinking / temperature / max_tokens
@@ -661,11 +644,7 @@ module ClaudeHelper
     body["tools"] ||= []
     body["tools"] << { "type" => "code_execution_20250825", "name" => "code_execution" }
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("[#{Time.now}] Claude: code_execution_20250825 tool added for Skills")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Claude: code_execution_20250825 tool added for Skills" }
   end
 
   # Configure tools on the request body for both user and tool roles.
@@ -727,12 +706,7 @@ module ClaudeHelper
           body["tools"] ||= []
           body["tools"] << { "type" => "web_search_20250305", "name" => "web_search", "max_uses" => 5 }
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts("[#{Time.now}] Claude: web_search_20250305 tool added to request")
-              f.puts("Tools array: #{body["tools"].inspect}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Claude: web_search_20250305 tool added to request\nTools array: #{body["tools"].inspect}" }
         end
       end
     else
@@ -761,15 +735,11 @@ module ClaudeHelper
 
       add_claude_skills_tool(body, app_skills)
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude processing tool results:")
-          f.puts("Tools included: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}")
-          if body["tools"]
-            f.puts("Tool names: #{body["tools"].map { |t| t["name"] || t.dig("function", "name") }.join(", ")}")
-          end
-        end
-      end
+      Monadic::Utils::ExtraLogger.log {
+        msg = "Claude processing tool results:\nTools included: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}"
+        msg += "\nTool names: #{body["tools"].map { |t| t["name"] || t.dig("function", "name") }.join(", ")}" if body["tools"]
+        msg
+      }
     end
 
     # Filter non-tool-capable models: keep only native web_search
@@ -875,27 +845,20 @@ module ClaudeHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] Claude API Headers:")
-        f.puts("  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...")
-        f.puts("  anthropic-beta: #{headers["anthropic-beta"]}")
+    if Monadic::Utils::ExtraLogger.enabled? || ENV["DEBUG_CLAUDE"]
+      Monadic::Utils::ExtraLogger.log {
+        msg = "\nClaude API Headers:\n  x-api-key: #{headers["x-api-key"]&.slice(0, 20)}...\n  anthropic-beta: #{headers["anthropic-beta"]}"
         if headers["anthropic-beta"]
-          f.puts("    Beta headers breakdown:")
-          headers["anthropic-beta"].split(",").each do |beta|
-            f.puts("      - #{beta.strip}")
-          end
+          msg += "\n    Beta headers breakdown:"
+          headers["anthropic-beta"].split(",").each { |beta| msg += "\n      - #{beta.strip}" }
         end
-        f.puts("  anthropic-version: #{headers["anthropic-version"]}")
-        f.puts("  Model: #{body["model"]}")
-        f.puts("  Thinking mode: #{body["thinking"] ? "enabled" : "disabled"}")
-        f.puts("  Output format present: #{body["output_format"] ? "yes" : "no"}")
+        msg += "\n  anthropic-version: #{headers["anthropic-version"]}\n  Model: #{body["model"]}\n  Thinking mode: #{body["thinking"] ? "enabled" : "disabled"}\n  Output format present: #{body["output_format"] ? "yes" : "no"}"
         if body["output_format"]
-          f.puts("    Type: #{body["output_format"]["type"]}")
-          f.puts("    Schema keys: #{body["output_format"]["schema"]&.keys&.join(", ")}")
+          msg += "\n    Type: #{body["output_format"]["type"]}\n    Schema keys: #{body["output_format"]["schema"]&.keys&.join(", ")}"
         end
-        f.puts("  Body keys: #{body.keys.join(", ")}")
-      end
+        msg += "\n  Body keys: #{body.keys.join(", ")}"
+        msg
+      }
     end
 
     res = nil
@@ -909,7 +872,7 @@ module ClaudeHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)["error"]
-      STDERR.puts "[Claude API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Claude API Error] #{error_report}" }
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "Claude",
         message: error_report["message"] || "Unknown API error",
@@ -924,17 +887,11 @@ module ClaudeHelper
     if websearch_enabled && use_native_websearch
       DebugHelper.debug("Claude final request with web search - tools: #{body["tools"]&.map { |t| "#{t["type"]}:#{t["name"]}" }.join(", ")}", category: :api, level: :debug)
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude final API request:")
-          f.puts("URL: #{API_ENDPOINT}/messages")
-          f.puts("Model: #{body["model"]}")
-          f.puts("Tools present: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}")
-          if body["tools"]
-            f.puts("Tools: #{JSON.pretty_generate(body["tools"])}")
-          end
-        end
-      end
+      Monadic::Utils::ExtraLogger.log {
+        msg = "Claude final API request:\nURL: #{API_ENDPOINT}/messages\nModel: #{body["model"]}\nTools present: #{body["tools"] ? "Yes (#{body["tools"].length} tools)" : "No"}"
+        msg += "\nTools: #{JSON.pretty_generate(body["tools"])}" if body["tools"]
+        msg
+      }
     end
 
     process_json_data(app: app, session: session, query: body, res: res.body, call_depth: call_depth, &block)
@@ -952,14 +909,7 @@ module ClaudeHelper
     current_call_depth = session[:call_depth_per_turn] || 0
     num_retrial = 0
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] === Claude API Request Started ===")
-        f.puts("Role: #{role}")
-        f.puts("App: #{session[:parameters]["app_name"]}")
-        f.puts("Session parameters: #{session[:parameters].inspect}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "\n=== Claude API Request Started ===\nRole: #{role}\nApp: #{session[:parameters]["app_name"]}\nSession parameters: #{session[:parameters].inspect}" }
 
     api_key = CONFIG["ANTHROPIC_API_KEY"]
     obj = session[:parameters]
@@ -971,13 +921,7 @@ module ClaudeHelper
     # Check if web search is enabled
     websearch = obj["websearch"] == "true" || obj["websearch"] == true
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("[#{Time.now}] Claude websearch parameter check:")
-        f.puts("obj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})")
-        f.puts("websearch enabled = #{websearch}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Claude websearch parameter check:\nobj[\"websearch\"] = #{obj["websearch"].inspect} (type: #{obj["websearch"].class})\nwebsearch enabled = #{websearch}" }
 
     use_native_websearch = websearch &&
                           Monadic::Utils::ModelSpec.supports_web_search?(model) &&
@@ -1029,11 +973,7 @@ module ClaudeHelper
         session[:messages] << res["content"]
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude: user message pushed early (mid=#{request_id})")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Claude: user message pushed early (mid=#{request_id})" }
     end
 
     # Validate API key
@@ -1087,15 +1027,7 @@ module ClaudeHelper
     end
 
     # Capability audit (optional)
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Claude SSOT capabilities for #{obj["model"]}: body_keys=#{body.keys.join(",")}")
-        end
-      rescue StandardError
-        # ignore logging errors
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Claude SSOT capabilities for #{obj["model"]}: body_keys=#{body.keys.join(",")}" }
 
     # Execute API call
     websearch_enabled = obj["websearch"] == "true" || obj["websearch"] == true
@@ -1116,8 +1048,7 @@ module ClaudeHelper
       [res]
     end
   rescue StandardError => e
-    STDERR.puts "[Claude] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Claude] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[Claude] Unexpected error: #{e.message}\n[Claude] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     error_message = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Claude",
       message: "Unexpected error: #{e.message}"
@@ -1128,16 +1059,9 @@ module ClaudeHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
 
-    if CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]
-      # Processing JSON data for app: #{app}, call depth: #{call_depth}
-    end
+    # Processing JSON data for app: #{app}, call depth: #{call_depth}
 
     obj = session[:parameters]
     buffer = String.new
@@ -1158,9 +1082,6 @@ module ClaudeHelper
 
     res.each do |chunk|
       chunk_count += 1
-      if (CONFIG["EXTRA_LOGGING"] || ENV["DEBUG_CLAUDE"]) && chunk_count == 1
-        # First chunk received
-      end
       chunk = chunk.force_encoding("UTF-8")
       buffer << chunk
 
@@ -1190,11 +1111,7 @@ module ClaudeHelper
           begin
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |extra_log|
-                extra_log.puts(JSON.pretty_generate(json))
-              end
-            end
+            Monadic::Utils::ExtraLogger.log_json("Claude stream chunk", json)
 
             # Handle API errors (including content filtering)
             if json.dig("type") == "error"
@@ -1253,20 +1170,9 @@ module ClaudeHelper
                 json["content_block"]["input"] = ""
                 tool_calls << json["content_block"]
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts("[#{Time.now}] Claude: #{new_content_type} registered")
-                    f.puts("  id: #{json["content_block"]["id"]}")
-                    f.puts("  name: #{json["content_block"]["name"]}")
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} registered\n  id: #{json["content_block"]["id"]}\n  name: #{json["content_block"]["name"]}" }
               else
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts("[#{Time.now}] Claude: Skipping duplicate #{new_content_type}")
-                    f.puts("  id: #{tool_use_id}")
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "Claude: Skipping duplicate #{new_content_type}\n  id: #{tool_use_id}" }
               end
 
               # Check for file_id in Skills output
@@ -1295,13 +1201,7 @@ module ClaudeHelper
                 file_id = file_ids.first if file_ids.is_a?(Array) && !file_ids.empty?
               end
 
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                  f.puts("[#{Time.now}] Claude: #{new_content_type} received")
-                  f.puts("  tool_use_id: #{tool_use_id}")
-                  f.puts("  file_id found: #{file_id.inspect}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "Claude: #{new_content_type} received\n  tool_use_id: #{tool_use_id}\n  file_id found: #{file_id.inspect}" }
 
               if file_id
                 # Find the matching tool call by tool_use_id
@@ -1309,20 +1209,9 @@ module ClaudeHelper
                 if matching_tool
                   matching_tool["file_id"] = file_id
 
-                  if CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                      f.puts("[#{Time.now}] Claude: file_id extracted and attached")
-                      f.puts("  file_id: #{file_id}")
-                      f.puts("  tool_use_id: #{tool_use_id}")
-                      f.puts("  tool_name: #{matching_tool["name"]}")
-                    end
-                  end
+                  Monadic::Utils::ExtraLogger.log { "Claude: file_id extracted and attached\n  file_id: #{file_id}\n  tool_use_id: #{tool_use_id}\n  tool_name: #{matching_tool["name"]}" }
                 else
-                  if CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                      f.puts("[#{Time.now}] Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}")
-                    end
-                  end
+                  Monadic::Utils::ExtraLogger.log { "Claude: WARNING - No matching tool call found for tool_use_id: #{tool_use_id}" }
                 end
               end
             end
@@ -1336,12 +1225,7 @@ module ClaudeHelper
                 tool_calls.last["input"] << fragment
                 
                 # Debug logging for tool input accumulation
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}"
-                    f.puts "[Tool Input Total] Length: #{tool_calls.last["input"].length}"
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "[Tool Input Fragment] Length: #{fragment.length}, Content: #{fragment[0..100].inspect}\n[Tool Input Total] Length: #{tool_calls.last["input"].length}" }
               end
               if json.dig("delta", "stop_reason")
                 stop_reason = json.dig("delta", "stop_reason")
@@ -1424,8 +1308,7 @@ module ClaudeHelper
         end
       end
     rescue StandardError => e
-      STDERR.puts "[Claude Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Claude Streaming] Error: #{e.message}\n[Claude Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     end
 
     thinking_result = if thinking.empty?
@@ -1550,21 +1433,14 @@ module ClaudeHelper
           input_hash = JSON.parse(tool_call["input"])
         end
       rescue JSON::ParserError => e
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[Claude Tool Call JSON Parse Error at #{Time.now}]"
-          f.puts "Tool: #{tool_call["name"]}"
-          f.puts "Raw input length: #{tool_call["input"].to_s.length}"
-          f.puts "Raw input (first 500 chars): #{tool_call["input"].to_s[0..500].inspect}"
-          f.puts "Raw input (last 100 chars): #{tool_call["input"].to_s[-100..-1].inspect}"
-          f.puts "Error: #{e.message}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[Claude Tool Call JSON Parse Error]\nTool: #{tool_call["name"]}\nRaw input length: #{tool_call["input"].to_s.length}\nRaw input (first 500 chars): #{tool_call["input"].to_s[0..500].inspect}\nRaw input (last 100 chars): #{tool_call["input"].to_s[-100..-1].inspect}\nError: #{e.message}" }
 
         if tool_call["name"] == "run_script"
           input_hash = JSONRepair.extract_run_script_params(tool_call["input"])
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts "Attempted JSON repair for run_script\nExtracted params: #{input_hash.inspect}\n#{'-' * 50}" }
+          Monadic::Utils::ExtraLogger.log { "Attempted JSON repair for run_script\nExtracted params: #{input_hash.inspect}\n#{'-' * 50}" }
         elsif tool_call["name"] == "run_code"
           input_hash = JSONRepair.extract_run_code_params(tool_call["input"])
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") { |f| f.puts "Attempted JSON repair for run_code\nExtracted params: #{input_hash.inspect}\n#{'-' * 50}" }
+          Monadic::Utils::ExtraLogger.log { "Attempted JSON repair for run_code\nExtracted params: #{input_hash.inspect}\n#{'-' * 50}" }
         else
           input_hash = JSONRepair.attempt_repair(tool_call["input"])
         end
@@ -1595,14 +1471,7 @@ module ClaudeHelper
   private def handle_claude_server_tool(tool_call, tool_name, &block)
     return false unless tool_call["type"] == "server_tool_use"
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] === Skipping Server Tool (executed by Anthropic) ===")
-        f.puts("Tool name: #{tool_name}")
-        f.puts("Tool ID: #{tool_call["id"]}")
-        f.puts("Has file_id: #{!tool_call["file_id"].nil?}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "\n=== Skipping Server Tool (executed by Anthropic) ===\nTool name: #{tool_name}\nTool ID: #{tool_call["id"]}\nHas file_id: #{!tool_call["file_id"].nil?}" }
 
     # Check if this server tool resulted in a file generation
     if tool_call["file_id"]
@@ -1612,13 +1481,7 @@ module ClaudeHelper
       if file_result
         save_result = save_to_documents(file_result[:data], file_result[:filename])
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("[#{Time.now}] File downloaded and saved successfully")
-            f.puts("  Path: #{save_result[:relative]}")
-            f.puts("  Size: #{save_result[:size]} bytes")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "File downloaded and saved successfully\n  Path: #{save_result[:relative]}\n  Size: #{save_result[:size]} bytes" }
 
         # Notify user about the file
         block&.call({
@@ -1626,12 +1489,7 @@ module ClaudeHelper
           "content" => "\n\n✅ **File saved:** `#{save_result[:relative]}` (#{(save_result[:size] / 1024.0).round(2)} KB)\n\n"
         })
       else
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("[#{Time.now}] ERROR: Failed to download file from API")
-            f.puts("  file_id: #{file_id}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "ERROR: Failed to download file from API\n  file_id: #{file_id}" }
       end
     end
 
@@ -1648,28 +1506,15 @@ module ClaudeHelper
       argument_hash = {}
     end
 
-    # Debug logging (each block self-closing to prevent file handle leaks)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] === Processing Function Call ===")
-        f.puts("Tool name: #{tool_name}")
-        f.puts("Raw input: #{tool_call["input"].inspect}")
-        f.puts("Argument hash before conversion: #{argument_hash.inspect}")
-      end
-    end
+    # Debug logging
+    Monadic::Utils::ExtraLogger.log { "\n=== Processing Function Call ===\nTool name: #{tool_name}\nRaw input: #{tool_call["input"].inspect}\nArgument hash before conversion: #{argument_hash.inspect}" }
 
     argument_hash = argument_hash.each_with_object({}) do |(k, v), memo|
       memo[k.to_sym] = v
       memo
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Argument hash after conversion: #{argument_hash.inspect}")
-        f.puts("App instance class: #{APPS[app].class}")
-        f.puts("Method exists?: #{APPS[app].respond_to?(tool_name.to_sym)}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Argument hash after conversion: #{argument_hash.inspect}\nApp instance class: #{APPS[app].class}\nMethod exists?: #{APPS[app].respond_to?(tool_name.to_sym)}" }
 
     app_instance = APPS[app]
 
@@ -1686,9 +1531,7 @@ module ClaudeHelper
         tool_return = app_instance.send(tool_name.to_sym, **argument_hash)
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{tool_name} returned: #{tool_return.to_s[0..500]}" }
 
       send_verification_notification(session, &block) if tool_name == "report_verification"
 
@@ -1699,12 +1542,7 @@ module ClaudeHelper
         session: session
       )
     rescue => e
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("ERROR calling function: #{e.class} - #{e.message}")
-          f.puts("Backtrace: #{e.backtrace.first(5).join("\n")}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "ERROR calling function: #{e.class} - #{e.message}\nBacktrace: #{e.backtrace.first(5).join("\n")}" }
       tool_return = Monadic::Utils::ErrorFormatter.tool_error(
         provider: "Claude",
         tool_name: tool_name,
@@ -1740,11 +1578,7 @@ module ClaudeHelper
       end
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Tool return: #{tool_return.to_s[0..200]}...")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Tool return: #{tool_return.to_s[0..200]}..." }
 
     tool_result_entry = {
       type: "tool_result",
@@ -1842,10 +1676,11 @@ module ClaudeHelper
     obj = session[:parameters]
 
     # Log tool calls for debugging
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Tools] Processing #{tools.length} tool calls:"
-      tools.each { |tc| puts "  - #{tc['name']} with input: #{tc['input'].to_s[0..200]}" }
-    end
+    Monadic::Utils::ExtraLogger.log {
+      msg = "[DEBUG Tools] Processing #{tools.length} tool calls:"
+      tools.each { |tc| msg += "\n  - #{tc['name']} with input: #{tc['input'].to_s[0..200]}" }
+      msg
+    }
 
     tools.each do |tool_call|
       tool_name = tool_call["name"]
@@ -1878,11 +1713,7 @@ module ClaudeHelper
       api_request("tool", session, call_depth: call_depth, &block)
     else
       # All tools were server_tool_use, no need to send tool results
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] All tools were server_tool_use, no tool_result needed")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "All tools were server_tool_use, no tool_result needed" }
       []
     end
   end
@@ -1940,13 +1771,7 @@ module ClaudeHelper
       res = http.get(target_uri)
       if res.status.success?
         # Log headers for debugging
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("[#{Time.now}] Files API response headers:")
-            f.puts("  Content-Disposition: #{res.headers["Content-Disposition"].inspect}")
-            f.puts("  Content-Type: #{res.headers["Content-Type"].inspect}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Files API response headers:\n  Content-Disposition: #{res.headers["Content-Disposition"].inspect}\n  Content-Type: #{res.headers["Content-Type"].inspect}" }
 
         # Extract filename from Content-Disposition header
         filename = extract_filename_from_header(res.headers["Content-Disposition"], res.headers["Content-Type"])
@@ -1957,11 +1782,7 @@ module ClaudeHelper
         nil
       end
     rescue => e
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] ERROR downloading file: #{e.message}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "ERROR downloading file: #{e.message}" }
       nil
     end
   end
@@ -1980,14 +1801,7 @@ module ClaudeHelper
         require 'uri'
         filename = URI.decode_www_form_component(encoded_filename)
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("[#{Time.now}] Decoded filename from RFC 5987:")
-            f.puts("  Charset: #{charset}")
-            f.puts("  Encoded: #{encoded_filename}")
-            f.puts("  Decoded: #{filename}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Decoded filename from RFC 5987:\n  Charset: #{charset}\n  Encoded: #{encoded_filename}\n  Decoded: #{filename}" }
 
         return filename
       end

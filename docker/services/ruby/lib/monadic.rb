@@ -997,11 +997,11 @@ def load_tts_dict(tts_dict_data = nil)
     begin
       file_data = File.read(config_dict_path)
       tts_dict = StringUtils.process_tts_dictionary(file_data)
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from config directory" }
       CONFIG["TTS_DICT"] = tts_dict
       return
     rescue => e
-      puts "Error reading TTS dictionary from config: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "Error reading TTS dictionary from config: #{e.message}" }
     end
   end
   
@@ -1010,17 +1010,17 @@ def load_tts_dict(tts_dict_data = nil)
     begin
       file_data = File.read(ENV['TTS_DICT_PATH'])
       tts_dict = StringUtils.process_tts_dictionary(file_data)
-      puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_PATH (development mode)" }
     rescue => e
-      puts "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "Error reading TTS dictionary from TTS_DICT_PATH: #{e.message}" }
     end
   # 3. Legacy support: Try using TTS_DICT_DATA if it exists
   elsif tts_dict_data || CONFIG["TTS_DICT_DATA"]
     data_to_process = tts_dict_data || CONFIG["TTS_DICT_DATA"]
     tts_dict = StringUtils.process_tts_dictionary(data_to_process)
-    puts "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "TTS Dictionary loaded with #{tts_dict.size} entries from TTS_DICT_DATA (legacy mode)" }
   else
-    puts "No TTS Dictionary data available" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "No TTS Dictionary data available" }
   end
   
   CONFIG["TTS_DICT"] = tts_dict || {}
@@ -1032,25 +1032,23 @@ def init_apps
   klass = Object.const_get("MonadicApp")
   
   # If in debug mode, log we're processing apps
-  if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-    puts "Initializing apps in normal mode"
-    puts "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}"
-  end
+  Monadic::Utils::ExtraLogger.log { "Initializing apps in normal mode" }
+  Monadic::Utils::ExtraLogger.log { "Debug: environment has DISTRIBUTED_MODE=#{ENV["DISTRIBUTED_MODE"]}" }
   
   klass.subclasses.each do |a|
     app = a.new
     class_settings = a.instance_variable_get(:@settings)
     
     # Debug: Log reasoning_effort for OpenAI apps
-    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
-      puts "#{a.name} class settings: reasoning_effort = #{class_settings[:reasoning_effort].inspect}"
+    if a.name.include?("OpenAI")
+      Monadic::Utils::ExtraLogger.log { "#{a.name} class settings: reasoning_effort = #{class_settings[:reasoning_effort].inspect}" }
     end
     
     app.settings = ActiveSupport::HashWithIndifferentAccess.new(class_settings)
     
     # Debug: Log instance settings after assignment
-    if a.name.include?("OpenAI") && CONFIG["EXTRA_LOGGING"]
-      puts "#{a.name} instance settings: reasoning_effort = #{app.settings[:reasoning_effort].inspect}"
+    if a.name.include?("OpenAI")
+      Monadic::Utils::ExtraLogger.log { "#{a.name} instance settings: reasoning_effort = #{app.settings[:reasoning_effort].inspect}" }
     end
 
     # Evaluate the disabled expression if it's a string containing Ruby code
@@ -1060,7 +1058,7 @@ def init_apps
       rescue => e
         # If evaluation fails, assume the app is disabled
         app.settings["disabled"] = true
-        puts "Warning: Failed to evaluate disabled condition for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate disabled condition for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1071,7 +1069,7 @@ def init_apps
       rescue => e
         # If evaluation fails, use empty array
         app.settings["models"] = []
-        puts "Warning: Failed to evaluate models for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate models for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1082,7 +1080,7 @@ def init_apps
       rescue => e
         # If evaluation fails, use a default model
         app.settings["model"] = "gpt-4.1"
-        puts "Warning: Failed to evaluate model for #{a.name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate model for #{a.name}: #{e.message}" }
       end
     end
 
@@ -1278,7 +1276,7 @@ def init_apps
 
     # Skip apps with invalid app_name (nil, empty, or "undefined")
     if app_name.nil? || app_name.to_s.strip.empty? || app_name.to_s == "undefined"
-      puts "[WARNING] Skipping app with invalid app_name: #{app.class.name}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[WARNING] Skipping app with invalid app_name: #{app.class.name}" }
       next
     end
 
@@ -1301,7 +1299,7 @@ def init_apps
          settings["jupyter"] == "true" ||
          app_name.to_s.downcase.include?("jupyter") ||
          settings["display_name"].to_s.downcase.include?("jupyter")
-        puts "Filtering out Jupyter app in server mode: #{app_name}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Filtering out Jupyter app in server mode: #{app_name}" }
       else
         filtered_apps[app_name] = app
       end
@@ -1369,7 +1367,7 @@ get "/api/models" do
     JSON.generate(merged_spec)
   rescue => e
     STDERR.puts "[Model Spec Error] #{e.message}"
-    STDERR.puts e.backtrace if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
     status 500
     JSON.generate({ error: "Failed to load model specifications" })
   end
@@ -1417,7 +1415,7 @@ get "/docs_dev/?*" do
   docs_dev_root = File.expand_path("../../../../../docs_dev", __FILE__)
 
   # Log the request for debugging
-  puts "[DEBUG_MODE] Docs_dev request: requested_path='#{requested_path}', docs_dev_root='#{docs_dev_root}'" if CONFIG["EXTRA_LOGGING"]
+  Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Docs_dev request: requested_path='#{requested_path}', docs_dev_root='#{docs_dev_root}'" }
 
   # Build the full file path
   if requested_path.empty?
@@ -1426,7 +1424,7 @@ get "/docs_dev/?*" do
     file_path = File.join(docs_dev_root, requested_path)
   end
 
-  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+  Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Trying to serve: #{file_path}" }
 
   # Check if file exists and is within docs_dev directory
   if File.exist?(file_path) && !File.directory?(file_path)
@@ -1456,15 +1454,15 @@ get "/docs_dev/?*" do
       ext = File.extname(file_path)
       content_type content_type_map[ext] || "text/plain"
 
-      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" }
       send_file file_path
     else
-      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_dev_root}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_dev_root}" }
       status 403
       "Access forbidden"
     end
   else
-    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] File not found or is directory: #{file_path}" }
     status 404
     "File not found: #{requested_path}"
   end
@@ -1489,7 +1487,7 @@ get "/docs/?*" do
   docs_root = File.expand_path("../../../../../docs", __FILE__)
 
   # Log the request for debugging
-  puts "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" if CONFIG["EXTRA_LOGGING"]
+  Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Docs request: requested_path='#{requested_path}', docs_root='#{docs_root}'" }
 
   # Build the full file path
   if requested_path.empty?
@@ -1498,7 +1496,7 @@ get "/docs/?*" do
     file_path = File.join(docs_root, requested_path)
   end
 
-  puts "[DEBUG_MODE] Trying to serve: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+  Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Trying to serve: #{file_path}" }
 
   # Check if file exists and is within docs directory
   if File.exist?(file_path) && !File.directory?(file_path)
@@ -1528,15 +1526,15 @@ get "/docs/?*" do
       ext = File.extname(file_path)
       content_type content_type_map[ext] || "text/plain"
 
-      puts "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Serving file: #{file_path} (#{content_type_map[ext]})" }
       send_file file_path
     else
-      puts "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] Security violation: #{real_file_path} not within #{real_docs_root}" }
       status 403
       "Access forbidden"
     end
   else
-    puts "[DEBUG_MODE] File not found or is directory: #{file_path}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[DEBUG_MODE] File not found or is directory: #{file_path}" }
     status 404
     "File not found: #{requested_path}"
   end
@@ -1754,11 +1752,7 @@ post "/load" do
         imported_params["auto_speech"] = false
         session[:parameters] = imported_params
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] [Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Import] Set parameters: initiate_from_assistant=#{imported_params['initiate_from_assistant']}, auto_speech=#{imported_params['auto_speech']}" }
 
         # Check if the first message is a system message
         if json_data["messages"].first && json_data["messages"].first["role"] == "system"
@@ -1778,11 +1772,7 @@ post "/load" do
             end
           end
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] [Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[Import] Restored monadic_state for apps: #{session[:monadic_state].keys.join(', ')}" }
         end
 
         # Restore session_context if present in import data (for Session Context feature)
@@ -1795,11 +1785,7 @@ post "/load" do
             session[:monadic_state][:context_schema] = json_data["context_schema"]
           end
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] [Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[Import] Restored session_context with #{json_data['session_context'].keys.join(', ')}" }
         end
 
         # Process messages
@@ -1842,11 +1828,7 @@ post "/load" do
         end
 
         # Debug logging after import (only when EXTRA_LOGGING is enabled)
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "JSON import: #{session[:messages].size} messages loaded for app '#{json_data['parameters']['app_name']}'" }
 
         # Push imported data to client via WebSocket (eliminates need for reload)
         begin
@@ -1900,14 +1882,10 @@ post "/load" do
             end
           end
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "JSON import: Pushed #{filtered_messages.size} messages via WebSocket (with from_import flag)" }
         rescue => e
           # Log error but don't fail the import - client can still reload manually if needed
-          logger.warn "Failed to push import data via WebSocket: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "Failed to push import data via WebSocket: #{e.message}" }
         end
 
         { success: true, app_name: json_data['parameters']['app_name'] }.to_json

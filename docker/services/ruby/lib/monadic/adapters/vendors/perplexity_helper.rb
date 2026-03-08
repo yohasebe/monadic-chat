@@ -8,6 +8,7 @@ require_relative "../../utils/model_spec"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/extra_logger"
 
 module PerplexityHelper
   include BaseVendorHelper
@@ -353,14 +354,7 @@ module PerplexityHelper
     api_key = CONFIG["PERPLEXITY_API_KEY"]
     
     # Debug log at the very beginning
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] === Perplexity API Request Started ===")
-        f.puts("App: #{app}")
-        f.puts("Model: #{obj["model"]}")
-        f.puts("Note: Perplexity models have built-in web search capability")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "=== Perplexity API Request Started ===\nApp: #{app}\nModel: #{obj["model"]}\nNote: Perplexity models have built-in web search capability" }
     
     
     # API key validation is performed after user message is sent (for UX consistency)
@@ -432,7 +426,7 @@ module PerplexityHelper
         provider: "Perplexity",
         env_var: "PERPLEXITY_API_KEY"
       )
-      STDERR.puts "[Perplexity] #{error_message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Perplexity] #{error_message}" }
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return [res]
@@ -574,14 +568,7 @@ module PerplexityHelper
               end
 
               # Experimental inline mode: Perplexity expects URLs (pdf_url). Log and skip attaching.
-              if CONFIG["EXTRA_LOGGING"]
-                begin
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts("[#{Time.now}] WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment.")
-                  end
-                rescue StandardError
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "WARNING: Inline PDF mode enabled for Perplexity, but API expects pdf_url. Skipping inline attachment." }
               next
             end
             unless vision_capable
@@ -705,18 +692,14 @@ module PerplexityHelper
     # block&.call res
     
     # Capability audit (optional)
-    if CONFIG["EXTRA_LOGGING"]
-      begin
-        audit = ["streaming:#{supports_streaming}(#{streaming_source})"]
-        spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") rescue nil
-        audit << "tools:#{spec_tool.nil? ? true : !!spec_tool}(#{spec_tool.nil? ? 'fallback' : 'spec'})"
-        spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability") rescue nil
-        audit << "vision:#{!!spec_vision}(#{spec_vision.nil? ? 'fallback' : 'spec'})"
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}")
-        end
-      rescue StandardError
-      end
+    begin
+      audit = ["streaming:#{supports_streaming}(#{streaming_source})"]
+      spec_tool = Monadic::Utils::ModelSpec.get_model_property(model, "tool_capability") rescue nil
+      audit << "tools:#{spec_tool.nil? ? true : !!spec_tool}(#{spec_tool.nil? ? 'fallback' : 'spec'})"
+      spec_vision = Monadic::Utils::ModelSpec.get_model_property(model, "vision_capability") rescue nil
+      audit << "vision:#{!!spec_vision}(#{spec_vision.nil? ? 'fallback' : 'spec'})"
+      Monadic::Utils::ExtraLogger.log { "Perplexity SSOT capabilities for #{model}: #{audit.join(', ')}" }
+    rescue StandardError
     end
 
     execute_perplexity_api_call(headers, body, app, session, call_depth, &block)
@@ -727,7 +710,7 @@ module PerplexityHelper
       retry
     else
       error_message = "The request has timed out."
-      STDERR.puts "[Perplexity] #{error_message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Perplexity] #{error_message}" }
       formatted_error = Monadic::Utils::ErrorFormatter.network_error(
         provider: "Perplexity",
         message: error_message,
@@ -738,8 +721,8 @@ module PerplexityHelper
       [res]
     end
   rescue StandardError => e
-    STDERR.puts "[Perplexity] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[Perplexity] Unexpected error: #{e.message}" }
+    Monadic::Utils::ExtraLogger.log { "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Perplexity",
       message: "Unexpected error: #{e.message}"
@@ -772,12 +755,7 @@ module PerplexityHelper
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
     
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(query)}" }
 
     obj = session[:parameters]
 
@@ -824,36 +802,29 @@ module PerplexityHelper
         begin
           json = JSON.parse(json_str)
 
-          if CONFIG["EXTRA_LOGGING"]
-            # Log first response chunk in detail
-            if !started
-              started = true
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts("\n[#{Time.now}] First Perplexity response chunk:")
-                f.puts(JSON.pretty_generate(json))
-                if json.dig("citations") || json.dig("sources") || json.dig("urls")
-                  f.puts("CITATIONS/SOURCES FOUND in response")
-                else
-                  f.puts("NO CITATIONS/SOURCES in this chunk")
-                end
-              end
-              # Capture usage metrics if present on first chunk
-              if json["usage"]
-                usage_prompt_tokens = json.dig("usage", "prompt_tokens")
-                usage_completion_tokens = json.dig("usage", "completion_tokens")
-                usage_total_tokens = json.dig("usage", "total_tokens")
-              end
+          # Log first response chunk in detail
+          if !started
+            started = true
+            Monadic::Utils::ExtraLogger.log {
+              citation_status = if json.dig("citations") || json.dig("sources") || json.dig("urls")
+                                  "CITATIONS/SOURCES FOUND in response"
+                                else
+                                  "NO CITATIONS/SOURCES in this chunk"
+                                end
+              "First Perplexity response chunk:\n#{JSON.pretty_generate(json)}\n#{citation_status}"
+            }
+            # Capture usage metrics if present on first chunk
+            if json["usage"]
+              usage_prompt_tokens = json.dig("usage", "prompt_tokens")
+              usage_completion_tokens = json.dig("usage", "completion_tokens")
+              usage_total_tokens = json.dig("usage", "total_tokens")
             end
           end
 
           # Capture citations from first chunk (Perplexity sends all citations upfront)
           if !stored_citations && json["citations"]
             stored_citations = json["citations"]
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts("[#{Time.now}] Perplexity: Captured #{stored_citations.size} citations from chunk")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "Perplexity: Captured #{stored_citations.size} citations from chunk" }
           end
 
           finish_reason = json.dig("choices", 0, "finish_reason")
@@ -971,11 +942,7 @@ module PerplexityHelper
                 "is_first" => fragment_sequence == 0
               }
 
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                  f.puts("[#{Time.now}] Perplexity fragment #{fragment_sequence}: #{fragment.inspect[0..50]}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "Perplexity fragment #{fragment_sequence}: #{fragment.inspect[0..50]}" }
 
               fragment_sequence += 1
               block&.call res
@@ -1109,7 +1076,7 @@ module PerplexityHelper
           end
 
         rescue JSON::ParserError => e
-          STDERR.puts "[Perplexity] JSON parse error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "[Perplexity] JSON parse error: #{e.message}" }
           buffer = "data: #{json_str}" + buffer
           break
         end
@@ -1211,8 +1178,8 @@ module PerplexityHelper
       [res]
     end
   rescue StandardError => e
-    STDERR.puts "[Perplexity] Error in process_json_data: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[Perplexity] Error in process_json_data: #{e.message}" }
+    Monadic::Utils::ExtraLogger.log { "[Perplexity] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "Perplexity",
       message: e.message
@@ -1306,8 +1273,8 @@ module PerplexityHelper
         session: session
       )
     rescue StandardError => e
-      STDERR.puts "[Perplexity Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[Perplexity Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Perplexity Tools] Error in #{function_name}: #{e.message}" }
+      Monadic::Utils::ExtraLogger.log { "[Perplexity Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       function_return = Monadic::Utils::ErrorFormatter.tool_error(
         provider: "Perplexity",
         tool_name: function_name,
@@ -1342,20 +1309,17 @@ module PerplexityHelper
     headers["Accept"] = "text/event-stream"
     http = HTTP.headers(headers)
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("\n[#{Time.now}] Perplexity final API request:")
-        f.puts("URL: #{target_uri}")
-        f.puts("Model: #{body["model"]}")
-        if body["attachments"]
-          f.puts("Attachments: #{body["attachments"].map { |a| a["filename"] || a["mime_type"] }.inspect}")
-        end
-        f.puts("Request body (first 1000 chars, attachments omitted):")
-        body_preview = body.dup
-        body_preview.delete("attachments")
-        f.puts(JSON.pretty_generate(body_preview).slice(0, 1000))
+    Monadic::Utils::ExtraLogger.log {
+      parts = ["Perplexity final API request:", "URL: #{target_uri}", "Model: #{body["model"]}"]
+      if body["attachments"]
+        parts << "Attachments: #{body["attachments"].map { |a| a["filename"] || a["mime_type"] }.inspect}"
       end
-    end
+      parts << "Request body (first 1000 chars, attachments omitted):"
+      body_preview = body.dup
+      body_preview.delete("attachments")
+      parts << JSON.pretty_generate(body_preview).slice(0, 1000)
+      parts.join("\n")
+    }
 
     body["messages"].each do |msg|
       next unless msg["tool_calls"] || msg[:tool_call]

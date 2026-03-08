@@ -5,6 +5,7 @@ require 'ostruct'
 require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
+require_relative "./utils/extra_logger"
 require_relative "./utils/flask_app_client"
 require_relative "./utils/progressive_tool_manager"
 require_relative "./utils/system_defaults"
@@ -163,10 +164,8 @@ class MonadicApp
     @embeddings_db = nil
     @settings = {}
 
-    if CONFIG["EXTRA_LOGGING"] && !@@extra_logging
-      File.open(EXTRA_LOG_FILE, "w") do |f|
-        f.puts "Extra log file created at #{Time.now}\n\n"
-      end
+    if Monadic::Utils::ExtraLogger.enabled? && !@@extra_logging
+      Monadic::Utils::ExtraLogger.log { "Extra log file created" }
       @@extra_logging = true
     end
   end

@@ -11,6 +11,7 @@ require 'twitter_cldr'
 require_relative '../agents/ai_user_agent'
 require_relative '../agents/context_extractor_agent'
 require_relative 'boolean_parser'
+require_relative 'extra_logger'
 require_relative 'ssl_configuration'
 require_relative 'string_utils'
 require_relative '../shared_tools/monadic_session_state'
@@ -40,11 +41,7 @@ module WebSocketHelper
     return unless session_id
 
     params = get_session_params || {}
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] [sync_session_state!] Session synced: #{session_id}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[sync_session_state!] Session synced: #{session_id}" }
 
     WebSocketHelper.update_session_state(
       session_id,
@@ -118,7 +115,7 @@ module WebSocketHelper
         ws.flush
       rescue => e
         # Log WebSocket send error and remove dead connection
-        puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[WebSocket] Send error: #{e.message}" }
         remove_connection(ws)
       end
     end
@@ -128,9 +125,7 @@ module WebSocketHelper
   def self.broadcast_to_all(message)
     connections_copy = @@ws_mutex.synchronize { @@ws_connections.dup }
 
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocketHelper] Broadcasting to #{connections_copy.size} connection(s)"
-    end
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Broadcasting to #{connections_copy.size} connection(s)" }
 
     connections_copy.each do |ws|
       begin
@@ -138,12 +133,10 @@ module WebSocketHelper
         ws.write(message)
         ws.flush
 
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Broadcasted: #{message[0..100]}..."
-        end
+        Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Broadcasted: #{message[0..100]}..." }
       rescue => e
         # Log WebSocket send error and remove dead connection
-        puts "[WebSocket] Send error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[WebSocket] Send error: #{e.message}" }
         remove_connection(ws)
       end
     end
@@ -227,9 +220,7 @@ module WebSocketHelper
       broadcast_to_all(message_json)
     end
   rescue => e
-    if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocketHelper] Error broadcasting progress: #{e.message}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error broadcasting progress: #{e.message}" }
   end
 
   # Send message to specific session
@@ -242,9 +233,7 @@ module WebSocketHelper
     websockets = @@session_mutex.synchronize { @@connections_by_session[session_id].dup }
 
     if websockets.empty?
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocketHelper] No connections found for session #{session_id}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] No connections found for session #{session_id}" }
       return
     end
 
@@ -252,9 +241,7 @@ module WebSocketHelper
     # when multiple tabs are open
     if single_connection
       websockets = [websockets.first]
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocketHelper] Single connection mode: sending to 1 of #{@@connections_by_session[session_id].size} connections"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Single connection mode: sending to 1 of #{@@connections_by_session[session_id].size} connections" }
     end
 
     # Collect connections to remove (avoid modification during iteration)
@@ -266,13 +253,9 @@ module WebSocketHelper
         ws.write(message_json)
         ws.flush
 
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Sent to session #{session_id}: #{message_json[0..100]}..."
-        end
+        Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Sent to session #{session_id}: #{message_json[0..100]}..." }
       rescue => e
-        if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}" }
         to_remove << ws
       end
     end
@@ -283,9 +266,7 @@ module WebSocketHelper
         to_remove.each { |ws| @@connections_by_session[session_id].delete(ws) }
       end
 
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Cleaned up #{to_remove.size} dead connections for session #{session_id}" }
     end
   end
 
@@ -306,10 +287,10 @@ module WebSocketHelper
         @@connections_by_session[session_id].add(ws)
       end
 
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log {
         count = @@session_mutex.synchronize { @@connections_by_session[session_id].size }
-        puts "[WebSocketHelper] Added connection for session #{session_id}, total: #{count}"
-      end
+        "[WebSocketHelper] Added connection for session #{session_id}, total: #{count}"
+      }
     end
   end
 
@@ -333,9 +314,7 @@ module WebSocketHelper
         end
       end
 
-      if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocketHelper] Removed connection for session #{session_id}, remaining: #{remaining}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Removed connection for session #{session_id}, remaining: #{remaining}" }
     end
   end
 
@@ -550,9 +529,7 @@ module WebSocketHelper
     ui_language ||= session[:parameters]&.[]("ui_language") || "en"
 
     # Debug logging for language selection
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG] prepare_apps_data called with ui_language: #{ui_language}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG] prepare_apps_data called with ui_language: #{ui_language}" }
 
     apps = {}
     largest_app_sizes = {}
@@ -561,11 +538,7 @@ module WebSocketHelper
       apps[k] = {}
       v.settings.each do |p, m|
         # Debug log for reasoning_effort in all OpenAI apps
-        if p == "reasoning_effort" && CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("[#{Time.now}] WebSocket: #{k} reasoning_effort = #{m.inspect}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "WebSocket: #{k} reasoning_effort = #{m.inspect}" } if p == "reasoning_effort"
         
         # Handle description specially for multi-language support
         if p == "description"
@@ -576,11 +549,8 @@ module WebSocketHelper
             apps[k][p] = selected_desc
             
             # Debug logging for multi-language descriptions
-            if CONFIG["EXTRA_LOGGING"] && k == "SampleMultilang"
-              puts "[DEBUG] SampleMultilang description selection:"
-              puts "  Requested language: #{ui_language}"
-              puts "  Available languages: #{m.keys.join(', ')}"
-              puts "  Selected description: #{selected_desc[0..50]}..."
+            if k == "SampleMultilang"
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] SampleMultilang description selection:\n  Requested language: #{ui_language}\n  Available languages: #{m.keys.join(', ')}\n  Selected description: #{selected_desc[0..50]}..." }
             end
           else
             # Single string description (backward compatibility)
@@ -601,9 +571,7 @@ module WebSocketHelper
             group.merge(available: available)
           end
           apps[k][p.to_s] = tool_groups_with_availability.to_json
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[DEBUG WebSocket] #{k} imported_tool_groups: #{tool_groups_with_availability.to_json}"
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG WebSocket] #{k} imported_tool_groups: #{tool_groups_with_availability.to_json}" }
         elsif p == "disabled"
           # Keep disabled as a string for compatibility with frontend
           apps[k][p] = m.to_s
@@ -617,7 +585,7 @@ module WebSocketHelper
       end
 
       # Track size of this app's data
-      if CONFIG["EXTRA_LOGGING"]
+      if Monadic::Utils::ExtraLogger.enabled?
         app_json = apps[k].to_json
         app_size = app_json.bytesize
         largest_app_sizes[k] = app_size if app_size > 10_000 # Track apps > 10KB
@@ -625,15 +593,16 @@ module WebSocketHelper
     end
 
     # Log largest apps
-    if CONFIG["EXTRA_LOGGING"] && !largest_app_sizes.empty?
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] Apps data sizes:"
+    if !largest_app_sizes.empty?
+      Monadic::Utils::ExtraLogger.log {
+        lines = ["Apps data sizes:"]
         largest_app_sizes.sort_by { |_, size| -size }.take(5).each do |name, size|
-          f.puts "  #{name}: #{size} bytes (#{(size / 1024.0).round(2)} KB)"
+          lines << "  #{name}: #{size} bytes (#{(size / 1024.0).round(2)} KB)"
         end
         total_size = apps.to_json.bytesize
-        f.puts "  TOTAL: #{total_size} bytes (#{(total_size / 1024.0).round(2)} KB)"
-      end
+        lines << "  TOTAL: #{total_size} bytes (#{(total_size / 1024.0).round(2)} KB)"
+        lines.join("\n")
+      }
     end
 
     apps
@@ -657,11 +626,7 @@ module WebSocketHelper
     end
 
     # Debug logging for message filtering (only when EXTRA_LOGGING is enabled)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "prepare_filtered_messages: #{session[:messages]&.size || 0} total → #{filtered_messages.size} filtered (app=#{current_app_name || 'NONE'})" }
 
     params_for_render = params
     mathjax_enabled = params_for_render["mathjax"].to_s == "true"
@@ -704,12 +669,10 @@ module WebSocketHelper
     rack_session = Thread.current[:rack_session] || {}
 
     # Debug logging (only when EXTRA_LOGGING is enabled)
-    if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log {
       params_present = rack_session[:parameters] && !rack_session[:parameters].empty?
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
-      end
-    end
+      "push_apps_data START: session=#{ws_session_id}, apps=#{apps.size}, params present=#{params_present}, messages=#{filtered_messages.size}, from_initial_load=#{from_initial_load}"
+    }
 
     # Send apps message
     apps_message = {
@@ -738,11 +701,7 @@ module WebSocketHelper
     end
 
     # Debug logging
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] push_apps_data: Sent parameters message to session #{ws_session_id}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent parameters message to session #{ws_session_id}" }
 
     # Send past_messages with additional delay to ensure parameters is processed first
     # Add from_initial_load flag to suppress Auto TTS during automatic session restoration
@@ -756,11 +715,7 @@ module WebSocketHelper
     end
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}" }
 
     # Send info message to hide spinner and show "Ready" status
     # For initial load with no parameters, send minimal info data
@@ -782,11 +737,7 @@ module WebSocketHelper
     end
 
     # Debug logging for info message (only when EXTRA_LOGGING is enabled)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] push_apps_data: Sent info message to hide spinner"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent info message to hide spinner" }
   end
   
   # Push voice data to WebSocket
@@ -947,7 +898,7 @@ module WebSocketHelper
         end
       rescue => e
         puts "[TTS] Single request exception: #{e.message}"
-        puts "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
         # Forward exception as error to frontend
         error_message = { "type" => "error", "content" => "TTS error: #{e.message}" }.to_json
         if ws_session_id
@@ -982,11 +933,7 @@ module WebSocketHelper
     # Use passed ws_session_id or fall back to thread-local variable
     ws_session_id ||= Thread.current[:websocket_session_id]
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}, realtime_mode=#{realtime_mode}, manual_play=#{manual_play}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG] start_tts_playback CALLED: text_length=#{text.length}, provider=#{provider}, realtime_mode=#{realtime_mode}, manual_play=#{manual_play}" }
 
     # Strip Markdown markers and HTML tags before processing
     text = StringUtils.strip_markdown_for_tts(text)
@@ -1030,15 +977,11 @@ module WebSocketHelper
     unless realtime_mode
       text_bytes = text.bytesize
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[TTS] Post-completion mode: text_bytes=#{text_bytes}, max_bytes=#{max_bytes}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[TTS] Post-completion mode: text_bytes=#{text_bytes}, max_bytes=#{max_bytes}" }
 
       if text_bytes <= max_bytes
         # Text is within limit - send as single TTS request
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[TTS] Text within limit, sending as single request"
-        end
+        Monadic::Utils::ExtraLogger.log { "[TTS] Text within limit, sending as single request" }
         return start_single_tts_request(
           text: text,
           provider: provider,
@@ -1050,9 +993,7 @@ module WebSocketHelper
         )
       else
         # Text exceeds limit - use sentence boundary cutoff
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[TTS] Text exceeds limit (#{text_bytes} > #{max_bytes}), using sentence boundary cutoff"
-        end
+        Monadic::Utils::ExtraLogger.log { "[TTS] Text exceeds limit (#{text_bytes} > #{max_bytes}), using sentence boundary cutoff" }
 
         # Segment text to find sentence boundaries
         all_segments = WebSocketHelper.segment_sentences(text)
@@ -1080,10 +1021,7 @@ module WebSocketHelper
           end
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[TTS] Sentence boundary cutoff: #{tts_segments.length}/#{all_segments.length} segments included"
-          puts "[TTS] Accumulated bytes: #{accumulated_bytes}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[TTS] Sentence boundary cutoff: #{tts_segments.length}/#{all_segments.length} segments included\n[TTS] Accumulated bytes: #{accumulated_bytes}" }
 
         # Send TTS notice if some segments will be played and some were skipped
         # (Don't send if tts_segments is empty - that case is handled below)
@@ -1112,9 +1050,7 @@ module WebSocketHelper
           tts_segments << first_segment
           accumulated_bytes = first_segment.bytesize
 
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[TTS] First segment exceeds limit but will be played anyway (#{accumulated_bytes} bytes)"
-          end
+          Monadic::Utils::ExtraLogger.log { "[TTS] First segment exceeds limit but will be played anyway (#{accumulated_bytes} bytes)" }
 
           # Update notice to show partial output (1 of N segments)
           if skipped_segments.any?
@@ -1154,11 +1090,11 @@ module WebSocketHelper
     # Process text with TwitterCLDR to split into sentences (faster and better RTL support)
     segments = WebSocketHelper.segment_sentences(text)
 
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[TTS] Realtime mode: Original text: '#{text[0..100]}...'"
-      puts "[TTS] Segmented into #{segments.length} segments:"
-      segments.each_with_index { |s, i| puts "[TTS]   [#{i}] '#{s}'" }
-    end
+    Monadic::Utils::ExtraLogger.log {
+      msg = "[TTS] Realtime mode: Original text: '#{text[0..100]}...'\n[TTS] Segmented into #{segments.length} segments:"
+      segments.each_with_index { |s, i| msg += "\n[TTS]   [#{i}] '#{s}'" }
+      msg
+    }
 
     # For Gemini TTS, combine short segments to avoid API failures
     if provider == "gemini-flash" || provider == "gemini-pro"
@@ -1215,9 +1151,9 @@ module WebSocketHelper
       if combine_segments
         combined_text = segments.join(" ").strip
         segments = combined_text.empty? ? [] : [combined_text]
-        puts "ElevenLabs V3: Combined all segments into one (legacy mode)" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "ElevenLabs V3: Combined all segments into one (legacy mode)" }
       else
-        puts "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "ElevenLabs V3: Using segment splitting for prefetch (#{segments.length} segments)" }
       end
     end
 
@@ -1240,10 +1176,11 @@ module WebSocketHelper
         end
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[TTS] After filtering: #{valid_segments.length} valid segments"
-        valid_segments.each_with_index { |s, i| puts "[TTS]   Valid[#{i}] '#{s}'" }
-      end
+      Monadic::Utils::ExtraLogger.log {
+        msg = "[TTS] After filtering: #{valid_segments.length} valid segments"
+        valid_segments.each_with_index { |s, i| msg += "\n[TTS]   Valid[#{i}] '#{s}'" }
+        msg
+      }
 
       # Prefetch pipeline: Start TTS requests in parallel
       # Provider-specific prefetch counts based on rate limits and response times:
@@ -1317,22 +1254,16 @@ module WebSocketHelper
 
         # Process segments in order
         valid_segments.each_with_index do |segment, i|
-          if CONFIG["EXTRA_LOGGING"]
-            puts "[TTS] Processing segment #{i}/#{valid_segments.length - 1}: '#{segment[0..50]}...'"
-            puts "[TTS] tts_futures.length = #{tts_futures.length}, waiting for index #{i}"
-          end
+          Monadic::Utils::ExtraLogger.log { "[TTS] Processing segment #{i}/#{valid_segments.length - 1}: '#{segment[0..50]}...'\n[TTS] tts_futures.length = #{tts_futures.length}, waiting for index #{i}" }
 
           # Wait for current segment's TTS to complete with error handling
           begin
             res_hash = tts_futures[i]&.value
 
-            if CONFIG["EXTRA_LOGGING"]
-              puts "[TTS] Segment #{i} result: #{res_hash ? res_hash["type"] : "nil"}"
-            end
+            Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} result: #{res_hash ? res_hash["type"] : "nil"}" }
           rescue => e
             # Thread was killed or errored - create error response
-            puts "[TTS] Segment #{i} failed with exception: #{e.message}"
-            puts "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" if CONFIG["EXTRA_LOGGING"]
+            Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} failed with exception: #{e.message}\n[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
             res_hash = {
               "type" => "error",
               "content" => "TTS generation failed for segment #{i + 1}"
@@ -1400,9 +1331,7 @@ module WebSocketHelper
       end
 
       # Signal completion
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[TTS] All segments processed, sending tts_complete"
-      end
+      Monadic::Utils::ExtraLogger.log { "[TTS] All segments processed, sending tts_complete" }
 
       complete_message = {
         "type" => "tts_complete",
@@ -1414,9 +1343,7 @@ module WebSocketHelper
         WebSocketHelper.broadcast_to_all(complete_message)
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[TTS] tts_complete sent successfully"
-      end
+      Monadic::Utils::ExtraLogger.log { "[TTS] tts_complete sent successfully" }
     end
   end
   
@@ -1863,9 +1790,7 @@ module WebSocketHelper
       end
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocket] Session initialized: #{ws_session_id} (tab_id: #{tab_id || 'none'})"
-    end
+    Monadic::Utils::ExtraLogger.log { "[WebSocket] Session initialized: #{ws_session_id} (tab_id: #{tab_id || 'none'})" }
 
     # Use async-websocket to handle the connection
     Async::WebSocket::Adapters::Rack.open(env) do |connection|
@@ -1891,11 +1816,7 @@ module WebSocketHelper
         end
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] [WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] Session state: #{saved_state ? 'restored' : 'new'} (#{ws_session_id})" }
 
       queue = Queue.new
       thread = nil
@@ -1917,11 +1838,8 @@ module WebSocketHelper
           msg = obj["message"] || ""
 
           # Debug logging for all messages when EXTRA_LOGGING is enabled
-          if CONFIG["EXTRA_LOGGING"] && msg == "UPDATE_LANGUAGE"
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts("[#{Time.now}] WebSocket received UPDATE_LANGUAGE message")
-              f.puts("  Full obj: #{obj.inspect}")
-            end
+          if msg == "UPDATE_LANGUAGE"
+            Monadic::Utils::ExtraLogger.log { "WebSocket received UPDATE_LANGUAGE message\n  Full obj: #{obj.inspect}" }
           end
 
       case msg
@@ -1996,16 +1914,11 @@ module WebSocketHelper
     end # end while
 
     rescue => e
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocket] Error in message loop: #{e.class}: #{e.message}"
-        puts e.backtrace.first(5)
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
     ensure
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocket] Connection closed for session #{ws_session_id}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] Connection closed for session #{ws_session_id}" }
 
       sync_session_state!
 
@@ -2192,11 +2105,7 @@ module WebSocketHelper
         # Uses direct HTTP API calls to avoid re-triggering WebSocket flow
         if params["monadic"]
           begin
-            if CONFIG && CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ContextExtractor] Monadic mode detected, starting context extraction setup")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Monadic mode detected, starting context extraction setup" }
 
             # Get the provider and context_schema from the app settings
             app_name = params["app_name"]
@@ -2204,11 +2113,7 @@ module WebSocketHelper
             provider = app&.settings&.dig("provider") || app&.settings&.dig(:provider) || "openai"
             context_schema = app&.settings&.dig(:context_schema) || app&.settings&.dig("context_schema")
 
-            if CONFIG && CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ContextExtractor] app_name=#{app_name}, provider=#{provider}, context_schema=#{context_schema ? 'present' : 'nil'}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ContextExtractor] app_name=#{app_name}, provider=#{provider}, context_schema=#{context_schema ? 'present' : 'nil'}" }
 
             # Find the last user message from session messages
             user_messages = messages.select { |m| m["role"] == "user" }
@@ -2249,22 +2154,13 @@ module WebSocketHelper
                     thread_context_schema
                   )
                 rescue StandardError => ctx_err
-                  if CONFIG && CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                      log.puts("[#{Time.now}] [ContextExtractor] Background error: #{ctx_err.message}")
-                      log.puts("[#{Time.now}] [ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}")
-                    end
-                  end
+                  Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Background error: #{ctx_err.message}\n[ContextExtractor] Backtrace: #{ctx_err.backtrace.first(3).join("\n")}" }
                 end
               end
             end
           rescue StandardError => ctx_setup_err
             # Don't let context extraction setup errors affect the main flow
-            if CONFIG && CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ContextExtractor] Setup error: #{ctx_setup_err.message}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ContextExtractor] Setup error: #{ctx_setup_err.message}" }
           end
         end
       rescue StandardError => e
@@ -2401,11 +2297,7 @@ module WebSocketHelper
       prev_texts_for_tts = []
       responses = app_obj.api_request("user", session) do |fragment|
         # DEBUG: Log all fragment arrivals
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] Fragment arrived: type='#{fragment["type"]}', auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}" }
 
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
@@ -2430,25 +2322,20 @@ module WebSocketHelper
             WebSocketHelper.broadcast_to_all(clear_msg)
           end
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] clear_fragments: server buffers cleared, message sent to frontend")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] clear_fragments: server buffers cleared, message sent to frontend" }
         elsif fragment["type"] == "fragment"
           text = fragment["content"]
           buffer << text unless text.empty? || text == "DONE"
 
           segments = WebSocketHelper.segment_sentences(buffer.join)
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] Fragment received: buffer_text='#{buffer.join[0..100]}...', segments=#{segments.size}")
-              segments.each_with_index do |seg, i|
-                log.puts("[#{Time.now}] [DEBUG]   segment[#{i}]: '#{seg[0..50]}...'")
-              end
+          Monadic::Utils::ExtraLogger.log {
+            msg = "[DEBUG] Fragment received: buffer_text='#{buffer.join[0..100]}...', segments=#{segments.size}"
+            segments.each_with_index do |seg, i|
+              msg += "\n[DEBUG]   segment[#{i}]: '#{seg[0..50]}...'"
             end
-          end
+            msg
+          }
 
           # Wait for complete sentences: TwitterCLDR returns 2+ segments when a sentence is complete
           # Process all complete sentences (all except the last incomplete one)
@@ -2457,12 +2344,7 @@ module WebSocketHelper
 
             if auto_tts_realtime_mode
               # REALTIME MODE: Use http.rb async processing for non-blocking TTS
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}")
-                  log.puts("[#{Time.now}] [DEBUG] complete_sentences count: #{segments[0...-1].size}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE ACTIVE: auto_speech=#{obj["auto_speech"]}, cutoff=#{cutoff}, monadic=#{obj["monadic"]}, segments=#{segments.size}\n[DEBUG] complete_sentences count: #{segments[0...-1].size}" }
 
               # Process each complete sentence with buffering for short sentences
               # This prevents pauses between short and long sentence TTS generation
@@ -2486,15 +2368,7 @@ module WebSocketHelper
                   cleaned_text = cleaned_text.gsub(/[^\p{L}\p{N}\p{P}\p{Z}]+/, ' ')
                   cleaned_text = cleaned_text.strip
 
-                  if CONFIG["EXTRA_LOGGING"]
-                    File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                      log.puts("[#{Time.now}] [BUFFER] ============================================")
-                      log.puts("[#{Time.now}] [BUFFER] Sentence #{idx} received")
-                      log.puts("[#{Time.now}] [BUFFER] Original text: '#{text}'")
-                      log.puts("[#{Time.now}] [BUFFER] Cleaned text: '#{cleaned_text}'")
-                      log.puts("[#{Time.now}] [BUFFER] Cleaned length: #{cleaned_text.length}")
-                    end
-                  end
+                  Monadic::Utils::ExtraLogger.log { "[BUFFER] ============================================\n[BUFFER] Sentence #{idx} received\n[BUFFER] Original text: '#{text}'\n[BUFFER] Cleaned text: '#{cleaned_text}'\n[BUFFER] Cleaned length: #{cleaned_text.length}" }
 
                   # Skip only if text is empty
                   if text.strip != ""
@@ -2511,17 +2385,13 @@ module WebSocketHelper
                         cleaned.strip.length
                       end.sum
 
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("[#{Time.now}] [BUFFER] Decision: BUFFERING (≤#{REALTIME_TTS_MIN_LENGTH} chars)")
-                          log.puts("[#{Time.now}] [BUFFER] Buffer size: #{@realtime_tts_short_buffer.size} sentence(s)")
-                          log.puts("[#{Time.now}] [BUFFER] Total buffer length: #{total_buffer_length} chars")
-                          log.puts("[#{Time.now}] [BUFFER] Buffer contents:")
-                          @realtime_tts_short_buffer.each_with_index do |buf_text, buf_idx|
-                            log.puts("[#{Time.now}] [BUFFER]   [#{buf_idx}]: '#{buf_text}'")
-                          end
+                      Monadic::Utils::ExtraLogger.log {
+                        msg = "[BUFFER] Decision: BUFFERING (≤#{REALTIME_TTS_MIN_LENGTH} chars)\n[BUFFER] Buffer size: #{@realtime_tts_short_buffer.size} sentence(s)\n[BUFFER] Total buffer length: #{total_buffer_length} chars\n[BUFFER] Buffer contents:"
+                        @realtime_tts_short_buffer.each_with_index do |buf_text, buf_idx|
+                          msg += "\n[BUFFER]   [#{buf_idx}]: '#{buf_text}'"
                         end
-                      end
+                        msg
+                      }
 
                       # Check if total buffer length exceeds threshold
                       # This prevents long pauses while maintaining gap prevention
@@ -2531,13 +2401,7 @@ module WebSocketHelper
                         combined_text = @realtime_tts_short_buffer.join(" ")
                         @realtime_tts_short_buffer.clear
 
-                        if CONFIG["EXTRA_LOGGING"]
-                          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                            log.puts("[#{Time.now}] [BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > #{REALTIME_TTS_MIN_LENGTH}) ***")
-                            log.puts("[#{Time.now}] [BUFFER] Combined text to send to TTS: '#{combined_text}'")
-                            log.puts("[#{Time.now}] [BUFFER] Combined text length: #{combined_text.length}")
-                          end
-                        end
+                        Monadic::Utils::ExtraLogger.log { "[BUFFER] *** FLUSHING BUFFER (total: #{total_buffer_length} > #{REALTIME_TTS_MIN_LENGTH}) ***\n[BUFFER] Combined text to send to TTS: '#{combined_text}'\n[BUFFER] Combined text length: #{combined_text.length}" }
 
                         # Increment counters and create sequence ID
                         @realtime_tts_sequence_counter += 1
@@ -2556,11 +2420,7 @@ module WebSocketHelper
                             sequence_id: sequence_id
                           ) do |res_hash|
                             if res_hash && res_hash["type"] != "error"
-                              if CONFIG["EXTRA_LOGGING"]
-                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                  log.puts("[#{Time.now}] [DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
-                                end
-                              end
+                              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS async callback (flushed buffer): sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
                               # Use captured ws_session_id from outer scope
                               if ws_session_id
                                 WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
@@ -2568,23 +2428,14 @@ module WebSocketHelper
                                 WebSocketHelper.broadcast_to_all(res_hash.to_json)
                               end
                             else
-                              if CONFIG["EXTRA_LOGGING"]
-                                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                  log.puts("[#{Time.now}] [DEBUG] TTS failed for flushed buffer: #{res_hash&.[]("content")}")
-                                end
-                              end
+                              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for flushed buffer: #{res_hash&.[]("content")}" }
                             end
                           end
                         end
                       end
                     else
                       # This is a longer sentence - flush buffer and send combined text
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("[#{Time.now}] [BUFFER] Decision: IMMEDIATE SEND (>#{REALTIME_TTS_MIN_LENGTH} chars)")
-                          log.puts("[#{Time.now}] [BUFFER] Current buffer has #{@realtime_tts_short_buffer.size} sentence(s)")
-                        end
-                      end
+                      Monadic::Utils::ExtraLogger.log { "[BUFFER] Decision: IMMEDIATE SEND (>#{REALTIME_TTS_MIN_LENGTH} chars)\n[BUFFER] Current buffer has #{@realtime_tts_short_buffer.size} sentence(s)" }
 
                       combined_text = if @realtime_tts_short_buffer.empty?
                                        text
@@ -2601,14 +2452,7 @@ module WebSocketHelper
                       sequence_num = @realtime_tts_sequence_counter
                       sequence_id = "seq#{sequence_num}_#{Time.now.to_f}_#{SecureRandom.hex(2)}"
 
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("[#{Time.now}] [BUFFER] *** SENDING TO TTS (long sentence) ***")
-                          log.puts("[#{Time.now}] [BUFFER] Sequence: #{sequence_num}, ID: #{sequence_id}")
-                          log.puts("[#{Time.now}] [BUFFER] Combined text to send: '#{combined_text}'")
-                          log.puts("[#{Time.now}] [BUFFER] Combined text length: #{combined_text.length}")
-                        end
-                      end
+                      Monadic::Utils::ExtraLogger.log { "[BUFFER] *** SENDING TO TTS (long sentence) ***\n[BUFFER] Sequence: #{sequence_num}, ID: #{sequence_id}\n[BUFFER] Combined text to send: '#{combined_text}'\n[BUFFER] Combined text length: #{combined_text.length}" }
 
                       # Submit TTS request immediately
                       Async do
@@ -2623,11 +2467,7 @@ module WebSocketHelper
                         ) do |res_hash|
                           # This callback runs when TTS completes
                           if res_hash && res_hash["type"] != "error"
-                            if CONFIG["EXTRA_LOGGING"]
-                              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
-                              end
-                            end
+                            Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS async callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
 
                             # Send audio to client (use captured ws_session_id)
                             if ws_session_id
@@ -2637,11 +2477,7 @@ module WebSocketHelper
                             end
                           else
                             # TTS failed, just log it (fragment already sent)
-                            if CONFIG["EXTRA_LOGGING"]
-                              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                                log.puts("[#{Time.now}] [DEBUG] TTS failed for segment: #{res_hash&.[]("content")}")
-                              end
-                            end
+                            Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for segment: #{res_hash&.[]("content")}" }
                           end
                         end
                       end
@@ -2677,11 +2513,7 @@ module WebSocketHelper
           end
         else
           # Handle other fragment types (including html, message, etc.)
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend" }
           if ws_session_id
             WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
           else
@@ -2700,15 +2532,7 @@ module WebSocketHelper
       # Use original_auto_speech saved before streaming started (obj may have been overwritten)
       auto_speech_enabled = original_auto_speech == true || original_auto_speech == "true"
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] Checking final segment conditions:")
-          log.puts("[#{Time.now}] [DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled}")
-          log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff}, original_monadic=#{original_monadic}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}")
-          log.puts("[#{Time.now}] [DEBUG]   Buffer contents: #{buffer.inspect}")
-          log.puts("[#{Time.now}] [DEBUG]   Short buffer: #{@realtime_tts_short_buffer.inspect}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] Checking final segment conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled}\n[DEBUG]   cutoff=#{cutoff}, original_monadic=#{original_monadic}, auto_tts_realtime_mode=#{auto_tts_realtime_mode}\n[DEBUG]   Buffer contents: #{buffer.inspect}\n[DEBUG]   Short buffer: #{@realtime_tts_short_buffer.inspect}" }
 
       if auto_speech_enabled && auto_tts_realtime_mode && !cutoff && !original_monadic
         # Prefer the provider-returned full text when available to avoid token loss
@@ -2719,11 +2543,7 @@ module WebSocketHelper
           final_text = buffer.join.strip
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [DEBUG] Final text from buffer: '#{final_text}'")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] Final text from buffer: '#{final_text}'" }
 
         # Also check if there are any buffered short sentences that haven't been sent yet
         if !@realtime_tts_short_buffer.empty?
@@ -2737,19 +2557,11 @@ module WebSocketHelper
                       end
           @realtime_tts_short_buffer.clear
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] REALTIME MODE: Flushing buffered short sentences into final segment")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE: Flushing buffered short sentences into final segment" }
         end
 
         if final_text != ""
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] REALTIME MODE: Processing final segment: '#{final_text[0..50]}...' (length=#{final_text.length})")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] REALTIME MODE: Processing final segment: '#{final_text[0..50]}...' (length=#{final_text.length})" }
 
           # Generate unique sequence ID for final segment (use same format as streaming segments)
           # Counter should already be initialized by streaming loop above
@@ -2768,11 +2580,7 @@ module WebSocketHelper
             sequence_id: sequence_id
           ) do |res_hash|
             if res_hash && res_hash["type"] != "error"
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS final segment callback: sequence_id=#{sequence_id}, type=#{res_hash["type"]}" }
               # Use captured ws_session_id from outer scope
               if ws_session_id
                 WebSocketHelper.send_audio_to_session(res_hash.to_json, ws_session_id)
@@ -2780,11 +2588,7 @@ module WebSocketHelper
                 WebSocketHelper.broadcast_to_all(res_hash.to_json)
               end
             else
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] TTS failed for final segment: #{res_hash&.[]("content")}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] TTS failed for final segment: #{res_hash&.[]("content")}" }
             end
           end
         end
@@ -2813,17 +2617,7 @@ module WebSocketHelper
       # is expected (server will send audio automatically).
       tts_allowed = auto_speech_enabled && !cutoff && !auto_tts_realtime_mode
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION MODE conditions:")
-          log.puts("[#{Time.now}] [DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}")
-          log.puts("[#{Time.now}] [DEBUG]   cutoff=#{cutoff.inspect}")
-          log.puts("[#{Time.now}] [DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}")
-          log.puts("[#{Time.now}] [DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}")
-          log.puts("[#{Time.now}] [DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}")
-          log.puts("[#{Time.now}] [DEBUG]   tts_allowed=#{tts_allowed.inspect}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION MODE conditions:\n[DEBUG]   original_auto_speech=#{original_auto_speech.inspect}, auto_speech_enabled=#{auto_speech_enabled.inspect}\n[DEBUG]   cutoff=#{cutoff.inspect}\n[DEBUG]   original_monadic=#{original_monadic.inspect}, monadic_disabled=#{monadic_disabled.inspect}\n[DEBUG]   auto_tts_realtime_mode=#{auto_tts_realtime_mode.inspect}\n[DEBUG]   tts_text_from_target=#{tts_text_from_target ? 'present' : 'nil'}\n[DEBUG]   tts_allowed=#{tts_allowed.inspect}" }
 
       if tts_allowed
         # Stop any existing TTS thread first
@@ -2839,11 +2633,7 @@ module WebSocketHelper
         # Clear session tts_text after use to avoid reusing on next request
         session.delete(:tts_text) if tts_text_from_target
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] POST-COMPLETION TTS: Using #{tts_text_from_target ? 'tts_target extracted text' : 'buffer.join'}" }
 
         # Only process if there's actual text
         if text.strip != ""
@@ -2859,12 +2649,7 @@ module WebSocketHelper
         end
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] Processing #{responses&.length || 0} responses")
-          log.puts("[#{Time.now}] [DEBUG] responses.nil?=#{responses.nil?}, responses.empty?=#{responses&.empty?}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] Processing #{responses&.length || 0} responses\n[DEBUG] responses.nil?=#{responses.nil?}, responses.empty?=#{responses&.empty?}" }
 
       responses.each do |response|
         # if response is not a hash, skip with error message
@@ -2888,13 +2673,7 @@ module WebSocketHelper
           end
         else
           # Debug logging for response structure (only with EXTRA_LOGGING)
-          if CONFIG["EXTRA_LOGGING"]
-            puts "WebSocket response structure:"
-            puts "Response class: #{response.class}"
-            puts "Response keys: #{response.keys.inspect}" if response.is_a?(Hash)
-            puts "Has choices?: #{response.key?("choices") if response.is_a?(Hash)}"
-            puts "Response: #{response.inspect[0..500]}..." # First 500 chars
-          end
+          Monadic::Utils::ExtraLogger.log { "WebSocket response structure:\nResponse class: #{response.class}\nResponse keys: #{response.is_a?(Hash) ? response.keys.inspect : 'N/A'}\nHas choices?: #{response.is_a?(Hash) ? response.key?("choices") : 'N/A'}\nResponse: #{response.inspect[0..500]}..." }
 
           # Check for content in standard format or responses API format
           raw_content = nil
@@ -2904,15 +2683,11 @@ module WebSocketHelper
 
           # If not found, try responses API format
           if raw_content.nil? && response["output"]
-            if CONFIG["EXTRA_LOGGING"]
-              puts "Trying responses API format. Output items: #{response["output"].length}"
-            end
+            Monadic::Utils::ExtraLogger.log { "Trying responses API format. Output items: #{response["output"].length}" }
 
             # Look for message type in output array
             response["output"].each do |item|
-              if CONFIG["EXTRA_LOGGING"]
-                puts "Output item type: #{item["type"]}, has content?: #{item.key?("content")}"
-              end
+              Monadic::Utils::ExtraLogger.log { "Output item type: #{item["type"]}, has content?: #{item.key?("content")}" }
 
               if item["type"] == "message" && item["content"]
                 # Extract text from content array
@@ -2930,14 +2705,12 @@ module WebSocketHelper
               end
             end
 
-            if CONFIG["EXTRA_LOGGING"]
-              puts "Extracted content length: #{raw_content&.length || 0}"
-            end
+            Monadic::Utils::ExtraLogger.log { "Extracted content length: #{raw_content&.length || 0}" }
           end
 
           # If still no content found
           if raw_content.nil?
-            puts "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." if CONFIG["EXTRA_LOGGING"]
+            Monadic::Utils::ExtraLogger.log { "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." }
             content_error = { "type" => "error", "content" => "content_not_found" }.to_json
             if ws_session_id
               WebSocketHelper.send_to_session(content_error, ws_session_id)
@@ -2971,29 +2744,17 @@ module WebSocketHelper
         end
       end
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] Finished processing responses loop")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] Finished processing responses loop" }
 
       # Send streaming complete message after all responses are processed (session-targeted)
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] About to send streaming_complete for session: #{ws_session_id}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] About to send streaming_complete for session: #{ws_session_id}" }
       streaming_complete = { "type" => "streaming_complete" }.to_json
       if ws_session_id
         WebSocketHelper.send_to_session(streaming_complete, ws_session_id)
       else
         WebSocketHelper.broadcast_to_all(streaming_complete)
       end
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] streaming_complete sent successfully")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] streaming_complete sent successfully" }
     end
     thread  # return the thread for the orchestrator
   end
@@ -3005,72 +2766,39 @@ module WebSocketHelper
       session[:parameters]["ui_language"] = obj["ui_language"]
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] CHECK_TOKEN handler started"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN handler started" }
 
     if CONFIG["ERROR"].to_s == "true"
       send_to_client(connection, { "type" => "error", "content" => "Error reading <code>~/monadic/config/env</code>" })
     else
       token = CONFIG["OPENAI_API_KEY"]
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] CHECK_TOKEN: token present=#{!token.nil?}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: token present=#{!token.nil?}" }
 
       res = nil
       begin
         res = check_api_key(token) if token
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] CHECK_TOKEN: res=#{res.inspect}"
-            f.puts "[#{Time.now}] CHECK_TOKEN: res.is_a?(Hash)=#{res.is_a?(Hash)}, res.key?('type')=#{res.is_a?(Hash) && res.key?('type')}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: res=#{res.inspect}\nCHECK_TOKEN: res.is_a?(Hash)=#{res.is_a?(Hash)}, res.key?('type')=#{res.is_a?(Hash) && res.key?('type')}" }
 
         if token && res.is_a?(Hash) && res.key?("type")
           if res["type"] == "error"
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (error)"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: Sending token_not_verified (error)" }
             send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
           else
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_verified (success)"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: Sending token_verified (success)" }
             send_to_client(connection, { "type" => "token_verified",
                       "token" => token, "content" => res["content"],
                       # "models" => res["models"],
                       "ai_user_initial_prompt" => MonadicApp::AI_USER_INITIAL_PROMPT })
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] CHECK_TOKEN: token_verified message sent"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: token_verified message sent" }
           end
         else
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] CHECK_TOKEN: Sending token_not_verified (invalid response)"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: Sending token_not_verified (invalid response)" }
           send_to_client(connection, { "type" => "token_not_verified", "token" => "", "content" => "" })
         end
       rescue StandardError => e
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "CHECK_TOKEN: Exception caught - #{e.class}: #{e.message}" }
         send_to_client(connection, { "type" => "open_ai_api_error", "token" => "", "content" => "" })
       end
     end
@@ -3171,9 +2899,7 @@ module WebSocketHelper
       if session[:monadic_state]
         session[:monadic_state][:conversation_context] = nil
       end
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        puts "[WebSocket] App changed from #{current_app} to #{new_app} - context reset"
-      end
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] App changed from #{current_app} to #{new_app} - context reset" }
     end
 
     sanitized = {}
@@ -3222,12 +2948,7 @@ module WebSocketHelper
     conversation_language = obj["conversation_language"]
     session[:runtime_settings][:language] = conversation_language || "auto"
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("[#{Time.now}] SYSTEM_PROMPT: Set language to #{session[:runtime_settings][:language]}")
-        f.puts("  Full runtime_settings: #{session[:runtime_settings].inspect}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "SYSTEM_PROMPT: Set language to #{session[:runtime_settings][:language]}\n  Full runtime_settings: #{session[:runtime_settings].inspect}" }
 
     # Don't add language to the stored system prompt
     # It will be injected dynamically during API calls
@@ -3360,16 +3081,7 @@ module WebSocketHelper
       session[:runtime_settings][:language] = new_language
       session[:runtime_settings][:language_updated_at] = Time.now
 
-      if CONFIG["EXTRA_LOGGING"]
-        puts "[DEBUG] UPDATE_LANGUAGE: Changed from #{old_language} to #{new_language}"
-        puts "[DEBUG] Session runtime_settings after update: #{session[:runtime_settings].inspect}"
-
-        # Log to file as well
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] UPDATE_LANGUAGE: #{old_language} -> #{new_language}")
-          f.puts("  Runtime settings: #{session[:runtime_settings].inspect}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "UPDATE_LANGUAGE: #{old_language} -> #{new_language}\n  Runtime settings: #{session[:runtime_settings].inspect}" }
 
       # Resend apps data with updated language descriptions
       apps_data = prepare_apps_data(new_language)
@@ -3511,7 +3223,7 @@ module WebSocketHelper
         end
       rescue => e
         # Error accessing thread locals - continue with main thread cleanup
-        puts "Error cleaning up TTS subthreads: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Error cleaning up TTS subthreads: #{e.message}" }
       end
 
       # Kill main TTS thread
@@ -3630,9 +3342,7 @@ module WebSocketHelper
     connection.write(message_hash.to_json)
     connection.flush
   rescue => e
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[WebSocket] Error sending to client: #{e.message}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[WebSocket] Error sending to client: #{e.message}" }
   end
 
   # Handle MCP configuration update
@@ -3682,14 +3392,12 @@ module WebSocketHelper
           WebSocketHelper.send_to_session(message.to_json, ws_session_id)
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[WebSocket] Context updated from client: #{context.keys.join(', ')}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[WebSocket] Context updated from client: #{context.keys.join(', ')}" }
       else
         send_to_client(connection, { "type" => "error", "content" => "Failed to save context" })
       end
     rescue StandardError => e
-      puts "[WebSocket] Context update error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[WebSocket] Context update error: #{e.message}" }
       send_to_client(connection, { "type" => "error", "content" => "Context update error: #{e.message}" })
     end
   end

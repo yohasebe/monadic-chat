@@ -3,6 +3,7 @@ require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/function_call_error_handler"
 require_relative "../../monadic_performance"
 require_relative "../base_vendor_helper"
+require_relative "../../utils/extra_logger"
 
 module OllamaHelper
   include BaseVendorHelper
@@ -170,7 +171,7 @@ module OllamaHelper
         sleep RETRY_DELAY
       rescue HTTP::Error, HTTP::TimeoutError => e
         last_error = e
-        STDERR.puts "[Ollama] send_query attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[Ollama] send_query attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
         OllamaHelper.reset_endpoint_cache
         sleep RETRY_DELAY
       end
@@ -186,7 +187,7 @@ module OllamaHelper
       rescue StandardError
         res.body.to_s
       end
-      STDERR.puts "[Ollama API Error] #{error}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error}" }
       "ERROR: #{error}"
     end
   rescue StandardError => e
@@ -360,7 +361,7 @@ module OllamaHelper
         current_endpoint = OllamaHelper.find_endpoint
         unless current_endpoint
           last_error = StandardError.new("Ollama endpoint not found")
-          STDERR.puts "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "[Ollama] Endpoint not found on attempt #{attempt + 1}/#{MAX_RETRIES}" }
           sleep RETRY_DELAY
           next
         end
@@ -376,7 +377,7 @@ module OllamaHelper
         sleep RETRY_DELAY
       rescue HTTP::Error, HTTP::TimeoutError => e
         last_error = e
-        STDERR.puts "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[Ollama] Connection attempt #{attempt + 1}/#{MAX_RETRIES} failed: #{e.message}" }
         OllamaHelper.reset_endpoint_cache
         sleep RETRY_DELAY
       end
@@ -384,7 +385,7 @@ module OllamaHelper
 
     if last_error
       error_message = "Ollama is not reachable. Please ensure Ollama is running. (#{last_error.message})"
-      STDERR.puts "[Ollama] #{error_message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Ollama] #{error_message}" }
       res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
       block&.call res
       return [res]
@@ -396,7 +397,7 @@ module OllamaHelper
       rescue StandardError
         res.body.to_s
       end
-      STDERR.puts "[Ollama API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Ollama API Error] #{error_report}" }
       res = { "type" => "error", "content" => "API ERROR: #{error_report}" }
       block&.call res
       return [res]
@@ -404,8 +405,8 @@ module OllamaHelper
 
     process_json_data(app, session, res.body, call_depth, &block)
   rescue StandardError => e
-    STDERR.puts "[Ollama] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[Ollama] Unexpected error: #{e.message}" }
+    Monadic::Utils::ExtraLogger.log { "[Ollama] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     OllamaHelper.reset_endpoint_cache
     res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}" }
     block&.call res
@@ -413,11 +414,7 @@ module OllamaHelper
   end
 
   def process_json_data(app, session, body, call_depth, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing Ollama streaming response at #{Time.now}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing Ollama streaming response" }
 
     obj = session[:parameters]
 
@@ -439,11 +436,7 @@ module OllamaHelper
           json["message"]["tool_calls"].each do |tc|
             accumulated_tool_calls << tc
           end
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts("Tool calls detected: #{accumulated_tool_calls.length}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Tool calls detected: #{accumulated_tool_calls.length}" }
         elsif json.dig("message", "content")
           fragment = json.dig("message", "content").to_s
           res = {
@@ -454,11 +447,7 @@ module OllamaHelper
             "is_first" => fragment_sequence == 0
           }
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts("Fragment: sequence=#{fragment_sequence}, length=#{fragment.length}, content=#{fragment.inspect}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Fragment: sequence=#{fragment_sequence}, length=#{fragment.length}, content=#{fragment.inspect}" }
 
           fragment_sequence += 1
           block&.call res
@@ -468,18 +457,13 @@ module OllamaHelper
         # Incomplete JSON, continue buffering
       end
     rescue StandardError => e
-      STDERR.puts "[Ollama Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Error: #{e.message}" }
+      Monadic::Utils::ExtraLogger.log { "[Ollama Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
       # Connection dropped mid-stream — invalidate cached endpoint
       OllamaHelper.reset_endpoint_cache
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Total fragments processed: #{texts.length}")
-        f.puts("Tool calls accumulated: #{accumulated_tool_calls.length}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Total fragments processed: #{texts.length}\nTool calls accumulated: #{accumulated_tool_calls.length}" }
 
     # Handle tool calls if any were detected
     if accumulated_tool_calls.any?

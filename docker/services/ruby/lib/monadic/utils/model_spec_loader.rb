@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'extra_logger'
+
 module ModelSpecLoader
   extend self
 
@@ -83,7 +85,7 @@ module ModelSpecLoader
         
         # Debug: Check for any remaining semicolons
         if json_content.include?(';')
-          STDERR.puts "[Model Spec Debug] JSON still contains semicolon after processing" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "[Model Spec Debug] JSON still contains semicolon after processing" }
           json_content = json_content.gsub(';', '')
         end
         
@@ -103,10 +105,8 @@ module ModelSpecLoader
         user_spec = JSON.parse(File.read(user_path))
         merged_spec = deep_merge(default_spec, user_spec)
         
-        if CONFIG["EXTRA_LOGGING"]
-          STDERR.puts "[Model Spec] Loaded user models from #{user_path}"
-          STDERR.puts "[Model Spec] Merged #{user_spec.keys.size} custom model definitions"
-        end
+        Monadic::Utils::ExtraLogger.log { "[Model Spec] Loaded user models from #{user_path}" }
+        Monadic::Utils::ExtraLogger.log { "[Model Spec] Merged #{user_spec.keys.size} custom model definitions" }
         
         merged_spec
       rescue JSON::ParserError => e
@@ -117,7 +117,7 @@ module ModelSpecLoader
         default_spec
       end
     else
-      STDERR.puts "[Model Spec] Using default models (no custom models.json found at #{user_path})" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[Model Spec] Using default models (no custom models.json found at #{user_path})" }
       default_spec
     end
   end

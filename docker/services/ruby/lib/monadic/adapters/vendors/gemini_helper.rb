@@ -14,6 +14,7 @@ require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 require_relative "../../utils/system_defaults"
 require_relative "../../utils/ssl_configuration"
+require_relative "../../utils/extra_logger"
 
 if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
@@ -85,12 +86,7 @@ module GeminiHelper
         msg["role"] == "user" && msg["images"] && msg["images"].any?
       }
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Gemini3Preview: Checking for user-uploaded images"
-          f.puts "  has_uploaded_images: #{has_uploaded_images}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Checking for user-uploaded images\n  has_uploaded_images: #{has_uploaded_images}" }
     end
 
     # Auto-attach last generated image (for iterative editing)
@@ -119,22 +115,13 @@ module GeminiHelper
           "name" => session[:gemini3_last_image]
         }
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}"
-            f.puts "  This makes iterative editing work like 'editing uploaded image'"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Auto-attached last generated image: #{session[:gemini3_last_image]}\n  This makes iterative editing work like 'editing uploaded image'" }
 
         # Clear after attaching (one-time use)
         session[:gemini3_last_image] = nil
         # Don't clear duplicate flag here - it's managed by process_functions
       else
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] Gemini3Preview: Last generated image file not found: #{image_path}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Last generated image file not found: #{image_path}" }
         # Clear the reference since file doesn't exist
         session[:gemini3_last_image] = nil
       end
@@ -144,56 +131,46 @@ module GeminiHelper
     inline_images = []
     if images && images.is_a?(Array)
       inline_images = images
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Using explicit images param (#{inline_images.size} image(s))" }
     elsif session && session[:messages]
       # Select user messages that have non-empty images array
       user_messages_with_images = session[:messages].select { |msg|
         msg["role"] == "user" && msg["images"] && msg["images"].any?
       }
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Gemini3Preview: Session check"
-          f.puts "  Total messages: #{session[:messages].size}"
-          f.puts "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"
-
-          # Debug: Show structure of messages
-          session[:messages].each_with_index do |msg, idx|
-            img_count = msg["images"]&.size || 0
-            has_actual_images = msg["images"]&.any? || false
-            f.puts "  Message #{idx}: role=#{msg["role"]}, images_count=#{img_count}, has_actual_images=#{has_actual_images}"
-          end
+      Monadic::Utils::ExtraLogger.log {
+        lines = ["Gemini3Preview: Session check",
+                 "  Total messages: #{session[:messages].size}",
+                 "  User messages with NON-EMPTY images: #{user_messages_with_images.size}"]
+        session[:messages].each_with_index do |msg, idx|
+          img_count = msg["images"]&.size || 0
+          has_actual_images = msg["images"]&.any? || false
+          lines << "  Message #{idx}: role=#{msg["role"]}, images_count=#{img_count}, has_actual_images=#{has_actual_images}"
         end
-      end
+        lines.join("\n")
+      }
 
       if user_messages_with_images.any?
         inline_images = user_messages_with_images.last["images"]
 
         # Debug logging
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "  Latest message images type: #{inline_images.class}"
-            f.puts "  Latest message images value: #{inline_images.inspect[0..200]}"
-            if inline_images && inline_images.respond_to?(:size)
-              f.puts "  Found #{inline_images.size} image(s) in latest message"
-              inline_images.each_with_index do |img, idx|
-                img_name = img["name"] || img[:name] || "unnamed"
-                data_preview = (img["data"] || img[:data] || "")[0..50]
-                f.puts "  Image #{idx + 1}: #{img_name} (data: #{data_preview}...)"
-              end
-            else
-              f.puts "  inline_images is nil or not an array!"
+        Monadic::Utils::ExtraLogger.log {
+          lines = ["  Latest message images type: #{inline_images.class}",
+                   "  Latest message images value: #{inline_images.inspect[0..200]}"]
+          if inline_images && inline_images.respond_to?(:size)
+            lines << "  Found #{inline_images.size} image(s) in latest message"
+            inline_images.each_with_index do |img, idx|
+              img_name = img["name"] || img[:name] || "unnamed"
+              data_preview = (img["data"] || img[:data] || "")[0..50]
+              lines << "  Image #{idx + 1}: #{img_name} (data: #{data_preview}...)"
             end
+          else
+            lines << "  inline_images is nil or not an array!"
           end
-        end
-      elsif CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "  No user messages with images found"
-        end
+          lines.join("\n")
+        }
+      else
+        Monadic::Utils::ExtraLogger.log { "  No user messages with images found" }
       end
     end
 
@@ -236,20 +213,19 @@ module GeminiHelper
     }
 
     # Debug: Log request details
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] Gemini3Preview API Request:"
-        f.puts "  Model: #{model_id}"
-        f.puts "  Parts count: #{parts.size}"
-        parts.each_with_index do |part, idx|
-          if part[:text]
-            f.puts "  Part #{idx + 1}: text (length: #{part[:text].length})"
-          elsif part[:inline_data]
-            f.puts "  Part #{idx + 1}: image (mime: #{part[:inline_data][:mime_type]}, data length: #{part[:inline_data][:data].length})"
-          end
+    Monadic::Utils::ExtraLogger.log {
+      lines = ["Gemini3Preview API Request:",
+               "  Model: #{model_id}",
+               "  Parts count: #{parts.size}"]
+      parts.each_with_index do |part, idx|
+        if part[:text]
+          lines << "  Part #{idx + 1}: text (length: #{part[:text].length})"
+        elsif part[:inline_data]
+          lines << "  Part #{idx + 1}: image (mime: #{part[:inline_data][:mime_type]}, data length: #{part[:inline_data][:data].length})"
         end
       end
-    end
+      lines.join("\n")
+    }
 
     endpoints = [
       "https://generativelanguage.googleapis.com/v1beta/models/#{model_id}:generateContent?key=#{api_key}"
@@ -304,13 +280,7 @@ module GeminiHelper
             "images" => [image_data]
           }
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] Gemini3Preview: Added generated image to session"
-              f.puts "  Filename: #{filename}"
-              f.puts "  Session now has #{session[:messages].size} messages"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Added generated image to session\n  Filename: #{filename}\n  Session now has #{session[:messages].size} messages" }
         end
 
         return { success: true, filename: filename, model: model, prompt: prompt }.to_json
@@ -591,19 +561,18 @@ module GeminiHelper
     if thinking_level_config
       thinking_level = options["reasoning_effort"] || options["thinking_level"] || thinking_level_config[:default]
       is_thinking_model = true
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        puts "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}"
-      end
+      Monadic::Utils::ExtraLogger.log { "GeminiHelper: Detected thinking-level model #{model} with thinking_level=#{thinking_level}" }
     end
     
     # Thinking budget via reasoning_effort (for models with thinking_budget support)
     if !is_thinking_model && (options["reasoning_effort"] || Monadic::Utils::ModelSpec.supports_thinking?(model) || model =~ /2\.5.*preview/i)
       is_thinking_model = true
-      if CONFIG && CONFIG["EXTRA_LOGGING"]
-        puts "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
+      Monadic::Utils::ExtraLogger.log {
+        msg = "GeminiHelper: Detected thinking model #{model} with reasoning_effort: #{options["reasoning_effort"]}"
         thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
-        puts "  Model thinking budget: #{thinking_budget.inspect}" if thinking_budget
-      end
+        msg += "\n  Model thinking budget: #{thinking_budget.inspect}" if thinking_budget
+        msg
+      }
     end
     
     # Set headers
@@ -729,10 +698,7 @@ module GeminiHelper
     target_uri = "#{endpoint}/models/#{model}:generateContent?key=#{api_key}"
     
     # Debug logging for SecondOpinion
-    if CONFIG && CONFIG["EXTRA_LOGGING"]
-      puts "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}"
-      puts "GeminiHelper send_query: Full URI=#{target_uri.gsub(/key=.*/, 'key=***')}"
-    end
+    Monadic::Utils::ExtraLogger.log { "GeminiHelper send_query: Model=#{model}, Endpoint=#{endpoint}\nGeminiHelper send_query: Full URI=#{target_uri.gsub(/key=.*/, 'key=***')}" }
     
     http = HTTP.headers(headers)
     
@@ -768,10 +734,7 @@ module GeminiHelper
         parsed_response = JSON.parse(response.body)
         
         # Debug logging for second opinion
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "GeminiHelper send_query: Full response structure:"
-          puts JSON.pretty_generate(parsed_response)
-        end
+        Monadic::Utils::ExtraLogger.log_json("GeminiHelper send_query: Full response structure", parsed_response)
         
         # Extract text from standard response format
         if parsed_response["candidates"] && 
@@ -863,13 +826,13 @@ module GeminiHelper
         return fallback_text if fallback_text && !fallback_text.to_s.strip.empty?
 
         # Unable to extract text from response - log the structure
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          puts "GeminiHelper send_query ERROR: Unable to extract text. Response structure:"
-          puts "Candidates: #{parsed_response["candidates"]&.inspect}"
+        Monadic::Utils::ExtraLogger.log {
+          msg = "GeminiHelper send_query ERROR: Unable to extract text. Response structure:\nCandidates: #{parsed_response["candidates"]&.inspect}"
           if parsed_response["candidates"] && parsed_response["candidates"][0]
-            puts "First candidate: #{parsed_response["candidates"][0].inspect}"
+            msg += "\nFirst candidate: #{parsed_response["candidates"][0].inspect}"
           end
-        end
+          msg
+        }
         return Monadic::Utils::ErrorFormatter.parsing_error(
           provider: "Gemini",
           message: "Unable to extract text from response"
@@ -1180,13 +1143,7 @@ module GeminiHelper
     # Special handling for Gemini 3 Pro Image Preview: clear tool call history
     # to prevent orchestration model from seeing previous results and making duplicate calls
     if @clear_orchestration_history
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Gemini3Preview: Clearing orchestration history in api_request"
-          f.puts "  Original context size: #{context.size}"
-          f.puts "  self.class: #{self.class.name}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Clearing orchestration history in api_request\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
 
       # Keep only: first message (system) + last user message
       # This prevents orchestration model from seeing tool results that trigger duplicates
@@ -1198,17 +1155,9 @@ module GeminiHelper
         context << last_user_msg unless first_msg == last_user_msg
         context.each { |msg| msg["active"] = true }
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "  Filtered context size: #{context.size}"
-            f.puts "  First message role: #{first_msg["role"]}"
-            f.puts "  Last user message role: #{last_user_msg["role"]}"
-          end
-        end
-      elsif CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "  WARNING: Could not filter context (missing first or last user message)"
-        end
+        Monadic::Utils::ExtraLogger.log { "  Filtered context size: #{context.size}\n  First message role: #{first_msg["role"]}\n  Last user message role: #{last_user_msg["role"]}" }
+      else
+        Monadic::Utils::ExtraLogger.log { "  WARNING: Could not filter context (missing first or last user message)" }
       end
     end
 
@@ -1300,10 +1249,8 @@ module GeminiHelper
       # Check what tools have been called so far
       tool_names = obj["tool_results"].map { |r| r.dig("functionResponse", "name") }.compact
 
-      if CONFIG["EXTRA_LOGGING"] && is_jupyter_app
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts "[#{Time.now}] [Jupyter Termination Check] role=tool, tool_names=#{tool_names.inspect}"
-        end
+      if is_jupyter_app
+        Monadic::Utils::ExtraLogger.log { "[Jupyter Termination Check] role=tool, tool_names=#{tool_names.inspect}" }
       end
 
       # Gemini 3+ fully supports function calling with monadic mode
@@ -1361,13 +1308,7 @@ module GeminiHelper
           should_stop = true
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[#{Time.now}] [Jupyter Termination] action_tool_names=#{action_tool_names.inspect}"
-            log.puts "[#{Time.now}] [Jupyter Termination] has_cell_operations=#{has_cell_operations}, has_execution=#{has_execution}, action_tool_count=#{action_tool_count}"
-            log.puts "[#{Time.now}] [Jupyter Termination] should_stop=#{should_stop}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Jupyter Termination] action_tool_names=#{action_tool_names.inspect}\n[Jupyter Termination] has_cell_operations=#{has_cell_operations}, has_execution=#{has_execution}, action_tool_count=#{action_tool_count}\n[Jupyter Termination] should_stop=#{should_stop}" }
 
         if should_stop
           # Disable tools completely to force text response
@@ -1612,10 +1553,10 @@ module GeminiHelper
       elsif is_thinking_model && reasoning_effort
         model = obj["model"]
 
-        if CONFIG && CONFIG["EXTRA_LOGGING"]
-          thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
-          puts "GeminiHelper api_request: Model thinking budget - #{thinking_budget.inspect}" if thinking_budget
-        end
+        Monadic::Utils::ExtraLogger.log {
+          tb = Monadic::Utils::ModelSpec.get_thinking_budget(model)
+          "GeminiHelper api_request: Model thinking budget - #{tb.inspect}" if tb
+        }
 
         user_max_tokens = max_tokens || 8192
         thinking_budget = Monadic::Utils::ModelSpec.get_thinking_budget(model)
@@ -1886,12 +1827,7 @@ module GeminiHelper
           tools_array << gemini_web_search_tool
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[#{Time.now}] [Gemini Web Search] Added gemini_web_search tool to #{app}"
-            log.puts "[#{Time.now}] [Gemini Web Search] Total tools: #{tools_array.length}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Gemini Web Search] Added gemini_web_search tool to #{app}\n[Gemini Web Search] Total tools: #{tools_array.length}" }
 
         body["tools"] = [{"function_declarations" => tools_array}]
         body["toolConfig"] = {
@@ -1943,21 +1879,22 @@ module GeminiHelper
     end
 
     # Debug: Log tools status to extra.log for Jupyter apps
-    if defined?(MonadicApp::EXTRA_LOG_FILE) && app.to_s.include?("Jupyter")
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[#{Time.now}] [Gemini Jupyter Debug] role=#{role}, tool_capable=#{tool_capable}"
-        log.puts "[#{Time.now}] [Gemini Jupyter Debug] app_tools count: #{app_tools.is_a?(Array) ? app_tools.length : (app_tools.is_a?(Hash) ? app_tools.dig('function_declarations')&.length : 'N/A')}"
-        log.puts "[#{Time.now}] [Gemini Jupyter Debug] body has tools: #{body.key?('tools')}, tools count: #{body['tools']&.length || 0}"
+    if app.to_s.include?("Jupyter")
+      Monadic::Utils::ExtraLogger.log {
+        lines = ["[Gemini Jupyter Debug] role=#{role}, tool_capable=#{tool_capable}",
+                 "[Gemini Jupyter Debug] app_tools count: #{app_tools.is_a?(Array) ? app_tools.length : (app_tools.is_a?(Hash) ? app_tools.dig('function_declarations')&.length : 'N/A')}",
+                 "[Gemini Jupyter Debug] body has tools: #{body.key?('tools')}, tools count: #{body['tools']&.length || 0}"]
         if body["tools"]
           body["tools"].each_with_index do |tool, idx|
             if tool.is_a?(Hash) && tool["function_declarations"]
-              log.puts "[#{Time.now}] [Gemini Jupyter Debug] tool[#{idx}] has #{tool['function_declarations'].length} function declarations"
+              lines << "[Gemini Jupyter Debug] tool[#{idx}] has #{tool['function_declarations'].length} function declarations"
             else
-              log.puts "[#{Time.now}] [Gemini Jupyter Debug] tool[#{idx}] keys: #{tool.keys rescue 'N/A'}"
+              lines << "[Gemini Jupyter Debug] tool[#{idx}] keys: #{tool.keys rescue 'N/A'}"
             end
           end
         end
-      end
+        lines.join("\n")
+      }
     end
 
     # Force toolConfig AUTO for tool-capable models on user turns
@@ -1966,12 +1903,8 @@ module GeminiHelper
     }
 
     # Debug: Log final tool configuration for Research Assistant
-    if CONFIG["EXTRA_LOGGING"] && app.to_s.include?("Research")
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[#{Time.now}] [Gemini Research Debug] Final check: has_function_declarations_in_body=#{has_function_declarations_in_body}"
-        log.puts "[#{Time.now}] [Gemini Research Debug] body['tools'] = #{body['tools']&.map { |t| t.keys }.inspect}"
-        log.puts "[#{Time.now}] [Gemini Research Debug] body['toolConfig'] = #{body['toolConfig'].inspect}"
-      end
+    if app.to_s.include?("Research")
+      Monadic::Utils::ExtraLogger.log { "[Gemini Research Debug] Final check: has_function_declarations_in_body=#{has_function_declarations_in_body}\n[Gemini Research Debug] body['tools'] = #{body['tools']&.map { |t| t.keys }.inspect}\n[Gemini Research Debug] body['toolConfig'] = #{body['toolConfig'].inspect}" }
     end
 
     if role != "tool" && tool_capable && has_function_declarations_in_body
@@ -2072,12 +2005,8 @@ module GeminiHelper
         timeout: true
       )
     else
-      error_details = if CONFIG["EXTRA_LOGGING"]
-        "Unexpected error: #{error.message}\nBacktrace: #{error.backtrace[0..5].join("\n")}"
-      else
-        "Unexpected error: #{error.message}"
-      end
-      STDERR.puts "[Gemini Error] #{error_details}" if CONFIG["EXTRA_LOGGING"]
+      error_details = "Unexpected error: #{error.message}"
+      Monadic::Utils::ExtraLogger.log { "[Gemini Error] #{error_details}\nBacktrace: #{error.backtrace[0..5].join("\n")}" }
       Monadic::Utils::ErrorFormatter.api_error(
         provider: "Gemini",
         message: error_details
@@ -2093,12 +2022,7 @@ module GeminiHelper
   public
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
     
     # For media generator apps, we'll need special processing to remove code blocks
     is_media_generator = app.to_s.include?("image_generator") || 
@@ -2149,11 +2073,7 @@ module GeminiHelper
         begin
           json_obj = JSON.parse(json)
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts(JSON.pretty_generate(json_obj))
-            end
-          end
+          Monadic::Utils::ExtraLogger.log_json("Gemini streaming chunk", json_obj)
 
           # Capture usage metadata if available
           # Gemini may return usageMetadata with keys like promptTokenCount and candidatesTokenCount
@@ -2208,13 +2128,10 @@ module GeminiHelper
             when "MALFORMED_FUNCTION_CALL"
               # Gemini returned a malformed function call
               # With Gemini 3+ models, this should rarely occur
-              if CONFIG["EXTRA_LOGGING"]
+              Monadic::Utils::ExtraLogger.log {
                 finish_message = candidate["finishMessage"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts "\n[#{Time.now}] [MALFORMED_FUNCTION_CALL]"
-                  log.puts "  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
-                end
-              end
+                "[MALFORMED_FUNCTION_CALL]\n  finishMessage (first 300 chars): #{finish_message&.[](0..300)}"
+              }
 
               # If fragments were already streamed, complete the stream
               if fragment_sequence > 0
@@ -2376,13 +2293,7 @@ module GeminiHelper
         # If we've already processed cell operations, skip further tool calls
         jupyter_cell_tools = ["add_jupyter_cells", "update_jupyter_cell", "delete_jupyter_cell"]
         if existing_tool_names.any? { |name| jupyter_cell_tools.include?(name) }
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts "[#{Time.now}] [Jupyter Early Termination] Skipping tool calls - cell operations already completed"
-              log.puts "[#{Time.now}] [Jupyter Early Termination] existing_tool_names=#{existing_tool_names.inspect}"
-              log.puts "[#{Time.now}] [Jupyter Early Termination] new tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[Jupyter Early Termination] Skipping tool calls - cell operations already completed\n[Jupyter Early Termination] existing_tool_names=#{existing_tool_names.inspect}\n[Jupyter Early Termination] new tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}" }
           # Build final content from tool results
           final_content = result.any? ? result.join("") : "Notebook operations completed."
 
@@ -2465,28 +2376,15 @@ module GeminiHelper
       # Append URL context metadata HTML if present
       if @url_context_html
         final_content += "\n\n" + @url_context_html
-        if defined?(MonadicApp::EXTRA_LOG_FILE)
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[Gemini] Appended URL context metadata HTML to final response"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Appended URL context metadata HTML to final response" }
       end
       
       # Append grounding metadata HTML if present
       if @grounding_html
         final_content += "\n\n" + @grounding_html
-        if defined?(MonadicApp::EXTRA_LOG_FILE)
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[Gemini] Appended grounding metadata HTML to final response"
-            log.puts "[Gemini] Final content length: #{final_content.length}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Gemini] Appended grounding metadata HTML to final response\n[Gemini] Final content length: #{final_content.length}" }
       else
-        if defined?(MonadicApp::EXTRA_LOG_FILE)
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[Gemini] No grounding HTML to append"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[Gemini] No grounding HTML to append" }
       end
       
       response_data = {
@@ -2522,12 +2420,7 @@ module GeminiHelper
                        (session[:parameters]["app_name"] && session[:parameters]["app_name"].to_s.include?("Jupyter"))
 
       # Debug logging for empty result handling
-      if defined?(MonadicApp::EXTRA_LOG_FILE)
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts "[#{Time.now}] [Gemini Empty Result] app=#{app}, is_jupyter_app=#{is_jupyter_app}"
-          log.puts "[#{Time.now}] [Gemini Empty Result] tool_results count: #{session[:parameters]['tool_results']&.length || 0}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[Gemini Empty Result] app=#{app}, is_jupyter_app=#{is_jupyter_app}\n[Gemini Empty Result] tool_results count: #{session[:parameters]['tool_results']&.length || 0}" }
 
       if is_jupyter_app
         tool_results = session[:parameters]["tool_results"] || []
@@ -2541,15 +2434,14 @@ module GeminiHelper
         end
 
         # Debug logging
-        if defined?(MonadicApp::EXTRA_LOG_FILE)
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[#{Time.now}] [Gemini Empty Result] has_successful_jupyter_result=#{has_successful_jupyter_result}"
-            tool_results.each_with_index do |r, idx|
-              content = r.dig("functionResponse", "response", "content")
-              log.puts "[#{Time.now}] [Gemini Empty Result] tool_result[#{idx}] content preview: #{content.to_s[0..100]}..."
-            end
+        Monadic::Utils::ExtraLogger.log {
+          lines = ["[Gemini Empty Result] has_successful_jupyter_result=#{has_successful_jupyter_result}"]
+          tool_results.each_with_index do |r, idx|
+            content = r.dig("functionResponse", "response", "content")
+            lines << "[Gemini Empty Result] tool_result[#{idx}] content preview: #{content.to_s[0..100]}..."
           end
-        end
+          lines.join("\n")
+        }
 
         if has_successful_jupyter_result
           # Extract notebook info from tool results
@@ -2605,12 +2497,7 @@ module GeminiHelper
 
   # Build HTML for URL context metadata display
   def build_url_context_html(url_context_data)
-    if defined?(MonadicApp::EXTRA_LOG_FILE)
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[Gemini] Found URL Context metadata:"
-        log.puts "  - URL metadata count: #{url_context_data["urlMetadata"]&.length}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[Gemini] Found URL Context metadata:\n  - URL metadata count: #{url_context_data["urlMetadata"]&.length}" }
 
     return nil unless url_context_data["urlMetadata"] && !url_context_data["urlMetadata"].empty?
 
@@ -2639,24 +2526,14 @@ module GeminiHelper
 
     url_info += "</ul></div></details></div>"
 
-    if defined?(MonadicApp::EXTRA_LOG_FILE)
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[Gemini] URL Context metadata HTML stored for final response"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[Gemini] URL Context metadata HTML stored for final response" }
 
     url_info
   end
 
   # Build HTML for grounding (web search) metadata display
   def build_grounding_metadata_html(grounding_data, source: "candidate")
-    if defined?(MonadicApp::EXTRA_LOG_FILE)
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[Gemini] Found grounding metadata at #{source} level:"
-        log.puts "  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}"
-        log.puts "  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[Gemini] Found grounding metadata at #{source} level:\n  - webSearchQueries: #{grounding_data["webSearchQueries"]&.inspect}\n  - groundingChunks count: #{grounding_data["groundingChunks"]&.length}" }
 
     return nil unless grounding_data["webSearchQueries"] && !grounding_data["webSearchQueries"].empty?
 
@@ -2689,12 +2566,7 @@ module GeminiHelper
 
     search_info += "</details></div>"
 
-    if defined?(MonadicApp::EXTRA_LOG_FILE)
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts "[Gemini] Grounding metadata HTML stored for final response (#{source} level)"
-        log.puts "[Gemini] HTML preview: #{search_info[0..200]}..."
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[Gemini] Grounding metadata HTML stored for final response (#{source} level)\n[Gemini] HTML preview: #{search_info[0..200]}..." }
 
     search_info
   end
@@ -2710,11 +2582,7 @@ module GeminiHelper
       begin
         react_json = JSON.parse(stripped_fragment)
         if react_json.is_a?(Hash)
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts "[#{Time.now}] Gemini ReAct: keys=#{react_json.keys}, action_input_class=#{react_json["action_input"].class}"
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Gemini ReAct: keys=#{react_json.keys}, action_input_class=#{react_json["action_input"].class}" }
 
           # Skip only completely empty JSON objects
           return nil if react_json.empty?
@@ -2815,11 +2683,7 @@ module GeminiHelper
       block&.call res
       { result: [fallback_greeting] }
     elsif app_name.include?("JupyterNotebook") && app_name.include?("Gemini")
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] texts.empty? fallback: JupyterNotebook Gemini branch entered")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] texts.empty? fallback: JupyterNotebook Gemini branch entered" }
       tool_results = session[:parameters]["tool_results"] || []
       has_successful_jupyter_result = tool_results.any? do |r|
         content = r.dig("functionResponse", "response", "content")
@@ -2911,25 +2775,19 @@ module GeminiHelper
       ]
       is_jupyter_tool = tool_calls.any? { |tc| jupyter_tools.include?(tc["name"]) }
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts "[#{Time.now}] [Jupyter Debug] is_jupyter_tool=#{is_jupyter_tool}, tool_result_content='#{tool_result_content[0..100]}'"
-          log.puts "[#{Time.now}] [Jupyter Debug] tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[Jupyter Debug] is_jupyter_tool=#{is_jupyter_tool}, tool_result_content='#{tool_result_content[0..100]}'\n[Jupyter Debug] tool_calls=#{tool_calls.map { |tc| tc['name'] }.inspect}" }
 
       if is_jupyter_tool && tool_result_content == "[No additional content received from function call]"
         session_tool_results = session[:parameters]["tool_results"] || []
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts "[#{Time.now}] [Jupyter Debug] session_tool_results count=#{session_tool_results.length}"
-            session_tool_results.each_with_index do |r, idx|
-              content = r.dig("functionResponse", "response", "content").to_s[0..200]
-              log.puts "[#{Time.now}] [Jupyter Debug] result[#{idx}]: #{content}"
-            end
+        Monadic::Utils::ExtraLogger.log {
+          lines = ["[Jupyter Debug] session_tool_results count=#{session_tool_results.length}"]
+          session_tool_results.each_with_index do |r, idx|
+            content = r.dig("functionResponse", "response", "content").to_s[0..200]
+            lines << "[Jupyter Debug] result[#{idx}]: #{content}"
           end
-        end
+          lines.join("\n")
+        }
 
         jupyter_result = session_tool_results.reverse.find do |r|
           content = r.dig("functionResponse", "response", "content")
@@ -3060,10 +2918,11 @@ module GeminiHelper
     # ensures the orchestration model doesn't see previous tool calls
 
     # Log tool calls for debugging
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Tools] Processing #{tool_calls.length} tool calls:"
-      tool_calls.each { |tc| puts "  - #{tc['name']} with args: #{tc['args'].inspect[0..200]}" }
-    end
+    Monadic::Utils::ExtraLogger.log {
+      lines = ["[DEBUG Tools] Processing #{tool_calls.length} tool calls:"]
+      tool_calls.each { |tc| lines << "  - #{tc['name']} with args: #{tc['args'].inspect[0..200]}" }
+      lines.join("\n")
+    }
     
     # Process each tool call
     tool_calls.each do |tool_call|
@@ -3165,12 +3024,7 @@ module GeminiHelper
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
-                    f.puts "  Filename: #{filename}"
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
@@ -3192,12 +3046,7 @@ module GeminiHelper
                 res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
                 block&.call res
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "[#{Time.now}] Gemini: Sent image HTML directly, skipping recursive api_request"
-                    f.puts "  Filename: #{filename}"
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "Gemini: Sent image HTML directly, skipping recursive api_request\n  Filename: #{filename}" }
 
                 # Return the HTML as the result
                 return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => image_html } }] }]
@@ -3234,12 +3083,7 @@ module GeminiHelper
             res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
             block&.call res
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] Gemini: Sent video HTML directly, skipping recursive api_request"
-                f.puts "  Filename: #{video_filename}"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "Gemini: Sent video HTML directly, skipping recursive api_request\n  Filename: #{video_filename}" }
 
             # Return the HTML as the result
             return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => video_html } }] }]
@@ -3259,12 +3103,7 @@ module GeminiHelper
             res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }
             block&.call res
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] Gemini: Media generation returned error, skipping recursive api_request"
-                f.puts "  Error: #{error_msg}"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "Gemini: Media generation returned error, skipping recursive api_request\n  Error: #{error_msg}" }
 
             return [{ "choices" => [{ "finish_reason" => "stop", "message" => { "content" => error_msg } }] }]
           rescue JSON::ParserError
@@ -3340,9 +3179,7 @@ module GeminiHelper
       raise NoMethodError, "Function '#{function_name}' not found in app or helper"
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
 
     function_return
   end
@@ -3424,12 +3261,7 @@ module GeminiHelper
             session[:gemini3_last_image] = generated_filename
             session[:gemini3_duplicate_check] = true
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts "[#{Time.now}] Gemini3Preview: Saved last generated image: #{generated_filename}"
-                f.puts "  Set duplicate check flag"
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Saved last generated image: #{generated_filename}\n  Set duplicate check flag" }
           else
             error_message = parsed_json["error"]
             image_success = false
@@ -3703,23 +3535,12 @@ module GeminiHelper
                 
                 actual_image_path = temp_filename  # Use just the filename, not full path
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "[#{Time.now}] Temp file created successfully:"
-                    f.puts "  temp_file_path: #{temp_file_path}"
-                    f.puts "  actual_image_path: #{actual_image_path}"
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "Temp file created successfully:\n  temp_file_path: #{temp_file_path}\n  actual_image_path: #{actual_image_path}" }
               rescue StandardError => e
                 STDERR.puts "ERROR: Failed to process image: #{e.message}"
                 actual_image_path = nil
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                    f.puts "[#{Time.now}] ERROR creating temp file: #{e.message}"
-                    f.puts "  #{e.backtrace.first(3).join("\n  ")}"
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "ERROR creating temp file: #{e.message}\n  #{e.backtrace.first(3).join("\n  ")}" }
               end
             else
               STDERR.puts "ERROR: Could not create temporary file - no accessible data directory"
@@ -3749,14 +3570,7 @@ module GeminiHelper
       final_image_path = session[:gemini_last_video_image]
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] Final image path decision:"
-        f.puts "  actual_image_path (from session): #{actual_image_path.inspect}"
-        f.puts "  image_path (from LLM param): #{image_path.inspect}"
-        f.puts "  final_image_path (used): #{final_image_path.inspect}"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Final image path decision:\n  actual_image_path (from session): #{actual_image_path.inspect}\n  image_path (from LLM param): #{image_path.inspect}\n  final_image_path (used): #{final_image_path.inspect}" }
 
     # Construct the command
     # Use shellwords to properly escape all parameters
@@ -3992,13 +3806,7 @@ module GeminiHelper
           original_image = images.first # Fallback to first image if no non-mask found
         end
         
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] Gemini Edit: Using natural language editing"
-            f.puts "  Image: #{original_image['name']}"
-            f.puts "  Edit prompt: #{prompt}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "Gemini Edit: Using natural language editing\n  Image: #{original_image['name']}\n  Edit prompt: #{prompt}" }
         
         if original_image && original_image["data"] && original_image["data"].start_with?("data:image/")
           # Add original image

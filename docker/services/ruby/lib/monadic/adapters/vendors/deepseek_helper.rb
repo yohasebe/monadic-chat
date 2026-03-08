@@ -1,6 +1,7 @@
 # frozen_string_literal: false
 
 require_relative "../../utils/interaction_utils"
+require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require 'strscan'
 require 'securerandom'
@@ -247,11 +248,7 @@ module DeepSeekHelper
   end
 
   def api_request(role, session, call_depth: 0, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [DeepSeek] api_request called: role=#{role}, call_depth=#{call_depth}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[DeepSeek] api_request called: role=#{role}, call_depth=#{call_depth}" }
 
     # Reset parallel dispatch guard and call depth for new user turn
     if role == "user"
@@ -423,12 +420,7 @@ module DeepSeekHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing query (Call depth: #{call_depth})\n#{JSON.pretty_generate(query)}" }
 
     obj = session[:parameters]
 
@@ -454,10 +446,8 @@ module DeepSeekHelper
         buffer << chunk
 
         # Debug: Log first few chunks
-        if chunk_count <= 3 && CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts("Chunk #{chunk_count}: #{chunk[0..100]}")
-          end
+        if chunk_count <= 3
+          Monadic::Utils::ExtraLogger.log { "Chunk #{chunk_count}: #{chunk[0..100]}" }
         end
 
         if buffer.valid_encoding? == false
@@ -484,11 +474,7 @@ module DeepSeekHelper
             begin
               json = JSON.parse(json_data)
 
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                  f.puts(JSON.pretty_generate(json))
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { JSON.pretty_generate(json) }
 
               # Process finish reason
               finish_reason = json.dig("choices", 0, "finish_reason")
@@ -557,13 +543,7 @@ module DeepSeekHelper
 
                     if dsml_fc_count > 2 || (dsml_invoke_count > 3 && invoke_close_count == 0)
                       # Abort streaming early - model is in infinite loop
-                      if CONFIG["EXTRA_LOGGING"]
-                        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                          log.puts("!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!")
-                          log.puts("  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}")
-                          log.puts("  Aborting stream to prevent long wait")
-                        end
-                      end
+                      Monadic::Utils::ExtraLogger.log { "!!! EARLY ABORT: Detected DSML infinite loop during streaming !!!\n  function_calls blocks: #{dsml_fc_count}, invoke tags: #{dsml_invoke_count}, close tags: #{invoke_close_count}\n  Aborting stream to prevent long wait" }
                       # Set a flag to break out of the streaming loop
                       @dsml_abort_streaming = true
                       break
@@ -652,13 +632,10 @@ module DeepSeekHelper
       end
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Total chunks received: #{chunk_count}")
-        if @dsml_abort_streaming
-          f.puts("!!! Streaming was ABORTED due to malformed DSML loop !!!")
-        end
-      end
+    Monadic::Utils::ExtraLogger.log do
+      msg = "Total chunks received: #{chunk_count}"
+      msg += "\n!!! Streaming was ABORTED due to malformed DSML loop !!!" if @dsml_abort_streaming
+      msg
     end
 
     text_result = texts.empty? ? nil : texts.first[1]
@@ -727,11 +704,7 @@ module DeepSeekHelper
     skip_tools = obj["_skip_tools_next_request"] == true
     if skip_tools
       obj.delete("_skip_tools_next_request")
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DeepSeek] Skipping tools due to terminal tool in previous turn")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Skipping tools due to terminal tool in previous turn" }
     end
 
     unless skip_tools
@@ -796,13 +769,7 @@ module DeepSeekHelper
 
     DebugHelper.debug("DeepSeek: Detected DSML format in response (model should use native tool_calls)", category: :api, level: :warn)
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("=== DeepSeek DSML Raw Content (first 500 chars) ===")
-        log.puts(content[0..500])
-        log.puts("=== End DSML Raw Content ===")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "=== DeepSeek DSML Raw Content (first 500 chars) ===\n#{content[0..500]}\n=== End DSML Raw Content ===" }
 
     # Normalize DSML variations to a standard format
     normalized_content = content.dup
@@ -819,15 +786,7 @@ module DeepSeekHelper
     alt_close_count = content.scan(/<\/[｜|]DSML[｜|]invoke>/).length
     total_close_count = dsml_close_invoke_count + alt_close_count
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("=== DSML Tag Analysis ===")
-        log.puts("  invoke open tags: #{dsml_invoke_count}")
-        log.puts("  invoke close tags: #{total_close_count}")
-        log.puts("  function_calls tags: #{dsml_function_calls_count}")
-        log.puts("=========================")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "=== DSML Tag Analysis ===\n  invoke open tags: #{dsml_invoke_count}\n  invoke close tags: #{total_close_count}\n  function_calls tags: #{dsml_function_calls_count}\n=========================" }
 
     is_malformed = (dsml_invoke_count > 3 && total_close_count == 0) ||
                    (dsml_function_calls_count > 2)
@@ -854,20 +813,11 @@ module DeepSeekHelper
   end
 
   def handle_deepseek_malformed_dsml(content, text_result, call_depth, session, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("!!! MALFORMED DSML DETECTED !!!")
-        log.puts("  Call depth: #{call_depth}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "!!! MALFORMED DSML DETECTED !!!\n  Call depth: #{call_depth}" }
 
     max_dsml_retries = 4
     if call_depth < max_dsml_retries
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("  Action: Auto-retrying request (attempt #{call_depth + 1} of #{max_dsml_retries})")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "  Action: Auto-retrying request (attempt #{call_depth + 1} of #{max_dsml_retries})" }
 
       res = { "type" => "wait", "content" => "<i class='fas fa-redo'></i> RETRYING TOOL CALL (#{call_depth + 1}/#{max_dsml_retries})" }
       block&.call res
@@ -877,11 +827,7 @@ module DeepSeekHelper
       return api_request("user", session, call_depth: call_depth + 1, &block)
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("  Action: All retries exhausted, returning error to user")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "  Action: All retries exhausted, returning error to user" }
 
     clean_content = content.gsub(/<[｜|]DSML[｜|][^>]*>/, "").gsub(/<\/[｜|]DSML[｜|][^>]*>/, "").strip
     error_notice = "⚠️ **Tool Call Issue**: The AI attempted to use a tool but encountered repeated formatting errors. Please try starting a new conversation.\n\n"
@@ -1101,20 +1047,11 @@ module DeepSeekHelper
           }
           session[:messages] << assistant_message
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DeepSeek] Saved assistant message before tool call: #{content_before_tools.length} chars, mid=#{request_id}, app_name=#{app_name}")
-              log.puts("[#{Time.now}] [DeepSeek] session[:messages] now has #{session[:messages].size} messages")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DeepSeek] Saved assistant message before tool call: #{content_before_tools.length} chars, mid=#{request_id}, app_name=#{app_name}\n[DeepSeek] session[:messages] now has #{session[:messages].size} messages" }
 
           html_res = { "type" => "html", "content" => assistant_message, "more_coming" => true }
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DeepSeek] Sending html message with more_coming=true, content length=#{content_before_tools.length}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DeepSeek] Sending html message with more_coming=true, content length=#{content_before_tools.length}" }
 
           block&.call html_res
 
@@ -1206,13 +1143,7 @@ module DeepSeekHelper
       return [res]
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("Response status: #{res.status}")
-        log.puts("Response headers: #{res.headers.to_h}")
-        log.puts("About to process streaming response...")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{res.headers.to_h}\nAbout to process streaming response..." }
 
     process_json_data(app: app, session: session, query: body,
                       res: res.body, call_depth: call_depth, &block)
@@ -1311,11 +1242,7 @@ module DeepSeekHelper
     # The terminal tool signals that the assistant's turn is complete
     # Making another request would cause empty response and "content_not_found" error
     if terminal_tool_called
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DeepSeek] Terminal tool called - sending DONE and ending turn")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] Terminal tool called - sending DONE and ending turn" }
       # Send DONE message to signal completion to frontend
       # This is necessary because previous html message may have had more_coming=true
       done_res = { "type" => "message", "content" => "DONE", "finish_reason" => "stop" }

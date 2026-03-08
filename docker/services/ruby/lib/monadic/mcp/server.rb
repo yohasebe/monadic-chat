@@ -9,6 +9,7 @@ require 'async/http/endpoint'
 require 'async/http/server'
 require 'protocol/rack'
 require_relative '../utils/debug_helper'
+require_relative '../utils/extra_logger'
 require_relative 'cache_invalidator'
 
 module Monadic
@@ -90,7 +91,7 @@ module Monadic
           end
         rescue => e
           puts "[MCP] Server error: #{e.message}"
-          puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
+          Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
           json_rpc_error(nil, "Internal error", INTERNAL_ERROR, e.message)
         end
       end
@@ -162,9 +163,9 @@ module Monadic
           # Cache the tools
           cache_tools(tools)
 
-          puts "[MCP] Built and cached #{tools.length} tools" if CONFIG["EXTRA_LOGGING"] == "true"
+          Monadic::Utils::ExtraLogger.log { "[MCP] Built and cached #{tools.length} tools" }
         else
-          puts "[MCP] Using cached tools (#{tools.length} tools)" if CONFIG["EXTRA_LOGGING"] == "true"
+          Monadic::Utils::ExtraLogger.log { "[MCP] Using cached tools (#{tools.length} tools)" }
         end
 
         json_rpc_response(id, { tools: tools })
@@ -198,7 +199,7 @@ module Monadic
           result = execute_app_tool(app_instance, actual_tool_name, arguments)
           json_rpc_response(id, result)
         rescue => e
-          puts "[MCP] Error executing tool #{tool_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"] == "true"
+          Monadic::Utils::ExtraLogger.log { "[MCP] Error executing tool #{tool_name}: #{e.message}" }
           json_rpc_error(id, "Tool execution failed", INTERNAL_ERROR, e.message)
         end
       end
@@ -238,7 +239,7 @@ module Monadic
             tools: tool_list
           }
 
-          puts "[MCP] Found #{tool_list.length} tools in app #{app_name}" if CONFIG["EXTRA_LOGGING"] == "true"
+          Monadic::Utils::ExtraLogger.log { "[MCP] Found #{tool_list.length} tools in app #{app_name}" }
         end
 
         apps
@@ -492,11 +493,11 @@ module Monadic
             server.run
           rescue => e
             puts "[MCP] Server error: #{e.message}"
-            puts e.backtrace.join("\n") if CONFIG["EXTRA_LOGGING"] == "true"
+            Monadic::Utils::ExtraLogger.log { e.backtrace.join("\n") }
             @@server_running = false
           ensure
             @@server_running = false
-            puts "[MCP] Server stopped" if CONFIG["EXTRA_LOGGING"] == "true"
+            Monadic::Utils::ExtraLogger.log { "[MCP] Server stopped" }
           end
         end
       end

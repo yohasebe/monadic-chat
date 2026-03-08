@@ -10,6 +10,7 @@ require_relative "../../utils/system_defaults"
 require_relative "../../utils/model_spec"
 require_relative "../base_vendor_helper"
 require_relative "../../utils/function_call_error_handler"
+require_relative "../../utils/extra_logger"
 
 module MistralHelper
   include BaseVendorHelper
@@ -516,12 +517,7 @@ module MistralHelper
     end
 
     # Log extra information if enabled
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("Processing Mistral query at #{Time.now} (Call depth: #{call_depth})")
-        log.puts(JSON.pretty_generate(body))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Processing Mistral query (Call depth: #{call_depth})\n#{JSON.pretty_generate(body)}" }
 
     begin
       res = http.timeout(connect: open_timeout,
@@ -529,12 +525,7 @@ module MistralHelper
                         read: read_timeout).post(target_uri, json: body)
 
       unless res.status.success?
-        begin
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}")
-          end
-        rescue StandardError
-        end
+        Monadic::Utils::ExtraLogger.log { "[Mistral] HTTP #{res.status} body: #{res.body.to_s[0,500]}" }
         error_text = nil
         err_json = nil
         begin
@@ -584,13 +575,7 @@ module MistralHelper
     end
 
     # Log response status if extra logging is enabled
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("Response status: #{res.status}")
-        log.puts("Response headers: #{res.headers.to_h}")
-        log.puts("About to process streaming response...")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "Response status: #{res.status}\nResponse headers: #{res.headers.to_h}\nAbout to process streaming response..." }
 
     # Process the response line by line
     buffer = ""
@@ -637,12 +622,7 @@ module MistralHelper
 
           # Check for errors
         if json["error"]
-          begin
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [Mistral] streaming error chunk: #{json['error'].inspect}")
-            end
-          rescue StandardError
-          end
+          Monadic::Utils::ExtraLogger.log { "[Mistral] streaming error chunk: #{json['error'].inspect}" }
           DebugHelper.debug("Mistral streaming error: #{json['error']['message'] || 'Unknown error'}", category: :api, level: :error)
           next
         end
@@ -896,12 +876,7 @@ module MistralHelper
     progressive_enabled = !!progressive_settings
 
     state_debug = session.dig(:progressive_tools, app.to_s)
-    begin
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [Mistral] progressive state before filter: #{state_debug.inspect}")
-      end
-    rescue StandardError
-    end
+    Monadic::Utils::ExtraLogger.log { "[Mistral] progressive state before filter: #{state_debug.inspect}" }
 
     if app_settings
       begin
@@ -930,14 +905,7 @@ module MistralHelper
       DebugHelper.debug("Mistral progressive state: unlocked=#{unlocked.inspect}, app_tools_count=#{Array(app_tools).compact.size}", category: :api, level: :debug)
     end
 
-    begin
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [Mistral] app_tools raw: #{app_tools.inspect}")
-        log.puts("[#{Time.now}] [Mistral] obj tools: #{obj['tools'].inspect}")
-        log.puts("[#{Time.now}] [Mistral] websearch flag: #{websearch.inspect}")
-      end
-    rescue StandardError
-    end
+    Monadic::Utils::ExtraLogger.log { "[Mistral] app_tools raw: #{app_tools.inspect}\n[Mistral] obj tools: #{obj['tools'].inspect}\n[Mistral] websearch flag: #{websearch.inspect}" }
 
     request_tools = obj["tools"]
     if request_tools.is_a?(String)
@@ -1017,12 +985,7 @@ module MistralHelper
       body.delete("tools")
       DebugHelper.debug("Mistral: No tools enabled", category: :api, level: :debug)
     end
-    begin
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [Mistral] final tools for #{app}: #{Array(body['tools']).map { |t| t.dig(:function, :name) || t.dig('function', 'name') || t['name'] }.inspect}")
-      end
-    rescue StandardError
-    end
+    Monadic::Utils::ExtraLogger.log { "[Mistral] final tools for #{app}: #{Array(body['tools']).map { |t| t.dig(:function, :name) || t.dig('function', 'name') || t['name'] }.inspect}" }
 
     # SSOT: If the model is not tool-capable, remove tools/tool_choice
     begin
@@ -1043,32 +1006,28 @@ module MistralHelper
     end
 
     # Capability audit (optional)
-    if CONFIG["EXTRA_LOGGING"]
+    begin
+      audit = []
+      # Re-query streaming from SSOT for audit
       begin
-        audit = []
-        # Re-query streaming from SSOT for audit
-        begin
-          spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
-          s_src = spec_stream.nil? ? "fallback" : "spec"
-          audit << "streaming:#{spec_stream.nil? ? true : !!spec_stream}(#{s_src})"
-        rescue StandardError
-          audit << "streaming:true(fallback)"
-        end
-        audit << "tools:#{tool_capable}(#{tool_src})"
-        begin
-          vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
-          vsrc = vprop.nil? ? "fallback" : "spec"
-          pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
-          psrc = pprop.nil? ? "fallback" : "spec"
-          audit << "vision:#{!!vprop}(#{vsrc})"
-          audit << "pdf:#{!!pprop}(#{psrc})"
-        rescue StandardError
-        end
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] Mistral SSOT capabilities for #{obj['model']}: #{audit.join(', ')}"
-        end
+        spec_stream = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_streaming")
+        s_src = spec_stream.nil? ? "fallback" : "spec"
+        audit << "streaming:#{spec_stream.nil? ? true : !!spec_stream}(#{s_src})"
+      rescue StandardError
+        audit << "streaming:true(fallback)"
+      end
+      audit << "tools:#{tool_capable}(#{tool_src})"
+      begin
+        vprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "vision_capability")
+        vsrc = vprop.nil? ? "fallback" : "spec"
+        pprop = Monadic::Utils::ModelSpec.get_model_property(obj["model"], "supports_pdf")
+        psrc = pprop.nil? ? "fallback" : "spec"
+        audit << "vision:#{!!vprop}(#{vsrc})"
+        audit << "pdf:#{!!pprop}(#{psrc})"
       rescue StandardError
       end
+      Monadic::Utils::ExtraLogger.log { "Mistral SSOT capabilities for #{obj['model']}: #{audit.join(', ')}" }
+    rescue StandardError
     end
   end
 
@@ -1301,13 +1260,7 @@ module MistralHelper
     res = { "type" => "message", "content" => "DONE", "finish_reason" => finish_reason }
     block&.call res
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [Mistral] content_buffer length: #{content_buffer.length}")
-        log.puts("[#{Time.now}] [Mistral] content_buffer first 500 chars: #{content_buffer[0..500]}")
-        log.puts("[#{Time.now}] [Mistral] content_buffer last 500 chars: #{content_buffer[-500..-1]}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[Mistral] content_buffer length: #{content_buffer.length}\n[Mistral] content_buffer first 500 chars: #{content_buffer[0..500]}\n[Mistral] content_buffer last 500 chars: #{content_buffer[-500..-1]}" }
 
     # Prepend any saved pre-tool content from earlier in the conversation
     pre_tool_content = session[:mistral_pre_tool_content]

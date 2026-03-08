@@ -1,6 +1,7 @@
 require 'json'
 require 'base64'
 require_relative 'ssl_configuration'
+require_relative 'extra_logger'
 
 Monadic::Utils::SSLConfiguration.configure! if defined?(Monadic::Utils::SSLConfiguration)
 
@@ -230,19 +231,11 @@ module InteractionUtils
     # Return cached result if available
     cached_result = InteractionUtils.api_key_cache.get(api_key)
     if cached_result
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] check_api_key: Using cached result - #{cached_result['type']}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "check_api_key: Using cached result - #{cached_result['type']}" }
       return cached_result
     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts "[#{Time.now}] check_api_key: Starting fresh API check"
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "check_api_key: Starting fresh API check" }
 
     target_uri = "#{API_ENDPOINT}/models"
 
@@ -266,11 +259,7 @@ module InteractionUtils
                  { "type" => "error", "content" => "ERROR: API token is not accepted" }
                end
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] check_api_key: API check completed in #{elapsed.round(2)}s - result: #{result['type']}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "check_api_key: API check completed in #{elapsed.round(2)}s - result: #{result['type']}" }
 
       # Cache the result
       InteractionUtils.api_key_cache.set(api_key, result)
@@ -279,20 +268,12 @@ module InteractionUtils
     rescue HTTP::Error, HTTP::TimeoutError => e
       if num_retrial < MAX_RETRIES
         num_retrial += 1
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] check_api_key: Retry #{num_retrial}/#{MAX_RETRIES} after error: #{e.class} - #{e.message}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "check_api_key: Retry #{num_retrial}/#{MAX_RETRIES} after error: #{e.class} - #{e.message}" }
         sleep RETRY_DELAY
         retry
       else
         error_message = "API request failed after #{MAX_RETRIES} retries: #{e.message}"
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "[#{Time.now}] check_api_key: FAILED after #{MAX_RETRIES} retries - #{e.class}: #{e.message}"
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "check_api_key: FAILED after #{MAX_RETRIES} retries - #{e.class}: #{e.message}" }
         error_result = { "type" => "error", "content" => "ERROR: #{error_message}" }
         # Cache the error result as well
         InteractionUtils.api_key_cache.set(api_key, error_result)
@@ -513,19 +494,11 @@ module InteractionUtils
     end
 
     begin
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] tts_api_request: START - provider=#{provider}, text_length=#{text_converted.length}, block_given=#{block_given?}, use_net_http=#{use_net_http}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: START - provider=#{provider}, text_length=#{text_converted.length}, block_given=#{block_given?}, use_net_http=#{use_net_http}" }
 
       # Use Net::HTTP for OpenAI TTS when use_net_http is true or when streaming with block
       if (use_net_http || block_given?) && (provider.include?("openai-tts") || provider == "openai")
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [DEBUG] tts_api_request: Using Net::HTTP (use_net_http=#{use_net_http}, streaming=#{block_given?})")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Using Net::HTTP (use_net_http=#{use_net_http}, streaming=#{block_given?})" }
         require 'net/http'
         require 'uri'
         
@@ -567,30 +540,18 @@ module InteractionUtils
           return nil
         else
           # Non-streaming mode with Net::HTTP
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Net::HTTP non-streaming request")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Net::HTTP non-streaming request" }
 
           response = net_http.request(request)
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Net::HTTP response received - code=#{response.code}, body_size=#{response.body.length}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Net::HTTP response received - code=#{response.code}, body_size=#{response.body.length}" }
 
           unless response.code.to_i == 200
             error_res = { "type" => "error", "content" => "ERROR: OpenAI TTS API error: #{response.code}" }
             return error_res
           end
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] tts_api_request: Returning audio (Net::HTTP non-streaming) - body_size=#{response.body.length}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio (Net::HTTP non-streaming) - body_size=#{response.body.length}" }
 
           return { "type" => "audio", "content" => Base64.strict_encode64(response.body) }
         end
@@ -602,19 +563,11 @@ module InteractionUtils
       # Gemini TTS now uses non-streaming endpoint (generateContent) for all requests
       # The streaming-specific code has been removed as it added unnecessary overhead
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] tts_api_request: Sending HTTP POST to #{target_uri}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Sending HTTP POST to #{target_uri}" }
 
       res = http.timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT).post(target_uri, json: body)
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [DEBUG] tts_api_request: HTTP response received - status=#{res.status}, body_size=#{res.body.to_s.length}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: HTTP response received - status=#{res.status}, body_size=#{res.body.to_s.length}" }
 
       unless res.status.success?
         error_report = JSON.parse(res.body) rescue { "message" => res.body.to_s }
@@ -650,13 +603,9 @@ module InteractionUtils
           gemini_response = JSON.parse(res.body.to_s)
 
           # Debug logging for Gemini TTS response
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [DEBUG] Gemini TTS response keys: #{gemini_response.keys.inspect}")
-              if gemini_response["error"]
-                log.puts("[#{Time.now}] [DEBUG] Gemini TTS API error: #{gemini_response['error'].inspect}")
-              end
-            end
+          Monadic::Utils::ExtraLogger.log { "[DEBUG] Gemini TTS response keys: #{gemini_response.keys.inspect}" }
+          if gemini_response["error"]
+            Monadic::Utils::ExtraLogger.log { "[DEBUG] Gemini TTS API error: #{gemini_response['error'].inspect}" }
           end
 
           # Check for API error response
@@ -707,12 +656,7 @@ module InteractionUtils
             end
           else
             # Log detailed error for debugging
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [DEBUG] Gemini TTS Error: Invalid response format (no inlineData)")
-                log.puts("[#{Time.now}] [DEBUG] Response structure: #{gemini_response.to_json[0..500]}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[DEBUG] Gemini TTS Error: Invalid response format (no inlineData)\n[DEBUG] Response structure: #{gemini_response.to_json[0..500]}" }
             error_res = { "type" => "error", "content" => "ERROR: Invalid response format from Gemini TTS API. The API may be experiencing issues." }
             block&.call error_res if block_given?
             return error_res
@@ -749,20 +693,11 @@ module InteractionUtils
           return nil
         end
       else
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-            log.puts("[#{Time.now}] [DEBUG] tts_api_request: Returning audio (non-streaming) - body_size=#{res.body.to_s.length}")
-          end
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request: Returning audio (non-streaming) - body_size=#{res.body.to_s.length}" }
         { "type" => "audio", "content" => Base64.strict_encode64(res.body.to_s) }
       end
     rescue => e
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}")
-          log.puts(e.backtrace.join("\n"))
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request: Exception occurred - #{e.class}: #{e.message}\n#{e.backtrace.join("\n")}" }
       { "type" => "error", "content" => "ERROR: TTS request failed: #{e.message}" }
     end
   end
@@ -788,11 +723,7 @@ module InteractionUtils
                       text
                     end
 
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-        log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}")
-      end
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: START - provider=#{provider}, text_length=#{text_converted.length}, sequence_id=#{sequence_id}" }
 
     # Currently supports OpenAI TTS only
     case provider
@@ -842,11 +773,7 @@ module InteractionUtils
             }
             result["sequence_id"] = sequence_id if sequence_id
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: SUCCESS (http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}" }
 
             # Call result block in Async context
             Async do
@@ -860,11 +787,7 @@ module InteractionUtils
             }
             error_result["sequence_id"] = sequence_id if sequence_id
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ERROR] tts_api_request_async: HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}" }
 
             Async do
             block.call(error_result)
@@ -878,11 +801,7 @@ module InteractionUtils
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
 
           Async do
             block.call(error_result)
@@ -961,11 +880,7 @@ module InteractionUtils
             }
             result["sequence_id"] = sequence_id if sequence_id
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: SUCCESS (ElevenLabs/http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (ElevenLabs/http.rb) - audio_size=#{response.body.to_s.length}, sequence_id=#{sequence_id}" }
 
             # Call result block in Async context
             Async do
@@ -979,11 +894,7 @@ module InteractionUtils
             }
             error_result["sequence_id"] = sequence_id if sequence_id
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ERROR] tts_api_request_async: ElevenLabs HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: ElevenLabs HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}" }
 
             Async do
             block.call(error_result)
@@ -997,11 +908,7 @@ module InteractionUtils
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_async: ElevenLabs connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: ElevenLabs connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
 
           Async do
             block.call(error_result)
@@ -1063,13 +970,9 @@ module InteractionUtils
               gemini_response = JSON.parse(response.body.to_s)
 
               # Debug logging for Gemini TTS response
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: Gemini response keys: #{gemini_response.keys.inspect}")
-                  if gemini_response["error"]
-                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: Gemini TTS API error: #{gemini_response['error'].inspect}")
-                  end
-                end
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: Gemini response keys: #{gemini_response.keys.inspect}" }
+              if gemini_response["error"]
+                Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: Gemini TTS API error: #{gemini_response['error'].inspect}" }
               end
 
               # Check for API error response
@@ -1119,11 +1022,7 @@ module InteractionUtils
                 }
                 result["sequence_id"] = sequence_id if sequence_id
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts("[#{Time.now}] [DEBUG] tts_api_request_async: SUCCESS (Gemini/http.rb) - pcm_size=#{pcm_data.length}, wav_size=#{wav_data.length}, sequence_id=#{sequence_id}")
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "[DEBUG] tts_api_request_async: SUCCESS (Gemini/http.rb) - pcm_size=#{pcm_data.length}, wav_size=#{wav_data.length}, sequence_id=#{sequence_id}" }
 
                 # Return to Async reactor context
                 Async do
@@ -1136,12 +1035,7 @@ module InteractionUtils
                 }
                 error_result["sequence_id"] = sequence_id if sequence_id
 
-                if CONFIG["EXTRA_LOGGING"]
-                  File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                    log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Invalid Gemini response format (no inlineData), sequence_id=#{sequence_id}")
-                    log.puts("[#{Time.now}] [DEBUG] Response structure: #{gemini_response.to_json[0..500]}")
-                  end
-                end
+                Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Invalid Gemini response format (no inlineData), sequence_id=#{sequence_id}\n[DEBUG] Response structure: #{gemini_response.to_json[0..500]}" }
 
                 Async do
             block.call(error_result)
@@ -1154,11 +1048,7 @@ module InteractionUtils
               }
               error_result["sequence_id"] = sequence_id if sequence_id
 
-              if CONFIG["EXTRA_LOGGING"]
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                  log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Gemini JSON parse error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
-                end
-              end
+              Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini JSON parse error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
 
               Async do
             block.call(error_result)
@@ -1172,11 +1062,7 @@ module InteractionUtils
             }
             error_result["sequence_id"] = sequence_id if sequence_id
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-                log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Gemini HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}")
-              end
-            end
+            Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini HTTP error (http.rb) - status=#{response.status}, sequence_id=#{sequence_id}" }
 
             Async do
             block.call(error_result)
@@ -1190,11 +1076,7 @@ module InteractionUtils
           }
           error_result["sequence_id"] = sequence_id if sequence_id
 
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-              log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Gemini connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Gemini connection error (http.rb) - #{e.message}, sequence_id=#{sequence_id}" }
 
           Async do
             block.call(error_result)
@@ -1223,11 +1105,7 @@ module InteractionUtils
       }
       error_result["sequence_id"] = sequence_id if sequence_id
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |log|
-          log.puts("[#{Time.now}] [ERROR] tts_api_request_async: Unsupported provider - #{provider}")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "[ERROR] tts_api_request_async: Unsupported provider - #{provider}" }
 
       Async do
             block.call(error_result)
@@ -1256,7 +1134,7 @@ module InteractionUtils
       end
     rescue StandardError => e
       # Log ElevenLabs API error and return empty array
-      logger.warn "ElevenLabs voice list error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "ElevenLabs voice list error: #{e.message}" }
       []
     end
   end

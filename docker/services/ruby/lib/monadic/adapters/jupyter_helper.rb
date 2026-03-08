@@ -1,5 +1,6 @@
 require 'shellwords'
 require 'cgi'
+require_relative '../utils/extra_logger'
 
 module MonadicHelper
 
@@ -79,9 +80,9 @@ module MonadicHelper
         f.puts "Cells: #{cells_str}"
         f.puts "-----------------------------------"
       end
-      puts "[DEBUG Jupyter] Logged to #{JUPYTER_LOG_FILE}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Logged to #{JUPYTER_LOG_FILE}" }
     rescue StandardError => e
-      puts "[DEBUG Jupyter] Failed to write log: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Failed to write log: #{e.message}" }
     end
   end
   
@@ -202,7 +203,7 @@ module MonadicHelper
     original_cells = cells.dup
 
     # Debug: Log before processing
-    puts "[DEBUG Jupyter] add_jupyter_cells called with filename: #{filename}, cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] add_jupyter_cells called with filename: #{filename}, cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}" }
 
     # Handle case where filename doesn't have timestamp but the actual file does
     # If the exact filename doesn't exist, try to find a matching file with timestamp
@@ -233,17 +234,10 @@ module MonadicHelper
           most_recent = matching_files.first
           original_filename = filename  # Store original for logging
           filename = File.basename(most_recent, ".ipynb")
-          puts "[DEBUG Jupyter] Found matching notebook with real timestamp: #{filename} (was looking for #{original_filename})" if CONFIG["EXTRA_LOGGING"]
-          
+          Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Found matching notebook with real timestamp: #{filename} (was looking for #{original_filename})" }
+
           # Log for debugging
-          if CONFIG["EXTRA_LOGGING"]
-            File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-              f.puts("\n[#{Time.now}] Corrected fake timestamp in add_jupyter_cells:")
-              f.puts("  Original filename: #{original_filename}")
-              f.puts("  Base name: #{base_name}")
-              f.puts("  Found file: #{filename}")
-            end
-          end
+          Monadic::Utils::ExtraLogger.log { "Corrected fake timestamp in add_jupyter_cells:\n  Original filename: #{original_filename}\n  Base name: #{base_name}\n  Found file: #{filename}" }
         end
       end
     end
@@ -317,15 +311,13 @@ module MonadicHelper
     capture_add_cells(cells)
     
     # Debug: Log after normalization
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Jupyter] After normalization, cells: #{cells.inspect[0..500]}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] After normalization, cells: #{cells.inspect[0..500]}" }
 
     begin
       cells_in_json = cells.to_json
-      puts "[DEBUG Jupyter] JSON conversion successful, length: #{cells_in_json.length}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] JSON conversion successful, length: #{cells_in_json.length}" }
     rescue StandardError => e
-      puts "[DEBUG Jupyter] JSON conversion failed: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] JSON conversion failed: #{e.message}" }
       unless retrial
         return add_jupyter_cells(filename: filename,
                                  cells: original_cells,
@@ -357,12 +349,12 @@ module MonadicHelper
         cells_array.insert(insert_position, create_japanese_font_setup_cell)
         cells_in_json = JSON.pretty_generate(cells_array)
 
-        puts "[DEBUG Jupyter] Added Japanese font setup cell at position #{insert_position}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Added Japanese font setup cell at position #{insert_position}" }
       end
     end
 
     tempfile = Time.now.to_i.to_s
-    puts "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Writing to temp file: #{tempfile}.json" }
     write_to_file(filename: tempfile, extension: "json", text: cells_in_json)
 
     shared_volume = if Monadic::Utils::Environment.in_container?
@@ -385,11 +377,11 @@ module MonadicHelper
     results1 = if success
                  # Use Shellwords.escape for safe command construction
                  command = "jupyter_controller.py add_from_json #{Shellwords.escape(filename)} #{Shellwords.escape(tempfile)}"
-                 puts "[DEBUG Jupyter] Executing command: #{command}" if CONFIG["EXTRA_LOGGING"]
+                 Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Executing command: #{command}" }
                  result = send_command(command: command,
                               container: "python",
                               success: "The cells have been added to the notebook successfully.\n")
-                 puts "[DEBUG Jupyter] Command result: #{result}" if CONFIG["EXTRA_LOGGING"]
+                 Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Command result: #{result}" }
                  
                  # Check if the error is about missing notebook file
                  if result && result.include?("does not exist")
@@ -409,7 +401,7 @@ module MonadicHelper
                    result
                  end
                else
-                 puts "[DEBUG Jupyter] JSON file not created in time" if CONFIG["EXTRA_LOGGING"]
+                 Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] JSON file not created in time" }
                  false
                end
 
@@ -506,12 +498,7 @@ module MonadicHelper
 
   # Combined function for Gemini to create notebook and add cells in one call
   def create_and_populate_jupyter_notebook(filename:, cells: [], run: true)
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Jupyter] create_and_populate_jupyter_notebook called"
-      puts "  Filename: #{filename}"
-      puts "  Cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}"
-      puts "  Run cells: #{run}"
-    end
+    Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] create_and_populate_jupyter_notebook called\n  Filename: #{filename}\n  Cells count: #{cells.is_a?(Array) ? cells.length : 'not array'}\n  Run cells: #{run}" }
 
     # First create the notebook
     result = create_jupyter_notebook(filename: filename)
@@ -526,9 +513,7 @@ module MonadicHelper
       end
       
       if actual_filename && cells && cells.is_a?(Array) && !cells.empty?
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[DEBUG Jupyter] Adding cells to notebook: #{actual_filename}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Adding cells to notebook: #{actual_filename}" }
         # Now add the cells
         cells_result = add_jupyter_cells(
           filename: actual_filename,
@@ -659,7 +644,7 @@ module MonadicHelper
         addr ? addr.ip_address : "127.0.0.1"
       rescue StandardError => e
         # If error finding IP, fall back to default
-        STDERR.puts "[WARNING] Error getting IP address: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[WARNING] Error getting IP address: #{e.message}" }
         "127.0.0.1"
       end
     else
@@ -731,7 +716,7 @@ module MonadicHelper
 
           saved_images << image_filename
         rescue StandardError => e
-          puts "[DEBUG Jupyter] Failed to save notebook image: #{e.message}" if CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "[DEBUG Jupyter] Failed to save notebook image: #{e.message}" }
         end
       end
     end

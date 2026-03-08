@@ -14,6 +14,7 @@ require_relative "../../utils/pdf_storage_config"
 require_relative "../../utils/json_repair"
 require_relative "../../utils/system_prompt_injector"
 require_relative "../../utils/openai_file_inputs_cache"
+require_relative "../../utils/extra_logger"
 require_relative "../base_vendor_helper"
 require_relative "../../monadic_performance"
 module OpenAIHelper
@@ -594,11 +595,7 @@ module OpenAIHelper
     skip_tools = caps[:non_tool_model] || (role == "tool" && !use_responses_api)
 
     if skip_tools
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts("[#{Time.now}] OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'")
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "OpenAI: Skipping tools because non_tool_model=#{caps[:non_tool_model]} or role='#{role}'" }
       body.delete("tools")
       body.delete("response_format")
       return
@@ -740,7 +737,7 @@ module OpenAIHelper
           false
         end
       rescue StandardError => e
-        puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Error processing image for generation: #{e.message}" }
         false
       end
     end
@@ -803,7 +800,7 @@ module OpenAIHelper
             end
           end
         rescue StandardError => e
-          puts "Error processing image for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+          Monadic::Utils::ExtraLogger.log { "Error processing image for generation: #{e.message}" }
         end
       end
 
@@ -843,7 +840,7 @@ module OpenAIHelper
           image_file_references << "/data/#{new_filename}"
         end
       rescue StandardError => e
-        puts "Error processing mask for generation: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "Error processing mask for generation: #{e.message}" }
       end
     end
 
@@ -931,11 +928,7 @@ module OpenAIHelper
                 augmented_text += "\n---\n" + websearch_prompt
               end
 
-              if CONFIG["EXTRA_LOGGING"]
-                puts "[DEBUG] OpenAI Reasoning Model System Prompt Injection:"
-                puts "  - Base text length: #{base_text.length}"
-                puts "  - Augmented text length: #{augmented_text.length}"
-              end
+              Monadic::Utils::ExtraLogger.log { "[DEBUG] OpenAI Reasoning Model System Prompt Injection:\n  - Base text length: #{base_text.length}\n  - Augmented text length: #{augmented_text.length}" }
 
               content_item["text"] = augmented_text
             end
@@ -1060,14 +1053,7 @@ module OpenAIHelper
         separator: "\n\n"
       )
 
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] OpenAI System Prompt Injection:"
-          f.puts "  - Base prompt length: #{initial_prompt.to_s.length}"
-          f.puts "  - Augmented prompt length: #{augmented_prompt.length}"
-          f.puts "  - Injections applied: #{augmented_prompt != initial_prompt.to_s}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "OpenAI System Prompt Injection:\n  - Base prompt length: #{initial_prompt.to_s.length}\n  - Augmented prompt length: #{augmented_prompt.length}\n  - Injections applied: #{augmented_prompt != initial_prompt.to_s}" }
 
       if augmented_prompt != initial_prompt.to_s
         body["messages"].first["content"].each do |content_item|
@@ -1410,22 +1396,21 @@ module OpenAIHelper
     end
 
     # Simplified logging for Responses API
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("[#{Time.now}] Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}")
-        if responses_body['input']
-          responses_body['input'].each_with_index do |msg, idx|
-            if msg['content'].is_a?(Array)
-              msg['content'].each do |item|
-                if item['type'] == 'file' || item['type'] == 'input_file'
-                  f.puts("  Message #{idx} has #{item['type']}: filename=#{item['filename'] || item.dig('file', 'filename')}")
-                end
+    Monadic::Utils::ExtraLogger.log {
+      lines = ["Responses API: model=#{responses_body['model']}, tools=#{responses_body['tools']&.length || 0}"]
+      if responses_body['input']
+        responses_body['input'].each_with_index do |msg, idx|
+          if msg['content'].is_a?(Array)
+            msg['content'].each do |item|
+              if item['type'] == 'file' || item['type'] == 'input_file'
+                lines << "  Message #{idx} has #{item['type']}: filename=#{item['filename'] || item.dig('file', 'filename')}"
               end
             end
           end
         end
       end
-    end
+      lines.join("\n")
+    }
 
     responses_body
   end
@@ -1451,18 +1436,20 @@ module OpenAIHelper
 
     res = nil
     MAX_RETRIES.times do
-      if use_responses_api && CONFIG["EXTRA_LOGGING"]
-        if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
-          puts "DEBUG: Sending to Responses API with PDF content:"
-          puts "Body structure: #{body.keys}"
-          body["input"].each_with_index do |msg, idx|
-            if msg["content"].is_a?(Array)
-              msg["content"].each do |item|
-                puts "  Input[#{idx}] content type: #{item['type']}"
+      if use_responses_api
+        Monadic::Utils::ExtraLogger.log {
+          if body["input"]&.any? { |msg| msg["content"]&.is_a?(Array) && msg["content"].any? { |c| c["type"] == "input_file" || c["type"] == "file" } }
+            lines = ["DEBUG: Sending to Responses API with PDF content:", "Body structure: #{body.keys}"]
+            body["input"].each_with_index do |msg, idx|
+              if msg["content"].is_a?(Array)
+                msg["content"].each do |item|
+                  lines << "  Input[#{idx}] content type: #{item['type']}"
+                end
               end
             end
+            lines.join("\n")
           end
-        end
+        }
       end
 
       res = http.timeout(**timeout_settings).post(target_uri, json: body)
@@ -1474,7 +1461,7 @@ module OpenAIHelper
     unless res&.status&.success?
       error_body = JSON.parse(res.body)
       error_report = error_body["error"]
-      STDERR.puts "[OpenAI API Error] #{error_report}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[OpenAI API Error] #{error_report}" }
       formatted_error = Monadic::Utils::ErrorFormatter.api_error(
         provider: "OpenAI",
         message: error_report["message"] || "Unknown API error",
@@ -1709,13 +1696,7 @@ module OpenAIHelper
     # This prevents the model from seeing previous tool calls and results,
     # which would cause it to repeatedly call the same tool (e.g., image generation)
     if @clear_orchestration_history
-      if CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "[#{Time.now}] OpenAI: Clearing orchestration history in api_request"
-          f.puts "  Original context size: #{context.size}"
-          f.puts "  self.class: #{self.class.name}"
-        end
-      end
+      Monadic::Utils::ExtraLogger.log { "OpenAI: Clearing orchestration history in api_request\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
 
       # Keep only: first message (system) + last user message
       # This prevents orchestration model from seeing tool results that trigger duplicates
@@ -1727,17 +1708,9 @@ module OpenAIHelper
         context << last_user_msg unless first_msg == last_user_msg
         context.each { |msg| msg["active"] = true }
 
-        if CONFIG["EXTRA_LOGGING"]
-          File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-            f.puts "  Filtered context size: #{context.size}"
-            f.puts "  First message role: #{first_msg["role"]}"
-            f.puts "  Last user message role: #{last_user_msg["role"]}"
-          end
-        end
-      elsif CONFIG["EXTRA_LOGGING"]
-        File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-          f.puts "  WARNING: Could not filter context (missing first or last user message)"
-        end
+        Monadic::Utils::ExtraLogger.log { "  Filtered context size: #{context.size}\n  First message role: #{first_msg["role"]}\n  Last user message role: #{last_user_msg["role"]}" }
+      else
+        Monadic::Utils::ExtraLogger.log { "  WARNING: Could not filter context (missing first or last user message)" }
       end
     end
 
@@ -1792,7 +1765,7 @@ module OpenAIHelper
       retry
     else
       error_message = "The request has timed out."
-      STDERR.puts "[OpenAI] #{error_message}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[OpenAI] #{error_message}" }
       formatted_error = Monadic::Utils::ErrorFormatter.network_error(
         provider: "OpenAI",
         message: error_message,
@@ -1803,8 +1776,7 @@ module OpenAIHelper
       [res]
     end
   rescue StandardError => e
-    STDERR.puts "[OpenAI] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[OpenAI] Unexpected error: #{e.message}\n[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "OpenAI",
       message: "Unexpected error: #{e.message}"
@@ -1815,12 +1787,7 @@ module OpenAIHelper
   end
 
   def process_json_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log_json("Processing query (Call depth: #{call_depth})", query)
 
     obj = session[:parameters]
     # Determine reasoning model solely via model_spec
@@ -1861,21 +1828,15 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             # Log raw JSON data before parsing (for debugging delta issues)
-            if CONFIG["EXTRA_LOGGING"]
+            if Monadic::Utils::ExtraLogger.enabled?
               if json_data.include?("delta") && (json_data.include?("き") || json_data.include?("れ"))
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                  f.puts("[RAW JSON BEFORE PARSE - Chat API] #{json_data}")
-                end
+                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE - Chat API] #{json_data}" }
               end
             end
 
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts(JSON.pretty_generate(json))
-              end
-            end
+            Monadic::Utils::ExtraLogger.log_json("Chat API chunk", json)
 
             # Check if response model differs from requested model
             response_model = json["model"]
@@ -1947,8 +1908,7 @@ module OpenAIHelper
         end
       end
     rescue StandardError => e
-      STDERR.puts "[OpenAI Streaming] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-      STDERR.puts "[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Error: #{e.message}\n[OpenAI Streaming] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     end
 
     result = texts.empty? ? nil : texts.first[1]
@@ -2105,10 +2065,11 @@ module OpenAIHelper
   def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
 
-    if CONFIG["EXTRA_LOGGING"]
-      puts "[DEBUG Tools] Processing #{tools.length} tool calls (depth: #{call_depth}):"
-      tools.each { |tc| puts "  - #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments').to_s[0..200]}" }
-    end
+    Monadic::Utils::ExtraLogger.log {
+      lines = ["[DEBUG Tools] Processing #{tools.length} tool calls (depth: #{call_depth}):"]
+      tools.each { |tc| lines << "  - #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments').to_s[0..200]}" }
+      lines.join("\n")
+    }
 
     tools = filter_openai_duplicate_tools(tools)
 
@@ -2224,9 +2185,7 @@ module OpenAIHelper
           function_return = APPS[app].send(function_name.to_sym, **argument_hash)
         end
 
-        if CONFIG["EXTRA_LOGGING"]
-          puts "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[DEBUG Tools] #{function_name} returned: #{function_return.to_s[0..500]}" }
 
         send_verification_notification(session, &block) if function_name == "report_verification"
 
@@ -2237,8 +2196,7 @@ module OpenAIHelper
           session: session
         )
       rescue StandardError => e
-        STDERR.puts "[OpenAI Tools] Error in #{function_name}: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-        STDERR.puts "[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Tools] Error in #{function_name}: #{e.message}\n[OpenAI Tools] Backtrace: #{e.backtrace.first(5).join("\n")}" }
         function_return = Monadic::Utils::ErrorFormatter.tool_error(
           provider: "OpenAI",
           tool_name: function_name,
@@ -2459,28 +2417,19 @@ module OpenAIHelper
   end
 
   def log_tool_argument_failure(function_name, arguments, error: nil)
-    return unless defined?(MonadicApp)
-    return unless MonadicApp.const_defined?(:EXTRA_LOG_FILE)
-
-    File.open(MonadicApp::EXTRA_LOG_FILE, 'a') do |f|
-      f.puts "[OpenAIHelper] Failed to parse tool arguments at #{Time.now}:"
-      f.puts "  Tool: #{function_name || 'unknown'}"
-      f.puts "  Error: #{error.class}: #{error.message}" if error
+    Monadic::Utils::ExtraLogger.log {
+      lines = ["[OpenAIHelper] Failed to parse tool arguments:"]
+      lines << "  Tool: #{function_name || 'unknown'}"
+      lines << "  Error: #{error.class}: #{error.message}" if error
       preview = arguments.to_s[0..500]
-      f.puts "  Arguments preview: #{preview}"
-      f.puts "---"
-    end
-  rescue StandardError
-    # Ignore logging failures
+      lines << "  Arguments preview: #{preview}"
+      lines << "---"
+      lines.join("\n")
+    }
   end
 
   def process_responses_api_data(app:, session:, query:, res:, call_depth:, &block)
-    if CONFIG["EXTRA_LOGGING"]
-      File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-        f.puts("Processing responses API query at #{Time.now} (Call depth: #{call_depth})")
-        f.puts(JSON.pretty_generate(query))
-      end
-    end
+    Monadic::Utils::ExtraLogger.log_json("Processing responses API query (Call depth: #{call_depth})", query)
 
     obj = session[:parameters]
     buffer = String.new
@@ -2543,21 +2492,15 @@ module OpenAIHelper
           json_data = matched.match(pattern)[1]
           begin
             # Log raw JSON data before parsing (for debugging delta issues)
-            if CONFIG["EXTRA_LOGGING"]
+            if Monadic::Utils::ExtraLogger.enabled?
               if json_data.include?("output_text.delta") && (json_data.include?("き") || json_data.include?("れ"))
-                File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                  f.puts("[RAW JSON BEFORE PARSE] #{json_data}")
-                end
+                Monadic::Utils::ExtraLogger.log { "[RAW JSON BEFORE PARSE] #{json_data}" }
               end
             end
 
             json = JSON.parse(json_data)
 
-            if CONFIG["EXTRA_LOGGING"]
-              File.open(MonadicApp::EXTRA_LOG_FILE, "a") do |f|
-                f.puts(JSON.pretty_generate(json))
-              end
-            end
+            Monadic::Utils::ExtraLogger.log_json("Responses API chunk", json)
 
             # Check if response model differs from requested model
             response_model = json["model"]
@@ -2579,8 +2522,7 @@ module OpenAIHelper
           rescue JSON::ParserError => e
             # JSON parsing error, continue to next iteration
           rescue StandardError => e
-            STDERR.puts "[OpenAI Events] Error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-            STDERR.puts "[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+            Monadic::Utils::ExtraLogger.log { "[OpenAI Events] Error: #{e.message}\n[OpenAI Events] Backtrace: #{e.backtrace.first(5).join("\n")}" }
           end
           if CONFIG["EXTRA_LOGGING"]
             duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - event_start) * 1000).round(1)
@@ -2601,8 +2543,7 @@ module OpenAIHelper
     # Return text response
     build_openai_text_response(state, query, obj, &block)
   rescue StandardError => e
-    STDERR.puts "[OpenAI] Unexpected error: #{e.message}" if CONFIG["EXTRA_LOGGING"]
-    STDERR.puts "[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" if CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[OpenAI] Unexpected error: #{e.message}\n[OpenAI] Backtrace: #{e.backtrace.first(5).join("\n")}" }
     formatted_error = Monadic::Utils::ErrorFormatter.api_error(
       provider: "OpenAI",
       message: "Unexpected error: #{e.message}"
@@ -2639,18 +2580,11 @@ module OpenAIHelper
                       query["model"] ||
                       obj["model"]
 
-      if CONFIG["EXTRA_LOGGING"]
-        STDERR.puts "[OpenAI Streaming] response.in_progress event"
-        STDERR.puts "  current_model: #{current_model}"
-        STDERR.puts "  streaming_model: #{state[:streaming_model]}"
-        STDERR.puts "  Will skip: #{current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)}"
-      end
+      Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.in_progress event\n  current_model: #{current_model}\n  streaming_model: #{state[:streaming_model]}\n  Will skip: #{current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)}" }
 
       # Skip for models that emit proper delta events (configured in ModelSpec)
       if current_model && Monadic::Utils::ModelSpec.skip_in_progress_events?(current_model)
-        if CONFIG["EXTRA_LOGGING"]
-          STDERR.puts "[OpenAI Streaming] Skipping response.in_progress for model: #{current_model}"
-        end
+        Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] Skipping response.in_progress for model: #{current_model}" }
         return :skip
       end
 
@@ -2680,10 +2614,10 @@ module OpenAIHelper
       fragment = json["delta"]
 
       # Debug logging for GPT-5 streaming issues
-      if CONFIG["EXTRA_LOGGING"]
+      if Monadic::Utils::ExtraLogger.enabled?
         current_model = state[:streaming_model] || json["model"] || query["model"] || obj["model"]
         if current_model && (current_model.to_s.downcase.include?("gpt-5") || current_model.to_s.include?("gpt-4.1"))
-          STDERR.puts "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{state[:fragment_sequence]}"
+          Monadic::Utils::ExtraLogger.log { "[OpenAI Streaming] response.output_text.delta for #{current_model} - fragment: #{fragment.inspect}, sequence: #{state[:fragment_sequence]}" }
         end
       end
 
@@ -3376,7 +3310,7 @@ module OpenAIHelper
       session, base64_data, filename, mime_type
     )
   rescue StandardError => e
-    puts "[OpenAIHelper] resolve_file_id_for_input error: #{e.message}" if defined?(CONFIG) && CONFIG["EXTRA_LOGGING"]
+    Monadic::Utils::ExtraLogger.log { "[OpenAIHelper] resolve_file_id_for_input error: #{e.message}" }
     nil
   end
 end

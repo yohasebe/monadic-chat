@@ -3,6 +3,7 @@
 
 require 'base64'
 require 'fileutils'
+require_relative "../../lib/monadic/utils/extra_logger"
 require_relative "../../lib/monadic/shared_tools/monadic_session_state"
 
 class ImageGeneratorOpenAI < MonadicApp
@@ -51,14 +52,7 @@ class ImageGeneratorOpenAI < MonadicApp
       last_images = fetch_last_images_from_session(session, app_key)
       last_image_filename = last_images&.first
 
-      if CONFIG["EXTRA_LOGGING"]
-        extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-        extra_log.puts "[#{Time.now}] OpenAI Image: Auto-attach check"
-        extra_log.puts "  operation: #{operation}"
-        extra_log.puts "  app_key: #{app_key}"
-        extra_log.puts "  last_images: #{last_images.inspect}"
-        extra_log.close
-      end
+      Monadic::Utils::ExtraLogger.log { "OpenAI Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
 
       if last_image_filename
         image_path = File.join(shared_folder, File.basename(last_image_filename))
@@ -73,18 +67,9 @@ class ImageGeneratorOpenAI < MonadicApp
             "name" => File.basename(last_image_filename)
           }]
 
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] OpenAI Image: Auto-attached last generated image: #{last_image_filename}"
-            extra_log.puts "  This makes iterative editing work like 'editing uploaded image'"
-            extra_log.close
-          end
+          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Auto-attached last generated image: #{last_image_filename}\n  This makes iterative editing work like 'editing uploaded image'" }
         else
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] OpenAI Image: Last generated image file not found: #{image_path}"
-            extra_log.close
-          end
+          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Last generated image file not found: #{image_path}" }
         end
       end
     end
@@ -403,12 +388,7 @@ class ImageGeneratorOpenAI < MonadicApp
 
           session[:openai_last_image] = filenames.first
 
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] OpenAI Image: Saved last generated image to session: #{filenames.first}"
-            extra_log.puts "  All filenames: #{filenames.inspect}"
-            extra_log.close
-          end
+          Monadic::Utils::ExtraLogger.log { "OpenAI Image: Saved last generated image to session: #{filenames.first}\n  All filenames: #{filenames.inspect}" }
 
           # Save to monadic state for follow-up edits
           app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
@@ -511,11 +491,7 @@ class ImageGeneratorGrok < MonadicApp
           # Legacy compatibility
           session[:grok_last_image] = filenames.first
 
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Grok Image: Saved last generated image to session: #{filenames.first}"
-            extra_log.close
-          end
+          Monadic::Utils::ExtraLogger.log { "Grok Image: Saved last generated image to session: #{filenames.first}" }
 
           # Save to monadic state for follow-up reference (same pattern as OpenAI)
           app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGrok"
@@ -617,11 +593,7 @@ class ImageGeneratorGemini3Preview < MonadicApp
           # Legacy compatibility
           session[:gemini3_last_image] = filenames.first
 
-          if CONFIG["EXTRA_LOGGING"]
-            extra_log = File.open(MonadicApp::EXTRA_LOG_FILE, "a")
-            extra_log.puts "[#{Time.now}] Gemini3Preview Image: Saved last generated image to session: #{filenames.first}"
-            extra_log.close
-          end
+          Monadic::Utils::ExtraLogger.log { "Gemini3Preview Image: Saved last generated image to session: #{filenames.first}" }
 
           # Save to monadic state for follow-up edits (same pattern as OpenAI)
           app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGemini3Preview"

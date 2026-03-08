@@ -159,9 +159,86 @@ describe('ws-streaming-handler', () => {
     });
   });
 
+  describe('handleDefaultMessage', () => {
+    beforeEach(() => {
+      window.handleFragmentMessage = jest.fn();
+      global.isElementInViewport = jest.fn().mockReturnValue(true);
+      global.WorkflowViewer = { setStage: jest.fn() };
+      window.autoScroll = false;
+      window.chatBottom = null;
+    });
+
+    describe('fragment type', () => {
+      it('sets responseStarted on first fragment', () => {
+        window.responseStarted = false;
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'Hello' });
+        expect(window.responseStarted).toBe(true);
+      });
+
+      it('sets streamingResponse on first fragment', () => {
+        window.responseStarted = false;
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'Hello' });
+        expect(window.streamingResponse).toBe(true);
+      });
+
+      it('shows RESPONDING alert on first fragment', () => {
+        window.responseStarted = false;
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'test' });
+        expect(global.setAlert).toHaveBeenCalledWith(
+          expect.stringContaining('RESPONDING'),
+          'warning'
+        );
+      });
+
+      it('does not re-alert on subsequent fragments', () => {
+        window.responseStarted = true;
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'test' });
+        expect(global.setAlert).not.toHaveBeenCalled();
+      });
+
+      it('calls handleFragmentMessage', () => {
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'test' });
+        expect(window.handleFragmentMessage).toHaveBeenCalledWith({ type: 'fragment', content: 'test' });
+      });
+
+      it('shows spinner during streaming', () => {
+        window.streamingResponse = true;
+        window.responseStarted = true;
+        handlers.handleDefaultMessage({ type: 'fragment', content: 'test' });
+        expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+      });
+    });
+
+    describe('legacy message type', () => {
+      it('sets responseStarted', () => {
+        window.responseStarted = false;
+        handlers.handleDefaultMessage({ type: 'unknown', content: 'Hello' });
+        expect(window.responseStarted).toBe(true);
+      });
+
+      it('resets callingFunction', () => {
+        window.callingFunction = true;
+        handlers.handleDefaultMessage({ type: 'unknown', content: 'test' });
+        expect(window.callingFunction).toBe(false);
+      });
+
+      it('appends escaped content to chat', () => {
+        window.responseStarted = true;
+        window.callingFunction = false;
+        const chatMock = { html: jest.fn().mockReturnValue('existing') };
+        mockElements['#chat'] = chatMock;
+
+        handlers.handleDefaultMessage({ type: 'unknown', content: '<b>test</b>' });
+
+        expect(chatMock.html).toHaveBeenCalledWith(expect.stringContaining('&lt;b&gt;test&lt;/b&gt;'));
+      });
+    });
+  });
+
   describe('module exports', () => {
-    it('exports handleStreamingComplete', () => {
+    it('exports both handlers', () => {
       expect(typeof handlers.handleStreamingComplete).toBe('function');
+      expect(typeof handlers.handleDefaultMessage).toBe('function');
     });
 
     it('exposes handlers on window.WsStreamingHandler', () => {

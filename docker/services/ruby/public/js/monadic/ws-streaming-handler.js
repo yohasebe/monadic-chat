@@ -99,9 +99,81 @@ function handleStreamingComplete(_data) {
   }, 250);
 }
 
+/**
+ * Handle default/fragment WebSocket messages.
+ * Processes both structured "fragment" type messages and legacy untyped messages.
+ * Updates streaming state, manages spinner, and delegates to fragment handler.
+ * @param {Object} data - Message data with type and content
+ */
+function handleDefaultMessage(data) {
+  if (data.type === "fragment") {
+    // Handle fragment messages from all vendors
+    if (!window.responseStarted) {
+      const respondingText = typeof webUIi18n !== 'undefined' ?
+        webUIi18n.t('ui.messages.responding') : 'RESPONDING';
+      setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
+      window.responseStarted = true;
+      window.streamingResponse = true;
+      if (window.UIState) {
+        window.UIState.set('streamingResponse', true);
+        window.UIState.set('isStreaming', true);
+      }
+      if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
+        WorkflowViewer.setStage('response');
+      }
+    }
+
+    // Always update spinner for fragments
+    if (window.streamingResponse) {
+      const receivingResponseText = typeof webUIi18n !== 'undefined' ?
+        webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
+      $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
+      $("#monadic-spinner").show();
+    }
+
+    // Use the dedicated fragment handler
+    if (typeof window.handleFragmentMessage === 'function') {
+      window.handleFragmentMessage(data);
+    }
+
+    $("#indicator").show();
+    if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
+      window.chatBottom.scrollIntoView(false);
+    }
+  } else {
+    // Handle other default messages (backward compatibility)
+    let content = data["content"];
+    if (!window.responseStarted || window.callingFunction) {
+      const respondingText = typeof webUIi18n !== 'undefined' ?
+        webUIi18n.t('ui.messages.responding') : 'RESPONDING';
+      setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
+      window.callingFunction = false;
+      window.responseStarted = true;
+      window.streamingResponse = true;
+      if (window.UIState) {
+        window.UIState.set('streamingResponse', true);
+        window.UIState.set('isStreaming', true);
+      }
+      const receivingResponseText = typeof webUIi18n !== 'undefined' ?
+        webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
+      $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
+      $("#monadic-spinner").show();
+    }
+    $("#indicator").show();
+    if (content !== undefined) {
+      content = content.replace(/^\n+/, "");
+      $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
+    }
+    if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
+      window.chatBottom.scrollIntoView(false);
+    }
+  }
+}
+
 // Export for browser environment
 window.WsStreamingHandler = {
-  handleStreamingComplete
+  handleStreamingComplete,
+  handleDefaultMessage
 };
 
 // Support for Jest testing environment (CommonJS)

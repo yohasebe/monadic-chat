@@ -1929,68 +1929,9 @@ window.loadedApp = "Chat";
       }
 
       default: {
-        // Check if this is a fragment message
-        if (data.type === "fragment") {
-          // Handle fragment messages from all vendors
-          if (!window.responseStarted) {
-            const respondingText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            window.responseStarted = true;
-            window.streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-              WorkflowViewer.setStage('response');
-            }
-          }
-
-          // Always update spinner for fragments to ensure continuity
-          if (window.streamingResponse) {
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-
-          // Use the dedicated fragment handler
-          window.handleFragmentMessage(data);
-
-          $("#indicator").show();
-          if (window.autoScroll && !isElementInViewport(window.chatBottom)) {
-            window.chatBottom.scrollIntoView(false);
-          }
-        } else {
-          // Handle other default messages (for backward compatibility)
-          let content = data["content"];
-          if (!window.responseStarted || window.callingFunction) {
-            const respondingText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.responding') : 'RESPONDING';
-            setAlert(`<i class='fas fa-pencil-alt'></i> ${respondingText}`, "warning");
-            window.callingFunction = false;
-            window.responseStarted = true;
-            window.streamingResponse = true; // Mark that we're streaming
-            if (window.UIState) {
-              window.UIState.set('streamingResponse', true);
-              window.UIState.set('isStreaming', true);
-            }
-            // Show and update spinner message for streaming
-            const receivingResponseText = typeof webUIi18n !== 'undefined' ?
-              webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-            $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-            $("#monadic-spinner").show(); // Ensure spinner is visible
-          }
-          $("#indicator").show();
-          if (content !== undefined) {
-            // remove the leading new line characters from content
-            content = content.replace(/^\n+/, "");
-            $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
-          }
-          if (window.autoScroll && !isElementInViewport(window.chatBottom)) {
-            window.chatBottom.scrollIntoView(false);
-          }
+        const wsd = window.WsStreamingHandler;
+        if (wsd && typeof wsd.handleDefaultMessage === 'function') {
+          wsd.handleDefaultMessage(data);
         }
       }
     }

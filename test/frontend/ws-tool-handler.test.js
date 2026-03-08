@@ -46,6 +46,7 @@ beforeEach(() => {
   // Mock global functions
   global.updateToolStatus = jest.fn();
   global.getTranslation = jest.fn((key, fallback) => fallback);
+  global.setAlert = jest.fn();
   global.WorkflowViewer = { setStage: jest.fn(), setActiveTool: jest.fn() };
 
   // Window globals
@@ -153,10 +154,124 @@ describe('ws-tool-handler', () => {
     });
   });
 
+  describe('handleWait', () => {
+    it('sets callingFunction to true', () => {
+      handlers.handleWait({ content: 'Processing...' });
+      expect(window.callingFunction).toBe(true);
+    });
+
+    it('shows spinner', () => {
+      handlers.handleWait({ content: 'Processing...' });
+      expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+    });
+
+    it('shows regular wait messages as alerts', () => {
+      global.setAlert = jest.fn();
+      handlers.handleWait({ content: 'Please wait...' });
+      expect(global.setAlert).toHaveBeenCalledWith('Please wait...', 'warning');
+    });
+
+    it('translates generating_ai_user_response key', () => {
+      handlers.handleWait({ content: 'generating_ai_user_response' });
+      expect(global.getTranslation).toHaveBeenCalledWith(
+        'ui.messages.generatingAIUserResponse',
+        'Generating AI user response...'
+      );
+    });
+
+    it('displays agent progress in temp card', () => {
+      mockElements['#temp-card'] = {
+        length: 1,
+        show: jest.fn(),
+        detach: jest.fn().mockReturnThis()
+      };
+      mockElements['#temp-card .card-text'] = { html: jest.fn() };
+      mockElements['#discourse'] = { append: jest.fn() };
+
+      handlers.handleWait({
+        content: 'Generating code...',
+        source: 'OpenAICodeAgent',
+        minutes: 1
+      });
+
+      expect(mockElements['#temp-card .card-text'].html).toHaveBeenCalledWith(
+        expect.stringContaining('Generating code...')
+      );
+    });
+
+    it('shows step progress with sequential steps', () => {
+      mockElements['#temp-card'] = {
+        length: 1,
+        show: jest.fn(),
+        detach: jest.fn().mockReturnThis()
+      };
+      mockElements['#temp-card .card-text'] = { html: jest.fn() };
+      mockElements['#discourse'] = { append: jest.fn() };
+
+      handlers.handleWait({
+        content: 'Building app...',
+        source: 'OpenAICodeAgent',
+        step_progress: {
+          mode: 'sequential',
+          current: 1,
+          steps: ['Plan', 'Code', 'Test']
+        }
+      });
+
+      const htmlArg = mockElements['#temp-card .card-text'].html.mock.calls[0][0];
+      expect(htmlArg).toContain('Plan');
+      expect(htmlArg).toContain('Code');
+      expect(htmlArg).toContain('Test');
+    });
+
+    it('shows parallel progress indicators', () => {
+      mockElements['#temp-card'] = {
+        length: 1,
+        show: jest.fn(),
+        detach: jest.fn().mockReturnThis()
+      };
+      mockElements['#temp-card .card-text'] = { html: jest.fn() };
+      mockElements['#discourse'] = { append: jest.fn() };
+
+      handlers.handleWait({
+        content: 'Dispatching...',
+        source: 'ParallelDispatch',
+        parallel_progress: {
+          completed: 1,
+          total: 3,
+          task_names: ['Task A', 'Task B', 'Task C']
+        }
+      });
+
+      const htmlArg = mockElements['#temp-card .card-text'].html.mock.calls[0][0];
+      expect(htmlArg).toContain('1/3 completed');
+    });
+
+    it('sets spinner to calling functions for CALLING FUNCTIONS', () => {
+      handlers.handleWait({ content: 'CALLING FUNCTIONS' });
+      expect(mockElements['#monadic-spinner span'].html).toHaveBeenCalledWith(
+        expect.stringContaining('Calling functions')
+      );
+    });
+
+    it('sets spinner to searching web for SEARCHING WEB', () => {
+      handlers.handleWait({ content: 'SEARCHING WEB' });
+      expect(mockElements['#monadic-spinner span'].html).toHaveBeenCalledWith(
+        expect.stringContaining('Searching web')
+      );
+    });
+
+    it('updates WorkflowViewer stage', () => {
+      handlers.handleWait({ content: 'CALLING FUNCTIONS' });
+      expect(global.WorkflowViewer.setStage).toHaveBeenCalledWith('tools');
+    });
+  });
+
   describe('module exports', () => {
-    it('exports both handlers', () => {
+    it('exports all three handlers', () => {
       expect(typeof handlers.handleToolExecuting).toBe('function');
       expect(typeof handlers.handleMessage).toBe('function');
+      expect(typeof handlers.handleWait).toBe('function');
     });
 
     it('exposes handlers on window.WsToolHandler', () => {

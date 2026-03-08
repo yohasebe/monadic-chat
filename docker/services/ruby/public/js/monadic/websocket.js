@@ -637,6 +637,7 @@ window.loadedApp = "Chat";
           }
 
           mediaSource = new MediaSource();
+          window.mediaSource = mediaSource; // Sync to window for ws-audio-handler.js
 
           // Create named handler for sourceopen (stored for later removal)
           mediaSourceOpenHandler = function() {
@@ -680,6 +681,7 @@ window.loadedApp = "Chat";
                     }
                   }
                 };
+                window.processAudioDataQueue = processAudioDataQueue; // Sync to window
               } else {
                 // Chrome and others work well with mpeg
                 // Check if mediaSource is valid before using it
@@ -693,6 +695,7 @@ window.loadedApp = "Chat";
                 // Store handler reference for proper cleanup
                 sourceBufferUpdateEndHandler = processAudioDataQueue;
                 sourceBuffer.addEventListener('updateend', sourceBufferUpdateEndHandler);
+                window.processAudioDataQueue = processAudioDataQueue; // Sync to window
               }
             } catch (e) {
               console.error("Error setting up MediaSource: ", e);
@@ -718,6 +721,7 @@ window.loadedApp = "Chat";
             if ('MediaSource' in window && !window.basicAudioMode) {
               try {
                 mediaSource = new MediaSource();
+                window.mediaSource = mediaSource;
               } catch (e) {
                 console.error("Error creating MediaSource after reset: ", e);
                 window.basicAudioMode = true;
@@ -729,6 +733,7 @@ window.loadedApp = "Chat";
           registerAudioElement(audio); // Track for stop button
           audio.src = URL.createObjectURL(mediaSource);
           window.audio = audio; // Export to window for global access
+          window.audioDataQueue = audioDataQueue; // Sync queue to window
         } catch (e) {
           console.error("Error creating audio element: ", e);
           // Fallback to basic audio mode
@@ -914,67 +919,10 @@ window.loadedApp = "Chat";
     }
     switch (data["type"]) {
       case "fragment_with_audio": {
-        // Handle the optimized combined fragment and audio message
-        let handled = false;
-
-        if (wsHandlers && typeof wsHandlers.handleFragmentWithAudio === 'function') {
-          // Create audio processing function similar to the one in handleAudioMessage
-          const processAudio = (audioData) => {
-            try {
-              // Ensure MediaSource is initialized if not already
-              if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-
-                initializeMediaSourceForAudio();
-              }
-
-              // Handle based on browser environment
-              if (window.firefoxAudioMode) {
-                if (!window.firefoxAudioQueue) {
-                  window.firefoxAudioQueue = [];
-                }
-
-                if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                  window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-                }
-
-                window.firefoxAudioQueue.push(audioData);
-                processAudioDataQueue();
-              } else if (window.basicAudioMode) {
-                // For iOS and other devices without MediaSource
-                playAudioDirectly(audioData);
-              } else {
-                // Standard approach for modern browsers
-                audioDataQueue.push(audioData);
-                processAudioDataQueue();
-
-                // Ensure audio playback starts automatically for auto_speech
-                // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                // Always attempt to play, even if not paused (may be needed for some browsers)
-                audio.play().catch(err => {
-                  // Debug log removed
-
-                  // User interaction might be required, show indicator
-                  if (err.name === 'NotAllowedError') {
-                    const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                  }
-                });
-              }
-              }
-            } catch (e) {
-              console.error("Error in audio processing:", e);
-            }
-          };
-
-          // Pass the message and processing function to the handler
-          handled = wsHandlers.handleFragmentWithAudio(data, processAudio);
+        const wah = window.WsAudioHandler;
+        if (wah && typeof wah.handleFragmentWithAudio === 'function') {
+          wah.handleFragmentWithAudio(data);
         }
-
-        if (!handled) {
-          console.warn("Combined fragment_with_audio message was not handled properly");
-        }
-
         break;
       }
 
@@ -1020,169 +968,9 @@ window.loadedApp = "Chat";
       }
 
       case "audio": {
-        // Use the handler if available, otherwise use inline code
-        let handled = false;
-        if (wsHandlers && typeof wsHandlers.handleAudioMessage === 'function') {
-          // Custom audio processor for the extracted handler
-          const processAudio = (audioData) => {
-            // Ensure MediaSource is initialized if not already
-            if (!mediaSource && 'MediaSource' in window && !window.basicAudioMode) {
-
-              initializeMediaSourceForAudio();
-            }
-
-            // Handle Firefox special case
-            if (window.firefoxAudioMode) {
-              // Add to the Firefox queue instead
-              if (!window.firefoxAudioQueue) {
-                window.firefoxAudioQueue = [];
-              }
-              // Limit Firefox queue size as well
-              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-              }
-              window.firefoxAudioQueue.push(audioData);
-              processAudioDataQueue();
-            } else if (window.basicAudioMode) {
-              // Basic mode for iOS and other devices without MediaSource support
-              playAudioDirectly(audioData);
-            } else {
-              // Regular MediaSource approach for other browsers
-              audioDataQueue.push(audioData);
-              processAudioDataQueue();
-
-              // Make sure audio is playing with error handling
-              // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                const playPromise = audio.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch(err => {
-                    // Debug log removed
-                    if (err.name === 'NotAllowedError') {
-                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                    }
-                  });
-                }
-              }
-            }
-          };
-
-          handled = wsHandlers.handleAudioMessage(data, processAudio);
-        }
-
-        if (!handled) {
-          // Fallback to inline handling
-          // For Auto TTS, keep spinner visible until audio actually starts playing
-          // For manual TTS (Play button), hide immediately as before
-          if (!window.autoSpeechActive && !window.autoPlayAudio) {
-            $("#monadic-spinner").hide();
-          }
-
-          // Check for duplicate audio - use same ID generation as handler
-          const fallbackAudioId = data.sequence_id || data.t_index ||
-                                  (data.content ? String(data.content).substring(0, 50) : Date.now().toString());
-
-          // Skip if this audio was already processed by the handler
-          if (window.wsHandlers && typeof window.wsHandlers.isAudioProcessed === 'function') {
-            if (window.wsHandlers.isAudioProcessed(fallbackAudioId)) {
-              console.debug('[Fallback Audio] Skipping duplicate audio:', fallbackAudioId);
-              break; // Skip this audio - already processed by handler
-            }
-            // Mark as processed to prevent future duplicates
-            if (typeof window.wsHandlers.markAudioProcessed === 'function') {
-              window.wsHandlers.markAudioProcessed(fallbackAudioId);
-            }
-          }
-
-          try{
-            // Check if response contains an error
-            if (data.content) {
-              // Handle error that might be an object
-              if (typeof data.content === 'object' && (data.content.error || data.content.type === 'error')) {
-                console.error("API error:", data.content.error || data.content.message || data.content);
-                // Convert to error message format that handleErrorMessage expects
-                data.type = 'error';
-                data.content = data.content.message || data.content.error || JSON.stringify(data.content);
-                handleErrorMessage(data);
-                break;
-              }
-              // Handle error in string format
-              else if (typeof data.content === 'string' && data.content.includes('error')) {
-                try {
-                  const errorData = JSON.parse(data.content);
-                  if (errorData.error || errorData.type === 'error') {
-                    console.error("API error:", errorData.error || errorData.message);
-                    // Convert to standard error format
-                    data.type = 'error';
-                    data.content = errorData.message || errorData.error || JSON.stringify(errorData);
-                    handleErrorMessage(data);
-                    break;
-                  }
-                } catch (e) {
-                  // If not valid JSON, continue with regular processing
-                }
-              }
-            }
-
-            // Check if this is PCM audio from Gemini
-            const provider = $("#tts-provider").val();
-            const isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
-
-            if (isPCMFromGemini) {
-              // Handle PCM audio from Gemini
-              const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-
-              // Extract PCM parameters from MIME type (e.g., "audio/L16;codec=pcm;rate=24000")
-              const mimeMatch = data.mime_type.match(/rate=(\d+)/);
-              const sampleRate = mimeMatch ? parseInt(mimeMatch[1]) : 24000;
-
-              // Convert PCM to playable audio using Web Audio API
-              playPCMAudio(audioData, sampleRate);
-              break;
-            }
-
-            const audioData = Uint8Array.from(atob(data.content), c => c.charCodeAt(0));
-
-            // Device/browser specific audio processing
-            if (window.firefoxAudioMode) {
-              // Firefox special case
-              if (!window.firefoxAudioQueue) {
-                window.firefoxAudioQueue = [];
-              }
-              // Limit Firefox queue size as well
-              if (window.firefoxAudioQueue.length >= MAX_AUDIO_QUEUE_SIZE) {
-                window.firefoxAudioQueue = window.firefoxAudioQueue.slice(Math.floor(MAX_AUDIO_QUEUE_SIZE / 2));
-              }
-              window.firefoxAudioQueue.push(audioData);
-              processAudioDataQueue();
-            } else if (window.basicAudioMode) {
-              // iOS and other devices without MediaSource support
-              playAudioDirectly(audioData);
-            } else {
-              // Standard MediaSource approach for modern browsers
-              audioDataQueue.push(audioData);
-              processAudioDataQueue();
-
-              // Make sure audio is playing with error handling
-              // Skip if segment-based queue is active to prevent duplicate audio
-              if (audio && !(window.getIsProcessingAudioQueue && window.getIsProcessingAudioQueue()) && window.globalAudioQueue.length === 0 && !(window.WsAudioQueue && window.WsAudioQueue.getCurrentSegmentAudio())) {
-                const playPromise = audio.play();
-                if (playPromise !== undefined) {
-                  playPromise.catch(err => {
-                    // Debug log removed
-                    if (err.name === 'NotAllowedError') {
-                      const clickAudioText = getTranslation('ui.messages.clickToEnableAudioSimple', 'Click to enable audio');
-            setAlert(`<i class="fas fa-volume-up"></i> ${clickAudioText}`, 'info');
-                    }
-                  });
-                }
-              }
-            }
-
-          } catch (e) {
-            console.error("Error processing audio data:", e);
-          }
+        const wahAudio = window.WsAudioHandler;
+        if (wahAudio && typeof wahAudio.handleAudio === 'function') {
+          wahAudio.handleAudio(data);
         }
         break;
       }

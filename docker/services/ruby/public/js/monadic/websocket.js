@@ -1214,96 +1214,27 @@ window.loadedApp = "Chat";
       }
 
       case "clear_fragments": {
-        // Clear the fragment buffer in temp-card before streaming post-tool response
-        // This prevents pre-tool text from being concatenated with post-tool response
-        const tempCard = $("#temp-card");
-        if (tempCard.length) {
-          tempCard.find(".card-text").empty();
-          // Reset sequence tracking
-          window._lastProcessedSequence = -1;
-          window._lastProcessedIndex = -1;
+        const wth = window.WsThinkingHandler;
+        if (wth && typeof wth.handleClearFragments === 'function') {
+          wth.handleClearFragments(data);
         }
         break;
       }
 
       case "tool_executing": {
-        window.toolCallCount++;
-        window.currentToolName = data["content"];
-
-        // Show temp card early if hidden (immediate feedback)
-        const toolTempCard = $("#temp-card");
-        if (toolTempCard.length && toolTempCard.is(":hidden")) {
-          toolTempCard.show();
+        const wtoolh = window.WsToolHandler;
+        if (wtoolh && typeof wtoolh.handleToolExecuting === 'function') {
+          wtoolh.handleToolExecuting(data);
         }
-
-        // Update temp card header with tool name and count
-        updateToolStatus(window.currentToolName, window.toolCallCount);
-
-        // Update workflow viewer
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setActiveTool) {
-          WorkflowViewer.setActiveTool(data["content"], window.toolCallCount);
-        }
-
-        // noVNC auto-open disabled: start_browser now defaults to headless mode.
-        // Users can open noVNC manually via Open > Open noVNC menu when using headless: false.
         break;
       }
 
       case "thinking":
       case "reasoning": {
-        // Handle thinking/reasoning content during streaming (like Claude's thinking blocks)
-        const content = data.content || '';
-        if (!content) break;
-        if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-          WorkflowViewer.setStage('model');
+        const wthh = window.WsThinkingHandler;
+        if (wthh && typeof wthh.handleThinking === 'function') {
+          wthh.handleThinking(data);
         }
-        if (typeof window.setReasoningStreamActive === 'function') {
-          window.setReasoningStreamActive(true);
-        }
-        ensureThinkingSpinnerVisible();
-
-        // Create or get temporary reasoning card
-        let tempReasoningCard = $("#temp-reasoning-card");
-        if (!tempReasoningCard.length) {
-          const titleText = data.type === 'thinking' ?
-            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinkingProcess') : 'Thinking Process') :
-            (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.reasoningProcess') : 'Reasoning Process');
-
-          tempReasoningCard = $(`
-            <div id="temp-reasoning-card" class="card mt-3 streaming-card">
-              <div class="card-header p-2 ps-3">
-                <div class="fs-6 card-title mb-0 text-muted d-flex align-items-center">
-                  <i class="fas fa-brain me-2"></i>
-                  <span>${titleText}</span>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="card-text"></div>
-              </div>
-            </div>
-          `);
-          $("#discourse").append(tempReasoningCard);
-        }
-
-        // Append thinking/reasoning content
-        const tempText = $("#temp-reasoning-card .card-text");
-        if (tempText.length) {
-          // Use DocumentFragment for efficient DOM manipulation while preserving newlines
-          const docFrag = document.createDocumentFragment();
-          const lines = content.split('\n');
-
-          lines.forEach((line, index) => {
-            if (index > 0) {
-              docFrag.appendChild(document.createElement('br'));
-            }
-            if (line) {
-              docFrag.appendChild(document.createTextNode(line));
-            }
-          });
-
-          tempText[0].appendChild(docFrag);
-        }
-
         break;
       }
 
@@ -1500,19 +1431,10 @@ window.loadedApp = "Chat";
       }
 
       case "tts_stopped": {
-        // TTS was stopped, reset the UI state
-        $("#monadic-spinner").hide();
-
-        // Reset response state
-        window.responseStarted = false;
-
-        // Set alert to ready state - only if system is not busy
-        if (!isSystemBusy()) {
-          const readyToStartText = typeof webUIi18n !== 'undefined' ?
-            webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
-          setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
+        const ttsStopHandler = window.WsTTSHandler;
+        if (ttsStopHandler && typeof ttsStopHandler.handleTTSStopped === 'function') {
+          ttsStopHandler.handleTTSStopped(data);
         }
-
         break;
       }
 
@@ -1979,26 +1901,9 @@ window.loadedApp = "Chat";
         break;
       }
       case "message": {
-        if (data["content"] === "DONE") {
-          // Check if tool calls are pending
-          if (data["finish_reason"] === "tool_calls") {
-            // Keep spinner visible for tool calls
-            window.callingFunction = true;
-            $("#monadic-spinner").show();
-            const processingToolsText = getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools');
-            $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-          } else {
-            // No tool calls, ensure callingFunction is false
-            window.callingFunction = false;
-            if (typeof WorkflowViewer !== 'undefined' && WorkflowViewer.setStage) {
-              WorkflowViewer.setStage('done');
-            }
-          }
-          ws.send(JSON.stringify({ "message": "HTML" }));
-        } else if (data["content"] === "CLEAR") {
-          $("#chat").html("");
-          $("#temp-card .status").hide();
-          $("#indicator").show();
+        const wtoolmh = window.WsToolHandler;
+        if (wtoolmh && typeof wtoolmh.handleMessage === 'function') {
+          wtoolmh.handleMessage(data);
         }
         break;
       }

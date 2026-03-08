@@ -46,6 +46,7 @@ beforeEach(() => {
   global.setAlert = jest.fn();
   global.removeStopButtonHighlight = jest.fn();
   global.showTtsNotice = jest.fn();
+  global.isSystemBusy = jest.fn().mockReturnValue(false);
 
   // Window globals
   window.lastTTSMode = null;
@@ -226,12 +227,41 @@ describe('ws-tts-handler', () => {
     });
   });
 
+  describe('handleTTSStopped', () => {
+    it('hides spinner', () => {
+      handlers.handleTTSStopped({});
+      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+    });
+
+    it('resets responseStarted', () => {
+      window.responseStarted = true;
+      handlers.handleTTSStopped({});
+      expect(window.responseStarted).toBe(false);
+    });
+
+    it('shows ready alert when system is not busy', () => {
+      global.isSystemBusy = jest.fn().mockReturnValue(false);
+      handlers.handleTTSStopped({});
+      expect(global.setAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Ready to start'),
+        'success'
+      );
+    });
+
+    it('does not show ready alert when system is busy', () => {
+      global.isSystemBusy = jest.fn().mockReturnValue(true);
+      handlers.handleTTSStopped({});
+      expect(global.setAlert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('module exports', () => {
-    it('exports all four handlers', () => {
+    it('exports all five handlers', () => {
       expect(typeof handlers.handleWebSpeech).toBe('function');
       expect(typeof handlers.handleTTSProgress).toBe('function');
       expect(typeof handlers.handleTTSComplete).toBe('function');
       expect(typeof handlers.handleTTSNotice).toBe('function');
+      expect(typeof handlers.handleTTSStopped).toBe('function');
     });
 
     it('exposes handlers on window.WsTTSHandler', () => {

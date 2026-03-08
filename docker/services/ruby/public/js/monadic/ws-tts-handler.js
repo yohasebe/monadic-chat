@@ -8,9 +8,8 @@
  * - tts_complete: Generation completion with spinner management
  * - tts_notice: Partial output or length warnings
  *
- * Note: The "audio" and "tts_stopped" cases remain in websocket.js
- * because they depend on streaming state variables (mediaSource,
- * audioDataQueue, responseStarted).
+ * Note: The "audio" case remains in websocket.js because it depends
+ * on streaming audio state (mediaSource, audioDataQueue).
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
@@ -123,12 +122,32 @@ function handleTTSNotice(data) {
   }
 }
 
+/**
+ * Handle "tts_stopped" WebSocket message.
+ * Resets UI state when TTS playback is stopped.
+ * @param {Object} _data - Message data (unused)
+ */
+function handleTTSStopped(_data) {
+  $("#monadic-spinner").hide();
+
+  // Reset response state
+  window.responseStarted = false;
+
+  // Set alert to ready state - only if system is not busy
+  if (!isSystemBusy()) {
+    const readyToStartText = typeof webUIi18n !== 'undefined' ?
+      webUIi18n.t('ui.messages.readyToStart') : 'Ready to start';
+    setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyToStartText}`, "success");
+  }
+}
+
 // Export for browser environment
 window.WsTTSHandler = {
   handleWebSpeech,
   handleTTSProgress,
   handleTTSComplete,
-  handleTTSNotice
+  handleTTSNotice,
+  handleTTSStopped
 };
 
 // Support for Jest testing environment (CommonJS)

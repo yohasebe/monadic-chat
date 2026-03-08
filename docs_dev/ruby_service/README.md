@@ -39,7 +39,7 @@ This section contains internal documentation for Monadic Chat's Ruby backend ser
 The Ruby service is the core backend of Monadic Chat, built on Rack and Async/Falcon. Key components include:
 
 - **Rack Application** (`config.ru`, `lib/monadic.rb`) - HTTP/WebSocket server
-- **WebSocket Server** (`lib/monadic/utils/websocket.rb`) - Real-time bidirectional communication
+- **WebSocket Server** (`lib/monadic/utils/websocket.rb` + `websocket/` sub-modules) - Real-time bidirectional communication
 - **Vendor Adapters** (`lib/monadic/adapters/vendors/`) - AI provider integrations
 - **MDSL Engine** (`lib/monadic/dsl.rb`) - App definition language processor
 - **Applications** (`apps/`) - 20+ specialized chat applications

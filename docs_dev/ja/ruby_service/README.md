@@ -36,7 +36,7 @@
 RubyサービスはMonadic Chatのコアバックエンドで、RackとAsync/Falconで構築されています。主要コンポーネントには以下が含まれます：
 
 - **Rackアプリケーション** (`config.ru`、`lib/monadic.rb`) - HTTP/WebSocketサーバー
-- **WebSocketサーバー** (`lib/monadic/utils/websocket.rb`) - リアルタイム双方向通信
+- **WebSocketサーバー** (`lib/monadic/utils/websocket.rb` + `websocket/` サブモジュール) - リアルタイム双方向通信
 - **ベンダーアダプター** (`lib/monadic/adapters/vendors/`) - AIプロバイダー統合
 - **MDSLエンジン** (`lib/monadic/dsl.rb`) - アプリ定義言語プロセッサー
 - **アプリケーション** (`apps/`) - 20以上の特化したチャットアプリケーション

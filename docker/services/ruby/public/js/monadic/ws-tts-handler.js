@@ -8,11 +8,12 @@
  * - tts_complete: Generation completion with spinner management
  * - tts_notice: Partial output or length warnings
  *
- * Note: The "audio" case remains in websocket.js because it depends
- * on streaming audio state (mediaSource, audioDataQueue).
+ * Note: The "audio" case is handled by ws-audio-handler.js.
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "web_speech" WebSocket message.
@@ -154,3 +155,4 @@ window.WsTTSHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsTTSHandler;
 }
+})();

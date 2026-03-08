@@ -6,6 +6,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "info" WebSocket message.
@@ -225,3 +227,4 @@ window.WsInfoHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsInfoHandler;
 }
+})();

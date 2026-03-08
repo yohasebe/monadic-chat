@@ -7,6 +7,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "error" WebSocket message.
@@ -214,3 +216,4 @@ window.WsErrorHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsErrorHandler;
 }
+})();

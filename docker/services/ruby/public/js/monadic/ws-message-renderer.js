@@ -8,6 +8,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "past_messages" WebSocket message.
@@ -484,3 +486,4 @@ window.WsMessageRenderer = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsMessageRenderer;
 }
+})();

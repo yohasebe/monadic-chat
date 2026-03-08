@@ -7,6 +7,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "tool_executing" WebSocket message.
@@ -292,3 +294,4 @@ window.WsToolHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsToolHandler;
 }
+})();

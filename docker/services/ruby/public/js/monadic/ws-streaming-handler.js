@@ -6,9 +6,11 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
-const BUSY_CHECK_INTERVAL_MS = (typeof window !== 'undefined' && window.WsAudioConstants || {}).BUSY_CHECK_INTERVAL_MS || 500;
-const BUSY_CHECK_MAX_WAIT_MS = (typeof window !== 'undefined' && window.WsAudioConstants || {}).BUSY_CHECK_MAX_WAIT_MS || 10000;
+var BUSY_CHECK_INTERVAL_MS = (typeof window !== 'undefined' && window.WsAudioConstants || {}).BUSY_CHECK_INTERVAL_MS || 500;
+var BUSY_CHECK_MAX_WAIT_MS = (typeof window !== 'undefined' && window.WsAudioConstants || {}).BUSY_CHECK_MAX_WAIT_MS || 10000;
 
 /**
  * Handle "streaming_complete" WebSocket message.
@@ -306,3 +308,4 @@ window.WsStreamingHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsStreamingHandler;
 }
+})();

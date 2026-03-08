@@ -8,6 +8,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "ai_user_started" WebSocket message.
@@ -106,3 +108,4 @@ window.WsAIUserHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsAIUserHandler;
 }
+})();

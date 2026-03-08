@@ -10,6 +10,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "html" WebSocket message.
@@ -436,3 +438,4 @@ window.WsHtmlHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsHtmlHandler;
 }
+})();

@@ -12,6 +12,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "token_verified" WebSocket message.
@@ -134,3 +136,4 @@ window.WsConnectionHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsConnectionHandler;
 }
+})();

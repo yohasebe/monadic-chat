@@ -7,6 +7,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "thinking" or "reasoning" WebSocket message.
@@ -97,3 +99,4 @@ window.WsThinkingHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsThinkingHandler;
 }
+})();

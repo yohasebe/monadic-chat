@@ -14,6 +14,8 @@
  *
  * Extracted from websocket.js to reduce the size of connect_websocket().
  */
+(function() {
+'use strict';
 
 /**
  * Handle "context_extraction_started" WebSocket message.
@@ -301,3 +303,4 @@ window.WsSessionHandler = {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = window.WsSessionHandler;
 }
+})();

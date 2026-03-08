@@ -107,19 +107,11 @@ module WebSocketHelper
     # Special handling for Web Speech API - no API call needed
     if provider == "webspeech" || provider == "web-speech"
       res_hash = { "type" => "web_speech", "content" => text }
-      if ws_session_id
-        WebSocketHelper.send_to_session(res_hash.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(res_hash.to_json)
-      end
+      send_or_broadcast(res_hash.to_json, ws_session_id)
 
       # Send completion message
       complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(complete_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(complete_message)
-      end
+      send_or_broadcast(complete_message, ws_session_id)
       return
     end
 
@@ -155,41 +147,25 @@ module WebSocketHelper
             "total_segments" => 1,
             "progress" => 100
           }
-          if ws_session_id
-            WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(progress_message.to_json)
-          end
+          send_or_broadcast(progress_message.to_json, ws_session_id)
         else
           # Forward error to frontend so user sees what went wrong
           error_content = res_hash&.dig("content") || "Unknown TTS error"
           puts "[TTS] Single request failed: #{error_content}"
           error_message = { "type" => "error", "content" => error_content }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(error_message, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(error_message)
-          end
+          send_or_broadcast(error_message, ws_session_id)
         end
-      rescue => e
+      rescue StandardError => e
         puts "[TTS] Single request exception: #{e.message}"
         Monadic::Utils::ExtraLogger.log { "[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
         # Forward exception as error to frontend
         error_message = { "type" => "error", "content" => "TTS error: #{e.message}" }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(error_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(error_message)
-        end
+        send_or_broadcast(error_message, ws_session_id)
       end
 
       # Send completion message
       complete_message = { "type" => "tts_complete", "total_segments" => 1 }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(complete_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(complete_message)
-      end
+      send_or_broadcast(complete_message, ws_session_id)
     end
   end
 
@@ -226,11 +202,7 @@ module WebSocketHelper
           "segments_total" => total_segments
         }
       }
-      if ws_session_id
-        WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(notice_message.to_json)
-      end
+      send_or_broadcast(notice_message.to_json, ws_session_id)
 
       # Play full text without any byte limit
       return start_single_tts_request(
@@ -311,11 +283,7 @@ module WebSocketHelper
               "bytes_total" => text_bytes
             }
           }
-          if ws_session_id
-            WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(notice_message.to_json)
-          end
+          send_or_broadcast(notice_message.to_json, ws_session_id)
         end
 
         # If no segments fit within limit, always include at least the first segment
@@ -339,11 +307,7 @@ module WebSocketHelper
                 "bytes_total" => text_bytes
               }
             }
-            if ws_session_id
-              WebSocketHelper.send_to_session(notice_message.to_json, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(notice_message.to_json)
-            end
+            send_or_broadcast(notice_message.to_json, ws_session_id)
           end
         end
 
@@ -494,11 +458,7 @@ module WebSocketHelper
             "total_segments" => valid_segments.length,
             "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
           }
-          if ws_session_id
-            WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(progress_message.to_json)
-          end
+          send_or_broadcast(progress_message.to_json, ws_session_id)
         end
       else
         # Prefetch mode for API-based TTS providers
@@ -536,7 +496,7 @@ module WebSocketHelper
             res_hash = tts_futures[i]&.value
 
             Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} result: #{res_hash ? res_hash["type"] : "nil"}" }
-          rescue => e
+          rescue StandardError => e
             # Thread was killed or errored - create error response
             Monadic::Utils::ExtraLogger.log { "[TTS] Segment #{i} failed with exception: #{e.message}\n[TTS] Backtrace: #{e.backtrace[0..3].join("\n")}" }
             res_hash = {
@@ -594,11 +554,7 @@ module WebSocketHelper
               "total_segments" => valid_segments.length,
               "progress" => ((i + 1) / valid_segments.length.to_f * 100).round
             }
-            if ws_session_id
-              WebSocketHelper.send_to_session(progress_message.to_json, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(progress_message.to_json)
-            end
+            send_or_broadcast(progress_message.to_json, ws_session_id)
           else
             puts "TTS segment #{i} failed: #{res_hash&.dig("content") || "Unknown error"}"
           end
@@ -612,11 +568,7 @@ module WebSocketHelper
         "type" => "tts_complete",
         "total_segments" => valid_segments.length
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(complete_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(complete_message)
-      end
+      send_or_broadcast(complete_message, ws_session_id)
 
       Monadic::Utils::ExtraLogger.log { "[TTS] tts_complete sent successfully" }
     end
@@ -690,11 +642,7 @@ module WebSocketHelper
     if provider == "webspeech" || provider == "web-speech"
       # Create a special response for Web Speech API
       web_speech_response = { "type" => "web_speech", "content" => text }
-      if ws_session_id
-        WebSocketHelper.send_to_session(web_speech_response.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(web_speech_response.to_json)
-      end
+      send_or_broadcast(web_speech_response.to_json, ws_session_id)
     else
       # Generate TTS content for other providers (use captured ws_session_id in callback)
       tts_api_request(text,
@@ -703,11 +651,7 @@ module WebSocketHelper
                       speed: speed,
                       response_format: response_format,
                       language: language) do |fragment|
-        if ws_session_id
-          WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(fragment.to_json)
-        end
+        send_or_broadcast(fragment.to_json, ws_session_id)
     end
     end
   end
@@ -724,11 +668,11 @@ module WebSocketHelper
         if tts_futures && tts_futures.is_a?(Array)
           tts_futures.each do |future_thread|
             future_thread.kill if future_thread && future_thread.alive?
-          rescue => e
+          rescue StandardError => e
             # Already dead or error during kill - safe to ignore
           end
         end
-      rescue => e
+      rescue StandardError => e
         # Error accessing thread locals - continue with main thread cleanup
         Monadic::Utils::ExtraLogger.log { "Error cleaning up TTS subthreads: #{e.message}" }
       end
@@ -741,11 +685,7 @@ module WebSocketHelper
 
     # Send confirmation
     tts_stopped_message = { "type" => "tts_stopped" }.to_json
-    if ws_session_id
-      WebSocketHelper.send_to_session(tts_stopped_message, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(tts_stopped_message)
-    end
+    send_or_broadcast(tts_stopped_message, ws_session_id)
   end
 
   private def handle_ws_play_tts(connection, obj, session, thread)

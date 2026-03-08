@@ -246,7 +246,7 @@ module WebSocketHelper
       end # end case
     end # end while
 
-    rescue => e
+    rescue StandardError => e
       Monadic::Utils::ExtraLogger.log { "[WebSocket] Error in message loop: #{e.class}: #{e.message}\n#{e.backtrace.first(5).join("\n")}" }
     ensure
       WebSocketHelper.remove_connection_with_session(connection, ws_session_id)
@@ -262,10 +262,20 @@ module WebSocketHelper
     end
   end
 
+  # Send a JSON message to a specific session, or broadcast to all if no session ID.
+  # This centralizes the common pattern of session-targeted vs global delivery.
+  def send_or_broadcast(message, session_id = Thread.current[:websocket_session_id])
+    if session_id
+      WebSocketHelper.send_to_session(message, session_id)
+    else
+      WebSocketHelper.broadcast_to_all(message)
+    end
+  end
+
   def send_to_client(connection, message_hash)
     connection.write(message_hash.to_json)
     connection.flush
-  rescue => e
+  rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[WebSocket] Error sending to client: #{e.message}" }
   end
 

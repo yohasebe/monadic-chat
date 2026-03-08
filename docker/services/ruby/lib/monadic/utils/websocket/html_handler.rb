@@ -23,7 +23,7 @@ module WebSocketHelper
           stored_fragments = session.delete(:tool_html_fragments)
           text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
         end
-        pp "[DEBUG] WebSocket - text extraction: content keys = #{content.keys}, text = #{text.class}:#{text.to_s[0..100]}..." if session["parameters"]["app_name"]&.include?("Perplexity")
+        Monadic::Utils::ExtraLogger.log { "[WebSocket] text extraction: content keys=#{content.keys}, text=#{text.class}:#{text.to_s[0..100]}..." } if CONFIG["EXTRA_LOGGING"] && session["parameters"]["app_name"]&.include?("Perplexity")
         # Extract thinking content uniformly from message
         thinking = content["message"]["thinking"] || content["message"]["reasoning_content"] || content["thinking"]
 
@@ -62,11 +62,7 @@ module WebSocketHelper
         if content["finish_reason"] && content["finish_reason"] == "safety"
           ws_session_id = Thread.current[:websocket_session_id]
           safety_error = { "type" => "error", "content" => "api_stopped_safety" }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(safety_error, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(safety_error)
-          end
+          send_or_broadcast(safety_error, ws_session_id)
         end
 
         # Extract ABC blocks before markdown processing (they're already HTML)
@@ -144,11 +140,7 @@ module WebSocketHelper
           "type" => "html",
           "content" => new_data
         }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(html_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(html_message)
-        end
+        send_or_broadcast(html_message, ws_session_id)
 
         session[:messages] << new_data
         sync_session_state!
@@ -161,19 +153,11 @@ module WebSocketHelper
         # Send status updates
         if past_messages_data[:changed]
           status_message = { "type" => "change_status", "content" => messages }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(status_message, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(status_message)
-          end
+          send_or_broadcast(status_message, ws_session_id)
         end
 
         info_message = { "type" => "info", "content" => past_messages_data }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(info_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(info_message)
-        end
+        send_or_broadcast(info_message, ws_session_id)
 
         # Context extraction for monadic apps (automatic context tracking)
         # This runs AFTER the response is sent to the user, in a background thread
@@ -242,11 +226,7 @@ module WebSocketHelper
         STDERR.puts "Error processing request: #{e.message}"
         ws_session_id = Thread.current[:websocket_session_id]
         error_message = { "type" => "error", "content" => "something_went_wrong" }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(error_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(error_message)
-        end
+        send_or_broadcast(error_message, ws_session_id)
       end
     end
   end

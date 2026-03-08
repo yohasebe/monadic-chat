@@ -14,11 +14,7 @@ module WebSocketHelper
 
     if obj["content"].nil?
       error_message = { "type" => "error", "content" => "voice_input_empty" }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(error_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(error_message)
-      end
+      send_or_broadcast(error_message, ws_session_id)
       return
     end
 
@@ -51,20 +47,12 @@ module WebSocketHelper
 
       if res["text"] && res["text"] == ""
         empty_error = { "type" => "error", "content" => "text_input_empty" }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(empty_error, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(empty_error)
-        end
+        send_or_broadcast(empty_error, ws_session_id)
       elsif res["type"] && res["type"] == "error"
         # Include format information in error message for debugging
         error_content = "#{res["content"]} (using format: #{format}, model: #{model})"
         api_error = { "type" => "error", "content" => error_content }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(api_error, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(api_error)
-        end
+        send_or_broadcast(api_error, ws_session_id)
       else
         send_transcription_result(connection, res, model)
       end
@@ -77,11 +65,7 @@ module WebSocketHelper
         "type" => "error",
         "content" => "An error occurred while processing your audio"
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(rescue_error, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(rescue_error)
-      end
+      send_or_broadcast(rescue_error, ws_session_id)
     end
   end
 
@@ -101,22 +85,14 @@ module WebSocketHelper
         "content" => res["text"],
         "logprob" => logprob
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(stt_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(stt_message)
-      end
+      send_or_broadcast(stt_message, ws_session_id)
     rescue StandardError => e
       # Handle errors in logprob calculation
       stt_message_no_logprob = {
         "type" => "stt",
         "content" => res["text"]
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(stt_message_no_logprob, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(stt_message_no_logprob)
-      end
+      send_or_broadcast(stt_message_no_logprob, ws_session_id)
     end
   end
 

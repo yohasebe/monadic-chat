@@ -60,11 +60,7 @@ module WebSocketHelper
         "type" => "error",
         "content" => "ai_user_requires_conversation"
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(error_msg, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(error_msg)
-      end
+      send_or_broadcast(error_msg, ws_session_id)
       return
     end
 
@@ -75,18 +71,10 @@ module WebSocketHelper
 
     # UI feedback
     wait_msg = { "type" => "wait", "content" => "generating_ai_user_response" }.to_json
-    if ws_session_id
-      WebSocketHelper.send_to_session(wait_msg, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(wait_msg)
-    end
+    send_or_broadcast(wait_msg, ws_session_id)
 
     started_msg = { "type" => "ai_user_started" }.to_json
-    if ws_session_id
-      WebSocketHelper.send_to_session(started_msg, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(started_msg)
-    end
+    send_or_broadcast(started_msg, ws_session_id)
 
     # Process the request
     begin
@@ -96,35 +84,19 @@ module WebSocketHelper
       # Handle result
       if result["type"] == "error"
         error_result = { "type" => "error", "content" => result["content"] }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(error_result, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(error_result)
-        end
+        send_or_broadcast(error_result, ws_session_id)
       else
         # Send response to client
         ai_user_msg = { "type" => "ai_user", "content" => result["content"] }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(ai_user_msg, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(ai_user_msg)
-        end
+        send_or_broadcast(ai_user_msg, ws_session_id)
 
         finished_msg = { "type" => "ai_user_finished", "content" => result["content"] }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(finished_msg, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(finished_msg)
-        end
+        send_or_broadcast(finished_msg, ws_session_id)
       end
-    rescue => e
+    rescue StandardError => e
       # Error handling
       rescue_error = { "type" => "error", "content" => { "key" => "ai_user_error", "details" => e.message } }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(rescue_error, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(rescue_error)
-      end
+      send_or_broadcast(rescue_error, ws_session_id)
     end
   end
 
@@ -171,11 +143,7 @@ module WebSocketHelper
         "content" => session[:parameters],
         "from_param_update" => true
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(param_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(param_message)
-      end
+      send_or_broadcast(param_message, ws_session_id)
     rescue StandardError => e
       DebugHelper.debug("Parameter broadcast failed: #{e.message}", category: :websocket, level: :error) if defined?(DebugHelper)
     end
@@ -235,16 +203,6 @@ module WebSocketHelper
       # Add images if present
       new_data["images"] = images if images
 
-      # Phase 2: Server-side HTML rendering disabled
-      # Client-side MarkdownRenderer now handles all rendering
-      # if obj["role"] == "assistant"
-      #   mathjax_enabled = params["mathjax"].to_s == "true"
-      #   new_data["html"] = markdown_to_html(text, mathjax: mathjax_enabled)
-      # else
-      #   # For user and system roles, preserve line breaks
-      #   new_data["html"] = text
-      # end
-
       # First add to session
       session[:messages] << new_data
       sync_session_state!
@@ -269,39 +227,23 @@ module WebSocketHelper
           "badge" => badge
         }
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(display_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(display_message)
-      end
+      send_or_broadcast(display_message, ws_session_id)
 
       # Also send HTML message for session history
       html_message = { "type" => "html", "content" => new_data }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(html_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(html_message)
-      end
+      send_or_broadcast(html_message, ws_session_id)
 
       # Add a success response to confirm message was processed
       success_message = { "type" => "sample_success", "role" => obj["role"] }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(success_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(success_message)
-      end
-    rescue => e
+      send_or_broadcast(success_message, ws_session_id)
+    rescue StandardError => e
       # Log the error
       puts "Error processing SAMPLE message: #{e.message}"
       puts e.backtrace
 
       # Inform the client
       error_message = { "type" => "error", "content" => "error_processing_sample" }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(error_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(error_message)
-      end
+      send_or_broadcast(error_message, ws_session_id)
     end
   end
 
@@ -333,11 +275,7 @@ module WebSocketHelper
       apps_data = prepare_apps_data(new_language)
       unless apps_data.empty?
         apps_message = { "type" => "apps", "content" => apps_data }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(apps_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(apps_message)
-        end
+        send_or_broadcast(apps_message, ws_session_id)
       end
 
       # Notify client of successful update
@@ -353,11 +291,7 @@ module WebSocketHelper
         "language_name" => language_name,
         "text_direction" => Monadic::Utils::LanguageConfig.text_direction(new_language)
       }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(language_updated_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(language_updated_message)
-      end
+      send_or_broadcast(language_updated_message, ws_session_id)
     end
   end
 

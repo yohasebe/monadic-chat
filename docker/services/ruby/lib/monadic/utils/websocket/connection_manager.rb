@@ -43,7 +43,7 @@ module WebSocketHelper
         # Synchronous send - removed Async do block for thread compatibility
         ws.write(message)
         ws.flush
-      rescue => e
+      rescue StandardError => e
         # Log WebSocket send error and remove dead connection
         Monadic::Utils::ExtraLogger.log { "[WebSocket] Send error: #{e.message}" }
         remove_connection(ws)
@@ -64,7 +64,7 @@ module WebSocketHelper
         ws.flush
 
         Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Broadcasted: #{message[0..100]}..." }
-      rescue => e
+      rescue StandardError => e
         # Log WebSocket send error and remove dead connection
         Monadic::Utils::ExtraLogger.log { "[WebSocket] Send error: #{e.message}" }
         remove_connection(ws)
@@ -149,7 +149,7 @@ module WebSocketHelper
     else
       broadcast_to_all(message_json)
     end
-  rescue => e
+  rescue StandardError => e
     Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error broadcasting progress: #{e.message}" }
   end
 
@@ -184,7 +184,7 @@ module WebSocketHelper
         ws.flush
 
         Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Sent to session #{session_id}: #{message_json[0..100]}..." }
-      rescue => e
+      rescue StandardError => e
         Monadic::Utils::ExtraLogger.log { "[WebSocketHelper] Error sending to session #{session_id}: #{e.message}" }
         to_remove << ws
       end

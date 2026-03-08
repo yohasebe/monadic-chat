@@ -200,11 +200,7 @@ module WebSocketHelper
       "docker" => rack_session[:docker]
     }
     unless apps.empty?
-      if ws_session_id
-        WebSocketHelper.send_to_session(apps_message.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(apps_message.to_json)
-      end
+      send_or_broadcast(apps_message.to_json, ws_session_id)
     end
 
     # Use sleep to delay subsequent messages, giving browser time to process large apps message
@@ -212,11 +208,7 @@ module WebSocketHelper
     sleep(0.05)
     # Always send parameters message, even if empty, to ensure new tabs start with clean state
     # This prevents tabs from inheriting old parameters from localStorage
-    if ws_session_id
-      WebSocketHelper.send_to_session({ "type" => "parameters", "content" => rack_session[:parameters] || {} }.to_json, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all({ "type" => "parameters", "content" => rack_session[:parameters] || {} }.to_json)
-    end
+    send_or_broadcast({ "type" => "parameters", "content" => rack_session[:parameters] || {} }.to_json, ws_session_id)
 
     # Debug logging
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent parameters message to session #{ws_session_id}" }
@@ -226,11 +218,7 @@ module WebSocketHelper
     sleep(0.05)  # Additional 0.05s delay (total 0.1s from start)
     past_messages_data = { "type" => "past_messages", "content" => filtered_messages }
     past_messages_data["from_initial_load"] = true if from_initial_load
-    if ws_session_id
-      WebSocketHelper.send_to_session(past_messages_data.to_json, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(past_messages_data.to_json)
-    end
+    send_or_broadcast(past_messages_data.to_json, ws_session_id)
 
     # Debug logging for past_messages (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent past_messages with #{filtered_messages.size} items to session #{ws_session_id}" }
@@ -248,11 +236,7 @@ module WebSocketHelper
       count_active_messages: filtered_messages.size,
       encoding_name: "o200k_base"
     }
-    if ws_session_id
-      WebSocketHelper.send_to_session({ "type" => "info", "content" => info_data }.to_json, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => info_data }.to_json)
-    end
+    send_or_broadcast({ "type" => "info", "content" => info_data }.to_json, ws_session_id)
 
     # Debug logging for info message (only when EXTRA_LOGGING is enabled)
     Monadic::Utils::ExtraLogger.log { "push_apps_data: Sent info message to hide spinner" }
@@ -273,20 +257,12 @@ module WebSocketHelper
     # Send change_status if changed
     if past_messages_data[:changed]
       status_message = { "type" => "change_status", "content" => filtered_messages }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(status_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(status_message)
-      end
+      send_or_broadcast(status_message, ws_session_id)
     end
 
     # Send info message
     info_message = { "type" => "info", "content" => past_messages_data }.to_json
-    if ws_session_id
-      WebSocketHelper.send_to_session(info_message, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(info_message)
-    end
+    send_or_broadcast(info_message, ws_session_id)
 
     sync_session_state!
   end

@@ -41,17 +41,9 @@ module WebSocketHelper
 
     # Update status - send to session only
     if past_messages_data[:changed]
-      if ws_session_id
-        WebSocketHelper.send_to_session({ "type" => "change_status", "content" => filtered_messages }.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all({ "type" => "change_status", "content" => filtered_messages }.to_json)
-      end
+      send_or_broadcast({ "type" => "change_status", "content" => filtered_messages }.to_json, ws_session_id)
     end
-    if ws_session_id
-      WebSocketHelper.send_to_session({ "type" => "info", "content" => past_messages_data }.to_json, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all({ "type" => "info", "content" => past_messages_data }.to_json)
-    end
+    send_or_broadcast({ "type" => "info", "content" => past_messages_data }.to_json, ws_session_id)
     sync_session_state!
   end
   
@@ -154,11 +146,7 @@ module WebSocketHelper
       end
 
       # Push the response - send to session only
-      if ws_session_id
-        WebSocketHelper.send_to_session(response.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(response.to_json)
-      end
+      send_or_broadcast(response.to_json, ws_session_id)
 
       # Re-extract Session Context for the affected turn
       if turn_to_update
@@ -190,11 +178,7 @@ module WebSocketHelper
       sync_session_state!
     else
       # Message not found - send error to session only
-      if ws_session_id
-        WebSocketHelper.send_to_session({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json)
-      end
+      send_or_broadcast({ "type" => "error", "content" => "message_not_found_for_editing" }.to_json, ws_session_id)
     end
   end
   
@@ -222,20 +206,12 @@ module WebSocketHelper
     # Update status to reflect any changes (session-targeted)
     if past_messages_data[:changed]
       change_status_message = { "type" => "change_status", "content" => filtered_messages }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(change_status_message, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(change_status_message)
-      end
+      send_or_broadcast(change_status_message, ws_session_id)
     end
 
     # Send info message (session-targeted)
     info_message = { "type" => "info", "content" => past_messages_data }.to_json
-    if ws_session_id
-      WebSocketHelper.send_to_session(info_message, ws_session_id)
-    else
-      WebSocketHelper.broadcast_to_all(info_message)
-    end
+    send_or_broadcast(info_message, ws_session_id)
 
     sync_session_state!
   end

@@ -35,7 +35,7 @@ module WebSocketHelper
 
         # Store for later use in check_past_messages
         Thread.current[:token_count_result] = result
-      rescue => e
+      rescue StandardError => e
         # Log token counting errors for debugging
         if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
           logger.warn "Token counting error: #{e.message}"
@@ -244,7 +244,7 @@ module WebSocketHelper
           if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
             logger.warn "Token counting timeout - continuing without precount"
           end
-        rescue => e
+        rescue StandardError => e
           # Log error but continue operation
           if defined?(logger) && logger && CONFIG["EXTRA_LOGGING"]
             logger.warn "Token counting error in WebSocket handler: #{e.message}"
@@ -273,11 +273,7 @@ module WebSocketHelper
         error_msg = "App '#{app_name}' not found in APPS"
         puts "[ERROR] #{error_msg}"
         error_message = { "type" => "error", "content" => error_msg }.to_json
-        if ws_session_id
-          WebSocketHelper.send_to_session(error_message, ws_session_id)
-        else
-          WebSocketHelper.broadcast_to_all(error_message)
-        end
+        send_or_broadcast(error_message, ws_session_id)
         next
       end
 
@@ -289,11 +285,7 @@ module WebSocketHelper
         if fragment["type"] == "error"
           error_content = fragment["content"] || fragment.to_s
           fragment_error = { "type" => "error", "content" => error_content }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(fragment_error, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(fragment_error)
-          end
+          send_or_broadcast(fragment_error, ws_session_id)
           break
         elsif fragment["type"] == "clear_fragments"
           # Clear server-side buffers before post-tool response streaming
@@ -303,11 +295,7 @@ module WebSocketHelper
 
           # Send clear_fragments to frontend to clear the UI temp-card
           clear_msg = { "type" => "clear_fragments" }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(clear_msg, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(clear_msg)
-          end
+          send_or_broadcast(clear_msg, ws_session_id)
 
           Monadic::Utils::ExtraLogger.log { "[DEBUG] clear_fragments: server buffers cleared, message sent to frontend" }
         elsif fragment["type"] == "fragment"
@@ -477,35 +465,19 @@ module WebSocketHelper
               buffer = [segments.last]
 
               # Send the fragment to display text (after TTS processing)
-              if ws_session_id
-                WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
-              else
-                WebSocketHelper.broadcast_to_all(fragment.to_json)
-              end
+              send_or_broadcast(fragment.to_json, ws_session_id)
             else
               # POST-COMPLETION MODE: Just send fragments, keep everything in buffer
-              if ws_session_id
-                WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
-              else
-                WebSocketHelper.broadcast_to_all(fragment.to_json)
-              end
+              send_or_broadcast(fragment.to_json, ws_session_id)
             end
           else
             # Just send the fragment without TTS processing
-            if ws_session_id
-              WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(fragment.to_json)
-            end
+            send_or_broadcast(fragment.to_json, ws_session_id)
           end
         else
           # Handle other fragment types (including html, message, etc.)
           Monadic::Utils::ExtraLogger.log { "[WebSocket] Forwarding fragment type='#{fragment["type"]}' to frontend" }
-          if ws_session_id
-            WebSocketHelper.send_to_session(fragment.to_json, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(fragment.to_json)
-          end
+          send_or_broadcast(fragment.to_json, ws_session_id)
         end
         sleep 0.001  # Reduced from 0.01 for faster streaming
       end
@@ -653,11 +625,7 @@ module WebSocketHelper
                            "API Error: " + response.to_s
                          end
           api_error_message = { "type" => "error", "content" => error_content }.to_json
-          if ws_session_id
-            WebSocketHelper.send_to_session(api_error_message, ws_session_id)
-          else
-            WebSocketHelper.broadcast_to_all(api_error_message)
-          end
+          send_or_broadcast(api_error_message, ws_session_id)
         else
           # Debug logging for response structure (only with EXTRA_LOGGING)
           Monadic::Utils::ExtraLogger.log { "WebSocket response structure:\nResponse class: #{response.class}\nResponse keys: #{response.is_a?(Hash) ? response.keys.inspect : 'N/A'}\nHas choices?: #{response.is_a?(Hash) ? response.key?("choices") : 'N/A'}\nResponse: #{response.inspect[0..500]}..." }
@@ -699,27 +667,13 @@ module WebSocketHelper
           if raw_content.nil?
             Monadic::Utils::ExtraLogger.log { "ERROR: Content not found. Response structure: #{response.inspect[0..300]}..." }
             content_error = { "type" => "error", "content" => "content_not_found" }.to_json
-            if ws_session_id
-              WebSocketHelper.send_to_session(content_error, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(content_error)
-            end
+            send_or_broadcast(content_error, ws_session_id)
             break
           end
-          if raw_content
-            # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
-            content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
-            # Fix mount paths in the same way
-            content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
-          else
-            content = ""
-            empty_response_error = { "type" => "error", "content" => "empty_response" }.to_json
-            if ws_session_id
-              WebSocketHelper.send_to_session(empty_response_error, ws_session_id)
-            else
-              WebSocketHelper.broadcast_to_all(empty_response_error)
-            end
-          end
+          # Fix sandbox URL paths with a more precise regex that ensures we only replace complete paths
+          content = raw_content.gsub(%r{\bsandbox:/([^\s"'<>]+)}, '/\1')
+          # Fix mount paths in the same way
+          content = content.gsub(%r{^/mnt/([^\s"'<>]+)}, '/\1')
 
           response.dig("choices", 0, "message")["content"] = content
 
@@ -736,11 +690,7 @@ module WebSocketHelper
       # Send streaming complete message after all responses are processed (session-targeted)
       Monadic::Utils::ExtraLogger.log { "[DEBUG] About to send streaming_complete for session: #{ws_session_id}" }
       streaming_complete = { "type" => "streaming_complete" }.to_json
-      if ws_session_id
-        WebSocketHelper.send_to_session(streaming_complete, ws_session_id)
-      else
-        WebSocketHelper.broadcast_to_all(streaming_complete)
-      end
+      send_or_broadcast(streaming_complete, ws_session_id)
       Monadic::Utils::ExtraLogger.log { "[DEBUG] streaming_complete sent successfully" }
     end
     thread  # return the thread for the orchestrator

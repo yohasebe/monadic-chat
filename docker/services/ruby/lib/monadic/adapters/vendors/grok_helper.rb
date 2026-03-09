@@ -548,7 +548,7 @@ module GrokHelper
           ) }]
         end
 
-        return process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block) || []
+        return process_functions(app, session, tool_calls, nil, session[:call_depth_per_turn], &block) || []
       end
 
       [{ "choices" => [{ "message" => { "role" => "assistant", "content" => frag }, "finish_reason" => "stop" }] }]
@@ -1530,7 +1530,7 @@ module GrokHelper
         }
 
         # Process the tools and get results
-        new_results = process_functions(app, session, tool_calls, session[:call_depth_per_turn], &block)
+        new_results = process_functions(app, session, tool_calls, nil, session[:call_depth_per_turn], &block)
         return new_results || []
       end
     end
@@ -1670,7 +1670,7 @@ module GrokHelper
     response_parts.join("\n\n")
   end
 
-  def process_functions(app, session, tools, call_depth, &block)
+  def process_functions(app, session, tools, context, call_depth, &block)
     obj = session[:parameters]
     if obj.nil?
       # Initialize parameters if nil

@@ -38,6 +38,8 @@ module PerplexityHelper
     ]
   end
 
+  define_models_cache :perplexity
+
   # Get default model
   def self.get_default_model
     "sonar-reasoning-pro"

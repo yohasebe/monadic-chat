@@ -82,6 +82,8 @@ module OllamaHelper
 
   API_ENDPOINT = find_endpoint || ENDPOINT_CANDIDATES.last
 
+  define_models_cache :ollama
+
   attr_reader :models
 
   def vendor_name

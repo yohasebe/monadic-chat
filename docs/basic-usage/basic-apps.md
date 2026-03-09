@@ -270,6 +270,12 @@ With supported models, the image editing feature allows you to:
 
 When editing images, you can create a mask to specify which areas of the image should be modified:
 
+#### Original Image
+
+An example of the original image to be edited:
+
+<!-- SCREENSHOT: Original image before mask editing -->
+
 #### Creating a Mask
 
 1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
@@ -289,6 +295,12 @@ The mask editor provides intuitive controls:
 - Adjustable brush size
 - Clear mask button
 - Preview of the original image underneath the mask
+
+#### Edited Result
+
+After applying the mask and providing editing instructions, you can get results like this:
+
+<!-- SCREENSHOT: Result after mask-based image editing -->
 
 The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas marked by your mask.
 

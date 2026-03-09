@@ -335,6 +335,53 @@ end
 
 ### ツール/関数呼び出し
 
+Monadic Chatのツールは、MDSLファイルで明示的に定義する必要があります。各ツール定義は、コンパニオンの`*_tools.rb`ファイル内の対応するメソッド実装と一致する必要があります。
+
+#### ファイル構成
+
+標準的なMonadic Chatのファイル命名規則：
+
+```text
+apps/app_name/
+├── app_name_constants.rb    # オプション: 共有定数 (ICON, DESCRIPTION など)
+├── app_name_tools.rb        # ツールメソッドの実装
+├── app_name_provider.mdsl   # MDSLインターフェース (例: app_name_openai.mdsl)
+└── app_name_provider.mdsl   # 追加プロバイダーバージョン
+```
+
+**共有ツールグループの場合**:
+
+`import_shared_tools`を使用する場合、ツール実装は`lib/monadic/shared_tools/`の共有モジュールから提供されます。`*_tools.rb`ファイルで共有モジュールをインクルードする必要があります：
+
+```ruby
+# apps/my_app/my_app_tools.rb
+module MyAppTools
+  include MonadicHelper
+  include MonadicSharedTools::FileOperations  # :file_operations用
+  include MonadicSharedTools::WebAutomation   # :web_automation用
+
+  # カスタムツール実装もここに追加可能
+  def my_custom_tool(params)
+    # 実装
+  end
+end
+
+class MyAppOpenAI < MonadicApp
+  include OpenAIHelper
+  include MyAppTools
+end
+```
+
+#### ベストプラクティス
+
+1. **共有ツールを優先する**: コードの重複を避けるため、共通機能には`import_shared_tools`を使用
+2. **ツール定義を明示的にする**: 明確性のため、すべてのツールをMDSLファイルで定義
+3. **実装メソッドを一致させる**: 各カスタムツールに`*_tools.rb`内の対応するメソッドがあることを確認
+4. **わかりやすい名前を使用する**: ツール名とパラメータ名は自己文書化されるべき
+5. **意味のある説明を追加する**: AIが各ツールをいつどのように使用するか理解できるようにする
+6. **ツール実装をテストする**: デプロイ前にツールが正しく動作することを確認
+7. **可用性を確認する**: 条件付きツールについては、使用前に依存関係が満たされているか確認
+
 DSLはAIが呼び出せるツール（関数）の定義をサポートしています。これらは自動的に各プロバイダーに適した形式に変換されます。
 
 ```ruby
@@ -404,29 +451,6 @@ class MermaidGrapherOpenAI < MonadicApp
       { success: false, error: e.message }
     end
   end
-end
-```
-
-#### 共有ツールグループの使用
-
-`import_shared_tools`を使用する場合、ツール実装は`lib/monadic/shared_tools/`の共有モジュールから提供されます。`*_tools.rb`ファイルで共有モジュールをインクルードする必要があります：
-
-```ruby
-# apps/my_app/my_app_tools.rb
-module MyAppTools
-  include MonadicHelper
-  include MonadicSharedTools::FileOperations  # :file_operations用
-  include MonadicSharedTools::WebAutomation   # :web_automation用
-
-  # カスタムツール実装もここに追加可能
-  def my_custom_tool(params)
-    # 実装
-  end
-end
-
-class MyAppOpenAI < MonadicApp
-  include OpenAIHelper
-  include MyAppTools
 end
 ```
 
@@ -538,6 +562,75 @@ end
 | Novel Writer | 執筆進捗（プロット、キャラクター、章） |
 | Voice Interpreter | 翻訳コンテキスト |
 | Language Practice Plus | 言語学習フィードバック |
+
+### コンテキストスキーマ（セッションコンテキスト）
+
+Session Stateアプリが明示的なツール呼び出しでコンテキスト管理を行うのに対し、`context_schema`ブロックを使用して**自動コンテキスト抽出**を有効にすることもできます。この機能は会話からキー情報を抽出し、サイドバーパネルに表示します。
+
+> **注意**: セッションコンテキストの完全なドキュメントは、[セッションコンテキスト](session-context.md)ガイドを参照してください。
+
+#### 基本的な使い方
+
+```ruby
+app "MyAppOpenAI" do
+  features do
+    monadic true  # context_schemaに必須
+  end
+
+  context_schema do
+    field :topics, icon: "fa-tags", label: "Topics",
+          description: "会話で議論された主なテーマ"
+    field :people, icon: "fa-users", label: "People",
+          description: "言及された人物の名前"
+    field :notes, icon: "fa-sticky-note", label: "Notes",
+          description: "記憶すべき重要な事実と好み"
+  end
+end
+```
+
+#### フィールド定義
+
+`context_schema`の各フィールドは以下のオプションを受け付けます：
+
+| オプション | 型 | 必須 | 説明 |
+|-----------|------|------|------|
+| `name` | Symbol | はい | フィールド識別子（第一引数、例：`:topics`） |
+| `icon` | String | いいえ | FontAwesomeアイコンクラス（例：`"fa-tags"`） |
+| `label` | String | いいえ | サイドバーの表示名（デフォルトはタイトルケースの名前） |
+| `description` | String | はい | 抽出エージェントに何を抽出するかを指示 |
+
+#### デフォルトスキーマ
+
+`context_schema`ブロックが指定されず`monadic true`が設定されている場合、アプリはデフォルトスキーマを使用します：
+
+- **Topics**: 議論された主なテーマ
+- **People**: 言及された人物の名前
+- **Notes**: 記憶すべき重要な事実
+
+#### カスタムスキーマの例
+
+```ruby
+# コードレビューアプリの場合
+context_schema do
+  field :files_reviewed, icon: "fa-file-code", label: "Files",
+        description: "レビューされたソースコードファイル"
+  field :issues, icon: "fa-bug", label: "Issues",
+        description: "特定されたバグとコードの問題"
+  field :suggestions, icon: "fa-lightbulb", label: "Suggestions",
+        description: "改善の提案"
+end
+```
+
+#### Session State vs セッションコンテキスト
+
+| 機能 | Session State | セッションコンテキスト |
+|------|---------------|----------------------|
+| **メカニズム** | 明示的なツール呼び出し（`load_context`, `save_context`） | 自動バックグラウンド抽出 |
+| **制御** | いつ何を保存するかを完全制御 | 各応答後に自動 |
+| **設定** | ツール定義 | `context_schema`ブロック |
+| **ユースケース** | 複雑な状態管理 | シンプルなコンテキスト追跡 |
+
+両機能とも`monadic true`が必要で、同じアプリで併用できます。
 
 ### プロバイダー固有のアダプター
 

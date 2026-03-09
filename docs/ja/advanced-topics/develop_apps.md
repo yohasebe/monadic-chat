@@ -266,6 +266,100 @@ end
 
 詳細については、Monadic DSLドキュメントの[モデル指定のベストプラクティス](monadic_dsl.md#モデル指定のベストプラクティス)セクションを参照してください。
 
+### セッション安全性の確保
+
+**重要**: Monadic Chatは共有インスタンスアーキテクチャを採用しており、各アプリクラスは全ユーザー間で共有される単一のインスタンスを持ちます。セッション間のデータ汚染を防ぐため、慎重な取り扱いが必要です。
+
+#### ✅ DO: 純粋関数を使用する
+
+すべてのツールメソッドは、パラメータのみに依存する純粋関数であるべきです：
+
+```ruby
+class MyApp < MonadicApp
+  def my_tool(input:, options:)
+    # ✅ 正しい: パラメータのみを使用
+    result = process_input(input, options)
+
+    format_tool_response(
+      success: true,
+      output: result
+    )
+  end
+
+  private
+
+  def process_input(input, options)
+    # 純粋関数 - 同じ入力は同じ出力を生成
+    # インスタンス変数なし、副作用なし
+    input.upcase if options[:uppercase]
+  end
+end
+```
+
+**安全な理由**:
+- ユーザー間で共有される状態がない
+- 設計上スレッドセーフ
+- 予測可能な動作
+
+#### ❌ DON'T: セッション状態にインスタンス変数を使用しない
+
+セッション固有のデータをインスタンス変数に保存してはいけません：
+
+```ruby
+class MyApp < MonadicApp
+  def validate_code(code:)
+    # ❌ 間違い: ユーザーBがユーザーAのデータを上書きする可能性がある
+    @last_validated_code = code
+    @validation_timestamp = Time.now
+
+    validate(code)
+  end
+
+  def preview_code
+    # ❌ 間違い: 他のユーザーのデータを読む可能性がある
+    code = @last_validated_code
+    generate_preview(code)
+  end
+end
+```
+
+**安全でない理由**:
+- ユーザーAがコードを検証 → `@last_validated_code`に保存
+- ユーザーBが異なるコードを検証 → `@last_validated_code`を**上書き**
+- ユーザーAがプレビューを要求 → ユーザーBのコードを取得！
+
+#### インスタンス変数の許容される使用法
+
+**読み取り専用の設定**（全ユーザーで同一）：
+
+```ruby
+class MyApp < MonadicApp
+  def initialize
+    super
+    @config = load_app_config  # ✅ OK: 読み取り専用の設定
+  end
+
+  def my_tool(input:)
+    # 読み取り専用の設定に@configを使用するのは問題ない
+    process(input, max_length: @config[:max_length])
+  end
+end
+```
+
+#### ベストプラクティスまとめ
+
+1.  **ステートレスなツールを設計する**: 各ツール呼び出しは独立しており、隠れた状態に依存せず入力を処理して出力を返すべきです。
+
+2.  **データはパラメータで渡す**: すべての入力と必要なコンテキストは、明示的な関数引数として渡すべきです。
+
+3.  **すべての出力を返す**: ツールは副作用や隠れた状態の変更に依存せず、すべての関連結果を返すべきです。
+
+4.  **一時的な状態には`session`パラメータを使用する**: 会話固有の非永続データ（例：最後に生成された画像ファイル名、現在のノートブックコンテキスト）には、`session`パラメータを使用します。システムがユーザーごとにこの状態を分離します。
+
+5.  **永続化にはファイルシステムを使用する**: 永続データ（例：長期ログ、ユーザーファイル）には、メモリ内のインスタンス変数の代わりに共有ファイルシステムに書き込みます。
+
+6.  **読み取り専用インスタンス変数のみ**: インスタンス変数（`@variable`）は、全ユーザー・全セッションで同一の読み取り専用設定にのみ使用すべきです。
+
 ## よくある問題のトラブルシューティング
 
 ### メソッドが見つからないエラー

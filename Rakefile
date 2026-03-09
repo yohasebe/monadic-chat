@@ -64,7 +64,10 @@ end
 
 begin
   require "rubocop/rake_task"
-  RuboCop::RakeTask.new
+  RuboCop::RakeTask.new do |task|
+    task.options = ["--config", "docker/services/ruby/.rubocop.yml"]
+    task.patterns = ["docker/services/ruby/**/*.rb"]
+  end
   task default: %i[spec rubocop]
 rescue LoadError
   # RuboCop is not available, skip it

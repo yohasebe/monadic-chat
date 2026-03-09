@@ -47,8 +47,6 @@ class MonadicApp
   @app_settings = {}
 
   class << self
-    attr_reader :model_data, :app_settings
-    
     def register_models(vendor_name, models)
       @model_data[vendor_name] ||= Set.new
       # Assign the result of merge back to @model_data[vendor_name]
@@ -652,16 +650,16 @@ class MonadicApp
     begin
       require 'timeout'
       stdout, stderr, status = nil, nil, nil
-      
+
       Timeout::timeout(timeout) do
         stdout, stderr, status = Open3.capture3(command)
       end
     rescue Timeout::Error
       error_msg = "Command timed out after #{timeout} seconds. This may happen with complex syntax trees or when using high reasoning effort settings. Consider simplifying the input or reducing reasoning_effort."
       return ["", error_msg, OpenStruct.new(success?: false)]
+    end
 
-    # output log data of input and output
-    # create a log (COMMAND_LOG_FILE) to store the command and its output
+    # Log command input and output
     begin
       Monadic::Utils::Environment.rotate_log(COMMAND_LOG_FILE)
     rescue StandardError
@@ -676,7 +674,6 @@ class MonadicApp
     end
 
     [stdout, stderr, status]
-    end
   end
 
   def self.doc2markdown(filename)

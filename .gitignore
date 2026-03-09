@@ -63,8 +63,8 @@ Gemfile.lock
 /.ruby-lsp/
 .rvmrc
 
-.rubocop.yml
-.rubycop_todo.yml
+# .rubocop_todo.yml is auto-generated and should not be committed in most cases
+# .rubocop.yml is committed as the shared linting config
 .rspec_status
 
 .solargraph.yml

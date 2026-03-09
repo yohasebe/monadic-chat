@@ -36,7 +36,7 @@ def video_query(json_path, query, model = "gpt-4.1")
   end
 
   # Validate the model name - OpenAI vision-capable models should be used
-  vision_capable_models = ["gpt-4.1", "gpt-4o" "gpt-4-vision", "gpt-4-turbo"]
+  vision_capable_models = ["gpt-4.1", "gpt-4o", "gpt-4-vision", "gpt-4-turbo"]
   unless model.nil? || model.empty?
     # Extract base model - remove version numbers
     base_model = model.gsub(/-\d.*$/, "")

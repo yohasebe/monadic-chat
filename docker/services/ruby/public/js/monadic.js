@@ -415,13 +415,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // Apply visibility for URL/Doc buttons based on backend capabilities
   try {
-    $.getJSON('/api/capabilities')
-      .done(function (cap) {
+    fetch('/api/capabilities')
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (cap) {
         if (!cap || cap.success === false) return;
         // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
         $('#url').show();
         $('#doc').show();
-      });
+      })
+      .catch(function () { /* ignore */ });
   } catch (e) { /* ignore */ }
   
   // Directly get textareas and set them up - avoid storing array reference
@@ -3051,33 +3053,34 @@ $(function () {
       const supportsPdfUpload = (typeof window.isPdfSupportedForModel === 'function') ? window.isPdfSupportedForModel(model) : false;
 
       // Fetch server defaults and availability
-      $.getJSON('/api/pdf_storage_defaults').done(function(info) {
-        const pgAvailable = !!info.pgvector_available;
-        const defaultStorage = (info.default_storage || 'local').toLowerCase();
+      fetch('/api/pdf_storage_defaults')
+        .then(function(res) { return res.ok ? res.json() : Promise.reject(res); })
+        .then(function(info) {
+          const pgAvailable = !!info.pgvector_available;
+          const defaultStorage = (info.default_storage || 'local').toLowerCase();
 
-        // Enable/disable by availability
-        $("#storage-local").prop('disabled', !pgAvailable);
-        // Always allow selecting Cloud to experiment; routing will still guard by provider
-        $("#storage-cloud").prop('disabled', false);
+          // Enable/disable by availability
+          $("#storage-local").prop('disabled', !pgAvailable);
+          // Always allow selecting Cloud to experiment; routing will still guard by provider
+          $("#storage-cloud").prop('disabled', false);
 
-        // Decide selection
-        let select = 'local';
-        if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
-        if (select === 'cloud' && $("#storage-cloud").prop('disabled')) select = 'local';
-        if (select === 'local' && $("#storage-local").prop('disabled')) select = 'cloud';
+          // Decide selection
+          let select = 'local';
+          if (defaultStorage === 'cloud' || !pgAvailable) select = 'cloud';
+          if (select === 'cloud' && $("#storage-cloud").prop('disabled')) select = 'local';
+          if (select === 'local' && $("#storage-local").prop('disabled')) select = 'cloud';
 
-        if (select === 'cloud') {
-          $("#storage-cloud").prop('checked', true);
-        } else {
+          if (select === 'cloud') {
+            $("#storage-cloud").prop('checked', true);
+          } else {
+            $("#storage-local").prop('checked', true);
+          }
+        }).catch(function() {
+          // Fallback: prefer local if enabled, else cloud
+          $("#storage-local").prop('disabled', false);
+          $("#storage-cloud").prop('disabled', false);
           $("#storage-local").prop('checked', true);
-        }
-      }).fail(function() {
-        // Fallback: prefer local if enabled, else cloud
-        const pgAvailable = true;
-        $("#storage-local").prop('disabled', false);
-        $("#storage-cloud").prop('disabled', false);
-        $("#storage-local").prop('checked', true);
-      });
+        });
     } catch (_) { console.warn("[PDF Modal] Storage option init failed:", _); }
 
     // Set a friendly placeholder for file title
@@ -3348,7 +3351,8 @@ $(function () {
       const $list = $("#cloud-pdf-list");
       if (!$list.length) return;
       $list.html('<span class="text-secondary">Loading...</span>');
-      const res = await $.getJSON('/openai/pdf?action=list');
+      const listResp = await fetch('/openai/pdf?action=list');
+      const res = listResp.ok ? await listResp.json() : null;
       if (!res || !res.success) {
         $list.html('<span class="text-danger">Failed to load</span>');
         return;
@@ -3390,7 +3394,7 @@ $(function () {
     try {
       const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
       if (!confirm(msg)) return;
-      await $.ajax({ url: '/openai/pdf?action=clear', type: 'DELETE' });
+      await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
       refreshCloudPdfList();
       setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
     } catch (err) {
@@ -3410,7 +3414,7 @@ $(function () {
       const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
       if (!confirm(`${base} ${fname}?`)) return;
       try {
-        await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
+        await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
         refreshCloudPdfList();
         setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
       } catch (err) {
@@ -3423,7 +3427,7 @@ $(function () {
       $("#pdfDeleteConfirmed").off("click").on("click", async function (event) {
         event.preventDefault();
         try {
-          await $.ajax({ url: `/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, type: 'DELETE' });
+          await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
           $("#pdfDeleteConfirmation").modal("hide");
           $("#pdfToDelete").text("");
           refreshCloudPdfList();
@@ -3443,7 +3447,8 @@ $(function () {
   // Fetch and display overall PDF storage status (mode/local/cloud presence)
   async function refreshPdfStorageStatus() {
     try {
-      const res = await $.getJSON('/api/pdf_storage_status');
+      const statusResp = await fetch('/api/pdf_storage_status');
+      const res = statusResp.ok ? await statusResp.json() : null;
       if (!res || !res.success) return;
       const mode = res.mode || 'local';
       const vs = res.vector_store_id || '';

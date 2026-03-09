@@ -274,16 +274,12 @@ window.shims.formHandlers = {
       formData.append("pdfFile", file);
       formData.append("pdfTitle", fileTitle);
   
-      $.ajax({
-        url: "/pdf",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 120000,
-        success: resolve,
-        error: reject
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 120000);
+      fetch("/pdf", { method: "POST", body: formData, signal: controller.signal })
+        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Upload failed: ${res.status}`)); })
+        .then(resolve)
+        .catch(e => { clearTimeout(timer); reject(e); });
     });
   },
 
@@ -304,16 +300,12 @@ window.shims.formHandlers = {
       formData.append("docFile", doc);
       formData.append("docLabel", docLabel || "");
   
-      $.ajax({
-        url: "/document",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 60000,
-        success: resolve,
-        error: reject
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 60000);
+      fetch("/document", { method: "POST", body: formData, signal: controller.signal })
+        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Conversion failed: ${res.status}`)); })
+        .then(resolve)
+        .catch(e => { clearTimeout(timer); reject(e); });
     });
   },
 
@@ -334,16 +326,12 @@ window.shims.formHandlers = {
       formData.append("pageURL", url);
       formData.append("urlLabel", urlLabel || "");
   
-      $.ajax({
-        url: "/fetch_webpage",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 30000,
-        success: resolve,
-        error: reject
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+      fetch("/fetch_webpage", { method: "POST", body: formData, signal: controller.signal })
+        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Fetch failed: ${res.status}`)); })
+        .then(resolve)
+        .catch(e => { clearTimeout(timer); reject(e); });
     });
   },
 
@@ -358,16 +346,12 @@ window.shims.formHandlers = {
       const formData = new FormData();
       formData.append('file', file);
       
-      $.ajax({
-        url: "/load",
-        type: "POST",
-        data: formData,
-        processData: false,
-        contentType: false,
-        timeout: 30000,
-        success: resolve,
-        error: reject
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30000);
+      fetch("/load", { method: "POST", body: formData, signal: controller.signal })
+        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Import failed: ${res.status}`)); })
+        .then(resolve)
+        .catch(e => { clearTimeout(timer); reject(e); });
     });
   },
 

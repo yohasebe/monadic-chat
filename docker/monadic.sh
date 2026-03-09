@@ -392,6 +392,13 @@ build_ruby_container() {
   else
     gems_hash="unknown"
   fi
+  # Pre-build JS bundle on host if node + esbuild are available (minified),
+  # otherwise Dockerfile fallback will concatenate inside the container.
+  local bundle_script="${ROOT_DIR}/../scripts/build_js_bundle.mjs"
+  if command -v node >/dev/null 2>&1 && [ -f "${bundle_script}" ]; then
+    node "${bundle_script}" 2>/dev/null || true
+  fi
+
   # Optional no-cache for diagnostics or user-requested force rebuild
   local build_extra=""
   if [ "${FORCE_REBUILD:-false}" = "true" ] || [ "${FORCE_RUBY_REBUILD_NO_CACHE}" = "true" ]; then

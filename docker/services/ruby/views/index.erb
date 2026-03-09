@@ -1102,84 +1102,16 @@
     <!-- maxGraph (bundled IIFE, no CDN fallback) -->
     <script src="vendor/js/maxgraph.bundle.js"></script>
 
-    <!-- Debug configuration - must be loaded before all other scripts -->
-    <script src="js/debug-config.js?timestamp=<%= @timestamp %>"></script>
-
     <!-- Pass server configuration to frontend -->
     <script>
       // Set AUTO_TTS_REALTIME_MODE from server CONFIG
       window.AUTO_TTS_REALTIME_MODE = <%= CONFIG["AUTO_TTS_REALTIME_MODE"] || false %>;
     </script>
 
-    <!-- Client-side rendering utilities (must be loaded before websocket.js) -->
-    <script src="js/monadic/syntax-highlight.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/markdown-renderer.js?timestamp=<%= @timestamp %>"></script>
-
-    <script src="js/monadic/storage-helper.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/theme-manager.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/theme-ui.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/status-config.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_spec.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-mapper.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-labels.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/reasoning-ui-manager.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_loader.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/version-utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/cards.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/card-renderer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/session_state.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model_utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/text-utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/cookie-utils.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/model-capabilities.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/json-tree-toggle.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/alert-manager.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/utilities.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/badge-renderer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/shims.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-config.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-state.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/error-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/dom-cache.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ui-utilities.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/context-panel.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/workflow-viewer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/form-handlers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-constants.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-content-renderer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-auto-speech.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-playback.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-queue.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-ui-helpers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-app-data-handlers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-message-renderer.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-ai-user-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-session-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-tts-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-connection-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-thinking-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-tool-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-error-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-info-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-streaming-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-html-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-fragment-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-reconnect-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-visibility-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/ws-audio-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websocket-handlers.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websocket.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/websearch_tavily_check.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/tts.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/recording.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/select_image.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/mask_editor.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/syntax-theme-handler.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/i18n/translations.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/pdf_export.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic/utilities_websearch_patch.js?timestamp=<%= @timestamp %>"></script>
-    <script src="js/monadic-improvements.js?timestamp=<%= @timestamp %>"></script>
+    <!-- Bundled application scripts (68 modules, minified) -->
+    <!-- Source files in js/monadic/ are kept for development and testing -->
+    <!-- Rebuild with: npm run build:js -->
+    <script src="js/monadic.bundle.min.js?timestamp=<%= @timestamp %>"></script>
     
     <!-- Make sure clipboard operations work in DevTools -->
     <script>

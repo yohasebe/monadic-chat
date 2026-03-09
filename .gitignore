@@ -86,6 +86,9 @@ test_tts_input_*
 # Vendor assets (downloaded during build)
 /docker/services/ruby/public/vendor/
 
+# JS bundle (built with npm run build:js)
+/docker/services/ruby/public/js/monadic.bundle.min.js
+
 # Ignore internal development documentation
 CLAUDE.md
 GEMINI.md

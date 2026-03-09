@@ -78,6 +78,21 @@ COPY --from=build $WORKSPACE $WORKSPACE
 COPY apps/ $WORKSPACE/apps/
 COPY lib/ $WORKSPACE/lib/
 COPY public/ $WORKSPACE/public/
+
+# Build JS bundle if not pre-built on host (concatenates 68 scripts into 1).
+# Normally monadic.sh runs `npm run build:js` before docker build.
+# This fallback uses plain concatenation (no minification) when esbuild is unavailable.
+RUN if [ ! -f $WORKSPACE/public/js/monadic.bundle.min.js ]; then \
+      echo "Building JS bundle inside container (concatenation only)..." && \
+      node -e " \
+        const fs = require('fs'); \
+        const p = '$WORKSPACE/public/'; \
+        const files = fs.readFileSync(p + 'js/monadic.bundle.files.txt', 'utf8').trim().split('\n'); \
+        const out = files.map(f => '/* === ' + f + ' === */\n' + fs.readFileSync(p + f, 'utf8')).join(';\n'); \
+        fs.writeFileSync(p + 'js/monadic.bundle.min.js', out); \
+        console.log('Bundle: ' + files.length + ' files, ' + Math.round(out.length/1024) + ' KB'); \
+      " || echo "WARN: JS bundle build failed, individual files will be used"; \
+    fi
 COPY views/ $WORKSPACE/views/
 # Copy full config (used in dev) and also ensure defaults exist in a non-mounted path
 COPY config/ $WORKSPACE/config/

@@ -141,8 +141,6 @@ class MonadicApp
       Your ONLY task is to generate the next user message in this conversation - nothing more, nothing less.
   PROMPT
 
-  # access the flask app client so that it gets ready before the first request
-
   attr_accessor :api_key, :context, :embeddings_db, :settings
 
   @@extra_logging = false

@@ -264,7 +264,6 @@ Performance/StringReplacement:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Performance/TimesMap:
   Exclude:
-    - 'spec/integration/flask_app_client_docker_spec.rb'
     - 'spec/unit/shared_tools/jupyter_image_extraction_spec.rb'
     - 'spec/unit/shared_tools/parallel_dispatch_spec.rb'
     - 'spec/unit/shared_tools/parallel_python_execution_spec.rb'

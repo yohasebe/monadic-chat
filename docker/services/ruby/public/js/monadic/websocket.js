@@ -22,7 +22,9 @@ try {
 // Note: WebSocket connection will be established after ensureMonadicTabId() is defined
 // See bottom of this file for actual connection initialization
 let ws;  // Will be set after tab ID is ready
-let isConnecting = false;  // Guard to prevent duplicate connection attempts
+// Shared mutable state - accessible via window for ws-visibility-handler.js
+if (typeof window._wsIsConnecting === 'undefined') window._wsIsConnecting = false;
+if (typeof window._wsReconnectionTimer === 'undefined') window._wsReconnectionTimer = null;
 
 // Properly close WebSocket connection before creating new one
 // This prevents connection accumulation after sleep/wake cycles
@@ -203,226 +205,8 @@ function ensureMonadicTabId() {
 window.getMonadicTabId = ensureMonadicTabId;
 const MONADIC_TAB_ID = ensureMonadicTabId();
 
-// Handle fragment message from streaming response
-// This function will be used by the fragment_with_audio handler and all vendor helpers
-window.handleFragmentMessage = function(fragment) {
-  console.log('[handleFragmentMessage] Called with:', fragment ? fragment.type : 'null', 'content length:', fragment?.content?.length || 0);
-  if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-    // Skip streaming updates in background tabs to avoid duplicate rendering and TTS triggers
-    window.__lastSkippedFragment = fragment;
-    return;
-  }
-  if (fragment && fragment.type === 'fragment') {
-    console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', $('#temp-card').length, 'visible:', $('#temp-card').is(':visible'), 'display:', $('#temp-card').css('display'));
-    const text = fragment.content || '';
-
-    // Debug logging for streaming fragment ordering
-    if (window.debugFragments) {
-      const now = performance.now();
-      console.log('[Fragment Debug]', {
-        content: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
-        sequence: fragment.sequence,
-        index: fragment.index,
-        timestamp: fragment.timestamp || Date.now(),
-        is_first: fragment.is_first,
-        lastSequence: window._lastProcessedSequence,
-        lastIndex: window._lastProcessedIndex,
-        processingTime: now,
-        timeSinceLast: window._lastFragmentTime ? (now - window._lastFragmentTime).toFixed(2) + 'ms' : 'N/A'
-      });
-      window._lastFragmentTime = now;
-    }
-
-    // Skip empty fragments
-    if (!text) return;
-
-    // Create or get temporary card
-    let tempCard = $("#temp-card");
-    if (!tempCard.length) {
-      // Initialize tracking
-      window._lastProcessedSequence = -1;
-      window._lastProcessedIndex = -1;
-
-      // Only clear #chat if it exists and has content from old streaming approach
-      if ($("#chat").length && $("#chat").html().trim() !== "") {
-        $("#chat").empty();
-      }
-
-      // Create a new temporary card for streaming text
-      tempCard = $(`
-        <div id="temp-card" class="card mt-3 streaming-card">
-          <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
-            <div class="fs-5 card-title mb-0">
-              <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
-            </div>
-          </div>
-          <div class="card-body role-assistant">
-            <div class="card-text"></div>
-          </div>
-        </div>
-      `);
-      $("#discourse").append(tempCard);
-      tempCard.show(); // Ensure temp-card is visible after creation
-    } else if (fragment.start === true || fragment.is_first === true) {
-      // If this is marked as the first fragment of a streaming response, clear the existing content
-      $("#temp-card .card-text").empty();
-      window._lastProcessedSequence = -1;
-      window._lastProcessedIndex = -1;
-
-      // Move the temp card to the end of #discourse to ensure correct position
-      // This handles cases where the card was left in an old position from previous streaming
-      tempCard.detach();
-      $("#discourse").append(tempCard);
-    }
-
-    // Prefer sequence number over index for duplicate detection
-    // Sequence is more reliable as it's incremented for each fragment sent
-    if (fragment.sequence !== undefined) {
-      // Track sequence gaps for debugging
-      if (window.debugFragments && window._lastProcessedSequence !== undefined && window._lastProcessedSequence !== -1) {
-        const expectedSequence = window._lastProcessedSequence + 1;
-        if (fragment.sequence !== expectedSequence) {
-          console.warn('[Fragment Debug] SEQUENCE GAP DETECTED:', {
-            expected: expectedSequence,
-            received: fragment.sequence,
-            gap: fragment.sequence - expectedSequence,
-            content: text.substring(0, 30)
-          });
-          // Track gap history for later analysis
-          window._sequenceGaps = window._sequenceGaps || [];
-          window._sequenceGaps.push({ expected: expectedSequence, received: fragment.sequence, time: performance.now() });
-        }
-      }
-
-      if (window._lastProcessedSequence !== undefined && window._lastProcessedSequence >= fragment.sequence) {
-        // Skip duplicate or out-of-order fragments
-        console.warn('[handleFragmentMessage] SKIPPING fragment - sequence:', fragment.sequence, 'lastSequence:', window._lastProcessedSequence);
-        if (window.debugFragments) {
-          window._skippedFragments = window._skippedFragments || [];
-          window._skippedFragments.push({ sequence: fragment.sequence, content: text.substring(0, 30), time: performance.now() });
-        }
-        return;
-      }
-      window._lastProcessedSequence = fragment.sequence;
-    } else if (fragment.index !== undefined) {
-      // Fallback to index-based detection for backwards compatibility
-      if (window._lastProcessedIndex !== undefined && window._lastProcessedIndex >= fragment.index) {
-        // Skip duplicate or out-of-order fragments
-        console.warn('[handleFragmentMessage] SKIPPING fragment - index:', fragment.index, 'lastIndex:', window._lastProcessedIndex);
-        return;
-      }
-      window._lastProcessedIndex = fragment.index;
-    } else {
-      // If no index is provided, use timestamp-based duplicate detection
-      // This is a fallback for providers that don't send index
-      const now = Date.now();
-      const fragmentKey = `${text}_${fragment.timestamp || now}`;
-
-      // Check if we've seen this exact fragment (content + timestamp) recently
-      if (window._recentFragments && window._recentFragments[fragmentKey]) {
-        if (window.debugFragments) {
-          console.log('[Fragment Debug] Skipping duplicate fragment - content:', text);
-        }
-        return;
-      }
-
-      // Store this fragment temporarily
-      window._recentFragments = window._recentFragments || {};
-      window._recentFragments[fragmentKey] = now;
-
-      // Clean up old entries after 1 second
-      setTimeout(() => {
-        delete window._recentFragments[fragmentKey];
-      }, 1000);
-    }
-
-    // Add to streaming text display
-    const tempText = $("#temp-card .card-text");
-    console.log('[handleFragmentMessage] .card-text exists:', tempText.length, 'adding text length:', text.length);
-    if (tempText.length) {
-      // Ensure temp-card is visible when adding content
-      $("#temp-card").show();
-      // Debug: Log current text content before adding
-      if (window.debugFragments) {
-        console.log('[Fragment Debug] Before append - DOM text length:', tempText[0].textContent.length);
-        console.log('[Fragment Debug] Adding fragment:', text);
-      }
-
-      // Use DocumentFragment for efficient DOM manipulation while preserving newlines
-      const docFrag = document.createDocumentFragment();
-      const lines = text.split('\n');
-
-      lines.forEach((line, index) => {
-        // Add line break for all lines except the first
-        if (index > 0) {
-          docFrag.appendChild(document.createElement('br'));
-        }
-        // Add text node for each line (automatically escapes HTML)
-        if (line) {
-          docFrag.appendChild(document.createTextNode(line));
-        }
-      });
-
-      // Append all at once for better performance
-      tempText[0].appendChild(docFrag);
-      console.log('[handleFragmentMessage] Appended to .card-text, new length:', tempText[0].textContent.length);
-
-      // Debug: Log after append
-      if (window.debugFragments) {
-        console.log('[Fragment Debug] After append - DOM text length:', tempText[0].textContent.length);
-      }
-    } else {
-      console.warn('[handleFragmentMessage] WARNING: .card-text not found, cannot append fragment');
-    }
-
-    // If this is a final fragment, clean up
-    if (fragment.final) {
-      window._lastProcessedIndex = -1;
-      window._lastProcessedSequence = -1;
-    }
-  }
-};
-
-// Debug function to check streaming fragment issues after a response
-// Usage: window.debugFragments = true; window.debugFragmentSummary()
-window.debugFragmentSummary = function() {
-  if (!window.debugFragments) {
-    console.log('Enable debug mode first: window.debugFragments = true');
-    return;
-  }
-  console.log('=== Fragment Debug Summary ===');
-  console.log('Last processed sequence:', window._lastProcessedSequence);
-  console.log('Last processed index:', window._lastProcessedIndex);
-
-  if (window._sequenceGaps && window._sequenceGaps.length > 0) {
-    console.warn('Sequence gaps detected:', window._sequenceGaps.length);
-    window._sequenceGaps.forEach(gap => console.warn('  Gap:', gap));
-  } else {
-    console.log('No sequence gaps detected ✓');
-  }
-
-  if (window._skippedFragments && window._skippedFragments.length > 0) {
-    console.warn('Skipped fragments:', window._skippedFragments.length);
-    window._skippedFragments.forEach(f => console.warn('  Skipped:', f));
-  } else {
-    console.log('No skipped fragments ✓');
-  }
-
-  console.log('==============================');
-};
-
-// Reset debug tracking for new streaming response
-window.resetFragmentDebug = function() {
-  window._lastProcessedSequence = -1;
-  window._lastProcessedIndex = -1;
-  window._sequenceGaps = [];
-  window._skippedFragments = [];
-  window._lastFragmentTime = null;
-  window._timeline = [];
-  if (window.debugFragments) {
-    console.log('[Fragment Debug] Tracking reset');
-  }
-};
+// handleFragmentMessage, debugFragmentSummary, resetFragmentDebug
+// — extracted to ws-fragment-handler.js (window.WsFragmentHandler)
 
 // Make defaultApp globally available
 window.defaultApp = DEFAULT_APP;
@@ -1263,7 +1047,7 @@ window.loadedApp = "Chat";
     // CRITICAL: Reset isConnecting flag when connection closes
     // This prevents handleVisibilityChange from being permanently blocked
     // if connection fails before onopen callback fires
-    isConnecting = false;
+    window._wsIsConnecting = false;
 
     // Update state if available
     if (window.UIState) {
@@ -1289,7 +1073,7 @@ window.loadedApp = "Chat";
     console.error(`[WebSocket] Socket error for ${wsUrl}:`, err.message || 'Unknown error');
 
     // Reset isConnecting flag on error (onclose will also reset, but be safe)
-    isConnecting = false;
+    window._wsIsConnecting = false;
 
     // Update state if available
     if (window.UIState) {
@@ -1316,7 +1100,7 @@ window.loadedApp = "Chat";
 }
 
 // WebSocket connection management - constants from ws-audio-constants.js
-let reconnectionTimer = null; // Store the timer to allow cancellation
+// window._wsReconnectionTimer is now window._wsReconnectionTimer (shared with ws-visibility-handler.js)
 
 // Improved WebSocket reconnection logic with proper cleanup and retry handling
 // Note: Parameter renamed from 'ws' to 'currentWs' to avoid shadowing the module-level 'ws' variable
@@ -1350,9 +1134,9 @@ function reconnect_websocket(currentWs, callback) {
 
     // Properly clean up any pending timers
     currentWs._isReconnecting = false;
-    if (reconnectionTimer) {
-      clearTimeout(reconnectionTimer);
-      reconnectionTimer = null;
+    if (window._wsReconnectionTimer) {
+      clearTimeout(window._wsReconnectionTimer);
+      window._wsReconnectionTimer = null;
     }
     return;
   }
@@ -1367,9 +1151,9 @@ function reconnect_websocket(currentWs, callback) {
   const delay = baseReconnectDelay * Math.pow(1.5, attemptCount);
 
   // Clear any existing reconnection timer
-  if (reconnectionTimer) {
-    clearTimeout(reconnectionTimer);
-    reconnectionTimer = null;
+  if (window._wsReconnectionTimer) {
+    clearTimeout(window._wsReconnectionTimer);
+    window._wsReconnectionTimer = null;
   }
 
   try {
@@ -1431,7 +1215,7 @@ function reconnect_websocket(currentWs, callback) {
       case WebSocket.CLOSING:
         // Wait for socket to fully close before reconnecting
         if (window.debugWebSocket) console.log(`Socket is closing. Waiting ${delay}ms before reconnection attempt.`);
-        reconnectionTimer = setTimeout(() => {
+        window._wsReconnectionTimer = setTimeout(() => {
           if (currentWs) {
             currentWs._isReconnecting = false; // Reset flag before next attempt
           }
@@ -1442,7 +1226,7 @@ function reconnect_websocket(currentWs, callback) {
       case WebSocket.CONNECTING:
         // Socket is still trying to connect, wait a bit before checking again
         if (window.debugWebSocket) console.log(`Socket is connecting. Checking again in ${delay}ms.`);
-        reconnectionTimer = setTimeout(() => {
+        window._wsReconnectionTimer = setTimeout(() => {
           if (currentWs) {
             currentWs._isReconnecting = false; // Reset flag before next attempt
           }
@@ -1479,7 +1263,7 @@ function reconnect_websocket(currentWs, callback) {
     console.error("Error during WebSocket reconnection:", error);
 
     // Schedule another attempt with backoff on error
-    reconnectionTimer = setTimeout(() => {
+    window._wsReconnectionTimer = setTimeout(() => {
       // Increment attempt counter on error
       if (currentWs) {
         currentWs._reconnectAttempts = (currentWs._reconnectAttempts || 0) + 1;
@@ -1490,206 +1274,17 @@ function reconnect_websocket(currentWs, callback) {
   }
 }
 
-function handleVisibilityChange() {
-  // Only take action when tab becomes visible again
-  if (!document.hidden) {
-    try {
-      // Check if actual processing (streaming/function calls) is happening
-      const stillProcessing = window.streamingResponse === true || window.callingFunction === true ||
-        (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive());
-
-      // Always reset TTS flags and hide stale spinners on visibility change
-      // Note: We intentionally do NOT restore spinner here to prevent stale "Processing audio" after sleep/wake
-      // If actual processing is happening, the processing code will show/update the spinner appropriately
-      if (window.debugWebSocket) console.log('[handleVisibilityChange] Tab visible, resetting TTS state (stillProcessing=' + stillProcessing + ')');
-
-      // Reset TTS flags to "completed" state to prevent stale audio processing
-      window.autoSpeechActive = false;
-      window.autoPlayAudio = false;
-      if (typeof window.setTtsPlaybackStarted === 'function') {
-        window.setTtsPlaybackStarted(true);
-      }
-      if (typeof window.setTextResponseCompleted === 'function') {
-        window.setTextResponseCompleted(true);
-      }
-
-      // Stop any ongoing Web Speech API
-      if (typeof window.speechSynthesis !== 'undefined') {
-        try {
-          window.speechSynthesis.cancel();
-        } catch (e) {
-          console.warn('[handleVisibilityChange] Error stopping speech synthesis:', e);
-        }
-      }
-
-      // Clear any pending Auto TTS timeout
-      if (window.autoTTSSpinnerTimeout) {
-        clearTimeout(window.autoTTSSpinnerTimeout);
-        window.autoTTSSpinnerTimeout = null;
-      }
-
-      // Remove TTS button highlight if active
-      if (typeof removeStopButtonHighlight === 'function') {
-        removeStopButtonHighlight();
-      }
-
-      // Handle spinner visibility based on actual processing state
-      if ($("#monadic-spinner").is(":visible")) {
-        // Spinner is visible - check if we should hide stale "Processing audio" spinners
-        const spinnerText = $("#monadic-spinner").find("span").text();
-        const isProcessingAudio = spinnerText.toLowerCase().includes('processing') &&
-                                   spinnerText.toLowerCase().includes('audio');
-
-        if (isProcessingAudio && !stillProcessing) {
-          if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
-          $("#monadic-spinner").hide();
-          $("#monadic-spinner")
-            .find("span i")
-            .removeClass("fa-headphones fa-brain fa-circle-nodes")
-            .addClass("fa-comment");
-          $("#monadic-spinner")
-            .find("span")
-            .html('<i class="fas fa-comment fa-pulse"></i> Starting');
-        }
-      } else if (stillProcessing) {
-        // Spinner was hidden (likely due to tab switch) but we're still processing
-        // Restore the spinner to indicate ongoing processing
-        if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
-        $("#monadic-spinner").show();
-
-        // Determine appropriate spinner state based on processing type
-        if (window.callingFunction) {
-          const processingToolsText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-          $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-        } else if (typeof window.isReasoningStreamActive === 'function' && window.isReasoningStreamActive()) {
-          const thinkingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerThinking') : 'Thinking...';
-          $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${thinkingText}`);
-        } else {
-          const processingText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-            webUIi18n.t('ui.messages.spinnerProcessing') : 'Processing';
-          $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
-        }
-      }
-
-      // Clear any existing reconnection timer to prevent duplicate reconnection attempts
-      if (reconnectionTimer) {
-        clearTimeout(reconnectionTimer);
-        reconnectionTimer = null;
-      }
-
-      // Prevent duplicate connection attempts during rapid visibility changes
-      if (isConnecting) {
-        if (window.debugWebSocket) console.log('[handleVisibilityChange] Connection attempt already in progress, skipping');
-        return;
-      }
-
-      // Handle different WebSocket states
-      switch (ws ? ws.readyState : WebSocket.CLOSED) {
-        case WebSocket.CLOSED:
-        case WebSocket.CLOSING:
-
-          // Reset reconnection attempts for a fresh start when user returns to tab
-          if (ws && ws._reconnectAttempts !== undefined) {
-            ws._reconnectAttempts = 0;
-          }
-
-          // Get connection details if not using localhost
-          let connectionMessage = "";
-          if (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            const host = window.location.hostname;
-            const port = window.location.port || "4567";
-            connectionMessage = ` to ${host}:${port}`;
-          }
-
-          // Show reconnection message unless in silent stopped mode
-          if (!window.silentReconnectMode) {
-            const alertMessage = `<i class='fa-solid fa-server'></i> ${getTranslation('ui.messages.connectionLost','Connection lost')}${connectionMessage}`;
-            setAlert(alertMessage, "warning");
-          } else {
-            const stoppedText = getTranslation('ui.messages.stopped', 'Stopped');
-            setAlert(`<i class='fa-solid fa-circle-pause'></i> ${stoppedText}`, "warning");
-          }
-
-          // Clear audio state before reconnection to prevent stale sequences
-          // This ensures new TTS sessions start fresh without waiting for old sequence numbers
-          try {
-            clearAudioQueue();
-          } catch (e) {
-            console.warn('[handleVisibilityChange] Error clearing audio queue:', e);
-          }
-
-          // CRITICAL: Close old WebSocket before creating new one to prevent connection accumulation
-          closeCurrentWebSocket();
-
-          // Set connecting guard
-          isConnecting = true;
-
-          // Establish a new connection with proper callback
-          ws = connect_websocket((newWs) => {
-            isConnecting = false;  // Reset guard
-            window.ws = ws;  // Update global reference for other files (utilities.js, cards.js)
-            if (newWs && newWs.readyState === WebSocket.OPEN) {
-              // Reload data from server
-              newWs.send(JSON.stringify({ message: "LOAD" }));
-              // Restart ping to keep connection alive
-              startPing();
-              // Update UI with connection info if appropriate
-              const successMessage = connectionMessage
-                ? `<i class='fa-solid fa-circle-check'></i> Connected${connectionMessage}`
-                : "<i class='fa-solid fa-circle-check'></i> Connected";
-
-              setAlert(successMessage, "info");
-              try { window.silentReconnectMode = false; } catch(_) { console.warn("[WebSocket] Silent mode reset failed:", _); }
-            }
-          });
-          break;
-
-        case WebSocket.CONNECTING:
-          // Already attempting to connect, let the process continue
-          break;
-
-        case WebSocket.OPEN:
-          // Connection is already open, verify it's still active
-          ws.send(JSON.stringify({ message: "PING" }));
-          const connectedMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.connected') : 'Connected';
-        setAlert(`<i class='fa-solid fa-circle-check'></i> ${connectedMsg}`, "info");
-          break;
-      }
-    } catch (error) {
-      console.error("Error handling visibility change:", error);
-
-      // Reset connecting guard on error
-      isConnecting = false;
-
-      // Cleanup any pending timers
-      if (reconnectionTimer) {
-        clearTimeout(reconnectionTimer);
-      }
-
-      // Reset reconnection counter and attempt to reconnect on error
-      if (ws && ws._reconnectAttempts !== undefined) {
-        ws._reconnectAttempts = 0;
-      }
-
-      // Start a new reconnection attempt with a fresh counter
-      reconnectionTimer = setTimeout(() => {
-        reconnect_websocket(ws);
-      }, 1000); // Short delay before reconnection
-    }
-  }
-}
-
-document.addEventListener('visibilitychange', handleVisibilityChange);
+// handleVisibilityChange and visibilitychange listener
+// — extracted to ws-visibility-handler.js (window.WsVisibilityHandler)
+// Uses window._wsIsConnecting and window._wsReconnectionTimer for shared state
 
 // Clean up WebSocket when page is unloaded
 window.addEventListener('beforeunload', function() {
   stopPing();
 
-  if (reconnectionTimer) {
-    clearTimeout(reconnectionTimer);
-    reconnectionTimer = null;
+  if (window._wsReconnectionTimer) {
+    clearTimeout(window._wsReconnectionTimer);
+    window._wsReconnectionTimer = null;
   }
 
   if (typeof clearAudioQueue === 'function') clearAudioQueue();
@@ -1717,7 +1312,7 @@ window.addEventListener('beforeunload', function() {
 window.connect_websocket = connect_websocket;
 window.reconnect_websocket = reconnect_websocket;
 window.closeCurrentWebSocket = closeCurrentWebSocket;
-window.handleVisibilityChange = handleVisibilityChange;
+// handleVisibilityChange is now in ws-visibility-handler.js
 window.startPing = startPing;
 window.stopPing = stopPing;
 
@@ -1731,7 +1326,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     connect_websocket,
     reconnect_websocket,
-    handleVisibilityChange,
+    handleVisibilityChange: (typeof window !== 'undefined' && window.handleVisibilityChange) || function() {},
     startPing,
     stopPing,
     updateAIUserButtonState: _ui.updateAIUserButtonState || updateAIUserButtonState,

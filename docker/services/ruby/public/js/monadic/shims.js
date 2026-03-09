@@ -408,6 +408,26 @@ window.shims.formHandlers = {
         }
       });
     }
+  },
+
+  // Uploads an audio or MIDI file for analysis
+  uploadAudioFile: function(file) {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        reject(new Error("Please select an audio or MIDI file"));
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("audioFile", file);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 60000);
+      fetch("/upload_audio", { method: "POST", body: formData, signal: controller.signal })
+        .then(res => { clearTimeout(timer); return res.ok ? res.json() : Promise.reject(new Error(`Audio upload failed: ${res.status}`)); })
+        .then(resolve)
+        .catch(e => { clearTimeout(timer); reject(e); });
+    });
   }
 };
 

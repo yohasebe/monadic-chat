@@ -2939,6 +2939,7 @@ $(function () {
     let serverContextSchema = null;
     try {
       const response = await fetch('/monadic_state');
+      if (!response.ok) throw new Error(`/monadic_state failed: ${response.status}`);
       const data = await response.json();
       if (data.success) {
         if (data.monadic_state) {
@@ -3394,7 +3395,8 @@ $(function () {
     try {
       const msg = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.clearAllCloudPdfs') : 'Clear all Cloud PDFs?';
       if (!confirm(msg)) return;
-      await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
+      const clearRes = await fetch('/openai/pdf?action=clear', { method: 'DELETE' });
+      if (!clearRes.ok) throw new Error(`Clear failed: ${clearRes.status}`);
       refreshCloudPdfList();
       setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDFs cleared', 'success');
     } catch (err) {
@@ -3414,7 +3416,8 @@ $(function () {
       const base = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.modals.pdfDeleteConfirmation') : 'Are you sure you want to delete';
       if (!confirm(`${base} ${fname}?`)) return;
       try {
-        await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+        const delRes = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+        if (!delRes.ok) throw new Error(`Delete failed: ${delRes.status}`);
         refreshCloudPdfList();
         setAlert('<i class="fa-solid fa-circle-check"></i> Cloud PDF deleted', 'success');
       } catch (err) {
@@ -3427,7 +3430,8 @@ $(function () {
       $("#pdfDeleteConfirmed").off("click").on("click", async function (event) {
         event.preventDefault();
         try {
-          await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+          const delRes2 = await fetch(`/openai/pdf?action=delete&file_id=${encodeURIComponent(fid)}`, { method: 'DELETE' });
+          if (!delRes2.ok) throw new Error(`Delete failed: ${delRes2.status}`);
           $("#pdfDeleteConfirmation").modal("hide");
           $("#pdfToDelete").text("");
           refreshCloudPdfList();

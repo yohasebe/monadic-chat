@@ -37,5 +37,7 @@ services:
     depends_on:
       pgvector_service:
         condition: service_healthy
-      python_service:
-        condition: service_started
+      # Python dependency removed: Ruby communicates with Python only via
+      # docker exec (on user interaction), not at startup. Both containers
+      # now start in parallel for faster startup time.
+      # Python availability is checked dynamically by WebAutomation.available?

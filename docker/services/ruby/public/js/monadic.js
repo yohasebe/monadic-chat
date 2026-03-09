@@ -1833,6 +1833,12 @@ $(function () {
   // Function to handle the actual app change
   // Make it globally accessible for initialization from websocket.js
   window.proceedWithAppChange = function proceedWithAppChange(appValue) {
+    // Guard: skip if appValue is null/undefined or app not found in apps object
+    if (!appValue || !apps || !apps[appValue]) {
+      console.warn(`[AppChange] App '${appValue}' not found in apps object, skipping`);
+      return;
+    }
+
     try {
       if (window.logTL) {
         const hasApp = !!(apps && apps[appValue]);

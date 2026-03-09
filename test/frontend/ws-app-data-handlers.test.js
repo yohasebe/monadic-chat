@@ -82,6 +82,14 @@ beforeEach(() => {
 
   // Mock jQuery
   global.$ = jest.fn().mockImplementation(selector => {
+    // Handle "#apps option" selector to return option count with jQuery methods
+    if (selector === '#apps option') {
+      const appsEl = mockElements['#apps'];
+      const len = appsEl && appsEl._options ? appsEl._options.length : 0;
+      const noop = jest.fn().mockReturnValue({ length: 0, first: jest.fn().mockReturnValue({ val: jest.fn(), length: 0 }) });
+      return { length: len, filter: noop, first: jest.fn().mockReturnValue({ val: jest.fn(), length: 0 }) };
+    }
+
     // Handle attribute selector for option existence check
     if (typeof selector === 'string' && selector.includes('option[value=')) {
       // Extract the voice ID from the selector
@@ -503,6 +511,8 @@ describe('ws-app-data-handlers', () => {
     beforeEach(() => {
       // Set up mock elements for parameters handler
       mockElements['#apps'] = createSelectElement('apps');
+      // Pre-populate with an option so DOM-ready guard passes
+      mockElements['#apps']._options.push({ value: 'ChatOpenAI', text: 'Chat', selected: true });
       const modelEl = createSelectElement('model');
       modelEl.html = jest.fn().mockReturnThis();
       mockElements['#model'] = modelEl;

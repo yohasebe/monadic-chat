@@ -735,7 +735,8 @@ function handleParametersMessage(data) {
   }
 
   // Store parameters for later processing if apps not loaded yet
-  if (!apps || Object.keys(apps).length === 0) {
+  // Also defer if apps data exists but DOM options haven't been built yet
+  if (!apps || Object.keys(apps).length === 0 || (typeof $ === "function" && $("#apps").length && $("#apps option").length === 0)) {
     window.pendingParameters = data["content"];
     return 'pending';
   }

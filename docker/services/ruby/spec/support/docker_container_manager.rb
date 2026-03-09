@@ -118,11 +118,8 @@ class DockerContainerManager
     end
 
     def python_healthy?
-      uri = URI("http://localhost:5070/health")
-      response = Net::HTTP.get_response(uri)
-      response.is_a?(Net::HTTPSuccess)
-    rescue StandardError
-      false
+      # Python container has no health endpoint; just check it's running
+      container_running?("python")
     end
     
     def start_missing_containers

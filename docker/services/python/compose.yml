@@ -17,11 +17,10 @@ services:
         IMGOPT_IMAGEMAGICK: ${IMGOPT_IMAGEMAGICK:-false}
     ports:
       - "${HOST_BINDING:-127.0.0.1}:8889:8889"
-      - "${HOST_BINDING:-127.0.0.1}:5070:5070"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
-    command: /bin/sh -c "cd /monadic/flask && gunicorn --timeout 300 -b 0.0.0.0:5070 flask_server:app"
+    command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network

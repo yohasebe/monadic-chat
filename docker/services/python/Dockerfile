@@ -55,7 +55,6 @@ RUN uv pip install --no-cache \
       jupyterlab~=4.5 ipywidgets~=8.1 plotly~=6.5 \
       numpy~=1.26 pandas~=2.3 statsmodels~=0.14 \
       matplotlib~=3.10 seaborn~=0.13 sympy~=1.14 \
-      gunicorn~=23.0 tiktoken~=0.12 flask~=3.1 \
       pymupdf~=1.26 pymupdf4llm~=0.2 \
       selenium~=4.39 html2text~=2025.4 \
       openpyxl~=3.1 python-docx~=1.2 python-pptx~=1.0 \
@@ -98,9 +97,6 @@ RUN mkdir -p /monadic/data/scripts
 ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:/monadic/scripts/music:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
-
-# Copy Flask application
-COPY flask /monadic/flask
 
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data

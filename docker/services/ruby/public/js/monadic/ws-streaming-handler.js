@@ -86,7 +86,8 @@ function handleStreamingComplete(_data) {
       }, BUSY_CHECK_MAX_WAIT_MS);
     }
 
-    // Always ensure UI elements are enabled
+    // Always ensure UI elements are enabled and visible (user-panel may be hidden during initiate_from_assistant)
+    $("#user-panel").show();
     $("#message").prop("disabled", false);
     $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
     $("#select-role").prop("disabled", false);

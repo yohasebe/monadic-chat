@@ -558,7 +558,8 @@ function handleHtmlMessage(data, createCardFunc) {
       // Note: Auto TTS highlighting is handled in processSequentialAudio()
       // when the first audio segment arrives, not here during card creation
 
-      // UI Updates
+      // UI Updates — ensure user panel is visible (hidden during initiate_from_assistant)
+      $('#user-panel').show();
       $('#message').show();
       $('#message').val('');
       $('#message').prop('disabled', false);

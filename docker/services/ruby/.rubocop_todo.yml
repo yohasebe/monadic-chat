@@ -104,7 +104,7 @@ Lint/ScriptPermission:
 # Configuration parameters: IgnoreImplicitReferences.
 Lint/ShadowedArgument:
   Exclude:
-    - 'scripts/generators/video_generator_veo.rb'
+    - 'scripts/generators/video_generator_gemini.rb'
 
 # Offense count: 1
 Lint/ShadowedException:
@@ -197,7 +197,7 @@ Performance/InefficientHashSearch:
 # This cop supports unsafe autocorrection (--autocorrect-all).
 Performance/RangeInclude:
   Exclude:
-    - 'scripts/generators/video_generator_veo.rb'
+    - 'scripts/generators/video_generator_gemini.rb'
 
 # Offense count: 40
 # This cop supports safe autocorrection (--autocorrect).
@@ -255,7 +255,7 @@ Performance/StringReplacement:
     - 'lib/monadic/adapters/vendors/openai_helper.rb'
     - 'lib/monadic/dsl.rb'
     - 'lib/monadic/utils/model_spec_loader.rb'
-    - 'scripts/generators/video_generator_veo.rb'
+    - 'scripts/generators/video_generator_gemini.rb'
     - 'spec/e2e/validation_helper.rb'
     - 'spec/support/real_audio_test_helper.rb'
     - 'spec/unit/apps/tool_prompt_consistency_spec.rb'

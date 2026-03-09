@@ -8,10 +8,10 @@ require "http"
 require "stringio"
 
 # Load the script to test
-script_path = File.expand_path("../../../../scripts/generators/video_generator_veo.rb", __dir__)
+script_path = File.expand_path("../../../../scripts/generators/video_generator_gemini.rb", __dir__)
 require script_path
 
-RSpec.describe "VideoGeneratorVeo" do
+RSpec.describe "VideoGeneratorGemini" do
   let(:mock_api_key) { "test-api-key-12345" }
   let(:test_prompt) { "A beautiful sunset over the ocean" }
   let(:test_image_path) { "/tmp/test_image.jpg" }
@@ -82,8 +82,8 @@ RSpec.describe "VideoGeneratorVeo" do
     it "creates and returns data path if not exists" do
       # Mock get_save_path instead of stubbing Dir.exist?
       # since the function has complex logic with rescue blocks
-      allow_any_instance_of(Object).to receive(:get_save_path).and_return("./veo_output/")
-      expect(get_save_path).to eq("./veo_output/")
+      allow_any_instance_of(Object).to receive(:get_save_path).and_return("./gemini_video_output/")
+      expect(get_save_path).to eq("./gemini_video_output/")
     end
   end
   

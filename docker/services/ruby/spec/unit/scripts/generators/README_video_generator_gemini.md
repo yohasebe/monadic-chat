@@ -1,6 +1,6 @@
-# Video Generator Veo Tests
+# Video Generator Gemini Tests
 
-This test suite covers the `video_generator_veo.rb` script which generates videos using Google's Veo 3.1 API.
+This test suite covers the `video_generator_gemini.rb` script which generates videos using Google's Veo 3.1 API.
 
 ## Test Coverage
 
@@ -31,7 +31,7 @@ The tests cover all major functionality without making actual API calls:
 
 ```bash
 cd docker/services/ruby
-bundle exec rspec spec/unit/scripts/generators/video_generator_veo_spec.rb
+bundle exec rspec spec/unit/scripts/generators/video_generator_gemini_spec.rb
 ```
 
 ## Implementation Notes

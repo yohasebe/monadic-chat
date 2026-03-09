@@ -25,12 +25,12 @@ end
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
 
 # Model selection via providerDefaults SSOT (fallback to hardcoded values)
-USE_VEO3_FAST = true  # Default: faster Veo 3.1 model (lower quality but quicker)
-_veo_models = if defined?(Monadic::Utils::ModelSpec)
-                Monadic::Utils::ModelSpec.get_provider_models("gemini", "video")
-              end
-VEO3_FAST_MODEL = _veo_models&.[](0) || "veo-3.1-fast-generate-preview"
-VEO3_MODEL = _veo_models&.[](1) || "veo-3.1-generate-preview"
+USE_FAST_MODE = true  # Default: faster Veo 3.1 model (lower quality but quicker)
+_video_models = if defined?(Monadic::Utils::ModelSpec)
+                  Monadic::Utils::ModelSpec.get_provider_models("gemini", "video")
+                end
+VIDEO_FAST_MODEL = _video_models&.[](0) || "veo-3.1-fast-generate-preview"
+VIDEO_MODEL = _video_models&.[](1) || "veo-3.1-generate-preview"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function
@@ -42,11 +42,11 @@ DATA_PATHS = ["/monadic/data/", "#{Dir.home}/monadic/data/"]
 # Define valid parameter values
 
 # Veo 3.1 only supports 16:9 aspect ratio
-VALID_ASPECT_RATIOS_VEO3 = ["16:9"]
+VALID_ASPECT_RATIOS = ["16:9"]
 # Person generation values for Veo 3.1
 # Text-to-video: "allow_all"
 # Image-to-video: "allow_adult"
-VALID_PERSON_GENERATION_VEO3 = ["allow_all", "allow_adult", "dont_allow"]
+VALID_PERSON_GENERATION = ["allow_all", "allow_adult", "dont_allow"]
 VALID_DURATION_SECONDS = (5..8).to_a
 
 # Default options
@@ -57,7 +57,7 @@ DEFAULT_OPTIONS = {
   person_generation: nil,        # Will be set based on model and image presence
   negative_prompt: nil,         # Optional negative prompt for Veo 3
   duration_seconds: 5,          # Default duration in seconds (Veo 3.1 generates 8 seconds)
-  fast_mode: nil,               # nil = follow USE_VEO3_FAST, true = force fast, false = force quality
+  fast_mode: nil,               # nil = follow USE_FAST_MODE, true = force fast, false = force quality
   debug: false                  # Debug mode flag
 }
 
@@ -97,8 +97,8 @@ def get_save_path
   # If none of the standard paths work, use current directory
 
   begin
-    FileUtils.mkdir_p("./veo_output")
-    return "./veo_output/"
+    FileUtils.mkdir_p("./gemini_video_output")
+    return "./gemini_video_output/"
   rescue StandardError
     return "./"  # Last resort, use current directory
   end
@@ -604,13 +604,13 @@ def generate_video(prompt, image_path = nil, number_of_videos = 1, aspect_ratio 
 
   # Select between standard and fast Veo 3.1 models
   # Determine current model selection
-  # fast_mode: true -> fast; false -> quality; nil -> follow USE_VEO3_FAST
+  # fast_mode: true -> fast; false -> quality; nil -> follow USE_FAST_MODE
   if fast_mode == true
-    $current_model = VEO3_FAST_MODEL
+    $current_model = VIDEO_FAST_MODEL
   elsif fast_mode == false
-    $current_model = VEO3_MODEL
+    $current_model = VIDEO_MODEL
   else
-    $current_model = (USE_VEO3_FAST ? VEO3_FAST_MODEL : VEO3_MODEL)
+    $current_model = (USE_FAST_MODE ? VIDEO_FAST_MODEL : VIDEO_MODEL)
   end
   STDERR.puts "Using Veo 3.1 #{fast_mode ? '(fast mode)' : '(standard mode)'} for #{image_path && !image_path.to_s.empty? ? 'image-to-video' : 'text-to-video'} generation"
 
@@ -746,7 +746,7 @@ def parse_options
   options = DEFAULT_OPTIONS.dup
   
   opt_parser = OptionParser.new do |opts|
-    opts.banner = "Usage: video_generator_veo.rb [options]"
+    opts.banner = "Usage: video_generator_gemini.rb [options]"
     
     opts.on("-p", "--prompt PROMPT", "The prompt to generate a video for") do |prompt|
       options[:prompt] = prompt
@@ -765,16 +765,16 @@ def parse_options
     end
     
     opts.on("-a", "--aspect-ratio RATIO", "Aspect ratio (Veo 3.1 only supports 16:9)") do |ratio|
-      unless VALID_ASPECT_RATIOS_VEO3.include?(ratio)
-        puts "ERROR: Invalid aspect ratio. Veo 3.1 only supports: #{VALID_ASPECT_RATIOS_VEO3.join(', ')}"
+      unless VALID_ASPECT_RATIOS.include?(ratio)
+        puts "ERROR: Invalid aspect ratio. Veo 3.1 only supports: #{VALID_ASPECT_RATIOS.join(', ')}"
         exit
       end
       options[:aspect_ratio] = ratio
     end
     
     opts.on("-g", "--person-generation MODE", "Person generation mode") do |mode|
-      unless VALID_PERSON_GENERATION_VEO3.include?(mode)
-        puts "ERROR: Invalid person generation mode. Valid values are: #{VALID_PERSON_GENERATION_VEO3.join(', ')}"
+      unless VALID_PERSON_GENERATION.include?(mode)
+        puts "ERROR: Invalid person generation mode. Valid values are: #{VALID_PERSON_GENERATION.join(', ')}"
         exit
       end
       options[:person_generation] = mode

@@ -3584,7 +3584,7 @@ module GeminiHelper
     # - Videos per request: 1
     
     parts = []
-    parts << "video_generator_veo.rb"
+    parts << "video_generator_gemini.rb"
     parts << "-p"
     parts << prompt.to_s
     parts << "-a"

@@ -418,7 +418,7 @@ class MonadicApp
     end
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
-    timeout_value = if command.include?("video_generator_veo") || command.include?("video_generator_openai")
+    timeout_value = if command.include?("video_generator_gemini") || command.include?("video_generator_openai")
                       480  # 8 minutes for video generation
                     elsif command.include?("image_generator_openai") || command.include?("image_generator_grok")
                       300  # 5 minutes for image generation

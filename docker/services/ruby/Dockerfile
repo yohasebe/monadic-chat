@@ -94,8 +94,6 @@ RUN if [ ! -f $WORKSPACE/public/js/monadic.bundle.min.js ]; then \
       " || echo "WARN: JS bundle build failed, individual files will be used"; \
     fi
 COPY views/ $WORKSPACE/views/
-# Copy full config (used in dev) and also ensure defaults exist in a non-mounted path
-COPY config/ $WORKSPACE/config/
 RUN mkdir -p $WORKSPACE/internal_config
 
 # create directories log/, public/, tmp/, and tmp/pids/

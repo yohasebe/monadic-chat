@@ -230,7 +230,7 @@ This does not affect functionality (positional parameter), but creates inconsist
 
 ## Registration in DSL
 
-Each vendor must be registered in `ProviderConfig::PROVIDER_INFO` (`lib/monadic/dsl.rb`):
+Each vendor must be registered in `ProviderConfig::PROVIDER_INFO` (`lib/monadic/dsl/provider_config.rb`):
 
 ```ruby
 PROVIDER_INFO = {

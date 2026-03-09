@@ -16,4 +16,4 @@
 ## 関連ドキュメント
 
 - [Monadicアーキテクチャ](../monadic_architecture.md) - メインのRubyアプリケーションアーキテクチャ
-- [Pythonサービス](../../python_service/) - Python Flaskサービス
+- [Pythonサービス](../../python_service/) - Pythonサービス（JupyterLab & ツール）

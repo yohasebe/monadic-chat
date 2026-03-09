@@ -114,7 +114,6 @@ OpenAIのデフォルトモデルの場合：
 | `DISTRIBUTED_MODE` | マルチユーザーサーバーモードを有効化 | `false` | `true`, `false`, `server` |
 | `SESSION_SECRET` | セッション管理用の秘密鍵 | （自動生成） | 任意の文字列 |
 | `MCP_SERVER_ENABLED` | Model Context Protocolサーバーを有効化 | `false` | `true`, `false` |
-| `PYTHON_PORT` | Pythonコンテナサービスのポート | `5070` | 1024-65535 |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | サーバーモードでJupyterを有効化 | `false` | `true`, `false` |
 
 ### アプリケーションモード

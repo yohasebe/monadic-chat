@@ -16,4 +16,4 @@ These documents provide deep technical details about specific implementations, a
 ## Related Documentation
 
 - [Monadic Architecture](../monadic_architecture.md) - Main Ruby application architecture
-- [Python Service](../../python_service/) - Python Flask service
+- [Python Service](../../python_service/) - Python service (JupyterLab & tools)

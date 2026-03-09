@@ -40,7 +40,7 @@ DEBUG=true PROVIDERS=openai RUN_API=true bundle exec rspec spec/integration/prov
 | File | Description |
 |------|-------------|
 | `docker_infrastructure_spec.rb` | Container communication, health checks |
-| `flask_app_client_docker_spec.rb` | Python Flask container integration |
+| `tokenizer_spec.rb` | Native tokenizer (tiktoken_ruby) integration |
 | `code_interpreter_*.rb` | Code execution in containers |
 
 ### Feature-Specific Tests

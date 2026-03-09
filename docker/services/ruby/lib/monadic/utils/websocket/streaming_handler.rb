@@ -50,7 +50,7 @@ module WebSocketHelper
   end
 
   # Check if the total tokens of past messages is less than max_tokens in obj.
-  # Token count is calculated using tiktoken via Flask tokenizer.
+  # Token count is calculated using tiktoken_ruby (native Rust binding).
   # @param obj [Hash] Parameters including max_input_tokens, context_size, app_name
   # @return [Hash] Token count statistics and message status
   def check_past_messages(obj)

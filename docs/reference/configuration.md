@@ -115,7 +115,6 @@ To see all available models from the provider, toggle the **All** switch next to
 | `DISTRIBUTED_MODE` | Enable multi-user server mode | `false` | `true`, `false`, `server` |
 | `SESSION_SECRET` | Secret key for session management | (generated) | Any string |
 | `MCP_SERVER_ENABLED` | Enable Model Context Protocol server | `false` | `true`, `false` |
-| `PYTHON_PORT` | Port for Python container services | `5070` | 1024-65535 |
 | `ALLOW_JUPYTER_IN_SERVER_MODE` | Enable Jupyter in server mode | `false` | `true`, `false` |
 
 ### Application Modes

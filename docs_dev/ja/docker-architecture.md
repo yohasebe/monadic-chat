@@ -5,7 +5,7 @@
 Monadic Chatは、異なる機能のために複数のDockerコンテナを使用します：
 
 - **Ruby**（`monadic-chat-ruby-container`）：メインアプリケーションサーバー（Falcon/Rackで個人利用向けに2ワーカー）
-- **Python**（`monadic-chat-python-container`）：PythonツールとエンベディングのためのFlask API
+- **Python**（`monadic-chat-python-container`）：JupyterLab、Pythonツールとスクリプト実行
 - **PostgreSQL/PGVector**（`monadic-chat-pgvector-container`）：エンベディング用ベクトルデータベース
 - **Selenium**（`monadic-chat-selenium-container`）：キャプチャ/検索のためのWeb自動化
 
@@ -58,7 +58,7 @@ docker compose --project-directory docker/services -f docker/services/compose.ym
 ## ポートマッピング（デフォルト）
 
 - 4567：Rubyウェブサーバー
-- 5070：Python Flask API（ドキュメントの`PYTHON_PORT`を参照）
+- 8889：JupyterLab
 - 5433：PostgreSQL/PGVector
 - 4444：Selenium Grid
 - 11434：Ollama API（有効時）

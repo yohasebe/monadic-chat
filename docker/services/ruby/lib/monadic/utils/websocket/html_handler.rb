@@ -115,7 +115,7 @@ module WebSocketHelper
 
         # Optional: Use provider-reported usage to set assistant tokens
         # This is disabled by default to avoid confusion and keep a
-        # single source of truth (tiktoken/Flask) for token counting.
+        # single source of truth (tiktoken_ruby) for token counting.
         # Enable via CONFIG["TOKEN_COUNT_SOURCE"] = "provider_only" or "hybrid".
         begin
           source = (defined?(CONFIG) && CONFIG && CONFIG["TOKEN_COUNT_SOURCE"]) ? CONFIG["TOKEN_COUNT_SOURCE"].to_s.downcase : ""

@@ -35,7 +35,7 @@ RUN_API=true bundle exec rspec spec/integration/provider_matrix/all_providers_al
 ### Docker Infrastructure Tests
 
 - `docker_infrastructure_spec.rb` - Container communication and health checks
-- `flask_app_client_docker_spec.rb` - Python Flask container integration
+- `tokenizer_spec.rb` - Native tokenizer (tiktoken_ruby) integration
 
 ### Feature-Specific Tests
 

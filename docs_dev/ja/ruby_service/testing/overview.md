@@ -38,7 +38,7 @@
 
 3. **API統合**
    - `interaction_utils_spec.rb` - APIインタラクションのテスト
-   - `flask_app_client_spec.rb` - Flask APIクライアントのテスト
+   - `tokenizer_spec.rb` - ネイティブトークナイザー（tiktoken_ruby）のテスト
    - `embeddings_spec.rb` - ベクトル埋め込みのテスト
    - `websocket_spec.rb` - WebSocket機能のテスト
 

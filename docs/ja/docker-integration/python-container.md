@@ -142,12 +142,6 @@ pip install --no-cache-dir mecab-python3
 
 matplotlib 等で日本語表示できるよう、Noto CJK 系フォントと `matplotlibrc` を設定済みです。
 
-## Flask API サーバー（ポート 5070）
-
-- 位置: `/monadic/flask/flask_server.py`
-- エンドポイント: `/health`, `/warmup`, `/count_tokens`, `/get_tokens_sequence`, `/decode_tokens`, `/get_encoding_name` など
-- コンテナ起動時に自動起動し、Ruby 側から利用されます。
-
 ## スクリプト構成
 
 ```

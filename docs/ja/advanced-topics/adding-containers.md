@@ -95,12 +95,11 @@ services:
         PROJECT_TAG: "monadic-chat"
     ports:
       - "8889:8889"
-      - "5070:5070"
     container_name: monadic-chat-python-container
     volumes:
       - data:/monadic/data
       - ~/monadic/data:/monadic/data
-    command: /bin/sh -c "cd /monadic/flask && gunicorn --timeout 300 -b 0.0.0.0:5070 flask_server:app"
+    command: ["sleep", "infinity"]
     networks:
       - monadic-chat-network
     depends_on:
@@ -166,7 +165,6 @@ RUN uv pip install --no-cache \
     jupyterlab ipywidgets plotly \
     numpy  pandas statsmodels \
     matplotlib seaborn \
-    gunicorn tiktoken flask \
     pymupdf pymupdf4llm \
     selenium html2text \
     openpyxl python-docx python-pptx \
@@ -194,9 +192,6 @@ RUN mkdir -p /monadic/data/scripts
 ENV PATH="/monadic/data/scripts:/monadic/scripts:/monadic/scripts/utilities:/monadic/scripts/services:/monadic/scripts/cli_tools:/monadic/scripts/converters:${PATH}"
 ENV FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 ENV PIP_ROOT_USER_ACTION=ignore
-
-# Copy Flask application
-COPY flask /monadic/flask
 
 # Create symbolic link for data directory
 RUN ln -s /monadic/data /data

@@ -45,7 +45,7 @@ For more information, see the [Server and Standalone Modes](../docker-integratio
 **A**: Check the following:
 
 1. Make sure Docker Desktop is running.
-2. Ensure that the necessary ports (4567, 5070, 5433, 8889) are not already in use by other applications.
+2. Ensure that the necessary ports (4567, 5433, 8889) are not already in use by other applications.
 3. Look at the console output for any error messages.
 4. Try restarting the application or rebuilding the containers from the console.
 

@@ -437,7 +437,6 @@ class DockerManager {
     
     // Docker containers use fixed ports
     this.rubyPort = '4567';     // Ruby Sinatra web server
-    this.pythonPort = '5070';   // Python Flask API server
     this.jupyterPort = '8889';  // JupyterLab server (disabled in server mode)
     
     // Configuration will be loaded from .env file
@@ -496,7 +495,6 @@ class DockerManager {
       
       // Using fixed default ports as Docker containers have hardcoded port bindings
       this.rubyPort = '4567';
-      this.pythonPort = '5070';
       this.jupyterPort = '8889';
     }
     return this.serverMode;
@@ -3266,7 +3264,6 @@ function checkAndUpdateEnvFile() {
     // Port settings are no longer user-configurable
     // Docker containers use hardcoded ports
     envConfig.RUBY_PORT = '4567';
-    envConfig.PYTHON_PORT = '5070';
     envConfig.JUPYTER_PORT = '8889';
 
     // Check for the presence of any API key
@@ -3390,7 +3387,7 @@ function saveSettings(data) {
             }
             
             // Port settings have been removed since they don't affect Docker containers
-            // Default values will be used (4567, 5070, 8889)
+            // Default values will be used (4567, 8889)
         }
         
         // Normalize install option booleans to string 'true'/'false'

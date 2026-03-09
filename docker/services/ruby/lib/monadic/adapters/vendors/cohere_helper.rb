@@ -442,13 +442,13 @@ module CohereHelper
     response = nil
     
     # Simple retry logic
-    MAX_RETRIES.times do |attempt|
+    MAX_RETRIES.times do
       response = http.timeout(
         connect: open_timeout,
         write: write_timeout,
         read: read_timeout
       ).post(target_uri, json: body)
-      
+
       break if response&.status&.success?
       sleep RETRY_DELAY
     end

@@ -862,7 +862,7 @@ module ClaudeHelper
     end
 
     res = nil
-    MAX_RETRIES.times do |retry_count|
+    MAX_RETRIES.times do
       res = http.timeout(connect: open_timeout,
                          write: write_timeout,
                          read: read_timeout).post(target_uri, json: body)

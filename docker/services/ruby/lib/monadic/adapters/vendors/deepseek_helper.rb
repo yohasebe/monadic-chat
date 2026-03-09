@@ -262,7 +262,8 @@ module DeepSeekHelper
       api_key = CONFIG["DEEPSEEK_API_KEY"]
       raise if api_key.nil?
     rescue StandardError
-      pp error_message = "ERROR: DEEPSEEK_API_KEY not found. Please set the DEEPSEEK_API_KEY environment variable in the ~/monadic/config/env file."
+      error_message = "ERROR: DEEPSEEK_API_KEY not found. Please set the DEEPSEEK_API_KEY environment variable in the ~/monadic/config/env file."
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
       res = { "type" => "error", "content" => error_message }
       block&.call res
       return []
@@ -405,16 +406,24 @@ module DeepSeekHelper
       sleep RETRY_DELAY
       retry
     else
-      pp error_message = "The request has timed out."
-      res = { "type" => "error", "content" => "HTTP ERROR: #{error_message}" }
+      error_message = "The request has timed out."
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] #{error_message}" }
+      formatted_error = Monadic::Utils::ErrorFormatter.network_error(
+        provider: "DeepSeek",
+        message: error_message,
+        timeout: true
+      )
+      res = { "type" => "error", "content" => formatted_error }
       block&.call res
       [res]
     end
   rescue StandardError => e
-    pp e.message
-    pp e.backtrace
-    pp e.inspect
-    res = { "type" => "error", "content" => "UNKNOWN ERROR: #{e.message}\n#{e.backtrace}\n#{e.inspect}" }
+    Monadic::Utils::ExtraLogger.log { "[DeepSeek] Unknown error: #{e.message}\n#{e.backtrace&.first(5)&.join("\n")}" }
+    formatted_error = Monadic::Utils::ErrorFormatter.api_error(
+      provider: "DeepSeek",
+      message: e.message
+    )
+    res = { "type" => "error", "content" => formatted_error }
     block&.call res
     [res]
   end
@@ -616,7 +625,7 @@ module DeepSeekHelper
                 end
               end
             rescue JSON::ParserError => e
-              pp "JSON parse error: #{e.message}"
+              Monadic::Utils::ExtraLogger.log { "[DeepSeek] JSON parse error: #{e.message}" }
             end
           else
             scanner.pos += 1
@@ -626,8 +635,7 @@ module DeepSeekHelper
         buffer = scanner.rest
 
       rescue StandardError => e
-        pp e.message
-        pp e.backtrace
+        Monadic::Utils::ExtraLogger.log { "[DeepSeek] Streaming error: #{e.message}\n#{e.backtrace&.first(3)&.join("\n")}" }
         next
       end
     end
@@ -1136,7 +1144,7 @@ module DeepSeekHelper
 
     unless res.status.success?
       error_report = JSON.parse(res.body)
-      pp error_report
+      Monadic::Utils::ExtraLogger.log { "[DeepSeek] API error: #{error_report}" }
       formatted_error = format_api_error(error_report, "deepseek")
       res = { "type" => "error", "content" => "API ERROR: #{formatted_error}" }
       block&.call res

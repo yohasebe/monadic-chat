@@ -206,6 +206,9 @@
   }
 
   async function applyMermaid(element) {
+    // Lazy-load Mermaid on first use
+    if (window.LazyLoader) await window.LazyLoader.mermaid();
+    if (typeof mermaid === 'undefined') return;
     mermaid.initialize(mermaid_config);
 
     element.find(".mermaid-code").each(function (index) {
@@ -497,7 +500,10 @@
     ABCJS.synth.playEvent(lastClicked, abcElem.midiGraceNotePitches);
   }
 
-  function applyAbc(element) {
+  async function applyAbc(element) {
+    // Lazy-load ABCjs on first use
+    if (window.LazyLoader) await window.LazyLoader.abcjs();
+    if (typeof ABCJS === 'undefined') return;
     element.find(".abc-code").each(function () {
       $(this).addClass("sourcecode");
       $(this).find("pre").addClass("sourcecode");

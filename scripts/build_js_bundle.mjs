@@ -24,6 +24,7 @@ const OUT_FILE = join(PUBLIC_DIR, "js", "monadic.bundle.min.js");
 // File order must match index.erb script tags exactly.
 const FILES = [
   "js/debug-config.js",
+  "js/monadic/lazy-loader.js",
   "js/monadic/syntax-highlight.js",
   "js/monadic/markdown-renderer.js",
   "js/monadic/storage-helper.js",

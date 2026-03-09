@@ -1235,8 +1235,12 @@ const WorkflowViewer = (function () {
   // ── Public API ─────────────────────────────────────────────
 
   return {
-    init: function () {
+    init: async function () {
       if (initialised) return;
+      // Lazy-load maxgraph on first use (~608 KB deferred)
+      if (typeof window.maxgraph === 'undefined' && window.LazyLoader) {
+        try { await window.LazyLoader.maxgraph(); } catch (e) { /* ignore */ }
+      }
       if (typeof window.maxgraph === 'undefined') { console.warn('[WorkflowViewer] maxGraph not loaded'); return; }
       Graph = window.maxgraph.Graph;
       HierarchicalLayout = window.maxgraph.HierarchicalLayout;

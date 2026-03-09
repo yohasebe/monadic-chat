@@ -1087,20 +1087,14 @@
     <!-- MathJax (local or CDN) -->
     <script src="vendor/js/tex-mml-chtml.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
     
-    <!-- Mermaid (local or CDN) -->
-    <script src="vendor/js/mermaid.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';"></script>
-
-    <!-- ABC.js (local or CDN) -->
-    <script src="vendor/js/abcjs-basic-min.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.min.js';"></script>
-
-    <!-- markdown-it (local or CDN) -->
+    <!-- markdown-it (local or CDN) — always needed for message rendering -->
     <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
-    <!-- highlight.js (local or CDN) -->
+    <!-- highlight.js (local or CDN) — always needed for code blocks -->
     <script src="vendor/js/highlight.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.10.0/highlight.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
 
-    <!-- maxGraph (bundled IIFE, no CDN fallback) -->
-    <script src="vendor/js/maxgraph.bundle.js"></script>
+    <!-- Mermaid (~2.5 MB), ABCjs (~472 KB), maxGraph (~608 KB) are lazy-loaded -->
+    <!-- on first use via LazyLoader. See js/monadic/lazy-loader.js -->
 
     <!-- Pass server configuration to frontend -->
     <script>

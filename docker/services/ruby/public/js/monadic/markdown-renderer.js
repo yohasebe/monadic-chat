@@ -88,20 +88,24 @@
      * @private
      */
     _initMermaid: function() {
-      if (mermaidInitialized || typeof window.mermaid === 'undefined') {
-        return;
+      if (mermaidInitialized) {
+        return Promise.resolve();
       }
 
-      try {
-        window.mermaid.initialize({
-          startOnLoad: false,  // We manually control rendering
-          securityLevel: 'strict',
-          theme: 'default'
-        });
-        mermaidInitialized = true;
-      } catch (err) {
-        console.error('Failed to initialize Mermaid:', err);
-      }
+      // Lazy-load Mermaid on first use (~2.5 MB deferred from initial load)
+      return (window.LazyLoader ? window.LazyLoader.mermaid() : Promise.resolve()).then(function () {
+        if (mermaidInitialized || typeof window.mermaid === 'undefined') return;
+        try {
+          window.mermaid.initialize({
+            startOnLoad: false,  // We manually control rendering
+            securityLevel: 'strict',
+            theme: 'default'
+          });
+          mermaidInitialized = true;
+        } catch (err) {
+          console.error('Failed to initialize Mermaid:', err);
+        }
+      });
     },
 
     // ===== Main Entry Point =====
@@ -751,8 +755,9 @@
         return;
       }
 
-      // Initialize Mermaid once
-      this._initMermaid();
+      // Initialize Mermaid lazily (loaded on first use, ~2.5 MB deferred)
+      var self = this;
+      self._initMermaid();
 
       // 1. highlight.js
       if (window.SyntaxHighlight) {
@@ -778,7 +783,7 @@
         });
       }
 
-      // 3. ABCJS / applyAbc
+      // 3. ABCJS / applyAbc (lazy-loaded, ~472 KB deferred)
       if (typeof window.applyAbc === 'function' && window.jQuery) {
         scheduleTask(() => {
           try {
@@ -787,29 +792,35 @@
             console.error('applyAbc failed:', err);
           }
         });
-      } else if (window.ABCJS) {
-        scheduleTask(() => {
-          try {
-            const abcElements = container.querySelectorAll('.abc-notation, .abc-code');
-            abcElements.forEach(el => {
-              let abc = '';
-              if (el.dataset.abc) {
-                abc = decodeURIComponent(el.dataset.abc);
-              } else {
-                const pre = el.querySelector('pre');
-                abc = pre ? pre.textContent : el.textContent;
+      } else {
+        // Check if there are ABC elements before loading the library
+        const abcElements = container.querySelectorAll('.abc-notation, .abc-code');
+        if (abcElements.length > 0) {
+          scheduleTask(() => {
+            (window.LazyLoader ? window.LazyLoader.abcjs() : Promise.resolve()).then(() => {
+              if (!window.ABCJS) return;
+              try {
+                abcElements.forEach(el => {
+                  let abc = '';
+                  if (el.dataset.abc) {
+                    abc = decodeURIComponent(el.dataset.abc);
+                  } else {
+                    const pre = el.querySelector('pre');
+                    abc = pre ? pre.textContent : el.textContent;
+                  }
+                  if (abc) {
+                    window.ABCJS.renderAbc(el, abc);
+                  }
+                });
+              } catch (err) {
+                console.error('ABC notation rendering failed:', err);
               }
-              if (abc) {
-                window.ABCJS.renderAbc(el, abc);
-              }
-            });
-          } catch (err) {
-            console.error('ABC notation rendering failed:', err);
-          }
-        });
+            }).catch(err => console.error('Failed to load ABCjs:', err));
+          });
+        }
       }
 
-      // 4. Mermaid / applyMermaid
+      // 4. Mermaid / applyMermaid (lazy-loaded, ~2.5 MB deferred)
       if (typeof window.applyMermaid === 'function' && window.jQuery) {
         scheduleTask(() => {
           try {
@@ -818,20 +829,23 @@
             console.error('applyMermaid failed:', err);
           }
         });
-      } else if (window.mermaid) {
-        scheduleTask(() => {
-          try {
-            const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
-            if (mermaidElements.length > 0) {
-              mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
-              window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
-                console.error('[MarkdownRenderer] Mermaid run() failed:', err);
-              });
-            }
-          } catch (err) {
-            console.error('Mermaid rendering failed:', err);
-          }
-        });
+      } else {
+        const mermaidElements = container.querySelectorAll('.mermaid:not([data-processed]), .mermaid-code:not([data-processed])');
+        if (mermaidElements.length > 0) {
+          scheduleTask(() => {
+            self._initMermaid().then(() => {
+              if (!window.mermaid) return;
+              try {
+                mermaidElements.forEach(el => el.setAttribute('data-processed', 'true'));
+                window.mermaid.run({ nodes: Array.from(mermaidElements) }).catch(err => {
+                  console.error('[MarkdownRenderer] Mermaid run() failed:', err);
+                });
+              } catch (err) {
+                console.error('Mermaid rendering failed:', err);
+              }
+            }).catch(err => console.error('Failed to load Mermaid:', err));
+          });
+        }
       }
 
       // 5. DrawIO / applyDrawIO

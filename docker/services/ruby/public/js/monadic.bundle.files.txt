@@ -1,4 +1,5 @@
 js/debug-config.js
+js/monadic/lazy-loader.js
 js/monadic/syntax-highlight.js
 js/monadic/markdown-renderer.js
 js/monadic/storage-helper.js

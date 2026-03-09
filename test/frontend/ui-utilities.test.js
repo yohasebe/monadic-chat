@@ -283,6 +283,7 @@ describe('UI Utilities', () => {
       // Verify tooltip was configured properly
       expect(container.tooltip).toHaveBeenCalledWith({
         selector: '.card-header [title]',
+        trigger: 'hover',
         delay: { show: 0, hide: 0 },
         show: 100,
         container: 'body'

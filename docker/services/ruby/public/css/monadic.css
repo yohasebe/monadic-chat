@@ -3864,23 +3864,23 @@ img.base64-image,
 }
 
 #status-message.text-success {
-  color: #0a4a2e !important;
+  color: #1a8a4a !important;
 }
 
 #status-message.text-warning {
-  color: #6c3507 !important;
+  color: #c47a00 !important;
 }
 
 #status-message.text-danger {
-  color: #861b29 !important;
+  color: #c62828 !important;
 }
 
 #status-message.text-info {
-  color: #05326e !important;
+  color: #1565c0 !important;
 }
 
 #status-message.text-secondary {
-  color: #495057 !important;
+  color: #546e7a !important;
 }
 
 /* Bootstrap tooltip styling */
@@ -3889,7 +3889,7 @@ img.base64-image,
 }
 
 .tooltip .tooltip-inner {
-  background-color: #000000 !important;
+  background-color: #555555 !important;
   color: #ffffff !important;
   border-radius: 0.25rem;
   padding: 0.5rem 0.75rem;
@@ -3902,22 +3902,22 @@ img.base64-image,
 
 .bs-tooltip-top .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before {
-  border-top-color: #000000 !important;
+  border-top-color: #555555 !important;
 }
 
 .bs-tooltip-bottom .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before {
-  border-bottom-color: #000000 !important;
+  border-bottom-color: #555555 !important;
 }
 
 .bs-tooltip-start .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="left"] .tooltip-arrow::before {
-  border-left-color: #000000 !important;
+  border-left-color: #555555 !important;
 }
 
 .bs-tooltip-end .tooltip-arrow::before,
 .bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before {
-  border-right-color: #000000 !important;
+  border-right-color: #555555 !important;
 }
 
 #status-message[title] {

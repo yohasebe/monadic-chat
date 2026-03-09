@@ -136,6 +136,7 @@ function setupTooltips(container) {
     if (container && container.tooltip) {
       container.tooltip({
         selector: '.card-header [title]',
+        trigger: 'hover',
         delay: { show: 0, hide: 0 },
         show: 100,
         container: 'body' // Place tooltips in body for easier management

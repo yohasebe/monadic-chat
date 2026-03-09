@@ -916,7 +916,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
 };
 
   // Combine mouse events into a single listener
-  $card.on("mouseenter.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status", function () {
+  $card.on("mouseenter.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status, .card-turn-badge", function () {
     $(this).tooltip('show');
     const $icon = $(this).find("i");
     if ($icon.length) {
@@ -924,7 +924,7 @@ window.deleteMessageOnly = function(mid, messageIndex) {
     }
   });
 
-  $card.on("mouseleave.cardEvent click.cardEvent touchend.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status", function (event) {
+  $card.on("mouseleave.cardEvent click.cardEvent touchend.cardEvent", ".func-play, .func-stop, .func-copy, .func-delete, .func-edit, .status, .card-turn-badge", function (event) {
     $(this).tooltip('hide');
 
     // Reset color only on mouseleave, not on click or touchend for iOS

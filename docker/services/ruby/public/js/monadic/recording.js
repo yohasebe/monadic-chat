@@ -3,32 +3,35 @@
 //////////////////////////////
 
 function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThreshold = 16) {
-  // Check if AudioContext is already suspended - macOS specific issue handling
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  
-  // Resume context if needed (important for macOS)
-  if (audioContext.state === 'suspended') {
-    audioContext.resume().catch(err => console.warn('Error resuming AudioContext:', err));
-  }
-  
-  const analyser = audioContext.createAnalyser();
-  const streamNode = audioContext.createMediaStreamSource(stream);
-  streamNode.connect(analyser);
-  analyser.fftSize = 2048;
+
+  let analyser;
+  let streamNode;
   const bufferLength = 32;
   const dataArray = new Uint8Array(bufferLength);
 
   let silenceStart = performance.now();
   let triggered = false;
   let animationFrameId;
-  
+
   // For cleanup
   let isActive = true;
+
+  function setupAndStart() {
+    analyser = audioContext.createAnalyser();
+    streamNode = audioContext.createMediaStreamSource(stream);
+    streamNode.connect(analyser);
+    analyser.fftSize = 2048;
+
+    // Reset silence timer after AudioContext is ready
+    silenceStart = performance.now();
+    checkSilence();
+  }
 
   function checkSilence() {
     // Don't process if we've been cleaned up
     if (!isActive) return;
-    
+
     analyser.getByteFrequencyData(dataArray);
     const totalAmplitude = dataArray.reduce((a, b) => a + b);
     const averageAmplitude = totalAmplitude / bufferLength;
@@ -47,23 +50,23 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
 
     // Update the bar chart with the average amplitude value
     const chartCanvas = document.querySelector("#amplitude-chart");
-    
+
     if (chartCanvas) {
       const chartContext = chartCanvas.getContext("2d");
-      
+
       // Make sure canvas is properly sized for the container
       chartCanvas.width = Math.min(300, chartCanvas.clientWidth * 2); // Handle high DPI displays
       chartCanvas.height = 56; // Fixed height with doubled pixels for high DPI
-      
+
       // Get dimensions after resize
       const chartWidth = chartCanvas.width;
       const chartHeight = chartCanvas.height;
       const barSpacing = 4;
       const barWidth = (chartWidth - (bufferLength - 1) * barSpacing) / bufferLength;
-      
+
       // Clear the canvas completely
       chartContext.clearRect(0, 0, chartWidth, chartHeight);
-      
+
       for (let i = 0; i < bufferLength; i++) {
         const barHeight = dataArray[i] / 255 * chartHeight / 2;
         const x = i * (barWidth + barSpacing);
@@ -84,7 +87,16 @@ function detectSilence(stream, onSilenceCallback, silenceDuration, silenceThresh
     }
   }
 
-  checkSilence();
+  // Ensure AudioContext is running before starting silence detection
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().then(setupAndStart).catch(function(err) {
+      console.warn('Error resuming AudioContext:', err);
+      // Try to start anyway as a fallback
+      setupAndStart();
+    });
+  } else {
+    setupAndStart();
+  }
 
   // Return a function to close the audio context and cancel animation frame
   return function () {
@@ -151,7 +163,14 @@ workerOptions = {
   OggOpusEncoderWasmPath: `${baseUrl}/vendor/js/OggOpusEncoder.wasm`,
   WebMOpusEncoderWasmPath: `${baseUrl}/vendor/js/WebMOpusEncoder.wasm`
 };
-window.MediaRecorder = OpusMediaRecorder;
+
+// Use native MediaRecorder when it supports opus (Chrome, Firefox, Edge).
+// Fall back to OpusMediaRecorder polyfill only when native lacks opus support (Safari).
+const NativeMediaRecorder = window.MediaRecorder;
+if (!(NativeMediaRecorder && typeof NativeMediaRecorder.isTypeSupported === 'function' &&
+      NativeMediaRecorder.isTypeSupported('audio/webm;codecs=opus'))) {
+  window.MediaRecorder = OpusMediaRecorder;
+}
 
 // Function to start audio capture
 function startAudioCapture() {
@@ -208,7 +227,12 @@ function startAudioCapture() {
         }
       }
       
-      mediaRecorder = new window.MediaRecorder(stream, options, workerOptions);
+      // Pass workerOptions only when using OpusMediaRecorder polyfill
+      if (window.MediaRecorder === OpusMediaRecorder) {
+        mediaRecorder = new window.MediaRecorder(stream, options, workerOptions);
+      } else {
+        mediaRecorder = new window.MediaRecorder(stream, options);
+      }
 
       mediaRecorder.start();
 

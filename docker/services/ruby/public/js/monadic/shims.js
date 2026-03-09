@@ -152,6 +152,7 @@ window.shims.uiUtils = {
       if (container && container.tooltip) {
         container.tooltip({
           selector: '.card-header [title]',
+          trigger: 'hover',
           delay: { show: 0, hide: 0 },
           show: 100,
           container: 'body'

@@ -104,8 +104,8 @@ function handleProcessingStatus(data) {
 
   if (window.autoScroll) {
     const chatBottom = document.getElementById('chat-bottom');
-    if (!isElementInViewport(chatBottom)) {
-      window.chatBottom.scrollIntoView(false);
+    if (chatBottom && !isElementInViewport(chatBottom)) {
+      chatBottom.scrollIntoView(false);
     }
   }
 }
@@ -135,8 +135,8 @@ function handleSystemInfo(data) {
 
   if (window.autoScroll) {
     const chatBottom = document.getElementById('chat-bottom');
-    if (!isElementInViewport(chatBottom)) {
-      window.chatBottom.scrollIntoView(false);
+    if (chatBottom && !isElementInViewport(chatBottom)) {
+      chatBottom.scrollIntoView(false);
     }
   }
 }

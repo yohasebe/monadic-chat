@@ -25,6 +25,22 @@
  * Maps "error" to "danger" for Bootstrap consistency.
  * @param {string} alertType - Alert type (success, warning, error, info, etc.)
  */
+// Status message color map (must override Bootstrap @layer !important)
+var STATUS_COLORS = {
+  success:   '#1a8a4a',
+  warning:   '#c47a00',
+  danger:    '#c62828',
+  info:      '#1565c0',
+  secondary: '#546e7a'
+};
+var STATUS_COLORS_DARK = {
+  success:   '#7fd89f',
+  warning:   '#f59e0b',
+  danger:    '#ef5350',
+  info:      '#60a5fa',
+  secondary: '#d0d0d0'
+};
+
 function setAlertClass(alertType) {
   if (alertType === undefined) alertType = "error";
 
@@ -45,6 +61,13 @@ function setAlertClass(alertType) {
   }
 
   $("#status-message").addClass("text-" + alertType);
+
+  // Apply color via inline style with !important to override Bootstrap @layer
+  var isDark = document.documentElement.classList.contains('dark-theme');
+  var palette = isDark ? STATUS_COLORS_DARK : STATUS_COLORS;
+  var color = palette[alertType] || palette.secondary;
+  var el = document.getElementById('status-message');
+  if (el) el.style.setProperty('color', color, 'important');
 }
 
 /**

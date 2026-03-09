@@ -51,7 +51,7 @@ function handleAIUser(data) {
   $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
 
   // Make sure the message panel is visible
-  if (window.autoScroll && !isElementInViewport(mainPanel)) {
+  if (window.autoScroll && mainPanel && !isElementInViewport(mainPanel)) {
     mainPanel.scrollIntoView(false);
   }
 }
@@ -89,7 +89,7 @@ function handleAIUserFinished(data) {
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${generatedText}`, "success");
 
   // Ensure the panel is visible
-  if (!isElementInViewport(mainPanel)) {
+  if (mainPanel && !isElementInViewport(mainPanel)) {
     mainPanel.scrollIntoView(false);
   }
 

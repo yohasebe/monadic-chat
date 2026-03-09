@@ -380,7 +380,7 @@ function handleErrorMessage(data) {
     // Auto-scroll if enabled
     if (autoScroll) {
       const chatBottom = document.getElementById('chat-bottom');
-      if (!isElementInViewport(chatBottom)) {
+      if (chatBottom && !isElementInViewport(chatBottom)) {
         chatBottom.scrollIntoView(false);
       }
     }

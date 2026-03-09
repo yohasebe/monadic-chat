@@ -44,6 +44,7 @@ const jQueryMock = function(selector) {
     data: function() { return null; },
     removeAttr: function() { return $obj; },
     tooltip: function() { return $obj; },
+    css: function(prop, val) { if (el) el.style[prop] = val; return $obj; },
     0: el
   };
   return $obj;

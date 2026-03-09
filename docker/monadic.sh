@@ -1434,11 +1434,8 @@ start_docker_compose() {
     if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
       eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
-
-      # Restart Ruby container to reflect availability
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
+      # Ruby detects Selenium dynamically via WebAutomation.available? (10s TTL cache)
+      # No restart needed — availability is checked on each tool invocation and UI load
     fi
   else
     echo "[HTML]: <p><i class='fa-solid fa-triangle-exclamation' style='color: #ff9800;'></i> <strong>Selenium container image not found.</strong></p>"
@@ -1446,9 +1443,15 @@ start_docker_compose() {
     echo "[HTML]: <p>The system will continue without Selenium. Web scraping features will use Tavily API as fallback.</p><hr />"
   fi
 
-  # Wait for all containers to be fully running before listing
-  # This prevents race conditions where containers are in 'restarting' state
-  sleep 3
+  # Brief wait for container list to stabilize, then enumerate
+  local wait_end=$((SECONDS + 5))
+  while [ $SECONDS -lt $wait_end ]; do
+    # Check if any monadic-chat container is still in 'restarting' state
+    if ! ${DOCKER} ps --filter "name=monadic-chat" --format "{{.Status}}" 2>/dev/null | grep -qi "restarting"; then
+      break
+    fi
+    sleep 0.5
+  done
 
   local containers=$("${DOCKER}" ps --filter "name=monadic-chat" --format "{{.Names}}")
 

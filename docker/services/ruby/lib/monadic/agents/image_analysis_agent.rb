@@ -11,14 +11,6 @@ require "http"
 # to the first available vision provider (preference: OpenAI).
 
 module ImageAnalysisAgent
-  # Hardcoded fallbacks used when ModelSpec is unavailable
-  VISION_MODELS_FALLBACK = {
-    "openai"    => "gpt-4.1-mini",
-    "anthropic" => "claude-haiku-4-5-20251001",
-    "google"    => "gemini-3.1-flash-lite-preview",
-    "xai"       => "grok-4-1-fast-non-reasoning"
-  }.freeze
-
   # Provider key mapping for ModelSpec (which uses canonical keys)
   VISION_PROVIDER_MAP = {
     "openai"    => "openai",
@@ -27,18 +19,15 @@ module ImageAnalysisAgent
     "xai"       => "xai"
   }.freeze
 
+  # Resolve the default vision model for a provider via providerDefaults SSOT
   def self.vision_model_for(provider)
     canonical = VISION_PROVIDER_MAP[provider]
-    if canonical && defined?(Monadic::Utils::ModelSpec)
-      Monadic::Utils::ModelSpec.default_vision_model(canonical) || VISION_MODELS_FALLBACK[provider]
-    else
-      VISION_MODELS_FALLBACK[provider]
-    end
+    Monadic::Utils::ModelSpec.default_vision_model(canonical) if canonical
   end
 
-  # For backward compatibility — returns a hash like the old constant
+  # Returns a hash of provider => default vision model
   def self.vision_models
-    VISION_MODELS_FALLBACK.each_with_object({}) do |(provider, fallback), h|
+    VISION_PROVIDER_MAP.each_with_object({}) do |(provider, _), h|
       h[provider] = vision_model_for(provider)
     end
   end
@@ -50,7 +39,7 @@ module ImageAnalysisAgent
     "xai"       => "XAI_API_KEY"
   }.freeze
 
-  VISION_PROVIDERS = VISION_MODELS_FALLBACK.keys.freeze
+  VISION_PROVIDERS = VISION_PROVIDER_MAP.keys.freeze
 
   IMAGE_CONNECT_TIMEOUT = 10
   IMAGE_READ_TIMEOUT = 60

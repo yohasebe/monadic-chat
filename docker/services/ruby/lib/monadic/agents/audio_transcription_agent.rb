@@ -13,24 +13,15 @@ require "http"
 # fall back to the first available audio provider (preference: OpenAI -> Gemini).
 
 module AudioTranscriptionAgent
-  # Hardcoded fallbacks used when ModelSpec is unavailable
-  AUDIO_MODELS_FALLBACK = {
-    "openai" => "gpt-4o-mini-transcribe-2025-12-15",
-    "google" => "gemini-3.1-flash-lite-preview"
-  }.freeze
-
   AUDIO_PROVIDER_MAP = {
     "openai" => "openai",
     "google" => "gemini"
   }.freeze
 
+  # Resolve the default audio transcription model for a provider via providerDefaults SSOT
   def self.audio_model_for(provider)
     canonical = AUDIO_PROVIDER_MAP[provider]
-    if canonical && defined?(Monadic::Utils::ModelSpec)
-      Monadic::Utils::ModelSpec.default_audio_model(canonical) || AUDIO_MODELS_FALLBACK[provider]
-    else
-      AUDIO_MODELS_FALLBACK[provider]
-    end
+    Monadic::Utils::ModelSpec.default_audio_model(canonical) if canonical
   end
 
   AUDIO_API_KEYS = {
@@ -38,7 +29,7 @@ module AudioTranscriptionAgent
     "google" => "GEMINI_API_KEY"
   }.freeze
 
-  AUDIO_PROVIDERS = AUDIO_MODELS_FALLBACK.keys.freeze
+  AUDIO_PROVIDERS = AUDIO_PROVIDER_MAP.keys.freeze
 
   AUDIO_CONNECT_TIMEOUT = 10
   AUDIO_READ_TIMEOUT = 180  # 3 minutes for long audio files

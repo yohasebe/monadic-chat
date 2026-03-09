@@ -7,14 +7,9 @@ module Monadic
     module ClaudeCodeAgent
       include Monadic::Utils::StepProgress
 
-      CLAUDE_MODEL_FALLBACK = 'claude-sonnet-4-6'.freeze
-
+      # Resolve default Claude code model via providerDefaults SSOT
       def self.default_model
-        if defined?(Monadic::Utils::ModelSpec)
-          Monadic::Utils::ModelSpec.default_code_model("anthropic") || CLAUDE_MODEL_FALLBACK
-        else
-          CLAUDE_MODEL_FALLBACK
-        end
+        Monadic::Utils::ModelSpec.default_code_model("anthropic")
       end
 
       CLAUDE_CODE_STEPS = [

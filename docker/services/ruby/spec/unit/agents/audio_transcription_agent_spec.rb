@@ -211,8 +211,8 @@ RSpec.describe AudioTranscriptionAgent do
   end
 
   describe 'constants' do
-    it 'defines AUDIO_MODELS_FALLBACK as frozen' do
-      expect(AudioTranscriptionAgent::AUDIO_MODELS_FALLBACK).to be_frozen
+    it 'defines AUDIO_PROVIDER_MAP as frozen' do
+      expect(AudioTranscriptionAgent::AUDIO_PROVIDER_MAP).to be_frozen
     end
 
     it 'defines AUDIO_API_KEYS as frozen' do

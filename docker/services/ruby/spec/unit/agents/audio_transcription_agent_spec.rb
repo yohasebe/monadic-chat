@@ -43,10 +43,11 @@ RSpec.describe AudioTranscriptionAgent do
       end
 
       it 'uses default model when none specified' do
+        expected_model = Monadic::Utils::ModelSpec.default_audio_model("openai")
         agent.audio_transcription_agent(audio_path: "/test/audio.mp3")
         expect(agent).to have_received(:transcribe_openai).with(
           "/test/audio.mp3",
-          "gpt-4o-mini-transcribe-2025-12-15",
+          expected_model,
           "test-openai-key",
           "text",
           nil

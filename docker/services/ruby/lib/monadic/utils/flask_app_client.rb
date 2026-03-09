@@ -21,7 +21,7 @@ class FlaskAppClient
                "http://#{host}:#{PYTHON_PORT}"
              end
 
-  def initialize(model_name = "gpt-4.1")
+  def initialize(model_name = nil)
     @model_name = model_name
     # Attempt to warm up the encodings on initialization
     warmup_encodings
@@ -143,7 +143,7 @@ class FlaskAppClient
     http.read_timeout = 600   # Response read timeout
     
     begin
-      request.body = body.to_json
+      request.body = body.compact.to_json
       response = http.request(request)
       
       # Handle successful response

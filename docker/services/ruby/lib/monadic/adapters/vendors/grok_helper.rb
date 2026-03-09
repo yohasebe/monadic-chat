@@ -30,7 +30,7 @@ module GrokHelper
 
   # Get default model
   def self.get_default_model
-    SystemDefaults.get_default_model('xai') || 'grok-4-1-fast-reasoning'
+    SystemDefaults.get_default_model('xai')
   end
 
 

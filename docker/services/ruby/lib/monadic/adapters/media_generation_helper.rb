@@ -204,7 +204,6 @@ module MonadicHelper
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_video_model("openai")
                end
-    model ||= "sora-2"
 
     # Resolve image_path from session if not provided directly
     if image_path.nil? && session && session[:messages]

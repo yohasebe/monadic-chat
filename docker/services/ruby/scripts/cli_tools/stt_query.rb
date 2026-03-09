@@ -26,9 +26,9 @@ RETRY_DELAY = 1
 # Resolve default STT model from providerDefaults SSOT
 def default_stt_model
   require 'monadic/utils/model_spec'
-  Monadic::Utils::ModelSpec.default_audio_model("openai") || "gpt-4o-mini-transcribe-2025-12-15"
+  Monadic::Utils::ModelSpec.default_audio_model("openai")
 rescue LoadError
-  "gpt-4o-mini-transcribe-2025-12-15"
+  nil
 end
 
 def stt_api_request(audiofile, response_format = "text", lang_code = nil, model = nil)

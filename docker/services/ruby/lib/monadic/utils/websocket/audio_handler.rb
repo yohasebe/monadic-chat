@@ -27,7 +27,6 @@ module WebSocketHelper
       if defined?(Monadic::Utils::ModelSpec) && CONFIG["OPENAI_API_KEY"]
         model = Monadic::Utils::ModelSpec.default_audio_model("openai")
       end
-      model ||= "gpt-4o-mini-transcribe-2025-12-15"
     end
     format = obj["format"] || "webm"
 

@@ -20,9 +20,7 @@ if defined?(Monadic::Utils::SSLConfiguration)
 end
 
 EMBEDDINGS_MODEL = if defined?(Monadic::Utils::ModelSpec)
-                     Monadic::Utils::ModelSpec.default_embedding_model("openai") || "text-embedding-3-large"
-                   else
-                     "text-embedding-3-large"
+                     Monadic::Utils::ModelSpec.default_embedding_model("openai")
                    end
 # OpenAI's text-embedding-3-large produces 3072-dimensional vectors
 # We use the full dimensions as pgvector supports this without indexes

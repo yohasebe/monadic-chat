@@ -20,12 +20,12 @@ end
 # Resolve image models from providerDefaults SSOT
 def resolve_openai_image_models
   if defined?(Monadic::Utils::ModelSpec)
-    Monadic::Utils::ModelSpec.get_provider_models("openai", "image") || %w[gpt-image-1.5 chatgpt-image-latest]
+    Monadic::Utils::ModelSpec.get_provider_models("openai", "image") || []
   else
-    %w[gpt-image-1.5 chatgpt-image-latest]
+    []
   end
 rescue
-  %w[gpt-image-1.5 chatgpt-image-latest]
+  []
 end
 
 ALLOWED_IMAGE_MODELS = resolve_openai_image_models

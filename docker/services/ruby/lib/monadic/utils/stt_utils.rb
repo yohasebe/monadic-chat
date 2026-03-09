@@ -268,7 +268,6 @@ module InteractionUtils
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_audio_model("openai")
                end
-    model ||= "gpt-4o-mini-transcribe-2025-12-15"
     # Route to Gemini API if model starts with "gemini-"
     if model.start_with?("gemini-")
       return gemini_stt_api_request(blob, format, lang_code, model)

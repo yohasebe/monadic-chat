@@ -289,7 +289,6 @@ module MonadicSharedTools
 
           llm do
             provider "#{provider}"
-            model "gpt-4.1"  # Update with appropriate model
             temperature 0.7
             max_tokens 4000
           end

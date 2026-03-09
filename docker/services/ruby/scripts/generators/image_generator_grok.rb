@@ -13,9 +13,9 @@ end
 
 # Resolve default image model from providerDefaults SSOT
 def default_grok_image_model
-  Monadic::Utils::ModelSpec.default_image_model("xai") || "grok-imagine-image"
+  Monadic::Utils::ModelSpec.default_image_model("xai")
 rescue
-  "grok-imagine-image"
+  nil
 end
 
 # Parse command line arguments for the prompt and size

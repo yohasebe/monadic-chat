@@ -35,9 +35,9 @@ end
 
 # Resolve default video model from providerDefaults SSOT
 def default_video_model
-  Monadic::Utils::ModelSpec.default_video_model("openai") || "sora-2"
+  Monadic::Utils::ModelSpec.default_video_model("openai")
 rescue
-  "sora-2"
+  nil
 end
 
 # Parse command line arguments
@@ -56,7 +56,7 @@ parser = OptionParser.new do |opts|
   end
 
   opts.on("-m", "--model MODEL", "Model for video generation") do |model|
-    valid_models = Monadic::Utils::ModelSpec.get_provider_models("openai", "video") || %w[sora-2 sora-2-pro]
+    valid_models = Monadic::Utils::ModelSpec.get_provider_models("openai", "video") || []
     options[:model] = model
     unless valid_models.include?(model)
       puts JSON.generate({

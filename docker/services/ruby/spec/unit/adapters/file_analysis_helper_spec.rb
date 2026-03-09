@@ -122,13 +122,13 @@ RSpec.describe MonadicHelper do
       expect(call[:model]).to eq("gpt-4o-transcribe-diarize")
     end
 
-    it 'falls back to default when STT model not in settings' do
+    it 'falls back to nil when STT model not in settings (SSOT resolves downstream)' do
       helper.settings.delete("stt_model")
 
       helper.analyze_audio(audio: "/tmp/test_audio.mp3")
 
       call = helper.audio_agent_calls.last
-      expect(call[:model]).to eq("gpt-4o-mini-transcribe-2025-12-15")
+      expect(call[:model]).to be_nil
     end
 
     it 'handles different audio formats' do

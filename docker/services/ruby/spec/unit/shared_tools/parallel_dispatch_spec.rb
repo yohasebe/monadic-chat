@@ -258,7 +258,7 @@ RSpec.describe "MonadicSharedTools::ParallelDispatch" do
       end
 
       it "uses provider default model when session is nil" do
-        expect(app).to receive(:sub_agent_api_call).with(kind_of(String), anything, anything, anything, websearch: false).and_return("text")
+        expect(app).to receive(:sub_agent_api_call).with(anything, anything, anything, anything, websearch: false).and_return("text")
         tasks = [{ "id" => "t1", "prompt" => "test" }]
         app.dispatch_parallel_tasks(tasks: tasks, session: nil)
       end

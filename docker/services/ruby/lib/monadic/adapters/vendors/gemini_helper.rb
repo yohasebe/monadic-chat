@@ -57,7 +57,10 @@ module GeminiHelper
   # Supports optional image inputs (up to 14) for editing/conditioning:
   # images: array of { mime_type: "image/png", data: "<base64>" }
   # If images is nil, will fall back to images attached to the latest user message in session (if provided)
-  def generate_image_with_gemini3_preview(prompt:, model: "gemini-3.1-flash-image-preview", aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+  def generate_image_with_gemini3_preview(prompt:, model: nil, aspect_ratio: nil, image_size: nil, images: nil, session: nil)
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                Monadic::Utils::ModelSpec.default_image_model("gemini")
+              end
     require 'net/http'
     require 'json'
     require 'base64'
@@ -446,7 +449,10 @@ module GeminiHelper
     end
   end
 
-  def self.internal_web_search(query:, model: "gemini-3-flash-preview")
+  def self.internal_web_search(query:, model: nil)
+    model ||= if defined?(Monadic::Utils::ModelSpec)
+                Monadic::Utils::ModelSpec.default_chat_model("gemini")
+              end
     api_key = CONFIG["GEMINI_API_KEY"]
     return { error: "GEMINI_API_KEY not configured" } if api_key.nil?
 

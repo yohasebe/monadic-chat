@@ -84,17 +84,19 @@ RSpec.describe Monadic::Agents::GrokCodeAgent do
 
       it "makes successful API call" do
         result = app.call_grok_code(prompt: "Write a function")
+        expected_model = Monadic::Utils::ModelSpec.default_code_model("xai")
 
         expect(result[:success]).to be true
         expect(result[:code]).to eq("Generated code")
-        expect(result[:model]).to eq("grok-code-fast-1")
+        expect(result[:model]).to eq(expected_model)
       end
 
       it "builds session with correct structure" do
         app.call_grok_code(prompt: "Test prompt")
         session = app.last_session
+        expected_model = Monadic::Utils::ModelSpec.default_code_model("xai")
 
-        expect(session[:parameters]["model"]).to eq("grok-code-fast-1")
+        expect(session[:parameters]["model"]).to eq(expected_model)
         expect(session[:messages].first["text"]).to eq("Test prompt")
         expect(session[:messages].first["role"]).to eq("user")
       end

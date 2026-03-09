@@ -142,24 +142,14 @@ module ClaudeHelper
           
           return models
         else
-          # Return fallback models if API call fails during testing
-          fallback_models = [
-            "claude-opus-4-6",
-            "claude-sonnet-4-6",
-            "claude-sonnet-4-20250514",
-            "claude-haiku-4-5-20251001"
-          ]
+          # Return fallback models from providerDefaults SSOT
+          fallback_models = Monadic::Utils::ModelSpec.get_provider_models("anthropic", "chat") || []
           $MODELS[:anthropic] = fallback_models
           return fallback_models
         end
       rescue HTTP::Error, HTTP::TimeoutError, StandardError
-        # Return fallback models if any error occurs
-        fallback_models = [
-          "claude-opus-4-6",
-          "claude-sonnet-4-6",
-          "claude-sonnet-4-20250514",
-          "claude-haiku-4-5-20251001"
-        ]
+        # Return fallback models from providerDefaults SSOT
+        fallback_models = Monadic::Utils::ModelSpec.get_provider_models("anthropic", "chat") rescue []
         $MODELS[:anthropic] = fallback_models
         return fallback_models
       end

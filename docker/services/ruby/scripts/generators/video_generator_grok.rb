@@ -13,9 +13,9 @@ end
 
 # Resolve default video model from providerDefaults SSOT
 def default_grok_video_model
-  Monadic::Utils::ModelSpec.default_video_model("xai") || "grok-imagine-video"
+  Monadic::Utils::ModelSpec.default_video_model("xai")
 rescue
-  "grok-imagine-video"
+  nil
 end
 
 # Data paths to try (container path first, then local path)

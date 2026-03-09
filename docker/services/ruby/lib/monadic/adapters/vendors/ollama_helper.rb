@@ -14,9 +14,9 @@ module OllamaHelper
   RETRY_DELAY = 2
   MAX_FUNC_CALLS = 20
 
-  # Default model resolved via SystemDefaults (env var > providerDefaults > hardcoded fallback)
+  # Default model resolved via SystemDefaults (env var > providerDefaults)
   DEFAULT_MODEL = (defined?(SystemDefaults) &&
-    SystemDefaults.get_default_model('ollama')) || 'qwen3:4b'
+    SystemDefaults.get_default_model('ollama'))
 
   ENDPOINT_CANDIDATES = [
     "http://host.docker.internal:11434/api",

@@ -466,8 +466,9 @@ def init_apps
       begin
         app.settings["model"] = eval(app.settings["model"])
       rescue => e
-        # If evaluation fails, use a default model
-        app.settings["model"] = "gpt-4.1"
+        # If evaluation fails, use provider default from SSOT
+        provider_key = app.settings["provider"] || "openai"
+        app.settings["model"] = SystemDefaults.get_default_model(provider_key)
         Monadic::Utils::ExtraLogger.log { "Warning: Failed to evaluate model for #{a.name}: #{e.message}" }
       end
     end

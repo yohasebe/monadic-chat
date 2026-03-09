@@ -69,7 +69,6 @@ class VideoGeneratorOpenAI < MonadicApp
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_video_model("openai")
                end
-    model ||= "sora-2"
 
     validate_sora_params(prompt: prompt, model: model, size: size, seconds: seconds)
 

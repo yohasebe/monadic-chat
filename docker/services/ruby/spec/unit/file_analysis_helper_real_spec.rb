@@ -86,11 +86,11 @@ RSpec.describe "FileAnalysisHelper without mocks" do
       expect(result).to include("Transcription result")
     end
 
-    it "uses default model when not specified" do
+    it "uses nil model when not specified (SSOT resolves downstream)" do
       helper.analyze_audio(audio: "/test/audio.mp3")
 
       call = helper.audio_agent_calls.last
-      expect(call[:model]).to eq("gpt-4o-mini-transcribe-2025-12-15")
+      expect(call[:model]).to be_nil
     end
 
     it "does not use send_command (uses agent instead)" do

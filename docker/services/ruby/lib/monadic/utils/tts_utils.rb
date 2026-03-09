@@ -857,9 +857,9 @@ module InteractionUtils
                    end
       case provider_label
       when "gemini-pro"
-        tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
+        tts_models&.[](1)
       else # "gemini-flash", "gemini"
-        tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+        tts_models&.[](0)
       end
     elsif provider_label =~ /\Aelevenlabs/
       tts_models = if defined?(Monadic::Utils::ModelSpec)
@@ -867,11 +867,11 @@ module InteractionUtils
                    end
       case provider_label
       when "elevenlabs-v3"
-        tts_models&.[](0) || "eleven_v3"
+        tts_models&.[](0)
       when "elevenlabs-multilingual"
-        tts_models&.[](1) || "eleven_multilingual_v2"
+        tts_models&.[](1)
       else # "elevenlabs-flash", "elevenlabs"
-        tts_models&.[](2) || "eleven_flash_v2_5"
+        tts_models&.[](2)
       end
     else
       tts_models = if defined?(Monadic::Utils::ModelSpec)
@@ -879,13 +879,13 @@ module InteractionUtils
                    end
       case provider_label
       when "openai-tts-4o"
-        tts_models&.[](0) || "gpt-4o-mini-tts-2025-12-15"
+        tts_models&.[](0)
       when "openai-tts-hd"
-        tts_models&.[](1) || "tts-1-hd"
+        tts_models&.[](1)
       when "openai-tts"
-        tts_models&.[](2) || "tts-1"
+        tts_models&.[](2)
       else
-        tts_models&.[](0) || "gpt-4o-mini-tts-2025-12-15"
+        tts_models&.[](0)
       end
     end
   end

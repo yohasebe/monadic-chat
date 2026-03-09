@@ -1265,6 +1265,10 @@ const providerDefaults = {
   },
   "ollama": {
     "chat": ["qwen3:4b"]
+  },
+  "elevenlabs": {
+    "tts": ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
+    "audio_transcription": ["scribe_v2", "scribe_v1"]
   }
 };
 

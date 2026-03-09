@@ -47,7 +47,6 @@ app "ChatOpenAI" do
   
   llm do
     provider "openai"
-    model ["gpt-5.4", "gpt-5.2", "gpt-5.1"]
     reasoning_effort "none"
   end
   

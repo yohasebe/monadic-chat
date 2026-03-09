@@ -21,8 +21,14 @@ module WebSocketHelper
     # Decode audio content
     blob = Base64.decode64(obj["content"])
 
-    # Get STT model from Web UI (priority) or use default
-    model = obj["stt_model"] || "gpt-4o-mini-transcribe-2025-12-15"
+    # Get STT model from Web UI (priority) or use SSOT default
+    model = obj["stt_model"]
+    if model.nil? || model.to_s.strip.empty?
+      if defined?(Monadic::Utils::ModelSpec) && CONFIG["OPENAI_API_KEY"]
+        model = Monadic::Utils::ModelSpec.default_audio_model("openai")
+      end
+      model ||= "gpt-4o-mini-transcribe-2025-12-15"
+    end
     format = obj["format"] || "webm"
 
     # Store stt_model in session for use by other components (e.g., Video Describer)

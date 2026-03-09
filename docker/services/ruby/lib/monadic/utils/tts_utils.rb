@@ -104,16 +104,7 @@ module InteractionUtils
         "xi-api-key" => api_key
       }
 
-      model = case provider
-              when "elevenlabs-v3"
-                "eleven_v3"
-              when "elevenlabs-multilingual"
-                "eleven_multilingual_v2"
-              when "elevenlabs-flash", "elevenlabs"
-                "eleven_flash_v2_5"
-              else
-                "eleven_flash_v2_5"
-              end
+      model = resolve_tts_model(provider)
 
       body = {
         "text" => text_converted,
@@ -546,16 +537,7 @@ module InteractionUtils
         return
       end
 
-      model = case provider
-              when "elevenlabs-v3"
-                "eleven_v3"
-              when "elevenlabs-multilingual"
-                "eleven_multilingual_v2"
-              when "elevenlabs-flash", "elevenlabs"
-                "eleven_flash_v2_5"
-              else
-                "eleven_flash_v2_5"
-              end
+      model = resolve_tts_model(provider)
 
       body = {
         "text" => text_converted,
@@ -867,6 +849,7 @@ module InteractionUtils
   # Resolve TTS provider label to actual model name via providerDefaults.
   # OpenAI TTS list is ordered: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
   # Gemini TTS list is ordered: [0]=flash, [1]=pro
+  # ElevenLabs TTS list is ordered: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
   def resolve_tts_model(provider_label)
     if provider_label =~ /\Agemini/
       tts_models = if defined?(Monadic::Utils::ModelSpec)
@@ -877,6 +860,18 @@ module InteractionUtils
         tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
       else # "gemini-flash", "gemini"
         tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+      end
+    elsif provider_label =~ /\Aelevenlabs/
+      tts_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
+                   end
+      case provider_label
+      when "elevenlabs-v3"
+        tts_models&.[](0) || "eleven_v3"
+      when "elevenlabs-multilingual"
+        tts_models&.[](1) || "eleven_multilingual_v2"
+      else # "elevenlabs-flash", "elevenlabs"
+        tts_models&.[](2) || "eleven_flash_v2_5"
       end
     else
       tts_models = if defined?(Monadic::Utils::ModelSpec)

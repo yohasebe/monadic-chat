@@ -46,7 +46,6 @@ app "LanguagePracticeGemini" do
   
   llm do
     provider "gemini"
-    model ["gemini-3-flash-preview", "gemini-3.1-pro-preview"]
   end
   
   display_name "Language Practice"

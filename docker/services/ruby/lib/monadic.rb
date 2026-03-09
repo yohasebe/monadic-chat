@@ -51,7 +51,7 @@ require_relative "monadic/utils/environment"
 IN_CONTAINER = Monadic::Utils::Environment.in_container?
 
 require_relative "monadic/utils/setup"
-require_relative "monadic/utils/flask_app_client"
+require_relative "monadic/utils/tokenizer"
 require_relative "monadic/utils/help_embeddings_loader"
 
 require_relative "monadic/utils/string_utils"

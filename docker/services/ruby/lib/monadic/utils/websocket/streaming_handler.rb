@@ -8,7 +8,7 @@
 # during streaming.
 
 module WebSocketHelper
-  # Background thread for token counting using Flask tokenizer.
+  # Background thread for token counting using native tokenizer.
   # @param text [String] Text to count tokens for
   # @param encoding_name [String] Encoding name (default: o200k_base)
   # @return [Thread, nil] The counting thread, or nil if text is empty
@@ -29,8 +29,7 @@ module WebSocketHelper
         # Set thread type for identification
         Thread.current[:type] = :token_counter
 
-        # Do the actual token counting - this now uses the caching mechanism
-        # in FlaskAppClient for better performance
+        # Do the actual token counting - uses the caching mechanism in Tokenizer
         result = MonadicApp::TOKENIZER.count_tokens(text, encoding_name)
 
         # Store for later use in check_past_messages
@@ -87,7 +86,7 @@ module WebSocketHelper
         m["active"] = true
       end
 
-      # Now process any messages that still need token counts - these use the cache in FlaskAppClient
+      # Now process any messages that still need token counts
       messages_to_count.each do |m|
         m["tokens"] = MonadicApp::TOKENIZER.count_tokens(m["text"], encoding_name)
       end

@@ -76,6 +76,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rexml', '~> 3.4.2'
   spec.add_dependency "sinatra", "~> 4.2"
   spec.add_dependency "falcon", "~> 0.51"
+  spec.add_dependency "tiktoken_ruby", "~> 0.0.15"
 
   # Uncomment to use RSyntaxTree
   # spec.add_dependency "rsyntaxtree"

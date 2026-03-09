@@ -6,7 +6,7 @@ require 'timeout'
 require_relative "./utils/string_utils"
 require_relative "./utils/environment"
 require_relative "./utils/extra_logger"
-require_relative "./utils/flask_app_client"
+require_relative "./utils/tokenizer"
 require_relative "./utils/progressive_tool_manager"
 require_relative "./utils/system_defaults"
 
@@ -84,19 +84,10 @@ class MonadicApp
     end
   end
 
-  # Initialize FlaskAppClient with health check in distributed mode
+  # Initialize native Ruby tokenizer (tiktoken_ruby)
   begin
-    TOKENIZER = FlaskAppClient.new
-    
-    # Log connectivity status in client mode
-    distributed_mode = defined?(CONFIG) && CONFIG["DISTRIBUTED_MODE"] || "off"
-    if distributed_mode == "client"
-      if TOKENIZER.service_available?
-        puts "[MonadicApp] Successfully connected to Python service in client mode"
-      else
-        puts "[MonadicApp] WARNING: Failed to connect to Python service in client mode. Some token-related features may not work."
-      end
-    end
+    TOKENIZER = Tokenizer.new
+    puts "[MonadicApp] Tokenizer initialized (tiktoken_ruby)"
   rescue StandardError => e
     puts "[MonadicApp] Error initializing tokenizer: #{e.message}"
     TOKENIZER = nil

@@ -105,7 +105,6 @@ app "WebInsightGrok" do
 
   llm do
     provider "xai"
-    model "grok-4-1-fast-reasoning"
     temperature 0.0
   end
 

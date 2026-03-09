@@ -30,16 +30,45 @@ rescue LoadError
   # ModelSpec not available in this environment
 end
 
-# Resolve Gemini TTS model via providerDefaults SSOT with hardcoded fallback
-def resolve_gemini_tts_model(provider_label)
-  tts_models = if defined?(Monadic::Utils::ModelSpec)
-                 Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
-               end
-  case provider_label
-  when "gemini-pro"
-    tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
-  else # "gemini-flash", "gemini"
-    tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+# Resolve TTS provider label to actual model name via providerDefaults SSOT.
+# OpenAI TTS list: [0]=4o-mini, [1]=tts-1-hd, [2]=tts-1
+# Gemini TTS list: [0]=flash, [1]=pro
+# ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
+def resolve_tts_model(provider_label)
+  if provider_label =~ /\Agemini/
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
+                 end
+    case provider_label
+    when "gemini-pro"
+      tts_models&.[](1) || "gemini-2.5-flash-preview-tts"
+    else
+      tts_models&.[](0) || "gemini-2.5-flash-preview-tts"
+    end
+  elsif provider_label =~ /\Aelevenlabs/
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
+                 end
+    case provider_label
+    when "elevenlabs-v3"
+      tts_models&.[](0) || "eleven_v3"
+    when "elevenlabs-multilingual"
+      tts_models&.[](1) || "eleven_multilingual_v2"
+    else
+      tts_models&.[](2) || "eleven_flash_v2_5"
+    end
+  else
+    tts_models = if defined?(Monadic::Utils::ModelSpec)
+                   Monadic::Utils::ModelSpec.get_provider_models("openai", "tts")
+                 end
+    case provider_label
+    when "openai-tts-hd"
+      tts_models&.[](1) || "tts-1-hd"
+    when "openai-tts"
+      tts_models&.[](2) || "tts-1"
+    else
+      tts_models&.[](0) || "gpt-4o-mini-tts-2025-12-15"
+    end
   end
 end
 
@@ -215,16 +244,7 @@ def tts_api_request(text,
       return { type: "error", content: "ERROR: ELEVENLABS_API_KEY is not set." }
     end
     
-    model = case provider
-            when "elevenlabs-v3"
-              "eleven_v3"
-            when "elevenlabs-multilingual"
-              "eleven_multilingual_v2"
-            when "elevenlabs-flash", "elevenlabs"
-              "eleven_flash_v2_5"
-            else
-              "eleven_flash_v2_5"
-            end
+    model = resolve_tts_model(provider)
     
     headers = {
       "Content-Type" => "application/json",
@@ -332,7 +352,7 @@ def tts_api_request(text,
     }
 
     # Use the appropriate Gemini model with TTS capability (SSOT: providerDefaults.gemini.tts)
-    model_name = resolve_gemini_tts_model(provider)
+    model_name = resolve_tts_model(provider)
     target_uri = "https://generativelanguage.googleapis.com/v1beta/models/#{model_name}:generateContent?key=#{api_key}"
   else # openai
     # Try config file first (primary source of truth)
@@ -359,7 +379,7 @@ def tts_api_request(text,
       Authorization: "Bearer #{api_key}"
     }
 
-    model = "gpt-4o-mini-tts-2025-12-15"
+    model = resolve_tts_model("openai-tts-4o")
 
     body = {
       input: text,

@@ -13,15 +13,24 @@ if defined?(Monadic::Utils::SSLConfiguration)
   Monadic::Utils::SSLConfiguration.configure!
 end
 
+# Load ModelSpec for SSOT model resolution (optional)
+begin
+  require_relative "../../lib/monadic/utils/model_spec"
+rescue LoadError
+  # ModelSpec not available in this environment
+end
+
 # Define constants for API and configuration
 
 # Use Vertex AI API endpoint instead of GenerativeLanguage API
 
-# Model selection
-# Default to the new fast model for quicker tests/execution
+# Model selection via providerDefaults SSOT (fallback to hardcoded values)
 USE_VEO3_FAST = true  # Default: faster Veo 3.1 model (lower quality but quicker)
-VEO3_MODEL = "veo-3.1-generate-preview"
-VEO3_FAST_MODEL = "veo-3.1-fast-generate-preview"
+_veo_models = if defined?(Monadic::Utils::ModelSpec)
+                Monadic::Utils::ModelSpec.get_provider_models("gemini", "video")
+              end
+VEO3_FAST_MODEL = _veo_models&.[](0) || "veo-3.1-fast-generate-preview"
+VEO3_MODEL = _veo_models&.[](1) || "veo-3.1-generate-preview"
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function

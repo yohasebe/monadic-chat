@@ -6,8 +6,8 @@ module ConceptVisualizerTools
   include LatexHelper
 
   def generate_concept_diagram(diagram_type:, tikz_code:, title:, language: "english", session: nil)
-    return "Error: TikZ code is required." if tikz_code.to_s.empty?
-    return "Error: diagram type is required." if diagram_type.to_s.empty?
+    return "❌ TikZ code is required." if tikz_code.to_s.empty?
+    return "❌ Diagram type is required." if diagram_type.to_s.empty?
     
     # Decode HTML entities in TikZ code
     tikz_code = decode_html_entities(tikz_code)
@@ -17,7 +17,7 @@ module ConceptVisualizerTools
     
     # Ensure TikZ code contains actual TikZ commands
     unless tikz_code.include?("\\begin{tikzpicture}") || tikz_code.include?("\\tikz") || tikz_code.include?("\\Tree")
-      return "Error: Invalid TikZ code. Code must contain TikZ commands."
+      return "❌ Invalid TikZ code. Code must contain TikZ commands (\\begin{tikzpicture}, \\tikz, or \\Tree)."
     end
 
     timestamp = Time.now.to_i.to_s

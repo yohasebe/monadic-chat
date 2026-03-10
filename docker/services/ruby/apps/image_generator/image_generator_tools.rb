@@ -244,11 +244,7 @@ class ImageGeneratorOpenAI < MonadicApp
           debug_msg = available_images.empty? ? "No images found in session." : "Available images in session: #{available_images.join(', ')}"
           target_info = images ? images.first : "none"
           
-          return { 
-            success: false, 
-            error: "Image file not found for editing. Please upload an image or generate one first.",
-            debug_info: "Target: '#{target_info}'. #{debug_msg}"
-          }.to_json
+          return "❌ Image file not found for editing. Please upload an image or generate one first. (Target: '#{target_info}'. #{debug_msg})"
         end
       end
       
@@ -294,11 +290,7 @@ class ImageGeneratorOpenAI < MonadicApp
           end
           debug_msg = available_images.empty? ? "No images found." : "Available: #{available_images.join(', ')}"
           
-          return { 
-            success: false, 
-            error: "Mask file not found.",
-            debug_info: "Target mask: '#{mask}'. #{debug_msg}"
-          }.to_json
+          return "❌ Mask file not found. (Target mask: '#{mask}'. #{debug_msg})"
         end
       end
     end
@@ -407,7 +399,7 @@ class ImageGeneratorOpenAI < MonadicApp
 
     result_json
   rescue StandardError => e
-    { success: false, error: "Image generation failed: #{e.message}" }.to_json
+    "❌ Image generation failed: #{e.message}"
   end
 
   private
@@ -510,7 +502,7 @@ class ImageGeneratorGrok < MonadicApp
 
     result_json
   rescue StandardError => e
-    { success: false, error: "Image generation failed: #{e.message}" }.to_json
+    "❌ Image generation failed: #{e.message}"
   end
 
   private
@@ -612,7 +604,7 @@ class ImageGeneratorGemini3Preview < MonadicApp
 
     result_json
   rescue StandardError => e
-    { success: false, error: "Image generation failed: #{e.message}" }.to_json
+    "❌ Image generation failed: #{e.message}"
   end
 
   private

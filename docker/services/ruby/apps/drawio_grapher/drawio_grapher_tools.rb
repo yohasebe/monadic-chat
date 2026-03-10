@@ -33,7 +33,7 @@ module DrawIOGrapher
       begin
         FileUtils.mkdir_p(data_dir)
       rescue StandardError => e
-        return "Error: Could not create directory #{data_dir}: #{e.message}"
+        return "❌ Could not create directory #{data_dir}: #{e.message}"
       end
     end
 
@@ -57,7 +57,7 @@ module DrawIOGrapher
     # 3. Save .drawio file
     drawio_path = File.join(shared_volume, filename)
     save_result = write_file_synchronously(validated_content, drawio_path, filename, shared_volume)
-    return save_result if save_result.start_with?("Error")
+    return save_result if save_result.start_with?("❌")
 
     # 4. Generate preview HTML
     timestamp = Time.now.to_i
@@ -81,7 +81,7 @@ module DrawIOGrapher
           container: "python"
         )
         start_result = parse_drawio_response(start_output)
-        return "Error: Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
+        return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
       end
     else
       start_output = send_command(
@@ -89,7 +89,7 @@ module DrawIOGrapher
         container: "python"
       )
       start_result = parse_drawio_response(start_output)
-      return "Error: Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
+      return "❌ Failed to start browser session: #{start_result[:error]}" unless start_result[:success]
     end
 
     # 6. Capture diagram screenshot (waits for SVG to render, resizes to fit)
@@ -115,7 +115,7 @@ module DrawIOGrapher
     end
     result
   rescue StandardError => e
-    "Error: Preview generation failed: #{e.message}"
+    "❌ Preview generation failed: #{e.message}"
   ensure
     cleanup_old_drawio_html_files(keep_latest: html_filename) if html_filename
   end
@@ -152,13 +152,13 @@ module DrawIOGrapher
       if success && File.size(filepath) > 0
         result = "The file #{filename} has been saved successfully to the shared folder (#{data_dir})."
       else
-        result = "Error: The file could not be verified at #{filepath}."
+        result = "❌ The file could not be verified at #{filepath}."
       end
 
       STDOUT.flush
       return result
     rescue StandardError => e
-      error_result = "Error: The file could not be written to #{filepath}.\nReason: #{e.message}\nBacktrace: #{e.backtrace.first(3).join('\n')}"
+      error_result = "❌ The file could not be written to #{filepath}.\nReason: #{e.message}\nBacktrace: #{e.backtrace.first(3).join('\n')}"
       STDOUT.flush
       return error_result
     end

@@ -3,14 +3,25 @@
 # Mixin module for vendor helpers to track and handle repeated function call errors
 module FunctionCallErrorHandler
   # Detect whether a function return value indicates an error.
-  # Covers multiple error formats: "ERROR:", "Error executing code:", "Error occurred:", etc.
+  # Covers multiple error formats:
+  #   - String prefixes: "ERROR:", "Error:", "Error executing code:", "Error occurred:", "❌"
+  #   - Hash with { success: false } or { "success" => false }
+  #   - JSON string containing {"success":false}
   def function_return_is_error?(function_return)
+    # Hash-style error detection (e.g., { success: false, error: "..." })
+    if function_return.is_a?(Hash)
+      return true if function_return[:success] == false || function_return["success"] == false
+    end
+
     text = function_return.to_s
     return true if text.start_with?("ERROR:")
     return true if text.start_with?("Error executing code")
     return true if text.start_with?("Error occurred")
     return true if text.start_with?("Error:")
     return true if text.start_with?("❌")
+
+    # JSON string with success:false (e.g., from .to_json calls)
+    return true if text.include?('"success":false') || text.include?('"success": false')
 
     false
   end

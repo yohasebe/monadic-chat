@@ -37,6 +37,40 @@ RSpec.describe FunctionCallErrorHandler do
       end
     end
     
+    context 'with hash error returns' do
+      it 'detects Hash with success: false (symbol key)' do
+        result = handler.handle_function_error(session, { success: false, error: "Something failed" }, "test_function")
+        expect(session[:error_patterns]).not_to be_nil
+        expect(session[:error_patterns][:history].size).to eq(1)
+      end
+
+      it 'detects Hash with "success" => false (string key)' do
+        result = handler.handle_function_error(session, { "success" => false, "error" => "Something failed" }, "test_function")
+        expect(session[:error_patterns]).not_to be_nil
+        expect(session[:error_patterns][:history].size).to eq(1)
+      end
+
+      it 'does not detect Hash with success: true' do
+        result = handler.handle_function_error(session, { success: true, data: "ok" }, "test_function")
+        expect(result).to be false
+        expect(session[:error_patterns]).to be_nil
+      end
+
+      it 'detects JSON string with "success":false' do
+        json_error = '{"success":false,"error":"Image file not found"}'
+        result = handler.handle_function_error(session, json_error, "test_function")
+        expect(session[:error_patterns]).not_to be_nil
+        expect(session[:error_patterns][:history].size).to eq(1)
+      end
+
+      it 'stops after 3 hash errors' do
+        3.times do |i|
+          handler.handle_function_error(session, { success: false, error: "Error #{i}" }, "func")
+        end
+        expect(session[:parameters]["stop_retrying"]).to be true
+      end
+    end
+
     context 'with error returns' do
       it 'tracks errors that start with ERROR:' do
         handler.handle_function_error(session, "ERROR: Something went wrong", "test_function")

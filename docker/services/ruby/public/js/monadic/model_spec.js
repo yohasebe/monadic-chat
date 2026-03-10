@@ -1144,9 +1144,25 @@ const modelSpec = {
   }
 }
 
-// Provider defaults: SSOT for default models per provider and category.
-// First element in each list is the default. Tests and agents reference these
-// instead of hardcoding model names.
+/**
+ * Provider Defaults (SSOT)
+ *
+ * Purpose: Defines which models to use by default for each provider × category.
+ * This is separate from modelSpec above, which defines model *capabilities*.
+ *
+ * Structure: { provider: { category: [model1, model2, ...] } }
+ *   - First element = primary default (used when no model is explicitly specified)
+ *   - List order = priority (fallback order)
+ *   - Categories: chat, code, vision, audio_transcription, image, video, tts, embedding
+ *
+ * How it's used:
+ *   - MDSL apps without explicit `model` → providerDefaults[provider].chat[0]
+ *   - Ruby agents → ModelSpec.default_chat_model("openai"), .default_code_model, etc.
+ *   - Frontend UI → pre-selects the default model in dropdowns
+ *
+ * When adding a new model: add its definition to modelSpec above, then update
+ * providerDefaults here if it should become a default.
+ */
 const providerDefaults = {
   "openai": {
     "chat": ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1"],

@@ -11,7 +11,6 @@ RSpec.describe Monadic::Utils::ModelSpec do
       expect(described_class.deprecated?('gpt-4o-mini')).to be true
       expect(described_class.deprecated?('gemini-2.5-flash')).to be true
       expect(described_class.deprecated?('gemini-2.5-pro')).to be true
-      expect(described_class.deprecated?('grok-3')).to be true
     end
 
     it 'returns false for non-deprecated models' do

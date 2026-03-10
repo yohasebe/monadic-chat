@@ -10,6 +10,7 @@ module FunctionCallErrorHandler
     return true if text.start_with?("Error executing code")
     return true if text.start_with?("Error occurred")
     return true if text.start_with?("Error:")
+    return true if text.start_with?("❌")
 
     false
   end

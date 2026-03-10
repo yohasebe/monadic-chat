@@ -707,18 +707,6 @@ const modelSpec = {
     "tool_capability": true,
     "vision_capability": true,
   },
-  "c4ai-aya-vision-32b": {
-    "context_window" : [1, 16000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "vision_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-04-04",
-    "successor": "command-a-vision-07-2025"
-  },
   "command-a-reasoning-08-2025": {
     "context_window" : [1, 256000],
     "max_output_tokens" : [1, 32000],
@@ -730,54 +718,6 @@ const modelSpec = {
     "tool_capability": true,
     "reasoning_effort": [["disabled", "enabled"], "enabled"],
     "reasoning_model": true
-  },
-  "c4ai-aya-expanse-32b": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": false,
-    "deprecated": true,
-    "sunset_date": "2026-04-04",
-    "successor": "command-a-03-2025"
-  },
-  "command-r-08-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-04-04",
-    "successor": "command-a-03-2025"
-  },
-  "command-r7b-12-2024": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-04-04",
-    "successor": "command-a-03-2025"
-  },
-  "command-r7b-arabic-02-2025": {
-    "context_window" : [1, 128000],
-    "max_output_tokens" : [1, 4000],
-    "temperature": [[0.0, 1.0], 0.3],
-    "top_p": [[0.01, 0.99], 0.75],
-    "frequency_penalty": [[0.0, 1.0], 0.0],
-    "presence_penalty": [[0.0, 1.0], 0.0],
-    "tool_capability": true,
-    "deprecated": true,
-    "sunset_date": "2026-04-04",
-    "successor": "command-a-03-2025"
   },
   // Gemini models
   "gemini-3-flash-preview": {
@@ -1104,19 +1044,6 @@ const modelSpec = {
     "fallback_for_websearch": "grok-4-1-fast-reasoning",
     "supports_web_search": false,
     "supports_parallel_function_calling": true
-  },
-  "grok-3": {
-    "context_window" : [1, 131072],
-    "temperature": [[0.0, 2.0], 1.0],
-    "top_p": [[0.0, 1.0], 1.0],
-    "presence_penalty": [[-2.0, 2.0], 0.0],
-    "frequency_penalty": [[-2.0, 2.0], 0.0],
-    "tool_capability": true,
-    "supports_web_search": false,
-    "supports_parallel_function_calling": true,
-    "deprecated": true,
-    "sunset_date": "2026-02-28",
-    "successor": "grok-4-1-fast-non-reasoning"
   },
   "grok-4-0709": {
     "context_window" : [1, 2000000],

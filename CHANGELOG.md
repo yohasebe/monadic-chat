@@ -1,3 +1,50 @@
+- [March, 2026] 1.0.0-beta.9
+  - Version updated from 1.0.0-beta.8
+  - **Major Backend Refactoring**: Eliminated all monolithic files (2,000+ lines)
+    - `websocket.rb` (3,400 lines) split into 9 sub-modules (connection_manager, streaming_handler, tts_handler, etc.)
+    - `monadic.rb` (1,700 lines) split into 5 route files (api, upload, session, static, pdf)
+    - `dsl.rb` (1,270 lines) split into 5 modules (configurations, loader, provider_config, tool_definitions, tool_formatters)
+    - `interaction_utils.rb` split into tts_utils, stt_utils, and tavily_utils
+    - `string_utils.rb` — markdown_utils extracted
+  - **Major Frontend Refactoring**: Modularized JavaScript codebase
+    - `websocket.js` (4,900 lines) split into 16 handler modules (ws-*-handler.js)
+    - `utilities.js` — 7 modules extracted (alert-manager, badge-renderer, card-renderer, cookie-utils, json-tree-toggle, model-capabilities, text-utils)
+  - **JS Bundle Build Pipeline**: 69 script files concatenated and minified into single bundle (46.7% size reduction)
+  - **Lazy Loading**: Mermaid, ABCjs, and maxgraph (~3.6 MB) deferred from initial page load
+  - **tiktoken_ruby Migration**: Replaced Python Flask tokenizer with native tiktoken_ruby gem (Rust binding)
+    - Eliminates Python container dependency for tokenization
+    - Port 5070 removed, Flask server deleted
+  - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
+    - Removed all hardcoded model name fallbacks from agents and scripts
+  - **jQuery → Fetch API**: Replaced all jQuery AJAX calls with native fetch API
+  - **Docker Optimization**: Python container no longer blocks Ruby container startup (parallel startup)
+  - **RuboCop**: Added linting with conservative config, detected and fixed 4 bugs
+  - **ExtraLogger**: Unified logging across 16 files
+  - **Mermaid Grapher**: User-language labels, _image vision verification, PNG cleanup
+  - **Model Lifecycle**: Removed 6 sunset models (5 Cohere + grok-3), deprecated model UI filtering
+  - **UI Improvements**: Tooltip hover-out behavior, status message visibility, scrollIntoView null crash fixes
+  - **Recording**: AudioContext.resume() async handling, native MediaRecorder preference over polyfill
+  - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,200)
+
+- [March, 2026] 1.0.0-beta.8
+  - Version updated from 1.0.0-beta.7
+  - **Web Insight** (renamed from Visual Web Explorer): Screenshot-based web capture with browser automation
+    - Annotate elements tool for interactive web analysis
+    - Lightbox/zoom for screenshot gallery
+    - Automatic whitespace trimming for screenshots
+    - Perceptual hash deduplication for viewport screenshots
+  - **noVNC Live Preview**: Added to DrawIO Grapher and Mermaid Grapher for real-time diagram viewing
+  - **OpenAI File Inputs API**: Integration with file_id caching and extended format support
+  - **Mask Editor**: Added undo support and stroke-based drawing
+  - **Provider-Independent Agents**: ImageAnalysisAgent, VideoAnalyzeAgent, AudioTranscriptionAgent for multi-provider vision/audio support
+  - **MDSL Autonomy Levels**: Added autonomy configuration for app definitions
+  - **Electron noVNC Viewer**: Dedicated viewer window for container GUI applications
+  - **Install Options UI**: Consolidated into Settings panel tab (removed standalone window)
+  - **Model Lifecycle**: Added deprecated model metadata, UI filtering, and session auto-migration
+  - **Gallery HTML Pipeline**: Enhanced image display and vendor helper integration
+  - **Security**: Path traversal guard for agents with precise regex matching
+  - **Documentation**: EN/JA parity check script, updated diagram self-verification docs
+
 - [February, 2026] 1.0.0-beta.7
   - Version updated from 1.0.0-beta.6
   - **Parallel Python Execution**: Added `parallel_run_code` shared tool for Code Interpreter

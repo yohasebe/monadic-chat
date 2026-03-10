@@ -36,8 +36,7 @@ describe('Model Utils - Deprecated Model Filtering', () => {
       expect(modelUtils.isModelDeprecated('gemini-2.5-flash')).toBe(true);
       expect(modelUtils.isModelDeprecated('gemini-2.5-pro')).toBe(true);
       expect(modelUtils.isModelDeprecated('gemini-2.5-flash-lite')).toBe(true);
-      expect(modelUtils.isModelDeprecated('grok-3')).toBe(true);
-      expect(modelUtils.isModelDeprecated('command-r-08-2024')).toBe(true);
+      expect(modelUtils.isModelDeprecated('gpt-4o')).toBe(true);
     });
 
     it('returns false for non-deprecated models', () => {

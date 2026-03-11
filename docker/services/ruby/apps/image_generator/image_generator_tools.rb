@@ -49,7 +49,7 @@ class ImageGeneratorOpenAI < MonadicApp
     # ONLY if user hasn't provided explicit images and there's a previous image
     if %w[edit variation].include?(operation) && (images.nil? || images.empty?) && session
       app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
-      last_images = fetch_last_images_from_session(session, app_key)
+      last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "openai")
       last_image_filename = last_images&.first
 
       Monadic::Utils::ExtraLogger.log { "OpenAI Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
@@ -219,7 +219,7 @@ class ImageGeneratorOpenAI < MonadicApp
         # 2. Check for last generated image if still no valid images found
         if !current_images_valid && session
           app_key = session.dig(:parameters, "app_name") || "ImageGeneratorOpenAI"
-          last_images = fetch_last_images_from_session(session, app_key)
+          last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "openai")
 
           if last_images && !last_images.empty? && check_image_exists.call(last_images.first)
             images = [last_images.first]
@@ -401,32 +401,6 @@ class ImageGeneratorOpenAI < MonadicApp
   rescue StandardError => e
     "❌ Image generation failed: #{e.message}"
   end
-
-  private
-
-  # Fetch last images from monadic state or legacy session keys, tolerant to symbol/string keys.
-  def fetch_last_images_from_session(session, app_key)
-    # monadic_state lookup (symbol and string keys)
-    monadic_state = session[:monadic_state] || session["monadic_state"] || {}
-    app_state = monadic_state[app_key] || monadic_state[app_key.to_s] || {}
-    last_images_entry = app_state[:last_images] || app_state["last_images"]
-    data = last_images_entry && (last_images_entry[:data] || last_images_entry["data"])
-    return data if data.is_a?(Array) && !data.empty?
-
-    # legacy openai_last_image_generation
-    legacy = session[:openai_last_image_generation] || session["openai_last_image_generation"]
-    if legacy && legacy[:images].is_a?(Array) && !legacy[:images].empty?
-      return legacy[:images]
-    elsif legacy && legacy["images"].is_a?(Array) && !legacy["images"].empty?
-      return legacy["images"]
-    end
-
-    # single last image fallback
-    last_image = session[:openai_last_image] || session["openai_last_image"]
-    return [last_image] if last_image
-
-    nil
-  end
 end
 
 class ImageGeneratorGrok < MonadicApp
@@ -442,20 +416,84 @@ class ImageGeneratorGrok < MonadicApp
     @clear_orchestration_history = true
   end
 
-  # Generate images using Grok/xAI
-  # @param prompt [String] Text description of the desired image
+  # Generate or edit images using Grok/xAI
+  # @param operation [String] Type of operation: 'generate' or 'edit'
+  # @param prompt [String] Text description of the desired image or editing instructions
+  # @param aspect_ratio [String] Aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+  # @param images [Array<String>] Array of image filenames for editing (max 3)
   # @param session [Object] Session object (automatically provided)
   # @return [String] Generated image information from the script
-  def generate_image_with_grok(prompt:, aspect_ratio: nil, session: nil)
+  def generate_image_with_grok(operation: "generate", prompt:, aspect_ratio: nil, images: nil, session: nil)
     # Input validation
+    raise ArgumentError, "Invalid operation" unless %w[generate edit].include?(operation)
     raise ArgumentError, "Prompt is required" if prompt.to_s.strip.empty?
+
+    # Early check: edit requires either images or session to resolve images from
+    if operation == "edit" && (images.nil? || images.empty?) && session.nil?
+      return "❌ Image file not found for editing. Please upload an image or generate one first."
+    end
 
     if aspect_ratio && !%w[1:1 16:9 9:16 4:3 3:4].include?(aspect_ratio)
       raise ArgumentError, "Invalid aspect_ratio: #{aspect_ratio}. Must be one of: 1:1, 16:9, 9:16, 4:3, 3:4"
     end
 
+    shared_folder = Monadic::Utils::Environment.shared_volume
+
+    # Auto-attach last generated image for iterative editing
+    if operation == "edit" && (images.nil? || images.empty?) && session
+      app_key = session.dig(:parameters, "app_name") || "ImageGeneratorGrok"
+      last_images = fetch_last_images_from_session(session, app_key, legacy_prefix: "grok")
+      last_image_filename = last_images&.first
+
+      Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attach check\n  operation: #{operation}\n  app_key: #{app_key}\n  last_images: #{last_images.inspect}" }
+
+      if last_image_filename
+        image_path = File.join(shared_folder, File.basename(last_image_filename))
+        if File.exist?(image_path)
+          images = [File.basename(last_image_filename)]
+          Monadic::Utils::ExtraLogger.log { "Grok Image: Auto-attached last generated image: #{last_image_filename}" }
+        else
+          Monadic::Utils::ExtraLogger.log { "Grok Image: Last generated image file not found: #{image_path}" }
+        end
+      end
+
+      # Fallback: check session messages for uploaded images
+      if (images.nil? || images.empty?) && session[:messages]
+        last_user_msg = session[:messages].reverse.find { |m| m["role"] == "user" }
+        if last_user_msg && last_user_msg["images"] && !last_user_msg["images"].empty?
+          valid_upload = last_user_msg["images"].find { |img|
+            name = img["name"] || img["filename"] || img["title"]
+            name && !name.to_s.start_with?("mask__")
+          }
+          if valid_upload
+            found_name = valid_upload["name"] || valid_upload["filename"] || valid_upload["title"]
+            # Save base64 data to file if needed
+            if valid_upload["data"] && valid_upload["data"].start_with?("data:image/")
+              base64_data = valid_upload["data"].split(',').last
+              file_path = File.join(shared_folder, File.basename(found_name))
+              File.open(file_path, 'wb') { |f| f.write(Base64.decode64(base64_data)) }
+              images = [File.basename(found_name)]
+            elsif File.exist?(File.join(shared_folder, File.basename(found_name)))
+              images = [File.basename(found_name)]
+            end
+          end
+        end
+      end
+
+      # Final check
+      if images.nil? || images.empty?
+        return "❌ Image file not found for editing. Please upload an image or generate one first."
+      end
+    end
+
+    # Resolve image paths to full paths for the script
+    resolved_images = nil
+    if images.is_a?(Array) && !images.empty?
+      resolved_images = images.map { |img| File.join(shared_folder, File.basename(img)) }
+    end
+
     # Call the method from MediaGenerationHelper (via MonadicHelper)
-    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio)
+    result_json = super(prompt: prompt, aspect_ratio: aspect_ratio, operation: operation, images: resolved_images)
 
     # Parse result and store filename if successful (for continuous reference)
     if session
@@ -503,32 +541,6 @@ class ImageGeneratorGrok < MonadicApp
     result_json
   rescue StandardError => e
     "❌ Image generation failed: #{e.message}"
-  end
-
-  private
-
-  # Fetch last images from monadic state or legacy session keys, tolerant to symbol/string keys.
-  def fetch_last_images_from_session(session, app_key)
-    # monadic_state lookup (symbol and string keys)
-    monadic_state = session[:monadic_state] || session["monadic_state"] || {}
-    app_state = monadic_state[app_key] || monadic_state[app_key.to_s] || {}
-    last_images_entry = app_state[:last_images] || app_state["last_images"]
-    data = last_images_entry && (last_images_entry[:data] || last_images_entry["data"])
-    return data if data.is_a?(Array) && !data.empty?
-
-    # legacy grok_last_image_generation
-    legacy = session[:grok_last_image_generation] || session["grok_last_image_generation"]
-    if legacy && legacy[:images].is_a?(Array) && !legacy[:images].empty?
-      return legacy[:images]
-    elsif legacy && legacy["images"].is_a?(Array) && !legacy["images"].empty?
-      return legacy["images"]
-    end
-
-    # single last image fallback
-    last_image = session[:grok_last_image] || session["grok_last_image"]
-    return [last_image] if last_image
-
-    nil
   end
 end
 
@@ -605,31 +617,5 @@ class ImageGeneratorGemini3Preview < MonadicApp
     result_json
   rescue StandardError => e
     "❌ Image generation failed: #{e.message}"
-  end
-
-  private
-
-  # Fetch last images from monadic state or legacy session keys, tolerant to symbol/string keys.
-  def fetch_last_images_from_session(session, app_key)
-    # monadic_state lookup (symbol and string keys)
-    monadic_state = session[:monadic_state] || session["monadic_state"] || {}
-    app_state = monadic_state[app_key] || monadic_state[app_key.to_s] || {}
-    last_images_entry = app_state[:last_images] || app_state["last_images"]
-    data = last_images_entry && (last_images_entry[:data] || last_images_entry["data"])
-    return data if data.is_a?(Array) && !data.empty?
-
-    # legacy gemini3_last_image_generation
-    legacy = session[:gemini3_last_image_generation] || session["gemini3_last_image_generation"]
-    if legacy && legacy[:images].is_a?(Array) && !legacy[:images].empty?
-      return legacy[:images]
-    elsif legacy && legacy["images"].is_a?(Array) && !legacy["images"].empty?
-      return legacy["images"]
-    end
-
-    # single last image fallback
-    last_image = session[:gemini3_last_image] || session["gemini3_last_image"]
-    return [last_image] if last_image
-
-    nil
   end
 end

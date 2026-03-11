@@ -214,7 +214,7 @@ Co-write a novel with the assistant. The story unfolds based on your prompts, ma
 
 
 
-Generate images from text descriptions. With providers that support advanced image workflows, you can perform three main operations:
+Generate images from text descriptions. Image Generator is available with OpenAI, Google Gemini, and xAI (Grok). With providers that support advanced image workflows, you can perform three main operations:
 
 
 
@@ -223,7 +223,7 @@ Generate images from text descriptions. With providers that support advanced ima
 1.  **Image Generation**: Create new images from text.
 
 
-2.  **Image Editing**: Modify existing images using text prompts and masks. The system automatically uses images you upload or images generated in the current conversation for editing.
+2.  **Image Editing**: Modify existing images using text prompts. The system automatically uses images you upload or images generated in the current conversation for editing.
 
 
 3.  **Image Variation**: Generate alternative versions of an existing image, automatically referencing the latest image in the conversation.
@@ -238,16 +238,7 @@ With supported models, the image editing feature allows you to:
 - Automatically use an existing image from the conversation as a base (latest uploaded or generated)
 
 
-- Create mask images to specify areas to modify
-
-
-  - Click the mask button on uploaded images
-
-
-  - Draw on the image to select editing areas
-
-
-- Provide text instructions for the changes
+- Provide text instructions for the changes (prompt-based editing)
 
 
 - Customize output options including:
@@ -266,47 +257,18 @@ With supported models, the image editing feature allows you to:
 
 ![Image Generator workflow](../assets/images/workflows/workflow-image-generator.svg ':size=500')
 
-### Creating and Using Masks
+### Image Editing
 
-When editing images, you can create a mask to specify which areas of the image should be modified:
+To edit an existing image, simply describe the changes you want in natural language. The model will modify the image based on your prompt while preserving the overall composition. Image editing is supported by OpenAI, Google Gemini, and xAI (Grok).
 
-#### Original Image
+For example, after generating an image, you can say:
+- "Make the sky a sunset orange"
+- "Add a cat sitting in the window"
+- "Change the sign to read 'Hello World'"
 
-An example of the original image to be edited:
-
-<!-- SCREENSHOT: Original image before mask editing -->
-
-#### Creating a Mask
-
-1. **Open the Mask Editor**: After uploading an image, click on it and select "Create Mask" from the menu
-
-2. **Draw the Mask**: Use the brush tool to paint over areas you want AI to edit (white areas)
-   - Use the eraser tool to remove parts of the mask
-   - Adjust brush size using the slider
-   - Black areas will be preserved, white areas will be edited
-
-<!-- SCREENSHOT: Mask editor interface showing an uploaded image with brush/eraser tools, brush size slider, and mask drawing canvas overlaid on the original image -->
-
-3. **Save the Mask**: Click "Save Mask" when finished
-4. **Apply the Mask**: The mask will be automatically applied to your next image edit operation
-
-The mask editor provides intuitive controls:
-- Brush/Eraser toggle buttons
-- Adjustable brush size
-- Clear mask button
-- Preview of the original image underneath the mask
-
-#### Edited Result
-
-After applying the mask and providing editing instructions, you can get results like this:
-
-<!-- SCREENSHOT: Result after mask-based image editing -->
-
-The editing process preserves the original image's composition and details while applying your requested changes only to the specified areas marked by your mask.
+The model interprets your instructions and applies changes to the entire image contextually. You can also upload an image and provide editing instructions to modify it.
 
 All generated images are saved in the `Shared Folder` and also displayed in the chat.
-
-Image Generator is available with the providers indicated in the availability table.
 
 ### Video Generator
 

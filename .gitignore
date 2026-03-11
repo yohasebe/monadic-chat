@@ -89,6 +89,9 @@ test_tts_input_*
 # JS bundle (built with npm run build:js)
 /docker/services/ruby/public/js/monadic.bundle.min.js
 
+# Temporary session files for screenshot automation
+/docker/services/ruby/public/sessions/
+
 # Ignore internal development documentation
 CLAUDE.md
 GEMINI.md

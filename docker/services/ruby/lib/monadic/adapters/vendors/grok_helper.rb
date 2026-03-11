@@ -1129,16 +1129,21 @@ module GrokHelper
     # This prevents the model from seeing previous tool calls and results,
     # which would cause it to repeatedly call the same tool (e.g., image generation)
     if @clear_orchestration_history
+      # Keep system message + last 1 round of tool interaction + current user message
       first_msg = context.first
-      last_user_msg = context.reverse.find { |msg| msg["role"] == "user" }
+      user_indices = context.each_index.select { |i| context[i]&.[]("role") == "user" }
 
-      if first_msg && last_user_msg
+      if user_indices.length >= 2
+        keep_from = user_indices[-2]
+        context = [first_msg] + context[keep_from..]
+      else
+        last_user_msg = context.reverse.find { |msg| msg&.[]("role") == "user" }
         context = [first_msg]
-        context << last_user_msg unless first_msg == last_user_msg
-        context.each { |msg| msg["active"] = true }
+        context << last_user_msg if last_user_msg && first_msg != last_user_msg
       end
+      context.compact.each { |msg| msg["active"] = true }
 
-      Monadic::Utils::ExtraLogger.log { "Grok: Clearing orchestration history (#{context.size} messages)" }
+      Monadic::Utils::ExtraLogger.log { "Grok: Clearing orchestration history (#{context.size} messages kept)" }
     end
 
     # Set the headers for the API request

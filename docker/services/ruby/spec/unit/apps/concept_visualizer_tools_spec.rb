@@ -159,25 +159,25 @@ RSpec.describe ConceptVisualizerOpenAI do
           tikz_code: '',
           title: 'Test'
         )
-        expect(result).to eq("Error: TikZ code is required.")
+        expect(result).to eq("❌ TikZ code is required.")
       end
-      
+
       it 'returns error when diagram_type is empty' do
         result = app.generate_concept_diagram(
           diagram_type: '',
           tikz_code: valid_tikz_code,
           title: 'Test'
         )
-        expect(result).to eq("Error: diagram type is required.")
+        expect(result).to eq("❌ Diagram type is required.")
       end
-      
+
       it 'returns error when tikz_code has no TikZ commands' do
         result = app.generate_concept_diagram(
           diagram_type: 'test',
           tikz_code: 'Just some text',
           title: 'Test'
         )
-        expect(result).to eq("Error: Invalid TikZ code. Code must contain TikZ commands.")
+        expect(result).to eq("❌ Invalid TikZ code. Code must contain TikZ commands (\\begin{tikzpicture}, \\tikz, or \\Tree).")
       end
     end
     
@@ -272,7 +272,7 @@ RSpec.describe ConceptVisualizerClaude do
         title: 'Test Chart',
         language: 'english'
       )
-      expect(result).to match(/Error: Invalid TikZ code/)
+      expect(result).to match(/❌ Invalid TikZ code/)
     end
   end
 end

@@ -6,6 +6,10 @@
 # extraction for monadic apps, and broadcasts to client.
 
 module WebSocketHelper
+  # Maximum number of tool HTML fragments kept per response cycle.
+  # Fragments beyond this limit are silently dropped (oldest first).
+  MAX_TOOL_HTML_FRAGMENTS = 20
+
   private def handle_ws_html(connection, obj, session, thread, queue)
     thread&.join
     until queue.empty?
@@ -21,6 +25,10 @@ module WebSocketHelper
         # extraction below will handle them through the normal pipeline.
         if session[:tool_html_fragments]
           stored_fragments = session.delete(:tool_html_fragments)
+          if stored_fragments.size > MAX_TOOL_HTML_FRAGMENTS
+            Monadic::Utils::ExtraLogger.log { "[WebSocket] Truncating tool_html_fragments from #{stored_fragments.size} to #{MAX_TOOL_HTML_FRAGMENTS}" }
+            stored_fragments = stored_fragments.last(MAX_TOOL_HTML_FRAGMENTS)
+          end
           text = text.to_s + "\n\n" + stored_fragments.join("\n\n")
         end
         Monadic::Utils::ExtraLogger.log { "[WebSocket] text extraction: content keys=#{content.keys}, text=#{text.class}:#{text.to_s[0..100]}..." } if CONFIG["EXTRA_LOGGING"] && session["parameters"]["app_name"]&.include?("Perplexity")

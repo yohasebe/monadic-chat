@@ -1698,20 +1698,24 @@ module OpenAIHelper
     if @clear_orchestration_history
       Monadic::Utils::ExtraLogger.log { "OpenAI: Clearing orchestration history in api_request\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
 
-      # Keep only: first message (system) + last user message
-      # This prevents orchestration model from seeing tool results that trigger duplicates
+      # Keep system message + last 1 round of tool interaction + current user message
+      # This allows iterative workflows (edit/variation) while preventing duplicate tool calls
       first_msg = context.first
-      last_user_msg = context.reverse.find { |msg| msg["role"] == "user" }
+      user_indices = context.each_index.select { |i| context[i]&.[]("role") == "user" }
 
-      if first_msg && last_user_msg
-        context = [first_msg]
-        context << last_user_msg unless first_msg == last_user_msg
-        context.each { |msg| msg["active"] = true }
-
-        Monadic::Utils::ExtraLogger.log { "  Filtered context size: #{context.size}\n  First message role: #{first_msg["role"]}\n  Last user message role: #{last_user_msg["role"]}" }
+      if user_indices.length >= 2
+        # Keep from second-to-last user message onward (= last round + current)
+        keep_from = user_indices[-2]
+        context = [first_msg] + context[keep_from..]
       else
-        Monadic::Utils::ExtraLogger.log { "  WARNING: Could not filter context (missing first or last user message)" }
+        # 0 or 1 user messages: keep system + last user message
+        last_user_msg = context.reverse.find { |msg| msg&.[]("role") == "user" }
+        context = [first_msg]
+        context << last_user_msg if last_user_msg && first_msg != last_user_msg
       end
+      context.compact.each { |msg| msg["active"] = true }
+
+      Monadic::Utils::ExtraLogger.log { "  Filtered context size: #{context.size}" }
     end
 
     # Set the headers for the API request

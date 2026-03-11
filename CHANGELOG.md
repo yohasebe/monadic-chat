@@ -22,6 +22,8 @@
   - **ExtraLogger**: Unified logging across 16 files
   - **Mermaid Grapher**: User-language labels, _image vision verification, PNG cleanup
   - **Model Lifecycle**: Removed 6 sunset models (5 Cohere + grok-3), deprecated model UI filtering
+  - **Tool Error Handling**: Standardized error format (❌ prefix) across all tool methods, enhanced error detection for Hash/JSON returns, prevents infinite tool call loops
+  - **AutoForge**: Fixed infinite loop when debug_application called without project name (auto-resolves to most recent project)
   - **UI Improvements**: Tooltip hover-out behavior, status message visibility, scrollIntoView null crash fixes
   - **Recording**: AudioContext.resume() async handling, native MediaRecorder preference over polyfill
   - **Test Suite**: ~4,500 tests (Ruby 2,554 unit + 565 integration + 30 system, Frontend 1,200)

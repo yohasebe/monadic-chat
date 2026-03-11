@@ -50,37 +50,31 @@ RSpec.describe "ImageGeneratorTools" do
   end
 
   describe "Error return values" do
-    it "ImageGeneratorOpenAI returns valid JSON string with success:false on error" do
+    it "ImageGeneratorOpenAI returns error string with ❌ prefix on error" do
       app = ImageGeneratorOpenAI.new
       # Trigger ArgumentError via empty model
       result = app.generate_image_with_openai(operation: "generate", model: "", prompt: "test")
       expect(result).to be_a(String)
-      parsed = JSON.parse(result)
-      expect(parsed["success"]).to eq(false)
-      expect(parsed["error"]).to be_a(String)
-      expect(parsed["error"]).to include("Image generation failed")
+      expect(result).to start_with("❌")
+      expect(result).to include("Image generation failed")
     end
 
-    it "ImageGeneratorGrok returns valid JSON string with success:false on error" do
+    it "ImageGeneratorGrok returns error string with ❌ prefix on error" do
       app = ImageGeneratorGrok.new
       # Trigger ArgumentError via empty prompt
       result = app.generate_image_with_grok(prompt: "")
       expect(result).to be_a(String)
-      parsed = JSON.parse(result)
-      expect(parsed["success"]).to eq(false)
-      expect(parsed["error"]).to be_a(String)
-      expect(parsed["error"]).to include("Image generation failed")
+      expect(result).to start_with("❌")
+      expect(result).to include("Image generation failed")
     end
 
-    it "ImageGeneratorGemini3Preview returns valid JSON string with success:false on error" do
+    it "ImageGeneratorGemini3Preview returns error string with ❌ prefix on error" do
       app = ImageGeneratorGemini3Preview.new
       # Trigger ArgumentError via empty prompt
       result = app.generate_image_with_gemini3_preview(prompt: "")
       expect(result).to be_a(String)
-      parsed = JSON.parse(result)
-      expect(parsed["success"]).to eq(false)
-      expect(parsed["error"]).to be_a(String)
-      expect(parsed["error"]).to include("Image generation failed")
+      expect(result).to start_with("❌")
+      expect(result).to include("Image generation failed")
     end
   end
 

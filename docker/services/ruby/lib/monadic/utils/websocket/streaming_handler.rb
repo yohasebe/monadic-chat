@@ -8,6 +8,11 @@
 # during streaming.
 
 module WebSocketHelper
+  # Inactive messages longer than this threshold (in characters) are truncated
+  # to save memory. Original text is preserved for potential reactivation.
+  INACTIVE_MSG_TRUNCATION_THRESHOLD = 500
+  INACTIVE_MSG_PREVIEW_LENGTH = 200
+
   # Background thread for token counting using native tokenizer.
   # @param text [String] Text to count tokens for
   # @param encoding_name [String] Encoding name (default: o200k_base)
@@ -102,6 +107,28 @@ module WebSocketHelper
         total_tokens -= last_message["tokens"] || 0
         res = true
         break if context_size.positive? && active_messages.size <= context_size
+      end
+
+      # Truncate content of inactive messages to reduce memory footprint.
+      # Original text is preserved in "original_text" so it can be restored
+      # if the message is reactivated (e.g., when token limits change).
+      messages.each do |m|
+        next if m["active"]
+        next if m["role"] == "system"
+        next if m["original_text"] # already truncated
+        next unless m["text"].is_a?(String) && m["text"].size > INACTIVE_MSG_TRUNCATION_THRESHOLD
+
+        m["original_text"] = m["text"]
+        m["text"] = m["text"][0, INACTIVE_MSG_PREVIEW_LENGTH] + "\n\n[... content truncated ...]"
+        m["tokens"] = nil
+      end
+
+      # Restore original text for messages that became active again
+      messages.each do |m|
+        next unless m["active"] && m["original_text"]
+
+        m["text"] = m.delete("original_text")
+        m["tokens"] = nil # will be recounted in next cycle
       end
 
       # Calculate total token counts for different roles

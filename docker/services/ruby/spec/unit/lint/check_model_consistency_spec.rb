@@ -34,7 +34,7 @@ RSpec.describe ModelConsistency do
       it 'includes known deprecated models' do
         deprecated = ModelConsistency::SpecLoader.deprecated_models(spec)
         expect(deprecated).to have_key('gpt-4o')
-        expect(deprecated).to have_key('grok-3')
+        expect(deprecated).to have_key('gemini-2.5-flash')
       end
     end
 

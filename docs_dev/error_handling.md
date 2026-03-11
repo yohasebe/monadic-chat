@@ -9,9 +9,14 @@ This note summarizes the runtime safeguards that keep long-running agent session
 - History is capped at the last 10 entries; specs can inject synthetic errors to validate the stop condition.
 
 ## FunctionCallErrorHandler
-- Mixin consumed by vendor helpers (OpenAI, Claude, Gemini) to connect tool responses to the detector.
+- Mixin consumed by vendor helpers (OpenAI, Claude, Gemini, Grok, Mistral, Cohere, DeepSeek, Perplexity, Ollama) to connect tool responses to the detector.
+- `function_return_is_error?` detects errors in three formats:
+  - **String prefixes**: `"ERROR:"`, `"Error:"`, `"Error executing code"`, `"Error occurred"`, `"❌"`
+  - **Hash**: `{ success: false }` or `{ "success" => false }`
+  - **JSON string**: containing `"success":false` or `"success": false`
 - `handle_function_error` records the failure, emits a fragment with mitigation guidance, and sets `session[:parameters]["stop_retrying"]` when the detector asks to stop.
 - `reset_error_tracking(session)` clears state for new conversations; call it when manually rewinding a session during debugging.
+- **Convention**: All tool methods should return errors as strings starting with `❌` for consistent detection. Avoid returning `{ success: false }.to_json` — use plain strings instead.
 
 ## NetworkErrorHandler
 - Wraps outbound HTTP calls with exponential backoff (`with_network_retry`).

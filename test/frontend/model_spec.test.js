@@ -48,9 +48,42 @@ describe('Model Specification', () => {
     it('should have the correct capabilities for GPT models', () => {
       // Check vision capabilities for various models
       expect(modelSpec['gpt-4.1'].vision_capability).toBe(true);
-      
+
       // Check tool capabilities
       expect(modelSpec['gpt-4.1'].tool_capability).toBe(true);
+    });
+
+    it('should have correct parameters for GPT-5.4-mini', () => {
+      const model = modelSpec['gpt-5.4-mini'];
+      expect(model).toBeDefined();
+      expect(model.context_window).toEqual([1, 400000]);
+      expect(model.max_output_tokens).toEqual([1, 128000]);
+      expect(model.reasoning_effort[0]).toEqual(expect.arrayContaining(['low', 'medium', 'high']));
+      expect(model.reasoning_effort[1]).toBe('low');
+      expect(model.tool_capability).toBe(true);
+      expect(model.vision_capability).toBe(true);
+      expect(model.api_type).toBe('responses');
+      expect(model.supports_web_search).toBe(true);
+      expect(model.supports_pdf_upload).toBe(true);
+      expect(model.supports_file_inputs).toBe(true);
+      expect(model.skip_in_progress_events).toBe(true);
+    });
+
+    it('should have correct parameters for GPT-5.4-nano', () => {
+      const model = modelSpec['gpt-5.4-nano'];
+      expect(model).toBeDefined();
+      expect(model.context_window).toEqual([1, 400000]);
+      expect(model.max_output_tokens).toEqual([1, 128000]);
+      expect(model.reasoning_effort[0]).toEqual(expect.arrayContaining(['low', 'medium', 'high']));
+      expect(model.reasoning_effort[1]).toBe('low');
+      expect(model.tool_capability).toBe(true);
+      expect(model.vision_capability).toBe(true);
+      expect(model.api_type).toBe('responses');
+      expect(model.supports_web_search).toBe(true);
+      expect(model.skip_in_progress_events).toBe(true);
+      // Nano does not support PDF upload or file inputs
+      expect(model.supports_pdf_upload).toBeUndefined();
+      expect(model.supports_file_inputs).toBeUndefined();
     });
   });
   

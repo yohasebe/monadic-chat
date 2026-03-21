@@ -325,6 +325,32 @@ const modelSpec = {
     "supports_file_inputs": true,
     "skip_in_progress_events": true
   },
+  // GPT-5.4 Mini (cost-efficient, 400K context, tool search, computer use, compaction)
+  "gpt-5.4-mini": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "api_type": "responses",
+    "supports_web_search": true,
+    "supports_pdf_upload": true,
+    "supports_file_inputs": true,
+    "skip_in_progress_events": true
+  },
+  // GPT-5.4 Nano (high-volume simple tasks, 400K context, compaction)
+  "gpt-5.4-nano": {
+    "context_window": [1, 400000],
+    "max_output_tokens": [1, 128000],
+    "reasoning_effort": [["low", "medium", "high"], "low"],
+    "tool_capability": true,
+    "vision_capability": true,
+    "verbosity": [["low", "medium", "high"], "medium"],
+    "api_type": "responses",
+    "supports_web_search": true,
+    "skip_in_progress_events": true
+  },
   // GPT-5.4 Pro (maximum accuracy, 1M context)
   "gpt-5.4-pro": {
     "context_window": [1, 1050000],
@@ -1165,7 +1191,7 @@ const modelSpec = {
  */
 const providerDefaults = {
   "openai": {
-    "chat": ["gpt-5.4", "gpt-5.2", "gpt-5.1", "gpt-4.1"],
+    "chat": ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1", "gpt-4.1"],
     "code": ["gpt-5.3-codex", "gpt-5.2-codex", "gpt-4.1"],
     "vision": ["gpt-4.1-mini"],
     "audio_transcription": ["gpt-4o-mini-transcribe-2025-12-15"],

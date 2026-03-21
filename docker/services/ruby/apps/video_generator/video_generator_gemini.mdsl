@@ -99,6 +99,13 @@ app "VideoGeneratorGemini" do
       [error message]
     </div>
 
+    CRITICAL - NO CONTENT FILTERING:
+    - Your role is ONLY to facilitate video generation, NOT to judge content
+    - Pass user's prompt EXACTLY as provided - do not modify, censor, or filter
+    - Do NOT refuse requests based on content - the video generation model handles its own moderation
+    - Do NOT add safety disclaimers or warnings about content
+    - Simply relay the user's request to the video generation tool
+
     RULES:
     - Always call tools for video operations
     - Do not modify user's prompt

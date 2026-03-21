@@ -45,7 +45,7 @@ options = {
   model: default_video_model,
   size: "1280x720",
   seconds: "8",
-  max_wait: 420 # 7 minutes maximum wait time for video generation
+  max_wait: 600 # 10 minutes maximum wait time for video generation
 }
 
 parser = OptionParser.new do |opts|
@@ -67,11 +67,11 @@ parser = OptionParser.new do |opts|
     end
   end
 
-  opts.on("-s", "--size SIZE", "Video size (1280x720, 1920x1080, 1080x1920, 720x1280)") do |size|
+  opts.on("-s", "--size SIZE", "Video size (1280x720, 720x1280, 1792x1024, 1024x1792, 1920x1080, 1080x1920)") do |size|
     options[:size] = size
   end
 
-  opts.on("-d", "--duration SECONDS", "Video duration in seconds (4, 8, 16)") do |seconds|
+  opts.on("-d", "--duration SECONDS", "Video duration in seconds (4, 8, 12, 16, 20)") do |seconds|
     options[:seconds] = seconds
   end
 
@@ -156,11 +156,17 @@ end
 begin
   # Step 1: Create video generation job
   if options[:remix_video_id] && !options[:remix_video_id].strip.empty?
-    # Remix existing video
-    url = "https://api.openai.com/v1/videos/#{options[:remix_video_id]}/remix"
+    # Edit existing video (new endpoint replaces deprecated /videos/{id}/remix)
+    url = "https://api.openai.com/v1/videos/edits"
     response = HTTP.auth("Bearer #{api_key}")
                    .headers("Content-Type" => "application/json")
-                   .post(url, json: { prompt: options[:prompt] })
+                   .post(url, json: {
+                     video: { id: options[:remix_video_id] },
+                     prompt: options[:prompt],
+                     model: options[:model],
+                     size: options[:size],
+                     seconds: options[:seconds]
+                   })
   else
     # Create new video
     url = "https://api.openai.com/v1/videos"

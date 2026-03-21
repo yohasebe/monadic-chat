@@ -521,6 +521,7 @@ RSpec.describe "App Loading and Initialization (Real Implementation)" do
       provider_specific_tools = %w[
         websearch_agent tavily_search generate_video_with_veo
         generate_image_with_openai generate_image_with_gemini generate_image_with_grok
+        generate_image_with_gemini3_preview
         generate_video_with_sora
         gpt5_codex_agent grok_code_agent openai_code_agent
         save_context get_context update_context remove_from_context clear_context

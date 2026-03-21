@@ -83,6 +83,90 @@ RSpec.describe "VideoGeneratorTools" do
     end
   end
 
+  describe "VideoGeneratorOpenAI parameter validation" do
+    let(:app) { VideoGeneratorOpenAI.new }
+
+    it "rejects empty prompt" do
+      expect {
+        app.send(:validate_sora_params, prompt: "", model: "sora-2", size: "1280x720", seconds: "8")
+      }.to raise_error(ArgumentError, /Prompt cannot be empty/)
+    end
+
+    it "rejects invalid model" do
+      expect {
+        app.send(:validate_sora_params, prompt: "test", model: "invalid-model", size: "1280x720", seconds: "8")
+      }.to raise_error(ArgumentError, /Invalid model/)
+    end
+
+    it "rejects invalid size" do
+      expect {
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "640x480", seconds: "8")
+      }.to raise_error(ArgumentError, /Invalid size/)
+    end
+
+    it "rejects invalid duration" do
+      expect {
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1280x720", seconds: "30")
+      }.to raise_error(ArgumentError, /Invalid duration/)
+    end
+
+    it "accepts 1080p resolution" do
+      expect(
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1920x1080", seconds: "8")
+      ).to eq(true)
+    end
+
+    it "accepts portrait 1080p resolution" do
+      expect(
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1080x1920", seconds: "8")
+      ).to eq(true)
+    end
+
+    it "accepts 16-second duration" do
+      expect(
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1280x720", seconds: "16")
+      ).to eq(true)
+    end
+
+    it "accepts 20-second duration" do
+      expect(
+        app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1280x720", seconds: "20")
+      ).to eq(true)
+    end
+
+    it "accepts all standard sizes" do
+      %w[1280x720 720x1280 1792x1024 1024x1792 1920x1080 1080x1920].each do |size|
+        expect(
+          app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: size, seconds: "8")
+        ).to eq(true)
+      end
+    end
+
+    it "accepts all standard durations" do
+      %w[4 8 12 16 20].each do |seconds|
+        expect(
+          app.send(:validate_sora_params, prompt: "test", model: "sora-2", size: "1280x720", seconds: seconds)
+        ).to eq(true)
+      end
+    end
+  end
+
+  describe "Dynamic timeout calculation" do
+    it "calculates timeout based on video duration" do
+      # Base 600s + 30s per video second
+      expect(VideoGeneratorOpenAI.compute_max_wait("4")).to eq(720)
+      expect(VideoGeneratorOpenAI.compute_max_wait("8")).to eq(840)
+      expect(VideoGeneratorOpenAI.compute_max_wait("12")).to eq(960)
+      expect(VideoGeneratorOpenAI.compute_max_wait("16")).to eq(1080)
+      expect(VideoGeneratorOpenAI.compute_max_wait("20")).to eq(1200)
+    end
+
+    it "falls back to base timeout for invalid duration" do
+      expect(VideoGeneratorOpenAI.compute_max_wait(nil)).to eq(600)
+      expect(VideoGeneratorOpenAI.compute_max_wait("")).to eq(600)
+    end
+  end
+
   describe "Session state integration" do
     # These tests verify the session state behavior but require actual API calls
     # Run with RUN_API=true for full integration testing

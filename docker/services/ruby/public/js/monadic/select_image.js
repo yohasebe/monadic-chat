@@ -10,7 +10,15 @@ const MAX_FILE_SIZE = 50; // Maximum file size in MB for File Inputs API documen
 const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 
 // File extensions accepted by OpenAI File Inputs API
-const FILE_INPUTS_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml';
+// Note: text/* MIME type is included because macOS WebView does not reliably
+// recognize custom extensions (.rb, .py, .ts, etc.) via the accept attribute alone.
+const FILE_INPUTS_ACCEPT = 'image/*,.pdf,.xlsx,.docx,.pptx,text/*,application/json,.yaml,.yml';
+
+// Files that should be rejected even if they pass the accept filter (security)
+const BLOCKED_FILE_PATTERNS = [
+  /^\.env/, /^\.git/, /^\.ssh/, /^\.aws/, /^\.docker/,
+  /credentials/i, /secret/i, /\.pem$/, /\.key$/, /id_rsa/
+];
 
 // Helper: get Font Awesome icon class for a MIME type
 function getDocumentIcon(mimeType) {
@@ -136,8 +144,20 @@ $(window).on("beforeunload", function() {
 $("#imageFile").on("change", function() {
   // Clear any existing error message
   $("#select_image_error").html("");
-  
+
   const file = this.files[0];
+  if (file) {
+    const fileName = file.name;
+    const isBlocked = BLOCKED_FILE_PATTERNS.some(pattern => pattern.test(fileName));
+    if (isBlocked) {
+      $("#select_image_error").html(
+        '<span class="text-danger">This file may contain sensitive data and cannot be uploaded.</span>'
+      );
+      this.value = '';
+      $('#uploadImage').prop('disabled', true);
+      return;
+    }
+  }
   $('#uploadImage').prop('disabled', !file);
 });
 

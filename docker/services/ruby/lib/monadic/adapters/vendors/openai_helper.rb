@@ -3289,6 +3289,10 @@ module OpenAIHelper
     application/vnd.openxmlformats-officedocument.wordprocessingml.document
     application/vnd.openxmlformats-officedocument.presentationml.presentation
     text/csv text/plain text/markdown text/html text/xml application/json
+    text/yaml
+    text/x-python application/javascript text/javascript application/typescript
+    text/x-ruby text/x-java-source text/x-c text/x-c++src
+    text/x-go text/x-rustsrc text/x-shellscript
   ].freeze
 
   # Check if a MIME type is a document (non-image) type supported by File Inputs API

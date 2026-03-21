@@ -5,7 +5,7 @@
 Monadic Chat integrates the OpenAI File Inputs API to efficiently handle document uploads across conversations. This enables:
 
 1. **File ID caching** — Documents uploaded once via `/v1/files` are cached per session, avoiding redundant base64 re-transmission
-2. **Extended format support** — Beyond PDF and images, supports XLSX, DOCX, PPTX, CSV, TXT, MD, JSON, HTML, XML
+2. **Extended format support** — Beyond PDF and images, supports XLSX, DOCX, PPTX, CSV, TXT, MD, JSON, HTML, XML, YAML, and code files (PY, RB, JS, TS, Java, Go, Rust, C/C++, Shell)
 3. **URL references** — Responses API models can reference files by URL without downloading
 
 ## Architecture
@@ -52,7 +52,7 @@ Backend (openai_helper.rb)
 **Flag**: `supports_file_inputs: true` in `model_spec.js`
 
 Added to models that support the File Inputs API:
-- GPT-5.4 (gpt-5.4)
+- GPT-5.4 series (gpt-5.4, gpt-5.4-mini)
 - GPT-5.3 series (gpt-5.3-chat-latest)
 - GPT-5.2 series (gpt-5.2, gpt-5.2-chat-latest)
 - GPT-5.1 series (gpt-5.1, gpt-5.1-chat-latest)
@@ -61,7 +61,7 @@ Added to models that support the File Inputs API:
 - GPT-4o series (gpt-4o, gpt-4o-mini)
 - o3-pro
 
-**Not** added to: gpt-5-nano (no PDF support), codex models (coding-only)
+**Not** added to: gpt-5-nano, gpt-5.4-nano (no PDF/file support), codex models (coding-only)
 
 ## Frontend UI Tiers
 
@@ -69,7 +69,7 @@ The file selection button adapts based on model capabilities:
 
 | Tier | Condition | Button Text | Accepted Files |
 |------|-----------|-------------|----------------|
-| 1 | `supports_file_inputs` | "File" | Images + PDF + XLSX, DOCX, etc. |
+| 1 | `supports_file_inputs` | "File" | Images + PDF + XLSX, DOCX, code files, etc. |
 | 2 | `supports_pdf_upload` | "Image/PDF" | Images + PDF |
 | 3 | Default | "Image" | Images only |
 
@@ -85,6 +85,7 @@ URL input section is shown only when `api_type === "responses"` AND tier 1 or 2.
 ## Testing
 
 - **Ruby**: `spec/unit/utils/openai_file_inputs_cache_spec.rb` (11 specs)
+- **Ruby**: `spec/unit/adapters/vendors/document_mime_types_spec.rb` (DOCUMENT_MIME_TYPES coverage)
 - **Ruby**: `spec/unit/adapters/vendors/openai_helper_spec.rb` (document_type? + resolve_file_id_for_input)
 - **Frontend**: `test/frontend/select_image.test.js` (getDocumentIcon, isDocumentType, getMimeTypeFromExtension)
 - **Frontend**: `test/frontend/utilities.test.js` (isFileInputsSupportedForModel, isResponsesApiModel)

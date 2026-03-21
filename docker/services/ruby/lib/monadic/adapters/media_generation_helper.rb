@@ -206,7 +206,7 @@ module MonadicHelper
   # Adapter for OpenAI Sora video generation
   # Accepts keyword args from function call: prompt, model, size, seconds, image_path, remix_video_id
   def generate_video_with_sora(prompt:, model: nil, size: "1280x720", seconds: "8",
-                                image_path: nil, remix_video_id: nil, max_wait: 420, session: nil)
+                                image_path: nil, remix_video_id: nil, max_wait: 600, session: nil)
     model ||= if defined?(Monadic::Utils::ModelSpec)
                  Monadic::Utils::ModelSpec.default_video_model("openai")
                end

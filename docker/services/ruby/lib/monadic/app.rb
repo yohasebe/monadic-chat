@@ -408,7 +408,12 @@ class MonadicApp
 
     # Use longer timeout for media generation (videos, images, and TTS can take several minutes)
     timeout_value = if command.include?("video_generator_gemini") || command.include?("video_generator_openai")
-                      480  # 8 minutes for video generation
+                      # Extract --max-wait value from command if present, add 60s buffer
+                      max_wait_match = command.match(/--max-wait\s+(\d+)/)
+                      max_wait = max_wait_match ? max_wait_match[1].to_i : 600
+                      max_wait + 60  # buffer for script startup and download
+                    elsif command.include?("video_generator_grok")
+                      600  # 10 minutes for Grok video generation
                     elsif command.include?("image_generator_openai") || command.include?("image_generator_grok")
                       300  # 5 minutes for image generation
                     elsif command.include?("tts_query")

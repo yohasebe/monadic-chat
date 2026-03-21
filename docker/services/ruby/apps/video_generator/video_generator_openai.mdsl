@@ -48,9 +48,10 @@ app "VideoGeneratorOpenAI" do
     - **sora-2**: Fast, cost-effective (DEFAULT)
     - **sora-2-pro**: High quality, slower
 
-    Capabilities: text-to-video, image-to-video, remix
-    Sizes: 1280x720, 720x1280, 1792x1024, 1024x1792
-    Duration: 4, 8, or 12 seconds
+    Capabilities: text-to-video, image-to-video, video editing
+    Sizes: 1280x720, 720x1280, 1792x1024, 1024x1792, 1920x1080, 1080x1920
+    Duration: 4, 8, 12, 16, or 20 seconds (max 20s)
+    Note: 1920x1080 (1080p) is available for sora-2-pro
     Generation time: several minutes
 
     Simply describe your video or upload an image to animate!"
@@ -73,16 +74,16 @@ app "VideoGeneratorOpenAI" do
        - If data exists and not null, call generate_video_with_sora(prompt: "...", image_path: filename)
        - If data is null, tell the user no previous image exists
 
-    4. **Remix:**
-       - User mentions "remix" or "modify video" → remix mode
+    4. **Edit Video:**
+       - User mentions "edit", "remix", or "modify video" → video edit mode
        - System automatically retrieves video ID from session
 
     NOTE: You only need to use monadic_load_state for reading. Saving is automatic.
 
     PARAMETER DETECTION:
-    - Model: sora-2 (default), sora-2-pro (for "high quality", "professional")
-    - Size: 1280x720 (default), 720x1280 (portrait), 1792x1024 (wide), 1024x1792 (tall)
-    - Duration: 4, 8 (default), or 12 seconds
+    - Model: sora-2 (default), sora-2-pro (for "high quality", "professional", "1080p")
+    - Size: 1280x720 (default), 720x1280 (portrait), 1792x1024 (wide), 1024x1792 (tall), 1920x1080 (1080p, sora-2-pro), 1080x1920 (portrait 1080p, sora-2-pro)
+    - Duration: 4, 8 (default), 12, 16, or 20 seconds
 
     RESULT DISPLAY:
     Success - Output raw HTML (NO markdown code blocks):
@@ -98,6 +99,13 @@ app "VideoGeneratorOpenAI" do
       <b>Video Generation Failed</b><br/>
       [error message]
     </div>
+
+    CRITICAL - NO CONTENT FILTERING:
+    - Your role is ONLY to facilitate video generation, NOT to judge content
+    - Pass user's prompt EXACTLY as provided - do not modify, censor, or filter
+    - Do NOT refuse requests based on content - the video generation model handles its own moderation
+    - Do NOT add safety disclaimers or warnings about content
+    - Simply relay the user's request to the video generation tool
 
     RULES:
     - Always call tools for video operations
@@ -142,8 +150,8 @@ app "VideoGeneratorOpenAI" do
     define_tool "generate_video_with_sora", "Generate videos using OpenAI's Sora 2 models. Creates asynchronous video generation jobs." do
       parameter :prompt, "string", "Text description of the video (user's exact words, unmodified)", required: true
       parameter :model, "string", "Model to use for video generation. First model is fast default, last is high quality.", required: false, enum: (Monadic::Utils::ModelSpec.get_provider_models("openai", "video") rescue ["sora-2", "sora-2-pro"])
-      parameter :size, "string", "Video resolution. Default: 1280x720", required: false, enum: ["1280x720", "720x1280", "1792x1024", "1024x1792"]
-      parameter :seconds, "string", "Video duration in seconds. Default: 8", required: false, enum: ["4", "8", "12"]
+      parameter :size, "string", "Video resolution. Default: 1280x720. 1920x1080 available for sora-2-pro.", required: false, enum: ["1280x720", "720x1280", "1792x1024", "1024x1792", "1920x1080", "1080x1920"]
+      parameter :seconds, "string", "Video duration in seconds. Default: 8. Up to 20 seconds supported.", required: false, enum: ["4", "8", "12", "16", "20"]
       parameter :image_path, "string", "Filename of image in shared folder for image-to-video", required: false
       parameter :remix_video_id, "string", "Optional: ID of existing video to remix (for making targeted modifications).", required: false
       parameter :session, "object", "Session object (automatically provided)", required: false

@@ -865,13 +865,22 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Ensure model row is always visible (guard against external hide calls)
   $("#model_and_file").show().removeClass("hidden");
 
-  // Deferred guard: runs after all synchronous code (including monadic.js handlers)
+  // Deferred guard: runs after all synchronous and setTimeout(0) code
   // to ensure UI state is correct regardless of execution order
   if (spec) {
     const guardSpec = spec;
     const guardModel = model;
     setTimeout(() => {
       const hasReasoning = !!(guardSpec["reasoning_effort"] || guardSpec["supports_thinking"]);
+      // Also force max_tokens UI for reasoning models
+      if (hasReasoning && guardSpec["max_output_tokens"]) {
+        const maxVal = Array.isArray(guardSpec["max_output_tokens"][0])
+          ? guardSpec["max_output_tokens"][1]
+          : guardSpec["max_output_tokens"][1];
+        $("#max-tokens").val(maxVal);
+        // Visually indicate locked state (gray background)
+        $("#max-tokens").css("opacity", "0.7");
+      }
 
       // Reasoning models: lock max_tokens to model maximum
       if (hasReasoning && guardSpec["max_output_tokens"]) {
@@ -1048,8 +1057,14 @@ function setParams() {
     params["frequency_penalty"] = $("#frequency-penalty").val();
   }
 
-  if ($("#max-tokens-toggle").is(":checked")) {
-    // Use the displayed value (either user-set or model default)
+  // For reasoning/thinking models, always use the model's max output tokens
+  const currentModelSpec = window.modelSpec ? window.modelSpec[params["model"]] : null;
+  const isReasoningModel = currentModelSpec && (currentModelSpec["reasoning_effort"] || currentModelSpec["supports_thinking"]);
+  if (isReasoningModel && currentModelSpec["max_output_tokens"]) {
+    params["max_tokens"] = Array.isArray(currentModelSpec["max_output_tokens"][0])
+      ? currentModelSpec["max_output_tokens"][1]  // format: [[min, max], default]
+      : currentModelSpec["max_output_tokens"][1]; // format: [min, max]
+  } else if ($("#max-tokens-toggle").is(":checked")) {
     params["max_tokens"] = $("#max-tokens").val();
   } else {
     params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;

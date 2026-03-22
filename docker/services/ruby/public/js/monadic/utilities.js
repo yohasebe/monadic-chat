@@ -734,7 +734,12 @@ window.loadParams = function(params, calledFor = "loadParams") {
         }
         $dropdown.val(effortValue);
         $dropdown.prop('disabled', false);
-        $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
+        // For reasoning models, use model's max output tokens and lock the field
+        if (spec["max_output_tokens"]) {
+          $("#max-tokens").val(spec["max_output_tokens"][1]);
+        }
+        $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
+        $("#max-tokens").prop("disabled", true);
       } else {
         // Fallback if options couldn't be determined
         $("#reasoning-effort").prop('disabled', true);
@@ -990,11 +995,11 @@ function setParams() {
     params["frequency_penalty"] = $("#frequency-penalty").val();
   }
 
-  if ($("#max-tokens").prop('disabled')) {
-    // just a midium-sized default value
-    params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
-  } else {
+  if ($("#max-tokens-toggle").is(":checked")) {
+    // Use the displayed value (either user-set or model default)
     params["max_tokens"] = $("#max-tokens").val();
+  } else {
+    params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
   }
 
   if ($("#context-size").prop('disabled')) {

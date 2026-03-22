@@ -122,13 +122,13 @@ class ReasoningUIManager {
     // Hide all provider-specific UIs
     this.hideAllUIs();
 
-    // Get the default select element
+    // Get the default select element and its immediate column container (not the form)
     const defaultSelect = document.getElementById('reasoning-effort');
-    const defaultContainer = defaultSelect.parentElement.parentElement;
+    const defaultContainer = defaultSelect.parentElement; // <div class="col-auto ms-2">
 
     // Determine which UI to show
     if (!window.ReasoningMapper || !ReasoningMapper.isSupported(provider, model)) {
-      // Not supported - hide everything
+      // Not supported - hide reasoning effort column only
       defaultContainer.classList.add('hidden');
       return;
     }

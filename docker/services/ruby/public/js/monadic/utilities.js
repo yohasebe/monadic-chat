@@ -827,21 +827,24 @@ window.loadParams = function(params, calledFor = "loadParams") {
       }
     }
 
-    let max_tokens = params["max_tokens"];
-    if (max_tokens) {
-      $("#max-tokens-toggle").prop("checked", true).trigger("change");
-      if (!isNaN(max_tokens)) {
-        $("#max-tokens").val(parseInt(max_tokens));
-      } else {
-        $("#max-tokens").val(max_tokens);
-      } 
-    } else {
-      if (spec["max_output_tokens"]) {
-        $("#max-tokens").val(spec["max_output_tokens"][1]);
+    // Skip max_tokens UI setup if already locked by reasoning model logic above
+    if (!$("#max-tokens-toggle").prop("disabled")) {
+      let max_tokens = params["max_tokens"];
+      if (max_tokens) {
         $("#max-tokens-toggle").prop("checked", true).trigger("change");
+        if (!isNaN(max_tokens)) {
+          $("#max-tokens").val(parseInt(max_tokens));
+        } else {
+          $("#max-tokens").val(max_tokens);
+        }
       } else {
-        $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
-        $("#max-tokens-toggle").prop("checked", false).trigger("change");
+        if (spec["max_output_tokens"]) {
+          $("#max-tokens").val(spec["max_output_tokens"][1]);
+          $("#max-tokens-toggle").prop("checked", true).trigger("change");
+        } else {
+          $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
+          $("#max-tokens-toggle").prop("checked", false).trigger("change");
+        }
       }
     }
   } else {

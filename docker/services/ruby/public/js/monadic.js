@@ -2076,7 +2076,8 @@ $(function () {
       }
 
     } else if (!apps[appValue]["model"] || apps[appValue]["model"].length === 0) {
-      $("#model_and_file").hide();
+      // Models not available - show placeholder instead of hiding the row
+      $("#model").html('<option disabled selected>Models not available</option>');
       $("#model_parameters").hide();
     } else {
       // The following code is for backward compatibility

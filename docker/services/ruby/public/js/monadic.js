@@ -1648,14 +1648,14 @@ $(function () {
     // check if selected mode has data-model-type attribute and its value is "reasoning"
     // Use existing currentApp and provider variables from above
     
-    if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort")) {
+    if (modelSpec[selectedModel] && (modelSpec[selectedModel].hasOwnProperty("reasoning_effort") || modelSpec[selectedModel]["supports_thinking"])) {
       const reasoningEffort = $("#reasoning-effort").val();
       $("#max-tokens").prop("disabled", true);
-      $("#max-tokens-toggle").prop("checked", false).prop("disabled", true);
+      $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
       $("#model-selected").text(`${provider} (${selectedModel} - ${reasoningEffort})`);
     } else {
-      $("#max-tokens").prop("disabled", false)
-      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true)
+      $("#max-tokens").prop("disabled", false);
+      $("#max-tokens-toggle").prop("disabled", false).prop("checked", true);
       $("#model-selected").text(`${provider} (${selectedModel})`);
     }
     // Use UI utilities module if available, otherwise fallback

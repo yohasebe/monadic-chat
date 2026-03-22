@@ -88,11 +88,11 @@ describe('Model Specification', () => {
   });
   
   describe('Anthropic Models', () => {
-    it('should have correct parameters for Claude models', () => {
+    it('should have correct parameters for Claude Sonnet 4.6', () => {
       const model = modelSpec['claude-sonnet-4-6'];
 
       // Check essential parameters
-      expect(model.context_window).toEqual([1, 200000]);
+      expect(model.context_window).toEqual([1, 1000000]);
       expect(model.max_output_tokens).toEqual([[1, 64000], 64000]);
       expect(model.thinking_budget).toEqual({
         min: 1024,
@@ -103,6 +103,39 @@ describe('Model Specification', () => {
       expect(model.supports_adaptive_thinking).toBe(true);
       expect(model.tool_capability).toBe(true);
       expect(model.vision_capability).toBe(true);
+    });
+
+    it('should have 1M context for Claude Opus 4.6', () => {
+      const model = modelSpec['claude-opus-4-6'];
+      expect(model.context_window).toEqual([1, 1000000]);
+      expect(model.beta_flags).toEqual([]);
+    });
+
+    it('should have 1M context for Claude Sonnet 4.6', () => {
+      const model = modelSpec['claude-sonnet-4-6'];
+      expect(model.context_window).toEqual([1, 1000000]);
+      expect(model.beta_flags).toEqual([]);
+    });
+
+    it('should not have pdfs beta header on any Claude model', () => {
+      const claudeModels = Object.keys(modelSpec).filter(k => k.startsWith('claude-'));
+      claudeModels.forEach(modelName => {
+        const model = modelSpec[modelName];
+        if (model.beta_flags) {
+          expect(model.beta_flags).not.toContain('pdfs-2024-09-25');
+        }
+      });
+    });
+
+    it('should not have structured_output_beta on GA models', () => {
+      // These models have structured outputs GA (Jan 29, 2026)
+      const gaModels = ['claude-sonnet-4-5-20250929', 'claude-opus-4-5-20251101', 'claude-haiku-4-5-20251001'];
+      gaModels.forEach(modelName => {
+        const model = modelSpec[modelName];
+        if (model) {
+          expect(model.structured_output_beta).toBeUndefined();
+        }
+      });
     });
 
     it('should have different vision capabilities for different Claude models', () => {

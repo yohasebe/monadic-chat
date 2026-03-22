@@ -536,7 +536,7 @@ const modelSpec = {
   },
   // Anthropic models
   "claude-opus-4-6": {
-    "context_window" : [1, 200000],
+    "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 128000], 128000],
     "tool_capability": true,
@@ -557,7 +557,7 @@ const modelSpec = {
     "beta_flags": []
   },
   "claude-sonnet-4-6": {
-    "context_window" : [1, 200000],
+    "context_window" : [1, 1000000],
     "api_version": "2023-06-01",
     "max_output_tokens" : [[1, 64000], 64000],
     "tool_capability": true,
@@ -595,10 +595,9 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "structured_output_beta": "structured-outputs-2025-11-13",
+
     "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
+      "interleaved-thinking-2025-05-14"
     ]
   },
   "claude-opus-4-5-20251101": {
@@ -619,10 +618,8 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "structured_output_beta": "structured-outputs-2025-11-13",
     "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
+      "interleaved-thinking-2025-05-14"
     ]
   },
   "claude-opus-4-1-20250805": {
@@ -643,10 +640,9 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "structured_output_beta": "structured-outputs-2025-11-13",
+
     "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
+      "interleaved-thinking-2025-05-14"
     ]
   },
   "claude-sonnet-4-20250514": {
@@ -667,10 +663,9 @@ const modelSpec = {
     "supports_context_management": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "structured_output_beta": "structured-outputs-2025-11-13",
+
     "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
+      "interleaved-thinking-2025-05-14"
     ]
   },
   "claude-haiku-4-5-20251001": {
@@ -683,9 +678,7 @@ const modelSpec = {
     "supports_web_search": true,
     "supports_pdf": true,
     "supports_streaming": true,
-    "beta_flags": [
-      "pdfs-2024-09-25"
-    ]
+    "beta_flags": []
   },
   "claude-sonnet-4-5-20250929": {
     "context_window" : [1, 1000000],
@@ -706,10 +699,8 @@ const modelSpec = {
     "context_awareness": true,
     "structured_output": true,
     "structured_output_mode": "json_schema",
-    "structured_output_beta": "structured-outputs-2025-11-13",
     "beta_flags": [
-      "interleaved-thinking-2025-05-14",
-      "pdfs-2024-09-25"
+      "interleaved-thinking-2025-05-14"
     ]
   },
   // Cohere models

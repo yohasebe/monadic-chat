@@ -5772,6 +5772,12 @@ i.fas.fa-bolt,
   display: none !important;
 }
 
+/* Model row must always be visible in settings panel */
+/* Required: an unidentified code path adds .hidden class to this element */
+#model_and_file {
+  display: flex !important;
+}
+
 
 /* Note: Bootstrap already has .d-none, but we add .hidden for semantic clarity */
 

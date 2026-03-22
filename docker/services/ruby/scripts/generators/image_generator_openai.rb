@@ -273,7 +273,7 @@ def generate_image(options, num_retrials = 3)
         body[:input_fidelity] = options[:input_fidelity] if options[:input_fidelity]
 
         puts "Sending JSON edit request with prompt: #{options[:prompt]}" if options[:verbose]
-        puts "Image references: #{images.size}" if options[:verbose]
+        puts "Image references: #{img_refs.size}" if options[:verbose]
 
         headers = {
           "Content-Type": "application/json",

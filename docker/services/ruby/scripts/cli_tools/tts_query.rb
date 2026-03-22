@@ -607,11 +607,6 @@ begin
     f.write(audio_content)
   end
 
-  # Save a copy in the current directory (skip for Gemini to avoid issues)
-  if provider != "gemini" && provider != "gemini-flash" && provider != "gemini-pro"
-    File.write(outfile, response)
-  end
-  
   # Display appropriate message based on file format
   if (provider == "gemini" || provider == "gemini-flash" || provider == "gemini-pro") && file_extension != "mp3"
     puts "Text-to-speech audio saved to #{filename} (#{file_extension.upcase} format)"

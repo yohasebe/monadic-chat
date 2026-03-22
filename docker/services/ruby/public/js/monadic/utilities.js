@@ -865,42 +865,50 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Ensure model row is always visible (guard against external hide calls)
   $("#model_and_file").show().removeClass("hidden");
 
-  // Final guard: ensure max_tokens, reasoning dropdown, and thinking toggle are correct
+  // Deferred guard: runs after all synchronous code (including monadic.js handlers)
+  // to ensure UI state is correct regardless of execution order
   if (spec) {
-    const hasReasoning = !!(spec["reasoning_effort"] || spec["supports_thinking"]);
-    if (hasReasoning && spec["max_output_tokens"]) {
+    const guardSpec = spec;
+    const guardModel = model;
+    setTimeout(() => {
+      const hasReasoning = !!(guardSpec["reasoning_effort"] || guardSpec["supports_thinking"]);
+
       // Reasoning models: lock max_tokens to model maximum
-      $("#max-tokens").val(spec["max_output_tokens"][1]).prop("disabled", true);
-      $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
-    }
-    // If reasoning dropdown is empty but should have options, rebuild
-    if (hasReasoning && $("#reasoning-effort option").length === 0) {
-      const currentApp = $("#apps").val();
-      const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
-        ? window.getProviderFromGroup(window.apps[currentApp]["group"])
-        : "OpenAI";
-      if (window.ReasoningMapper) {
-        const opts = ReasoningMapper.getAvailableOptions(provider, model, {});
-        if (opts && opts.length > 0) {
-          const $dropdown = $("#reasoning-effort");
-          $dropdown.empty();
-          opts.forEach(opt => {
-            const label = window.ReasoningLabels ?
-              window.ReasoningLabels.getOptionLabel(provider, opt) : opt;
-            $dropdown.append(`<option value="${opt}">${label}</option>`);
-          });
-          const defaultVal = ReasoningMapper.getDefaultValue(provider, model);
-          $dropdown.val(defaultVal && opts.includes(defaultVal) ? defaultVal : opts[0]);
-          $dropdown.prop('disabled', false);
+      if (hasReasoning && guardSpec["max_output_tokens"]) {
+        $("#max-tokens").val(guardSpec["max_output_tokens"][1]).prop("disabled", true);
+        $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
+      }
+
+      // Rebuild empty reasoning dropdown
+      if (hasReasoning && $("#reasoning-effort option").length === 0) {
+        const currentApp = $("#apps").val();
+        const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
+          ? window.getProviderFromGroup(window.apps[currentApp]["group"])
+          : "OpenAI";
+        if (window.ReasoningMapper) {
+          const opts = ReasoningMapper.getAvailableOptions(provider, guardModel, {});
+          if (opts && opts.length > 0) {
+            const $dropdown = $("#reasoning-effort");
+            $dropdown.empty();
+            opts.forEach(opt => {
+              const label = window.ReasoningLabels ?
+                window.ReasoningLabels.getOptionLabel(provider, opt) : opt;
+              $dropdown.append(`<option value="${opt}">${label}</option>`);
+            });
+            const defaultVal = ReasoningMapper.getDefaultValue(provider, guardModel);
+            $dropdown.val(defaultVal && opts.includes(defaultVal) ? defaultVal : opts[0]);
+            $dropdown.prop('disabled', false);
+          }
         }
       }
-    }
-    // Show Thinking toggle: only for models with supports_thinking
-    if (spec["supports_thinking"]) {
-      $("#thinking-display-container").show();
-    } else {
-      $("#thinking-display-container").hide();
-    }
+
+      // Show Thinking toggle: only for models with supports_thinking
+      if (guardSpec["supports_thinking"]) {
+        $("#thinking-display-container").show();
+      } else {
+        $("#thinking-display-container").hide();
+      }
+    }, 0);
   }
 
   // Reset the flag after loading is complete

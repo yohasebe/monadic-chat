@@ -859,6 +859,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Set context size from configuration or use default
   $("#context-size").val(params["context_size"] || DEFAULT_CONTEXT_SIZE);
 
+  // Ensure model row is always visible (guard against external hide calls)
+  $("#model_and_file").show().removeClass("hidden");
+
   // Reset the flag after loading is complete
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });

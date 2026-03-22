@@ -769,17 +769,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
       $("#thinking-display-container").hide();
     }
 
-    // Show/hide model_parameters row based on whether any parameter is supported
-    const hasTemperature = !!(params["temperature"] || spec["temperature"]);
-    const hasPresencePenalty = !!(params["presence_penalty"] || spec["presence_penalty"]);
-    const hasFrequencyPenalty = !!(params["frequency_penalty"] || spec["frequency_penalty"]);
-    const hasAnyModelParam = hasTemperature || hasPresencePenalty || hasFrequencyPenalty;
-
-    if (hasAnyModelParam) {
-      $("#model_parameters").show();
-    } else {
-      $("#model_parameters").hide();
-    }
+    // Hide model_parameters row (temperature, penalties) — these legacy controls
+    // are not useful for modern models and are hidden from the default UI.
+    $("#model_parameters").hide();
 
     let temperature = params["temperature"];
     if (temperature) {

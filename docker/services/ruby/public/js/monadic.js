@@ -1614,21 +1614,35 @@ $(function () {
         $("#frequency-penalty").prop("disabled", true);
       }
 
+      const isReasoningModel = modelSpec[selectedModel]["reasoning_effort"] || modelSpec[selectedModel]["supports_thinking"];
       if (modelSpec[selectedModel].hasOwnProperty("max_output_tokens")) {
-        $("#max-tokens-toggle").prop("checked", true).trigger("change");
         const maxOutputTokens = modelSpec[selectedModel]["max_output_tokens"][1];
         $("#max-tokens").val(maxOutputTokens);
+        if (isReasoningModel) {
+          // Reasoning models: lock max_tokens to maximum
+          $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
+          $("#max-tokens").prop("disabled", true);
+        } else {
+          $("#max-tokens-toggle").prop("checked", true).prop("disabled", false).trigger("change");
+        }
       } else {
         $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
-        $("#max-tokens-toggle").prop("checked", false).trigger("change");
+        $("#max-tokens-toggle").prop("checked", false).prop("disabled", false).trigger("change");
+      }
+      // Show Thinking toggle: only for models with supports_thinking
+      if (modelSpec[selectedModel]["supports_thinking"]) {
+        $("#thinking-display-container").show();
+      } else {
+        $("#thinking-display-container").hide();
       }
     } else {
       $("#reasoning-effort").prop("disabled", true);
       $("#temperature").prop("disabled", true);
       $("#presence-penalty").prop("disabled", true);
       $("#frequency-penalty").prop("disabled", true);
-      $("#max-tokens-toggle").prop("checked", false).trigger("change");
-      $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS)
+      $("#max-tokens-toggle").prop("checked", false).prop("disabled", false).trigger("change");
+      $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
+      $("#thinking-display-container").hide();
     }
 
     // check if selected mode has data-model-type attribute and its value is "reasoning"

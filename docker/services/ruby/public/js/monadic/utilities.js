@@ -865,6 +865,22 @@ window.loadParams = function(params, calledFor = "loadParams") {
   // Ensure model row is always visible (guard against external hide calls)
   $("#model_and_file").show().removeClass("hidden");
 
+  // Final guard: ensure max_tokens and thinking toggle are correct based on spec
+  if (spec) {
+    const hasReasoning = !!(spec["reasoning_effort"] || spec["supports_thinking"]);
+    if (hasReasoning && spec["max_output_tokens"]) {
+      // Reasoning models: lock max_tokens to model maximum
+      $("#max-tokens").val(spec["max_output_tokens"][1]).prop("disabled", true);
+      $("#max-tokens-toggle").prop("checked", true).prop("disabled", true);
+    }
+    // Show Thinking toggle: only for models with supports_thinking
+    if (spec["supports_thinking"]) {
+      $("#thinking-display-container").show();
+    } else {
+      $("#thinking-display-container").hide();
+    }
+  }
+
   // Reset the flag after loading is complete
   window.isLoadingParams = false;
   if (window.logTL) window.logTL('loadParams_exit', { calledFor });

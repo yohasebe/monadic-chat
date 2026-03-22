@@ -517,7 +517,7 @@ module ClaudeHelper
 
     # Determine if thinking display should be omitted (faster streaming)
     # Only supported on adaptive thinking models (Opus 4.6, Sonnet 4.6)
-    omit_display = thinking_enabled && use_adaptive && obj["show_thinking"] == false
+    omit_display = thinking_enabled && use_adaptive && obj["show_thinking"].to_s == "false"
 
     { thinking_enabled: thinking_enabled, budget_tokens: budget_tokens,
       adaptive_effort: adaptive_effort, max_tokens: max_tokens,

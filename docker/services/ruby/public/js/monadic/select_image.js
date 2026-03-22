@@ -15,9 +15,11 @@ const MAX_IMAGES = 5;    // Maximum number of images to keep in memory
 const FILE_INPUTS_ACCEPT = 'image/*,.pdf,.xlsx,.docx,.pptx,text/*,application/json,.yaml,.yml';
 
 // Files that should be rejected even if they pass the accept filter (security)
+// Only block by specific dotfile names and key file extensions, not broad keywords
 const BLOCKED_FILE_PATTERNS = [
-  /^\.env/, /^\.git/, /^\.ssh/, /^\.aws/, /^\.docker/,
-  /credentials/i, /secret/i, /\.pem$/, /\.key$/, /id_rsa/
+  /^\.env/, /^\.git/, /^\.ssh/, /^\.aws/, /^\.docker/, /^\.netrc/,
+  /\.pem$/, /\.key$/, /\.p12$/, /\.pfx$/, /\.keystore$/,
+  /^id_rsa/, /^id_ed25519/, /^id_ecdsa/
 ];
 
 // Helper: get Font Awesome icon class for a MIME type

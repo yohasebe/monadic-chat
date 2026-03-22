@@ -761,12 +761,13 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
 
     // Show/hide thinking display toggle based on model support
-    const supportsThinking = !!(spec["supports_thinking"] || spec["reasoning_effort"]);
-    if (supportsThinking) {
+    // Only show for models with supports_thinking (Claude, Gemini, DeepSeek)
+    // NOT for OpenAI reasoning_effort models (no display control API)
+    if (spec["supports_thinking"]) {
       $("#thinking-display-container").show();
       // Restore from params if available, default to checked (show thinking)
       if (params["show_thinking"] !== undefined) {
-        $("#show-thinking").prop("checked", params["show_thinking"] !== false);
+        $("#show-thinking").prop("checked", params["show_thinking"] !== false && params["show_thinking"] !== "false");
       } else {
         $("#show-thinking").prop("checked", true);
       }

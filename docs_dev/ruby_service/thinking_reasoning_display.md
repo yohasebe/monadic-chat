@@ -245,6 +245,46 @@ end
 
 This prevents thinking content from appearing in the normal temp card during streaming.
 
+## User Display Control (Show Thinking Toggle)
+
+The UI provides a "Show Thinking" toggle that allows users to hide thinking/reasoning content during streaming. This toggle is visible only for models with `supports_thinking: true` in model_spec.js.
+
+### Claude: Server-Side Display Control
+
+For Claude Opus 4.6 and Sonnet 4.6 (adaptive thinking models), the toggle uses the API's `thinking.display` parameter:
+
+```ruby
+# When user toggles Show Thinking OFF:
+thinking_params = { "type": "adaptive" }
+thinking_params["display"] = "omitted"  # Thinking blocks returned with empty content
+body["thinking"] = thinking_params
+```
+
+With `display: "omitted"`:
+- Thinking blocks are still returned (with `signature` preserved for multi-turn continuity)
+- The `thinking` field is empty, so no content is streamed to the UI
+- Billing is unchanged (thinking tokens are still consumed)
+- Streaming is faster (no thinking content to transmit)
+
+### Other Providers: Client-Side Display Control
+
+For providers without a server-side display control API (OpenAI, Gemini, DeepSeek, etc.), the `ws-thinking-handler.js` naturally skips empty content:
+
+```javascript
+function handleThinking(data) {
+  const content = data.content || '';
+  if (!content) return;  // Empty content is silently skipped
+  // ...
+}
+```
+
+### Implementation Details
+
+- Frontend: `show_thinking` parameter saved via `setParams()` in `utilities.js`
+- Backend: `claude_helper.rb` checks `obj["show_thinking"].to_s == "false"` (string comparison for WebSocket JSON safety)
+- Toggle visibility: Controlled in both `utilities.js` (loadParams) and `monadic.js` (model change handler)
+- i18n: 7 languages (EN: "Show Thinking", JA: "思考過程を表示", etc.)
+
 ## Configuration
 
 ### Model Specification
@@ -264,12 +304,15 @@ Models that support thinking/reasoning should be flagged in `model_spec.js`:
 Claude's extended thinking mode requires explicit parameter:
 
 ```ruby
-if model_name.include?("sonnet")
-  params["thinking"] = {
-    "type" => "enabled",
-    "budget_tokens" => 10000
-  }
-end
+# Legacy (Sonnet 4.5, Opus 4, etc.)
+params["thinking"] = {
+  "type" => "enabled",
+  "budget_tokens" => 10000
+}
+
+# Adaptive (Opus 4.6, Sonnet 4.6)
+params["thinking"] = { "type" => "adaptive" }
+params["output_config"] = { "effort" => "medium" }
 ```
 
 ### Thinking Config (Gemini)

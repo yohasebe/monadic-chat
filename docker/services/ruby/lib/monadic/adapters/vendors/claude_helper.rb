@@ -515,8 +515,13 @@ module ClaudeHelper
       budget_tokens = (max_tokens * 0.8).to_i
     end
 
+    # Determine if thinking display should be omitted (faster streaming)
+    # Only supported on adaptive thinking models (Opus 4.6, Sonnet 4.6)
+    omit_display = thinking_enabled && use_adaptive && obj["show_thinking"] == false
+
     { thinking_enabled: thinking_enabled, budget_tokens: budget_tokens,
-      adaptive_effort: adaptive_effort, max_tokens: max_tokens }
+      adaptive_effort: adaptive_effort, max_tokens: max_tokens,
+      omit_thinking_display: omit_display }
   end
 
   # Build HTTP headers and base request body (model, stream, system, thinking, context management).
@@ -589,11 +594,17 @@ module ClaudeHelper
       body["max_tokens"] = thinking_config[:max_tokens]
       body["temperature"] = 1
       if thinking_config[:adaptive_effort]
-        body["thinking"] = { "type": "adaptive" }
+        thinking_params = { "type": "adaptive" }
         body["output_config"] = { "effort": thinking_config[:adaptive_effort] }
       else
-        body["thinking"] = { "type": "enabled", "budget_tokens": thinking_config[:budget_tokens] }
+        thinking_params = { "type": "enabled", "budget_tokens": thinking_config[:budget_tokens] }
       end
+      # Omit thinking display content for faster streaming when user toggles off
+      # Only supported on models with supports_adaptive_thinking (Opus 4.6, Sonnet 4.6)
+      if thinking_config[:omit_thinking_display]
+        thinking_params["display"] = "omitted"
+      end
+      body["thinking"] = thinking_params
     else
       body["temperature"] = temperature if temperature
       body["max_tokens"] = thinking_config[:max_tokens] if thinking_config[:max_tokens]

@@ -755,6 +755,32 @@ window.loadParams = function(params, calledFor = "loadParams") {
       window.ReasoningLabels.updateUILabels(provider, model);
     }
 
+    // Show/hide thinking display toggle based on model support
+    const supportsThinking = !!(spec["supports_thinking"] || spec["reasoning_effort"]);
+    if (supportsThinking) {
+      $("#thinking-display-container").show();
+      // Restore from params if available, default to checked (show thinking)
+      if (params["show_thinking"] !== undefined) {
+        $("#show-thinking").prop("checked", params["show_thinking"] !== false);
+      } else {
+        $("#show-thinking").prop("checked", true);
+      }
+    } else {
+      $("#thinking-display-container").hide();
+    }
+
+    // Show/hide model_parameters row based on whether any parameter is supported
+    const hasTemperature = !!(params["temperature"] || spec["temperature"]);
+    const hasPresencePenalty = !!(params["presence_penalty"] || spec["presence_penalty"]);
+    const hasFrequencyPenalty = !!(params["frequency_penalty"] || spec["frequency_penalty"]);
+    const hasAnyModelParam = hasTemperature || hasPresencePenalty || hasFrequencyPenalty;
+
+    if (hasAnyModelParam) {
+      $("#model_parameters").show();
+    } else {
+      $("#model_parameters").hide();
+    }
+
     let temperature = params["temperature"];
     if (temperature) {
       if (!isNaN(temperature)) {
@@ -825,6 +851,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     $("#temperature").prop('disabled', true);
     $("#presence-penalty").prop('disabled', true);
     $("#frequency-penalty").prop('disabled', true);
+    $("#model_parameters").hide();
     $("#max-tokens").val(DEFAULT_MAX_OUTPUT_TOKENS);
     $("#max-tokens-toggle").prop("checked", false).trigger("change");
   }
@@ -983,6 +1010,11 @@ function setParams() {
     params["context_size"] = DEFAULT_CONTEXT_SIZE;
   } else {
     params["context_size"] = $("#context-size").val();
+  }
+
+  // Save thinking display preference
+  if ($("#thinking-display-container").is(":visible")) {
+    params["show_thinking"] = $("#show-thinking").is(":checked");
   }
 
   params["tts_provider"] = $("#tts-provider").val();

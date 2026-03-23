@@ -261,6 +261,7 @@ module OllamaHelper
       context += session[:messages][1..].last(context_size)
     end
     context.each { |msg| msg["active"] = true }
+    strip_inactive_image_data(session)
 
     ollama_endpoint = OllamaHelper.find_endpoint
 

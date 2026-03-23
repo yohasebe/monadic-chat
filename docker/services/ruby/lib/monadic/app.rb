@@ -433,13 +433,31 @@ class MonadicApp
       if stdout.strip.empty?
         success
       else
-        "#{success_with_output}#{stdout}"
+        "#{success_with_output}#{truncate_output(stdout)}"
       end
     else
       "Error occurred: #{stderr}"
     end
   rescue StandardError => e
     "Error occurred: #{e.message}"
+  end
+
+  # Truncate large command output to avoid bloating LLM context.
+  # Keeps first and last lines with a notice in between.
+  MAX_OUTPUT_BYTES = 50_000   # ~50 KB
+  HEAD_LINES = 100
+  TAIL_LINES = 50
+
+  def truncate_output(text)
+    return text if text.bytesize <= MAX_OUTPUT_BYTES
+
+    lines = text.lines
+    return text if lines.size <= HEAD_LINES + TAIL_LINES
+
+    head = lines.first(HEAD_LINES).join
+    tail = lines.last(TAIL_LINES).join
+    omitted = lines.size - HEAD_LINES - TAIL_LINES
+    "#{head}\n... (#{omitted} lines omitted — output truncated to #{MAX_OUTPUT_BYTES / 1000} KB) ...\n\n#{tail}"
   end
 
   def send_code(code:, command:, extension:, success: "The code has been executed successfully", max_retries: 3, retry_delay: 1.5, keep_file: false)
@@ -585,10 +603,10 @@ class MonadicApp
           else
             output = "#{success}; File(s) generated or modified: #{file_paths.join(", ")}"
           end
-          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
+          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         else
           output = "#{success}\n\nNOTE: No image files were created. Do NOT display any images."
-          output += "\n\nOutput: #{stdout}" if stdout.strip.length.positive?
+          output += "\n\nOutput: #{truncate_output(stdout)}" if stdout.strip.length.positive?
         end
 
         # Clean up temporary file if keep_file is false

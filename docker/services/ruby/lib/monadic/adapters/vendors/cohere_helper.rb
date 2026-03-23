@@ -1259,6 +1259,7 @@ module CohereHelper
     end
     session[:messages].each { |msg| msg["active"] = false }
     context = session[:messages][0...-1].last(context_size).each { |msg| msg["active"] = true }
+    strip_inactive_image_data(session)
 
     # Build messages
     messages_result = build_cohere_messages(context, session, obj, role, message, initial_prompt, websearch, &block)

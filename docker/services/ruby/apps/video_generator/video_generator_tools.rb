@@ -7,13 +7,10 @@ class VideoGeneratorGemini < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GeminiHelper if defined?(GeminiHelper)
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Override to add monadic state saving for uploaded images
@@ -54,13 +51,10 @@ class VideoGeneratorOpenAI < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include MonadicHelper
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Compute dynamic max_wait based on video duration
@@ -135,6 +129,7 @@ class VideoGeneratorGrok < MonadicApp
   def initialize(*args)
     super
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   def generate_video_with_grok_imagine(prompt:, duration: nil, aspect_ratio: nil, resolution: nil, image_path: nil, session: nil)

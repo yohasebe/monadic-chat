@@ -247,10 +247,31 @@ module MermaidGrapherTools
     end
   end
 
-  # Check if a web_navigator browser session is active
+  # Check if a web_navigator browser session is active.
+  # Verifies both the session file existence and the Selenium service health
+  # to avoid unnecessary navigate attempts when the container has crashed.
   def mermaid_session_active?
     session_file = File.join(Monadic::Utils::Environment.shared_volume, ".browser_session_id")
-    File.exist?(session_file) && !File.read(session_file).strip.empty?
+    return false unless File.exist?(session_file) && !File.read(session_file).strip.empty?
+
+    # Quick health check — if Selenium is unreachable, clear stale session file
+    unless selenium_service_reachable?
+      File.delete(session_file) rescue nil
+      return false
+    end
+
+    true
+  end
+
+  # Lightweight Selenium service health check (2 s timeout)
+  def selenium_service_reachable?
+    require "net/http"
+    uri = URI("http://selenium_service:4444/status")
+    Net::HTTP.start(uri.host, uri.port, open_timeout: 2, read_timeout: 2) do |http|
+      http.get(uri.path).is_a?(Net::HTTPSuccess)
+    end
+  rescue StandardError
+    false
   end
 
   # Parse JSON response from web_navigator.py

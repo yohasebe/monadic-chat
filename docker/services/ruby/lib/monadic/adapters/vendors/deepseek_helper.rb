@@ -328,7 +328,7 @@ module DeepSeekHelper
     end
 
     session[:messages].each { |msg| msg["active"] = false }
-    
+
     # Safer context building with nil checks
     context = []
     if session[:messages] && !session[:messages].empty?
@@ -337,6 +337,8 @@ module DeepSeekHelper
         context += session[:messages][1..].last(context_size + 1)
       end
     end
+    context.each { |msg| msg["active"] = true if msg }
+    strip_inactive_image_data(session)
 
     headers = {
       "Content-Type" => "application/json",

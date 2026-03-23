@@ -1002,6 +1002,7 @@ module ClaudeHelper
       session[:messages].filter do |msg|
         msg["role"] == "system"
       end.each { |msg| msg["active"] = true }
+      strip_inactive_image_data(session)
     rescue StandardError
       context = []
     end

@@ -19,7 +19,15 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 ### Production Mode
 - All containers managed by Docker Compose (`docker/services/compose.yml`)
 - Ruby app runs inside the Ruby container
-- Auto-restart on failures (compose policies)
+
+### Restart Policies
+
+| Container | Policy | Rationale |
+|-----------|--------|-----------|
+| Ruby | `always` | Main app server — auto-recovers from crashes |
+| Python | default (`no`) | Started on demand; no independent lifecycle |
+| PGVector | default (`no`) | Monadic-only DB; avoids blocking Docker Resource Saver |
+| Selenium | default (`no`) | Started on demand; no independent lifecycle |
 
 ### Python image build (verified promotion)
 - Rebuild is invoked via `docker/monadic.sh build_python_container`.

@@ -1145,20 +1145,25 @@ module GeminiHelper
       context += session[:messages][1..].last(context_size)
     end
     context.each { |msg| msg["active"] = true }
+    strip_inactive_image_data(session)
 
-    # Special handling for Gemini 3 Pro Image Preview: clear tool call history
-    # to prevent orchestration model from seeing previous results and making duplicate calls
+    # Prune old orchestration history to prevent the model from seeing stale
+    # tool results and making duplicate calls, while keeping enough rounds
+    # for iterative edit/variation workflows.
     if @clear_orchestration_history
-      Monadic::Utils::ExtraLogger.log { "Gemini3Preview: Clearing orchestration history in api_request\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
+      keep_rounds = @orchestration_keep_rounds || 1
+      Monadic::Utils::ExtraLogger.log { "Gemini: Pruning orchestration history (keep #{keep_rounds} rounds)\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
 
-      # Keep system message + last 1 round of tool interaction + current user message
-      # This allows iterative workflows (edit/variation) while preventing duplicate tool calls
       first_msg = context.first
       user_indices = context.each_index.select { |i| context[i]&.[]("role") == "user" }
 
-      if user_indices.length >= 2
-        keep_from = user_indices[-2]
-        context = [first_msg] + context[keep_from..]
+      needed = keep_rounds + 1
+      if user_indices.length >= needed
+        keep_from = user_indices[-needed]
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
+      elsif user_indices.length >= 2
+        keep_from = user_indices.first
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
       else
         last_user_msg = context.reverse.find { |msg| msg&.[]("role") == "user" }
         context = [first_msg]

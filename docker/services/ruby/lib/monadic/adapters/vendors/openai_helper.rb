@@ -1691,24 +1691,27 @@ module OpenAIHelper
       context += session[:messages][1..].last(context_size).compact
     end
     context.each { |msg| msg["active"] = true if msg }
+    strip_inactive_image_data(session)
 
-    # Special handling for apps that need orchestration history cleared
-    # This prevents the model from seeing previous tool calls and results,
-    # which would cause it to repeatedly call the same tool (e.g., image generation)
+    # Prune old orchestration history to prevent the model from seeing stale
+    # tool results and making duplicate calls, while keeping enough rounds
+    # for iterative edit/variation workflows.
     if @clear_orchestration_history
-      Monadic::Utils::ExtraLogger.log { "OpenAI: Clearing orchestration history in api_request\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
+      keep_rounds = @orchestration_keep_rounds || 1
+      Monadic::Utils::ExtraLogger.log { "OpenAI: Pruning orchestration history (keep #{keep_rounds} rounds)\n  Original context size: #{context.size}\n  self.class: #{self.class.name}" }
 
-      # Keep system message + last 1 round of tool interaction + current user message
-      # This allows iterative workflows (edit/variation) while preventing duplicate tool calls
       first_msg = context.first
       user_indices = context.each_index.select { |i| context[i]&.[]("role") == "user" }
 
-      if user_indices.length >= 2
-        # Keep from second-to-last user message onward (= last round + current)
-        keep_from = user_indices[-2]
-        context = [first_msg] + context[keep_from..]
+      # keep_rounds+1 because we need N previous rounds + current user message
+      needed = keep_rounds + 1
+      if user_indices.length >= needed
+        keep_from = user_indices[-needed]
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
+      elsif user_indices.length >= 2
+        keep_from = user_indices.first
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
       else
-        # 0 or 1 user messages: keep system + last user message
         last_user_msg = context.reverse.find { |msg| msg&.[]("role") == "user" }
         context = [first_msg]
         context << last_user_msg if last_user_msg && first_msg != last_user_msg

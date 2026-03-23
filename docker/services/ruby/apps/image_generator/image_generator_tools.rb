@@ -13,10 +13,11 @@ class ImageGeneratorOpenAI < MonadicApp
   # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
+    # Prune old tool call history from orchestration model context to prevent
+    # the model from seeing stale results and making duplicate calls.
+    # Keep the last N rounds so iterative edit/variation chains have context.
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Generate, edit, or create variations of images using OpenAI
@@ -407,13 +408,10 @@ class ImageGeneratorGrok < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GrokHelper if defined?(GrokHelper)
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Generate or edit images using Grok/xAI
@@ -548,13 +546,10 @@ class ImageGeneratorGemini3Preview < MonadicApp
   include Monadic::SharedTools::MonadicSessionState if defined?(Monadic::SharedTools::MonadicSessionState)
   include GeminiHelper if defined?(GeminiHelper)
 
-  # Initialize with special flag for conversation history management
   def initialize(*args)
     super
-    # Flag to clear tool call history from orchestration model context
-    # This prevents the model from seeing previous tool calls and results
-    # which would cause it to repeatedly call the same tool
     @clear_orchestration_history = true
+    @orchestration_keep_rounds = 3
   end
 
   # Generate or edit images using Gemini 3 Pro Image Preview

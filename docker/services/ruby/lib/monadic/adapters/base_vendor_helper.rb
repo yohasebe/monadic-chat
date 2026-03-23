@@ -60,6 +60,38 @@ module BaseVendorHelper
     end
   end
 
+  # Strip base64 image data from inactive session messages to prevent
+  # unbounded session growth.  Keeps filenames/titles so auto-attach
+  # (fetch_last_images_from_session) can still locate files on disk.
+  # Idempotent — safe to call on every request.
+  def strip_inactive_image_data(session)
+    return unless session[:messages].is_a?(Array)
+
+    session[:messages].each do |msg|
+      next if msg.nil? || msg["active"]
+
+      # "images" array (Gemini image gen, user uploads)
+      if msg["images"].is_a?(Array)
+        msg["images"].each do |img|
+          next unless img.is_a?(Hash)
+          if img["data"].is_a?(String) && img["data"].start_with?("data:")
+            img["data"] = "[stripped]"
+          end
+        end
+      end
+
+      # "content" array — OpenAI multimodal format
+      if msg["content"].is_a?(Array)
+        msg["content"].each do |part|
+          next unless part.is_a?(Hash)
+          if part["type"] == "image_url" && part.dig("image_url", "url")&.start_with?("data:")
+            part["image_url"]["url"] = "[stripped]"
+          end
+        end
+      end
+    end
+  end
+
   # Generic backoff wrapper. Yields a block and retries on common transient
   # network errors. The caller remains responsible for logging.
   def retry_with_backoff(max_retries: DEFAULT_MAX_RETRIES, delay: DEFAULT_RETRY_DELAY)

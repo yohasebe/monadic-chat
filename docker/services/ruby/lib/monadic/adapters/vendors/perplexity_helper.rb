@@ -459,7 +459,8 @@ module PerplexityHelper
     
     # Mark all context messages as active
     context.each { |msg| msg["active"] = true if msg }
-    
+    strip_inactive_image_data(session)
+
     # Context is ready for API request
 
     # Set the headers for the API request

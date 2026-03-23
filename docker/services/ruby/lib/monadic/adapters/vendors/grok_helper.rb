@@ -1124,18 +1124,23 @@ module GrokHelper
       context += session[:messages][1..].last(context_size)
     end
     context.each { |msg| msg["active"] = true }
+    strip_inactive_image_data(session)
 
-    # Special handling for apps that need orchestration history cleared
-    # This prevents the model from seeing previous tool calls and results,
-    # which would cause it to repeatedly call the same tool (e.g., image generation)
+    # Prune old orchestration history to prevent the model from seeing stale
+    # tool results and making duplicate calls, while keeping enough rounds
+    # for iterative edit/variation workflows.
     if @clear_orchestration_history
-      # Keep system message + last 1 round of tool interaction + current user message
+      keep_rounds = @orchestration_keep_rounds || 1
       first_msg = context.first
       user_indices = context.each_index.select { |i| context[i]&.[]("role") == "user" }
 
-      if user_indices.length >= 2
-        keep_from = user_indices[-2]
-        context = [first_msg] + context[keep_from..]
+      needed = keep_rounds + 1
+      if user_indices.length >= needed
+        keep_from = user_indices[-needed]
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
+      elsif user_indices.length >= 2
+        keep_from = user_indices.first
+        context = keep_from.zero? ? context : [first_msg] + context[keep_from..]
       else
         last_user_msg = context.reverse.find { |msg| msg&.[]("role") == "user" }
         context = [first_msg]
@@ -1143,7 +1148,7 @@ module GrokHelper
       end
       context.compact.each { |msg| msg["active"] = true }
 
-      Monadic::Utils::ExtraLogger.log { "Grok: Clearing orchestration history (#{context.size} messages kept)" }
+      Monadic::Utils::ExtraLogger.log { "Grok: Pruning orchestration history (keep #{keep_rounds} rounds, #{context.size} messages kept)" }
     end
 
     # Set the headers for the API request

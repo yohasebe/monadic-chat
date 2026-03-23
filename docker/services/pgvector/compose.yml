@@ -30,7 +30,6 @@ services:
       start_period: 5s
     networks:
       - monadic-chat-network
-    restart: unless-stopped
     deploy:
       resources:
         limits:

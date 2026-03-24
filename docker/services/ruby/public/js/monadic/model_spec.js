@@ -901,7 +901,16 @@ const modelSpec = {
     "successor": "gemini-3.1-pro-preview"
   },
   // Mistral models
-  // codestral models
+  // devstral models (agentic code — replaces codestral for tool-use workflows)
+  "devstral-latest": {
+    "max_output_tokens" : [1, 262000],
+    "temperature": [[0.0, 1.0], 0.3],
+    "top_p": [[0.0, 1.0], 1.0],
+    "presence_penalty": [[-2.0, 2.0], 0.0],
+    "frequency_penalty": [[-2.0, 2.0], 0.0],
+    "tool_capability": true
+  },
+  // codestral models (code completion)
   "codestral-latest": {
     "max_output_tokens" : [1, 256000],
     "temperature": [[0.0, 1.0], 0.3],
@@ -911,7 +920,7 @@ const modelSpec = {
     "tool_capability": true
   },
   "mistral-large-latest": {
-    "max_output_tokens" : [1, 131000],
+    "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -951,13 +960,14 @@ const modelSpec = {
     "supports_thinking": true
   },
   "mistral-small-latest": {
-    "max_output_tokens" : [1, 32768],
+    "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
     "frequency_penalty": [[-2.0, 2.0], 0.0],
     "tool_capability": true,
-    "vision_capability": true
+    "vision_capability": true,
+    "supports_thinking": true
   },
   // Mistral Labs experimental models
   "labs-mistral-small-creative": {
@@ -980,7 +990,7 @@ const modelSpec = {
     "vision_capability": true
   },
   "ministral-8b-latest": {
-    "max_output_tokens" : [1, 131000],
+    "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -989,7 +999,7 @@ const modelSpec = {
     "vision_capability": true
   },
   "ministral-14b-latest": {
-    "max_output_tokens" : [1, 131000],
+    "max_output_tokens" : [1, 262000],
     "temperature": [[0.0, 1.0], 0.3],
     "top_p": [[0.0, 1.0], 1.0],
     "presence_penalty": [[-2.0, 2.0], 0.0],
@@ -1208,7 +1218,8 @@ const providerDefaults = {
     "chat": ["command-a-reasoning-08-2025"]
   },
   "mistral": {
-    "chat": ["mistral-large-latest"]
+    "chat": ["mistral-large-latest"],
+    "code": ["devstral-latest"]
   },
   "xai": {
     "chat": ["grok-4-1-fast-non-reasoning"],

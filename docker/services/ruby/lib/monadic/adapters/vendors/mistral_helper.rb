@@ -222,8 +222,9 @@ module MistralHelper
       # Detailed logs are maintained in dedicated log files
     end
     
-    # Check if this is a reasoning model (magistral models)
-    is_reasoning_model = model && model.match?(/magistral/i)
+    # Check if this is a reasoning model via SSOT (magistral, mistral-small-4, etc.)
+    is_reasoning_model = defined?(Monadic::Utils::ModelSpec) &&
+                         Monadic::Utils::ModelSpec.supports_thinking?(model)
     
     # Prepare request body
     body = {
@@ -465,8 +466,9 @@ module MistralHelper
       "Authorization" => "Bearer #{api_key}"
     }
 
-    # Check if this is a reasoning model (magistral models)
-    is_reasoning_model = obj["model"] && obj["model"].match?(/magistral/i)
+    # Check if this is a reasoning model via SSOT (magistral, mistral-small-4, etc.)
+    is_reasoning_model = defined?(Monadic::Utils::ModelSpec) &&
+                         Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
     
     # Set body for the API request
     body = {
@@ -670,14 +672,13 @@ module MistralHelper
               end
               content = content.to_s unless content.is_a?(String)
 
-              # Check if this is a Magistral model and process thinking blocks
-              # Updated pattern to match magistral-medium-latest
-              if obj["model"] && obj["model"].match?(/magistral/i)
-                # Debug logging for Magistral model detection
+              # Check if this is a reasoning model and process thinking blocks
+              if is_reasoning_model
+                # Debug logging for reasoning model detection
                 if CONFIG["EXTRA_LOGGING"]
-                  DebugHelper.debug("Mistral: Processing content for Magistral model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
+                  DebugHelper.debug("Mistral: Processing content for reasoning model: #{obj["model"]}", category: :api, level: :debug) if content_buffer.length == 0
                 end
-                # For Magistral models, collect all content and process thinking blocks later
+                # For reasoning models, collect all content and process thinking blocks later
                 content_buffer += content
 
                 # Don't send content to client yet - we'll process it after streaming is complete
@@ -1270,9 +1271,11 @@ module MistralHelper
       session.delete(:mistral_pre_tool_content)
     end
 
-    # Clean content for Magistral models
+    # Clean content for reasoning models (thinking blocks, LaTeX artifacts)
     final_content = content_buffer
-    if obj["model"] && obj["model"].match?(/magistral/i)
+    is_reasoning = defined?(Monadic::Utils::ModelSpec) &&
+                   Monadic::Utils::ModelSpec.supports_thinking?(obj["model"])
+    if is_reasoning
       if content_buffer.include?("<think>") || content_buffer.include?("<thinking>")
         thinking_matches = content_buffer.scan(/<think>(.*?)<\/think>/m)
         thinking_matches += content_buffer.scan(/<thinking>(.*?)<\/thinking>/m)

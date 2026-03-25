@@ -135,7 +135,7 @@ RSpec.describe "Tokenizer Integration", type: :integration do
     it "returns consistent counts for the same text" do
       text = "This is a test for caching behavior"
 
-      counts = 5.times.map { tokenizer.count_tokens(text) }
+      counts = Array.new(5) { tokenizer.count_tokens(text) }
 
       expect(counts.uniq.size).to eq(1)
     end

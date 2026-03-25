@@ -52,7 +52,7 @@ module MonadicDSL
       @fields << {
         name: name.to_s,
         icon: icon || default_icon_for(name),
-        label: label || name.to_s.capitalize.gsub("_", " "),
+        label: label || name.to_s.capitalize.tr("_", " "),
         description: description || default_description_for(name)
       }
     end
@@ -105,7 +105,7 @@ module MonadicDSL
       when :decisions then "Decisions made"
       when :styles, :style_preferences then "Visual or stylistic preferences"
       when :prompts, :prompt_history then "Key prompts or requests"
-      else "#{name.to_s.gsub('_', ' ').capitalize} information"
+      else "#{name.to_s.tr('_', ' ').capitalize} information"
       end
     end
   end

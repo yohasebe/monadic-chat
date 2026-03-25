@@ -350,7 +350,7 @@ function handleAppsMessage(data) {
 
         // Always show groups even if all apps are disabled
         // This allows users to see what apps exist but are unavailable
-        if (true) {
+
           // Add group header to standard select
           $("#apps").append(`<option disabled>──${group}──</option>`);
 
@@ -394,7 +394,6 @@ function handleAppsMessage(data) {
             const normalizedGId2 = normalizeGroupId(group);
             $(`#group-${normalizedGId2}`).append($option);
           }
-        }
       }
     }
 

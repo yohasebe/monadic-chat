@@ -1,206 +1,286 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "json"
+require_relative "../../../lib/monadic/utils/workflow_viewer_helpers"
+require_relative "../../../lib/monadic/utils/system_defaults"
 
-RSpec.describe "API Routes Logic" do
-  describe "/api/ai_user_defaults logic" do
-    let(:providers) { %w[openai anthropic gemini cohere mistral deepseek grok perplexity] }
-    let(:provider_key_map) do
+RSpec.describe "API Routes helpers" do
+  describe Monadic::Utils::WorkflowViewerHelpers do
+    describe ".wv_extract_tools" do
+      it "returns all tools with default visibility when no conditionals" do
+        settings = {
+          progressive_tools: {
+            all_tool_names: %w[tool_a tool_b],
+            always_visible: %w[tool_a tool_b],
+            conditional: []
+          }
+        }
+
+        result = described_class.wv_extract_tools(settings)
+
+        expect(result.size).to eq(2)
+        expect(result[0]).to eq({ name: "tool_a", visibility: "always", unlock_hint: nil })
+        expect(result[1]).to eq({ name: "tool_b", visibility: "always", unlock_hint: nil })
+      end
+
+      it "applies conditional visibility and unlock hints" do
+        settings = {
+          progressive_tools: {
+            all_tool_names: %w[run_code debug_code],
+            always_visible: %w[run_code],
+            conditional: [
+              { name: "debug_code", visibility: "hidden", unlock_hint: "Ask for debugging" }
+            ]
+          }
+        }
+
+        result = described_class.wv_extract_tools(settings)
+
+        debug_tool = result.find { |t| t[:name] == "debug_code" }
+        expect(debug_tool[:visibility]).to eq("hidden")
+        expect(debug_tool[:unlock_hint]).to eq("Ask for debugging")
+      end
+
+      it "handles string keys (HashWithIndifferentAccess)" do
+        settings = {
+          "progressive_tools" => {
+            "all_tool_names" => %w[fetch_url],
+            "conditional" => [
+              { "name" => "fetch_url", "visibility" => "on_demand", "unlock_hint" => "Request web access" }
+            ]
+          }
+        }
+
+        result = described_class.wv_extract_tools(settings)
+
+        expect(result.size).to eq(1)
+        expect(result[0][:visibility]).to eq("on_demand")
+      end
+
+      it "returns empty array when no progressive_tools defined" do
+        result = described_class.wv_extract_tools({})
+        expect(result).to eq([])
+      end
+    end
+
+    describe ".wv_extract_agents" do
+      it "converts agent hash to string keys and values" do
+        settings = { agents: { ai_user: :enabled, second_opinion: "openai" } }
+
+        result = described_class.wv_extract_agents(settings)
+
+        expect(result).to eq({ "ai_user" => "enabled", "second_opinion" => "openai" })
+      end
+
+      it "returns empty hash when no agents defined" do
+        result = described_class.wv_extract_agents({})
+        expect(result).to eq({})
+      end
+
+      it "handles string keys" do
+        settings = { "agents" => { "context_extractor" => "claude" } }
+
+        result = described_class.wv_extract_agents(settings)
+
+        expect(result).to eq({ "context_extractor" => "claude" })
+      end
+    end
+
+    describe ".wv_extract_features" do
+      it "extracts boolean feature flags from settings" do
+        settings = {
+          websearch: true,
+          monadic: false,
+          image: true,
+          pdf: false,
+          jupyter: true,
+          mermaid: false,
+          mathjax: true,
+          abc: false,
+          image_generation: true,
+          easy_submit: false,
+          auto_speech: false,
+          initiate_from_assistant: true
+        }
+
+        result = described_class.wv_extract_features(settings)
+
+        expect(result["websearch"]).to be true
+        expect(result["monadic"]).to be false
+        expect(result["image"]).to be true
+        expect(result["jupyter"]).to be true
+        expect(result["image_generation"]).to be true
+        expect(result["initiate_from_assistant"]).to be true
+        expect(result["auto_speech"]).to be false
+      end
+
+      it "normalizes pdf capability from pdf_vector_storage" do
+        settings = { pdf_vector_storage: true }
+
+        result = described_class.wv_extract_features(settings)
+
+        expect(result["pdf"]).to be true
+      end
+
+      it "normalizes pdf capability from pdf_upload" do
+        settings = { pdf_upload: true }
+
+        result = described_class.wv_extract_features(settings)
+
+        expect(result["pdf"]).to be true
+      end
+
+      it "does not override explicit pdf: true with normalization" do
+        settings = { pdf: true, pdf_vector_storage: false }
+
+        result = described_class.wv_extract_features(settings)
+
+        expect(result["pdf"]).to be true
+      end
+
+      it "returns all false for empty settings" do
+        result = described_class.wv_extract_features({})
+
+        result.each_value do |v|
+          expect(v).to be false
+        end
+      end
+
+      it "handles string keys" do
+        settings = { "websearch" => true, "jupyter" => true }
+
+        result = described_class.wv_extract_features(settings)
+
+        expect(result["websearch"]).to be true
+        expect(result["jupyter"]).to be true
+      end
+    end
+
+    describe ".wv_extract_shared_tool_groups" do
+      it "returns empty array when no imported_tool_groups" do
+        result = described_class.wv_extract_shared_tool_groups({})
+        expect(result).to eq([])
+      end
+
+      it "extracts group metadata with fallback tool count" do
+        settings = {
+          imported_tool_groups: [
+            { name: "web_browsing", visibility: "always", tool_count: 3 }
+          ]
+        }
+
+        result = described_class.wv_extract_shared_tool_groups(settings)
+
+        expect(result.size).to eq(1)
+        expect(result[0][:name]).to eq("web_browsing")
+        expect(result[0][:visibility]).to eq("always")
+        expect(result[0][:tool_count]).to eq(3)
+      end
+    end
+  end
+
+  describe SystemDefaults do
+    describe ".get_default_model" do
+      before do
+        @orig_extra = ENV['EXTRA_LOGGING']
+        @orig_debug = ENV['DEBUG']
+        ENV.delete('EXTRA_LOGGING')
+        ENV.delete('DEBUG')
+      end
+
+      after do
+        ENV['EXTRA_LOGGING'] = @orig_extra if @orig_extra
+        ENV['DEBUG'] = @orig_debug if @orig_debug
+        CONFIG.delete('OPENAI_DEFAULT_MODEL')
+        CONFIG.delete('ANTHROPIC_DEFAULT_MODEL')
+        CONFIG.delete('GROK_DEFAULT_MODEL')
+      end
+
+      it "returns CONFIG value when environment variable is set" do
+        CONFIG['OPENAI_DEFAULT_MODEL'] = 'gpt-5'
+
+        result = SystemDefaults.get_default_model('openai')
+
+        expect(result).to eq('gpt-5')
+      end
+
+      it "skips empty CONFIG values and falls through to providerDefaults" do
+        CONFIG['OPENAI_DEFAULT_MODEL'] = ''
+
+        result = SystemDefaults.get_default_model('openai')
+
+        expect(result).not_to eq('')
+      end
+
+      it "normalizes provider name to lowercase" do
+        CONFIG['ANTHROPIC_DEFAULT_MODEL'] = 'claude-test'
+
+        expect(SystemDefaults.get_default_model('Anthropic')).to eq('claude-test')
+        expect(SystemDefaults.get_default_model('ANTHROPIC')).to eq('claude-test')
+      end
+
+      it "maps 'grok' to GROK_DEFAULT_MODEL env var" do
+        CONFIG['GROK_DEFAULT_MODEL'] = 'grok-3'
+
+        expect(SystemDefaults.get_default_model('grok')).to eq('grok-3')
+      end
+
+      it "maps 'claude' alias to ANTHROPIC env var" do
+        CONFIG['ANTHROPIC_DEFAULT_MODEL'] = 'claude-alias-test'
+
+        expect(SystemDefaults.get_default_model('claude')).to eq('claude-alias-test')
+      end
+
+      it "returns nil for unknown provider" do
+        result = SystemDefaults.get_default_model('unknown_provider')
+
+        expect(result).to be_nil
+      end
+    end
+  end
+
+  describe "AI User Defaults provider key checking" do
+    let(:providers_with_keys) do
       {
-        "openai" => "OPENAI_API_KEY",
-        "anthropic" => "ANTHROPIC_API_KEY",
-        "gemini" => "GEMINI_API_KEY",
-        "cohere" => "COHERE_API_KEY",
-        "mistral" => "MISTRAL_API_KEY",
-        "deepseek" => "DEEPSEEK_API_KEY",
-        "grok" => "XAI_API_KEY",
-        "perplexity" => "PERPLEXITY_API_KEY"
+        'openai' => 'OPENAI_API_KEY',
+        'anthropic' => 'ANTHROPIC_API_KEY',
+        'gemini' => 'GEMINI_API_KEY',
+        'cohere' => 'COHERE_API_KEY',
+        'mistral' => 'MISTRAL_API_KEY',
+        'deepseek' => 'DEEPSEEK_API_KEY',
+        'grok' => 'XAI_API_KEY',
+        'perplexity' => 'PERPLEXITY_API_KEY'
       }
     end
 
-    before do
-      allow(CONFIG).to receive(:[]).and_call_original
+    def has_key_for?(provider, config)
+      key_name = providers_with_keys[provider]
+      !!(config[key_name] && !config[key_name].to_s.strip.empty?)
     end
 
-    it "detects provider availability from CONFIG keys" do
-      # Simulate: openai has key, anthropic empty, gemini nil
-      allow(CONFIG).to receive(:[]).with("OPENAI_API_KEY").and_return("sk-test-key")
-      allow(CONFIG).to receive(:[]).with("ANTHROPIC_API_KEY").and_return("")
-      allow(CONFIG).to receive(:[]).with("GEMINI_API_KEY").and_return(nil)
-
-      openai_has_key = !!(CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].to_s.strip.empty?)
-      anthropic_has_key = !!(CONFIG["ANTHROPIC_API_KEY"] && !CONFIG["ANTHROPIC_API_KEY"].to_s.strip.empty?)
-      gemini_has_key = !!(CONFIG["GEMINI_API_KEY"] && !CONFIG["GEMINI_API_KEY"].to_s.strip.empty?)
-
-      expect(openai_has_key).to be true
-      expect(anthropic_has_key).to be false
-      expect(gemini_has_key).to be false
+    it "detects present API keys" do
+      config = { 'OPENAI_API_KEY' => 'sk-test123' }
+      expect(has_key_for?('openai', config)).to be true
     end
 
-    it "treats whitespace-only keys as unavailable" do
-      allow(CONFIG).to receive(:[]).with("OPENAI_API_KEY").and_return("   ")
-
-      has_key = !!(CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].to_s.strip.empty?)
-      expect(has_key).to be false
+    it "rejects nil keys" do
+      config = { 'OPENAI_API_KEY' => nil }
+      expect(has_key_for?('openai', config)).to be false
     end
 
-    it "maps grok provider to XAI_API_KEY" do
-      expect(provider_key_map["grok"]).to eq("XAI_API_KEY")
+    it "rejects empty string keys" do
+      config = { 'OPENAI_API_KEY' => '' }
+      expect(has_key_for?('openai', config)).to be false
     end
 
-    it "covers all 8 providers" do
-      expect(providers.length).to eq(8)
-      providers.each do |p|
-        expect(provider_key_map).to have_key(p), "Missing key mapping for #{p}"
-      end
-    end
-  end
-
-  describe "/api/capabilities logic" do
-    before do
-      allow(CONFIG).to receive(:[]).and_call_original
+    it "rejects whitespace-only keys" do
+      config = { 'OPENAI_API_KEY' => '   ' }
+      expect(has_key_for?('openai', config)).to be false
     end
 
-    it "returns latex disabled when INSTALL_LATEX not set" do
-      allow(CONFIG).to receive(:[]).with("INSTALL_LATEX").and_return(nil)
-
-      latex_enabled = !!(CONFIG && CONFIG["INSTALL_LATEX"])
-      expect(latex_enabled).to be false
-    end
-
-    it "returns latex enabled when INSTALL_LATEX is set" do
-      allow(CONFIG).to receive(:[]).with("INSTALL_LATEX").and_return(true)
-
-      latex_enabled = !!(CONFIG && CONFIG["INSTALL_LATEX"])
-      expect(latex_enabled).to be true
-    end
-
-    it "checks provider keys with strip for capabilities" do
-      allow(CONFIG).to receive(:[]).with("OPENAI_API_KEY").and_return("key")
-      allow(CONFIG).to receive(:[]).with("ANTHROPIC_API_KEY").and_return(nil)
-      allow(CONFIG).to receive(:[]).with("TAVILY_API_KEY").and_return("")
-
-      providers = {
-        openai: !!(CONFIG && CONFIG["OPENAI_API_KEY"] && !CONFIG["OPENAI_API_KEY"].to_s.strip.empty?),
-        anthropic: !!(CONFIG && CONFIG["ANTHROPIC_API_KEY"] && !CONFIG["ANTHROPIC_API_KEY"].to_s.strip.empty?),
-        tavily: !!(CONFIG && CONFIG["TAVILY_API_KEY"] && !CONFIG["TAVILY_API_KEY"].to_s.strip.empty?)
-      }
-
-      expect(providers[:openai]).to be true
-      expect(providers[:anthropic]).to be false
-      expect(providers[:tavily]).to be false
-    end
-
-    it "always reports selenium as enabled" do
-      resp = { selenium: { enabled: true } }
-      expect(resp[:selenium][:enabled]).to be true
-    end
-  end
-
-  describe "/api/environment logic" do
-    before do
-      allow(CONFIG).to receive(:[]).and_call_original
-    end
-
-    it "reports max_stored_messages with default of 1000" do
-      allow(CONFIG).to receive(:[]).with("MAX_STORED_MESSAGES").and_return(nil)
-
-      max = (CONFIG["MAX_STORED_MESSAGES"] || "1000").to_i
-      expect(max).to eq(1000)
-    end
-
-    it "uses configured MAX_STORED_MESSAGES" do
-      allow(CONFIG).to receive(:[]).with("MAX_STORED_MESSAGES").and_return("500")
-
-      max = (CONFIG["MAX_STORED_MESSAGES"] || "1000").to_i
-      expect(max).to eq(500)
-    end
-  end
-
-  describe "/api/apps/graph_list deduplication logic" do
-    it "deduplicates apps by display_name, preferring openai" do
-      apps = {
-        "ChatOpenAI" => double(settings: { display_name: "Chat", provider: "openai" }),
-        "ChatClaude" => double(settings: { display_name: "Chat", provider: "anthropic" }),
-        "MathOpenAI" => double(settings: { display_name: "Math Tutor", provider: "openai" })
-      }
-
-      by_display = {}
-      apps.each do |app_name, app|
-        s = app.settings
-        dn = (s[:display_name] || s["display_name"] || app_name).to_s
-        provider = (s[:provider] || s["provider"] || s[:group] || s["group"]).to_s.downcase
-        existing = by_display[dn]
-        if existing.nil? || (provider == "openai" && existing[:provider] != "openai")
-          by_display[dn] = { app_name: app_name, display_name: dn, provider: provider }
-        end
-      end
-
-      result = by_display.values.sort_by { |e| e[:display_name] }
-
-      expect(result.length).to eq(2)
-      chat_entry = result.find { |e| e[:display_name] == "Chat" }
-      expect(chat_entry[:app_name]).to eq("ChatOpenAI")
-      expect(chat_entry[:provider]).to eq("openai")
-    end
-
-    it "keeps non-openai when no openai variant exists" do
-      apps = {
-        "SpecialClaude" => double(settings: { display_name: "Special App", provider: "anthropic" })
-      }
-
-      by_display = {}
-      apps.each do |app_name, app|
-        s = app.settings
-        dn = (s[:display_name] || app_name).to_s
-        provider = (s[:provider] || s[:group]).to_s.downcase
-        existing = by_display[dn]
-        if existing.nil? || (provider == "openai" && existing[:provider] != "openai")
-          by_display[dn] = { app_name: app_name, display_name: dn, provider: provider }
-        end
-      end
-
-      result = by_display.values
-      expect(result.length).to eq(1)
-      expect(result.first[:provider]).to eq("anthropic")
-    end
-  end
-
-  describe "/api/app/:name/graph data extraction" do
-    it "determines input types from settings" do
-      settings = { image: true, pdf: false, pdf_vector_storage: true }
-
-      input_types = ["text"]
-      input_types << "image" if settings[:image] || settings["image"]
-      input_types << "pdf" if settings[:pdf] || settings["pdf"] || settings[:pdf_vector_storage] || settings["pdf_vector_storage"]
-
-      expect(input_types).to include("text", "image", "pdf")
-    end
-
-    it "determines output types from settings" do
-      settings = { image_generation: true, auto_speech: false }
-
-      output_types = ["text"]
-      output_types << "image" if settings[:image_generation] || settings["image_generation"]
-      output_types << "audio" if settings[:auto_speech] || settings["auto_speech"]
-
-      expect(output_types).to eq(["text", "image"])
-    end
-
-    it "truncates long system prompts at 2000 chars" do
-      long_prompt = "x" * 3000
-
-      result = long_prompt.length > 2000 ? long_prompt[0, 2000] + "..." : long_prompt
-      expect(result.length).to eq(2003) # 2000 + "..."
-      expect(result).to end_with("...")
-    end
-
-    it "preserves short system prompts unchanged" do
-      short_prompt = "You are a helpful assistant."
-
-      result = short_prompt.length > 2000 ? short_prompt[0, 2000] + "..." : short_prompt
-      expect(result).to eq(short_prompt)
+    it "maps grok to XAI_API_KEY" do
+      config = { 'XAI_API_KEY' => 'xai-test' }
+      expect(has_key_for?('grok', config)).to be true
     end
   end
 end

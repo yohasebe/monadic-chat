@@ -14,9 +14,7 @@ module MonadicDSL
                 :parameters,
                 :required,
                 :enum_values,
-                :visibility,
-                :unlock_conditions,
-                :unlock_hint
+                :unlock_conditions
 
     def initialize(name, description)
       @name = name

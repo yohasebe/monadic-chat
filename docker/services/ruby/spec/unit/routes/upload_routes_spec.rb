@@ -64,13 +64,13 @@ RSpec.describe "Upload Routes Logic" do
 
   describe "UTF-8 encoding handling" do
     it "forces filename to UTF-8" do
-      filename = "recording.mp3".dup
+      filename = +"recording.mp3"
       utf8_filename = filename.force_encoding("UTF-8")
       expect(utf8_filename.encoding).to eq(Encoding::UTF_8)
     end
 
     it "handles unicode filenames" do
-      filename = "録音ファイル.mp3".dup
+      filename = +"録音ファイル.mp3"
       utf8_filename = filename.force_encoding("UTF-8")
       expect(utf8_filename).to eq("録音ファイル.mp3")
       expect(utf8_filename.encoding).to eq(Encoding::UTF_8)

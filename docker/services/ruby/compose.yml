@@ -20,7 +20,6 @@ services:
       - ~/monadic/log:/monadic/log
     ports:
       - "${HOST_BINDING:-127.0.0.1}:4567:4567"
-    restart: always
     stdin_open: true
     tty: true
     command: ["sh", "/usr/local/bin/entrypoint.sh"]

@@ -24,7 +24,7 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 
 | Container | Policy | Rationale |
 |-----------|--------|-----------|
-| Ruby | `always` | Main app server — auto-recovers from crashes |
+| Ruby | default (`no`) | Lifecycle managed by Electron/Compose; avoids blocking Docker Resource Saver |
 | Python | default (`no`) | Started on demand; no independent lifecycle |
 | PGVector | default (`no`) | Monadic-only DB; avoids blocking Docker Resource Saver |
 | Selenium | default (`no`) | Started on demand; no independent lifecycle |

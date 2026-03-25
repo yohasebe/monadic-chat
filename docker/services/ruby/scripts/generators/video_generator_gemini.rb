@@ -26,11 +26,11 @@ end
 
 # Model selection via providerDefaults SSOT
 USE_FAST_MODE = true  # Default: faster model (lower quality but quicker)
-_video_models = if defined?(Monadic::Utils::ModelSpec)
+video_models = if defined?(Monadic::Utils::ModelSpec)
                   Monadic::Utils::ModelSpec.get_provider_models("gemini", "video")
                 end
-VIDEO_FAST_MODEL = _video_models&.[](0)
-VIDEO_MODEL = _video_models&.[](1)
+VIDEO_FAST_MODEL = video_models&.[](0)
+VIDEO_MODEL = video_models&.[](1)
 
 # Note: We'll dynamically select model based on whether image is provided
 # This will be set in the generate_video function

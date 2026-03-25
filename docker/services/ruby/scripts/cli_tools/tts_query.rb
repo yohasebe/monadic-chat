@@ -35,7 +35,7 @@ end
 # Gemini TTS list: [0]=flash, [1]=pro
 # ElevenLabs TTS list: [0]=eleven_v3, [1]=eleven_multilingual_v2, [2]=eleven_flash_v2_5
 def resolve_tts_model(provider_label)
-  if provider_label =~ /\Agemini/
+  if provider_label.start_with?("gemini")
     tts_models = if defined?(Monadic::Utils::ModelSpec)
                    Monadic::Utils::ModelSpec.get_provider_models("gemini", "tts")
                  end
@@ -45,7 +45,7 @@ def resolve_tts_model(provider_label)
     else
       tts_models&.[](0)
     end
-  elsif provider_label =~ /\Aelevenlabs/
+  elsif provider_label.start_with?("elevenlabs")
     tts_models = if defined?(Monadic::Utils::ModelSpec)
                    Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")
                  end

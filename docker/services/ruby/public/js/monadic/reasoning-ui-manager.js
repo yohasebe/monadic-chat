@@ -139,11 +139,7 @@ class ReasoningUIManager {
     // Show provider-specific UI when appropriate
     switch (provider) {
       case 'Anthropic':
-        // Only use special UI for thinking models with budget
-        if (this.isThinkingModel(model) && false) { // Disabled for now - use standard UI
-          defaultContainer.classList.add('hidden');
-          document.getElementById('reasoning-ui-claude').classList.remove('hidden');
-        }
+        // Disabled: Claude uses standard UI for now
         break;
 
       case 'Google':

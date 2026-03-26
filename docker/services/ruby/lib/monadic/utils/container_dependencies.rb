@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'shellwords'
+
 # Determines which Docker containers an app requires based on its MDSL settings.
 # Used for on-demand container startup: only start containers that the selected
 # app actually needs, rather than starting all containers at boot.
@@ -91,25 +93,37 @@ module Monadic
       def container_running?(service)
         container_name = CONTAINER_NAMES[service]
         return false unless container_name
-        output = `docker ps --format '{{.Names}}' --filter "name=#{container_name}" 2>/dev/null`.strip
+        output = `docker ps --format '{{.Names}}' --filter "name=#{Shellwords.escape(container_name)}" 2>/dev/null`.strip
         output.include?(container_name)
       end
 
-      # Start a service via monadic.sh ensure-service command.
+      # Start a service via monadic.sh (development) or docker compose (production).
       # Returns true if the service was started or is already running.
       def start_service(service)
         service_name = service.to_s
-        monadic_sh = File.expand_path("../../../../monadic.sh", File.dirname(__FILE__))
+        compose_name = COMPOSE_SERVICES[service]
+        return false unless compose_name
 
-        # In development mode, use the source tree path
-        unless File.exist?(monadic_sh)
-          monadic_sh = File.expand_path("../../../../../docker/monadic.sh", File.dirname(__FILE__))
+        # Try monadic.sh first (available on host in dev mode)
+        monadic_sh = find_monadic_sh
+        if monadic_sh
+          output = `bash #{Shellwords.escape(monadic_sh)} ensure-service #{service_name} 2>/dev/null`.strip
+          return true if %w[STARTED ALREADY_RUNNING].include?(output)
         end
 
-        return false unless File.exist?(monadic_sh)
+        # Fallback: direct docker compose (inside container with Docker socket)
+        profile = service_name # profile name matches service name
+        output = `docker compose -p monadic-chat --profile #{profile} up -d #{compose_name} 2>/dev/null`.strip
+        $?.success?
+      end
 
-        output = `bash #{monadic_sh} ensure-service #{service_name} 2>/dev/null`.strip
-        %w[STARTED ALREADY_RUNNING].include?(output)
+      # Locate monadic.sh in dev or packaged app environments
+      def find_monadic_sh
+        candidates = [
+          File.expand_path("../../../../monadic.sh", File.dirname(__FILE__)),
+          File.expand_path("../../../../../docker/monadic.sh", File.dirname(__FILE__))
+        ]
+        candidates.find { |path| File.exist?(path) }
       end
 
       # Map logical service name to Docker Compose service name

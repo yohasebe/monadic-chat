@@ -1,5 +1,6 @@
 services:
   selenium_service:
+    profiles: ["selenium"]
     image: yohasebe/selenium
     build:
       context: .

@@ -1,5 +1,6 @@
 services:
   python_service:
+    profiles: ["python"]
     image: yohasebe/python
     build:
       context: .

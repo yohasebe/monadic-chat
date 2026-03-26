@@ -1440,8 +1440,8 @@ start_docker_compose() {
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
       echo "[HTML]: <p>Starting Selenium container...</p>"
-      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
-      # Ruby detects Selenium dynamically via WebAutomation.available? (10s TTL cache)
+      eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
+      # Ruby detects Selenium dynamically via WebAutomation.available? (TTL cache)
       # No restart needed — availability is checked on each tool invocation and UI load
     fi
   else
@@ -1826,14 +1826,10 @@ start-selenium)
   # Verify image was built successfully before proceeding
   if ${DOCKER} images | grep -q "yohasebe/selenium"; then
     echo "[HTML]: <p>Starting Selenium container...</p>"
-    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" up -d selenium_service"
+    eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service"
 
-    # Restart Ruby container to update SELENIUM_AVAILABLE
-    if ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-ruby-container$"; then
-      sleep 2
-      echo "[HTML]: <p>Updating Ruby container to detect Selenium...</p>"
-      ${DOCKER} restart monadic-chat-ruby-container > /dev/null 2>&1
-    fi
+    # Ruby detects Selenium dynamically via WebAutomation.available? (TTL cache)
+    # No restart needed — availability is checked on each tool invocation and UI load
 
     echo "[HTML]: <p><i class='fa-solid fa-circle-check' style='color: #22ad50;'></i>Selenium container started successfully.</p><hr />"
   else
@@ -1871,6 +1867,38 @@ export-db)
   ;;
 import-db)
   import_db
+  ;;
+ensure-service)
+  # On-demand container startup for profiled services.
+  # Called by Ruby when an app requires Python/Selenium.
+  # Usage: monadic.sh ensure-service python|selenium
+  SERVICE_NAME="${2:-}"
+  set_docker_compose
+  case "$SERVICE_NAME" in
+    python)
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    selenium)
+      # Selenium requires Python; ensure both are running
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-python-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile python up -d python_service" 2>/dev/null
+      fi
+      if ! ${DOCKER} ps --format '{{.Names}}' | grep -q "^monadic-chat-selenium-container$"; then
+        eval "\"${DOCKER}\" compose ${COMPOSE_FILES} -p \"monadic-chat\" --profile selenium up -d selenium_service" 2>/dev/null
+        echo "STARTED"
+      else
+        echo "ALREADY_RUNNING"
+      fi
+      ;;
+    *)
+      echo "Unknown service: ${SERVICE_NAME}" >&2
+      ;;
+  esac
   ;;
 *)
   echo "Usage: $0 {build|start|stop|restart|update|remove|check}" >&2

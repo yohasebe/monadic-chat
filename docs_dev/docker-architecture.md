@@ -20,6 +20,24 @@ Monadic Chat uses multiple Docker containers for different functionalities:
 - All containers managed by Docker Compose (`docker/services/compose.yml`)
 - Ruby app runs inside the Ruby container
 
+### On-Demand Container Startup (Compose Profiles)
+
+Python and Selenium containers use Docker Compose **profiles** and are NOT started by default.
+Only Ruby + PGVector start on `docker compose up`.
+
+| Container | Profile | Started When |
+|-----------|---------|-------------|
+| Ruby | (none) | Always at startup |
+| PGVector | (none) | Always at startup |
+| Python | `python` | App requires code execution, Jupyter, or data analysis |
+| Selenium | `selenium` | App requires web automation (Web Insight, AutoForge, etc.) |
+
+Container startup is triggered automatically when the user selects an app that requires it.
+The `ContainerDependencies` module (`lib/monadic/utils/container_dependencies.rb`) determines
+which services each app needs based on MDSL settings (tool groups, jupyter flag, pdf_vector_storage).
+
+Manual startup: `monadic.sh ensure-service python|selenium`
+
 ### Restart Policies
 
 | Container | Policy | Rationale |

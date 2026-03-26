@@ -17,6 +17,7 @@
   - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
     - Removed all hardcoded model name fallbacks from agents and scripts
   - **jQuery → Fetch API**: Replaced all jQuery AJAX calls with native fetch API
+  - **Docker Optimization**: On-demand container startup via Compose Profiles (Python/Selenium start only when needed, reducing idle resource usage)
   - **Docker Optimization**: Python container no longer blocks Ruby container startup (parallel startup)
   - **RuboCop**: Added linting with conservative config, detected and fixed 4 bugs
   - **ExtraLogger**: Unified logging across 16 files

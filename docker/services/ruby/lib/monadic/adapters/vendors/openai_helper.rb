@@ -303,55 +303,17 @@ module OpenAIHelper
       "OpenAI"
     end
 
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:openai] if $MODELS[:openai]
-
-      api_key = CONFIG["OPENAI_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          begin
-            res_body = JSON.parse(res.body)
-          rescue JSON::ParserError => e
-            DebugHelper.debug("Invalid JSON from OpenAI models API: #{res.body[0..200]}", category: :api, level: :error)
-            return []
-          end
-          
-          if res_body && res_body["data"]
-            # Cache the filtered and sorted models
-            $MODELS[:openai] = res_body["data"].sort_by do |item|
-              item["created"]
-            end.reverse[0..MODELS_N_LATEST].map do |item|
-              item["id"]
-              # Filter out excluded models, embedding each string in a regex
-            end.reject do |model|
-              EXCLUDED_MODELS.any? { |excluded_model| /\b#{excluded_model}\b/ =~ model }
-            end
-            $MODELS[:openai]
-          end
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:openai] = nil
-    end
   end
+
+  define_model_lister :openai,
+    api_key_config: "OPENAI_API_KEY",
+    endpoint_path: "/models" do |json|
+      (json["data"] || [])
+        .sort_by { |m| m["created"] }.reverse
+        .first(MODELS_N_LATEST + 1)
+        .map { |m| m["id"] }
+        .reject { |id| EXCLUDED_MODELS.any? { |ex| /\b#{ex}\b/ =~ id } }
+    end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)

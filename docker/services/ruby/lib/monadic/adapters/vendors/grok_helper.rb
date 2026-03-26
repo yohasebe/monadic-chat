@@ -41,43 +41,6 @@ module GrokHelper
       "xAI"
     end
 
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:grok] if $MODELS[:grok]
-
-      api_key = CONFIG["XAI_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/language-models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the model list
-          model_data = JSON.parse(res.body)
-          $MODELS[:grok] = model_data["models"].map do |model|
-            model["id"]
-          end
-          $MODELS[:grok]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:grok] = nil
-    end
-
-
     # Get appropriate model based on websearch requirement
     def get_model_for_websearch(requested_model, websearch_needed)
       return requested_model unless websearch_needed
@@ -96,6 +59,12 @@ module GrokHelper
       requested_model
     end
   end
+
+  define_model_lister :grok,
+    api_key_config: "XAI_API_KEY",
+    endpoint_path: "/language-models" do |json|
+      (json["models"] || []).map { |m| m["id"] }
+    end
 
   # Convert Chat Completions tool format to Responses API flattened format
   # Input:  { "type" => "function", "function" => { "name" => ..., "description" => ..., "parameters" => ... } }

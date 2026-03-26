@@ -58,6 +58,90 @@ module BaseVendorHelper
         $MODELS[cache_key] = nil
       end
     end
+
+    # Generates list_models (instance + class) and clear_models_cache methods.
+    # Replaces the boilerplate cache-check → auth → HTTP GET → parse → cache pattern.
+    #
+    # The block receives the parsed JSON response body and must return an Array of
+    # model ID strings. If omitted, defaults to `json["data"].map { |m| m["id"] }`.
+    #
+    # Usage:
+    #   define_model_lister :deepseek,
+    #     api_key_config: "DEEPSEEK_API_KEY",
+    #     endpoint_path: "/models" do |json|
+    #       json["data"].sort_by { |m| m["created"] }.reverse.map { |m| m["id"] }
+    #         .reject { |id| id.include?("embed") }
+    #     end
+    #
+    # Options:
+    #   cache_key        - Symbol for $MODELS cache (e.g. :deepseek)
+    #   api_key_config:  - CONFIG key for the API key (e.g. "DEEPSEEK_API_KEY")
+    #   endpoint_path:   - Path appended to API_ENDPOINT (e.g. "/models")
+    #   headers:         - Lambda receiving api_key, returns headers hash.
+    #                      Default: Bearer token + Content-Type JSON.
+    #   fallback_provider: - Provider name for ModelSpec fallback on failure (e.g. "anthropic").
+    #                        nil means return [] on failure (original behavior for most providers).
+    def define_model_lister(cache_key, api_key_config:, endpoint_path:, headers: nil, fallback_provider: nil, &parser)
+      vendor_mod = self
+
+      default_headers = ->(api_key) {
+        { "Content-Type" => "application/json", "Authorization" => "Bearer #{api_key}" }
+      }
+      headers_builder = headers || default_headers
+
+      default_parser = ->(json) {
+        (json["data"] || []).map { |m| m["id"] }
+      }
+      model_parser = parser || default_parser
+
+      fallback_proc = if fallback_provider
+        -> {
+          models = Monadic::Utils::ModelSpec.get_provider_models(fallback_provider, "chat") rescue []
+          $MODELS[cache_key] = models
+          models
+        }
+      else
+        -> { [] }
+      end
+
+      # Instance method: list_models
+      define_method(:list_models) do
+        return $MODELS[cache_key] if $MODELS[cache_key]
+
+        api_key = CONFIG[api_key_config]
+        return fallback_proc.call if api_key.nil? || api_key.to_s.strip.empty?
+
+        target_uri = "#{vendor_mod.const_get(:API_ENDPOINT)}#{endpoint_path}"
+        http = HTTP.headers(headers_builder.call(api_key))
+
+        begin
+          res = http.get(target_uri)
+          if res.status.success?
+            json = JSON.parse(res.body)
+            $MODELS[cache_key] = model_parser.call(json)
+            $MODELS[cache_key]
+          else
+            fallback_proc.call
+          end
+        rescue HTTP::Error, HTTP::TimeoutError, StandardError
+          fallback_proc.call
+        end
+      end
+
+      # Class method: list_models (for DSL access)
+      define_singleton_method(:list_models) do
+        # Delegate to instance method via a temporary instance
+        allocator = Class.new { include vendor_mod }
+        allocator.new.list_models
+      end
+
+      # clear_models_cache (unless already defined by define_models_cache)
+      unless method_defined?(:clear_models_cache)
+        define_method(:clear_models_cache) do
+          $MODELS[cache_key] = nil
+        end
+      end
+    end
   end
 
   # Strip base64 image data from inactive session messages to prevent

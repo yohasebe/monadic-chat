@@ -110,56 +110,15 @@ module ClaudeHelper
       "Anthropic"
     end
 
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:anthropic] if $MODELS[:anthropic]
-
-      api_key = CONFIG["ANTHROPIC_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "x-api-key" => api_key,
-        "anthropic-version" => "2023-06-01"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the model list
-          model_data = JSON.parse(res.body)
-          models = model_data["data"].map do |model|
-            model["id"]
-          end.select do |model|
-            !model.include?("claude-2")
-          end
-          
-          # Store in $MODELS with indifferent access
-          $MODELS[:anthropic] = models
-          
-          return models
-        else
-          # Return fallback models from providerDefaults SSOT
-          fallback_models = Monadic::Utils::ModelSpec.get_provider_models("anthropic", "chat") || []
-          $MODELS[:anthropic] = fallback_models
-          return fallback_models
-        end
-      rescue HTTP::Error, HTTP::TimeoutError, StandardError
-        # Return fallback models from providerDefaults SSOT
-        fallback_models = Monadic::Utils::ModelSpec.get_provider_models("anthropic", "chat") rescue []
-        $MODELS[:anthropic] = fallback_models
-        return fallback_models
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:anthropic] = nil
-    end
   end
+
+  define_model_lister :anthropic,
+    api_key_config: "ANTHROPIC_API_KEY",
+    endpoint_path: "/models",
+    headers: ->(api_key) { { "x-api-key" => api_key, "anthropic-version" => "2023-06-01" } },
+    fallback_provider: "anthropic" do |json|
+      (json["data"] || []).map { |m| m["id"] }.reject { |id| id.include?("claude-2") }
+    end
 
   def initialize
     @thinking = nil

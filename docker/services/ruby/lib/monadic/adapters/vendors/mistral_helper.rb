@@ -98,56 +98,16 @@ module MistralHelper
       "Mistral"
     end
 
-    def list_models
-      # Return cached models if available
-
-      return $MODELS[:mistral] if $MODELS[:mistral]
-
-      api_key = CONFIG["MISTRAL_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type"  => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        response = http.get(target_uri)
-        if response.status.success?
-          # Cache filtered and sorted models
-
-          model_data = begin
-            JSON.parse(response.body)
-          rescue JSON::ParserError
-            {"data" => []}
-          end
-          $MODELS[:mistral] = model_data["data"]
-            .sort_by { |model| model["created"] }
-            .reverse
-            .map { |model| model["id"] }
-            .reject do |model|
-              EXCLUDED_MODELS.any? do |excluded|
-                /\b#{excluded}\b/ =~ model ||
-                  /[\d\-]+(?:rc\d+)?\z/ =~ model
-              end
-            end
-          $MODELS[:mistral]
-        else
-          []
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear cache if needed
-    def clear_models_cache
-      $MODELS[:mistral] = nil
-    end
   end
+
+  define_model_lister :mistral,
+    api_key_config: "MISTRAL_API_KEY",
+    endpoint_path: "/models" do |json|
+      (json["data"] || [])
+        .sort_by { |m| m["created"] }.reverse
+        .map { |m| m["id"] }
+        .reject { |id| EXCLUDED_MODELS.any? { |ex| /\b#{ex}\b/ =~ id || /[\d\-]+(?:rc\d+)?\z/ =~ id } }
+    end
 
   # Get default model
   def self.get_default_model

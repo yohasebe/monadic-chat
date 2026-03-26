@@ -105,47 +105,16 @@ module DeepSeekHelper
     def vendor_name
       "DeepSeek"
     end
-
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:deepseek] if $MODELS[:deepseek]
-
-      api_key = CONFIG["DEEPSEEK_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the filtered and sorted models
-          model_data = JSON.parse(res.body)
-          $MODELS[:deepseek] = model_data["data"].sort_by do |model|
-            model["created"]
-          end.reverse.map do |model|
-            model["id"]
-          end.filter do |model|
-            !model.include?("embed")
-          end
-          $MODELS[:deepseek]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:deepseek] = nil
-    end
   end
+
+  define_model_lister :deepseek,
+    api_key_config: "DEEPSEEK_API_KEY",
+    endpoint_path: "/models" do |json|
+      (json["data"] || [])
+        .sort_by { |m| m["created"] }.reverse
+        .map { |m| m["id"] }
+        .reject { |id| id.include?("embed") }
+    end
 
   # Simple non-streaming chat completion
   def send_query(options, model: "deepseek-chat")

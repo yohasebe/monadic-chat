@@ -91,126 +91,34 @@ module CohereHelper
       "Cohere"
     end
 
-    # Fetches available models from Cohere API
-    # Returns an array of model names, excluding embedding and reranking models
-    def list_models
-      # Return cached models if they exist
-      return $MODELS[:cohere] if $MODELS[:cohere]
-
-      api_key = CONFIG["COHERE_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the filtered models
-          model_data = JSON.parse(res.body)
-          api_models = model_data["models"].map do |model|
-            model["name"]
-          end.filter do |model|
-            !model.include?("embed") && !model.include?("rerank")
-          end
-          
-          # Add models from model_spec that have deprecated: false flag
-          begin
-            # Use ModelSpecLoader to get the merged model spec
-            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
-            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
-            
-            if model_spec
-              # Find Cohere models with deprecated: false
-              model_spec.each do |model_name, model_config|
-                if model_name.match?(/^(command|c4ai)/) && 
-                   model_config["deprecated"] == false &&
-                   !api_models.include?(model_name)
-                  api_models << model_name
-                end
-              end
-            end
-          rescue => e
-            # If there's any error loading model_spec, just use API models
-            Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" }
-          end
-          
-          $MODELS[:cohere] = api_models.sort
-          $MODELS[:cohere]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
-
-    # Method to manually clear the cache if needed
-    def clear_models_cache
-      $MODELS[:cohere] = nil
-    end
-    
-    # Class method version for DSL
-    def self.list_models
-      # Return cached models if they exist
-      return $MODELS[:cohere] if $MODELS[:cohere]
-
-      api_key = CONFIG["COHERE_API_KEY"]
-      return [] if api_key.nil?
-
-      headers = {
-        "Content-Type" => "application/json",
-        "Authorization" => "Bearer #{api_key}"
-      }
-
-      target_uri = "#{API_ENDPOINT}/models"
-      http = HTTP.headers(headers)
-
-      begin
-        res = http.get(target_uri)
-
-        if res.status.success?
-          # Cache the filtered models
-          model_data = JSON.parse(res.body)
-          api_models = model_data["models"].map do |model|
-            model["name"]
-          end.filter do |model|
-            !model.include?("embed") && !model.include?("rerank")
-          end
-          
-          # Add models from model_spec that have deprecated: false flag
-          begin
-            # Use ModelSpecLoader to get the merged model spec
-            model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
-            model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
-            
-            if model_spec
-              # Find Cohere models with deprecated: false
-              model_spec.each do |model_name, model_config|
-                if model_name.match?(/^(command|c4ai)/) && 
-                   model_config["deprecated"] == false &&
-                   !api_models.include?(model_name)
-                  api_models << model_name
-                end
-              end
-            end
-          rescue => e
-            # If there's any error loading model_spec, just use API models
-            Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec for deprecated: false models: #{e.message}" }
-          end
-          
-          $MODELS[:cohere] = api_models.sort
-          $MODELS[:cohere]
-        end
-      rescue HTTP::Error, HTTP::TimeoutError
-        []
-      end
-    end
   end
+
+  define_model_lister :cohere,
+    api_key_config: "COHERE_API_KEY",
+    endpoint_path: "/models" do |json|
+      api_models = (json["models"] || [])
+        .map { |m| m["name"] }
+        .reject { |name| name.include?("embed") || name.include?("rerank") }
+
+      # Enrich with non-deprecated Cohere models from model_spec
+      begin
+        model_spec_path = File.expand_path("../../../../public/js/monadic/model_spec.js", File.dirname(__FILE__))
+        model_spec = ModelSpecLoader.load_merged_spec(model_spec_path) if defined?(ModelSpecLoader)
+        if model_spec
+          model_spec.each do |model_name, model_config|
+            if model_name.match?(/^(command|c4ai)/) &&
+               model_config["deprecated"] == false &&
+               !api_models.include?(model_name)
+              api_models << model_name
+            end
+          end
+        end
+      rescue => e
+        Monadic::Utils::ExtraLogger.log { "[Cohere] Warning: Could not load model_spec: #{e.message}" }
+      end
+
+      api_models.sort
+    end
 
   # Simple non-streaming chat completion
   def send_query(options, model: nil)

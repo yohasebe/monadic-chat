@@ -128,6 +128,62 @@ RSpec.describe Monadic::Utils::ContainerDependencies do
     end
   end
 
+  describe ".ensure_services_for_app" do
+    it "returns immediately when no extra services needed" do
+      settings = { "app_name" => "Chat" }
+      # Should not shell out
+      result = described_class.ensure_services_for_app(settings)
+      expect(result).to eq([])
+    end
+
+    it "returns list of services that were ensured" do
+      settings = {
+        "app_name" => "Code Interpreter",
+        "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
+      }
+      # Stub the container check to simulate Python not running
+      allow(described_class).to receive(:container_running?).with(:python).and_return(false)
+      allow(described_class).to receive(:start_service).with(:python).and_return(true)
+
+      result = described_class.ensure_services_for_app(settings)
+      expect(result).to eq([:python])
+    end
+
+    it "skips services that are already running" do
+      settings = {
+        "app_name" => "Code Interpreter",
+        "imported_tool_groups" => [{ "name" => :python_execution, "visibility" => "always" }]
+      }
+      allow(described_class).to receive(:container_running?).with(:python).and_return(true)
+      allow(described_class).to receive(:start_service) # stub to verify it's not called
+
+      result = described_class.ensure_services_for_app(settings)
+      expect(result).to eq([])
+      expect(described_class).not_to have_received(:start_service)
+    end
+
+    it "starts both Python and Selenium for web_automation apps" do
+      settings = {
+        "app_name" => "Web Insight",
+        "imported_tool_groups" => [{ "name" => :web_automation, "visibility" => "always" }]
+      }
+      allow(described_class).to receive(:container_running?).and_return(false)
+      allow(described_class).to receive(:start_service).and_return(true)
+
+      result = described_class.ensure_services_for_app(settings)
+      expect(result).to include(:python)
+      expect(result).to include(:selenium)
+    end
+  end
+
+  describe ".container_running?" do
+    it "checks Docker container status" do
+      # This test verifies the method exists and returns a boolean
+      result = described_class.container_running?(:python)
+      expect([true, false]).to include(result)
+    end
+  end
+
   describe ".service_to_compose_name" do
     it "maps :python to compose service name" do
       expect(described_class.service_to_compose_name(:python)).to eq("python_service")

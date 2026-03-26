@@ -7,6 +7,7 @@ require_relative "monadic/utils/document_store_registry"
 require_relative "monadic/utils/pdf_storage_config"
 require_relative "monadic/utils/ssl_configuration"
 require_relative "monadic/utils/workflow_viewer_helpers"
+require_relative "monadic/utils/container_dependencies"
 require_relative "monadic/mcp/server"
 
 # Optional startup profiling
@@ -721,9 +722,16 @@ APPS.each do |k, v|
       )
     end
     parameters = v.settings.dup
-    
-    
     session[:parameters] = parameters
+
+    # On-demand container startup: ensure required containers are running
+    # in a background thread so the redirect is not delayed.
+    Thread.new do
+      Monadic::Utils::ContainerDependencies.ensure_services_for_app(parameters)
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[ContainerDeps] #{e.message}" }
+    end
+
     redirect "/"
   end
 end

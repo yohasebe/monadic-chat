@@ -1215,7 +1215,7 @@ const providerDefaults = {
     "tts": ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
-    "chat": ["command-a-reasoning-08-2025"],
+    "chat": ["command-a-03-2025", "command-a-vision-07-2025", "command-a-reasoning-08-2025"],
     "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
@@ -1232,7 +1232,7 @@ const providerDefaults = {
     "video": ["grok-imagine-video"]
   },
   "perplexity": {
-    "chat": ["sonar-reasoning-pro"]
+    "chat": ["sonar", "sonar-pro", "sonar-reasoning", "sonar-reasoning-pro", "sonar-deep-research"]
   },
   "deepseek": {
     "chat": ["deepseek-chat", "deepseek-reasoner"]

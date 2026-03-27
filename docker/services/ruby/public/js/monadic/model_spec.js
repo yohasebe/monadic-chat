@@ -1215,11 +1215,13 @@ const providerDefaults = {
     "tts": ["gemini-2.5-flash-preview-tts", "gemini-2.5-pro-preview-tts"]
   },
   "cohere": {
-    "chat": ["command-a-reasoning-08-2025"]
+    "chat": ["command-a-reasoning-08-2025"],
+    "audio_transcription": ["cohere-transcribe-03-2026"]
   },
   "mistral": {
     "chat": ["mistral-large-latest"],
-    "code": ["devstral-latest"]
+    "code": ["devstral-latest"],
+    "tts": ["voxtral-tts-2603"]
   },
   "xai": {
     "chat": ["grok-4-1-fast-non-reasoning"],

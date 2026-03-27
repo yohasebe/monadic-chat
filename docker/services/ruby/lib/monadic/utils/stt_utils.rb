@@ -127,6 +127,81 @@ module InteractionUtils
     end
   end
 
+  # Cohere Speech-to-Text API request
+  # @param blob [String] The audio data
+  # @param format [String] The audio format (e.g., "mp3", "wav", "ogg", "flac")
+  # @param lang_code [String] The language code (e.g., "en", "ja")
+  # @param model [String] The model to use (e.g., "cohere-transcribe-03-2026")
+  # @return [Hash] The transcription result or error
+  def cohere_stt_api_request(blob, format, lang_code, model)
+    api_key = CONFIG["COHERE_API_KEY"]
+
+    if api_key.nil? || api_key.to_s.strip.empty?
+      return { "type" => "error", "content" => "Cohere API key is not configured" }
+    end
+
+    url = "https://api.cohere.com/v2/audio/transcriptions"
+
+    normalized_format = format.to_s.downcase
+    normalized_format = "mp3" if normalized_format == "mpeg"
+    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
+
+    # Cohere requires a language code (no auto-detect)
+    # Default to "en" if not specified or "auto"
+    effective_lang = (lang_code && lang_code != "auto") ? lang_code : "en"
+
+    num_retrial = 0
+
+    begin
+      temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
+      temp_file.binmode
+      temp_file.write(blob)
+      temp_file.flush
+
+      options = {
+        "model" => model,
+        "file" => HTTP::FormData::File.new(temp_file.path),
+        "language" => effective_lang
+      }
+
+      form_data = HTTP::FormData.create(options)
+
+      response = HTTP.headers(
+        "Authorization" => "Bearer #{api_key}",
+        "Content-Type" => form_data.content_type
+      ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
+       .post(url, body: form_data.to_s)
+
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
+    ensure
+      if temp_file
+        temp_file.close
+        temp_file.unlink
+      end
+    end
+
+    if response.status.success?
+      result = JSON.parse(response.body)
+      # Cohere returns {"text": "..."} — simple format, no logprobs
+      { "text" => result["text"]&.strip || "" }
+    else
+      error_message = begin
+        error_data = JSON.parse(response.body)
+        "Cohere Transcribe Error: #{error_data['message'] || error_data.to_s}"
+      rescue JSON::ParserError
+        "Cohere Transcribe Error: #{response.status} - #{response.body}"
+      end
+      { "type" => "error", "content" => error_message }
+    end
+  end
+
   # ElevenLabs Speech-to-Text API request
   # @param blob [String] The audio data
   # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
@@ -276,6 +351,11 @@ module InteractionUtils
     # Route to ElevenLabs API if model starts with "scribe"
     if model.start_with?("scribe")
       return elevenlabs_stt_api_request(blob, format, lang_code, model)
+    end
+
+    # Route to Cohere API if model starts with "cohere-transcribe"
+    if model.start_with?("cohere-transcribe")
+      return cohere_stt_api_request(blob, format, lang_code, model)
     end
 
     lang_code = nil if lang_code == "auto"

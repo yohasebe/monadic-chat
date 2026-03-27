@@ -422,6 +422,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         // Always show #url and #doc buttons - backend handles Selenium/Tavily routing
         $('#url').show();
         $('#doc').show();
+
+        // Enable Mistral TTS option if API key is configured
+        if (cap.providers && cap.providers.mistral) {
+          $("#mistral-tts-provider-option").prop("disabled", false);
+        }
+        // Enable Cohere STT option if API key is configured
+        if (cap.providers && cap.providers.cohere) {
+          $("#cohere-stt-transcribe").prop("disabled", false);
+        }
       })
       .catch(function () { /* ignore */ });
   } catch (e) { /* ignore */ }
@@ -3706,6 +3715,9 @@ $(function () {
       $("#elevenlabs-voices").show();
     } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
       $("#gemini-voices").show();
+    } else if (params["tts_provider"] === "mistral") {
+      // Mistral TTS uses voice_id (optional) - no voice selector needed
+      // All voice elements stay hidden
     } else if (params["tts_provider"] === "webspeech") {
       $("#webspeech-voices").show();
       // Initialize Web Speech API voices if they haven't been loaded

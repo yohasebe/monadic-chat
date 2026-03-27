@@ -135,6 +135,28 @@ module InteractionUtils
                    else
                      "https://api.elevenlabs.io/v1/text-to-speech/#{voice}?output_format=#{output_format}"
                    end
+    when "mistral"
+      api_key = CONFIG["MISTRAL_API_KEY"]
+      if api_key.nil?
+        return { "type" => "error", "content" => "ERROR: MISTRAL_API_KEY is not set." }
+      end
+
+      headers = {
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{api_key}"
+      }
+
+      model = resolve_tts_model(provider)
+
+      body = {
+        "input" => text_converted,
+        "model" => model,
+        "response_format" => response_format || "mp3",
+        "stream" => false
+      }
+      body["voice_id"] = voice if voice && !voice.empty?
+
+      target_uri = "https://api.mistral.ai/v1/audio/speech"
     when "web-speech", "webspeech"
       # For Web Speech API, we don't need to make an API call
       # Return early with a special response
@@ -377,6 +399,33 @@ module InteractionUtils
           end
         rescue JSON::ParserError => e
           error_res = { "type" => "error", "content" => "ERROR: Failed to parse Gemini response: #{e.message}" }
+          block&.call error_res if block_given?
+          return error_res
+        end
+      end
+
+      # Handle Mistral TTS response format - JSON with base64 audio_data
+      if provider == "mistral"
+        begin
+          mistral_response = JSON.parse(res.body.to_s)
+          audio_base64 = mistral_response["audio_data"]
+          if audio_base64
+            if block_given?
+              hash_res = { "type" => "audio", "content" => audio_base64, "t_index" => 1, "finished" => false }
+              block.call hash_res
+              finish = { "type" => "audio", "content" => "", "t_index" => 2, "finished" => true }
+              block.call finish
+              return nil
+            else
+              return { "type" => "audio", "content" => audio_base64 }
+            end
+          else
+            error_res = { "type" => "error", "content" => "ERROR: Invalid response from Mistral TTS API" }
+            block&.call error_res if block_given?
+            return error_res
+          end
+        rescue JSON::ParserError => e
+          error_res = { "type" => "error", "content" => "ERROR: Failed to parse Mistral TTS response: #{e.message}" }
           block&.call error_res if block_given?
           return error_res
         end
@@ -861,6 +910,11 @@ module InteractionUtils
       else # "gemini-flash", "gemini"
         tts_models&.[](0)
       end
+    elsif provider_label =~ /\Amistral/
+      tts_models = if defined?(Monadic::Utils::ModelSpec)
+                     Monadic::Utils::ModelSpec.get_provider_models("mistral", "tts")
+                   end
+      tts_models&.[](0)
     elsif provider_label =~ /\Aelevenlabs/
       tts_models = if defined?(Monadic::Utils::ModelSpec)
                      Monadic::Utils::ModelSpec.get_provider_models("elevenlabs", "tts")

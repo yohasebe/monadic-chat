@@ -106,8 +106,9 @@ module WebSocketHelper
   # @param model [String] The model used
   # @return [Float, nil] The calculated log probability or nil on error
   def calculate_logprob(res, model)
-    # Gemini models do not support logprobs for STT
+    # Gemini and Cohere models do not support logprobs for STT
     return nil if model.start_with?("gemini-")
+    return nil if model.start_with?("cohere-transcribe")
 
     # ElevenLabs Scribe models - use logprobs array if available
     if model.start_with?("scribe")

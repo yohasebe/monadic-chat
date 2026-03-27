@@ -56,7 +56,9 @@ get "/api/capabilities" do
     providers = {
       openai: !!(CONFIG && CONFIG['OPENAI_API_KEY'] && !CONFIG['OPENAI_API_KEY'].to_s.strip.empty?),
       anthropic: !!(CONFIG && CONFIG['ANTHROPIC_API_KEY'] && !CONFIG['ANTHROPIC_API_KEY'].to_s.strip.empty?),
-      tavily: !!(CONFIG && CONFIG['TAVILY_API_KEY'] && !CONFIG['TAVILY_API_KEY'].to_s.strip.empty?)
+      tavily: !!(CONFIG && CONFIG['TAVILY_API_KEY'] && !CONFIG['TAVILY_API_KEY'].to_s.strip.empty?),
+      mistral: !!(CONFIG && CONFIG['MISTRAL_API_KEY'] && !CONFIG['MISTRAL_API_KEY'].to_s.strip.empty?),
+      cohere: !!(CONFIG && CONFIG['COHERE_API_KEY'] && !CONFIG['COHERE_API_KEY'].to_s.strip.empty?)
     }
 
     resp = {
@@ -72,7 +74,7 @@ get "/api/capabilities" do
       success: false,
       error: e.message,
       latex: { enabled: false, available: false },
-      providers: { openai: false, anthropic: false, tavily: false },
+      providers: { openai: false, anthropic: false, tavily: false, mistral: false, cohere: false },
       selenium: { enabled: true }
     }.to_json
   end

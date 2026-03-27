@@ -7,6 +7,37 @@ require 'tempfile'
 require_relative 'extra_logger'
 
 module InteractionUtils
+  # Convert audio blob to a supported format via ffmpeg if needed.
+  # Returns [upload_tempfile, converted_tempfile_or_nil].
+  # Caller must close/unlink both files in ensure block.
+  def convert_audio_if_needed(blob, format, supported_formats)
+    normalized_format = format.to_s.downcase
+    normalized_format = "mp3" if normalized_format == "mpeg"
+    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
+
+    temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
+    temp_file.binmode
+    temp_file.write(blob)
+    temp_file.flush
+
+    unless supported_formats.include?(normalized_format)
+      converted = Tempfile.new([TEMP_AUDIO_FILE, ".mp3"])
+      converted.close
+      system("ffmpeg", "-y", "-i", temp_file.path, "-ar", "16000", "-ac", "1", converted.path,
+             [:out, :err] => "/dev/null")
+      if File.size(converted.path) > 0
+        return [converted, temp_file, converted]
+      else
+        Monadic::Utils::ExtraLogger.log { "[STT] ffmpeg conversion failed, sending original format" }
+        converted.close rescue nil
+        converted.unlink rescue nil
+        return [temp_file, temp_file, nil]
+      end
+    end
+
+    [temp_file, temp_file, nil]
+  end
+
   def gemini_stt_api_request(blob, format, lang_code, model)
     # Base64 encode the audio data
     base64_audio = Base64.strict_encode64(blob)
@@ -127,71 +158,35 @@ module InteractionUtils
     end
   end
 
-  # Cohere Speech-to-Text API request
+  # Mistral Speech-to-Text API request (Voxtral Transcribe)
   # @param blob [String] The audio data
-  # @param format [String] The audio format (e.g., "mp3", "wav", "ogg", "flac")
+  # @param format [String] The audio format (e.g., "webm", "mp3", "wav")
   # @param lang_code [String] The language code (e.g., "en", "ja")
-  # @param model [String] The model to use (e.g., "cohere-transcribe-03-2026")
+  # @param model [String] The model to use (e.g., "voxtral-mini-transcribe-26-02")
   # @return [Hash] The transcription result or error
-  def cohere_stt_api_request(blob, format, lang_code, model)
-    api_key = CONFIG["COHERE_API_KEY"]
+  def mistral_stt_api_request(blob, format, lang_code, model)
+    api_key = CONFIG["MISTRAL_API_KEY"]
+    return { "type" => "error", "content" => "Mistral API key is not configured" } if api_key.nil? || api_key.to_s.strip.empty?
 
-    if api_key.nil? || api_key.to_s.strip.empty?
-      return { "type" => "error", "content" => "Cohere API key is not configured" }
-    end
-
-    url = "https://api.cohere.com/v2/audio/transcriptions"
-
-    normalized_format = format.to_s.downcase
-    normalized_format = "mp3" if normalized_format == "mpeg"
-    normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
-
-    # Cohere only supports: flac, mp3, mpeg, mpga, ogg, wav
-    # Convert unsupported formats (e.g., webm from browser MediaRecorder) to wav via ffmpeg
-    cohere_supported = %w[flac mp3 mpeg mpga ogg wav]
-    needs_conversion = !cohere_supported.include?(normalized_format)
-
-    # Cohere requires a language code (no auto-detect)
-    # Default to "en" if not specified or "auto"
-    effective_lang = (lang_code && lang_code != "auto") ? lang_code : "en"
-
+    url = "https://api.mistral.ai/v1/audio/transcriptions"
+    mistral_supported = %w[flac mp3 mpeg mpga ogg wav webm]
     num_retrial = 0
-    converted_file = nil
 
     begin
-      temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
-      temp_file.binmode
-      temp_file.write(blob)
-      temp_file.flush
+      upload_file, temp_file, converted_file = convert_audio_if_needed(blob, format, mistral_supported)
 
-      upload_file = temp_file
-      if needs_conversion
-        converted_file = Tempfile.new([TEMP_AUDIO_FILE, ".mp3"])
-        converted_file.close
-        system("ffmpeg", "-y", "-i", temp_file.path, "-ar", "16000", "-ac", "1", converted_file.path,
-               [:out, :err] => "/dev/null")
-        if File.size(converted_file.path) > 0
-          upload_file = converted_file
-        else
-          Monadic::Utils::ExtraLogger.log { "[Cohere STT] ffmpeg conversion failed, sending original format" }
-        end
-      end
-
-      # Cohere requires form fields BEFORE the file part in multipart body
       options = {
         "model" => model,
-        "language" => effective_lang,
         "file" => HTTP::FormData::File.new(upload_file.path)
       }
+      options["language"] = lang_code if lang_code && lang_code != "auto"
 
       form_data = HTTP::FormData.create(options)
-
       response = HTTP.headers(
         "Authorization" => "Bearer #{api_key}",
         "Content-Type" => form_data.content_type
       ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
        .post(url, body: form_data.to_s)
-
     rescue HTTP::Error, HTTP::TimeoutError => e
       if num_retrial < MAX_RETRIES
         num_retrial += 1
@@ -201,19 +196,82 @@ module InteractionUtils
         return { "type" => "error", "content" => "ERROR: #{e.message}" }
       end
     ensure
-      if temp_file
-        temp_file.close
-        temp_file.unlink
-      end
+      temp_file&.close
+      temp_file&.unlink
       if converted_file
         converted_file.close unless converted_file.closed?
-        converted_file.unlink
+        converted_file.unlink rescue nil
       end
     end
 
     if response.status.success?
       result = JSON.parse(response.body)
-      # Cohere returns {"text": "..."} — simple format, no logprobs
+      { "text" => result["text"]&.strip || "" }
+    else
+      error_message = begin
+        error_data = JSON.parse(response.body)
+        "Mistral Transcribe Error: #{error_data['message'] || error_data.to_s}"
+      rescue JSON::ParserError
+        "Mistral Transcribe Error: #{response.status} - #{response.body}"
+      end
+      { "type" => "error", "content" => error_message }
+    end
+  end
+
+  # Cohere Speech-to-Text API request
+  # @param blob [String] The audio data
+  # @param format [String] The audio format (e.g., "mp3", "wav", "ogg", "flac")
+  # @param lang_code [String] The language code (e.g., "en", "ja")
+  # @param model [String] The model to use (e.g., "cohere-transcribe-03-2026")
+  # @return [Hash] The transcription result or error
+  def cohere_stt_api_request(blob, format, lang_code, model)
+    api_key = CONFIG["COHERE_API_KEY"]
+    return { "type" => "error", "content" => "Cohere API key is not configured" } if api_key.nil? || api_key.to_s.strip.empty?
+
+    url = "https://api.cohere.com/v2/audio/transcriptions"
+    cohere_supported = %w[flac mp3 mpeg mpga ogg wav]
+
+    # Cohere requires a language code (no auto-detect)
+    # Default to "en" if not specified or "auto"
+    effective_lang = (lang_code && lang_code != "auto") ? lang_code : "en"
+
+    num_retrial = 0
+
+    begin
+      upload_file, temp_file, converted_file = convert_audio_if_needed(blob, format, cohere_supported)
+
+      # Cohere requires form fields BEFORE the file part in multipart body
+      options = {
+        "model" => model,
+        "language" => effective_lang,
+        "file" => HTTP::FormData::File.new(upload_file.path)
+      }
+
+      form_data = HTTP::FormData.create(options)
+      response = HTTP.headers(
+        "Authorization" => "Bearer #{api_key}",
+        "Content-Type" => form_data.content_type
+      ).timeout(connect: OPEN_TIMEOUT, write: WRITE_TIMEOUT, read: READ_TIMEOUT)
+       .post(url, body: form_data.to_s)
+    rescue HTTP::Error, HTTP::TimeoutError => e
+      if num_retrial < MAX_RETRIES
+        num_retrial += 1
+        sleep RETRY_DELAY
+        retry
+      else
+        return { "type" => "error", "content" => "ERROR: #{e.message}" }
+      end
+    ensure
+      temp_file&.close
+      temp_file&.unlink
+      if converted_file
+        converted_file.close unless converted_file.closed?
+        converted_file.unlink rescue nil
+      end
+    end
+
+    if response.status.success?
+      result = JSON.parse(response.body)
       { "text" => result["text"]&.strip || "" }
     else
       error_message = begin
@@ -380,6 +438,11 @@ module InteractionUtils
     # Route to Cohere API if model starts with "cohere-transcribe"
     if model.start_with?("cohere-transcribe")
       return cohere_stt_api_request(blob, format, lang_code, model)
+    end
+
+    # Route to Mistral API if model starts with "voxtral"
+    if model.start_with?("voxtral")
+      return mistral_stt_api_request(blob, format, lang_code, model)
     end
 
     lang_code = nil if lang_code == "auto"

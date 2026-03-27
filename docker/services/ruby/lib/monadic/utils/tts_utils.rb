@@ -154,9 +154,12 @@ module InteractionUtils
         "response_format" => response_format || "mp3",
         "stream" => false
       }
-      # Mistral requires voice_id — use selected voice or fall back to first available
+      # Mistral requires voice_id — use selected voice or fetch first available
       if voice && !voice.empty?
         body["voice_id"] = voice
+      else
+        fallback = fetch_mistral_default_voice(api_key)
+        body["voice_id"] = fallback if fallback
       end
 
       target_uri = "https://api.mistral.ai/v1/audio/speech"
@@ -944,6 +947,27 @@ module InteractionUtils
       else
         tts_models&.[](0)
       end
+    end
+  end
+
+  # Fetch first available Mistral voice ID (cached per process).
+  def fetch_mistral_default_voice(api_key)
+    @mistral_default_voice ||= begin
+      require 'net/http'
+      url = URI("https://api.mistral.ai/v1/audio/voices?limit=1")
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 5
+      request = Net::HTTP::Get.new(url)
+      request["Authorization"] = "Bearer #{api_key}"
+      response = http.request(request)
+      if response.is_a?(Net::HTTPSuccess)
+        data = JSON.parse(response.read_body)
+        data.dig("items", 0, "id")
+      end
+    rescue StandardError
+      nil
     end
   end
 end

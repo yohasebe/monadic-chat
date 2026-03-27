@@ -695,6 +695,7 @@ $(function () {
       if (aiUserDefaults) {
         if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
           $("#mistral-tts-provider-option").prop("disabled", false);
+          $("#mistral-stt-voxtral").prop("disabled", false);
         }
         if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
           $("#cohere-stt-transcribe").prop("disabled", false);

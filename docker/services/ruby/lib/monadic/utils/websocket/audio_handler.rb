@@ -109,6 +109,7 @@ module WebSocketHelper
     # Gemini and Cohere models do not support logprobs for STT
     return nil if model.start_with?("gemini-")
     return nil if model.start_with?("cohere-transcribe")
+    return nil if model.start_with?("voxtral")
 
     # ElevenLabs Scribe models - use logprobs array if available
     if model.start_with?("scribe")

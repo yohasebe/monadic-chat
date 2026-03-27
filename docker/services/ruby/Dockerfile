@@ -38,6 +38,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates curl gnupg lsb-release \
     postgresql-client \
+    ffmpeg \
     # Add ImageMagick runtime libraries needed by RMagick gem
     # Uncomment to use RSyntaxTree
     # imagemagick libmagickwand-dev \

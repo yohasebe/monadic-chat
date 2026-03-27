@@ -603,6 +603,7 @@ function ttsSpeak(text, stream, callback) {
   const voice = $("#tts-voice").val();
   const elevenlabs_voice = $("#elevenlabs-tts-voice").val();
   const gemini_voice = $("#gemini-tts-voice").val();
+  const mistral_voice = $("#mistral-tts-voice").val();
   
   
   // Determine mode based on streaming flag
@@ -620,6 +621,7 @@ function ttsSpeak(text, stream, callback) {
     voice: voice,
     elevenlabs_voice: elevenlabs_voice,
     gemini_voice: gemini_voice,
+    mistral_voice: mistral_voice,
     response_format: response_format
   };
 

@@ -146,11 +146,17 @@ module InteractionUtils
     normalized_format = "mp3" if normalized_format == "mpeg"
     normalized_format = "wav" if %w[x-wav wave].include?(normalized_format)
 
+    # Cohere only supports: flac, mp3, mpeg, mpga, ogg, wav
+    # Convert unsupported formats (e.g., webm from browser MediaRecorder) to wav via ffmpeg
+    cohere_supported = %w[flac mp3 mpeg mpga ogg wav]
+    needs_conversion = !cohere_supported.include?(normalized_format)
+
     # Cohere requires a language code (no auto-detect)
     # Default to "en" if not specified or "auto"
     effective_lang = (lang_code && lang_code != "auto") ? lang_code : "en"
 
     num_retrial = 0
+    converted_file = nil
 
     begin
       temp_file = Tempfile.new([TEMP_AUDIO_FILE, ".#{normalized_format}"])
@@ -158,10 +164,24 @@ module InteractionUtils
       temp_file.write(blob)
       temp_file.flush
 
+      upload_file = temp_file
+      if needs_conversion
+        converted_file = Tempfile.new([TEMP_AUDIO_FILE, ".mp3"])
+        converted_file.close
+        system("ffmpeg", "-y", "-i", temp_file.path, "-ar", "16000", "-ac", "1", converted_file.path,
+               [:out, :err] => "/dev/null")
+        if File.size(converted_file.path) > 0
+          upload_file = converted_file
+        else
+          Monadic::Utils::ExtraLogger.log { "[Cohere STT] ffmpeg conversion failed, sending original format" }
+        end
+      end
+
+      # Cohere requires form fields BEFORE the file part in multipart body
       options = {
         "model" => model,
-        "file" => HTTP::FormData::File.new(temp_file.path),
-        "language" => effective_lang
+        "language" => effective_lang,
+        "file" => HTTP::FormData::File.new(upload_file.path)
       }
 
       form_data = HTTP::FormData.create(options)
@@ -184,6 +204,10 @@ module InteractionUtils
       if temp_file
         temp_file.close
         temp_file.unlink
+      end
+      if converted_file
+        converted_file.close unless converted_file.closed?
+        converted_file.unlink
       end
     end
 

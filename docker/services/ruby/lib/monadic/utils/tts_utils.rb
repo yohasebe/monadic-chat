@@ -154,7 +154,10 @@ module InteractionUtils
         "response_format" => response_format || "mp3",
         "stream" => false
       }
-      body["voice_id"] = voice if voice && !voice.empty?
+      # Mistral requires voice_id — use selected voice or fall back to first available
+      if voice && !voice.empty?
+        body["voice_id"] = voice
+      end
 
       target_uri = "https://api.mistral.ai/v1/audio/speech"
     when "web-speech", "webspeech"

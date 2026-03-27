@@ -155,8 +155,11 @@ function handleSTT(data) {
 
   if (!handled) {
     $("#message").val($("#message").val() + " " + data["content"]);
-    let logprob = "Last Speech-to-Text p-value: " + data["logprob"];
-    $("#asr-p-value").text(logprob);
+    if (data["logprob"] != null) {
+      $("#asr-p-value").text("Last Speech-to-Text p-value: " + data["logprob"]).show();
+    } else {
+      $("#asr-p-value").text("").hide();
+    }
     $("#send, #clear, #voice").prop("disabled", false);
 
     const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");

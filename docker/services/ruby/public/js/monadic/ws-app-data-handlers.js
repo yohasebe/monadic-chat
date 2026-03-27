@@ -119,6 +119,46 @@ function handleGeminiVoices(data) {
 }
 
 /**
+ * Handle Mistral voices message.
+ * Populates voice selector and enables the TTS provider option.
+ * @param {Object} data - Message data with content array of {voice_id, name}
+ */
+function handleMistralVoices(data) {
+  const cookieValue = getCookie("mistral-tts-voice");
+  const voices = data["content"];
+
+  if (voices.length > 0) {
+    // Enable Mistral TTS provider option
+    $("#mistral-tts-provider-option").prop("disabled", false);
+
+    // Populate the voice selector
+    $("#mistral-tts-voice").empty();
+    voices.forEach((voice) => {
+      if (cookieValue === voice.voice_id) {
+        $("#mistral-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
+      } else {
+        $("#mistral-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
+      }
+    });
+
+    // Restore saved cookie value for voice
+    const savedVoice = getCookie("mistral-tts-voice");
+    if (savedVoice && $(`#mistral-tts-voice option[value="${savedVoice}"]`).length > 0) {
+      $("#mistral-tts-voice").val(savedVoice);
+    }
+  } else {
+    // Disable Mistral TTS provider option if no voices
+    $("#mistral-tts-provider-option").prop("disabled", true);
+  }
+
+  // Restore saved cookie value for provider if it was mistral
+  const savedProvider = getCookie("tts-provider");
+  if (savedProvider === "mistral") {
+    $("#tts-provider").val(savedProvider).trigger("change");
+  }
+}
+
+/**
  * Update app and model selection after import/session restore.
  * Marks import flow, updates dropdowns, and handles model selection.
  * Extracted from connect_websocket() closure.
@@ -959,6 +999,7 @@ function handleParametersMessage(data) {
 window.WsAppDataHandlers = {
   handleElevenLabsVoices,
   handleGeminiVoices,
+  handleMistralVoices,
   updateAppAndModelSelection,
   handleAppsMessage,
   handleParametersMessage,

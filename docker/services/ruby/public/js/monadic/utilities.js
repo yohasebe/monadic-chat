@@ -1060,6 +1060,7 @@ function setParams() {
   params["tts_voice"] = $("#tts-voice").val();
   params["elevenlabs_tts_voice"] = $("#elevenlabs-tts-voice").val();
   params["gemini_tts_voice"] = $("#gemini-tts-voice").val();
+  params["mistral_tts_voice"] = $("#mistral-tts-voice").val();
   params["tts_speed"] = $("#tts-speed").val();
   params["conversation_language"] = $("#conversation-language").val();
   // Update asr_lang for STT/TTS

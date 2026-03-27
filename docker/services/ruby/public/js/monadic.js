@@ -423,14 +423,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         $('#url').show();
         $('#doc').show();
 
-        // Enable Mistral TTS option if API key is configured
-        if (cap.providers && cap.providers.mistral) {
-          $("#mistral-tts-provider-option").prop("disabled", false);
-        }
-        // Enable Cohere STT option if API key is configured
-        if (cap.providers && cap.providers.cohere) {
-          $("#cohere-stt-transcribe").prop("disabled", false);
-        }
+        // Mistral/Cohere TTS/STT are enabled via /api/ai_user_defaults (more reliable)
       })
       .catch(function () { /* ignore */ });
   } catch (e) { /* ignore */ }
@@ -695,6 +688,16 @@ $(function () {
         if (firstVisible) {
           $("#ai_user_provider").val(firstVisible);
           setCookie("ai_user_provider", firstVisible, 30);
+        }
+      }
+
+      // Enable Mistral TTS / Cohere STT based on API key availability
+      if (aiUserDefaults) {
+        if (aiUserDefaults.mistral && aiUserDefaults.mistral.has_key) {
+          $("#mistral-tts-provider-option").prop("disabled", false);
+        }
+        if (aiUserDefaults.cohere && aiUserDefaults.cohere.has_key) {
+          $("#cohere-stt-transcribe").prop("disabled", false);
         }
       }
     }
@@ -3708,16 +3711,18 @@ $(function () {
     $("#elevenlabs-voices").hide();
     $("#openai-voices").hide();
     $("#gemini-voices").hide();
+    $("#mistral-voices").hide();
     $("#webspeech-voices").hide();
-    
+    $("#tts-speed-container").show(); // Show speed slider by default (hidden for providers that don't support it)
+
     // Show the appropriate voice selection based on provider
     if (params["tts_provider"] === "elevenlabs" || params["tts_provider"] === "elevenlabs-flash" || params["tts_provider"] === "elevenlabs-multilingual" || params["tts_provider"] === "elevenlabs-v3") {
       $("#elevenlabs-voices").show();
     } else if (params["tts_provider"] === "gemini-flash" || params["tts_provider"] === "gemini-pro") {
       $("#gemini-voices").show();
     } else if (params["tts_provider"] === "mistral") {
-      // Mistral TTS uses voice_id (optional) - no voice selector needed
-      // All voice elements stay hidden
+      $("#mistral-voices").show();
+      $("#tts-speed-container").hide();
     } else if (params["tts_provider"] === "webspeech") {
       $("#webspeech-voices").show();
       // Initialize Web Speech API voices if they haven't been loaded

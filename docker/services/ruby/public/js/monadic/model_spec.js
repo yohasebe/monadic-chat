@@ -1221,7 +1221,7 @@ const providerDefaults = {
   "mistral": {
     "chat": ["mistral-large-latest"],
     "code": ["devstral-latest"],
-    "tts": ["voxtral-tts-2603"]
+    "tts": ["voxtral-mini-tts-2603"]
   },
   "xai": {
     "chat": ["grok-4-1-fast-non-reasoning"],

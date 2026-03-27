@@ -92,6 +92,45 @@ module WebSocketHelper
       ]
       WebSocketHelper.broadcast_to_all({ "type" => "gemini_voices", "content" => gemini_voices }.to_json)
     end
+
+    # Send Mistral voices if API key is available (fetched from API)
+    if CONFIG["MISTRAL_API_KEY"]
+      mistral_voices = list_mistral_voices
+      if mistral_voices && !mistral_voices.empty?
+        WebSocketHelper.broadcast_to_all({ "type" => "mistral_voices", "content" => mistral_voices }.to_json)
+      end
+    end
+  end
+
+  # List available Mistral TTS voices
+  def list_mistral_voices(api_key = nil)
+    api_key ||= CONFIG["MISTRAL_API_KEY"] if defined?(CONFIG)
+    return [] unless api_key
+
+    begin
+      url = URI("https://api.mistral.ai/v1/audio/voices?limit=50")
+      http = Net::HTTP.new(url.host, url.port)
+      http.use_ssl = true
+      request = Net::HTTP::Get.new(url)
+      request["Authorization"] = "Bearer #{api_key}"
+      response = http.request(request)
+
+      return [] unless response.is_a?(Net::HTTPSuccess)
+
+      data = JSON.parse(response.read_body)
+      lang_labels = { "en_us" => "US", "en_gb" => "UK", "fr_fr" => "FR", "de_de" => "DE",
+                      "es_es" => "ES", "it_it" => "IT", "pt_pt" => "PT", "zh_cn" => "CN",
+                      "ja_jp" => "JP", "ko_kr" => "KR" }
+      (data["items"] || [])
+        .sort_by { |v| [v["name"].to_s.split(" - ").first, v["name"].to_s.include?("Neutral") ? 0 : 1, v["name"].to_s] }
+        .map do |voice|
+          lang = (voice["languages"] || []).map { |l| lang_labels[l] || l }.join("/")
+          { "voice_id" => voice["id"], "name" => "#{voice["name"]} (#{lang})" }
+        end
+    rescue StandardError => e
+      Monadic::Utils::ExtraLogger.log { "[Mistral] Voice list error: #{e.message}" }
+      []
+    end
   end
 
   # Single TTS request for post-completion mode (no sentence splitting)
@@ -583,6 +622,8 @@ module WebSocketHelper
       voice = obj["elevenlabs_voice"]
     elsif provider == "gemini-flash" || provider == "gemini-pro"
       voice = obj["gemini_voice"]
+    elsif provider == "mistral"
+      voice = obj["mistral_voice"]
     else
       voice = obj["voice"]
     end
@@ -627,6 +668,8 @@ module WebSocketHelper
       voice = obj["elevenlabs_voice"]
     elsif provider == "gemini-flash" || provider == "gemini-pro"
       voice = obj["gemini_voice"]
+    elsif provider == "mistral"
+      voice = obj["mistral_voice"]
     else
       voice = obj["voice"]
     end
@@ -709,6 +752,8 @@ module WebSocketHelper
       voice = obj["elevenlabs_tts_voice"]
     elsif provider == "gemini-flash" || provider == "gemini-pro"
       voice = obj["gemini_tts_voice"]
+    elsif provider == "mistral"
+      voice = obj["mistral_tts_voice"]
     else
       voice = obj["tts_voice"]
     end

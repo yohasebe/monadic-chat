@@ -68,7 +68,7 @@ function getCookie(name) {
  * Handles TTS provider, voice, speed, and ASR language settings.
  */
 function setCookieValues() {
-  var properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "webspeech-voice", "tts-speed", "asr-lang"];
+  var properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "mistral-tts-voice", "webspeech-voice", "tts-speed", "asr-lang"];
   properties.forEach(function(property) {
     var value = getCookie(property);
     if (value) {

@@ -892,6 +892,13 @@ window.loadedApp = "Chat";
         }
         break;
       }
+      case "mistral_voices": {
+        const adh = window.WsAppDataHandlers;
+        if (adh && typeof adh.handleMistralVoices === 'function') {
+          adh.handleMistralVoices(data);
+        }
+        break;
+      }
       case "stt": {
         const wsh = window.WsSessionHandler;
         if (wsh && typeof wsh.handleSTT === 'function') {

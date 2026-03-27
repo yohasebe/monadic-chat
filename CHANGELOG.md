@@ -17,6 +17,9 @@
   - **providerDefaults SSOT**: Centralized model defaults in model_spec.js (8 categories: chat, code, vision, audio, image, video, tts, embedding)
     - Removed all hardcoded model name fallbacks from agents and scripts
   - **jQuery → Fetch API**: Replaced all jQuery AJAX calls with native fetch API
+  - **Mistral Voxtral TTS**: Text-to-speech via Mistral API with 30 preset voices (9 languages: EN/FR/ES/DE/IT/PT/NL/HI/AR)
+  - **Mistral Voxtral STT**: Speech-to-text via Mistral API (13 languages including Japanese, Chinese, Korean)
+  - **Cohere Transcribe STT**: Speech-to-text via Cohere API (14 languages including Japanese) with automatic WebM-to-MP3 conversion
   - **Docker Optimization**: On-demand container startup via Compose Profiles (Python/Selenium start only when needed, reducing idle resource usage)
   - **Docker Optimization**: Python container no longer blocks Ruby container startup (parallel startup)
   - **RuboCop**: Added linting with conservative config, detected and fixed 4 bugs

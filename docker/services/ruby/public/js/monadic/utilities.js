@@ -1273,8 +1273,6 @@ function doResetActions(resetToDefaultApp = false) {
   clearStatusMessage();
 
   $("#config").show();
-  $("#back-to-settings").hide();
-  $("#parameter-panel").hide();
   const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
   

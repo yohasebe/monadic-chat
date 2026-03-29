@@ -1831,9 +1831,7 @@ $(function () {
 
     // Reset to settings panel instead of continuing session
     $("#config").show();
-    $("#back-to-settings").hide();
     $("#main-panel").hide();
-    $("#parameter-panel").hide();
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
@@ -2632,12 +2630,10 @@ $(function () {
     
     if (messages.length > 0) {
       $("#config").hide();
-      $("#back-to-settings").show();
       $("#main-panel").show();
       $("#discourse").show();
       $("#chat").html("")
       $("#temp-card").hide();
-      $("#parameter-panel").show();
       $("#user-panel").show();
       setInputFocus();
       ensureControlsEnabled();
@@ -2657,8 +2653,6 @@ $(function () {
       audioInit();
       
       $("#config").hide();
-      $("#back-to-settings").show();
-      $("#parameter-panel").show();
       $("#main-panel").show();
       $("#discourse").show();
 
@@ -2847,9 +2841,7 @@ $(function () {
     ttsStop();
     audioInit();
     $("#config").show();
-    $("#back-to-settings").hide();
     $("#main-panel").hide();
-    $("#parameter-panel").hide();
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {

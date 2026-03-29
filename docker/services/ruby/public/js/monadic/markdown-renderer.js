@@ -700,18 +700,35 @@
       // 5. markdown-it で Markdown → HTML 変換
       let html = md.render(text);
 
-      // 6-9. プレースホルダーを復元
+      // 6-9. プレースホルダーを復元（KaTeX でレンダリング済み HTML に直接置換）
+      var katexMacros = { "\\R": "\\mathbb{R}", "\\N": "\\mathbb{N}", "\\Z": "\\mathbb{Z}", "\\Q": "\\mathbb{Q}", "\\C": "\\mathbb{C}" };
       mathBlocks.forEach((content, index) => {
+        var rendered;
+        if (typeof katex !== 'undefined') {
+          try {
+            rendered = katex.renderToString(content.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+          } catch (e) { rendered = `$$${content}$$`; }
+        } else {
+          rendered = `$$${content}$$`;
+        }
         html = html.replace(
           new RegExp(`MATH_BLOCK_PLACEHOLDER_${index}`, 'g'),
-          `$$${content}$$`
+          rendered
         );
       });
 
       mathInline.forEach((content, index) => {
+        var rendered;
+        if (typeof katex !== 'undefined') {
+          try {
+            rendered = katex.renderToString(content.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+          } catch (e) { rendered = `$${content}$`; }
+        } else {
+          rendered = `$${content}$`;
+        }
         html = html.replace(
           new RegExp(`MATH_INLINE_PLACEHOLDER_${index}`, 'g'),
-          `$${content}$`
+          rendered
         );
       });
 

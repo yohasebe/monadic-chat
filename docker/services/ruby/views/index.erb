@@ -225,6 +225,9 @@
     <!-- Custom CSS in monadic.css uses @layer to override Bootstrap without !important -->
     <link rel="stylesheet" href="css/vendor-layers.css?timestamp=<%= @timestamp %>">
 
+    <!-- KaTeX CSS (local or CDN) -->
+    <link rel="stylesheet" href="vendor/css/katex.min.css" onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css';">
+
     <!-- Font Awesome CSS (local or CDN) -->
     <link rel="stylesheet" href="vendor/css/all.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';this.integrity='sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';">
 
@@ -1091,9 +1094,20 @@
     <script src="vendor/js/OpusMediaRecorder.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/OpusMediaRecorder.umd.js';"></script>
     <script src="vendor/js/encoderWorker.umd.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/opus-media-recorder@0.8.0/encoderWorker.umd.js';"></script>
 
-    <script src="js/mathjax-config.js"></script>
-    <!-- MathJax (local or CDN) -->
-    <script src="vendor/js/tex-mml-chtml.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>
+    <!-- KaTeX (local or CDN) -->
+    <script>
+      // Temporarily hide module/exports to prevent KaTeX UMD from using CommonJS path
+      var _savedModule = typeof module !== 'undefined' ? module : undefined;
+      var _savedExports = typeof exports !== 'undefined' ? exports : undefined;
+      if (typeof module !== 'undefined') { module = undefined; }
+      if (typeof exports !== 'undefined') { exports = undefined; }
+    </script>
+    <script src="vendor/js/katex.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js';"></script>
+    <script>
+      // Restore module/exports after KaTeX has loaded as browser global
+      if (typeof _savedModule !== 'undefined') { module = _savedModule; }
+      if (typeof _savedExports !== 'undefined') { exports = _savedExports; }
+    </script>
     
     <!-- markdown-it (local or CDN) — always needed for message rendering -->
     <script src="vendor/js/markdown-it.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/markdown-it/14.1.0/markdown-it.min.js';this.crossOrigin='anonymous';this.referrerPolicy='no-referrer';"></script>

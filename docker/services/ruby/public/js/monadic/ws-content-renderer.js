@@ -158,24 +158,63 @@
     });
   }
 
-  // ── MathJax ────────────────────────────────────────────────────────
+  // ── KaTeX (replaces MathJax) ────────────────────────────────────────
+
+  var katexMacros = {
+    "\\R": "\\mathbb{R}",
+    "\\N": "\\mathbb{N}",
+    "\\Z": "\\mathbb{Z}",
+    "\\Q": "\\mathbb{Q}",
+    "\\C": "\\mathbb{C}"
+  };
+
+  function renderKatexInHTML(html) {
+    if (typeof katex === 'undefined') return html;
+
+    // Display math: $$...$$ (may span multiple lines)
+    html = html.replace(/\$\$([\s\S]+?)\$\$/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Display math: \[...\]
+    html = html.replace(/\\\[([\s\S]+?)\\\]/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: true, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Inline math: $...$ (single line, not preceded by \)
+    html = html.replace(/(?<![\\$])\$([^\n$]+?)\$(?!\$)/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    // Inline math: \(...\)
+    html = html.replace(/\\\(([\s\S]+?)\\\)/g, function(match, tex) {
+      try {
+        return katex.renderToString(tex.trim(), { displayMode: false, throwOnError: false, trust: true, macros: katexMacros });
+      } catch (e) { return match; }
+    });
+
+    return html;
+  }
 
   function applyMathJax(element) {
     if (element.hasClass("diagram")) {
       return;
     }
 
-    if (typeof MathJax === 'undefined') {
-      console.error('MathJax is not loaded. Please make sure to include the MathJax script in your HTML file.');
+    if (typeof katex === 'undefined') {
       return;
     }
 
+    // KaTeX rendering is now done at markdown-renderer level (placeholder → rendered HTML).
+    // This function remains as a fallback for any remaining raw delimiters.
     var domElement = element.get(0);
-    MathJax.typesetPromise([domElement])
-      .then(function() {})
-      .catch(function(err) {
-        console.error('Error re-rendering MathJax element:', err);
-      });
+    domElement.innerHTML = renderKatexInHTML(domElement.innerHTML);
   }
 
   // ── Mermaid ────────────────────────────────────────────────────────

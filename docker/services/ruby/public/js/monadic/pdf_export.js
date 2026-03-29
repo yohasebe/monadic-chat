@@ -322,27 +322,9 @@
         // Wait a bit for styles to load
         setTimeout(() => {
           try {
-            // Check if MathJax is available in the iframe
-            if (iframe.contentWindow.MathJax && iframe.contentWindow.MathJax.typesetPromise) {
-              iframe.contentWindow.MathJax.typesetPromise().then(() => {
-                iframe.contentWindow.print();
-                // Remove iframe after print dialog is shown
-                setTimeout(() => {
-                  if (iframe.parentNode) {
-                    document.body.removeChild(iframe);
-                  }
-                }, 100);
-              }).catch((err) => {
-                console.error('MathJax rendering error:', err);
-                iframe.contentWindow.print();
-                setTimeout(() => {
-                  if (iframe.parentNode) {
-                    document.body.removeChild(iframe);
-                  }
-                }, 100);
-              });
-            } else {
-              // No MathJax, print immediately
+            // KaTeX renders synchronously during page load, so math is already rendered
+            // Just print immediately
+            {
               iframe.contentWindow.print();
               setTimeout(() => {
                 if (iframe.parentNode) {

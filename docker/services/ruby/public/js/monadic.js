@@ -513,8 +513,7 @@ function hashSimilarity(h1, h2) {
 
 $(function () {
   
-  // Make alert draggable immediately when needed instead of storing reference
-  $("#alert").draggable({ cursor: "move" });
+  // #alert element was removed; draggable code no longer needed
 
   // Don't store persistent references to DOM elements
   // Access them only when needed

@@ -119,8 +119,8 @@ document.addEventListener("keydown", function (event) {
   // Right Arrow key - activate voice input when Easy Submit is enabled
   if ($("#check-easy-submit").is(":checked") && !$("#message").is(":focus") && event.key === "ArrowRight") {
     event.preventDefault();
-    // Only activate voice button if session has begun (config is hidden and main panel is visible)
-    if ($("#voice").prop("disabled") === false && !$("#config").is(":visible") && $("#main-panel").is(":visible")) {
+    // Only activate voice button if session has begun (main panel is visible)
+    if ($("#voice").prop("disabled") === false && $("#main-panel").is(":visible")) {
       $("#voice").click();
     }
   }

@@ -5788,4 +5788,36 @@ i.fas.fa-bolt,
 
 } /* end @layer utilities */
 
+/* ── Collapsible Settings Header ─────────────────────────── */
+
+#config-summary {
+  background: var(--bg-panel, #f8f9fa);
+  border: 1px solid var(--border-light, #dee2e6);
+  transition: background-color 0.15s ease;
+  user-select: none;
+}
+
+#config-summary:hover {
+  background: var(--bg-hover, #e9ecef);
+}
+
+.config-collapse-icon {
+  transition: transform 0.3s ease;
+  font-size: 0.85em;
+  color: var(--text-secondary, #6c757d);
+}
+
+/* Rotate chevron when config-body is expanded */
+#config-summary[aria-expanded="true"] .config-collapse-icon {
+  transform: rotate(180deg);
+}
+
+.setting-locked {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#config-actions {
+  padding: 0 0.5rem;
+}
 

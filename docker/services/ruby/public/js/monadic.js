@@ -513,7 +513,71 @@ function hashSimilarity(h1, h2) {
 
 $(function () {
   
-  // #alert element was removed; draggable code no longer needed
+  // ── Collapsible Settings Header helpers ─────────────────
+
+  // Update the summary bar content with current settings
+  function updateConfigSummary() {
+    var appText = $("#apps option:selected").text() || "Chat";
+    var appIcon = "";
+    var iconEl = document.querySelector("#app-select-icon");
+    if (iconEl) appIcon = iconEl.innerHTML;
+    var modelName = $("#model").val() || "";
+
+    $("#summary-app-icon").html(appIcon);
+    $("#summary-app-name").text(appText);
+    $("#summary-model-name").text(modelName);
+
+    var indicators = "";
+    if ($("#websearch").is(":checked")) indicators += '<span class="badge bg-info me-1">Web</span>';
+    if ($("#mathjax").is(":checked")) indicators += '<span class="badge bg-secondary me-1">Math</span>';
+    var re = $("#reasoning-effort").val();
+    if (!$("#reasoning-effort").prop("disabled") && re && re !== "none" && re !== "disabled") {
+      indicators += '<span class="badge bg-warning text-dark me-1">' + re + '</span>';
+    }
+    $("#summary-indicators").html(indicators);
+  }
+
+  // Lock settings that should not change during an active session
+  function lockSessionSettings() {
+    $("#apps").closest(".col-5, .col-sm-5, form").find("#apps").prop("disabled", true);
+    $("#initial-prompt").prop("disabled", true);
+    $("#ai-user-initial-prompt").prop("disabled", true);
+    $("#initiate-from-assistant").prop("disabled", true);
+  }
+
+  // Unlock settings when session is reset
+  function unlockSessionSettings() {
+    $("#apps").prop("disabled", false);
+    $("#initial-prompt").prop("disabled", false);
+    $("#ai-user-initial-prompt").prop("disabled", false);
+    $("#initiate-from-assistant").prop("disabled", false);
+  }
+
+  // Collapse settings and show conversation (used when starting/continuing session)
+  function enterConversationMode() {
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(document.getElementById("config-body"), { toggle: false });
+    bsCollapse.hide();
+    $("#config-summary").show();
+    $("#config-actions").hide();
+    $("#main-panel").removeClass("d-none");
+    lockSessionSettings();
+    updateConfigSummary();
+  }
+
+  // Expand settings and hide conversation (used when resetting)
+  function enterSettingsMode() {
+    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(document.getElementById("config-body"), { toggle: false });
+    bsCollapse.show();
+    $("#config-summary").hide();
+    $("#config-actions").show();
+    $("#main-panel").addClass("d-none");
+    unlockSessionSettings();
+  }
+
+  // Expose for use in other modules
+  window.updateConfigSummary = updateConfigSummary;
+  window.enterConversationMode = enterConversationMode;
+  window.enterSettingsMode = enterSettingsMode;
 
   // Don't store persistent references to DOM elements
   // Access them only when needed
@@ -1676,6 +1740,10 @@ $(function () {
     if (!isParamBroadcastSuppressed()) {
       broadcastParamsUpdate('model_change');
     }
+    // Update collapsed summary bar if visible
+    if (typeof updateConfigSummary === 'function' && $("#config-summary").is(":visible")) {
+      updateConfigSummary();
+    }
   });
 
   $("#reasoning-effort").on("change", function () {
@@ -1829,9 +1897,8 @@ $(function () {
     // Send server-side RESET to clear session
     ws.send(JSON.stringify({ "message": "RESET" }));
 
-    // Reset to settings panel instead of continuing session
-    $("#config").show();
-    $("#main-panel").hide();
+    // Reset to settings panel
+    enterSettingsMode();
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
@@ -2629,8 +2696,7 @@ $(function () {
     }
     
     if (messages.length > 0) {
-      $("#config").hide();
-      $("#main-panel").show();
+      enterConversationMode();
       $("#discourse").show();
       $("#chat").html("")
       $("#temp-card").hide();
@@ -2652,8 +2718,7 @@ $(function () {
       // Initialize audio before showing the UI
       audioInit();
       
-      $("#config").hide();
-      $("#main-panel").show();
+      enterConversationMode();
       $("#discourse").show();
 
       // Only initiate from assistant if it's a fresh conversation (no existing messages)
@@ -2744,6 +2809,11 @@ $(function () {
     }
     if (message.value === "") {
       return;
+    }
+    // Auto-collapse settings when sending a message
+    var configBody = document.getElementById("config-body");
+    if (configBody && configBody.classList.contains("show")) {
+      bootstrap.Collapse.getOrCreateInstance(configBody, { toggle: false }).hide();
     }
     audioInit();
 
@@ -2837,37 +2907,7 @@ $(function () {
     setInputFocus()
   });
 
-  $("#settings").on("click", function () {
-    ttsStop();
-    audioInit();
-    $("#config").show();
-    $("#main-panel").hide();
-    // Wait for i18n to be ready before updating button text
-    if (window.i18nReady) {
-      window.i18nReady.then(() => {
-        if (messages.length > 0) {
-          const continueText = webUIi18n.t('ui.session.continueSession');
-          $("#start-label").text(continueText);
-        } else {
-          const startText = webUIi18n.t('ui.session.startSession');
-          $("#start-label").text(startText);
-        }
-      });
-    } else {
-      // Fallback if i18nReady is not available
-      if (messages.length > 0) {
-        const continueText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-          webUIi18n.t('ui.session.continueSession') : 'Continue Session';
-        $("#start-label").text(continueText);
-      } else {
-        const startText = typeof webUIi18n !== 'undefined' && webUIi18n.ready ? 
-        webUIi18n.t('ui.session.startSession') : 'Start Session';
-      $("#start-label").text(startText);
-      }
-    }
-    adjustScrollButtons();
-    setInputFocus()
-  });
+  // #settings button removed — settings are now collapsible via #config-summary
 
 
   // Regular reset button - keeps current app

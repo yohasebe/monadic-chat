@@ -1272,7 +1272,11 @@ function doResetActions(resetToDefaultApp = false) {
   clearErrorCards();
   clearStatusMessage();
 
-  $("#config").show();
+  if (typeof window.enterSettingsMode === 'function') {
+    window.enterSettingsMode();
+  } else {
+    $("#config").show();
+  }
   const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
   

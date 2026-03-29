@@ -540,6 +540,21 @@
         </div>
 
         <div id="main" class="col-md-8 order-md-1 scrollable">
+          <div id="config-wrapper">
+          <!-- Config Summary Bar (visible when collapsed, hidden initially) -->
+          <div id="config-summary" class="rounded p-2 px-3 shaded-panel mb-2" style="display:none; cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#config-body" aria-expanded="false" aria-controls="config-body">
+            <div class="d-flex align-items-center">
+              <span id="summary-app-icon" class="me-2"></span>
+              <span id="summary-app-name" class="fw-semibold me-2"></span>
+              <i class="fas fa-chevron-down config-collapse-icon ms-auto"></i>
+            </div>
+            <div class="d-flex align-items-center mt-1" style="font-size: 0.85em;">
+              <span id="summary-model-name" class="text-secondary me-2"></span>
+              <span id="summary-indicators"></span>
+            </div>
+          </div>
+
+          <div id="config-body" class="collapse show">
           <div id="config" class="rounded p-3 shaded-panel">
             <h5 class="pb-0 panel-section-header"><span class="text" data-i18n="ui.systemSettings"><i class="fa-solid fa-bars"></i> System Settings</span></h5>
 
@@ -688,14 +703,16 @@
             </div>
 
 
-            <div class="row mt-3">
-              <div class="col-2">
-                <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
-              </div>
-            </div>
           </div>
+          </div><!-- end #config-body -->
 
-          <div id="main-panel" class="rounded p-3 shaded-panel" style="display: none;">
+          <!-- Start button (outside collapse, always visible until session starts) -->
+          <div id="config-actions" class="mt-2 mb-2">
+            <button id="start" class="btn btn-sm btn-primary text-nowrap" disabled="disabled" title="Start or continue chat session"><i class="fas fa-rocket"></i> <span id="start-label">Start Session</span></button>
+          </div>
+          </div><!-- end #config-wrapper -->
+
+          <div id="main-panel" class="rounded p-3 shaded-panel d-none">
             <h5 class="pb-0 mb-0 panel-section-header"><span class="text" data-i18n="ui.dialog"><i class="fas fa-comments"></i> Dialog</span></h5>
             <!-- Workflow Viewer Panel -->
             <div id="workflow-viewer-panel" class="wv-panel-collapsed">
@@ -815,7 +832,6 @@
                   <div class="d-flex align-items-center">
                     <button id="send" class="btn btn-sm btn-primary me-2" title="Send message to AI assistant" data-i18n="ui.send"><i class="fas fa-paper-plane"></i> Send</button>
                     <button id="clear" class="btn btn-sm btn-secondary me-2" title="Clear text in input field" data-i18n="ui.clear"><i class="fas fa-eraser"></i> Clear</button>
-                    <button id="settings" class="btn btn-sm btn-secondary me-2" title="Show system settings panel" data-i18n="ui.settings"><i class="fas fa-bars"></i>&nbsp;Settings</button>
                   </div>
                   <div class="mt-2 ms-1 textbox-caption">
                     <span data-i18n="ui.pressToSend">Press <span class="text-secondary"> Send <i class="fas fa-paper-plane"></i></span> button to send your message.</span>

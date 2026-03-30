@@ -10,19 +10,6 @@
  * - handleAudio: Delegation with fallback error handling and device-specific processing
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    val: jest.fn().mockReturnValue(''),
-    prop: jest.fn().mockReturnThis()
-  };
-}
-
-let mockElements;
-
 beforeEach(() => {
   // Create real DOM elements for vanilla JS getElementById calls
   const spinnerEl = document.createElement('div');
@@ -32,18 +19,6 @@ beforeEach(() => {
   const ttsProviderEl = document.createElement('select');
   ttsProviderEl.id = 'tts-provider';
   document.body.appendChild(ttsProviderEl);
-
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#tts-provider': createMockElement('tts-provider')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
 
   global.setAlert = jest.fn();
   global.getTranslation = jest.fn().mockImplementation((key, fallback) => fallback);

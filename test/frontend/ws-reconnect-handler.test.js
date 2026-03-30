@@ -14,13 +14,6 @@ describe('WsReconnectHandler', () => {
     jest.resetModules();
     jest.useFakeTimers();
 
-    global.$ = jest.fn().mockReturnValue({
-      length: 0,
-      hide: jest.fn().mockReturnThis(),
-      show: jest.fn().mockReturnThis(),
-      is: jest.fn().mockReturnValue(false)
-    });
-
     global.setAlert = jest.fn();
     global.getTranslation = jest.fn().mockImplementation((key, fallback) => fallback);
 
@@ -79,7 +72,6 @@ describe('WsReconnectHandler', () => {
     delete window.WsAudioConstants;
     delete window.WsReconnectHandler;
     delete window.reconnect_websocket;
-    delete global.$;
     delete global.WebSocket;
   });
 

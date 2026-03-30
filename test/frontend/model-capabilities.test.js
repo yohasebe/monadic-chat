@@ -34,10 +34,6 @@ global.apps = {
   'UploadOnlyApp': { image_generation: 'upload_only' }
 };
 
-global.$ = function(selector) {
-  return { val: function() { return 'ChatOpenAI'; } };
-};
-
 const {
   isPdfSupportedForModel,
   isImageGenerationApp,

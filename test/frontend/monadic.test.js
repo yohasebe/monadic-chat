@@ -55,58 +55,6 @@ document.body.innerHTML = `
 <div id="role-icon"><i></i></div>
 `;
 
-// Mock jQuery and related methods
-global.$ = jest.fn().mockImplementation((selector) => {
-  const mockJQuery = {
-    draggable: jest.fn().mockReturnThis(),
-    tooltip: jest.fn().mockReturnThis(),
-    val: jest.fn().mockReturnValue('').mockReturnThis(),
-    prop: jest.fn().mockReturnThis(),
-    text: jest.fn().mockReturnThis(),
-    html: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    focus: jest.fn().mockReturnThis(),
-    removeClass: jest.fn().mockReturnThis(),
-    addClass: jest.fn().mockReturnThis(),
-    on: jest.fn((eventName, handler) => {
-      // Store handlers to call them directly in tests
-      if (!global.eventHandlers) global.eventHandlers = {};
-      if (!global.eventHandlers[selector]) global.eventHandlers[selector] = {};
-      global.eventHandlers[selector][eventName] = handler;
-      return mockJQuery;
-    }),
-    trigger: jest.fn().mockReturnThis(),
-    click: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    data: jest.fn().mockReturnValue(null),
-    find: jest.fn().mockReturnThis(),
-    each: jest.fn(function(callback) {
-      callback.call(this, 0, this);
-      return this;
-    }),
-    length: 1,
-    append: jest.fn().mockReturnThis(),
-    animate: jest.fn().mockReturnThis(),
-    removeData: jest.fn().mockReturnThis(),
-    modal: jest.fn().mockReturnThis(),
-    ready: jest.fn(function(callback) {
-      callback();
-      return this;
-    }),
-    get: jest.fn().mockReturnValue({ scrollHeight: 200 }),
-    prop: jest.fn().mockReturnValue(1000),
-    scrollHeight: 200
-  };
-  return mockJQuery;
-});
-
-// Allow $ to be used as a function
-$.fn = {
-  jquery: '3.6.0',
-};
-
 // Mock setCookie and getCookie functions
 global.setCookie = jest.fn();
 global.getCookie = jest.fn().mockReturnValue('');
@@ -324,45 +272,4 @@ describe('monadic.js', () => {
     });
   });
 
-  // Test jQuery functionality
-  describe('jQuery functionality', () => {
-    it('should implement jQuery click handlers correctly', () => {
-      // Store original $ implementation
-      const originalJQuery = global.$;
-      
-      // Create mock implementation with specific returns for this test
-      const mockTemperatureElement = {
-        val: jest.fn().mockReturnValue(0.7),
-      };
-      
-      const mockTempValueElement = {
-        text: jest.fn(),
-      };
-      
-      // Setup new jQuery mock for this test only
-      global.$ = jest.fn(selector => {
-        if (selector === '#temperature') return mockTemperatureElement;
-        if (selector === '#temperature-value') return mockTempValueElement;
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-        };
-      });
-      
-      // Create a handler similar to the one in monadic.js
-      const handler = function() {
-        $('#temperature-value').text(parseFloat($('#temperature').val()).toFixed(1));
-      };
-      
-      // Call the handler
-      handler();
-      
-      // Verify text was updated
-      expect(mockTempValueElement.text).toHaveBeenCalledWith('0.7');
-      
-      // Restore original jQuery
-      global.$ = originalJQuery;
-    });
-  });
 });

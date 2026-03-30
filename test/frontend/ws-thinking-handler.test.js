@@ -27,8 +27,6 @@ beforeEach(() => {
   window._lastProcessedIndex = 0;
   window.webUIi18n = undefined;
 
-  // Keep a minimal $ mock for any residual jQuery usage in other modules
-  global.$ = jest.fn().mockReturnValue({ length: 0 });
 });
 
 afterEach(() => {

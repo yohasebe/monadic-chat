@@ -38,7 +38,6 @@ global.apps = {
 
 let lastDescription = '';
 global.setBaseAppDescription = function(html) { lastDescription = html; };
-global.$ = function() { return { length: 0 }; };
 
 const {
   updateAppBadges,

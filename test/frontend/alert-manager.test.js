@@ -12,63 +12,12 @@ document.body.innerHTML = `
   <div id="discourse"></div>
 `;
 
-// Mock jQuery
-const jQueryMock = function(selector) {
-  const elements = document.querySelectorAll(selector);
-  const el = elements.length > 0 ? elements[0] : null;
-  const $obj = {
-    html: function(val) {
-      if (val === undefined) return el ? el.innerHTML : '';
-      if (el) el.innerHTML = val;
-      return $obj;
-    },
-    addClass: function(cls) { if (el) el.classList.add(...cls.split(' ')); return $obj; },
-    removeClass: function(fn) {
-      if (typeof fn === 'function' && el) {
-        const classes = fn(0, el.className);
-        if (classes) el.classList.remove(...classes.split(' '));
-      }
-      return $obj;
-    },
-    hide: function() { if (el) el.style.display = 'none'; return $obj; },
-    show: function() { if (el) el.style.display = ''; return $obj; },
-    append: function(child) {
-      if (el && child && child[0]) el.appendChild(child[0]);
-      return $obj;
-    },
-    find: function() { return { off: function() { return { on: function() {} }; }, prop: function() { return { css: function() {} }; } }; },
-    each: function(fn) { elements.forEach(fn); return $obj; },
-    attr: function() { return null; },
-    remove: function() { if (el) el.remove(); return $obj; },
-    length: elements.length,
-    data: function() { return null; },
-    removeAttr: function() { return $obj; },
-    tooltip: function() { return $obj; },
-    css: function(prop, val) { if (el) el.style[prop] = val; return $obj; },
-    0: el
-  };
-  return $obj;
-};
-jQueryMock.fn = { tooltip: function() {} };
-global.$ = jQueryMock;
-global.jQuery = jQueryMock;
-
 // Mock dependencies
 global.createCard = function(role, badge, msg) {
   const card = document.createElement('div');
   card.className = 'card';
   card.innerHTML = '<div class="card-text">' + msg + '</div>';
-  const $card = {
-    0: card,
-    addClass: function(cls) { card.classList.add(cls); return $card; },
-    find: function() {
-      return {
-        off: function() { return { on: function() {} }; },
-        prop: function() { return { css: function() {} }; }
-      };
-    }
-  };
-  return $card;
+  return card;
 };
 global.detachEventListeners = jest.fn();
 global.getTranslation = function(key, fallback) { return fallback; };

@@ -11,54 +11,29 @@
  * - handleAIUserFinished: Re-enable UI with completed response
  */
 
-function createMockElement(id) {
-  return {
-    prop: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    html: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    focus: jest.fn().mockReturnThis(),
-    length: 1,
-    0: document.createElement('div')
-  };
-}
-
-let mockElements;
-
-function setupMockElements() {
-  mockElements = {
-    '#message': createMockElement('message'),
-    '#send': createMockElement('send'),
-    '#clear': createMockElement('clear'),
-    '#image-file': createMockElement('image-file'),
-    '#voice': createMockElement('voice'),
-    '#doc': createMockElement('doc'),
-    '#url': createMockElement('url'),
-    '#ai_user': createMockElement('ai_user'),
-    '#select-role': createMockElement('select-role'),
-    '#pdf-import': createMockElement('pdf-import'),
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#monadic-spinner span': createMockElement('monadic-spinner-span')
-  };
+function createDOMElement(tag, id, extras) {
+  const el = document.createElement(tag);
+  el.id = id;
+  if (extras) Object.assign(el, extras);
+  document.body.appendChild(el);
+  return el;
 }
 
 beforeEach(() => {
-  setupMockElements();
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
-
-  // Mock DOM elements for direct getElementById
-  const cancelButton = document.createElement('div');
-  cancelButton.id = 'cancel_query';
-  cancelButton.style.display = 'none';
-  document.body.appendChild(cancelButton);
+  // Create DOM elements that the code queries via getElementById
+  createDOMElement('div', 'monadic-spinner');
+  document.getElementById('monadic-spinner').innerHTML = '<span></span>';
+  createDOMElement('textarea', 'message');
+  createDOMElement('button', 'send');
+  createDOMElement('button', 'clear');
+  createDOMElement('input', 'image-file');
+  createDOMElement('button', 'voice');
+  createDOMElement('button', 'doc');
+  createDOMElement('button', 'url');
+  createDOMElement('button', 'ai_user');
+  createDOMElement('select', 'select-role');
+  createDOMElement('button', 'pdf-import');
+  createDOMElement('div', 'cancel_query');
 
   // Mock global functions
   global.getTranslation = jest.fn((key, fallback) => fallback);
@@ -97,55 +72,44 @@ describe('ws-ai-user-handler', () => {
       expect(cancelButton.style.display).toBe('flex');
     });
 
-    it('shows spinner with robot icon', () => {
+    it('shows spinner', () => {
       handlers.handleAIUserStarted({});
 
-      expect(mockElements['#monadic-spinner'].css).toHaveBeenCalledWith('display', 'block');
+      expect(document.getElementById('monadic-spinner').style.display).toBe('block');
     });
 
     it('disables all input elements', () => {
       handlers.handleAIUserStarted({});
 
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#send'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#clear'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#voice'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#ai_user'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('message').disabled).toBe(true);
+      expect(document.getElementById('send').disabled).toBe(true);
+      expect(document.getElementById('clear').disabled).toBe(true);
+      expect(document.getElementById('voice').disabled).toBe(true);
+      expect(document.getElementById('ai_user').disabled).toBe(true);
     });
   });
 
   describe('handleAIUser', () => {
     it('appends content to message field', () => {
-      mockElements['#message'].val = jest.fn(function(v) {
-        if (v === undefined) return 'existing ';
-        this._val = v;
-        return this;
-      });
+      document.getElementById('message').value = 'existing ';
 
       handlers.handleAIUser({ content: 'new text' });
 
-      expect(mockElements['#message'].val).toHaveBeenCalledWith('existing new text');
+      expect(document.getElementById('message').value).toBe('existing new text');
     });
 
     it('converts escaped newlines to real newlines', () => {
-      mockElements['#message'].val = jest.fn(function(v) {
-        if (v === undefined) return '';
-        this._val = v;
-        return this;
-      });
+      document.getElementById('message').value = '';
 
       handlers.handleAIUser({ content: 'line1\\nline2' });
 
-      expect(mockElements['#message'].val).toHaveBeenCalledWith('line1\nline2');
+      expect(document.getElementById('message').value).toBe('line1\nline2');
     });
 
     it('scrolls to main panel when auto scroll enabled and not in viewport', () => {
       global.isElementInViewport = jest.fn().mockReturnValue(false);
       global.mainPanel = { scrollIntoView: jest.fn() };
-      mockElements['#message'].val = jest.fn(function(v) {
-        if (v === undefined) return '';
-        return this;
-      });
+      document.getElementById('message').value = '';
 
       handlers.handleAIUser({ content: 'text' });
 
@@ -157,7 +121,7 @@ describe('ws-ai-user-handler', () => {
     it('sets trimmed content to message field', () => {
       handlers.handleAIUserFinished({ content: '  hello world  ' });
 
-      expect(mockElements['#message'].val).toHaveBeenCalledWith('hello world');
+      expect(document.getElementById('message').value).toBe('hello world');
     });
 
     it('hides cancel button and spinner', () => {
@@ -165,15 +129,20 @@ describe('ws-ai-user-handler', () => {
 
       const cancelButton = document.getElementById('cancel_query');
       expect(cancelButton.style.display).toBe('none');
-      expect(mockElements['#monadic-spinner'].css).toHaveBeenCalledWith('display', 'none');
+      expect(document.getElementById('monadic-spinner').style.display).toBe('none');
     });
 
     it('re-enables all input elements', () => {
+      // Disable first
+      document.getElementById('message').disabled = true;
+      document.getElementById('send').disabled = true;
+      document.getElementById('ai_user').disabled = true;
+
       handlers.handleAIUserFinished({ content: 'done' });
 
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#send'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#ai_user'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('message').disabled).toBe(false);
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('ai_user').disabled).toBe(false);
     });
 
     it('shows success alert', () => {

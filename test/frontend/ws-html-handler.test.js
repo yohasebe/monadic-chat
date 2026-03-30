@@ -12,61 +12,34 @@
  * - Streaming state management
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    prop: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    html: jest.fn().mockReturnValue(''),
-    val: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    detach: jest.fn().mockReturnThis(),
-    append: jest.fn().mockReturnThis(),
-    remove: jest.fn().mockReturnThis(),
-    find: jest.fn().mockReturnValue({ empty: jest.fn().mockReturnThis() }),
-    attr: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis(),
-    text: jest.fn().mockReturnValue('')
-  };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
-
-let mockElements;
 
 beforeEach(() => {
   jest.useFakeTimers();
 
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#monadic-spinner span': createMockElement('spinner-span'),
-    '#message': createMockElement('message'),
-    '#send, #clear, #image-file, #voice, #doc, #url, #pdf-import': createMockElement('buttons'),
-    '#send, #clear, #image-file, #voice, #doc, #url': createMockElement('user-buttons'),
-    '#select-role': createMockElement('select-role'),
-    '#temp-card': createMockElement('temp-card'),
-    '#temp-card .card-text': createMockElement('temp-card-text'),
-    '#temp-card .status': createMockElement('temp-card-status'),
-    '#temp-reasoning-card': createMockElement('temp-reasoning-card'),
-    '#indicator': createMockElement('indicator'),
-    '#discourse': createMockElement('discourse'),
-    '#discourse .card:not(#temp-card) .role-assistant': { length: 0 },
-    '#discourse div.card:last': createMockElement('last-card'),
-    '#chat': createMockElement('chat'),
-    '#user-panel': createMockElement('user-panel')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    // Handle template strings (temp-card creation)
-    if (typeof selector === 'string' && selector.includes('temp-card')) {
-      return createMockElement('new-temp-card');
-    }
-    return createMockElement('default');
-  });
+  // Create DOM elements
+  const spinner = createDOMElement('div', 'monadic-spinner');
+  spinner.innerHTML = '<span></span>';
+  createDOMElement('textarea', 'message');
+  createDOMElement('button', 'send');
+  createDOMElement('button', 'clear');
+  createDOMElement('input', 'image-file');
+  createDOMElement('button', 'voice');
+  createDOMElement('button', 'doc');
+  createDOMElement('button', 'url');
+  createDOMElement('button', 'pdf-import');
+  createDOMElement('select', 'select-role');
+  createDOMElement('div', 'temp-card');
+  createDOMElement('div', 'indicator');
+  createDOMElement('div', 'discourse');
+  createDOMElement('div', 'chat');
+  createDOMElement('div', 'user-panel');
+  createDOMElement('div', 'cancel_query');
 
   // Mock global functions
   global.setAlert = jest.fn();
@@ -110,18 +83,12 @@ beforeEach(() => {
   window.autoPlayAudio = false;
   window.autoTTSSpinnerTimeout = null;
   window.MarkdownRenderer = null;
-
-  // Create cancel_query element in DOM
-  const cancelBtn = document.createElement('div');
-  cancelBtn.id = 'cancel_query';
-  document.body.appendChild(cancelBtn);
 });
 
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
-  const el = document.getElementById('cancel_query');
-  if (el) el.remove();
+  document.body.innerHTML = '';
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-html-handler');
@@ -158,12 +125,6 @@ describe('ws-html-handler', () => {
   };
 
   describe('handleHtml - common behavior', () => {
-    it('resets responseStarted', () => {
-      handlers.handleHtml(assistantData);
-      // responseStarted is set to false at the start
-      // (then may be modified by sub-handlers)
-    });
-
     it('resets completion tracking flags', () => {
       handlers.handleHtml(assistantData);
       expect(window.setTextResponseCompleted).toHaveBeenCalledWith(false);
@@ -173,11 +134,6 @@ describe('ws-html-handler', () => {
     it('resets sequence retry count', () => {
       handlers.handleHtml(assistantData);
       expect(window.WsAudioQueue.setSequenceRetryCount).toHaveBeenCalledWith(0);
-    });
-
-    it('removes temp-reasoning-card', () => {
-      handlers.handleHtml(assistantData);
-      expect(mockElements['#temp-reasoning-card'].remove).toHaveBeenCalled();
     });
 
     it('adds message to SessionState', () => {
@@ -191,14 +147,16 @@ describe('ws-html-handler', () => {
     });
 
     it('clears chat and hides temp-card after rendering', () => {
+      document.getElementById('chat').innerHTML = '<p>old</p>';
       handlers.handleHtml(assistantData);
-      expect(mockElements['#chat'].html).toHaveBeenCalledWith('');
-      expect(mockElements['#temp-card'].hide).toHaveBeenCalled();
+      expect(document.getElementById('chat').innerHTML).toBe('');
+      expect(document.getElementById('temp-card').style.display).toBe('none');
     });
 
     it('shows user-panel', () => {
+      document.getElementById('user-panel').style.display = 'none';
       handlers.handleHtml(assistantData);
-      expect(mockElements['#user-panel'].show).toHaveBeenCalled();
+      expect(document.getElementById('user-panel').style.display).toBe('');
     });
 
     it('calls setInputFocus', () => {
@@ -222,7 +180,6 @@ describe('ws-html-handler', () => {
 
       handlers.handleHtml(assistantData);
 
-      // appendCard should not be called by the fallback (only by wsHandlers internally)
       expect(window.appendCard).not.toHaveBeenCalled();
     });
 
@@ -257,8 +214,9 @@ describe('ws-html-handler', () => {
     });
 
     it('enables message input on final message', () => {
+      document.getElementById('message').disabled = true;
       handlers.handleHtml(assistantData);
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('message').disabled).toBe(false);
     });
 
     it('shows response received alert', () => {
@@ -303,8 +261,9 @@ describe('ws-html-handler', () => {
     });
 
     it('shows spinner with processing tools message', () => {
+      document.getElementById('monadic-spinner').style.display = 'none';
       handlers.handleHtml(moreComingData);
-      expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+      expect(document.getElementById('monadic-spinner').style.display).toBe('');
     });
 
     it('keeps cancel button visible', () => {

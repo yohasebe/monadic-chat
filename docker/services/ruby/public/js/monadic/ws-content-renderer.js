@@ -86,75 +86,75 @@
     if (!element) {
       return;
     }
-    element.find("div.card-text div.highlighter-rouge").each(function () {
-      var highlighterElement = $(this);
-      if (highlighterElement.find(".copy-code-button").length === 0) {
-        var codeElement = highlighterElement.find("code");
-        if (codeElement.length) {
-          var copyButton = $('<div class="copy-code-button"><i class="fa-solid fa-copy"></i></div>');
-          highlighterElement.append(copyButton);
+    var container = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!container || !container.querySelectorAll) return;
 
-          copyButton.click(function () {
-            var text = codeElement.text();
-            var icon = copyButton.find("i");
+    function showCopyIcon(icon, success) {
+      var addClass = success ? "fa-check" : "fa-xmark";
+      icon.classList.remove("fa-copy");
+      icon.classList.add(addClass);
+      icon.style.color = "#DC4C64";
+      setTimeout(function() {
+        icon.classList.remove(addClass);
+        icon.classList.add("fa-copy");
+        icon.style.color = "";
+      }, 1000);
+    }
 
-            try {
-              var textarea = document.createElement('textarea');
-              textarea.value = text;
-              textarea.style.position = 'fixed';
-              textarea.style.opacity = 0;
-              document.body.appendChild(textarea);
-              textarea.select();
+    container.querySelectorAll("div.card-text div.highlighter-rouge").forEach(function (highlighterElement) {
+      if (highlighterElement.querySelector(".copy-code-button")) return;
+      var codeElement = highlighterElement.querySelector("code");
+      if (!codeElement) return;
 
-              var success = document.execCommand('copy');
-              document.body.removeChild(textarea);
+      var copyButton = document.createElement('div');
+      copyButton.className = 'copy-code-button';
+      copyButton.innerHTML = '<i class="fa-solid fa-copy"></i>';
+      highlighterElement.appendChild(copyButton);
 
-              if (!success) {
-                throw new Error('execCommand copy failed');
-              }
+      copyButton.addEventListener('click', function () {
+        var text = codeElement.textContent;
+        var icon = copyButton.querySelector("i");
 
-              icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-              setTimeout(function() {
-                icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-              }, 1000);
-            } catch (err) {
-              console.error("Failed to copy text: ", err);
+        try {
+          var textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = 0;
+          document.body.appendChild(textarea);
+          textarea.select();
 
-              try {
-                if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
-                  window.electronAPI.writeClipboard(text);
-                  icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                  setTimeout(function() {
-                    icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-                  }, 1000);
-                } else if (navigator.clipboard && navigator.clipboard.writeText) {
-                  navigator.clipboard.writeText(text)
-                    .then(function() {
-                      icon.removeClass("fa-copy").addClass("fa-check").css("color", "#DC4C64");
-                      setTimeout(function() {
-                        icon.removeClass("fa-check").addClass("fa-copy").css("color", "");
-                      }, 1000);
-                    })
-                    .catch(function() {
-                      icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-                      setTimeout(function() {
-                        icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
-                      }, 1000);
-                    });
-                } else {
-                  throw new Error('No clipboard API available');
-                }
-              } catch (fallbackErr) {
-                console.error("All clipboard methods failed: ", fallbackErr);
-                icon.removeClass("fa-copy").addClass("fa-xmark").css("color", "#DC4C64");
-                setTimeout(function() {
-                  icon.removeClass("fa-xmark").addClass("fa-copy").css("color", "");
-                }, 1000);
-              }
+          var success = document.execCommand('copy');
+          document.body.removeChild(textarea);
+
+          if (!success) {
+            throw new Error('execCommand copy failed');
+          }
+
+          showCopyIcon(icon, true);
+        } catch (err) {
+          console.error("Failed to copy text: ", err);
+
+          try {
+            if (window.electronAPI && typeof window.electronAPI.writeClipboard === 'function') {
+              window.electronAPI.writeClipboard(text);
+              showCopyIcon(icon, true);
+            } else if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text)
+                .then(function() {
+                  showCopyIcon(icon, true);
+                })
+                .catch(function() {
+                  showCopyIcon(icon, false);
+                });
+            } else {
+              throw new Error('No clipboard API available');
             }
-          });
+          } catch (fallbackErr) {
+            console.error("All clipboard methods failed: ", fallbackErr);
+            showCopyIcon(icon, false);
+          }
         }
-      }
+      });
     });
   }
 
@@ -203,7 +203,9 @@
   }
 
   function applyMathJax(element) {
-    if (element.hasClass("diagram")) {
+    var domElement = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domElement) return;
+    if (domElement.classList.contains("diagram")) {
       return;
     }
 
@@ -213,7 +215,6 @@
 
     // KaTeX rendering is now done at markdown-renderer level (placeholder → rendered HTML).
     // This function remains as a fallback for any remaining raw delimiters.
-    var domElement = element.get(0);
     domElement.innerHTML = renderKatexInHTML(domElement.innerHTML);
   }
 
@@ -250,21 +251,22 @@
     if (typeof mermaid === 'undefined') return;
     mermaid.initialize(mermaid_config);
 
-    element.find(".mermaid-code").each(function (index) {
-      var mermaidElement = $(this);
-      mermaidElement.addClass("sourcecode");
-      mermaidElement.find("pre").addClass("sourcecode");
-      var mermaidText = mermaidElement.text().trim();
+    var domEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domEl) return;
+    domEl.querySelectorAll(".mermaid-code").forEach(function (mermaidDom, index) {
+      mermaidDom.classList.add("sourcecode");
+      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
+      var mermaidText = mermaidDom.textContent.trim();
       var sanitizedMermaidText = sanitizeMermaidSource(mermaidText);
-      mermaidElement.find("pre").text(mermaidText);
-      addToggleSourceCode(mermaidElement, "Toggle Mermaid Diagram");
+      mermaidDom.querySelectorAll("pre").forEach(function(pre) { pre.textContent = mermaidText; });
+      addToggleSourceCode(mermaidDom, "Toggle Mermaid Diagram");
 
       var containerId = 'diagram-' + index;
-      var diagramContainer = $('<div class="diagram-wrapper">' +
-        '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
-        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>' +
-        '</div>');
-      mermaidElement.after(diagramContainer);
+      var wrapper = document.createElement('div');
+      wrapper.className = 'diagram-wrapper';
+      wrapper.innerHTML = '<div class="diagram" id="' + containerId + '"><mermaid>' + sanitizedMermaidText + '</mermaid></div>' +
+        '<div class="error-message" id="error-' + containerId + '" style="display: none;"></div>';
+      mermaidDom.parentNode.insertBefore(wrapper, mermaidDom.nextSibling);
 
       try {
         var type = mermaid.detectType(sanitizedMermaidText);
@@ -272,12 +274,16 @@
           throw new Error("Invalid diagram type");
         }
       } catch (error) {
-        var errorElement = diagramContainer.find('#error-' + containerId);
-        errorElement.html('<div class="alert alert-danger">' +
-          '<strong>Mermaid Syntax Error:</strong><br>' +
-          error.message +
-          '</div>').show();
-        diagramContainer.find('.diagram').hide();
+        var errorElement = wrapper.querySelector('#error-' + containerId);
+        if (errorElement) {
+          errorElement.innerHTML = '<div class="alert alert-danger">' +
+            '<strong>Mermaid Syntax Error:</strong><br>' +
+            error.message +
+            '</div>';
+          errorElement.style.display = '';
+        }
+        var diagramEl = wrapper.querySelector('.diagram');
+        if (diagramEl) diagramEl.style.display = 'none';
       }
     });
 
@@ -291,8 +297,7 @@
     // Mermaid sometimes generates viewBoxes larger than the actual diagram content,
     // leaving empty space on the right and below. Measure real content bounds via
     // getBBox() and shrink the viewBox + max-width accordingly.
-    element.find(".diagram:not(.drawio-diagram) svg").each(function() {
-      var svgEl = this;
+    domEl.querySelectorAll(".diagram:not(.drawio-diagram) svg").forEach(function(svgEl) {
       try {
         var bbox = svgEl.getBBox();
         if (!bbox || bbox.width <= 0 || bbox.height <= 0) return;
@@ -311,12 +316,13 @@
       }
     });
 
-    element.find(".diagram").each(function (index) {
-      var diagram = $(this);
-      if (diagram.is(':visible')) {
-        var downloadButton = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download SVG</button></div>');
-        downloadButton.on('click', function () {
-          var svgElement = diagram.find('svg')[0];
+    domEl.querySelectorAll(".diagram").forEach(function (diagramDom, index) {
+      if (diagramDom.style.display !== 'none' && diagramDom.offsetParent !== null) {
+        var downloadButton = document.createElement('div');
+        downloadButton.className = 'mb-3';
+        downloadButton.innerHTML = '<button class="btn btn-secondary btn-sm">Download SVG</button>';
+        downloadButton.addEventListener('click', function () {
+          var svgElement = diagramDom.querySelector('svg');
           if (svgElement) {
             var serializer = new XMLSerializer();
             var source = serializer.serializeToString(svgElement);
@@ -331,7 +337,7 @@
             URL.revokeObjectURL(url);
           }
         });
-        diagram.after(downloadButton);
+        diagramDom.parentNode.insertBefore(downloadButton, diagramDom.nextSibling);
       }
     });
   }
@@ -395,22 +401,23 @@
   // ── DrawIO ────────────────────────────────────────────────────────
 
   function applyDrawIO(element) {
-    var drawioElements = element.find(".drawio-code");
+    var drawDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!drawDomEl) return;
+    var drawioElements = drawDomEl.querySelectorAll(".drawio-code");
     if (drawioElements.length === 0) return;
 
     var pendingRenders = [];
 
-    drawioElements.each(function(index) {
-      var el = $(this);
-      el.addClass("sourcecode");
-      el.find("pre").addClass("sourcecode");
+    drawioElements.forEach(function(elDom, index) {
+      elDom.classList.add("sourcecode");
+      elDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
 
-      var rawText = el.find("pre").text().trim();
-      // .text() already fully unescapes HTML entities — no manual unescaping needed
+      var preEl = elDom.querySelector("pre");
+      var rawText = preEl ? preEl.textContent.trim() : '';
       var xmlContent = rawText;
 
-      el.find("pre").text(rawText);
-      addToggleSourceCode(el, "Toggle DrawIO Diagram");
+      if (preEl) preEl.textContent = rawText;
+      addToggleSourceCode(elDom, "Toggle DrawIO Diagram");
 
       var containerId = 'drawio-diagram-' + index + '-' + Date.now();
 
@@ -438,9 +445,8 @@
       errorDiv.style.display = 'none';
       wrapper.appendChild(errorDiv);
 
-      var diagramContainer = $(wrapper);
-      el.after(diagramContainer);
-      pendingRenders.push({ containerId: containerId, xmlContent: xmlContent, diagramContainer: diagramContainer });
+      elDom.parentNode.insertBefore(wrapper, elDom.nextSibling);
+      pendingRenders.push({ containerId: containerId, xmlContent: xmlContent, diagramContainer: wrapper });
     });
 
     if (pendingRenders.length === 0) return;
@@ -448,9 +454,13 @@
     ensureDrawIOViewer(function(err) {
       if (err) {
         pendingRenders.forEach(function(item) {
-          item.diagramContainer.find('#error-' + item.containerId)
-            .html('<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>').show();
-          item.diagramContainer.find('.diagram').hide();
+          var errEl = item.diagramContainer.querySelector('#error-' + item.containerId);
+          if (errEl) {
+            errEl.innerHTML = '<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>';
+            errEl.style.display = '';
+          }
+          var diagEl = item.diagramContainer.querySelector('.diagram');
+          if (diagEl) diagEl.style.display = 'none';
         });
         return;
       }
@@ -463,10 +473,12 @@
 
       // Download .drawio buttons
       pendingRenders.forEach(function(item, idx) {
-        var diagram = item.diagramContainer.find('.diagram');
-        if (diagram.is(':visible')) {
-          var btn = $('<div class="mb-3"><button class="btn btn-secondary btn-sm">Download .drawio</button></div>');
-          btn.on('click', function() {
+        var diagEl = item.diagramContainer.querySelector('.diagram');
+        if (diagEl && diagEl.style.display !== 'none' && diagEl.offsetParent !== null) {
+          var btn = document.createElement('div');
+          btn.className = 'mb-3';
+          btn.innerHTML = '<button class="btn btn-secondary btn-sm">Download .drawio</button>';
+          btn.addEventListener('click', function() {
             var blob = new Blob([item.xmlContent], { type: 'application/xml;charset=utf-8' });
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
@@ -474,7 +486,7 @@
             document.body.appendChild(a); a.click();
             document.body.removeChild(a); URL.revokeObjectURL(url);
           });
-          diagram.after(btn);
+          diagEl.parentNode.insertBefore(btn, diagEl.nextSibling);
         }
       });
     });
@@ -543,12 +555,14 @@
     // Lazy-load ABCjs on first use
     if (window.LazyLoader) await window.LazyLoader.abcjs();
     if (typeof ABCJS === 'undefined') return;
-    element.find(".abc-code").each(function () {
-      $(this).addClass("sourcecode");
-      $(this).find("pre").addClass("sourcecode");
-      var abcElement = $(this);
+    var abcDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!abcDomEl) return;
+    abcDomEl.querySelectorAll(".abc-code").forEach(function (abcDom) {
+      abcDom.classList.add("sourcecode");
+      abcDom.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
       var abcId = '' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
-      var abcText = abcElement.find("pre").text().trim();
+      var preEl = abcDom.querySelector("pre");
+      var abcText = preEl ? preEl.textContent.trim() : '';
       abcText = abcText.split("\n").map(function(line) { return line.trim(); }).join("\n");
 
       var instrument = "";
@@ -557,10 +571,10 @@
         instrument = instrumentMatch[1];
       }
 
-      abcElement.find("pre").text(abcText);
+      if (preEl) preEl.textContent = abcText;
       var abcSVG = 'abc-svg-' + abcId;
       var abcMidi = 'abc-midi-' + abcId;
-      addToggleSourceCode(abcElement, "Toggle ABC Notation");
+      addToggleSourceCode(abcDom, "Toggle ABC Notation");
 
       // Create DOM elements directly (avoids ABCJS ID lookup timing issues)
       var svgDiv = document.createElement('div');
@@ -569,8 +583,8 @@
       var midiDiv = document.createElement('div');
       midiDiv.id = abcMidi;
       midiDiv.className = 'abc-midi';
-      abcElement.after(midiDiv);
-      abcElement.after(svgDiv);
+      abcDom.parentNode.insertBefore(midiDiv, abcDom.nextSibling);
+      abcDom.parentNode.insertBefore(svgDiv, abcDom.nextSibling);
 
       var abcOptions = {
         add_classes: true,
@@ -697,63 +711,72 @@
   // ── Toggle / source code helpers ───────────────────────────────────
 
   function applyToggle(element, nl2br) {
-    if (element.find(".sourcecode-toggle").length > 0) {
+    var toggleDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!toggleDomEl) return;
+    if (toggleDomEl.querySelector(".sourcecode-toggle")) {
       return;
     }
-    element.find(".toggle").each(function () {
-      var toggleElement = $(this);
-      toggleElement.addClass("sourcecode");
-      toggleElement.find("pre").addClass("sourcecode");
+    toggleDomEl.querySelectorAll(".toggle").forEach(function (toggleEl) {
+      toggleEl.classList.add("sourcecode");
+      toggleEl.querySelectorAll("pre").forEach(function(pre) { pre.classList.add("sourcecode"); });
 
       if (nl2br) {
-        var toggleText = toggleElement.text().trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
-        toggleElement.find("pre").text(toggleText);
+        var toggleText = toggleEl.textContent.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>").replace(/\s/g, "&nbsp;");
+        var preEl = toggleEl.querySelector("pre");
+        if (preEl) preEl.textContent = toggleText;
       }
-      addToggleSourceCode(toggleElement, toggleElement.data("label"));
+      addToggleSourceCode(toggleEl, toggleEl.dataset.label);
     });
   }
 
   function addToggleSourceCode(element, title) {
+    var domEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!domEl) return;
     title = title || "Toggle Show/Hide";
-    if (element.data("title")) {
-      title = element.data("title");
+    if (domEl.dataset.title) {
+      title = domEl.dataset.title;
     }
     var toggleHide = "<i class='fa-solid fa-toggle-on'></i> " + title;
     var toggleShow = "<i class='fa-solid fa-toggle-off'></i> " + title;
-    var controlDiv = '<div class="sourcecode-toggle unselectable">' + toggleShow + '</div>';
-    element.before(controlDiv);
-    element.prev().click(function () {
-      var sourcecode = $(this).next();
-      sourcecode.toggle();
-      if (sourcecode.is(":visible")) {
-        $(this).html(toggleHide);
+    var controlDiv = document.createElement('div');
+    controlDiv.className = 'sourcecode-toggle unselectable';
+    controlDiv.innerHTML = toggleShow;
+    domEl.parentNode.insertBefore(controlDiv, domEl);
+    controlDiv.addEventListener('click', function () {
+      var sourcecode = this.nextElementSibling;
+      if (sourcecode.style.display === 'none') {
+        sourcecode.style.display = '';
+        this.innerHTML = toggleHide;
       } else {
-        $(this).html(toggleShow);
+        sourcecode.style.display = 'none';
+        this.innerHTML = toggleShow;
       }
     });
-    element.hide();
+    domEl.style.display = 'none';
   }
 
   function formatSourceCode(element) {
-    element.find(".sourcecode").each(function () {
-      var sourceCodeElement = $(this);
-      var sourceCode = sourceCodeElement.text().trim();
-      sourceCodeElement.find("code").text(sourceCode);
+    var fmtDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!fmtDomEl) return;
+    fmtDomEl.querySelectorAll(".sourcecode").forEach(function (sourceCodeElement) {
+      var sourceCode = sourceCodeElement.textContent.trim();
+      var codeEl = sourceCodeElement.querySelector("code");
+      if (codeEl) codeEl.textContent = sourceCode;
     });
   }
 
   function cleanupListCodeBlocks(element) {
-    element.find('li').each(function() {
-      var $li = $(this);
-      var children = $li.contents();
-
-      children.each(function(index) {
-        if (this.nodeType === Node.TEXT_NODE) {
-          var text = $(this).text().trim();
+    var clDomEl = element instanceof HTMLElement ? element : (element.get ? element.get(0) : element);
+    if (!clDomEl) return;
+    clDomEl.querySelectorAll('li').forEach(function(li) {
+      var childNodes = Array.from(li.childNodes);
+      childNodes.forEach(function(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          var text = node.textContent.trim();
           if (text.match(/^[0-9]{1,2}$/)) {
-            var prevSibling = $(this).prev();
-            if (prevSibling.hasClass('highlight') || prevSibling.find('.highlight').length > 0) {
-              $(this).remove();
+            var prevSibling = node.previousElementSibling;
+            if (prevSibling && (prevSibling.classList.contains('highlight') || prevSibling.querySelector('.highlight'))) {
+              node.remove();
             }
           }
         }

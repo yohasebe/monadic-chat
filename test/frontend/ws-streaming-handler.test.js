@@ -9,51 +9,41 @@
  * - handleStreamingComplete: State reset, spinner management, ready status
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    prop: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    html: jest.fn().mockReturnValue(''),
-    empty: jest.fn().mockReturnThis(),
-    detach: jest.fn().mockReturnThis(),
-    append: jest.fn().mockReturnThis(),
-    attr: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis()
-  };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
-
-let mockElements;
 
 beforeEach(() => {
   jest.useFakeTimers();
 
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#monadic-spinner span': createMockElement('spinner-span'),
-    '#check-auto-speech': createMockElement('check-auto-speech'),
-    '#message': createMockElement('message'),
-    '#send, #clear, #image-file, #voice, #doc, #url, #pdf-import': createMockElement('buttons'),
-    '#send, #clear, #image-file, #voice, #doc, #url': createMockElement('user-buttons'),
-    '#select-role': createMockElement('select-role'),
-    '#temp-card': createMockElement('temp-card'),
-    '#temp-card .card-text': createMockElement('temp-card-text'),
-    '#temp-card .status': createMockElement('temp-card-status'),
-    '#indicator': createMockElement('indicator'),
-    '#discourse': createMockElement('discourse'),
-    '#discourse .card:not(#temp-card) .role-assistant': { length: 0 },
-    '#chat': createMockElement('chat')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
+  // Create DOM elements
+  const spinner = createDOMElement('div', 'monadic-spinner');
+  spinner.innerHTML = '<span></span>';
+  createDOMElement('input', 'check-auto-speech');
+  createDOMElement('textarea', 'message');
+  createDOMElement('button', 'send');
+  createDOMElement('button', 'clear');
+  createDOMElement('input', 'image-file');
+  createDOMElement('button', 'voice');
+  createDOMElement('button', 'doc');
+  createDOMElement('button', 'url');
+  createDOMElement('button', 'pdf-import');
+  createDOMElement('select', 'select-role');
+  createDOMElement('div', 'user-panel');
+  const tempCard = createDOMElement('div', 'temp-card');
+  const cardText = document.createElement('div');
+  cardText.className = 'card-text';
+  tempCard.appendChild(cardText);
+  const tempStatus = document.createElement('div');
+  tempStatus.className = 'status';
+  tempCard.appendChild(tempStatus);
+  createDOMElement('div', 'indicator');
+  createDOMElement('div', 'discourse');
+  createDOMElement('div', 'chat');
+  createDOMElement('div', 'cancel_query');
 
   // Mock global functions
   global.setAlert = jest.fn();
@@ -84,18 +74,15 @@ beforeEach(() => {
   window._lastProcessedIndex = 0;
   window._lastProcessedSequence = 0;
 
-  // Create cancel_query element in DOM
-  const cancelBtn = document.createElement('div');
-  cancelBtn.id = 'cancel_query';
-  document.body.appendChild(cancelBtn);
-
   global.isAutoSpeechSuppressed = jest.fn().mockReturnValue(false);
   global.setAutoSpeechSuppressed = jest.fn();
+  global.isElementInViewport = jest.fn().mockReturnValue(true);
 });
 
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+  document.body.innerHTML = '';
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-streaming-handler');
@@ -159,10 +146,11 @@ describe('ws-streaming-handler', () => {
     });
 
     it('enables message input after delay', () => {
+      document.getElementById('message').disabled = true;
       handlers.handleStreamingComplete({});
       jest.advanceTimersByTime(250);
 
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('message').disabled).toBe(false);
     });
 
     it('calls setInputFocus after delay', () => {
@@ -192,7 +180,6 @@ describe('ws-streaming-handler', () => {
   describe('handleDefaultMessage', () => {
     beforeEach(() => {
       window.handleFragmentMessage = jest.fn();
-      global.isElementInViewport = jest.fn().mockReturnValue(true);
       global.WorkflowViewer = { setStage: jest.fn() };
       window.autoScroll = false;
       window.chatBottom = null;
@@ -234,8 +221,9 @@ describe('ws-streaming-handler', () => {
       it('shows spinner during streaming', () => {
         window.streamingResponse = true;
         window.responseStarted = true;
+        document.getElementById('monadic-spinner').style.display = 'none';
         handlers.handleDefaultMessage({ type: 'fragment', content: 'test' });
-        expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+        expect(document.getElementById('monadic-spinner').style.display).toBe('');
       });
     });
 
@@ -255,12 +243,11 @@ describe('ws-streaming-handler', () => {
       it('appends escaped content to chat', () => {
         window.responseStarted = true;
         window.callingFunction = false;
-        const chatMock = { html: jest.fn().mockReturnValue('existing') };
-        mockElements['#chat'] = chatMock;
+        document.getElementById('chat').innerHTML = 'existing';
 
         handlers.handleDefaultMessage({ type: 'unknown', content: '<b>test</b>' });
 
-        expect(chatMock.html).toHaveBeenCalledWith(expect.stringContaining('&lt;b&gt;test&lt;/b&gt;'));
+        expect(document.getElementById('chat').innerHTML).toContain('&lt;b&gt;test&lt;/b&gt;');
       });
     });
   });
@@ -314,13 +301,14 @@ describe('ws-streaming-handler', () => {
     });
 
     it('shows spinner', () => {
+      document.getElementById('monadic-spinner').style.display = 'none';
       handlers.handleUser(userData);
-      expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+      expect(document.getElementById('monadic-spinner').style.display).toBe('');
     });
 
     it('disables message input', () => {
       handlers.handleUser(userData);
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('message').disabled).toBe(true);
     });
 
     it('resets skipAssistantInitiation', () => {

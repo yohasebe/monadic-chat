@@ -42,7 +42,8 @@ function handleHtml(data) {
   // This ensures streaming content stays visible until the final card replaces it
 
   // Remove temp-reasoning-card as we're about to show the final HTML
-  $("#temp-reasoning-card").remove();
+  const tempReasoningCard = document.getElementById("temp-reasoning-card");
+  if (tempReasoningCard) tempReasoningCard.remove();
   if (typeof window.setReasoningStreamActive === 'function') {
     window.setReasoningStreamActive(false);
   }
@@ -125,16 +126,21 @@ function handleHtml(data) {
     }
 
     // Common cleanup for all roles
-    $("#chat").html("");
+    const chatEl = document.getElementById("chat");
+    if (chatEl) chatEl.innerHTML = "";
     if (typeof clearToolStatus === 'function') {
       clearToolStatus();
     }
-    $("#temp-card").hide();
-    $("#indicator").hide();
-    $("#user-panel").show();
+    const tempCard = document.getElementById("temp-card");
+    if (tempCard) tempCard.style.display = 'none';
+    const indicator = document.getElementById("indicator");
+    if (indicator) indicator.style.display = 'none';
+    const userPanel = document.getElementById("user-panel");
+    if (userPanel) userPanel.style.display = '';
 
     // Make sure message input is enabled
-    $("#message").prop("disabled", false);
+    const messageInput = document.getElementById("message");
+    if (messageInput) messageInput.disabled = false;
 
     const mainPanel = window.mainPanel;
     if (mainPanel && typeof isElementInViewport === 'function' && !isElementInViewport(mainPanel)) {
@@ -158,7 +164,8 @@ function handleHtml(data) {
  */
 function _handleAssistantRole(data, html, moreComing) {
   // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
-  const turnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
+  const discourseEl = document.getElementById('discourse');
+  const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
   if (moreComing) {
@@ -177,11 +184,14 @@ function _handleAssistantRole(data, html, moreComing) {
     window._lastProcessedSequence = -1;
     window._lastProcessedIndex = -1;
 
-    let tempCard = $("#temp-card");
-    if (!tempCard.length) {
+    let tempCardEl = document.getElementById("temp-card");
+    const discEl = document.getElementById("discourse");
+    if (!tempCardEl) {
       // Create new temp-card if it doesn't exist
-      tempCard = $(`
-        <div id="temp-card" class="card mt-3 streaming-card">
+      tempCardEl = document.createElement('div');
+      tempCardEl.id = 'temp-card';
+      tempCardEl.className = 'card mt-3 streaming-card';
+      tempCardEl.innerHTML = `
           <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
             <div class="fs-5 card-title mb-0">
               <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
@@ -189,23 +199,26 @@ function _handleAssistantRole(data, html, moreComing) {
           </div>
           <div class="card-body role-assistant">
             <div class="card-text"></div>
-          </div>
-        </div>
-      `);
-      $("#discourse").append(tempCard);
+          </div>`;
+      if (discEl) discEl.appendChild(tempCardEl);
     } else {
       // Reset existing temp-card
-      tempCard.find(".card-text").empty();
-      tempCard.detach();
-      $("#discourse").append(tempCard);
+      const cardText = tempCardEl.querySelector(".card-text");
+      if (cardText) cardText.innerHTML = '';
+      if (tempCardEl.parentNode) tempCardEl.parentNode.removeChild(tempCardEl);
+      if (discEl) discEl.appendChild(tempCardEl);
     }
-    tempCard.show();
+    tempCardEl.style.display = '';
 
     // Show spinner with "Processing tools" message
     const processingToolsText = typeof webUIi18n !== 'undefined' ?
       webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-    $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
-    $("#monadic-spinner").show();
+    const spinnerEl = document.getElementById("monadic-spinner");
+    if (spinnerEl) {
+      const spanEl = spinnerEl.querySelector("span");
+      if (spanEl) spanEl.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`;
+      spinnerEl.style.display = '';
+    }
 
     // Keep cancel button visible
     document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
@@ -223,12 +236,17 @@ function _handleAssistantRole(data, html, moreComing) {
  */
 function _handleFinalAssistantMessage(data) {
   // Show message input and hide spinner
-  $("#message").show();
-  $("#message").val(""); // Clear the message after successful response
-  $("#message").prop("disabled", false);
+  const msgEl = document.getElementById("message");
+  if (msgEl) {
+    msgEl.style.display = '';
+    msgEl.value = ""; // Clear the message after successful response
+    msgEl.disabled = false;
+  }
   // Re-enable all input controls
-  $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-  $("#select-role").prop("disabled", false);
+  ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
 
   // Reset streaming flag as response is done
   window.streamingResponse = false;
@@ -256,8 +274,10 @@ function _handleFinalAssistantMessage(data) {
   }
 
   // If this is the first assistant message (from initiate_from_assistant), show user panel
-  if (!$("#user-panel").is(":visible") && $("#temp-card").is(":visible")) {
-    $("#user-panel").show();
+  const finalUserPanel = document.getElementById("user-panel");
+  const finalTempCard = document.getElementById("temp-card");
+  if (finalUserPanel && finalUserPanel.style.display === 'none' && finalTempCard && finalTempCard.style.display !== 'none') {
+    finalUserPanel.style.display = '';
     if (typeof setInputFocus === 'function') {
       setInputFocus();
     }
@@ -338,10 +358,11 @@ function _handleAutoSpeech(data) {
       // 1. Highlight the Stop button for visual feedback
       // 2. Set a timeout to hide spinner if audio doesn't arrive
       setTimeout(() => {
-        const lastCard = $("#discourse div.card:last");
-        if (lastCard.length > 0) {
+        const discourseCards = document.querySelectorAll("#discourse div.card");
+        const lastCard = discourseCards.length > 0 ? discourseCards[discourseCards.length - 1] : null;
+        if (lastCard) {
           // Early highlight for Auto TTS: provides immediate visual feedback
-          const cardId = lastCard.attr('id');
+          const cardId = lastCard.id;
           if (cardId && typeof window.highlightStopButton === 'function') {
             window.highlightStopButton(cardId);
           }
@@ -372,10 +393,14 @@ function _handleUserRole(data) {
   }
   // Use the appendCard helper function
   // User turn number is existing assistant cards + 1 (excluding temp-card)
-  const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
+  const userDiscourse = document.getElementById('discourse');
+  const userTurnNumber = userDiscourse ? userDiscourse.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
-  $("#message").show();
-  $("#message").prop("disabled", false);
+  const userMsgEl = document.getElementById("message");
+  if (userMsgEl) {
+    userMsgEl.style.display = '';
+    userMsgEl.disabled = false;
+  }
 
   _resetStreamingAndShowReady();
 }
@@ -388,8 +413,11 @@ function _handleUserRole(data) {
 function _handleSystemRole(data) {
   // Use the appendCard helper function
   window.appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
-  $("#message").show();
-  $("#message").prop("disabled", false);
+  const sysMsgEl = document.getElementById("message");
+  if (sysMsgEl) {
+    sysMsgEl.style.display = '';
+    sysMsgEl.disabled = false;
+  }
 
   _resetStreamingAndShowReady();
 }

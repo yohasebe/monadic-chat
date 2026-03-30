@@ -10,71 +10,34 @@
  * - handleCancel: Operation cancellation, UI cleanup
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    prop: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    html: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    css: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    attr: jest.fn().mockReturnThis(),
-    find: jest.fn().mockReturnValue({
-      length: 0,
-      prop: jest.fn().mockReturnThis()
-    }),
-    last: jest.fn().mockReturnValue({
-      find: jest.fn().mockReturnValue({ length: 0 }),
-      attr: jest.fn().mockReturnValue('card-1')
-    })
-  };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
-let mockElements;
-
 beforeEach(() => {
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#message': createMockElement('message'),
-    '#temp-card': createMockElement('temp-card'),
-    '#indicator': createMockElement('indicator'),
-    '#user-panel': createMockElement('user-panel'),
-    '#status-message': createMockElement('status-message'),
-    '#discourse': createMockElement('discourse'),
-    '#chat': createMockElement('chat'),
-    '#select-role': createMockElement('select-role'),
-    '#ai_user': createMockElement('ai_user'),
-    '#send': createMockElement('send'),
-    '#clear': createMockElement('clear'),
-    '#send, #clear, #image-file, #voice, #doc, #url, #pdf-import, #ai_user': createMockElement('bulk'),
-    '#monadic-spinner span': createMockElement('spinner-span'),
-    '#discourse .card': createMockElement('discourse-card'),
-    '#tool-status': createMockElement('tool-status')
-  };
-
-  // Make #discourse .card return something with .last()
-  mockElements['#discourse .card'] = {
-    length: 0,
-    last: jest.fn().mockReturnValue({
-      find: jest.fn().mockReturnValue({ length: 0 }),
-      attr: jest.fn().mockReturnValue('card-1')
-    })
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
-
-  // Create cancel_query element in DOM
-  const cancelBtn = document.createElement('div');
-  cancelBtn.id = 'cancel_query';
-  document.body.appendChild(cancelBtn);
+  // Create DOM elements
+  const spinner = createDOMElement('div', 'monadic-spinner');
+  spinner.innerHTML = '<span></span>';
+  createDOMElement('textarea', 'message');
+  createDOMElement('div', 'temp-card');
+  createDOMElement('div', 'indicator');
+  createDOMElement('div', 'user-panel');
+  createDOMElement('div', 'status-message');
+  createDOMElement('div', 'discourse');
+  createDOMElement('div', 'chat');
+  createDOMElement('select', 'select-role');
+  createDOMElement('button', 'ai_user');
+  createDOMElement('button', 'send');
+  createDOMElement('button', 'clear');
+  createDOMElement('input', 'image-file');
+  createDOMElement('button', 'voice');
+  createDOMElement('button', 'doc');
+  createDOMElement('button', 'url');
+  createDOMElement('button', 'pdf-import');
+  createDOMElement('div', 'cancel_query');
 
   // Mock global functions
   global.setAlert = jest.fn();
@@ -161,13 +124,14 @@ describe('ws-error-handler', () => {
 
     it('hides temp-card and indicator', () => {
       handlers.handleError({ content: 'error' });
-      expect(mockElements['#temp-card'].hide).toHaveBeenCalled();
-      expect(mockElements['#indicator'].hide).toHaveBeenCalled();
+      expect(document.getElementById('temp-card').style.display).toBe('none');
+      expect(document.getElementById('indicator').style.display).toBe('none');
     });
 
     it('shows user-panel', () => {
+      document.getElementById('user-panel').style.display = 'none';
       handlers.handleError({ content: 'error' });
-      expect(mockElements['#user-panel'].show).toHaveBeenCalled();
+      expect(document.getElementById('user-panel').style.display).toBe('');
     });
 
     it('sets WorkflowViewer stage to error', () => {
@@ -183,7 +147,7 @@ describe('ws-error-handler', () => {
     it('restores message value from params for non-AI-User errors', () => {
       window.params = { message: 'my original message' };
       handlers.handleError({ content: 'error' });
-      expect(mockElements['#message'].val).toHaveBeenCalledWith('my original message');
+      expect(document.getElementById('message').value).toBe('my original message');
     });
 
     it('delegates to wsHandlers.handleErrorMessage when available', () => {
@@ -198,11 +162,15 @@ describe('ws-error-handler', () => {
 
   describe('handleCancel', () => {
     it('re-enables UI elements', () => {
+      document.getElementById('send').disabled = true;
+      document.getElementById('clear').disabled = true;
+      document.getElementById('message').disabled = true;
+
       handlers.handleCancel({});
 
-      expect(mockElements['#send'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#clear'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#message'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('clear').disabled).toBe(false);
+      expect(document.getElementById('message').disabled).toBe(false);
     });
 
     it('shows cancellation alert', () => {
@@ -215,13 +183,13 @@ describe('ws-error-handler', () => {
 
     it('hides temp-card and indicator', () => {
       handlers.handleCancel({});
-      expect(mockElements['#temp-card'].hide).toHaveBeenCalled();
-      expect(mockElements['#indicator'].hide).toHaveBeenCalled();
+      expect(document.getElementById('temp-card').style.display).toBe('none');
+      expect(document.getElementById('indicator').style.display).toBe('none');
     });
 
     it('hides spinner', () => {
       handlers.handleCancel({});
-      expect(mockElements['#monadic-spinner'].css).toHaveBeenCalledWith('display', 'none');
+      expect(document.getElementById('monadic-spinner').style.display).toBe('none');
     });
 
     it('calls clearToolStatus', () => {
@@ -250,7 +218,7 @@ describe('ws-error-handler', () => {
     it('empties discourse when no messages remain', () => {
       window.messages = [];
       handlers.handleCancel({});
-      expect(mockElements['#discourse'].empty).toHaveBeenCalled();
+      expect(document.getElementById('discourse').innerHTML).toBe('');
     });
 
     it('delegates to wsHandlers.handleCancelMessage when available', () => {

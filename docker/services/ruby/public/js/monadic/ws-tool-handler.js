@@ -20,9 +20,9 @@ function handleToolExecuting(data) {
   window.currentToolName = data["content"];
 
   // Show temp card early if hidden (immediate feedback)
-  const toolTempCard = $("#temp-card");
-  if (toolTempCard.length && toolTempCard.is(":hidden")) {
-    toolTempCard.show();
+  const toolTempCard = document.getElementById("temp-card");
+  if (toolTempCard && toolTempCard.style.display === 'none') {
+    toolTempCard.style.display = '';
   }
 
   // Update temp card header with tool name and count
@@ -47,11 +47,13 @@ function handleMessage(data) {
     if (data["finish_reason"] === "tool_calls") {
       // Keep spinner visible for tool calls
       window.callingFunction = true;
-      $("#monadic-spinner").show();
+      const spinnerEl = document.getElementById("monadic-spinner");
+      if (spinnerEl) spinnerEl.style.display = '';
       const processingToolsText = typeof getTranslation === 'function' ?
         getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools') :
         'Processing tools';
-      $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`);
+      const spinnerSpan = spinnerEl ? spinnerEl.querySelector("span") : null;
+      if (spinnerSpan) spinnerSpan.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`;
     } else {
       // No tool calls, ensure callingFunction is false
       window.callingFunction = false;
@@ -63,9 +65,12 @@ function handleMessage(data) {
       window.ws.send(JSON.stringify({ "message": "HTML" }));
     }
   } else if (data["content"] === "CLEAR") {
-    $("#chat").html("");
-    $("#temp-card .status").hide();
-    $("#indicator").show();
+    const chatEl = document.getElementById("chat");
+    if (chatEl) chatEl.innerHTML = "";
+    const tempCardStatus = document.querySelector("#temp-card .status");
+    if (tempCardStatus) tempCardStatus.style.display = 'none';
+    const indicatorEl = document.getElementById("indicator");
+    if (indicatorEl) indicatorEl.style.display = '';
   }
 }
 
@@ -230,10 +235,13 @@ function handleWait(data) {
     }
 
     // Display agent progress in streaming temp card
-    let tempCard = $("#temp-card");
-    if (!tempCard.length) {
-      tempCard = $(`
-        <div id="temp-card" class="card mt-3 streaming-card">
+    let tempCardEl = document.getElementById("temp-card");
+    const discourseEl = document.getElementById("discourse");
+    if (!tempCardEl) {
+      tempCardEl = document.createElement('div');
+      tempCardEl.id = 'temp-card';
+      tempCardEl.className = 'card mt-3 streaming-card';
+      tempCardEl.innerHTML = `
           <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
             <div class="fs-5 card-title mb-0">
               <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
@@ -241,24 +249,24 @@ function handleWait(data) {
           </div>
           <div class="card-body role-assistant">
             <div class="card-text"></div>
-          </div>
-        </div>
-      `);
-      $("#discourse").append(tempCard);
+          </div>`;
+      if (discourseEl) discourseEl.appendChild(tempCardEl);
     } else {
-      tempCard.detach();
-      $("#discourse").append(tempCard);
+      if (tempCardEl.parentNode) tempCardEl.parentNode.removeChild(tempCardEl);
+      if (discourseEl) discourseEl.appendChild(tempCardEl);
     }
 
-    $("#temp-card .card-text").html(`<div class="mb-0" style="color: inherit;">${displayContent}</div>`);
-    $("#temp-card").show();
+    const cardTextEl = tempCardEl.querySelector(".card-text");
+    if (cardTextEl) cardTextEl.innerHTML = `<div class="mb-0" style="color: inherit;">${displayContent}</div>`;
+    tempCardEl.style.display = '';
   } else {
     // Regular wait messages go to status-message
     setAlert(waitContent, "warning");
   }
 
   // Show the spinner and update its message
-  $("#monadic-spinner").show();
+  const waitSpinner = document.getElementById("monadic-spinner");
+  if (waitSpinner) waitSpinner.style.display = '';
 
   const _getTranslation = typeof getTranslation === 'function' ? getTranslation : (k, f) => f;
 
@@ -268,18 +276,19 @@ function handleWait(data) {
   }
 
   // Customize spinner message based on wait content
+  const waitSpinnerSpan = waitSpinner ? waitSpinner.querySelector("span") : null;
   if (data["content"].includes("CALLING FUNCTIONS")) {
     const callingFunctionsText = _getTranslation('ui.messages.spinnerCallingFunctions', 'Calling functions');
-    $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${callingFunctionsText}`);
+    if (waitSpinnerSpan) waitSpinnerSpan.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${callingFunctionsText}`;
   } else if (data["content"].includes("SEARCHING WEB")) {
     const searchingWebText = _getTranslation('ui.messages.spinnerSearchingWeb', 'Searching web');
-    $("#monadic-spinner span").html(`<i class="fas fa-search fa-pulse"></i> ${searchingWebText}`);
+    if (waitSpinnerSpan) waitSpinnerSpan.innerHTML = `<i class="fas fa-search fa-pulse"></i> ${searchingWebText}`;
   } else if (data["content"].includes("PROCESSING")) {
     const processingText = _getTranslation('ui.messages.spinnerProcessing', 'Processing');
-    $("#monadic-spinner span").html(`<i class="fas fa-spinner fa-pulse"></i> ${processingText}`);
+    if (waitSpinnerSpan) waitSpinnerSpan.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> ${processingText}`;
   } else {
     const processingRequestText = _getTranslation('ui.messages.spinnerProcessingRequest', 'Processing request');
-    $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}`);
+    if (waitSpinnerSpan) waitSpinnerSpan.innerHTML = `<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}`;
   }
 }
 

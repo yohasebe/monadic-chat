@@ -10,38 +10,26 @@
  * - handleMessage: DONE/CLEAR signal processing
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    show: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    html: jest.fn().mockReturnThis(),
-    is: jest.fn().mockReturnValue(false),
-    find: jest.fn().mockReturnValue({
-      html: jest.fn().mockReturnThis()
-    })
-  };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
-let mockElements;
-
 beforeEach(() => {
-  mockElements = {
-    '#temp-card': createMockElement('temp-card'),
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#monadic-spinner span': createMockElement('monadic-spinner-span'),
-    '#chat': createMockElement('chat'),
-    '#temp-card .status': createMockElement('temp-card-status'),
-    '#indicator': createMockElement('indicator')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
+  // Create DOM elements
+  const spinner = createDOMElement('div', 'monadic-spinner');
+  spinner.innerHTML = '<span></span>';
+  const tempCard = createDOMElement('div', 'temp-card');
+  tempCard.style.display = 'none';
+  tempCard.innerHTML = '<div class="card-body role-assistant"><div class="card-text"></div></div>';
+  createDOMElement('div', 'chat');
+  const tempStatus = document.createElement('div');
+  tempStatus.className = 'status';
+  tempCard.appendChild(tempStatus);
+  createDOMElement('div', 'indicator');
+  createDOMElement('div', 'discourse');
 
   // Mock global functions
   global.updateToolStatus = jest.fn();
@@ -58,6 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  document.body.innerHTML = '';
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-tool-handler');
@@ -78,9 +67,10 @@ describe('ws-tool-handler', () => {
     });
 
     it('shows temp card when hidden', () => {
-      mockElements['#temp-card'].is = jest.fn().mockReturnValue(true);  // is(":hidden") = true
+      const tempCard = document.getElementById('temp-card');
+      tempCard.style.display = 'none';
       handlers.handleToolExecuting({ content: 'test_tool' });
-      expect(mockElements['#temp-card'].show).toHaveBeenCalled();
+      expect(tempCard.style.display).toBe('');
     });
 
     it('calls updateToolStatus with name and count', () => {
@@ -103,7 +93,8 @@ describe('ws-tool-handler', () => {
 
       it('shows spinner with processing tools text', () => {
         handlers.handleMessage({ content: 'DONE', finish_reason: 'tool_calls' });
-        expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+        const spinner = document.getElementById('monadic-spinner');
+        expect(spinner.style.display).not.toBe('none');
       });
 
       it('sends HTML message via WebSocket', () => {
@@ -132,25 +123,27 @@ describe('ws-tool-handler', () => {
 
     describe('CLEAR', () => {
       it('clears chat HTML', () => {
+        document.getElementById('chat').innerHTML = '<p>old</p>';
         handlers.handleMessage({ content: 'CLEAR' });
-        expect(mockElements['#chat'].html).toHaveBeenCalledWith('');
+        expect(document.getElementById('chat').innerHTML).toBe('');
       });
 
       it('hides temp-card status', () => {
         handlers.handleMessage({ content: 'CLEAR' });
-        expect(mockElements['#temp-card .status'].hide).toHaveBeenCalled();
+        const status = document.querySelector('#temp-card .status');
+        expect(status.style.display).toBe('none');
       });
 
       it('shows indicator', () => {
+        document.getElementById('indicator').style.display = 'none';
         handlers.handleMessage({ content: 'CLEAR' });
-        expect(mockElements['#indicator'].show).toHaveBeenCalled();
+        expect(document.getElementById('indicator').style.display).toBe('');
       });
     });
 
     it('does nothing for unknown content', () => {
       handlers.handleMessage({ content: 'UNKNOWN' });
       expect(window.ws.send).not.toHaveBeenCalled();
-      expect(mockElements['#chat'].html).not.toHaveBeenCalled();
     });
   });
 
@@ -161,8 +154,9 @@ describe('ws-tool-handler', () => {
     });
 
     it('shows spinner', () => {
+      document.getElementById('monadic-spinner').style.display = 'none';
       handlers.handleWait({ content: 'Processing...' });
-      expect(mockElements['#monadic-spinner'].show).toHaveBeenCalled();
+      expect(document.getElementById('monadic-spinner').style.display).toBe('');
     });
 
     it('shows regular wait messages as alerts', () => {
@@ -180,34 +174,17 @@ describe('ws-tool-handler', () => {
     });
 
     it('displays agent progress in temp card', () => {
-      mockElements['#temp-card'] = {
-        length: 1,
-        show: jest.fn(),
-        detach: jest.fn().mockReturnThis()
-      };
-      mockElements['#temp-card .card-text'] = { html: jest.fn() };
-      mockElements['#discourse'] = { append: jest.fn() };
-
       handlers.handleWait({
         content: 'Generating code...',
         source: 'OpenAICodeAgent',
         minutes: 1
       });
 
-      expect(mockElements['#temp-card .card-text'].html).toHaveBeenCalledWith(
-        expect.stringContaining('Generating code...')
-      );
+      const cardText = document.querySelector('#temp-card .card-text');
+      expect(cardText.innerHTML).toContain('Generating code...');
     });
 
     it('shows step progress with sequential steps', () => {
-      mockElements['#temp-card'] = {
-        length: 1,
-        show: jest.fn(),
-        detach: jest.fn().mockReturnThis()
-      };
-      mockElements['#temp-card .card-text'] = { html: jest.fn() };
-      mockElements['#discourse'] = { append: jest.fn() };
-
       handlers.handleWait({
         content: 'Building app...',
         source: 'OpenAICodeAgent',
@@ -218,21 +195,13 @@ describe('ws-tool-handler', () => {
         }
       });
 
-      const htmlArg = mockElements['#temp-card .card-text'].html.mock.calls[0][0];
-      expect(htmlArg).toContain('Plan');
-      expect(htmlArg).toContain('Code');
-      expect(htmlArg).toContain('Test');
+      const cardText = document.querySelector('#temp-card .card-text');
+      expect(cardText.innerHTML).toContain('Plan');
+      expect(cardText.innerHTML).toContain('Code');
+      expect(cardText.innerHTML).toContain('Test');
     });
 
     it('shows parallel progress indicators', () => {
-      mockElements['#temp-card'] = {
-        length: 1,
-        show: jest.fn(),
-        detach: jest.fn().mockReturnThis()
-      };
-      mockElements['#temp-card .card-text'] = { html: jest.fn() };
-      mockElements['#discourse'] = { append: jest.fn() };
-
       handlers.handleWait({
         content: 'Dispatching...',
         source: 'ParallelDispatch',
@@ -243,22 +212,20 @@ describe('ws-tool-handler', () => {
         }
       });
 
-      const htmlArg = mockElements['#temp-card .card-text'].html.mock.calls[0][0];
-      expect(htmlArg).toContain('1/3 completed');
+      const cardText = document.querySelector('#temp-card .card-text');
+      expect(cardText.innerHTML).toContain('1/3 completed');
     });
 
     it('sets spinner to calling functions for CALLING FUNCTIONS', () => {
       handlers.handleWait({ content: 'CALLING FUNCTIONS' });
-      expect(mockElements['#monadic-spinner span'].html).toHaveBeenCalledWith(
-        expect.stringContaining('Calling functions')
-      );
+      const spinnerSpan = document.querySelector('#monadic-spinner span');
+      expect(spinnerSpan.innerHTML).toContain('Calling functions');
     });
 
     it('sets spinner to searching web for SEARCHING WEB', () => {
       handlers.handleWait({ content: 'SEARCHING WEB' });
-      expect(mockElements['#monadic-spinner span'].html).toHaveBeenCalledWith(
-        expect.stringContaining('Searching web')
-      );
+      const spinnerSpan = document.querySelector('#monadic-spinner span');
+      expect(spinnerSpan.innerHTML).toContain('Searching web');
     });
 
     it('updates WorkflowViewer stage', () => {

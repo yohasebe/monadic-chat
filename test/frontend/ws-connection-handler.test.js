@@ -11,46 +11,56 @@
  * - handleTokenNotVerified: Disable features on invalid token
  */
 
-function createMockElement(id) {
-  return {
-    prop: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    trigger: jest.fn().mockReturnThis(),
-    length: 1,
-    0: document.createElement('div')
-  };
-}
-
-let mockElements;
-
-function setupMockElements() {
-  mockElements = {
-    '#api-token': createMockElement('api-token'),
-    '#ai-user-initial-prompt': createMockElement('ai-user-initial-prompt'),
-    '#openai-tts-4o': createMockElement('openai-tts-4o'),
-    '#openai-tts': createMockElement('openai-tts'),
-    '#openai-tts-hd': createMockElement('openai-tts-hd'),
-    '#openai-stt-4o-mini': createMockElement('openai-stt-4o-mini'),
-    '#openai-stt-4o': createMockElement('openai-stt-4o'),
-    '#openai-stt-4o-diarize': createMockElement('openai-stt-4o-diarize'),
-    '#openai-stt-whisper': createMockElement('openai-stt-whisper'),
-    '#stt-model': createMockElement('stt-model'),
-    '#tts-provider': createMockElement('tts-provider'),
-    '#start': createMockElement('start')
-  };
-  // Special mock for stt-model option:selected
-  mockElements['#stt-model option:selected'] = { prop: jest.fn().mockReturnValue(false) };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
 beforeEach(() => {
-  setupMockElements();
+  // Create DOM elements
+  createDOMElement('input', 'api-token');
+  createDOMElement('input', 'ai-user-initial-prompt');
+  createDOMElement('option', 'openai-tts-4o');
+  createDOMElement('option', 'openai-tts');
+  createDOMElement('option', 'openai-tts-hd');
+  createDOMElement('option', 'openai-stt-4o-mini');
+  createDOMElement('option', 'openai-stt-4o');
+  createDOMElement('option', 'openai-stt-4o-diarize');
+  createDOMElement('option', 'openai-stt-whisper');
 
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    return createMockElement('default');
-  });
+  // stt-model select with options
+  const sttModel = createDOMElement('select', 'stt-model');
+  const opt = document.createElement('option');
+  opt.value = '';
+  opt.selected = true;
+  sttModel.appendChild(opt);
+  const sttOpt = document.createElement('option');
+  sttOpt.value = 'gpt-4o-mini-transcribe';
+  sttModel.appendChild(sttOpt);
+
+  // tts-provider select
+  const ttsProvider = createDOMElement('select', 'tts-provider');
+  const ttsOpt = document.createElement('option');
+  ttsOpt.value = 'webspeech';
+  ttsOpt.selected = true;
+  ttsProvider.appendChild(ttsOpt);
+  const ttsOpt2 = document.createElement('option');
+  ttsOpt2.value = 'openai-tts-4o';
+  ttsProvider.appendChild(ttsOpt2);
+
+  createDOMElement('button', 'start');
+  createDOMElement('button', 'send');
+  createDOMElement('button', 'clear');
+  createDOMElement('button', 'voice');
+  createDOMElement('select', 'elevenlabs-tts-voice');
+  createDOMElement('select', 'tts-voice');
+  createDOMElement('select', 'conversation-language');
+  createDOMElement('input', 'prompt-toggle-assistant');
+  createDOMElement('input', 'prompt-toggle-aiuser');
+  createDOMElement('input', 'check-auto-speech');
+  createDOMElement('input', 'check-easy-submit');
 
   global.setAlert = jest.fn();
   global.getTranslation = jest.fn((key, fallback) => fallback);
@@ -62,6 +72,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  document.body.innerHTML = '';
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-connection-handler');
@@ -75,46 +86,41 @@ describe('ws-connection-handler', () => {
 
     it('sets API token value', () => {
       handlers.handleTokenVerified({ token: 'sk-test123', ai_user_initial_prompt: '' });
-      expect(mockElements['#api-token'].val).toHaveBeenCalledWith('sk-test123');
+      expect(document.getElementById('api-token').value).toBe('sk-test123');
     });
 
     it('enables OpenAI TTS options', () => {
+      document.getElementById('openai-tts-4o').disabled = true;
+      document.getElementById('openai-tts').disabled = true;
+      document.getElementById('openai-tts-hd').disabled = true;
+
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
 
-      expect(mockElements['#openai-tts-4o'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#openai-tts'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#openai-tts-hd'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('openai-tts-4o').disabled).toBe(false);
+      expect(document.getElementById('openai-tts').disabled).toBe(false);
+      expect(document.getElementById('openai-tts-hd').disabled).toBe(false);
     });
 
     it('enables OpenAI STT models', () => {
+      document.getElementById('openai-stt-4o-mini').disabled = true;
+      document.getElementById('openai-stt-4o').disabled = true;
+
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
 
-      expect(mockElements['#openai-stt-4o-mini'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#openai-stt-4o'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('openai-stt-4o-mini').disabled).toBe(false);
+      expect(document.getElementById('openai-stt-4o').disabled).toBe(false);
     });
 
     it('sets default STT model from providerDefaults', () => {
-      // No current STT model selected
-      mockElements['#stt-model'].val = jest.fn(function(v) {
-        if (v === undefined) return '';
-        return this;
-      });
-
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
 
-      expect(mockElements['#stt-model'].val).toHaveBeenCalledWith('gpt-4o-mini-transcribe');
+      expect(document.getElementById('stt-model').value).toBe('gpt-4o-mini-transcribe');
     });
 
     it('switches TTS from webspeech to openai', () => {
-      mockElements['#tts-provider'].val = jest.fn(function(v) {
-        if (v === undefined) return 'webspeech';
-        return this;
-      });
-      mockElements['#tts-provider'].trigger = jest.fn().mockReturnThis();
-
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
 
-      expect(mockElements['#tts-provider'].val).toHaveBeenCalledWith('openai-tts-4o');
+      expect(document.getElementById('tts-provider').value).toBe('openai-tts-4o');
     });
 
     it('calls updateAvailableProviders', () => {
@@ -123,8 +129,9 @@ describe('ws-connection-handler', () => {
     });
 
     it('enables start button', () => {
+      document.getElementById('start').disabled = true;
       handlers.handleTokenVerified({ token: 'sk-test', ai_user_initial_prompt: '' });
-      expect(mockElements['#start'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('start').disabled).toBe(false);
     });
   });
 
@@ -135,22 +142,23 @@ describe('ws-connection-handler', () => {
     });
 
     it('clears API token', () => {
+      document.getElementById('api-token').value = 'sk-old';
       handlers.handleOpenAIAPIError({});
-      expect(mockElements['#api-token'].val).toHaveBeenCalledWith('');
+      expect(document.getElementById('api-token').value).toBe('');
     });
 
     it('disables OpenAI TTS options', () => {
       handlers.handleOpenAIAPIError({});
 
-      expect(mockElements['#openai-tts-4o'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#openai-tts'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('openai-tts-4o').disabled).toBe(true);
+      expect(document.getElementById('openai-tts').disabled).toBe(true);
     });
 
     it('disables OpenAI STT models', () => {
       handlers.handleOpenAIAPIError({});
 
-      expect(mockElements['#openai-stt-4o'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#openai-stt-whisper'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('openai-stt-4o').disabled).toBe(true);
+      expect(document.getElementById('openai-stt-whisper').disabled).toBe(true);
     });
 
     it('shows cannot connect warning', () => {
@@ -170,15 +178,16 @@ describe('ws-connection-handler', () => {
     });
 
     it('clears API token', () => {
+      document.getElementById('api-token').value = 'sk-old';
       handlers.handleTokenNotVerified({});
-      expect(mockElements['#api-token'].val).toHaveBeenCalledWith('');
+      expect(document.getElementById('api-token').value).toBe('');
     });
 
     it('disables OpenAI TTS and STT', () => {
       handlers.handleTokenNotVerified({});
 
-      expect(mockElements['#openai-tts-4o'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#openai-stt-4o-mini'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('openai-tts-4o').disabled).toBe(true);
+      expect(document.getElementById('openai-stt-4o-mini').disabled).toBe(true);
     });
 
     it('shows token not set warning', () => {

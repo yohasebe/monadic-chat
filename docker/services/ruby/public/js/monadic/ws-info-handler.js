@@ -35,16 +35,17 @@ function handleInfo(data) {
     }
 
     // FORCE hide spinner unconditionally - new tabs should never show spinner
-    $("#monadic-spinner").hide();
-
-    // Reset to default spinner state
-    $("#monadic-spinner")
-      .find("span i")
-      .removeClass("fa-headphones fa-brain fa-circle-nodes fa-cogs")
-      .addClass("fa-comment");
-    $("#monadic-spinner")
-      .find("span")
-      .html('<i class="fas fa-comment fa-pulse"></i> Starting');
+    const spinnerEl = document.getElementById("monadic-spinner");
+    if (spinnerEl) {
+      spinnerEl.style.display = 'none';
+      const spanIcon = spinnerEl.querySelector("span i");
+      if (spanIcon) {
+        spanIcon.classList.remove("fa-headphones", "fa-brain", "fa-circle-nodes", "fa-cogs");
+        spanIcon.classList.add("fa-comment");
+      }
+      const spanEl = spinnerEl.querySelector("span");
+      if (spanEl) spanEl.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
+    }
   }
   // For non-initial loads, follow standard logic
   else if (!window.callingFunction && !window.streamingResponse) {
@@ -54,14 +55,16 @@ function handleInfo(data) {
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      $("#monadic-spinner").hide();
+      const fallbackSpinner = document.getElementById("monadic-spinner");
+      if (fallbackSpinner) fallbackSpinner.style.display = 'none';
     }
   }
 
   // Update status message after spinner is hidden
   const apps = window.apps || {};
   const hasAppsData = Object.keys(apps).length > 0;
-  const hasDOMOptions = $("#apps option").length > 0;
+  const appsSelect = document.getElementById("apps");
+  const hasDOMOptions = appsSelect ? appsSelect.querySelectorAll("option").length > 0 : false;
 
   if (!hasAppsData && !hasDOMOptions) {
     const noAppsMsg = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.noAppsAvailable') : 'No apps available - check API keys in settings';
@@ -75,7 +78,7 @@ function handleInfo(data) {
   }
 
   // Fallback: if DOM options are empty but apps data exists (race on Electron startup), rebuild
-  if (hasAppsData && $("#apps option").length === 0) {
+  if (hasAppsData && appsSelect && appsSelect.querySelectorAll("option").length === 0) {
     console.warn('[WARN] Apps data present but DOM options empty. Rebuilding selectors with standard builder.');
     _rebuildAppSelectors(apps);
   }
@@ -91,8 +94,10 @@ function handleInfo(data) {
  */
 function _rebuildAppSelectors(apps) {
   try {
-    $("#apps").empty();
-    $("#custom-apps-dropdown").empty();
+    const appsEl = document.getElementById("apps");
+    const customDropdown = document.getElementById("custom-apps-dropdown");
+    if (appsEl) appsEl.innerHTML = '';
+    if (customDropdown) customDropdown.innerHTML = '';
 
     let regularApps = [];
     let specialApps = {};
@@ -131,15 +136,17 @@ function _rebuildAppSelectors(apps) {
 
     // OpenAI group
     const allOpenAIAppsDisabled = regularApps.every(([, value]) => value.disabled === "true");
-    $("#apps").append('<option disabled>──OpenAI──</option>');
+    if (appsEl) appsEl.insertAdjacentHTML('beforeend', '<option disabled>──OpenAI──</option>');
     const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
     const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
     const openAIGroupId = normalizeGroupId("OpenAI");
-    $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
-      <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
-      <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-    </div>`);
-    $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
+    if (customDropdown) {
+      customDropdown.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
+        <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
+        <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+      </div>`);
+      customDropdown.insertAdjacentHTML('beforeend', `<div class="group-container" id="group-${openAIGroupId}"></div>`);
+    }
 
     for (const [key, value] of regularApps) {
       _appendAppOption(key, value, openAIGroupId);
@@ -149,41 +156,52 @@ function _rebuildAppSelectors(apps) {
     for (const group of Object.keys(specialApps)) {
       if (specialApps[group].length > 0) {
         const allAppsDisabled = specialApps[group].every(([, value]) => value.disabled === "true");
-        $("#apps").append(`<option disabled>──${group}──</option>`);
+        if (appsEl) appsEl.insertAdjacentHTML('beforeend', `<option disabled>──${group}──</option>`);
         const groupClass = allAppsDisabled ? ' all-disabled' : '';
         const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
         const groupTitle = allAppsDisabled ?
           (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
-        $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
-          <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
-          <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
-        </div>`);
-        const normalizedGroupId = normalizeGroupId(group);
-        $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGroupId}"></div>`);
-        for (const [key, value] of specialApps[group]) {
-          _appendAppOption(key, value, normalizedGroupId, group);
+        if (customDropdown) {
+          customDropdown.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
+            <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
+            <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>`);
+          const normalizedGroupId = normalizeGroupId(group);
+          customDropdown.insertAdjacentHTML('beforeend', `<div class="group-container" id="group-${normalizedGroupId}"></div>`);
+          for (const [key, value] of specialApps[group]) {
+            _appendAppOption(key, value, normalizedGroupId, group);
+          }
         }
       }
     }
 
     // Collapse/expand handlers
-    $(".custom-dropdown-group").on("click", function() {
-      const group = $(this).data("group");
-      const nGroupId = normalizeGroupId(group);
-      const container = $(`#group-${nGroupId}`);
-      const icon = $(this).find(".group-toggle-icon i");
-      container.toggleClass("collapsed");
-      if (container.hasClass("collapsed")) {
-        icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
-      } else {
-        icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
-      }
+    document.querySelectorAll(".custom-dropdown-group").forEach(function(groupEl) {
+      groupEl.addEventListener("click", function() {
+        const group = this.dataset.group;
+        const nGroupId = normalizeGroupId(group);
+        const container = document.getElementById(`group-${nGroupId}`);
+        const icon = this.querySelector(".group-toggle-icon i");
+        if (container) container.classList.toggle("collapsed");
+        if (icon) {
+          if (container && container.classList.contains("collapsed")) {
+            icon.classList.remove("fa-chevron-down");
+            icon.classList.add("fa-chevron-right");
+          } else {
+            icon.classList.remove("fa-chevron-right");
+            icon.classList.add("fa-chevron-down");
+          }
+        }
+      });
     });
 
     // Select first available app
-    const firstApp = $("#apps option:not(:disabled)").first().val();
-    if (firstApp) {
-      $("#apps").val(firstApp).trigger('change');
+    if (appsEl) {
+      const firstApp = appsEl.querySelector("option:not(:disabled)");
+      if (firstApp) {
+        appsEl.value = firstApp.value;
+        appsEl.dispatchEvent(new Event('change'));
+      }
     }
   } catch (e) {
     console.error('Failed to rebuild selectors from apps data:', e);
@@ -201,10 +219,13 @@ function _appendAppOption(key, value, groupId, group) {
   const appIcon = value["icon"] || "";
   const isDisabled = value.disabled === "true";
 
-  if (isDisabled) {
-    $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-  } else {
-    $("#apps").append(`<option value="${key}">${displayText}</option>`);
+  const appsEl = document.getElementById("apps");
+  if (appsEl) {
+    const opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = displayText;
+    if (isDisabled) opt.disabled = true;
+    appsEl.appendChild(opt);
   }
 
   const disabledClass = isDisabled ? ' disabled' : '';
@@ -212,10 +233,12 @@ function _appendAppOption(key, value, groupId, group) {
   if (isDisabled) {
     disabledTitle = group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"';
   }
-  const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
-    <span style="margin-right: 8px;">${appIcon}</span>
-    <span>${displayText}</span></div>`);
-  $(`#group-${groupId}`).append($option);
+  const groupContainer = document.getElementById(`group-${groupId}`);
+  if (groupContainer) {
+    groupContainer.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
+      <span style="margin-right: 8px;">${appIcon}</span>
+      <span>${displayText}</span></div>`);
+  }
 }
 
 // Export for browser environment

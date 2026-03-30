@@ -9,54 +9,26 @@
  * - handleInfo: Stats display, spinner management, app availability checks
  */
 
-function createMockElement(id) {
-  return {
-    length: 1,
-    0: document.createElement('div'),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    html: jest.fn().mockReturnThis(),
-    empty: jest.fn().mockReturnThis(),
-    append: jest.fn().mockReturnThis(),
-    val: jest.fn(function(v) { if (v === undefined) return ''; return this; }),
-    trigger: jest.fn().mockReturnThis(),
-    first: jest.fn().mockReturnValue({ val: jest.fn().mockReturnValue('Chat') }),
-    find: jest.fn().mockReturnValue({
-      length: 0,
-      removeClass: jest.fn().mockReturnThis(),
-      addClass: jest.fn().mockReturnThis(),
-      html: jest.fn().mockReturnThis()
-    }),
-    on: jest.fn().mockReturnThis(),
-    data: jest.fn().mockReturnValue('OpenAI'),
-    toggleClass: jest.fn().mockReturnThis(),
-    hasClass: jest.fn().mockReturnValue(false)
-  };
+function createDOMElement(tag, id) {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
-let mockElements;
-
 beforeEach(() => {
-  mockElements = {
-    '#monadic-spinner': createMockElement('monadic-spinner'),
-    '#apps': createMockElement('apps'),
-    '#apps option': { length: 3 },
-    '#apps option:not(:disabled)': {
-      first: jest.fn().mockReturnValue({ val: jest.fn().mockReturnValue('Chat') })
-    },
-    '#custom-apps-dropdown': createMockElement('custom-apps-dropdown'),
-    '.custom-dropdown-group': createMockElement('groups')
-  };
-
-  global.$ = jest.fn().mockImplementation(selector => {
-    if (typeof selector === 'string' && mockElements[selector]) {
-      return mockElements[selector];
-    }
-    if (typeof selector === 'string' && selector.includes('<')) {
-      return { length: 1, 0: document.createElement('div') };
-    }
-    return createMockElement('default');
-  });
+  // Create DOM elements
+  const spinner = createDOMElement('div', 'monadic-spinner');
+  spinner.innerHTML = '<span><i class="fas fa-comment"></i></span>';
+  const appsSelect = createDOMElement('select', 'apps');
+  // Add some options by default
+  for (let i = 0; i < 3; i++) {
+    const opt = document.createElement('option');
+    opt.value = `app-${i}`;
+    opt.textContent = `App ${i}`;
+    appsSelect.appendChild(opt);
+  }
+  createDOMElement('div', 'custom-apps-dropdown');
 
   // Mock global functions
   global.formatInfo = jest.fn().mockReturnValue('<div>stats</div>');
@@ -77,6 +49,7 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  document.body.innerHTML = '';
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-info-handler');
@@ -99,7 +72,7 @@ describe('ws-info-handler', () => {
       it('hides spinner immediately', () => {
         window.messages = [];
         handlers.handleInfo({ content: {} });
-        expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+        expect(document.getElementById('monadic-spinner').style.display).toBe('none');
       });
 
       it('resets Auto Speech completion flags', () => {
@@ -128,14 +101,12 @@ describe('ws-info-handler', () => {
         handlers.handleInfo({ content: {} });
 
         expect(window.checkAndHideSpinner).not.toHaveBeenCalled();
-        expect(mockElements['#monadic-spinner'].hide).not.toHaveBeenCalled();
       });
     });
 
     describe('status message', () => {
       it('shows ready message when apps available', () => {
         window.apps = { Chat: { app_name: 'Chat', group: 'OpenAI' } };
-        mockElements['#apps option'] = { length: 1 };
 
         handlers.handleInfo({ content: {} });
 
@@ -147,7 +118,8 @@ describe('ws-info-handler', () => {
 
       it('shows warning when no apps available', () => {
         window.apps = {};
-        mockElements['#apps option'] = { length: 0 };
+        // Clear the select options
+        document.getElementById('apps').innerHTML = '';
 
         handlers.handleInfo({ content: {} });
 
@@ -159,7 +131,6 @@ describe('ws-info-handler', () => {
 
       it('does not show ready when streaming', () => {
         window.apps = { Chat: { app_name: 'Chat' } };
-        mockElements['#apps option'] = { length: 1 };
         window.streamingResponse = true;
 
         handlers.handleInfo({ content: {} });

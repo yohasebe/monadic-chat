@@ -44,7 +44,8 @@ function handleStreamingComplete(_data) {
 
     // Check Auto Speech from multiple sources
     const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-    const checkboxEnabled = typeof $ !== 'undefined' && $("#check-auto-speech").is(":checked");
+    const checkAutoSpeechEl = document.getElementById("check-auto-speech");
+    const checkboxEnabled = checkAutoSpeechEl ? checkAutoSpeechEl.checked : false;
     const autoSpeechActive = window.autoSpeechActive === true;
     const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
 
@@ -57,7 +58,8 @@ function handleStreamingComplete(_data) {
       if (typeof window.checkAndHideSpinner === 'function') {
         window.checkAndHideSpinner();
       } else {
-        $("#monadic-spinner").hide();
+        const scFallbackSpinner = document.getElementById("monadic-spinner");
+        if (scFallbackSpinner) scFallbackSpinner.style.display = 'none';
       }
     }
   }
@@ -87,10 +89,12 @@ function handleStreamingComplete(_data) {
     }
 
     // Always ensure UI elements are enabled and visible (user-panel may be hidden during initiate_from_assistant)
-    $("#user-panel").show();
-    $("#message").prop("disabled", false);
-    $("#send, #clear, #image-file, #voice, #doc, #url, #pdf-import").prop("disabled", false);
-    $("#select-role").prop("disabled", false);
+    const scUserPanel = document.getElementById("user-panel");
+    if (scUserPanel) scUserPanel.style.display = '';
+    ["message", "send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) el.disabled = false;
+    });
 
     // Focus on the message input
     setInputFocus();
@@ -130,8 +134,12 @@ function handleDefaultMessage(data) {
     if (window.streamingResponse) {
       const receivingResponseText = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-      $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-      $("#monadic-spinner").show();
+      const fragSpinner = document.getElementById("monadic-spinner");
+      if (fragSpinner) {
+        const fragSpan = fragSpinner.querySelector("span");
+        if (fragSpan) fragSpan.innerHTML = `<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`;
+        fragSpinner.style.display = '';
+      }
     }
 
     // Use the dedicated fragment handler
@@ -139,7 +147,8 @@ function handleDefaultMessage(data) {
       window.handleFragmentMessage(data);
     }
 
-    $("#indicator").show();
+    const fragIndicator = document.getElementById("indicator");
+    if (fragIndicator) fragIndicator.style.display = '';
     if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
       window.chatBottom.scrollIntoView(false);
     }
@@ -157,15 +166,21 @@ function handleDefaultMessage(data) {
         window.UIState.set('streamingResponse', true);
         window.UIState.set('isStreaming', true);
       }
-      const receivingResponseText = typeof webUIi18n !== 'undefined' ?
+      const receivingResponseText2 = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-      $("#monadic-spinner span").html(`<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`);
-      $("#monadic-spinner").show();
+      const legacySpinner = document.getElementById("monadic-spinner");
+      if (legacySpinner) {
+        const legacySpan = legacySpinner.querySelector("span");
+        if (legacySpan) legacySpan.innerHTML = `<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText2}`;
+        legacySpinner.style.display = '';
+      }
     }
-    $("#indicator").show();
+    const legacyIndicator = document.getElementById("indicator");
+    if (legacyIndicator) legacyIndicator.style.display = '';
     if (content !== undefined) {
       content = content.replace(/^\n+/, "");
-      $("#chat").html($("#chat").html() + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>"));
+      const chatEl = document.getElementById("chat");
+      if (chatEl) chatEl.innerHTML = chatEl.innerHTML + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
     }
     if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
       window.chatBottom.scrollIntoView(false);
@@ -214,7 +229,8 @@ function handleUser(data) {
   }
 
   // Use appendCard helper to show the user message
-  const userTurnNumber = $('#discourse .card:not(#temp-card) .role-assistant').length + 1;
+  const userDiscourse = document.getElementById('discourse');
+  const userTurnNumber = userDiscourse ? userDiscourse.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   if (typeof window.appendCard === 'function') {
     window.appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
   }
@@ -226,18 +242,22 @@ function handleUser(data) {
   }
 
   // Show loading indicators and clear any previous card content
-  if ($("#temp-card").length) {
-    $("#temp-card .card-text").empty();
-    $("#temp-card").show();
+  const handleUserDiscourse = document.getElementById("discourse");
+  let handleUserTempCard = document.getElementById("temp-card");
+  if (handleUserTempCard) {
+    const cardText = handleUserTempCard.querySelector(".card-text");
+    if (cardText) cardText.innerHTML = '';
+    handleUserTempCard.style.display = '';
     window._lastProcessedIndex = -1;
     window._lastProcessedSequence = -1;
 
-    const tempCard = $("#temp-card");
-    tempCard.detach();
-    $("#discourse").append(tempCard);
+    if (handleUserTempCard.parentNode) handleUserTempCard.parentNode.removeChild(handleUserTempCard);
+    if (handleUserDiscourse) handleUserDiscourse.appendChild(handleUserTempCard);
   } else {
-    const tempCard = $(`
-      <div id="temp-card" class="card mt-3 streaming-card">
+    handleUserTempCard = document.createElement('div');
+    handleUserTempCard.id = 'temp-card';
+    handleUserTempCard.className = 'card mt-3 streaming-card';
+    handleUserTempCard.innerHTML = `
         <div class="card-header p-2 ps-3 d-flex justify-content-between align-items-center">
           <div class="fs-5 card-title mb-0">
             <span><i class="fas fa-robot" style="color: #DC4C64;"></i></span> <span class="fw-bold fs-6" style="color: #DC4C64;">Assistant</span>
@@ -245,26 +265,31 @@ function handleUser(data) {
         </div>
         <div class="card-body role-assistant">
           <div class="card-text"></div>
-        </div>
-      </div>
-    `);
-    $("#discourse").append(tempCard);
+        </div>`;
+    if (handleUserDiscourse) handleUserDiscourse.appendChild(handleUserTempCard);
     window._lastProcessedIndex = -1;
     window._lastProcessedSequence = -1;
   }
 
-  $("#temp-card .status").hide();
-  $("#indicator").show();
-  $("#message").prop("disabled", true);
-  $("#send, #clear, #image-file, #voice, #doc, #url").prop("disabled", true);
-  $("#select-role").prop("disabled", true);
+  const handleUserTempStatus = handleUserTempCard.querySelector(".status");
+  if (handleUserTempStatus) handleUserTempStatus.style.display = 'none';
+  const handleUserIndicator = document.getElementById("indicator");
+  if (handleUserIndicator) handleUserIndicator.style.display = '';
+  ["message", "send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
   document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
 
   // Show spinner
   const processingRequestText = typeof webUIi18n !== 'undefined' ?
     webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-  $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`);
-  $("#monadic-spinner").show();
+  const handleUserSpinner = document.getElementById("monadic-spinner");
+  if (handleUserSpinner) {
+    const handleUserSpan = handleUserSpinner.querySelector("span");
+    if (handleUserSpan) handleUserSpan.innerHTML = `<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`;
+    handleUserSpinner.style.display = '';
+  }
 
   // Mark streaming state
   window.streamingResponse = true;
@@ -289,11 +314,13 @@ function handleUser(data) {
       window.spinnerCheckInterval = null;
       return;
     }
-    if (window.streamingResponse && !window.responseStarted && !$("#monadic-spinner").is(":visible")) {
+    const intervalSpinner = document.getElementById("monadic-spinner");
+    if (window.streamingResponse && !window.responseStarted && intervalSpinner && (intervalSpinner.style.display === 'none' || intervalSpinner.offsetParent === null)) {
       const txt = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-      $("#monadic-spinner span").html(`<i class="fas fa-brain fa-pulse"></i> ${txt}...`);
-      $("#monadic-spinner").show();
+      const intervalSpan = intervalSpinner.querySelector("span");
+      if (intervalSpan) intervalSpan.innerHTML = `<i class="fas fa-brain fa-pulse"></i> ${txt}...`;
+      intervalSpinner.style.display = '';
     }
   }, 100);
 }

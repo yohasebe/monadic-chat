@@ -24,21 +24,21 @@ function handleAIUserStarted(_data) {
   document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
 
   // Show spinner and update its message with robot animation
-  $("#monadic-spinner").css("display", "block");
-  const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
-    webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
-  $("#monadic-spinner span").html(`<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`);
+  const spinnerEl = document.getElementById("monadic-spinner");
+  if (spinnerEl) {
+    spinnerEl.style.display = "block";
+    const spanEl = spinnerEl.querySelector("span");
+    const aiUserText = typeof webUIi18n !== 'undefined' && webUIi18n.initialized ?
+      webUIi18n.t('ui.messages.spinnerGeneratingAIUser') : 'Generating AI user response';
+    if (spanEl) spanEl.innerHTML = `<i class="fas fa-robot fa-pulse"></i> ${aiUserText}`;
+  }
 
   // Disable the input elements
-  $("#message").prop("disabled", true);
-  $("#send").prop("disabled", true);
-  $("#clear").prop("disabled", true);
-  $("#image-file").prop("disabled", true);
-  $("#voice").prop("disabled", true);
-  $("#doc").prop("disabled", true);
-  $("#url").prop("disabled", true);
-  $("#ai_user").prop("disabled", true);
-  $("#select-role").prop("disabled", true);
+  const disableIds = ["message", "send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"];
+  disableIds.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
 }
 
 /**
@@ -48,7 +48,8 @@ function handleAIUserStarted(_data) {
  */
 function handleAIUser(data) {
   // Append AI user content to the message field
-  $("#message").val($("#message").val() + data["content"].replace(/\\n/g, "\n"));
+  const messageEl = document.getElementById("message");
+  if (messageEl) messageEl.value = messageEl.value + data["content"].replace(/\\n/g, "\n");
 
   // Make sure the message panel is visible
   if (window.autoScroll && mainPanel && !isElementInViewport(mainPanel)) {
@@ -66,23 +67,20 @@ function handleAIUserFinished(data) {
   const trimmedContent = data["content"].trim();
 
   // Set the message content
-  $("#message").val(trimmedContent);
+  const finishedMessageEl = document.getElementById("message");
+  if (finishedMessageEl) finishedMessageEl.value = trimmedContent;
 
   // Hide cancel button and spinner
   document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-  $("#monadic-spinner").css("display", "none");
+  const finishedSpinner = document.getElementById("monadic-spinner");
+  if (finishedSpinner) finishedSpinner.style.display = "none";
 
   // Re-enable all input elements individually
-  $("#message").prop("disabled", false);
-  $("#send").prop("disabled", false);
-  $("#clear").prop("disabled", false);
-  $("#image-file").prop("disabled", false);
-  $("#voice").prop("disabled", false);
-  $("#doc").prop("disabled", false);
-  $("#url").prop("disabled", false);
-  $("#pdf-import").prop("disabled", false);
-  $("#ai_user").prop("disabled", false);
-  $("#select-role").prop("disabled", false);
+  const enableIds = ["message", "send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user", "select-role"];
+  enableIds.forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
 
   // Update alert message to success state
   const generatedText = getTranslation('ui.messages.aiUserResponseGenerated', 'AI user response generated');

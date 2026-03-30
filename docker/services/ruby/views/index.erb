@@ -285,8 +285,12 @@
         <div class="container-fluid pt-0 p-3" id="contents">
       <div class="row g-3 mt-0 mb-0 row-no-bottom-margin">
         <div id="menu" class="col-md-4 order-md-2 scrollable">
-          <div id="monadic-info-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class="pb-2 mb-1"><span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span></h5>
+          <div id="monadic-info-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#monadic-info-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.monadicChatInfo"><i class="fas fa-message"></i> Monadic Chat Info</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="monadic-info-panel-body" class="collapse show px-3 pb-3">
             <div class="mb-3 flex-container-wrap">
               <div id="monadic-homepage">
                 <% if @debug_mode %>
@@ -324,6 +328,7 @@
               <div id="base-app-title" class="ms-2 like-h5"></div>
             </div>
             <div id="base-app-desc" class="mt-2 mb-1"></div>
+            </div><!-- end #monadic-info-panel-body -->
           </div>
 
           <div id="ai-status-panel" class="p-3 mb-3 rounded shaded-panel">
@@ -346,8 +351,12 @@
             <div id="stats-message" class="mt-3 text" data-i18n="ui.noDataAvailable">No data available</div>
           </div>
 
-          <div id="pdf-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="pb-2"><span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span></h5>
+          <div id="pdf-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#pdf-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.pdfDatabase"><i class="fas fa-file-pdf"></i> PDF Database</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="pdf-panel-body" class="collapse show px-3 pb-3">
             <div id="local-pdf-section">
               <div class="like-h6"><i class="fas fa-database"></i> Local PDF (PGVector) <small class="text-muted" id="local-pdf-info"></small></div>
               <div class="d-flex gap-2 flex-wrap mt-2">
@@ -369,15 +378,20 @@
               <div id="cloud-pdf-list" class="mt-2"></div>
               <div id="cloud-pdf-meta" class="mt-1 text-muted small"></div>
             </div>
+            </div><!-- end #pdf-panel-body -->
           </div>
 
-          <div id="context-panel" class="p-3 mb-3 rounded shaded-panel" style="display: none;">
-            <h5 class="d-flex align-items-center">
+          <div id="context-panel" class="mb-3 rounded shaded-panel overflow-hidden" style="display: none;">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#context-panel-body" aria-expanded="true">
               <span class="text flex-grow-1" data-i18n="ui.sessionContext"><i class="fas fa-brain"></i> Session Context</span>
-              <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections">
-                <i class="fas fa-chevron-down"></i>
-              </button>
+              <span class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-link p-0" id="context-toggle-all" title="Toggle all sections" onclick="event.stopPropagation()">
+                  <i class="fas fa-chevron-down"></i>
+                </button>
+                <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+              </span>
             </h5>
+            <div id="context-panel-body" class="collapse show px-3 pb-3">
             <div class="text-muted small mb-2 d-flex align-items-center gap-2" id="context-legend" style="display: none;">
               <span data-i18n="ui.contextTurnLegend">T = Turn</span>
               <span class="badge bg-secondary" id="context-turn-badge" title="Total turns">0</span>
@@ -393,6 +407,7 @@
                 Cancel
               </button>
             </div>
+            </div><!-- end #context-panel-body -->
           </div>
 
           <div id="control-panel" class="p-3 mb-3 rounded shaded-panel">
@@ -407,18 +422,51 @@
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.resetDescription"> Press "Reset" to clear conversation and reset parameters to defaults while keeping current app selection.</div>
           </div>
 
-          <div id="theme-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span></h5>
+          <div id="theme-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#theme-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.theme"><i class="fas fa-palette"></i> Theme</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="theme-panel-body" class="collapse show px-3 pb-3">
             <div class="theme-buttons d-flex align-items-center flex-wrap gap-2">
               <button class="btn btn-sm btn-secondary" id="theme-system" title="Follow system theme preference" data-i18n="ui.themeSystem"><i class="fas fa-desktop"></i> System</button>
               <button class="btn btn-sm btn-secondary" id="theme-light" title="Use light theme" data-i18n="ui.themeLight"><i class="fas fa-sun"></i> Light</button>
               <button class="btn btn-sm btn-secondary" id="theme-dark" title="Use dark theme" data-i18n="ui.themeDark"><i class="fas fa-moon"></i> Dark</button>
             </div>
             <div class="mt-3 mb-1 textbox-caption" data-i18n="ui.themeDescription">Select your preferred color theme or follow system settings.</div>
+            </div><!-- end #theme-panel-body -->
           </div>
 
-          <div id="voice-panel" class="p-3 mb-3 rounded shaded-panel">
-            <h5 class=""><span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span></h5>
+          <div id="interaction-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#interaction-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.interactionControls"><i class="fas fa-hand-pointer"></i> Interaction</span>
+              <span class="d-flex align-items-center gap-2">
+                <span id="interaction-toggle-all" class="btn btn-sm btn-secondary" data-i18n="ui.toggleAll" onclick="event.stopPropagation()">toggle all</span>
+                <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+              </span>
+            </h5>
+            <div id="interaction-panel-body" class="collapse show px-3 pb-3">
+            <div class="form-check form-switch mb-2" id="auto-speech-form">
+              <input class="form-check-input" type="checkbox" id="check-auto-speech">
+              <label class="form-check-label" for="check-auto-speech" data-i18n="ui.autoSpeech">Auto speech</label>
+            </div>
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="check-easy-submit">
+              <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
+            </div>
+            <div class="form-check form-switch" id="config-auto-scroll">
+              <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
+              <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
+            </div>
+            </div><!-- end #interaction-panel-body -->
+          </div>
+
+          <div id="voice-panel" class="mb-3 rounded shaded-panel overflow-hidden">
+            <h5 class="sidebar-collapse-toggle p-3 mb-0" role="button" data-bs-toggle="collapse" data-bs-target="#voice-panel-body" aria-expanded="true">
+              <span class="text" data-i18n="ui.speech"><i class="fas fa-comment-dots"></i> Speech</span>
+              <i class="fas fa-chevron-down sidebar-collapse-icon"></i>
+            </h5>
+            <div id="voice-panel-body" class="collapse show px-3 pb-3">
 
             <div class="my-1">
               <label for="stt-model" class="div-label my-2" data-i18n="ui.speechToTextModel">Speech-to-Text Model</label>
@@ -530,6 +578,7 @@
               <input type="range" class="div-range" min="0.70" max="1.20" step="0.01" value="1.00" id="tts-speed">
             </div>
 
+            </div><!-- end #voice-panel-body -->
           </div>
 
           <div class="mx-2 me-1 flex-end">
@@ -672,33 +721,6 @@
                   <input class="form-check-input" type="checkbox" id="mathjax">
                 </div>
                 <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt"></textarea>
-              </div>
-            </div>
-
-            <div class="row my-3 align-items-center">
-              <div class="col-12">
-                <fieldset>
-                  <legend data-i18n="ui.voiceConversationControls">Voice Conversation Interaction Controls
-                    <span id="interaction-toggle-all" class="btn btn-sm btn-secondary" data-i18n="ui.toggleAll">toggle all</span>
-                  </legend>
-                  <div class="form-check form-switch float-start me-3" id="auto-speech-form">
-                    <input class="form-check-input" type="checkbox" id="check-auto-speech">
-                    <label class="form-check-label" for="check-auto-speech" data-i18n="ui.autoSpeech">Auto speech</label>
-                  </div>
-                  <div class="form-check form-switch float-start me-3">
-                    <input class="form-check-input" type="checkbox" id="check-easy-submit">
-                    <label class="form-check-label" for="check-easy-submit"><span data-i18n="ui.easySubmit">Easy submit</span> <small data-i18n="ui.easySubmitHint">(with Enter key or Stop button)</small></label>
-                  </div>
-                </fieldset>
-              </div>
-            </div>
-
-            <div class="row my-3">
-              <div id="config-auto-scroll" class="">
-                <div class="form-check form-switch">
-                  <label class="form-check-label" for="auto-scroll-toggle" data-i18n="ui.autoScroll">Auto scroll while streaming</label>
-                  <input class="form-check-input" type="checkbox" id="auto-scroll-toggle" checked>
-                </div>
               </div>
             </div>
 

@@ -2398,7 +2398,7 @@ pre code {
 
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #voice-panel {
+#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   padding-bottom: 1rem;
@@ -5819,5 +5819,30 @@ i.fas.fa-bolt,
 
 #config-actions {
   padding: 0 0.5rem;
+}
+
+/* Sidebar collapsible panel headers */
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-collapse-toggle:hover {
+  background: var(--bg-hover, #e9ecef);
+}
+
+.sidebar-collapse-icon {
+  transition: transform 0.3s ease;
+  font-size: 0.75em;
+  color: var(--text-secondary, #6c757d);
+}
+
+/* Rotate chevron when panel body is expanded */
+.sidebar-collapse-toggle[aria-expanded="true"] .sidebar-collapse-icon {
+  transform: rotate(180deg);
 }
 

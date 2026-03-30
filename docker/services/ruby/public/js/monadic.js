@@ -541,8 +541,8 @@ function hashSimilarity(h1, h2) {
   return match / h1.length;
 }
 
-(function () {
-  
+document.addEventListener("DOMContentLoaded", function () {
+
   // ── Collapsible Settings Header helpers ─────────────────
 
   // Update the summary bar content with current settings
@@ -4658,4 +4658,4 @@ function hashSimilarity(h1, h2) {
       if (e.key === "ArrowRight" && lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });
   })();
-})();
+});

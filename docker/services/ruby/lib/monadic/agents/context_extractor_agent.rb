@@ -424,7 +424,7 @@ module ContextExtractorAgent
     uri = URI.parse(API_ENDPOINTS["cohere"])
 
     # Check if this is a reasoning/thinking model
-    is_reasoning_model = model.to_s.include?("reasoning") || model.to_s.include?("command-a")
+    is_reasoning_model = model.to_s.include?("reasoning")
 
     request_body = {
       "model" => model,

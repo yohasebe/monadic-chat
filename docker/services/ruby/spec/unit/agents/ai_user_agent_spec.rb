@@ -361,9 +361,9 @@ RSpec.describe AIUserAgent do
         "gemini" => "gemini-3-flash-preview",
         "mistral" => "mistral-large-latest",
         "grok" => "grok-4-1-fast-non-reasoning",
-        "perplexity" => "sonar-reasoning-pro",
+        "perplexity" => "sonar",
         "deepseek" => "deepseek-chat",
-        "cohere" => "command-a-reasoning-08-2025"
+        "cohere" => "command-a-03-2025"
       }
 
       stub_const('CONFIG', {})

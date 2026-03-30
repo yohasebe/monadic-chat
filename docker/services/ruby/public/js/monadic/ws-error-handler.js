@@ -84,41 +84,41 @@ function handleError(data) {
   } else {
     // Fallback to inline handling
     ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
-    const fallbackMsg = document.getElementById("message");
-    if (fallbackMsg) { fallbackMsg.style.display = ''; fallbackMsg.disabled = false; }
-    const fallbackSpinner = document.getElementById("monadic-spinner");
-    if (fallbackSpinner) fallbackSpinner.style.display = 'none';
+    const fallbackMsg = $id("message");
+    if (fallbackMsg) { $show(fallbackMsg); fallbackMsg.disabled = false; }
+    const fallbackSpinner = $id("monadic-spinner");
+    $hide(fallbackSpinner);
     setAlert(errorContent, 'error');
     handled = true;
   }
 
   // Additional UI operations
   if (handled) {
-    const selectRole = document.getElementById("select-role");
+    const selectRole = $id("select-role");
     if (selectRole) selectRole.disabled = false;
 
     // Only update status-message if system is not busy
     if (!isSystemBusy()) {
-      const statusMsg = document.getElementById("status-message");
+      const statusMsg = $id("status-message");
       if (statusMsg) statusMsg.innerHTML = getTranslation('ui.messages.inputMessage', 'Input a message.');
     }
 
     // Reset UI panels and indicators
     clearToolStatus();
-    const errTempCard = document.getElementById("temp-card");
-    if (errTempCard) errTempCard.style.display = 'none';
-    const errIndicator = document.getElementById("indicator");
-    if (errIndicator) errIndicator.style.display = 'none';
-    const errUserPanel = document.getElementById("user-panel");
-    if (errUserPanel) errUserPanel.style.display = '';
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    const errTempCard = $id("temp-card");
+    $hide(errTempCard);
+    const errIndicator = $id("indicator");
+    $hide(errIndicator);
+    const errUserPanel = $id("user-panel");
+    $show(errUserPanel);
+    $id('cancel_query').style.setProperty('display', 'none', 'important');
 
     // For AI User errors, don't delete messages but re-enable the AI User button
     if (isAIUserError) {
-      const aiUserBtn = document.getElementById("ai_user");
+      const aiUserBtn = $id("ai_user");
       if (aiUserBtn) aiUserBtn.disabled = false;
       updateAIUserButtonState(window.messages);
     } else {
@@ -131,7 +131,7 @@ function handleError(data) {
 
       // Restore the message content so user can edit and retry
       const params = window.params || {};
-      const errMsgEl = document.getElementById("message");
+      const errMsgEl = $id("message");
       if (errMsgEl) errMsgEl.value = params["message"] || '';
     }
 
@@ -178,12 +178,12 @@ function handleCancel(data) {
 
     // Remove any UI cards that may have been created during initial message
     if (messages.length === 0) {
-      const discourseEl = document.getElementById("discourse");
+      const discourseEl = $id("discourse");
       if (discourseEl) discourseEl.innerHTML = '';
     }
 
     // Don't clear the message so users can edit and resubmit
-    const cancelMsgEl = document.getElementById("message");
+    const cancelMsgEl = $id("message");
     if (cancelMsgEl) {
       cancelMsgEl.setAttribute("placeholder", typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message...");
       cancelMsgEl.disabled = false;
@@ -191,25 +191,25 @@ function handleCancel(data) {
 
     // Re-enable all the UI elements
     ["send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
 
-    const cancelStatusMsg = document.getElementById("status-message");
+    const cancelStatusMsg = $id("status-message");
     if (cancelStatusMsg) cancelStatusMsg.innerHTML = getTranslation('ui.messages.inputMessage', 'Input a message.');
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    $id('cancel_query').style.setProperty('display', 'none', 'important');
 
     // Hide loading indicators
     clearToolStatus();
-    const cancelTempCard = document.getElementById("temp-card");
-    if (cancelTempCard) cancelTempCard.style.display = 'none';
-    const cancelIndicator = document.getElementById("indicator");
-    if (cancelIndicator) cancelIndicator.style.display = 'none';
+    const cancelTempCard = $id("temp-card");
+    $hide(cancelTempCard);
+    const cancelIndicator = $id("indicator");
+    $hide(cancelIndicator);
 
     // Show message input and hide spinner
-    if (cancelMsgEl) cancelMsgEl.style.display = '';
-    const cancelSpinner = document.getElementById("monadic-spinner");
-    if (cancelSpinner) cancelSpinner.style.display = 'none';
+    $show(cancelMsgEl);
+    const cancelSpinner = $id("monadic-spinner");
+    $hide(cancelSpinner);
 
     // Update AI User button state
     updateAIUserButtonState(messages);

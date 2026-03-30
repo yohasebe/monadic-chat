@@ -25,7 +25,7 @@ class ReasoningUIManager {
    * Create provider-specific UI containers
    */
   createUIContainers() {
-    const container = document.getElementById('reasoning-effort').parentElement.parentElement;
+    const container = $id('reasoning-effort').parentElement.parentElement;
     
     // Create Claude slider container
     const claudeUI = document.createElement('div');
@@ -92,19 +92,19 @@ class ReasoningUIManager {
    */
   attachEventListeners() {
     // Claude slider
-    const slider = document.getElementById('thinking-budget-slider');
+    const slider = $id('thinking-budget-slider');
     if (slider) {
       slider.addEventListener('input', (e) => {
         const value = parseInt(e.target.value);
-        document.getElementById('thinking-budget-value').textContent = value.toLocaleString();
+        $id('thinking-budget-value').textContent = value.toLocaleString();
       });
     }
 
     // Gemini preset selector
-    const presetSelector = document.getElementById('thinking-mode-preset');
+    const presetSelector = $id('thinking-mode-preset');
     if (presetSelector) {
       presetSelector.addEventListener('change', (e) => {
-        const customContainer = document.getElementById('thinking-custom-container');
+        const customContainer = $id('thinking-custom-container');
         customContainer.classList.toggle('hidden', e.target.value !== 'custom');
       });
     }
@@ -123,7 +123,7 @@ class ReasoningUIManager {
     this.hideAllUIs();
 
     // Get the default select element and its immediate column container (not the form)
-    const defaultSelect = document.getElementById('reasoning-effort');
+    const defaultSelect = $id('reasoning-effort');
     const defaultContainer = defaultSelect.parentElement; // <div class="col-auto ms-2">
 
     // Determine which UI to show
@@ -187,20 +187,20 @@ class ReasoningUIManager {
    */
   getValue() {
     // Claude slider
-    if (!document.getElementById('reasoning-ui-claude').classList.contains('hidden')) {
+    if (!$id('reasoning-ui-claude').classList.contains('hidden')) {
       return {
         type: 'thinking_budget',
-        value: parseInt(document.getElementById('thinking-budget-slider').value)
+        value: parseInt($id('thinking-budget-slider').value)
       };
     }
 
     // Gemini detailed settings
-    if (!document.getElementById('reasoning-ui-gemini').classList.contains('hidden')) {
-      const preset = document.getElementById('thinking-mode-preset').value;
+    if (!$id('reasoning-ui-gemini').classList.contains('hidden')) {
+      const preset = $id('thinking-mode-preset').value;
       if (preset === 'custom') {
         return {
           type: 'thinking_budget',
-          value: parseInt(document.getElementById('thinking-custom-value').value)
+          value: parseInt($id('thinking-custom-value').value)
         };
       } else {
         return {
@@ -211,7 +211,7 @@ class ReasoningUIManager {
     }
 
     // DeepSeek toggle
-    if (!document.getElementById('reasoning-ui-deepseek').classList.contains('hidden')) {
+    if (!$id('reasoning-ui-deepseek').classList.contains('hidden')) {
       const value = document.querySelector('input[name="reasoning-mode"]:checked').value;
       return {
         type: 'reasoning_content',
@@ -220,7 +220,7 @@ class ReasoningUIManager {
     }
 
     // Default select
-    const defaultValue = document.getElementById('reasoning-effort').value;
+    const defaultValue = $id('reasoning-effort').value;
     return {
       type: 'reasoning_effort',
       value: defaultValue
@@ -233,10 +233,10 @@ class ReasoningUIManager {
   setValue(value, type) {
     switch (type) {
       case 'thinking_budget':
-        const slider = document.getElementById('thinking-budget-slider');
+        const slider = $id('thinking-budget-slider');
         if (slider) {
           slider.value = value;
-          document.getElementById('thinking-budget-value').textContent = value.toLocaleString();
+          $id('thinking-budget-value').textContent = value.toLocaleString();
         }
         break;
 
@@ -248,7 +248,7 @@ class ReasoningUIManager {
         break;
 
       default:
-        const select = document.getElementById('reasoning-effort');
+        const select = $id('reasoning-effort');
         if (select) {
           select.value = value;
         }

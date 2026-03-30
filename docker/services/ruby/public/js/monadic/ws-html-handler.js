@@ -42,7 +42,7 @@ function handleHtml(data) {
   // This ensures streaming content stays visible until the final card replaces it
 
   // Remove temp-reasoning-card as we're about to show the final HTML
-  const tempReasoningCard = document.getElementById("temp-reasoning-card");
+  const tempReasoningCard = $id("temp-reasoning-card");
   if (tempReasoningCard) tempReasoningCard.remove();
   if (typeof window.setReasoningStreamActive === 'function') {
     window.setReasoningStreamActive(false);
@@ -60,7 +60,7 @@ function handleHtml(data) {
       // moreComing handling is now done inside handleHtmlMessage
       // so cancel_query visibility is controlled there
       if (!data["more_coming"]) {
-        document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+        $id('cancel_query').style.setProperty('display', 'none', 'important');
       }
     }
   }
@@ -118,7 +118,7 @@ function handleHtml(data) {
       _handleSystemRole(data);
     } else {
       // Non-assistant messages: show "Ready for input" only if system is not busy
-      document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+      $id('cancel_query').style.setProperty('display', 'none', 'important');
       if (!isSystemBusy()) {
         const readyText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.readyForInput') : 'Ready for input';
         setAlert(`<i class='fa-solid fa-circle-check'></i> ${readyText}`, "success");
@@ -126,20 +126,20 @@ function handleHtml(data) {
     }
 
     // Common cleanup for all roles
-    const chatEl = document.getElementById("chat");
+    const chatEl = $id("chat");
     if (chatEl) chatEl.innerHTML = "";
     if (typeof clearToolStatus === 'function') {
       clearToolStatus();
     }
-    const tempCard = document.getElementById("temp-card");
-    if (tempCard) tempCard.style.display = 'none';
-    const indicator = document.getElementById("indicator");
-    if (indicator) indicator.style.display = 'none';
-    const userPanel = document.getElementById("user-panel");
-    if (userPanel) userPanel.style.display = '';
+    const tempCard = $id("temp-card");
+    $hide(tempCard);
+    const indicator = $id("indicator");
+    $hide(indicator);
+    const userPanel = $id("user-panel");
+    $show(userPanel);
 
     // Make sure message input is enabled
-    const messageInput = document.getElementById("message");
+    const messageInput = $id("message");
     if (messageInput) messageInput.disabled = false;
 
     const mainPanel = window.mainPanel;
@@ -164,7 +164,7 @@ function handleHtml(data) {
  */
 function _handleAssistantRole(data, html, moreComing) {
   // Calculate turn number based on existing assistant cards + 1 (excluding temp-card)
-  const discourseEl = document.getElementById('discourse');
+  const discourseEl = $id('discourse');
   const turnNumber = discourseEl ? discourseEl.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("assistant", "<span class='text-secondary'><i class='fas fa-robot'></i></span> <span class='fw-bold fs-6 assistant-color'>Assistant</span>", html, data["content"]["lang"], data["content"]["mid"], true, [], turnNumber);
 
@@ -184,8 +184,8 @@ function _handleAssistantRole(data, html, moreComing) {
     window._lastProcessedSequence = -1;
     window._lastProcessedIndex = -1;
 
-    let tempCardEl = document.getElementById("temp-card");
-    const discEl = document.getElementById("discourse");
+    let tempCardEl = $id("temp-card");
+    const discEl = $id("discourse");
     if (!tempCardEl) {
       // Create new temp-card if it doesn't exist
       tempCardEl = document.createElement('div');
@@ -208,20 +208,20 @@ function _handleAssistantRole(data, html, moreComing) {
       if (tempCardEl.parentNode) tempCardEl.parentNode.removeChild(tempCardEl);
       if (discEl) discEl.appendChild(tempCardEl);
     }
-    tempCardEl.style.display = '';
+    $show(tempCardEl);
 
     // Show spinner with "Processing tools" message
     const processingToolsText = typeof webUIi18n !== 'undefined' ?
       webUIi18n.t('ui.messages.spinnerProcessingTools') : 'Processing tools';
-    const spinnerEl = document.getElementById("monadic-spinner");
+    const spinnerEl = $id("monadic-spinner");
     if (spinnerEl) {
       const spanEl = spinnerEl.querySelector("span");
       if (spanEl) spanEl.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${processingToolsText}`;
-      spinnerEl.style.display = '';
+      $show(spinnerEl);
     }
 
     // Keep cancel button visible
-    document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+    $id('cancel_query').style.setProperty('display', 'flex', 'important');
   } else {
     // Final message - normal completion flow
     _handleFinalAssistantMessage(data);
@@ -236,15 +236,15 @@ function _handleAssistantRole(data, html, moreComing) {
  */
 function _handleFinalAssistantMessage(data) {
   // Show message input and hide spinner
-  const msgEl = document.getElementById("message");
+  const msgEl = $id("message");
   if (msgEl) {
-    msgEl.style.display = '';
+    $show(msgEl);
     msgEl.value = ""; // Clear the message after successful response
     msgEl.disabled = false;
   }
   // Re-enable all input controls
   ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = false;
   });
 
@@ -274,16 +274,16 @@ function _handleFinalAssistantMessage(data) {
   }
 
   // If this is the first assistant message (from initiate_from_assistant), show user panel
-  const finalUserPanel = document.getElementById("user-panel");
-  const finalTempCard = document.getElementById("temp-card");
+  const finalUserPanel = $id("user-panel");
+  const finalTempCard = $id("temp-card");
   if (finalUserPanel && finalUserPanel.style.display === 'none' && finalTempCard && finalTempCard.style.display !== 'none') {
-    finalUserPanel.style.display = '';
+    $show(finalUserPanel);
     if (typeof setInputFocus === 'function') {
       setInputFocus();
     }
   }
 
-  document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+  $id('cancel_query').style.setProperty('display', 'none', 'important');
 
   // For assistant messages, don't show "Ready to start" immediately
   // Wait for streaming to complete
@@ -393,12 +393,12 @@ function _handleUserRole(data) {
   }
   // Use the appendCard helper function
   // User turn number is existing assistant cards + 1 (excluding temp-card)
-  const userDiscourse = document.getElementById('discourse');
+  const userDiscourse = $id('discourse');
   const userTurnNumber = userDiscourse ? userDiscourse.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   window.appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
-  const userMsgEl = document.getElementById("message");
+  const userMsgEl = $id("message");
   if (userMsgEl) {
-    userMsgEl.style.display = '';
+    $show(userMsgEl);
     userMsgEl.disabled = false;
   }
 
@@ -413,9 +413,9 @@ function _handleUserRole(data) {
 function _handleSystemRole(data) {
   // Use the appendCard helper function
   window.appendCard("system", "<span class='text-secondary'><i class='fas fa-bars'></i></span> <span class='fw-bold fs-6 system-color'>System</span>", data["content"]["html"], data["content"]["lang"], data["content"]["mid"], true);
-  const sysMsgEl = document.getElementById("message");
+  const sysMsgEl = $id("message");
   if (sysMsgEl) {
-    sysMsgEl.style.display = '';
+    $show(sysMsgEl);
     sysMsgEl.disabled = false;
   }
 
@@ -448,7 +448,7 @@ function _resetStreamingAndShowReady() {
       checkAndHideSpinner();
     }
   }
-  document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+  $id('cancel_query').style.setProperty('display', 'none', 'important');
   // Only show "Ready for input" if system is not busy
   if (!isSystemBusy()) {
     const readyText = typeof webUIi18n !== 'undefined' ?

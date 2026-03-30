@@ -280,10 +280,10 @@
             '<strong>Mermaid Syntax Error:</strong><br>' +
             error.message +
             '</div>';
-          errorElement.style.display = '';
+          $show(errorElement);
         }
         var diagramEl = wrapper.querySelector('.diagram');
-        if (diagramEl) diagramEl.style.display = 'none';
+        $hide(diagramEl);
       }
     });
 
@@ -442,7 +442,7 @@
       var errorDiv = document.createElement('div');
       errorDiv.className = 'error-message';
       errorDiv.id = 'error-' + containerId;
-      errorDiv.style.display = 'none';
+      $hide(errorDiv);
       wrapper.appendChild(errorDiv);
 
       elDom.parentNode.insertBefore(wrapper, elDom.nextSibling);
@@ -457,10 +457,10 @@
           var errEl = item.diagramContainer.querySelector('#error-' + item.containerId);
           if (errEl) {
             errEl.innerHTML = '<div class="alert alert-danger"><strong>DrawIO Viewer Error:</strong><br>Failed to load viewer library.</div>';
-            errEl.style.display = '';
+            $show(errEl);
           }
           var diagEl = item.diagramContainer.querySelector('.diagram');
-          if (diagEl) diagEl.style.display = 'none';
+          $hide(diagEl);
         });
         return;
       }
@@ -745,14 +745,14 @@
     controlDiv.addEventListener('click', function () {
       var sourcecode = this.nextElementSibling;
       if (sourcecode.style.display === 'none') {
-        sourcecode.style.display = '';
+        $show(sourcecode);
         this.innerHTML = toggleHide;
       } else {
-        sourcecode.style.display = 'none';
+        $hide(sourcecode);
         this.innerHTML = toggleShow;
       }
     });
-    domEl.style.display = 'none';
+    $hide(domEl);
   }
 
   function formatSourceCode(element) {

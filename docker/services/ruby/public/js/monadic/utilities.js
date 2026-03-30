@@ -48,7 +48,7 @@ function getTranslation(key, fallback) {
 function updateAppSelectIcon(appValue) {
   // If no appValue is provided, use current selected app
   if (!appValue) {
-    const appsEl = document.getElementById("apps");
+    const appsEl = $id("apps");
     if (appsEl && appsEl.value) {
       appValue = appsEl.value;
     }
@@ -71,13 +71,13 @@ function updateAppSelectIcon(appValue) {
   }
 
   // Update the icon in the static icon span
-  const appSelectIcon = document.getElementById("app-select-icon");
+  const appSelectIcon = $id("app-select-icon");
   if (appSelectIcon) appSelectIcon.innerHTML = iconHtml;
 
   // Icon color is now controlled by CSS rule: #app-select-icon i { color: #777; }
 
   // Also update the active class in the custom dropdown if it exists
-  const customDropdown = document.getElementById("custom-apps-dropdown");
+  const customDropdown = $id("custom-apps-dropdown");
   if (customDropdown) {
     document.querySelectorAll(".custom-dropdown-option").forEach(el => el.classList.remove("active"));
     const selectedOption = document.querySelector(`.custom-dropdown-option[data-value="${appValue}"]`);
@@ -308,27 +308,27 @@ function listModels(models, openai = false) {
 //////////////////////////////
 
   function setInputFocus() {
-    const startEl = document.getElementById("start");
-    const easySubmitEl = document.getElementById("check-easy-submit");
-    const autoSpeechEl = document.getElementById("check-auto-speech");
+    const startEl = $id("start");
+    const easySubmitEl = $id("check-easy-submit");
+    const autoSpeechEl = $id("check-auto-speech");
     if (startEl && startEl.offsetParent !== null) {
       startEl.focus();
     } else if (easySubmitEl && easySubmitEl.checked && autoSpeechEl && autoSpeechEl.checked) {
-      const voiceEl = document.getElementById("voice");
-      const voiceNoteEl = document.getElementById("voice-note");
+      const voiceEl = $id("voice");
+      const voiceNoteEl = $id("voice-note");
       if (voiceEl) voiceEl.focus();
       // show #voice-note but set it to hide when the voice button is unfocused
-      if (voiceNoteEl) voiceNoteEl.style.display = '';
+      $show(voiceNoteEl);
       if (voiceEl) {
         voiceEl.addEventListener("blur", function () {
-          if (voiceNoteEl) voiceNoteEl.style.display = 'none';
+          $hide(voiceNoteEl);
         });
         voiceEl.addEventListener("focusout", function () {
-          if (voiceNoteEl) voiceNoteEl.style.display = 'none';
+          $hide(voiceNoteEl);
         });
       }
     } else {
-      const messageEl = document.getElementById("message");
+      const messageEl = $id("message");
       if (messageEl) messageEl.focus();
     }
   }
@@ -357,7 +357,7 @@ function listModels(models, openai = false) {
   let stop_apps_trigger = false;
 
 function setBaseAppDescription(html) {
-  const descEl = document.getElementById("base-app-desc");
+  const descEl = $id("base-app-desc");
   if (!descEl) return;
   const normalized = (html == null ? '' : String(html));
   const previous = descEl.dataset.renderedHtml;
@@ -371,8 +371,8 @@ function setBaseAppDescription(html) {
 window.setBaseAppDescription = setBaseAppDescription;
 
 window.loadParams = function(params, calledFor = "loadParams") {
-  const modelNonDefault = document.getElementById("model-non-default");
-  if (modelNonDefault) modelNonDefault.style.display = 'none';
+  const modelNonDefault = $id("model-non-default");
+  $hide(modelNonDefault);
   // check if params is not empty
   if (Object.keys(params).length === 0) {
     return;
@@ -411,7 +411,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
     // Update the badge in the AI User section
     const aiAssistantText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.aiAssistant') : 'AI Assistant';
-    const aiAssistantInfo = document.getElementById("ai-assistant-info");
+    const aiAssistantInfo = $id("ai-assistant-info");
     if (aiAssistantInfo) {
       aiAssistantInfo.innerHTML = '<span data-i18n="ui.aiAssistant">' + aiAssistantText + '</span> &nbsp;<span class="ai-assistant-provider">' + provider + '</span>';
       aiAssistantInfo.setAttribute("data-model", selectedModel);
@@ -420,8 +420,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
   
   stop_apps_trigger = false;
   if (calledFor === "reset") {
-    const fileDiv = document.getElementById("file-div");
-    if (fileDiv) fileDiv.style.display = 'none';
+    const fileDiv = $id("file-div");
+    $hide(fileDiv);
     // Select the default app option
     const defaultOption = document.querySelector(`#apps option[value="${defaultApp}"]`);
     if (defaultOption) defaultOption.setAttribute('selected', 'selected');
@@ -505,7 +505,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
     
     // Set the app selector WITHOUT triggering change event yet
-    const appsSelect = document.getElementById("apps");
+    const appsSelect = $id("apps");
     const previousAppSelection = appsSelect ? appsSelect.value : null;
     const needsAppChange = previousAppSelection !== targetApp;
     if (appsSelect) appsSelect.value = targetApp;
@@ -515,13 +515,13 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // Helper to ensure a model option exists when we skip app change triggers
     const ensureModelOptionVisible = (modelValue) => {
       if (!modelValue || !apps || !apps[targetApp]) return;
-      const modelSelect = document.getElementById("model");
+      const modelSelect = $id("model");
       if (!modelSelect) return;
       if (modelSelect.querySelector(`option[value="${modelValue}"]`)) {
         return;
       }
       try {
-        const showAllModelsEl = document.getElementById("show-all-models");
+        const showAllModelsEl = $id("show-all-models");
         const showAllModels = showAllModelsEl ? showAllModelsEl.checked : false;
         const modelsForApp = typeof getModelsForApp === 'function' ? getModelsForApp(apps[targetApp], showAllModels) : [];
         if (modelsForApp.length === 0) return;
@@ -567,7 +567,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
         window.isLoadingParams = true;
 
         // Now trigger the change event after value is set
-        if (appsSelect) appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
+        $dispatch(appsSelect, 'change');
 
         // Clear the flag after a longer delay to ensure model setting completes
         setTimeout(() => {
@@ -577,7 +577,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
         // Wait a moment for app change to complete, then set model
         setTimeout(() => {
           if (modelToSet) {
-            const modelSelect = document.getElementById("model");
+            const modelSelect = $id("model");
             if (!modelSelect) return;
 
             // Force set the model value even if the dropdown was rebuilt
@@ -588,24 +588,24 @@ window.loadParams = function(params, calledFor = "loadParams") {
               setTimeout(() => {
                 modelSelect.value = modelToSet;
                 if (modelSelect.value === modelToSet) {
-                  modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+                  $dispatch(modelSelect, 'change');
                 }
               }, 300);
             } else {
-              modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+              $dispatch(modelSelect, 'change');
             }
           }
         }, 300); // Increased timeout
       } else if (modelToSet) {
         // Same app: ensure the requested model is present without retriggering app change
         ensureModelOptionVisible(modelToSet);
-        const modelSelect = document.getElementById("model");
+        const modelSelect = $id("model");
         if (modelSelect) {
           if (modelSelect.value !== modelToSet) {
             modelSelect.value = modelToSet;
           }
           if (modelSelect.value === modelToSet) {
-            modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+            $dispatch(modelSelect, 'change');
           } else {
             console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
             // Fallback to first available model to avoid stale/invalid state
@@ -613,7 +613,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
             const fallbackModel = firstOption ? firstOption.value : null;
             if (fallbackModel) {
               modelSelect.value = fallbackModel;
-              modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
+              $dispatch(modelSelect, 'change');
               params["model"] = fallbackModel;
               // Clear stale reasoning_effort when model fallback happens
               if (params["reasoning_effort"]) {
@@ -648,13 +648,13 @@ window.loadParams = function(params, calledFor = "loadParams") {
         const provider = (typeof getProviderFromGroup === 'function' && apps[targetApp]["group"])
           ? getProviderFromGroup(apps[targetApp]["group"])
           : "OpenAI";
-        const modelEl = document.getElementById("model");
-        const reasoningEffortEl = document.getElementById("reasoning-effort");
+        const modelEl = $id("model");
+        const reasoningEffortEl = $id("reasoning-effort");
         const selectedModel = modelEl ? modelEl.value : null;
         const reasoning_effort = params["reasoning_effort"] || (reasoningEffortEl ? reasoningEffortEl.value : null);
 
         // Update model display badge
-        const modelSelectedEl = document.getElementById("model-selected");
+        const modelSelectedEl = $id("model-selected");
         if (modelSelectedEl) {
           if (modelSpec[selectedModel] && modelSpec[selectedModel].hasOwnProperty("reasoning_effort") && reasoning_effort) {
             modelSelectedEl.textContent = `${provider} (${selectedModel} - ${reasoning_effort})`;
@@ -666,7 +666,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     }
   } else if (calledFor === "changeApp") {
     let app_name = params["app_name"];
-    const appsEl = document.getElementById("apps");
+    const appsEl = $id("apps");
     if (appsEl) appsEl.value = app_name;
     const appOption = document.querySelector(`#apps option[value="${params['app_name']}"]`);
     if (appOption) appOption.setAttribute('selected', 'selected');
@@ -685,11 +685,11 @@ window.loadParams = function(params, calledFor = "loadParams") {
   }
   const toBool = window.toBool;
 
-  const easySubmitCb = document.getElementById("check-easy-submit");
+  const easySubmitCb = $id("check-easy-submit");
   if (easySubmitCb) easySubmitCb.checked = toBool(params["easy_submit"]);
 
   // Force Auto TTS OFF during import (regardless of app settings)
-  const autoSpeechCb = document.getElementById("check-auto-speech");
+  const autoSpeechCb = $id("check-auto-speech");
   if (autoSpeechCb) {
     if (window.isProcessingImport) {
       autoSpeechCb.checked = false;
@@ -699,7 +699,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
   }
 
   // Force initiate_from_assistant OFF during import (regardless of app settings)
-  const initiateFromAssistantCb = document.getElementById("initiate-from-assistant");
+  const initiateFromAssistantCb = $id("initiate-from-assistant");
   if (initiateFromAssistantCb) {
     if (window.isProcessingImport) {
       initiateFromAssistantCb.checked = false;
@@ -707,15 +707,15 @@ window.loadParams = function(params, calledFor = "loadParams") {
       initiateFromAssistantCb.checked = toBool(params["initiate_from_assistant"]);
     }
   }
-  const mathjaxCb = document.getElementById("mathjax");
-  const mathBadge = document.getElementById("math-badge");
+  const mathjaxCb = $id("mathjax");
+  const mathBadge = $id("math-badge");
   if (mathjaxCb) mathjaxCb.checked = toBool(params["mathjax"]);
-  if (mathBadge) mathBadge.style.display = toBool(params["mathjax"]) ? '' : 'none';
+  $toggle(mathBadge, toBool(params["mathjax"]));
 
-  const initialPromptEl = document.getElementById("initial-prompt");
+  const initialPromptEl = $id("initial-prompt");
   if (initialPromptEl) {
     initialPromptEl.value = params["initial_prompt"] || '';
-    initialPromptEl.dispatchEvent(new Event("input", {bubbles: true}));
+    $dispatch(initialPromptEl, "input");
   }
   if (window.logTL) window.logTL('initial_prompt_set', {
     calledFor,
@@ -723,10 +723,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
   });
 
   if (params["ai_user_initial_prompt"]) {
-    const aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
+    const aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) {
       aiUserPromptEl.value = params["ai_user_initial_prompt"];
-      aiUserPromptEl.dispatchEvent(new Event("input", {bubbles: true}));
+      $dispatch(aiUserPromptEl, "input");
     }
     if (typeof window.setPromptView === 'function') window.setPromptView('aiuser', false);
   } else {
@@ -740,7 +740,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const reasoning_effort = params["reasoning_effort"];
     
     // Get provider from current app
-    const currentAppEl = document.getElementById("apps");
+    const currentAppEl = $id("apps");
     const currentApp = currentAppEl ? currentAppEl.value : null;
     const provider = (window.getProviderFromGroup && window.apps && window.apps[currentApp])
       ? window.getProviderFromGroup(window.apps[currentApp]["group"])
@@ -751,14 +751,14 @@ window.loadParams = function(params, calledFor = "loadParams") {
       window.reasoningUIManager.updateUI(provider, model);
     }
 
-    const reasoningDropdown = document.getElementById("reasoning-effort");
-    const maxTokensEl = document.getElementById("max-tokens");
-    const maxTokensToggle = document.getElementById("max-tokens-toggle");
+    const reasoningDropdown = $id("reasoning-effort");
+    const maxTokensEl = $id("max-tokens");
+    const maxTokensToggle = $id("max-tokens-toggle");
 
     // Use ReasoningMapper to check if provider/model supports reasoning
     if (window.ReasoningMapper && ReasoningMapper.isSupported(provider, model)) {
       // Get current UI settings for feature constraint checking
-      const websearchCb = document.getElementById("websearch");
+      const websearchCb = $id("websearch");
       const currentSettings = {
         web_search: (websearchCb && websearchCb.checked) || false
       };
@@ -816,10 +816,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
     // Show/hide thinking display toggle based on model support
     // Only show for models with supports_thinking (Claude, Gemini, DeepSeek)
     // NOT for OpenAI reasoning_effort models (no display control API)
-    const thinkingContainer = document.getElementById("thinking-display-container");
-    const showThinkingCb = document.getElementById("show-thinking");
+    const thinkingContainer = $id("thinking-display-container");
+    const showThinkingCb = $id("show-thinking");
     if (spec["supports_thinking"]) {
-      if (thinkingContainer) thinkingContainer.style.display = '';
+      $show(thinkingContainer);
       // Restore from params if available, default to checked (show thinking)
       if (showThinkingCb) {
         if (params["show_thinking"] !== undefined) {
@@ -829,16 +829,16 @@ window.loadParams = function(params, calledFor = "loadParams") {
         }
       }
     } else {
-      if (thinkingContainer) thinkingContainer.style.display = 'none';
+      $hide(thinkingContainer);
     }
 
     // Hide model_parameters row (temperature, penalties) — these legacy controls
     // are not useful for modern models and are hidden from the default UI.
-    const modelParamsEl = document.getElementById("model_parameters");
-    if (modelParamsEl) modelParamsEl.style.display = 'none';
+    const modelParamsEl = $id("model_parameters");
+    $hide(modelParamsEl);
 
-    const temperatureEl = document.getElementById("temperature");
-    const temperatureValueEl = document.getElementById("temperature-value");
+    const temperatureEl = $id("temperature");
+    const temperatureValueEl = $id("temperature-value");
     let temperature = params["temperature"];
     if (temperature) {
       if (!isNaN(temperature)) {
@@ -855,8 +855,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
       }
     }
 
-    const presencePenaltyEl = document.getElementById("presence-penalty");
-    const presencePenaltyValueEl = document.getElementById("presence-penalty-value");
+    const presencePenaltyEl = $id("presence-penalty");
+    const presencePenaltyValueEl = $id("presence-penalty-value");
     let presence_penalty = params["presence_penalty"];
     if (presence_penalty) {
       if (!isNaN(presence_penalty)) {
@@ -873,8 +873,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
       }
     }
 
-    const frequencyPenaltyEl = document.getElementById("frequency-penalty");
-    const frequencyPenaltyValueEl = document.getElementById("frequency-penalty-value");
+    const frequencyPenaltyEl = $id("frequency-penalty");
+    const frequencyPenaltyValueEl = $id("frequency-penalty-value");
     let frequency_penalty = params["frequency_penalty"];
     if (frequency_penalty) {
       if (!isNaN(frequency_penalty)) {
@@ -895,44 +895,44 @@ window.loadParams = function(params, calledFor = "loadParams") {
     if (maxTokensToggle && !maxTokensToggle.disabled) {
       let max_tokens = params["max_tokens"];
       if (max_tokens) {
-        if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
+        if (maxTokensToggle) { maxTokensToggle.checked = true; $dispatch(maxTokensToggle, "change"); }
         if (maxTokensEl) maxTokensEl.value = !isNaN(max_tokens) ? parseInt(max_tokens) : max_tokens;
       } else {
         if (spec["max_output_tokens"]) {
           if (maxTokensEl) maxTokensEl.value = spec["max_output_tokens"][1];
-          if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
+          if (maxTokensToggle) { maxTokensToggle.checked = true; $dispatch(maxTokensToggle, "change"); }
         } else {
           if (maxTokensEl) maxTokensEl.value = DEFAULT_MAX_OUTPUT_TOKENS;
-          if (maxTokensToggle) { maxTokensToggle.checked = false; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
+          if (maxTokensToggle) { maxTokensToggle.checked = false; $dispatch(maxTokensToggle, "change"); }
         }
       }
     }
   } else {
-    const reasoningDropdownFb = document.getElementById("reasoning-effort");
-    const temperatureElFb = document.getElementById("temperature");
-    const presencePenaltyElFb = document.getElementById("presence-penalty");
-    const frequencyPenaltyElFb = document.getElementById("frequency-penalty");
-    const modelParamsElFb = document.getElementById("model_parameters");
-    const maxTokensElFb = document.getElementById("max-tokens");
-    const maxTokensToggleFb = document.getElementById("max-tokens-toggle");
+    const reasoningDropdownFb = $id("reasoning-effort");
+    const temperatureElFb = $id("temperature");
+    const presencePenaltyElFb = $id("presence-penalty");
+    const frequencyPenaltyElFb = $id("frequency-penalty");
+    const modelParamsElFb = $id("model_parameters");
+    const maxTokensElFb = $id("max-tokens");
+    const maxTokensToggleFb = $id("max-tokens-toggle");
     if (reasoningDropdownFb) reasoningDropdownFb.disabled = true;
     if (temperatureElFb) temperatureElFb.disabled = true;
     if (presencePenaltyElFb) presencePenaltyElFb.disabled = true;
     if (frequencyPenaltyElFb) frequencyPenaltyElFb.disabled = true;
-    if (modelParamsElFb) modelParamsElFb.style.display = 'none';
+    $hide(modelParamsElFb);
     if (maxTokensElFb) maxTokensElFb.value = DEFAULT_MAX_OUTPUT_TOKENS;
-    if (maxTokensToggleFb) { maxTokensToggleFb.checked = false; maxTokensToggleFb.dispatchEvent(new Event("change", {bubbles: true})); }
+    if (maxTokensToggleFb) { maxTokensToggleFb.checked = false; $dispatch(maxTokensToggleFb, "change"); }
   }
 
   // (reverted) removed OpenAI PDF manager refresh hook after model updates
 
   // Set context size from configuration or use default
-  const contextSizeEl = document.getElementById("context-size");
+  const contextSizeEl = $id("context-size");
   if (contextSizeEl) contextSizeEl.value = params["context_size"] || DEFAULT_CONTEXT_SIZE;
 
   // Ensure model row is always visible (guard against external hide calls)
-  const modelAndFile = document.getElementById("model_and_file");
-  if (modelAndFile) { modelAndFile.style.display = ''; modelAndFile.classList.remove("hidden"); }
+  const modelAndFile = $id("model_and_file");
+  if (modelAndFile) { $show(modelAndFile); modelAndFile.classList.remove("hidden"); }
 
   // Deferred guard: rebuild reasoning dropdown if empty after model change handler
   // Max_tokens lock and Show Thinking toggle are handled in monadic.js model change handler
@@ -940,9 +940,9 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const guardSpec = spec;
     const guardModel = model;
     const hasReasoning = !!(guardSpec["reasoning_effort"] || guardSpec["supports_thinking"]);
-    const guardDropdown = document.getElementById("reasoning-effort");
+    const guardDropdown = $id("reasoning-effort");
     if (hasReasoning && guardDropdown && guardDropdown.querySelectorAll("option").length === 0) {
-      const guardAppsEl = document.getElementById("apps");
+      const guardAppsEl = $id("apps");
       const guardCurrentApp = guardAppsEl ? guardAppsEl.value : null;
       const guardProvider = (window.getProviderFromGroup && window.apps && window.apps[guardCurrentApp])
         ? window.getProviderFromGroup(window.apps[guardCurrentApp]["group"])
@@ -975,8 +975,8 @@ window.loadParams = function(params, calledFor = "loadParams") {
 
   // Final enforcement of import-mode checkbox states
   if (window.isProcessingImport) {
-    const autoSpeechFinal = document.getElementById("check-auto-speech");
-    const initiateFinal = document.getElementById("initiate-from-assistant");
+    const autoSpeechFinal = $id("check-auto-speech");
+    const initiateFinal = $id("initiate-from-assistant");
     if (autoSpeechFinal) autoSpeechFinal.checked = false;
     if (initiateFinal) initiateFinal.checked = false;
   }
@@ -985,13 +985,13 @@ window.loadParams = function(params, calledFor = "loadParams") {
 }
 
 function resetParams() {
-  const pdfTitles = document.getElementById("pdf-titles");
+  const pdfTitles = $id("pdf-titles");
   if (pdfTitles) pdfTitles.innerHTML = '';
   // Use a local copy of originalParams to avoid reference issues
   const originalParamsCopy = originalParams ? JSON.parse(JSON.stringify(originalParams)) : {};
   params = Object.assign({}, originalParamsCopy);
   // Keep the app_name from being reset in loadParams
-  const currentAppEl = document.getElementById("apps");
+  const currentAppEl = $id("apps");
   const currentApp = currentAppEl ? currentAppEl.value : null;
   loadParams(params, "reset");
   // wait for loadParams to finish
@@ -1002,23 +1002,23 @@ function resetParams() {
       return !!value;
     });
 
-    const pdfPanel = document.getElementById("pdf-panel");
-    if (pdfPanel) pdfPanel.style.display = (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])) ? '' : 'none';
-    const audioUpload = document.getElementById("audio-upload");
-    if (audioUpload) audioUpload.style.display = toBool(params["audio_upload"]) ? '' : 'none';
+    const pdfPanel = $id("pdf-panel");
+    $toggle(pdfPanel, (toBool(params["pdf"]) || toBool(params["pdf_vector_storage"])));
+    const audioUpload = $id("audio-upload");
+    $toggle(audioUpload, toBool(params["audio_upload"]));
     // Reset the flag after loading is complete
     window.isLoadingParams = false;
   }, 500);
 }
 
 function setParams() {
-  const appsEl = document.getElementById("apps");
+  const appsEl = $id("apps");
   const app_name = appsEl ? appsEl.value : null;
   params = Object.assign({}, apps[app_name]);
   params["app_name"] = app_name;
 
   // Always use checkbox value if it exists (user can change it)
-  const initiateFromAssistantEl = document.getElementById("initiate-from-assistant");
+  const initiateFromAssistantEl = $id("initiate-from-assistant");
   if (initiateFromAssistantEl) {
     params["initiate_from_assistant"] = initiateFromAssistantEl.checked ? true : false;
   }
@@ -1027,11 +1027,11 @@ function setParams() {
     params["initiate_from_assistant"] = false;
   }
 
-  const mathjaxEl = document.getElementById("mathjax");
+  const mathjaxEl = $id("mathjax");
   params["mathjax"] = mathjaxEl ? mathjaxEl.checked : false;
 
-  const websearchEl = document.getElementById("websearch");
-  const modelEl = document.getElementById("model");
+  const websearchEl = $id("websearch");
+  const modelEl = $id("model");
   params["model"] = modelEl ? modelEl.value : null;
   if (websearchEl && websearchEl.checked && modelSpec[params["model"]]?.["tool_capability"]) {
     params["websearch"] = true;
@@ -1040,7 +1040,7 @@ function setParams() {
   }
 
   // Handle reasoning/thinking parameters with provider-specific mapping
-  const reasoningEffortEl = document.getElementById("reasoning-effort");
+  const reasoningEffortEl = $id("reasoning-effort");
   if (reasoningEffortEl && !reasoningEffortEl.disabled) {
     const uiValue = reasoningEffortEl.value;
 
@@ -1084,17 +1084,17 @@ function setParams() {
     }
   }
 
-  const spTemperature = document.getElementById("temperature");
+  const spTemperature = $id("temperature");
   if (spTemperature && !spTemperature.disabled) {
     params["temperature"] = spTemperature.value;
   }
 
-  const spPresencePenalty = document.getElementById("presence-penalty");
+  const spPresencePenalty = $id("presence-penalty");
   if (spPresencePenalty && !spPresencePenalty.disabled) {
     params["presence_penalty"] = spPresencePenalty.value;
   }
 
-  const spFrequencyPenalty = document.getElementById("frequency-penalty");
+  const spFrequencyPenalty = $id("frequency-penalty");
   if (spFrequencyPenalty && !spFrequencyPenalty.disabled) {
     params["frequency_penalty"] = spFrequencyPenalty.value;
   }
@@ -1102,8 +1102,8 @@ function setParams() {
   // For reasoning/thinking models, always use the model's max output tokens
   const currentModelSpec = window.modelSpec ? window.modelSpec[params["model"]] : null;
   const isReasoningModel = currentModelSpec && (currentModelSpec["reasoning_effort"] || currentModelSpec["supports_thinking"]);
-  const spMaxTokensToggle = document.getElementById("max-tokens-toggle");
-  const spMaxTokens = document.getElementById("max-tokens");
+  const spMaxTokensToggle = $id("max-tokens-toggle");
+  const spMaxTokens = $id("max-tokens");
   if (isReasoningModel && currentModelSpec["max_output_tokens"]) {
     params["max_tokens"] = Array.isArray(currentModelSpec["max_output_tokens"][0])
       ? currentModelSpec["max_output_tokens"][1]  // format: [[min, max], default]
@@ -1114,7 +1114,7 @@ function setParams() {
     params["max_tokens"] = DEFAULT_MAX_OUTPUT_TOKENS;
   }
 
-  const spContextSize = document.getElementById("context-size");
+  const spContextSize = $id("context-size");
   if (spContextSize && spContextSize.disabled) {
     // virtually unlimited context size
     params["context_size"] = DEFAULT_CONTEXT_SIZE;
@@ -1123,13 +1123,13 @@ function setParams() {
   }
 
   // Save thinking display preference
-  const spThinkingContainer = document.getElementById("thinking-display-container");
+  const spThinkingContainer = $id("thinking-display-container");
   if (spThinkingContainer && spThinkingContainer.style.display !== 'none') {
-    const spShowThinking = document.getElementById("show-thinking");
+    const spShowThinking = $id("show-thinking");
     params["show_thinking"] = spShowThinking ? spShowThinking.checked : false;
   }
 
-  const getVal = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+  const getVal = (id) => { const el = $id(id); return el ? el.value : null; };
   params["tts_provider"] = getVal("tts-provider");
   params["tts_voice"] = getVal("tts-voice");
   params["elevenlabs_tts_voice"] = getVal("elevenlabs-tts-voice");
@@ -1139,8 +1139,8 @@ function setParams() {
   params["conversation_language"] = getVal("conversation-language");
   // Update asr_lang for STT/TTS
   params["asr_lang"] = params["conversation_language"];
-  const spEasySubmit = document.getElementById("check-easy-submit");
-  const spAutoSpeech = document.getElementById("check-auto-speech");
+  const spEasySubmit = $id("check-easy-submit");
+  const spAutoSpeech = $id("check-auto-speech");
   params["easy_submit"] = spEasySubmit ? spEasySubmit.checked : false;
   params["auto_speech"] = spAutoSpeech ? spAutoSpeech.checked : false;
 
@@ -1176,12 +1176,12 @@ function setParams() {
 }
 
 function checkParams() {
-  const cpInitialPrompt = document.getElementById("initial-prompt");
-  const cpMaxTokens = document.getElementById("max-tokens");
-  const cpContextSize = document.getElementById("context-size");
-  const cpModel = document.getElementById("model");
-  const cpReasoningEffort = document.getElementById("reasoning-effort");
-  const cpTemperature = document.getElementById("temperature");
+  const cpInitialPrompt = $id("initial-prompt");
+  const cpMaxTokens = $id("max-tokens");
+  const cpContextSize = $id("context-size");
+  const cpModel = $id("model");
+  const cpReasoningEffort = $id("reasoning-effort");
+  const cpTemperature = $id("temperature");
   // Only check initial-prompt if it's visible (not all apps require it)
   if (cpInitialPrompt && cpInitialPrompt.style.display !== 'none' && !cpInitialPrompt.value) {
     alert("Please enter an initial prompt.");
@@ -1216,7 +1216,7 @@ function checkParams() {
 function resetEvent(_event, resetToDefaultApp = false) {
   audioInit();
 
-  const imageUsed = document.getElementById("image-used");
+  const imageUsed = $id("image-used");
   if (imageUsed) imageUsed.innerHTML = '';
   images = [];
 
@@ -1231,15 +1231,15 @@ function resetEvent(_event, resetToDefaultApp = false) {
     }
   } else {
     // For other platforms, use the Bootstrap modal
-    const resetModal = document.getElementById("resetConfirmation");
+    const resetModal = $id("resetConfirmation");
     if (resetModal) {
       bootstrap.Modal.getOrCreateInstance(resetModal).show();
       resetModal.addEventListener("shown.bs.modal", function () {
-        const resetConfirmed = document.getElementById("resetConfirmed");
+        const resetConfirmed = $id("resetConfirmed");
         if (resetConfirmed) resetConfirmed.focus();
       }, { once: true });
     }
-    const resetConfirmedBtn = document.getElementById("resetConfirmed");
+    const resetConfirmedBtn = $id("resetConfirmed");
     if (resetConfirmedBtn) {
       resetConfirmedBtn.onclick = function (event) {
         event.preventDefault();
@@ -1252,10 +1252,10 @@ function resetEvent(_event, resetToDefaultApp = false) {
 // Function to handle the actual reset logic
 function doResetActions(resetToDefaultApp = false) {
   // Store the current app selection before reset
-  const drApps = document.getElementById("apps");
+  const drApps = $id("apps");
   const currentApp = resetToDefaultApp ? null : (drApps ? drApps.value : null);
 
-  const drMessage = document.getElementById("message");
+  const drMessage = $id("message");
   if (drMessage) { drMessage.style.height = "96px"; drMessage.value = ""; }
 
   ws.send(JSON.stringify({ "message": "RESET" }));
@@ -1288,7 +1288,7 @@ function doResetActions(resetToDefaultApp = false) {
 
       if (firstApp && drApps) {
         drApps.value = firstApp;
-        drApps.dispatchEvent(new Event('change', {bubbles: true}));
+        $dispatch(drApps, 'change');
       }
     }
     
@@ -1306,29 +1306,29 @@ function doResetActions(resetToDefaultApp = false) {
       setTimeout(function() {
         var appData = window.apps[currentAppVal];
         if (appData && appData["initiate_from_assistant"]) {
-          const iaCb = document.getElementById("initiate-from-assistant");
+          const iaCb = $id("initiate-from-assistant");
           if (iaCb) iaCb.checked = true;
         }
         if (appData && appData["auto_speech"]) {
-          const asCb = document.getElementById("check-auto-speech");
+          const asCb = $id("check-auto-speech");
           if (asCb) asCb.checked = true;
         }
       }, 800);
     }
   }, 300);
 
-  const drModelEl = document.getElementById("model");
+  const drModelEl = $id("model");
   const model = drModelEl ? drModelEl.value : null;
 
-  const drWebsearch = document.getElementById("websearch");
-  const drWebsearchBadge = document.getElementById("websearch-badge");
+  const drWebsearch = $id("websearch");
+  const drWebsearchBadge = $id("websearch-badge");
   if (modelSpec[model] && ((modelSpec[model]["supports_web_search"] === true) || (modelSpec[model]["tool_capability"] === true))) {
     if (drWebsearch) { drWebsearch.disabled = false; drWebsearch.removeAttribute('title'); }
-    if (drWebsearchBadge) drWebsearchBadge.style.display = (drWebsearch && drWebsearch.checked) ? '' : 'none';
+    $toggle(drWebsearchBadge, (drWebsearch && drWebsearch.checked));
   } else {
     const tt3 = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search'
     if (drWebsearch) { drWebsearch.disabled = true; drWebsearch.setAttribute('title', tt3); }
-    if (drWebsearchBadge) drWebsearchBadge.style.display = 'none';
+    $hide(drWebsearchBadge);
   }
 
   // Extract provider from app_name parameter
@@ -1354,8 +1354,8 @@ function doResetActions(resetToDefaultApp = false) {
     }
   }
 
-  const drModelSelected = document.getElementById("model-selected");
-  const drReasoningEffort = document.getElementById("reasoning-effort");
+  const drModelSelected = $id("model-selected");
+  const drReasoningEffort = $id("reasoning-effort");
   if (drModelSelected) {
     if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
       drModelSelected.textContent = provider + " (" + model + " - " + (drReasoningEffort ? drReasoningEffort.value : '') + ")";
@@ -1364,17 +1364,17 @@ function doResetActions(resetToDefaultApp = false) {
     }
   }
 
-  const resetModalEl = document.getElementById("resetConfirmation");
+  const resetModalEl = $id("resetConfirmation");
   if (resetModalEl) bootstrap.Modal.getOrCreateInstance(resetModalEl).hide();
-  const drMainPanel = document.getElementById("main-panel");
-  if (drMainPanel) drMainPanel.style.display = 'none';
-  const drDiscourse = document.getElementById("discourse");
-  if (drDiscourse) { drDiscourse.innerHTML = ''; drDiscourse.style.display = 'none'; }
-  const drChat = document.getElementById("chat");
+  const drMainPanel = $id("main-panel");
+  $hide(drMainPanel);
+  const drDiscourse = $id("discourse");
+  if (drDiscourse) { drDiscourse.innerHTML = ''; $hide(drDiscourse); }
+  const drChat = $id("chat");
   if (drChat) drChat.innerHTML = '';
-  const drTempCard = document.getElementById("temp-card");
-  if (drTempCard) drTempCard.style.display = 'none';
-  const drTempReasoningCard = document.getElementById("temp-reasoning-card");
+  const drTempCard = $id("temp-card");
+  $hide(drTempCard);
+  const drTempReasoningCard = $id("temp-reasoning-card");
   if (drTempReasoningCard) drTempReasoningCard.remove();
 
   // Clear error cards and status message explicitly
@@ -1384,8 +1384,8 @@ function doResetActions(resetToDefaultApp = false) {
   if (typeof window.enterSettingsMode === 'function') {
     window.enterSettingsMode();
   } else {
-    const drConfig = document.getElementById("config");
-    if (drConfig) drConfig.style.display = '';
+    const drConfig = $id("config");
+    $show(drConfig);
   }
   const resetSuccessText = getTranslation('ui.messages.resetSuccessful', 'Reset successful');
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${resetSuccessText}.`, "success");
@@ -1409,9 +1409,9 @@ function doResetActions(resetToDefaultApp = false) {
   lastApp = currentApp;
 
   // Trigger app change to reset all settings to defaults
-  if (drApps) drApps.dispatchEvent(new Event("change", {bubbles: true}));
+  $dispatch(drApps, "change");
 
-  const drBaseAppTitle = document.getElementById("base-app-title");
+  const drBaseAppTitle = $id("base-app-title");
   if (drBaseAppTitle) drBaseAppTitle.textContent = apps[currentApp]["display_name"] || apps[currentApp]["app_name"];
 
   const toBool = window.toBool || ((value) => {
@@ -1420,16 +1420,16 @@ function doResetActions(resetToDefaultApp = false) {
     return !!value;
   });
 
-  const drMonadicBadge = document.getElementById("monadic-badge");
-  if (drMonadicBadge) drMonadicBadge.style.display = toBool(apps[currentApp]["monadic"]) ? '' : 'none';
+  const drMonadicBadge = $id("monadic-badge");
+  $toggle(drMonadicBadge, toBool(apps[currentApp]["monadic"]));
 
-  const drToolsBadge = document.getElementById("tools-badge");
-  if (drToolsBadge) drToolsBadge.style.display = apps[currentApp]["tools"] ? '' : 'none';
+  const drToolsBadge = $id("tools-badge");
+  $toggle(drToolsBadge, apps[currentApp]["tools"]);
 
-  const drMathBadge = document.getElementById("math-badge");
-  if (drMathBadge) drMathBadge.style.display = toBool(apps[currentApp]["mathjax"]) ? '' : 'none';
+  const drMathBadge = $id("math-badge");
+  $toggle(drMathBadge, toBool(apps[currentApp]["mathjax"]));
 
-  const drBaseAppIcon = document.getElementById("base-app-icon");
+  const drBaseAppIcon = $id("base-app-icon");
   if (drBaseAppIcon) drBaseAppIcon.innerHTML = apps[currentApp]["icon"];
 
   // Helper function to get icon for tool group
@@ -1452,13 +1452,13 @@ function doResetActions(resetToDefaultApp = false) {
     window.updateAppBadges(currentApp);
   }
 
-  const drModelAndFile = document.getElementById("model_and_file");
-  if (drModelAndFile) drModelAndFile.style.display = '';
-  const drModelParameters = document.getElementById("model_parameters");
-  if (drModelParameters) drModelParameters.style.display = '';
+  const drModelAndFile = $id("model_and_file");
+  $show(drModelAndFile);
+  const drModelParameters = $id("model_parameters");
+  $show(drModelParameters);
 
-  const drImageFile = document.getElementById("image-file");
-  if (drImageFile) drImageFile.style.display = '';
+  const drImageFile = $id("image-file");
+  $show(drImageFile);
 
   if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
@@ -1468,7 +1468,7 @@ function doResetActions(resetToDefaultApp = false) {
   // Instead of selecting the first available app, maintain the current selection
   // Use stop_apps_trigger flag to prevent app change dialog
   stop_apps_trigger = true;
-  if (drApps) drApps.dispatchEvent(new Event("change", {bubbles: true}));
+  $dispatch(drApps, "change");
 
   // Use UI utilities module if available, otherwise fallback
   const drModelVal = drModelEl ? drModelEl.value : null;
@@ -1498,7 +1498,7 @@ function doResetActions(resetToDefaultApp = false) {
 // Add event handler for app selection to update all badges
 document.addEventListener("DOMContentLoaded", function() {
   // Handle app change events
-  const rdApps = document.getElementById("apps");
+  const rdApps = $id("apps");
   if (rdApps) {
     rdApps.addEventListener("change", function() {
       const selectedApp = this.value;
@@ -1537,7 +1537,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // Restore "All Models" toggle state from cookie BEFORE registering handlers
   // to ensure initial app load respects the saved preference
   const savedShowAll = getCookie("show-all-models");
-  const showAllModelsEl = document.getElementById("show-all-models");
+  const showAllModelsEl = $id("show-all-models");
   if (savedShowAll === "true" && showAllModelsEl) {
     showAllModelsEl.checked = true;
   }
@@ -1548,12 +1548,12 @@ document.addEventListener("DOMContentLoaded", function() {
       const showAll = this.checked;
       setCookie("show-all-models", showAll ? "true" : "false", 365);
 
-      const rdAppsEl = document.getElementById("apps");
+      const rdAppsEl = $id("apps");
       const selectedApp = rdAppsEl ? rdAppsEl.value : null;
       const currentApp = apps[selectedApp];
       if (!currentApp) return;
 
-      const rdModelEl = document.getElementById("model");
+      const rdModelEl = $id("model");
       const currentModel = rdModelEl ? rdModelEl.value : null;
       const models = getModelsForApp(currentApp, showAll);
       const openai = (currentApp["group"] || "").toLowerCase() === "openai";
@@ -1567,17 +1567,17 @@ document.addEventListener("DOMContentLoaded", function() {
           const defaultModel = getDefaultModelForApp(currentApp, models);
           if (defaultModel) rdModelEl.value = defaultModel;
         }
-        rdModelEl.dispatchEvent(new Event("change", {bubbles: true}));
+        $dispatch(rdModelEl, "change");
       }
     });
   }
 
   // Handle checkbox changes for user-controlled capabilities
   ["mathjax", "mermaid", "websearch"].forEach(id => {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) {
       el.addEventListener("change", function() {
-        const rdAppsEl = document.getElementById("apps");
+        const rdAppsEl = $id("apps");
         const selectedApp = rdAppsEl ? rdAppsEl.value : null;
         if (selectedApp) {
           updateAppBadges(selectedApp);
@@ -1585,7 +1585,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Update reasoning_effort options when websearch changes
         if (this.id === 'websearch' && window.ReasoningMapper) {
-          const modelsEl = document.getElementById("models");
+          const modelsEl = $id("models");
           const model = modelsEl ? modelsEl.value : null;
           const selectedOpt = modelsEl ? modelsEl.querySelector(":checked") : null;
           const parentOptgroup = selectedOpt ? selectedOpt.closest("optgroup") : null;
@@ -1593,7 +1593,7 @@ document.addEventListener("DOMContentLoaded", function() {
           const provider = getProviderFromGroup(group);
 
           if (model && provider && ReasoningMapper.isSupported(provider, model)) {
-            const wsEl = document.getElementById("websearch");
+            const wsEl = $id("websearch");
             const currentSettings = {
               web_search: (wsEl && wsEl.checked) || false
             };
@@ -1601,7 +1601,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const availableOptions = ReasoningMapper.getAvailableOptions(provider, model, currentSettings);
 
             if (availableOptions) {
-              const dropdown = document.getElementById("reasoning-effort");
+              const dropdown = $id("reasoning-effort");
               if (dropdown) {
                 const currentValue = dropdown.value;
 

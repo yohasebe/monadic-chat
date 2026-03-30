@@ -31,9 +31,9 @@ function requiresTavilyAPI(provider) {
 
 // Update websearch UI state based on provider and Tavily API availability
 function updateWebSearchState(provider, hasTavilyKey) {
-  const websearchEl = document.getElementById("websearch");
-  const websearchBadge = document.getElementById("websearch-badge");
-  const modelEl = document.getElementById("model");
+  const websearchEl = $id("websearch");
+  const websearchBadge = $id("websearch-badge");
+  const modelEl = $id("model");
   const model = modelEl ? modelEl.value : '';
 
   if (!websearchEl || !websearchBadge) return;
@@ -43,7 +43,7 @@ function updateWebSearchState(provider, hasTavilyKey) {
   if (!supportsWeb) {
     // Model doesn't support tools at all
     websearchEl.disabled = true;
-    websearchBadge.style.display = "none";
+    $hide(websearchBadge);
     const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchModelDisabled') : 'Model does not support Web Search';
     websearchEl.title = tt;
     return;
@@ -54,7 +54,7 @@ function updateWebSearchState(provider, hasTavilyKey) {
     // Provider needs Tavily but key is missing
     websearchEl.checked = false;
     websearchEl.disabled = true;
-    websearchBadge.style.display = "none";
+    $hide(websearchBadge);
     const tt = (typeof webUIi18n !== 'undefined') ? webUIi18n.t('ui.webSearchNeedsTavily') : 'Web Search requires a Tavily API key';
     websearchEl.title = tt;
   } else {
@@ -63,7 +63,7 @@ function updateWebSearchState(provider, hasTavilyKey) {
     websearchEl.removeAttribute("title");
 
     // Update badge visibility based on checked state
-    websearchBadge.style.display = websearchEl.checked ? "" : "none";
+    $toggle(websearchBadge, websearchEl.checked);
   }
 }
 

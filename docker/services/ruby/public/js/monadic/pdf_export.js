@@ -109,8 +109,8 @@
    * Get current app information
    */
   function getAppInfo() {
-    const appTitleEl = document.getElementById('base-app-title');
-    const modelSelectedEl = document.getElementById('model-selected');
+    const appTitleEl = $id('base-app-title');
+    const modelSelectedEl = $id('model-selected');
     const appName = (appTitleEl && appTitleEl.textContent) || 'Monadic Chat';
     const modelText = (modelSelectedEl && modelSelectedEl.textContent) || 'Unknown Model';
 

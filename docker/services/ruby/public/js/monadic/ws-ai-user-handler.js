@@ -21,10 +21,10 @@ function handleAIUserStarted(_data) {
   setAlert(`<i class='fas fa-spinner fa-spin'></i> ${generatingText}`, "warning");
 
   // Show the cancel button
-  document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+  $id('cancel_query').style.setProperty('display', 'flex', 'important');
 
   // Show spinner and update its message with robot animation
-  const spinnerEl = document.getElementById("monadic-spinner");
+  const spinnerEl = $id("monadic-spinner");
   if (spinnerEl) {
     spinnerEl.style.display = "block";
     const spanEl = spinnerEl.querySelector("span");
@@ -36,7 +36,7 @@ function handleAIUserStarted(_data) {
   // Disable the input elements
   const disableIds = ["message", "send", "clear", "image-file", "voice", "doc", "url", "ai_user", "select-role"];
   disableIds.forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
 }
@@ -48,7 +48,7 @@ function handleAIUserStarted(_data) {
  */
 function handleAIUser(data) {
   // Append AI user content to the message field
-  const messageEl = document.getElementById("message");
+  const messageEl = $id("message");
   if (messageEl) messageEl.value = messageEl.value + data["content"].replace(/\\n/g, "\n");
 
   // Make sure the message panel is visible
@@ -67,18 +67,18 @@ function handleAIUserFinished(data) {
   const trimmedContent = data["content"].trim();
 
   // Set the message content
-  const finishedMessageEl = document.getElementById("message");
+  const finishedMessageEl = $id("message");
   if (finishedMessageEl) finishedMessageEl.value = trimmedContent;
 
   // Hide cancel button and spinner
-  document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
-  const finishedSpinner = document.getElementById("monadic-spinner");
-  if (finishedSpinner) finishedSpinner.style.display = "none";
+  $id('cancel_query').style.setProperty('display', 'none', 'important');
+  const finishedSpinner = $id("monadic-spinner");
+  $hide(finishedSpinner);
 
   // Re-enable all input elements individually
   const enableIds = ["message", "send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user", "select-role"];
   enableIds.forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = false;
   });
 

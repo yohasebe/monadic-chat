@@ -137,8 +137,8 @@
       // For Auto TTS, keep spinner visible until audio actually starts playing
       // For manual TTS (Play button), hide immediately as before
       if (!window.autoSpeechActive && !window.autoPlayAudio) {
-        var spinner = document.getElementById("monadic-spinner");
-        if (spinner) spinner.style.display = "none";
+        var spinner = $id("monadic-spinner");
+        $hide(spinner);
       }
 
       // Check for duplicate audio - use same ID generation as handler
@@ -191,7 +191,7 @@
         }
 
         // Check if this is PCM audio from Gemini
-        var ttsProviderEl = document.getElementById("tts-provider");
+        var ttsProviderEl = $id("tts-provider");
         var provider = ttsProviderEl ? ttsProviderEl.value : '';
         var isPCMFromGemini = (provider === "gemini-flash" || provider === "gemini-pro") && data.mime_type && data.mime_type.includes("audio/L16");
 

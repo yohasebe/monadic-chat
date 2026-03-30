@@ -188,8 +188,8 @@ function setupFileValidation(fileInput, submitButton) {
  * @param {Function} cleanupFn - Optional cleanup function when modal is hidden
  */
 function showModalWithFocus(modalId, focusElementId, cleanupFn) {
-  const modal = document.getElementById(modalId);
-  const focusElement = document.getElementById(focusElementId);
+  const modal = $id(modalId);
+  const focusElement = $id(focusElementId);
   
   if (!modal || !focusElement) return;
   

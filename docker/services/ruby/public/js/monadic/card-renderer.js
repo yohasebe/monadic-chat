@@ -210,7 +210,7 @@ function createCard(role, badge, html, _lang, mid, status, images, _monadic, tur
 
   // Remove existing duplicate card
   if (mid !== "") {
-    var existingCard = document.getElementById(mid);
+    var existingCard = $id(mid);
     if (existingCard) {
       detachEventListeners(existingCard);
       existingCard.remove();

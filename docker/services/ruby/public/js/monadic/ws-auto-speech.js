@@ -16,9 +16,9 @@
   let autoSpeechSuppressed = false;
 
   function resetAutoSpeechSpinner() {
-    const spinner = document.getElementById("monadic-spinner");
+    const spinner = $id("monadic-spinner");
     if (!spinner) return;
-    spinner.style.display = 'none';
+    $hide(spinner);
     const spanIcon = spinner.querySelector("span i");
     if (spanIcon) {
       spanIcon.classList.remove("fa-headphones");
@@ -33,8 +33,8 @@
   function showTtsNotice(content) {
     if (typeof bootstrap === 'undefined') return;
 
-    const toastEl = document.getElementById('tts-toast');
-    const toastBody = document.getElementById('tts-toast-body');
+    const toastEl = $id('tts-toast');
+    const toastBody = $id('tts-toast-body');
     if (!toastEl || !toastBody) return;
 
     let message = '';
@@ -81,7 +81,7 @@
   }
 
   function hideTtsToast() {
-    const toastEl = document.getElementById('tts-toast');
+    const toastEl = $id('tts-toast');
     if (!toastEl || typeof bootstrap === 'undefined') return;
 
     const toast = bootstrap.Toast.getInstance(toastEl);
@@ -166,7 +166,7 @@
 
   function highlightStopButton(cardId) {
     if (cardId) {
-      const card = document.getElementById(cardId);
+      const card = $id(cardId);
       if (card) {
         const stopButton = card.querySelector('.func-stop');
         if (stopButton) stopButton.classList.add('tts-active');
@@ -178,7 +178,7 @@
   function removeStopButtonHighlight(cardId) {
     const targetCardId = cardId || currentTTSCardId;
     if (targetCardId) {
-      const card = document.getElementById(targetCardId);
+      const card = $id(targetCardId);
       if (card) {
         const stopButton = card.querySelector('.func-stop');
         if (stopButton) stopButton.classList.remove('tts-active');
@@ -190,7 +190,7 @@
   // ── Spinner helpers ────────────────────────────────────────────────
 
   function checkAndHideSpinner() {
-    const spinnerEl = document.getElementById("monadic-spinner");
+    const spinnerEl = $id("monadic-spinner");
     if (!spinnerEl) return;
     const inForeground = typeof window.isForegroundTab === 'function' ? window.isForegroundTab() : true;
 
@@ -201,18 +201,18 @@
       if (stillProcessing) {
         return;
       }
-      spinnerEl.style.display = 'none';
+      $hide(spinnerEl);
       return;
     }
 
     const messageCount = (window.messages && window.messages.length) || 0;
     if (messageCount === 0) {
-      spinnerEl.style.display = 'none';
+      $hide(spinnerEl);
       return;
     }
 
     const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-    const checkAutoSpeech = document.getElementById("check-auto-speech");
+    const checkAutoSpeech = $id("check-auto-speech");
     const checkboxEnabled = checkAutoSpeech ? checkAutoSpeech.checked : false;
     const autoSpeechActiveFlag = window.autoSpeechActive === true;
     const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActiveFlag;
@@ -225,12 +225,12 @@
     }
 
     if (!autoSpeechEnabled) {
-      spinnerEl.style.display = 'none';
+      $hide(spinnerEl);
       return;
     }
 
     if (window._textResponseCompleted && window._ttsPlaybackStarted) {
-      spinnerEl.style.display = 'none';
+      $hide(spinnerEl);
       const spanIcon = spinnerEl.querySelector("span i");
       if (spanIcon) {
         spanIcon.classList.remove("fa-headphones");
@@ -244,7 +244,7 @@
   // ── isSystemBusy ───────────────────────────────────────────────────
 
   function isSystemBusy() {
-    const spinner = document.getElementById("monadic-spinner");
+    const spinner = $id("monadic-spinner");
     const spinnerVisible = spinner ? (spinner.style.display !== 'none' && spinner.offsetParent !== null) : false;
     return spinnerVisible ||
            window.callingFunction ||
@@ -257,12 +257,12 @@
     const thinkingText = typeof webUIi18n !== 'undefined'
       ? webUIi18n.t('ui.messages.spinnerThinking')
       : 'Thinking...';
-    const spinner = document.getElementById("monadic-spinner");
+    const spinner = $id("monadic-spinner");
     if (!spinner) return;
     const spanEl = spinner.querySelector("span");
     if (spanEl) spanEl.innerHTML = '<i class="fas fa-brain fa-pulse"></i> ' + thinkingText;
     if (spinner.style.display === 'none' || spinner.offsetParent === null) {
-      spinner.style.display = '';
+      $show(spinner);
     }
   }
 
@@ -275,10 +275,10 @@
         window.autoTTSSpinnerTimeout = setTimeout(evaluateTimeout, TTS_SPINNER_RECHECK_MS);
         return;
       }
-      const timeoutSpinner = document.getElementById("monadic-spinner");
+      const timeoutSpinner = $id("monadic-spinner");
       if (timeoutSpinner && timeoutSpinner.style.display !== 'none' && timeoutSpinner.offsetParent !== null) {
         console.warn("[Auto TTS] Spinner timeout - forcing hide after delay");
-        timeoutSpinner.style.display = 'none';
+        $hide(timeoutSpinner);
         const tsIcon = timeoutSpinner.querySelector("span i");
         if (tsIcon) {
           tsIcon.classList.remove("fa-headphones");
@@ -299,8 +299,8 @@
     setTimeout(function() {
       if (!isForegroundTab()) {
         setAutoSpeechSuppressed(true, { reason: 'background_tab', log: false });
-        const deferredSpinner = document.getElementById('monadic-spinner');
-        if (deferredSpinner) deferredSpinner.style.display = 'none';
+        const deferredSpinner = $id('monadic-spinner');
+        $hide(deferredSpinner);
       }
     }, 0);
   }

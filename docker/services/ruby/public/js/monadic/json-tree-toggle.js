@@ -78,7 +78,7 @@ function toggleItem(element) {
     // Hide element after animation
     setTimeout(function() {
       if (content.style.maxHeight === '0px') {
-        content.style.display = 'none';
+        $hide(content);
       }
     }, 300);
   }
@@ -135,7 +135,7 @@ function updateItemStates() {
     collapseStates[key] = isCollapsed;
 
     if (isCollapsed) {
-      content.style.display = 'none';
+      $hide(content);
       chevron.classList.replace('fa-chevron-down', 'fa-chevron-right');
     } else {
       content.style.display = 'block';

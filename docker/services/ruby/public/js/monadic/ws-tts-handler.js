@@ -22,8 +22,8 @@
  */
 function handleWebSpeech(data) {
   window.lastTTSMode = 'web_speech';
-  var spinnerEl = document.getElementById("monadic-spinner");
-  if (spinnerEl) spinnerEl.style.display = "none";
+  var spinnerEl = $id("monadic-spinner");
+  $hide(spinnerEl);
 
   if (window.speechSynthesis && typeof window.ttsSpeak === 'function') {
     try {
@@ -31,7 +31,7 @@ function handleWebSpeech(data) {
       const utterance = new SpeechSynthesisUtterance(text);
 
       // Get voice settings from UI
-      const voiceElement = document.getElementById('webspeech-voice');
+      const voiceElement = $id('webspeech-voice');
       if (voiceElement && voiceElement.value) {
         const selectedVoice = window.speechSynthesis.getVoices().find(v =>
           v.name === voiceElement.value);
@@ -41,7 +41,7 @@ function handleWebSpeech(data) {
       }
 
       // Get speed setting
-      const speedElement = document.getElementById('tts-speed');
+      const speedElement = $id('tts-speed');
       if (speedElement && speedElement.value) {
         utterance.rate = parseFloat(speedElement.value) || 1.0;
       }
@@ -85,7 +85,7 @@ function handleWebSpeech(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSProgress(_data) {
-  var spinnerEl = document.getElementById("monadic-spinner");
+  var spinnerEl = $id("monadic-spinner");
   if (spinnerEl) {
     var span = spinnerEl.querySelector("span");
     if (span) span.innerHTML = '<i class="fas fa-headphones fa-pulse"></i> Processing audio';
@@ -98,11 +98,11 @@ function handleTTSProgress(_data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSComplete(_data) {
-  var spinnerEl = document.getElementById("monadic-spinner");
+  var spinnerEl = $id("monadic-spinner");
   if (!window.autoSpeechActive && !window.autoPlayAudio) {
     // Manual TTS: hide spinner immediately
     if (spinnerEl) {
-      spinnerEl.style.display = "none";
+      $hide(spinnerEl);
       // Reset spinner to default state for other operations
       var spanIcon = spinnerEl.querySelector("span i");
       if (spanIcon) {
@@ -134,8 +134,8 @@ function handleTTSNotice(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleTTSStopped(_data) {
-  var spinnerEl = document.getElementById("monadic-spinner");
-  if (spinnerEl) spinnerEl.style.display = "none";
+  var spinnerEl = $id("monadic-spinner");
+  $hide(spinnerEl);
 
   // Reset response state
   window.responseStarted = false;

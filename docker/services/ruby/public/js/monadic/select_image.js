@@ -65,7 +65,7 @@ function getMimeTypeFromExtension(ext) {
   };
   return map[(ext || '').toLowerCase()] || 'application/octet-stream';
 }
-const selectFileButton = document.getElementById("image-file");
+const selectFileButton = $id("image-file");
 let images = []; // Store multiple images/PDFs
 let currentMaskData = null; // Store current mask data for image editing
 
@@ -92,14 +92,14 @@ function limitImageCount() {
 }
 
 // Modal event listener for cleanup when hidden
-const imageModalEl = document.getElementById("imageModal");
+const imageModalEl = $id("imageModal");
 if (imageModalEl) {
   imageModalEl.addEventListener("hidden.bs.modal", function () {
-    const imageFileInput = document.getElementById("imageFile");
+    const imageFileInput = $id("imageFile");
     if (imageFileInput) imageFileInput.value = '';
-    const imageUrlInput = document.getElementById("imageUrlInput");
+    const imageUrlInput = $id("imageUrlInput");
     if (imageUrlInput) imageUrlInput.value = '';
-    const uploadBtn = document.getElementById("uploadImage");
+    const uploadBtn = $id("uploadImage");
     if (uploadBtn) uploadBtn.disabled = true;
     const sizeError = this.querySelector(".size-error");
     if (sizeError) sizeError.innerHTML = "";
@@ -111,11 +111,11 @@ document.addEventListener("click", function (e) {
   const addUrlBtn = e.target.closest("#addUrlFile");
   if (!addUrlBtn) return;
 
-  const imageUrlInput = document.getElementById("imageUrlInput");
+  const imageUrlInput = $id("imageUrlInput");
   const urlInput = imageUrlInput ? imageUrlInput.value.trim() : '';
   if (!urlInput) return;
 
-  const selectImageError = document.getElementById("select_image_error");
+  const selectImageError = $id("select_image_error");
 
   try {
     const url = new URL(urlInput);
@@ -154,11 +154,11 @@ window.addEventListener("beforeunload", function() {
 });
 
 // File selection event listener
-const imageFileInput = document.getElementById("imageFile");
+const imageFileInput = $id("imageFile");
 if (imageFileInput) {
   imageFileInput.addEventListener("change", function() {
     // Clear any existing error message
-    const selectImageError = document.getElementById("select_image_error");
+    const selectImageError = $id("select_image_error");
     if (selectImageError) selectImageError.innerHTML = "";
 
     const file = this.files[0];
@@ -168,12 +168,12 @@ if (imageFileInput) {
       if (isBlocked) {
         if (selectImageError) selectImageError.innerHTML = '<span class="text-danger">This file may contain sensitive data and cannot be uploaded.</span>';
         this.value = '';
-        const uploadBtn = document.getElementById("uploadImage");
+        const uploadBtn = $id("uploadImage");
         if (uploadBtn) uploadBtn.disabled = true;
         return;
       }
     }
-    const uploadBtn = document.getElementById("uploadImage");
+    const uploadBtn = $id("uploadImage");
     if (uploadBtn) uploadBtn.disabled = !file;
   });
 }
@@ -181,17 +181,17 @@ if (imageFileInput) {
 // File selection button click handler
 if (selectFileButton) {
   selectFileButton.addEventListener("click", function () {
-    const modelSelect = document.getElementById("model");
+    const modelSelect = $id("model");
     const selectedModel = modelSelect ? modelSelect.value : '';
     const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
     const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
-    const appsSelect = document.getElementById("apps");
+    const appsSelect = $id("apps");
     const currentApp = appsSelect ? appsSelect.value : '';
     const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
     const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
-    const imageModalLabel = document.getElementById("imageModalLabel");
-    const imageFileEl = document.getElementById("imageFile");
+    const imageModalLabel = $id("imageModalLabel");
+    const imageFileEl = $id("imageFile");
     const imageFileLabel = document.querySelector("label[for='imageFile']");
 
     // Update modal UI based on model capabilities and app settings (3-tier)
@@ -217,41 +217,41 @@ if (selectFileButton) {
 
     // Show/hide URL input section for Responses API models
     const isResponsesApi = window.isResponsesApiModel ? window.isResponsesApiModel(selectedModel) : false;
-    const urlInputSection = document.getElementById("url-input-section");
+    const urlInputSection = $id("url-input-section");
     if (urlInputSection) {
       if (isResponsesApi && (isFileInputsEnabled || isPdfEnabled)) {
-        urlInputSection.style.display = '';
+        $show(urlInputSection);
       } else {
-        urlInputSection.style.display = 'none';
+        $hide(urlInputSection);
       }
     }
 
-    const imageModal = document.getElementById("imageModal");
+    const imageModal = $id("imageModal");
     if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).show();
     setTimeout(() => {
-      const imageFileEl2 = document.getElementById("imageFile");
+      const imageFileEl2 = $id("imageFile");
       if (imageFileEl2) imageFileEl2.focus();
     }, 500);
   });
 }
 
 // Upload button click handler
-const uploadImageBtn = document.getElementById("uploadImage");
+const uploadImageBtn = $id("uploadImage");
 if (uploadImageBtn) {
   uploadImageBtn.addEventListener("click", function () {
-    const fileInput = document.getElementById("imageFile");
+    const fileInput = $id("imageFile");
     const file = fileInput ? fileInput.files[0] : null;
-    const modelSelect = document.getElementById("model");
+    const modelSelect = $id("model");
     const selectedModel = modelSelect ? modelSelect.value : '';
     const isPdfEnabled = window.isPdfSupportedForModel ? window.isPdfSupportedForModel(selectedModel) : false;
     const isFileInputsEnabled = window.isFileInputsSupportedForModel ? window.isFileInputsSupportedForModel(selectedModel) : false;
-    const appsSelect = document.getElementById("apps");
+    const appsSelect = $id("apps");
     const currentApp = appsSelect ? appsSelect.value : '';
     const isImageGenerationApp = window.isImageGenerationApp ? window.isImageGenerationApp(currentApp) : false;
     const allowPdfInImageApp = currentApp === "ImageGeneratorGemini3Preview";
 
-    const imageModal = document.getElementById("imageModal");
-    const selectImageError = document.getElementById("select_image_error");
+    const imageModal = $id("imageModal");
+    const selectImageError = $id("select_image_error");
 
     if (file) {
       const fileSizeInMB = file.size / (1024 * 1024);
@@ -395,7 +395,7 @@ function fileToBase64(blob, callback) {
 
 // Update display for both images and PDFs
 function updateFileDisplay(files) {
-  const imageUsed = document.getElementById("image-used");
+  const imageUsed = $id("image-used");
   if (imageUsed) imageUsed.innerHTML = ""; // Clear current display
 
   // Check if there's a mask image
@@ -411,7 +411,7 @@ function updateFileDisplay(files) {
   }
 
   // Check if image generation is enabled in the current app
-  const appsSelect = document.getElementById("apps");
+  const appsSelect = $id("apps");
   const currentApp = appsSelect ? appsSelect.value : '';
   const isImageGenerationEnabled = window.isImageGenerationApp ?
     (window.isImageGenerationApp(currentApp) ||
@@ -577,7 +577,7 @@ function updateFileDisplay(files) {
         if (hiddenContainer) {
           const parent = hiddenContainer.closest('.image-container');
           if (parent && parent.style.display === 'none') {
-            parent.style.display = '';
+            $show(parent);
           }
         }
       }
@@ -597,7 +597,7 @@ function updateFileDisplay(files) {
       const index = parseInt(this.dataset.index, 10);
 
       // Check if mask editing is enabled in the current app
-      const appsSelect2 = document.getElementById("apps");
+      const appsSelect2 = $id("apps");
       const currentApp2 = appsSelect2 ? appsSelect2.value : '';
       const isMaskEditingEnabled2 = window.isMaskEditingEnabled ? window.isMaskEditingEnabled(currentApp2) : false;
 
@@ -700,7 +700,7 @@ function imageToBase64(blob, callback) {
           const errorProcessingText = getTranslation('ui.messages.errorProcessingImage', 'Error processing image');
           setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
-          const imageModal = document.getElementById("imageModal");
+          const imageModal = $id("imageModal");
           if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
           callback(null);
         }
@@ -714,7 +714,7 @@ function imageToBase64(blob, callback) {
         const errorLoadingText = getTranslation('ui.messages.errorLoadingImage', 'Error loading image');
         setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
-        const imageModal = document.getElementById("imageModal");
+        const imageModal = $id("imageModal");
         if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
         callback(null);
       };
@@ -728,7 +728,7 @@ function imageToBase64(blob, callback) {
       const errorReadingText = getTranslation('ui.messages.errorReadingFile', 'Error reading file');
       setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
-      const imageModal = document.getElementById("imageModal");
+      const imageModal = $id("imageModal");
       if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
       callback(null);
     };
@@ -786,7 +786,7 @@ function imageToBase64(blob, callback) {
           const errorProcessingText = getTranslation('ui.messages.errorProcessingImage', 'Error processing image');
           setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorProcessingText}: ${error.message}`, "error");
           // Close modal if it's open
-          const imageModal = document.getElementById("imageModal");
+          const imageModal = $id("imageModal");
           if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
           reject(error);
         }
@@ -800,7 +800,7 @@ function imageToBase64(blob, callback) {
         const errorLoadingText = getTranslation('ui.messages.errorLoadingImage', 'Error loading image');
         setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorLoadingText}`, "error");
         // Close modal if it's open
-        const imageModal = document.getElementById("imageModal");
+        const imageModal = $id("imageModal");
         if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
         reject(error);
       };
@@ -814,7 +814,7 @@ function imageToBase64(blob, callback) {
       const errorReadingText = getTranslation('ui.messages.errorReadingFile', 'Error reading file');
       setAlert(`<i class="fas fa-exclamation-circle"></i> ${errorReadingText}`, "error");
       // Close modal if it's open
-      const imageModal = document.getElementById("imageModal");
+      const imageModal = $id("imageModal");
       if (imageModal) bootstrap.Modal.getOrCreateInstance(imageModal).hide();
       reject(error);
     };

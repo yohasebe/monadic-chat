@@ -27,9 +27,9 @@ function handleTokenVerified(data) {
     handled = wsHandlers.handleTokenVerification(data);
   } else {
     // Fallback to inline handling
-    const apiTokenEl = document.getElementById("api-token");
+    const apiTokenEl = $id("api-token");
     if (apiTokenEl) apiTokenEl.value = data["token"];
-    const aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
+    const aiUserPromptEl = $id("ai-user-initial-prompt");
     if (aiUserPromptEl) aiUserPromptEl.value = data["ai_user_initial_prompt"];
     handled = true;
   }
@@ -39,18 +39,18 @@ function handleTokenVerified(data) {
 
     // Enable OpenAI TTS options when token is verified
     ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
 
     // Enable OpenAI STT models when token is verified
     ["openai-stt-4o-mini", "openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-whisper"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
 
     // Set default STT model if none selected or current selection is disabled
-    const sttModelEl = document.getElementById("stt-model");
+    const sttModelEl = $id("stt-model");
     if (sttModelEl) {
       const currentSTTModel = sttModelEl.value;
       const selectedOption = sttModelEl.querySelector("option:checked");
@@ -58,22 +58,22 @@ function handleTokenVerified(data) {
         const defaultSTTModel = window.providerDefaults?.openai?.audio_transcription?.[0]
           || "gpt-4o-mini-transcribe-2025-12-15";
         sttModelEl.value = defaultSTTModel;
-        sttModelEl.dispatchEvent(new Event("change", {bubbles: true}));
+        $dispatch(sttModelEl, "change");
       }
     }
 
     // Set OpenAI TTS as default when it becomes available
-    const ttsProviderEl = document.getElementById("tts-provider");
+    const ttsProviderEl = $id("tts-provider");
     if (ttsProviderEl && ttsProviderEl.value === "webspeech") {
       ttsProviderEl.value = "openai-tts-4o";
-      ttsProviderEl.dispatchEvent(new Event("change", {bubbles: true}));
+      $dispatch(ttsProviderEl, "change");
     }
 
     // Enable various UI elements
     ["start", "send", "clear", "voice", "tts-provider", "elevenlabs-tts-voice", "tts-voice",
      "conversation-language", "prompt-toggle-assistant", "prompt-toggle-aiuser",
      "check-auto-speech", "check-easy-submit"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
 
@@ -93,22 +93,22 @@ function handleOpenAIAPIError(_data) {
   window.verified = "partial";
 
   ["start", "send", "clear"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = false;
   });
 
-  const apiTokenEl = document.getElementById("api-token");
+  const apiTokenEl = $id("api-token");
   if (apiTokenEl) apiTokenEl.value = "";
 
   // Disable OpenAI TTS options
   ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
 
   // Disable OpenAI STT models
   ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
 
@@ -125,22 +125,22 @@ function handleTokenNotVerified(_data) {
   window.verified = "partial";
 
   ["start", "send", "clear"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = false;
   });
 
-  const tokenEl = document.getElementById("api-token");
+  const tokenEl = $id("api-token");
   if (tokenEl) tokenEl.value = "";
 
   // Disable OpenAI TTS options
   ["openai-tts-4o", "openai-tts", "openai-tts-hd"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
 
   // Disable OpenAI STT models
   ["openai-stt-4o", "openai-stt-4o-diarize", "openai-stt-4o-mini", "openai-stt-whisper"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
 

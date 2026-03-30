@@ -45,7 +45,7 @@ function attachEventListeners(card) {
         document.body.offsetHeight;
 
         // Also remove in case it's a temporary message
-        const dupEl = document.getElementById(mid);
+        const dupEl = $id(mid);
         if (dupEl) dupEl.remove();
 
         // If the message is in the messages array, remove it
@@ -71,7 +71,7 @@ function attachEventListeners(card) {
         const isLastMessage = messageIndex === messages.length - 1;
 
         // Store card data
-        const deleteConfirmEl = document.getElementById("deleteConfirmation");
+        const deleteConfirmEl = $id("deleteConfirmation");
         if (deleteConfirmEl) {
           deleteConfirmEl.dataset.mid = mid;
           deleteConfirmEl.dataset.messageIndex = messageIndex;
@@ -88,14 +88,12 @@ function attachEventListeners(card) {
         }
 
         const truncatedText = messageText.length > 100 ? messageText.substring(0, 100) + "..." : messageText;
-        const msgToDeleteEl = document.getElementById("messageToDelete");
+        const msgToDeleteEl = $id("messageToDelete");
         if (msgToDeleteEl) msgToDeleteEl.textContent = truncatedText;
 
         // Configure modal based on message position
-        const deleteSubBtn = document.getElementById("deleteMessageAndSubsequent");
-        if (deleteSubBtn) {
-          deleteSubBtn.style.display = isLastMessage ? 'none' : '';
-        }
+        const deleteSubBtn = $id("deleteMessageAndSubsequent");
+        $toggle(deleteSubBtn, !isLastMessage);
 
         // Show the modal
         if (deleteConfirmEl) bootstrap.Modal.getOrCreateInstance(deleteConfirmEl).show();
@@ -132,11 +130,11 @@ function attachEventListeners(card) {
       }
 
       // Show TTS-specific spinner
-      const spinner = document.getElementById("monadic-spinner");
+      const spinner = $id("monadic-spinner");
       if (spinner) {
         const spanEl = spinner.querySelector("span");
         if (spanEl) spanEl.innerHTML = '<i class="fas fa-headphones fa-pulse"></i> Processing audio';
-        spinner.style.display = '';
+        $show(spinner);
       }
 
       const content = currentCard ? currentCard.querySelector(".card-text") : null;
@@ -178,31 +176,31 @@ function attachEventListeners(card) {
         highlightStopButton(mid);
       }
 
-      const ttsProviderEl = document.getElementById("tts-provider");
+      const ttsProviderEl = $id("tts-provider");
       const ttsProvider = ttsProviderEl ? ttsProviderEl.value : '';
       let ttsVoice;
 
       if (ttsProvider === "elevenlabs" || ttsProvider === "elevenlabs-flash" || ttsProvider === "elevenlabs-multilingual" || ttsProvider === "elevenlabs-v3") {
-        const el = document.getElementById("elevenlabs-tts-voice");
+        const el = $id("elevenlabs-tts-voice");
         ttsVoice = el ? el.value : '';
       } else if (ttsProvider === "webspeech") {
-        const el = document.getElementById("webspeech-voice");
+        const el = $id("webspeech-voice");
         ttsVoice = el ? el.value : '';
       } else if (ttsProvider === "gemini-flash" || ttsProvider === "gemini-pro") {
-        const el = document.getElementById("gemini-tts-voice");
+        const el = $id("gemini-tts-voice");
         ttsVoice = el ? el.value : '';
       } else {
-        const el = document.getElementById("tts-voice");
+        const el = $id("tts-voice");
         ttsVoice = el ? el.value : '';
       }
 
-      const ttsSpeedEl = document.getElementById("tts-speed");
+      const ttsSpeedEl = $id("tts-speed");
       const ttsSpeed = ttsSpeedEl ? ttsSpeedEl.value : '';
 
-      const elevenlabsEl = document.getElementById("elevenlabs-tts-voice");
-      const geminiEl = document.getElementById("gemini-tts-voice");
-      const mistralEl = document.getElementById("mistral-tts-voice");
-      const convLangEl = document.getElementById("conversation-language");
+      const elevenlabsEl = $id("elevenlabs-tts-voice");
+      const geminiEl = $id("gemini-tts-voice");
+      const mistralEl = $id("mistral-tts-voice");
+      const convLangEl = $id("conversation-language");
 
       const ttsMessage = {
         message: "PLAY_TTS",
@@ -240,9 +238,9 @@ function attachEventListeners(card) {
       if (typeof window.setTtsPlaybackStarted === 'function') {
         window.setTtsPlaybackStarted(true);
       }
-      const spinner = document.getElementById("monadic-spinner");
+      const spinner = $id("monadic-spinner");
       if (spinner) {
-        spinner.style.display = 'none';
+        $hide(spinner);
         const spanEl = spinner.querySelector("span");
         if (spanEl) spanEl.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
       }
@@ -420,10 +418,10 @@ function attachEventListeners(card) {
       const isLastDisplayedCard = lastCard === card;
 
       if (isLastMessage || isLastDisplayedCard) {
-        const messageInput = document.getElementById("message");
+        const messageInput = $id("message");
         if (messageInput) messageInput.value = text;
 
-        const selectRole = document.getElementById("select-role");
+        const selectRole = $id("select-role");
         if (selectRole) {
           if (currentMessage.role === "user") {
             selectRole.value = "user";
@@ -652,7 +650,7 @@ function attachEventListeners(card) {
 
 // Function to delete system messages with our improved approach
 window.deleteSystemMessage = function(mid, messageIndex) {
-  const cardEl = document.getElementById(mid);
+  const cardEl = $id(mid);
 
   if (!cardEl) {
     return;
@@ -685,7 +683,7 @@ window.deleteSystemMessage = function(mid, messageIndex) {
   document.body.offsetHeight;
 
   // Extra cleanup for any remaining elements
-  const dupEl = document.getElementById(mid);
+  const dupEl = $id(mid);
   if (dupEl) dupEl.remove();
 
   // Clean up messages array if needed
@@ -736,7 +734,7 @@ function updateCardTurnNumbers(deletedTurn) {
  * @returns {number|null} The turn number or null if not found
  */
 function getCardTurnNumber(mid) {
-  const cardEl = document.getElementById(mid);
+  const cardEl = $id(mid);
   if (!cardEl) return null;
 
   const turn = cardEl.getAttribute('data-turn');
@@ -767,7 +765,7 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 window.deleteMessageAndSubsequent = function(mid, messageIndex) {
-  const cardEl = document.getElementById(mid);
+  const cardEl = $id(mid);
 
   if (cardEl && cardEl.querySelector(".role-system")) {
     deleteSystemMessage(mid, messageIndex);
@@ -797,7 +795,7 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
   // Delete all subsequent messages
   const subsequentMessages = messages.slice(messageIndex + 1);
   subsequentMessages.forEach((m) => {
-    const subsequentCard = document.getElementById(m.mid);
+    const subsequentCard = $id(m.mid);
     if (subsequentCard) {
       detachEventListeners(subsequentCard);
       subsequentCard.remove();
@@ -814,7 +812,7 @@ window.deleteMessageAndSubsequent = function(mid, messageIndex) {
 };
 
 window.deleteMessageOnly = function(mid, messageIndex) {
-  const cardEl = document.getElementById(mid);
+  const cardEl = $id(mid);
   if (!cardEl) {
     console.error("Card not found:", mid);
     return;

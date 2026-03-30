@@ -19,9 +19,9 @@
   function handleMCPStatus(status) {
     if (!status) return;
 
-    var mcpStatusEl = document.getElementById("mcp-status");
+    var mcpStatusEl = $id("mcp-status");
     if (!mcpStatusEl) {
-      var messagesEl = document.getElementById("messages");
+      var messagesEl = $id("messages");
       if (messagesEl) {
         messagesEl.insertAdjacentHTML('beforeend',
           '<div id="mcp-status" class="alert alert-info mt-2" style="display: none;">' +
@@ -30,7 +30,7 @@
           '</div>'
         );
       }
-      mcpStatusEl = document.getElementById("mcp-status");
+      mcpStatusEl = $id("mcp-status");
     }
 
     if (!mcpStatusEl) return;
@@ -51,21 +51,21 @@
           '</small></div>';
       }
 
-      var mcpContentEl = document.getElementById("mcp-status-content");
+      var mcpContentEl = $id("mcp-status-content");
       if (mcpContentEl) mcpContentEl.innerHTML = content;
-      mcpStatusEl.style.display = '';
+      $show(mcpStatusEl);
     } else {
-      mcpStatusEl.style.display = 'none';
+      $hide(mcpStatusEl);
     }
   }
 
   // ── updateAIUserButtonState ────────────────────────────────────────
   function updateAIUserButtonState(messages) {
-    var aiUserBtn = document.getElementById("ai_user");
+    var aiUserBtn = $id("ai_user");
     if (!aiUserBtn) return;
 
     var hasConversation = Array.isArray(messages) && messages.length >= 2;
-    var aiUserProviderEl = document.getElementById("ai-user-provider");
+    var aiUserProviderEl = $id("ai-user-provider");
     var currentProvider = aiUserProviderEl ? aiUserProviderEl.value : "";
     var isPerplexity = currentProvider.toLowerCase() === "perplexity";
 

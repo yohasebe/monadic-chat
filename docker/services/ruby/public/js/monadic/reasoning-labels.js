@@ -385,14 +385,14 @@ class ReasoningLabels {
     }
     
     // Remove any existing description to prevent layout issues
-    const container = document.getElementById('reasoning-effort').parentElement;
+    const container = $id('reasoning-effort').parentElement;
     let descElement = container.querySelector('.reasoning-description');
     if (descElement) {
       descElement.remove();
     }
     
     // Update option labels
-    const select = document.getElementById('reasoning-effort');
+    const select = $id('reasoning-effort');
     if (select) {
       const options = select.querySelectorAll('option');
       options.forEach(option => {

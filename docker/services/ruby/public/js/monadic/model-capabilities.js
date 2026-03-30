@@ -43,7 +43,7 @@ function isPdfSupportedForModel(selectedModel) {
  */
 function isImageGenerationApp(appName) {
   if (!appName) {
-    var appsEl = document.getElementById("apps");
+    var appsEl = $id("apps");
     appName = appsEl ? appsEl.value : null;
   }
   var toBool = window.toBool || function(value) {
@@ -62,7 +62,7 @@ function isImageGenerationApp(appName) {
  */
 function isMaskEditingEnabled(appName) {
   if (!appName) {
-    var appsEl = document.getElementById("apps");
+    var appsEl = $id("apps");
     appName = appsEl ? appsEl.value : null;
   }
 

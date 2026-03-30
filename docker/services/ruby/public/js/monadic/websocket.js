@@ -105,7 +105,7 @@ const RESPONSE_TIMEOUT_SLOW_MS = (window.WsAudioConstants || {}).RESPONSE_TIMEOU
 const { highlightStopButton, removeStopButtonHighlight, checkAndHideSpinner } = window.WsAutoSpeech || {};
 
 // message is submitted upon pressing enter
-const message = document.getElementById("message");
+const message = $id("message");
 
 message.addEventListener("compositionstart", function () {
   message.dataset.ime = "true";
@@ -117,16 +117,16 @@ message.addEventListener("compositionend", function () {
 
 document.addEventListener("keydown", function (event) {
   // Right Arrow key - activate voice input when Easy Submit is enabled
-  const easySubmitEl = document.getElementById("check-easy-submit");
-  const messageEl = document.getElementById("message");
+  const easySubmitEl = $id("check-easy-submit");
+  const messageEl = $id("message");
   const easySubmitChecked = easySubmitEl && easySubmitEl.checked;
   const messageHasFocus = document.activeElement === messageEl;
 
   if (easySubmitChecked && !messageHasFocus && event.key === "ArrowRight") {
     event.preventDefault();
     // Only activate voice button if session has begun (main panel is visible)
-    const voiceEl = document.getElementById("voice");
-    const mainPanelEl = document.getElementById("main-panel");
+    const voiceEl = $id("voice");
+    const mainPanelEl = $id("main-panel");
     if (voiceEl && !voiceEl.disabled && mainPanelEl && mainPanelEl.style.display !== "none") {
       voiceEl.click();
     }
@@ -140,7 +140,7 @@ document.addEventListener("keydown", function (event) {
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         // Ignore auto-submit when tab is not in foreground
       } else {
-        const sendEl = document.getElementById("send");
+        const sendEl = $id("send");
         if (sendEl) sendEl.click();
       }
     }
@@ -182,10 +182,10 @@ function stopPing() {
   }
 }
 
-window.chatBottom = document.getElementById("chat-bottom");
+window.chatBottom = $id("chat-bottom");
 window.autoScroll = true;
 
-const mainPanel = document.getElementById("main-panel");
+const mainPanel = $id("main-panel");
 window.mainPanel = mainPanel;
 
 function ensureMonadicTabId() {
@@ -305,10 +305,10 @@ function formatToolName(name) {
 }
 
 function updateToolStatus(toolName, count) {
-  const tempCard = document.getElementById("temp-card");
+  const tempCard = $id("temp-card");
   if (!tempCard) return;
 
-  let toolStatus = document.getElementById("tool-status");
+  let toolStatus = $id("tool-status");
   if (!toolStatus) {
     // Dynamically inject into the card header's right-side area
     const headerEl = tempCard.querySelector(".card-header");
@@ -333,18 +333,18 @@ function updateToolStatus(toolName, count) {
   if (toolName && count > 0) {
     toolStatus.innerHTML =
       '<i class="fas fa-cog fa-spin me-1"></i>' + formatToolName(toolName) + ' <span class="tool-call-count">(' + count + ')</span>';
-    toolStatus.style.display = '';
+    $show(toolStatus);
   } else {
-    toolStatus.style.display = 'none';
+    $hide(toolStatus);
   }
 }
 
 function clearToolStatus() {
   window.toolCallCount = 0;
   window.currentToolName = '';
-  const toolStatusEl = document.getElementById("tool-status");
+  const toolStatusEl = $id("tool-status");
   if (toolStatusEl) {
-    toolStatusEl.style.display = 'none';
+    $hide(toolStatusEl);
     toolStatusEl.innerHTML = '';
   }
 }
@@ -397,15 +397,15 @@ window.loadedApp = "Chat";
       webUIi18n.t('ui.messages.verifyingToken') : 'Verifying token';
     setAlert(`<i class='fa-solid fa-bolt'></i> ${verifyingText}`, "warning");
     if (!isForegroundTab()) {
-      const spinnerEl = document.getElementById('monadic-spinner');
-      if (spinnerEl) spinnerEl.style.display = 'none';
+      const spinnerEl = $id('monadic-spinner');
+      $hide(spinnerEl);
     }
     // Get UI language from cookie or default to 'en'
     const uiLanguage = document.cookie.match(/ui-language=([^;]+)/)?.[1] || 'en';
     ws.send(JSON.stringify({
       message: "CHECK_TOKEN",
       initial: true,
-      contents: (document.getElementById("token") || {}).value || '',
+      contents: ($id("token") || {}).value || '',
       ui_language: uiLanguage
     }));
 
@@ -600,7 +600,7 @@ window.loadedApp = "Chat";
   // Helper function to append a card to the discourse
   function appendCard(role, badge, html, lang, mid, status, images, turnNumber = null) {
     const htmlElement = createCard(role, badge, html, lang, mid, status, images, false, turnNumber);
-    const discourseEl = document.getElementById("discourse");
+    const discourseEl = $id("discourse");
     if (discourseEl) discourseEl.appendChild(htmlElement);
 
     // Defer applyRenderers to ensure DOM is fully ready
@@ -683,22 +683,22 @@ window.loadedApp = "Chat";
     const timeoutDuration = isSlowProvider ? RESPONSE_TIMEOUT_SLOW_MS : RESPONSE_TIMEOUT_MS;
 
     const messageTimeout = setTimeout(function() {
-      const userPanelEl = document.getElementById("user-panel");
-      const sendBtnEl = document.getElementById("send");
+      const userPanelEl = $id("user-panel");
+      const sendBtnEl = $id("send");
       if (userPanelEl && userPanelEl.style.display !== "none" && sendBtnEl && sendBtnEl.disabled) {
 
         ["send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "ai_user"].forEach(function(id) {
-          const el = document.getElementById(id);
+          const el = $id(id);
           if (el) el.disabled = false;
         });
-        const msgEl = document.getElementById("message");
+        const msgEl = $id("message");
         if (msgEl) msgEl.disabled = false;
-        const roleEl = document.getElementById("select-role");
+        const roleEl = $id("select-role");
         if (roleEl) roleEl.disabled = false;
-        const spinnerEl = document.getElementById("monadic-spinner");
-        if (spinnerEl) spinnerEl.style.display = 'none';
-        const cancelEl = document.getElementById("cancel_query");
-        if (cancelEl) cancelEl.style.display = 'none';
+        const spinnerEl = $id("monadic-spinner");
+        $hide(spinnerEl);
+        const cancelEl = $id("cancel_query");
+        $hide(cancelEl);
 
         // Reset state flags
         if (window.responseStarted !== undefined) window.responseStarted = false;

@@ -58,7 +58,7 @@ function handleLanguageUpdated(data) {
     webUIi18n.t('ui.messages.languageChanged') : 'Language changed to';
   setAlert(`<i class='fa-solid fa-globe'></i> ${languageChangedText} ${languageName}`, "success");
 
-  var langSelect = document.getElementById('conversation-language');
+  var langSelect = $id('conversation-language');
   if (data.language && langSelect && langSelect.value !== data.language) {
     langSelect.value = data.language;
   }
@@ -82,9 +82,9 @@ function handleLanguageUpdated(data) {
 function handleProcessingStatus(data) {
   setAlert(`<i class='fas fa-hourglass-half'></i> ${data.content}`, "info");
 
-  var spinner = document.getElementById('monadic-spinner');
+  var spinner = $id('monadic-spinner');
   if (spinner && spinner.style.display === 'none') {
-    spinner.style.display = '';
+    $show(spinner);
   }
 
   var systemDiv = document.createElement('div');
@@ -103,7 +103,7 @@ function handleProcessingStatus(data) {
     true,
     []
   );
-  var discourse = document.getElementById('discourse');
+  var discourse = $id('discourse');
   var sysEl = systemElement[0] || systemElement;
   if (discourse && sysEl) discourse.appendChild(sysEl);
   if (window.MarkdownRenderer) {
@@ -111,7 +111,7 @@ function handleProcessingStatus(data) {
   }
 
   if (window.autoScroll) {
-    const chatBottom = document.getElementById('chat-bottom');
+    const chatBottom = $id('chat-bottom');
     if (chatBottom && !isElementInViewport(chatBottom)) {
       chatBottom.scrollIntoView(false);
     }
@@ -140,7 +140,7 @@ function handleSystemInfo(data) {
     true,
     []
   );
-  var discourse = document.getElementById('discourse');
+  var discourse = $id('discourse');
   var sysEl = systemElement[0] || systemElement;
   if (discourse && sysEl) discourse.appendChild(sysEl);
   if (window.MarkdownRenderer) {
@@ -148,7 +148,7 @@ function handleSystemInfo(data) {
   }
 
   if (window.autoScroll) {
-    const chatBottom = document.getElementById('chat-bottom');
+    const chatBottom = $id('chat-bottom');
     if (chatBottom && !isElementInViewport(chatBottom)) {
       chatBottom.scrollIntoView(false);
     }
@@ -168,18 +168,18 @@ function handleSTT(data) {
   }
 
   if (!handled) {
-    var messageEl = document.getElementById('message');
+    var messageEl = $id('message');
     if (messageEl) messageEl.value = messageEl.value + " " + data["content"];
 
-    var asrEl = document.getElementById('asr-p-value');
+    var asrEl = $id('asr-p-value');
     if (data["logprob"] != null) {
-      if (asrEl) { asrEl.textContent = "Last Speech-to-Text p-value: " + data["logprob"]; asrEl.style.display = ''; }
+      if (asrEl) { asrEl.textContent = "Last Speech-to-Text p-value: " + data["logprob"]; $show(asrEl); }
     } else {
-      if (asrEl) { asrEl.textContent = ""; asrEl.style.display = 'none'; }
+      if (asrEl) { asrEl.textContent = ""; $hide(asrEl); }
     }
 
     ['send', 'clear', 'voice'].forEach(function(id) {
-      var el = document.getElementById(id);
+      var el = $id(id);
       if (el) el.disabled = false;
     });
 
@@ -188,15 +188,15 @@ function handleSTT(data) {
       messageEl.setAttribute("placeholder", origPlaceholder);
     }
 
-    var amplitudeEl = document.getElementById('amplitude');
-    if (amplitudeEl) amplitudeEl.style.display = 'none';
+    var amplitudeEl = $id('amplitude');
+    $hide(amplitudeEl);
 
-    var easySubmit = document.getElementById('check-easy-submit');
+    var easySubmit = $id('check-easy-submit');
     if (easySubmit && easySubmit.checked) {
       if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
         if (window.debugWebSocket) console.log('[Send] Ignoring auto-submit: tab is not foreground');
       } else {
-        var sendBtn = document.getElementById('send');
+        var sendBtn = $id('send');
         if (sendBtn) sendBtn.click();
       }
     }
@@ -222,11 +222,11 @@ function handlePDFTitles(data) {
          + `</div>`;
   }).join("");
   const noPdfsText = (typeof getTranslation === 'function') ? getTranslation('ui.noPdfsLocal', 'No PDFs imported') : 'No PDFs imported';
-  var pdfTitlesEl = document.getElementById('pdf-titles');
+  var pdfTitlesEl = $id('pdf-titles');
   if (pdfTitlesEl) pdfTitlesEl.innerHTML = rows || `<span class='text-secondary'>${noPdfsText}</span>`;
 
   data["content"].forEach((title, index) => {
-    var delBtn = document.getElementById('pdf-del-' + index);
+    var delBtn = $id('pdf-del-' + index);
     if (delBtn) {
       delBtn.onclick = function() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -238,11 +238,11 @@ function handlePDFTitles(data) {
             window.ws.send(JSON.stringify({ message: "DELETE_PDF", contents: title }));
           }
         } else {
-          var modalEl = document.getElementById('pdfDeleteConfirmation');
+          var modalEl = $id('pdfDeleteConfirmation');
           if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
-          var pdfToDeleteEl = document.getElementById('pdfToDelete');
+          var pdfToDeleteEl = $id('pdfToDelete');
           if (pdfToDeleteEl) pdfToDeleteEl.textContent = title;
-          var confirmBtn = document.getElementById('pdfDeleteConfirmed');
+          var confirmBtn = $id('pdfDeleteConfirmed');
           if (confirmBtn) {
             confirmBtn.onclick = function(event) {
               event.preventDefault();
@@ -278,7 +278,7 @@ function handlePDFDeleted(data) {
  */
 function handleChangeStatus(data) {
   data["content"].forEach((msg) => {
-    const card = document.getElementById(msg["mid"]);
+    const card = $id(msg["mid"]);
     if (card) {
       var statusEl = card.querySelector(".status");
       if (statusEl) {
@@ -319,9 +319,9 @@ function handleSampleSuccess(data) {
       window.currentSampleTimeout = null;
     }
 
-    var spinner = document.getElementById('monadic-spinner');
-    if (spinner) spinner.style.display = 'none';
-    document.getElementById('cancel_query').style.setProperty('display', 'none', 'important');
+    var spinner = $id('monadic-spinner');
+    $hide(spinner);
+    $id('cancel_query').style.setProperty('display', 'none', 'important');
 
     const sampleAddedText = getTranslation('ui.messages.sampleMessageAdded', 'Sample message added');
     setAlert(`<i class='fas fa-check-circle'></i> ${sampleAddedText}`, "success");

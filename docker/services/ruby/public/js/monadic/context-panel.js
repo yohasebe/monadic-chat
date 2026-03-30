@@ -31,8 +31,8 @@ const ContextPanel = {
    * Initialize the context panel
    */
   init() {
-    this.panel = document.getElementById("context-panel");
-    this.sectionsContainer = document.getElementById("context-sections");
+    this.panel = $id("context-panel");
+    this.sectionsContainer = $id("context-sections");
 
     if (!this.panel) {
       console.warn("[ContextPanel] Panel element not found");
@@ -40,10 +40,10 @@ const ContextPanel = {
     }
 
     // Hide edit buttons (editing disabled)
-    const saveBtn = document.getElementById("context-save");
-    const cancelBtn = document.getElementById("context-cancel");
-    if (saveBtn) saveBtn.style.display = "none";
-    if (cancelBtn) cancelBtn.style.display = "none";
+    const saveBtn = $id("context-save");
+    const cancelBtn = $id("context-cancel");
+    $hide(saveBtn);
+    $hide(cancelBtn);
 
     this.bindEvents();
   },
@@ -71,7 +71,7 @@ const ContextPanel = {
     }
 
     // Toggle all sections
-    const toggleAllBtn = document.getElementById("context-toggle-all");
+    const toggleAllBtn = $id("context-toggle-all");
     if (toggleAllBtn) {
       toggleAllBtn.addEventListener("click", () => this.toggleAllSections());
     }
@@ -205,8 +205,8 @@ const ContextPanel = {
    * @param {number} turnCount - Total number of turns (optional)
    */
   updateLegendVisibility(show, turnCount = 0) {
-    const legend = document.getElementById("context-legend");
-    const badge = document.getElementById("context-turn-badge");
+    const legend = $id("context-legend");
+    const badge = $id("context-turn-badge");
     if (legend) {
       legend.style.display = show ? "flex" : "none";
     }

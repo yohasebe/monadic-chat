@@ -14,9 +14,9 @@
       return;
     }
 
-    const themeSystemBtn = document.getElementById('theme-system');
-    const themeLightBtn = document.getElementById('theme-light');
-    const themeDarkBtn = document.getElementById('theme-dark');
+    const themeSystemBtn = $id('theme-system');
+    const themeLightBtn = $id('theme-light');
+    const themeDarkBtn = $id('theme-dark');
 
     if (!themeSystemBtn || !themeLightBtn || !themeDarkBtn) {
       console.warn('[ThemeUI] Theme buttons not found in DOM');

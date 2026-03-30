@@ -44,7 +44,7 @@ function handleStreamingComplete(_data) {
 
     // Check Auto Speech from multiple sources
     const paramsEnabled = window.params && (window.params["auto_speech"] === true || window.params["auto_speech"] === "true");
-    const checkAutoSpeechEl = document.getElementById("check-auto-speech");
+    const checkAutoSpeechEl = $id("check-auto-speech");
     const checkboxEnabled = checkAutoSpeechEl ? checkAutoSpeechEl.checked : false;
     const autoSpeechActive = window.autoSpeechActive === true;
     const autoSpeechEnabled = paramsEnabled || checkboxEnabled || autoSpeechActive;
@@ -58,8 +58,8 @@ function handleStreamingComplete(_data) {
       if (typeof window.checkAndHideSpinner === 'function') {
         window.checkAndHideSpinner();
       } else {
-        const scFallbackSpinner = document.getElementById("monadic-spinner");
-        if (scFallbackSpinner) scFallbackSpinner.style.display = 'none';
+        const scFallbackSpinner = $id("monadic-spinner");
+        $hide(scFallbackSpinner);
       }
     }
   }
@@ -89,10 +89,10 @@ function handleStreamingComplete(_data) {
     }
 
     // Always ensure UI elements are enabled and visible (user-panel may be hidden during initiate_from_assistant)
-    const scUserPanel = document.getElementById("user-panel");
-    if (scUserPanel) scUserPanel.style.display = '';
+    const scUserPanel = $id("user-panel");
+    $show(scUserPanel);
     ["message", "send", "clear", "image-file", "voice", "doc", "url", "pdf-import", "select-role"].forEach(function(id) {
-      const el = document.getElementById(id);
+      const el = $id(id);
       if (el) el.disabled = false;
     });
 
@@ -134,11 +134,11 @@ function handleDefaultMessage(data) {
     if (window.streamingResponse) {
       const receivingResponseText = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-      const fragSpinner = document.getElementById("monadic-spinner");
+      const fragSpinner = $id("monadic-spinner");
       if (fragSpinner) {
         const fragSpan = fragSpinner.querySelector("span");
         if (fragSpan) fragSpan.innerHTML = `<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText}`;
-        fragSpinner.style.display = '';
+        $show(fragSpinner);
       }
     }
 
@@ -147,8 +147,8 @@ function handleDefaultMessage(data) {
       window.handleFragmentMessage(data);
     }
 
-    const fragIndicator = document.getElementById("indicator");
-    if (fragIndicator) fragIndicator.style.display = '';
+    const fragIndicator = $id("indicator");
+    $show(fragIndicator);
     if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
       window.chatBottom.scrollIntoView(false);
     }
@@ -168,18 +168,18 @@ function handleDefaultMessage(data) {
       }
       const receivingResponseText2 = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerReceivingResponse') : 'Receiving response';
-      const legacySpinner = document.getElementById("monadic-spinner");
+      const legacySpinner = $id("monadic-spinner");
       if (legacySpinner) {
         const legacySpan = legacySpinner.querySelector("span");
         if (legacySpan) legacySpan.innerHTML = `<i class="fa-solid fa-circle-nodes fa-pulse"></i> ${receivingResponseText2}`;
-        legacySpinner.style.display = '';
+        $show(legacySpinner);
       }
     }
-    const legacyIndicator = document.getElementById("indicator");
-    if (legacyIndicator) legacyIndicator.style.display = '';
+    const legacyIndicator = $id("indicator");
+    $show(legacyIndicator);
     if (content !== undefined) {
       content = content.replace(/^\n+/, "");
-      const chatEl = document.getElementById("chat");
+      const chatEl = $id("chat");
       if (chatEl) chatEl.innerHTML = chatEl.innerHTML + content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
     }
     if (window.autoScroll && window.chatBottom && typeof isElementInViewport === 'function' && !isElementInViewport(window.chatBottom)) {
@@ -229,7 +229,7 @@ function handleUser(data) {
   }
 
   // Use appendCard helper to show the user message
-  const userDiscourse = document.getElementById('discourse');
+  const userDiscourse = $id('discourse');
   const userTurnNumber = userDiscourse ? userDiscourse.querySelectorAll('.card:not(#temp-card) .role-assistant').length + 1 : 1;
   if (typeof window.appendCard === 'function') {
     window.appendCard("user", "<span class='text-secondary'><i class='fas fa-face-smile'></i></span> <span class='fw-bold fs-6 user-color'>User</span>", "<p>" + content_text + "</p>", data["content"]["lang"], data["content"]["mid"], true, images, userTurnNumber);
@@ -242,12 +242,12 @@ function handleUser(data) {
   }
 
   // Show loading indicators and clear any previous card content
-  const handleUserDiscourse = document.getElementById("discourse");
-  let handleUserTempCard = document.getElementById("temp-card");
+  const handleUserDiscourse = $id("discourse");
+  let handleUserTempCard = $id("temp-card");
   if (handleUserTempCard) {
     const cardText = handleUserTempCard.querySelector(".card-text");
     if (cardText) cardText.innerHTML = '';
-    handleUserTempCard.style.display = '';
+    $show(handleUserTempCard);
     window._lastProcessedIndex = -1;
     window._lastProcessedSequence = -1;
 
@@ -272,23 +272,23 @@ function handleUser(data) {
   }
 
   const handleUserTempStatus = handleUserTempCard.querySelector(".status");
-  if (handleUserTempStatus) handleUserTempStatus.style.display = 'none';
-  const handleUserIndicator = document.getElementById("indicator");
-  if (handleUserIndicator) handleUserIndicator.style.display = '';
+  $hide(handleUserTempStatus);
+  const handleUserIndicator = $id("indicator");
+  $show(handleUserIndicator);
   ["message", "send", "clear", "image-file", "voice", "doc", "url", "select-role"].forEach(function(id) {
-    const el = document.getElementById(id);
+    const el = $id(id);
     if (el) el.disabled = true;
   });
-  document.getElementById('cancel_query').style.setProperty('display', 'flex', 'important');
+  $id('cancel_query').style.setProperty('display', 'flex', 'important');
 
   // Show spinner
   const processingRequestText = typeof webUIi18n !== 'undefined' ?
     webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
-  const handleUserSpinner = document.getElementById("monadic-spinner");
+  const handleUserSpinner = $id("monadic-spinner");
   if (handleUserSpinner) {
     const handleUserSpan = handleUserSpinner.querySelector("span");
     if (handleUserSpan) handleUserSpan.innerHTML = `<i class="fas fa-brain fa-pulse"></i> ${processingRequestText}...`;
-    handleUserSpinner.style.display = '';
+    $show(handleUserSpinner);
   }
 
   // Mark streaming state
@@ -314,13 +314,13 @@ function handleUser(data) {
       window.spinnerCheckInterval = null;
       return;
     }
-    const intervalSpinner = document.getElementById("monadic-spinner");
+    const intervalSpinner = $id("monadic-spinner");
     if (window.streamingResponse && !window.responseStarted && intervalSpinner && (intervalSpinner.style.display === 'none' || intervalSpinner.offsetParent === null)) {
       const txt = typeof webUIi18n !== 'undefined' ?
         webUIi18n.t('ui.messages.spinnerProcessingRequest') : 'Processing request';
       const intervalSpan = intervalSpinner.querySelector("span");
       if (intervalSpan) intervalSpan.innerHTML = `<i class="fas fa-brain fa-pulse"></i> ${txt}...`;
-      intervalSpinner.style.display = '';
+      $show(intervalSpinner);
     }
   }, 100);
 }

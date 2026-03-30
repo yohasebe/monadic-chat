@@ -20,9 +20,9 @@ function handleToolExecuting(data) {
   window.currentToolName = data["content"];
 
   // Show temp card early if hidden (immediate feedback)
-  const toolTempCard = document.getElementById("temp-card");
+  const toolTempCard = $id("temp-card");
   if (toolTempCard && toolTempCard.style.display === 'none') {
-    toolTempCard.style.display = '';
+    $show(toolTempCard);
   }
 
   // Update temp card header with tool name and count
@@ -47,8 +47,8 @@ function handleMessage(data) {
     if (data["finish_reason"] === "tool_calls") {
       // Keep spinner visible for tool calls
       window.callingFunction = true;
-      const spinnerEl = document.getElementById("monadic-spinner");
-      if (spinnerEl) spinnerEl.style.display = '';
+      const spinnerEl = $id("monadic-spinner");
+      $show(spinnerEl);
       const processingToolsText = typeof getTranslation === 'function' ?
         getTranslation('ui.messages.spinnerProcessingTools', 'Processing tools') :
         'Processing tools';
@@ -65,12 +65,12 @@ function handleMessage(data) {
       window.ws.send(JSON.stringify({ "message": "HTML" }));
     }
   } else if (data["content"] === "CLEAR") {
-    const chatEl = document.getElementById("chat");
+    const chatEl = $id("chat");
     if (chatEl) chatEl.innerHTML = "";
     const tempCardStatus = document.querySelector("#temp-card .status");
-    if (tempCardStatus) tempCardStatus.style.display = 'none';
-    const indicatorEl = document.getElementById("indicator");
-    if (indicatorEl) indicatorEl.style.display = '';
+    $hide(tempCardStatus);
+    const indicatorEl = $id("indicator");
+    $show(indicatorEl);
   }
 }
 
@@ -235,8 +235,8 @@ function handleWait(data) {
     }
 
     // Display agent progress in streaming temp card
-    let tempCardEl = document.getElementById("temp-card");
-    const discourseEl = document.getElementById("discourse");
+    let tempCardEl = $id("temp-card");
+    const discourseEl = $id("discourse");
     if (!tempCardEl) {
       tempCardEl = document.createElement('div');
       tempCardEl.id = 'temp-card';
@@ -258,15 +258,15 @@ function handleWait(data) {
 
     const cardTextEl = tempCardEl.querySelector(".card-text");
     if (cardTextEl) cardTextEl.innerHTML = `<div class="mb-0" style="color: inherit;">${displayContent}</div>`;
-    tempCardEl.style.display = '';
+    $show(tempCardEl);
   } else {
     // Regular wait messages go to status-message
     setAlert(waitContent, "warning");
   }
 
   // Show the spinner and update its message
-  const waitSpinner = document.getElementById("monadic-spinner");
-  if (waitSpinner) waitSpinner.style.display = '';
+  const waitSpinner = $id("monadic-spinner");
+  $show(waitSpinner);
 
   const _getTranslation = typeof getTranslation === 'function' ? getTranslation : (k, f) => f;
 

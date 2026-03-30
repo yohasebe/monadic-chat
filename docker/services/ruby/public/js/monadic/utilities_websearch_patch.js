@@ -44,8 +44,8 @@ window.doResetActions = function() {
   }
 
   // Additional functionality: Check Tavily API availability
-  const appsEl = document.getElementById("apps");
-  const modelEl = document.getElementById("model");
+  const appsEl = $id("apps");
+  const modelEl = $id("model");
   const currentApp = appsEl ? appsEl.value : null;
   const model = modelEl ? modelEl.value : null;
 
@@ -78,8 +78,8 @@ window.doResetActions = function() {
   }
 
   // Update model display with reasoning effort if applicable
-  const modelSelectedEl = document.getElementById("model-selected");
-  const reasoningEffortEl = document.getElementById("reasoning-effort");
+  const modelSelectedEl = $id("model-selected");
+  const reasoningEffortEl = $id("reasoning-effort");
   if (modelSelectedEl) {
     if (modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
       modelSelectedEl.textContent = provider + " (" + model + " - " + (reasoningEffortEl ? reasoningEffortEl.value : "") + ")";
@@ -89,7 +89,7 @@ window.doResetActions = function() {
   }
 
   // Update base app title
-  const baseAppTitleEl = document.getElementById("base-app-title");
+  const baseAppTitleEl = $id("base-app-title");
   if (baseAppTitleEl) {
     baseAppTitleEl.textContent = apps[currentApp]["display_name"] || apps[currentApp]["app_name"];
   }
@@ -100,12 +100,12 @@ window.doResetActions = function() {
     if (typeof value === 'string') return value === 'true';
     return !!value;
   });
-  const monadicBadgeEl = document.getElementById("monadic-badge");
+  const monadicBadgeEl = $id("monadic-badge");
   if (monadicBadgeEl) {
     if (toBool(apps[currentApp]["monadic"])) {
-      monadicBadgeEl.style.display = '';
+      $show(monadicBadgeEl);
     } else {
-      monadicBadgeEl.style.display = 'none';
+      $hide(monadicBadgeEl);
     }
   }
 };

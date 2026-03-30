@@ -122,9 +122,9 @@
               if (playPromise !== undefined) {
                 playPromise.then(function() {
                   if (window.autoSpeechActive || window.autoPlayAudio) {
-                    var sp = document.getElementById("monadic-spinner");
+                    var sp = $id("monadic-spinner");
                     if (sp) {
-                      sp.style.display = "none";
+                      $hide(sp);
                       var spIcon = sp.querySelector("span i");
                       if (spIcon) { spIcon.classList.remove("fa-headphones"); spIcon.classList.add("fa-comment"); }
                       var spSpan = sp.querySelector("span");
@@ -138,9 +138,9 @@
                     window.autoPlayAudio = false;
                   }
                 }).catch(function(err) {
-                  var sp2 = document.getElementById("monadic-spinner");
+                  var sp2 = $id("monadic-spinner");
                   if (sp2) {
-                    sp2.style.display = "none";
+                    $hide(sp2);
                     var sp2Icon = sp2.querySelector("span i");
                     if (sp2Icon) { sp2Icon.classList.remove("fa-headphones"); sp2Icon.classList.add("fa-comment"); }
                     var sp2Span = sp2.querySelector("span");
@@ -446,7 +446,7 @@
       if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
       if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
       if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-      else { var _sp = document.getElementById("monadic-spinner"); if (_sp) _sp.style.display = "none"; }
+      else { $hide($id("monadic-spinner")); }
 
       try {
         const wavBlob = createWAVFromPCM(pcmData, sampleRate);
@@ -462,7 +462,7 @@
           if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
           if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
           if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-          else { var _sp2 = document.getElementById("monadic-spinner"); if (_sp2) _sp2.style.display = "none"; }
+          else { $hide($id("monadic-spinner")); }
           window.autoSpeechActive = false;
           window.autoPlayAudio = false;
         });
@@ -471,7 +471,7 @@
         if (typeof window.setTextResponseCompleted === 'function') window.setTextResponseCompleted(true);
         if (typeof window.setTtsPlaybackStarted === 'function') window.setTtsPlaybackStarted(true);
         if (typeof window.checkAndHideSpinner === 'function') window.checkAndHideSpinner();
-        else { var _sp3 = document.getElementById("monadic-spinner"); if (_sp3) _sp3.style.display = "none"; }
+        else { $hide($id("monadic-spinner")); }
       }
     }
   }

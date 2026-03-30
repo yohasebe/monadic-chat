@@ -71,11 +71,11 @@ function setCookieValues() {
   var properties = ["tts-provider", "tts-voice", "elevenlabs-tts-voice", "mistral-tts-voice", "webspeech-voice", "tts-speed", "asr-lang"];
   properties.forEach(function(property) {
     var value = getCookie(property);
-    var el = document.getElementById(property);
+    var el = $id(property);
     if (value) {
       if (el && el.querySelector('option[value="' + value + '"]')) {
         el.value = value;
-        el.dispatchEvent(new Event("change", {bubbles: true}));
+        $dispatch(el, "change");
       } else if (property === "elevenlabs-tts-voice") {
         // Handle when voices load later
       } else if (property === "webspeech-voice") {
@@ -84,7 +84,7 @@ function setCookieValues() {
     } else if (property === "tts-provider") {
       if (el) {
         el.value = "openai-tts-4o";
-        el.dispatchEvent(new Event("change", {bubbles: true}));
+        $dispatch(el, "change");
       }
     }
   });

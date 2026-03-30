@@ -85,7 +85,7 @@ window.shims.uiUtils = {
 
   // Adjusts scroll buttons visibility based on scroll position
   adjustScrollButtons: function() {
-    var mainPanel = document.getElementById('main');
+    var mainPanel = $id('main');
     if (!mainPanel) return;
 
     var windowWidth = window.innerWidth;
@@ -94,24 +94,24 @@ window.shims.uiUtils = {
 
     // On mobile and medium screens where menu/content are exclusive, check toggle state
     if (isMobile || isMedium) {
-      var toggleBtn = document.getElementById('toggle-menu');
+      var toggleBtn = $id('toggle-menu');
       var isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
 
       if (!isMenuHidden) {
-        var topBtn = document.getElementById('back_to_top');
-        var bottomBtn = document.getElementById('back_to_bottom');
-        if (topBtn) topBtn.style.display = 'none';
-        if (bottomBtn) bottomBtn.style.display = 'none';
+        var topBtn = $id('back_to_top');
+        var bottomBtn = $id('back_to_bottom');
+        $hide(topBtn);
+        $hide(bottomBtn);
         return;
       }
     }
 
     // Also check for menu-visible class (mobile menu state)
     if (document.body.classList.contains('menu-visible')) {
-      var topBtn2 = document.getElementById('back_to_top');
-      var bottomBtn2 = document.getElementById('back_to_bottom');
-      if (topBtn2) topBtn2.style.display = 'none';
-      if (bottomBtn2) bottomBtn2.style.display = 'none';
+      var topBtn2 = $id('back_to_top');
+      var bottomBtn2 = $id('back_to_bottom');
+      $hide(topBtn2);
+      $hide(bottomBtn2);
       return;
     }
 
@@ -124,8 +124,8 @@ window.shims.uiUtils = {
     var mainWidth = mainPanel.clientWidth;
     if (mainRect) {
       var buttonRight = window.innerWidth - (mainRect.left + mainWidth) + 30;
-      var backToTop = document.getElementById('back_to_top');
-      var backToBottom = document.getElementById('back_to_bottom');
+      var backToTop = $id('back_to_top');
+      var backToBottom = $id('back_to_bottom');
       if (backToTop) backToTop.style.right = buttonRight + "px";
       if (backToBottom) backToBottom.style.right = buttonRight + "px";
     }
@@ -133,22 +133,22 @@ window.shims.uiUtils = {
     // Calculate thresholds (100px minimum scroll to show buttons)
     var scrollThreshold = 100;
 
-    var backToTopBtn = document.getElementById('back_to_top');
-    var backToBottomBtn = document.getElementById('back_to_bottom');
+    var backToTopBtn = $id('back_to_top');
+    var backToBottomBtn = $id('back_to_bottom');
 
     // Show top button when scrolled down enough from the top
     if (mainScrollTop > scrollThreshold) {
-      if (backToTopBtn) backToTopBtn.style.display = '';
+      $show(backToTopBtn);
     } else {
-      if (backToTopBtn) backToTopBtn.style.display = 'none';
+      $hide(backToTopBtn);
     }
 
     // Show bottom button when not near the bottom
     var distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      if (backToBottomBtn) backToBottomBtn.style.display = '';
+      $show(backToBottomBtn);
     } else {
-      if (backToBottomBtn) backToBottomBtn.style.display = 'none';
+      $hide(backToBottomBtn);
     }
   },
 
@@ -195,8 +195,8 @@ window.shims.uiUtils = {
     if (!modelSpec || !selectedModel) return;
 
     var modelData = modelSpec[selectedModel];
-    var imageFileElement = document.getElementById('image-file');
-    var appsElement = document.getElementById('apps');
+    var imageFileElement = $id('image-file');
+    var appsElement = $id('apps');
     var currentApp = appsElement ? appsElement.value : null;
 
     // Check if current app has image capability enabled
@@ -243,7 +243,7 @@ window.shims.uiUtils = {
       }
 
       // Update accept attribute if present
-      var imageFileInput = document.getElementById('imageFile');
+      var imageFileInput = $id('imageFile');
       if (imageFileInput) {
         if (isFileInputsEnabled && !isImageGenerationApp) {
           imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
@@ -254,11 +254,11 @@ window.shims.uiUtils = {
         }
       }
 
-      if (imageFileElement) imageFileElement.style.display = '';
+      $show(imageFileElement);
     } else {
       if (imageFileElement) {
         imageFileElement.disabled = true;
-        imageFileElement.style.display = 'none';
+        $hide(imageFileElement);
       }
     }
   }
@@ -386,8 +386,8 @@ window.shims.formHandlers = {
 
   // Shows a modal with proper focus management
   showModalWithFocus: function(modalId, focusElementId, cleanupFn) {
-    var modal = document.getElementById(modalId);
-    var focusElement = document.getElementById(focusElementId);
+    var modal = $id(modalId);
+    var focusElement = $id(focusElementId);
 
     if (!modal || !focusElement) return;
 

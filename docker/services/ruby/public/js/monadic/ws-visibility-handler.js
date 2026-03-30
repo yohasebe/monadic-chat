@@ -57,7 +57,7 @@
         }
 
         // Handle spinner visibility based on actual processing state
-        var spinner = document.getElementById("monadic-spinner");
+        var spinner = $id("monadic-spinner");
         if (spinner) {
           var isSpinnerVisible = spinner.style.display !== 'none' && spinner.offsetParent !== null;
           if (isSpinnerVisible) {
@@ -69,7 +69,7 @@
 
             if (isProcessingAudio && !stillProcessing) {
               if (window.debugWebSocket) console.log('[handleVisibilityChange] Hiding stale Processing audio spinner');
-              spinner.style.display = 'none';
+              $hide(spinner);
               var spinnerIcon = spinner.querySelector("span i");
               if (spinnerIcon) {
                 spinnerIcon.classList.remove("fa-headphones", "fa-brain", "fa-circle-nodes");
@@ -82,7 +82,7 @@
           } else if (stillProcessing) {
             // Spinner was hidden (likely due to tab switch) but we're still processing
             if (window.debugWebSocket) console.log('[handleVisibilityChange] Restoring spinner - still processing');
-            spinner.style.display = '';
+            $show(spinner);
 
             var spinnerSpanRestore = spinner.querySelector("span");
             // Determine appropriate spinner state based on processing type

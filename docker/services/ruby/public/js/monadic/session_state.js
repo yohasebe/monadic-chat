@@ -446,7 +446,7 @@
         let maxMessages = this.config.maxStoredMessages;
 
         // Check if context size is enabled and get its value
-        const contextSizeElement = document.getElementById('context-size');
+        const contextSizeElement = $id('context-size');
         if (contextSizeElement && !contextSizeElement.disabled) {
           const contextSize = parseInt(contextSizeElement.value, 10);
           if (!isNaN(contextSize) && contextSize > 0) {

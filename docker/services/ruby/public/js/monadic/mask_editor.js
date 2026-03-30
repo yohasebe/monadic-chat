@@ -63,11 +63,11 @@ function openMaskEditor(imageData) {
   `;
 
   document.body.insertAdjacentHTML('beforeend', modalHTML);
-  var maskModalEl = document.getElementById('maskEditorModal');
+  var maskModalEl = $id('maskEditorModal');
   bootstrap.Modal.getOrCreateInstance(maskModalEl).show();
 
   // Initialize canvas
-  const canvas = document.getElementById("maskCanvas");
+  const canvas = $id("maskCanvas");
   const ctx = canvas.getContext("2d");
   let isDrawing = false;
   let tool = "brush"; // brush or eraser
@@ -78,10 +78,10 @@ function openMaskEditor(imageData) {
   let currentBrushSize = 0;
 
   // Update brush size display
-  var brushSizeInput = document.getElementById('brushSize');
+  var brushSizeInput = $id('brushSize');
   if (brushSizeInput) {
     brushSizeInput.addEventListener('input', function() {
-      var sizeLabel = document.getElementById('brushSizeValue');
+      var sizeLabel = $id('brushSizeValue');
       if (sizeLabel) sizeLabel.textContent = this.value + 'px';
     });
   }
@@ -141,7 +141,7 @@ function openMaskEditor(imageData) {
 
   function scaledBrushSize() {
     const rect = canvas.getBoundingClientRect();
-    var sizeInput = document.getElementById('brushSize');
+    var sizeInput = $id('brushSize');
     return parseInt(sizeInput ? sizeInput.value : '20') * (canvas.width / rect.width);
   }
 
@@ -201,8 +201,8 @@ function openMaskEditor(imageData) {
   }
 
   // Drawing tool event handlers
-  var brushToolBtn = document.getElementById('brushTool');
-  var eraserToolBtn = document.getElementById('eraserTool');
+  var brushToolBtn = $id('brushTool');
+  var eraserToolBtn = $id('eraserTool');
 
   if (brushToolBtn) {
     brushToolBtn.addEventListener('click', function() {
@@ -221,7 +221,7 @@ function openMaskEditor(imageData) {
   }
 
   // Undo last stroke
-  var undoBtn = document.getElementById('undoMask');
+  var undoBtn = $id('undoMask');
   if (undoBtn) {
     undoBtn.addEventListener('click', function() {
       if (strokes.length > 0) {
@@ -232,7 +232,7 @@ function openMaskEditor(imageData) {
   }
 
   // Clear all strokes
-  var clearBtn = document.getElementById('clearMask');
+  var clearBtn = $id('clearMask');
   if (clearBtn) {
     clearBtn.addEventListener('click', function() {
       strokes = [];
@@ -282,7 +282,7 @@ function openMaskEditor(imageData) {
   canvas.addEventListener("touchend", endStroke);
 
   // Save mask
-  var saveBtn = document.getElementById('saveMask');
+  var saveBtn = $id('saveMask');
   if (saveBtn) {
     saveBtn.addEventListener('click', function() {
     try {
@@ -359,7 +359,7 @@ function openMaskEditor(imageData) {
         img.title === imageData.title && img !== window.currentMaskData
       );
 
-      var imageUsedEl = document.getElementById('image-used');
+      var imageUsedEl = $id('image-used');
 
       if (existingImageIndex !== -1) {
         if (imageUsedEl) {
@@ -384,7 +384,7 @@ function openMaskEditor(imageData) {
         var origImg = document.querySelector(`.image-container img[alt="${imageData.title}"]`);
         if (origImg) {
           var container = origImg.closest('.image-container');
-          if (container) container.style.display = 'none';
+          $hide(container);
         }
       } else {
         if (imageUsedEl) {
@@ -428,7 +428,7 @@ function openMaskEditor(imageData) {
             if (hiddenImg) {
               var hiddenContainer = hiddenImg.closest('.image-container');
               if (hiddenContainer && hiddenContainer.style.display === 'none') {
-                hiddenContainer.style.display = '';
+                $show(hiddenContainer);
               }
             }
           }
@@ -463,7 +463,7 @@ function openMaskEditor(imageData) {
       // Close modal
       bootstrap.Modal.getOrCreateInstance(maskModalEl).hide();
       setTimeout(function() {
-        var modalToRemove = document.getElementById('maskEditorModal');
+        var modalToRemove = $id('maskEditorModal');
         if (modalToRemove) modalToRemove.remove();
       }, 500);
     } catch (error) {

@@ -202,13 +202,13 @@
       this.set('windowHeight', window.innerHeight);
       
       // Check initial menu visibility
-      const menu = document.getElementById('menu');
+      const menu = $id('menu');
       if (menu) {
         this.set('isMenuVisible', menu.style.display !== 'none');
       }
       
       // Check initial spinner state
-      const spinner = document.getElementById('monadic-spinner');
+      const spinner = $id('monadic-spinner');
       if (spinner) {
         this.set('spinnerVisible', spinner.style.display !== 'none');
       }

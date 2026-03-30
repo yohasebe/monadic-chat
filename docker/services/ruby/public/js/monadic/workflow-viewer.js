@@ -778,7 +778,7 @@ const WorkflowViewer = (function () {
   // ── Panel title ──────────────────────────────────────────────
 
   function updateTitle(name) {
-    var el = document.getElementById('workflowViewerLabel');
+    var el = $id('workflowViewerLabel');
     if (!el) return;
     var base = 'Workflow Viewer';
     if (typeof i18next !== 'undefined' && i18next.t) {
@@ -1026,7 +1026,7 @@ const WorkflowViewer = (function () {
   // ── Toggle button active state ─────────────────────────────
 
   function setToggleActive(active) {
-    var btn = document.getElementById('toggle-workflow-viewer');
+    var btn = $id('toggle-workflow-viewer');
     if (!btn) return;
     if (active) btn.classList.add('wv-active');
     else btn.classList.remove('wv-active');
@@ -1246,8 +1246,8 @@ const WorkflowViewer = (function () {
       HierarchicalLayout = window.maxgraph.HierarchicalLayout;
       Rectangle = window.maxgraph.Rectangle;
       Point = window.maxgraph.Point;
-      panelEl = document.getElementById('workflow-viewer-panel');
-      container = document.getElementById('workflow-viewer-container');
+      panelEl = $id('workflow-viewer-panel');
+      container = $id('workflow-viewer-container');
       if (!panelEl || !container) { console.warn('[WorkflowViewer] Panel not found'); return; }
       // Move panel to body so position:fixed is relative to viewport,
       // not constrained by any ancestor with transform/filter/will-change
@@ -1255,14 +1255,14 @@ const WorkflowViewer = (function () {
         document.body.appendChild(panelEl);
       }
       var self = this;
-      var btn = document.getElementById('toggle-workflow-viewer');
-      if (btn) btn.addEventListener('click', function () { self.toggle(); });
-      var closeBtn = document.getElementById('wv-close');
-      if (closeBtn) closeBtn.addEventListener('click', function () { self.close(); });
-      var zi = document.getElementById('wv-zoom-in'), zo = document.getElementById('wv-zoom-out'), zf = document.getElementById('wv-zoom-fit');
-      if (zi) zi.addEventListener('click', function () { if (graph) graph.zoomIn(); });
-      if (zo) zo.addEventListener('click', function () { if (graph) graph.zoomOut(); });
-      if (zf) zf.addEventListener('click', function () { fitGraphToContainer(); });
+      var btn = $id('toggle-workflow-viewer');
+      $on(btn, 'click', function () { self.toggle(); });
+      var closeBtn = $id('wv-close');
+      $on(closeBtn, 'click', function () { self.close(); });
+      var zi = $id('wv-zoom-in'), zo = $id('wv-zoom-out'), zf = $id('wv-zoom-fit');
+      $on(zi, 'click', function () { if (graph) graph.zoomIn(); });
+      $on(zo, 'click', function () { if (graph) graph.zoomOut(); });
+      $on(zf, 'click', function () { fitGraphToContainer(); });
       setupTooltips(); setupClickHandler(); buildLegend();
       setupDrag(); setupResize();
       // Load persisted panel rect (applied when panel opens)
@@ -1336,7 +1336,7 @@ const WorkflowViewer = (function () {
     },
     toggle: function () {
       if (this.isOpen()) { this.close(); return; }
-      var sel = document.getElementById('apps'), n = sel ? sel.value : null;
+      var sel = $id('apps'), n = sel ? sel.value : null;
       if (n && n !== currentApp) pendingApp = n;
       this.open();
     },

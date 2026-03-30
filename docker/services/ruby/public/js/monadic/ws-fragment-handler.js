@@ -21,7 +21,7 @@
       return;
     }
     if (fragment && fragment.type === 'fragment') {
-      var tempCardEl = document.getElementById('temp-card');
+      var tempCardEl = $id('temp-card');
       console.log('[handleFragmentMessage] Processing fragment, temp-card exists:', !!tempCardEl, 'visible:', tempCardEl ? tempCardEl.style.display !== 'none' : false, 'display:', tempCardEl ? tempCardEl.style.display : 'N/A');
       const text = fragment.content || '';
 
@@ -52,7 +52,7 @@
         window._lastProcessedIndex = -1;
 
         // Only clear #chat if it exists and has content from old streaming approach
-        var chatEl = document.getElementById("chat");
+        var chatEl = $id("chat");
         if (chatEl && chatEl.innerHTML.trim() !== "") {
           chatEl.innerHTML = '';
         }
@@ -71,9 +71,9 @@
             '<div class="card-text"></div>' +
           '</div>';
 
-        var discourseEl = document.getElementById("discourse");
+        var discourseEl = $id("discourse");
         if (discourseEl) discourseEl.appendChild(tempCardEl);
-        tempCardEl.style.display = ''; // Ensure temp-card is visible after creation
+        $show(tempCardEl); // Ensure temp-card is visible after creation
       } else if (fragment.start === true || fragment.is_first === true) {
         // If this is marked as the first fragment of a streaming response, clear the existing content
         var cardTextClear = tempCardEl.querySelector('.card-text');
@@ -82,7 +82,7 @@
         window._lastProcessedIndex = -1;
 
         // Move the temp card to the end of #discourse to ensure correct position
-        var discourseReappend = document.getElementById("discourse");
+        var discourseReappend = $id("discourse");
         if (discourseReappend && tempCardEl.parentNode) {
           tempCardEl.parentNode.removeChild(tempCardEl);
           discourseReappend.appendChild(tempCardEl);
@@ -155,7 +155,7 @@
       console.log('[handleFragmentMessage] .card-text exists:', !!tempText, 'adding text length:', text.length);
       if (tempText) {
         // Ensure temp-card is visible when adding content
-        tempCardEl.style.display = '';
+        $show(tempCardEl);
         // Debug: Log current text content before adding
         if (window.debugFragments) {
           console.log('[Fragment Debug] Before append - DOM text length:', tempText.textContent.length);

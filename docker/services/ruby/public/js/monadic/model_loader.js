@@ -56,13 +56,13 @@
   // before model specifications are loaded from API
   window.addEventListener('modelsLoaded', function() {
     // Check if model selector exists and is empty
-    const modelSelect = document.getElementById('model');
+    const modelSelect = $id('model');
     if (modelSelect && modelSelect.options.length === 0) {
       // Model selector is empty, need to repopulate
       // Trigger app change to rebuild model list
-      const appsSelect = document.getElementById('apps');
+      const appsSelect = $id('apps');
       if (appsSelect && appsSelect.value) {
-        appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
+        $dispatch(appsSelect, 'change');
       }
     }
   });

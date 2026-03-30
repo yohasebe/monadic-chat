@@ -54,7 +54,7 @@ function setupTextarea(textarea, initialHeight) {
  */
 function adjustScrollButtons() {
   try {
-    const mainPanel = document.getElementById('main');
+    const mainPanel = $id('main');
     if (!mainPanel) return;
 
     // Use centralized configuration if available
@@ -66,25 +66,25 @@ function adjustScrollButtons() {
     // Check if toggle button has menu-hidden class
     // When menu-hidden class is present, menu is hidden and main is showing
     // When menu-hidden class is absent, menu is showing and main is hidden
-    const toggleBtn = document.getElementById('toggle-menu');
+    const toggleBtn = $id('toggle-menu');
     const isMenuHidden = toggleBtn && toggleBtn.classList.contains('menu-hidden');
 
     if (!isMenuHidden) {
       // Menu is showing (toggle button doesn't have menu-hidden class), hide scroll buttons
-      const topBtn = document.getElementById('back_to_top');
-      const bottomBtn = document.getElementById('back_to_bottom');
-      if (topBtn) topBtn.style.display = 'none';
-      if (bottomBtn) bottomBtn.style.display = 'none';
+      const topBtn = $id('back_to_top');
+      const bottomBtn = $id('back_to_bottom');
+      $hide(topBtn);
+      $hide(bottomBtn);
       return;
     }
   }
 
   // Also check for menu-visible class (mobile menu state)
   if (document.body.classList.contains('menu-visible')) {
-    const topBtn = document.getElementById('back_to_top');
-    const bottomBtn = document.getElementById('back_to_bottom');
-    if (topBtn) topBtn.style.display = 'none';
-    if (bottomBtn) bottomBtn.style.display = 'none';
+    const topBtn = $id('back_to_top');
+    const bottomBtn = $id('back_to_bottom');
+    $hide(topBtn);
+    $hide(bottomBtn);
     return;
   }
 
@@ -94,8 +94,8 @@ function adjustScrollButtons() {
   const mainScrollTop = mainPanel.scrollTop || 0;
 
   // Get scroll button elements
-  const backToTopBtn = document.getElementById('back_to_top');
-  const backToBottomBtn = document.getElementById('back_to_bottom');
+  const backToTopBtn = $id('back_to_top');
+  const backToBottomBtn = $id('back_to_bottom');
 
   // Position buttons relative to main panel
   const mainRect = mainPanel.getBoundingClientRect();
@@ -112,25 +112,25 @@ function adjustScrollButtons() {
   // Show top button when scrolled down enough from the top
   // This should work even when at the bottom
   if (mainScrollTop > scrollThreshold) {
-    if (backToTopBtn) backToTopBtn.style.display = '';
+    $show(backToTopBtn);
   } else {
-    if (backToTopBtn) backToTopBtn.style.display = 'none';
+    $hide(backToTopBtn);
   }
 
     // Show bottom button when not near the bottom
     const distanceFromBottom = mainScrollHeight - mainScrollTop - mainHeight;
     if (distanceFromBottom > scrollThreshold) {
-      if (backToBottomBtn) backToBottomBtn.style.display = '';
+      $show(backToBottomBtn);
     } else {
-      if (backToBottomBtn) backToBottomBtn.style.display = 'none';
+      $hide(backToBottomBtn);
     }
   } catch (error) {
     console.error("Error in adjustScrollButtons:", error);
     // Hide buttons on error to prevent stuck visible state
-    var topBtn = document.getElementById('back_to_top');
-    var bottomBtn = document.getElementById('back_to_bottom');
-    if (topBtn) topBtn.style.display = 'none';
-    if (bottomBtn) bottomBtn.style.display = 'none';
+    var topBtn = $id('back_to_top');
+    var bottomBtn = $id('back_to_bottom');
+    $hide(topBtn);
+    $hide(bottomBtn);
   }
 }
 
@@ -189,8 +189,8 @@ function adjustImageUploadButton(selectedModel) {
   if (!modelSpec || !selectedModel) return;
 
   const modelData = modelSpec[selectedModel];
-  const imageFileElement = document.getElementById('image-file');
-  const appsElement = document.getElementById('apps');
+  const imageFileElement = $id('image-file');
+  const appsElement = $id('apps');
   const currentApp = appsElement ? appsElement.value : null;
 
   // Check if current app is an image generation app using the common function
@@ -226,7 +226,7 @@ function adjustImageUploadButton(selectedModel) {
     }
 
     // Also update the file input's accept attribute
-    const imageFileInput = document.getElementById('imageFile');
+    const imageFileInput = $id('imageFile');
     if (imageFileInput) {
       if (isFileInputsEnabled && !isImageGenerationApp) {
         imageFileInput.setAttribute('accept', '.jpg,.jpeg,.png,.gif,.webp,.pdf,.xlsx,.docx,.pptx,.csv,.txt,.md,.json,.html,.xml');
@@ -238,12 +238,12 @@ function adjustImageUploadButton(selectedModel) {
     }
 
     if (imageFileElement) {
-      imageFileElement.style.display = '';
+      $show(imageFileElement);
     }
   } else {
     if (imageFileElement) {
       imageFileElement.disabled = true;
-      imageFileElement.style.display = 'none';
+      $hide(imageFileElement);
     }
   }
 }

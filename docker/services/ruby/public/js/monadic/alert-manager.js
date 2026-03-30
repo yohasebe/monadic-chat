@@ -44,7 +44,7 @@ var STATUS_COLORS_DARK = {
 function setAlertClass(alertType) {
   if (alertType === undefined) alertType = "error";
 
-  var el = document.getElementById('status-message');
+  var el = $id('status-message');
   if (!el) return;
 
   // Remove all existing text-* classes
@@ -85,8 +85,8 @@ function setAlert(text, alertType) {
   if (alertType === undefined) alertType = "success";
 
   if (alertType === "error") {
-    var spinner = document.getElementById('monadic-spinner');
-    if (spinner) spinner.style.display = 'none';
+    var spinner = $id('monadic-spinner');
+    $hide(spinner);
 
     var msg = text;
     if (text["content"]) {
@@ -127,7 +127,7 @@ function setAlert(text, alertType) {
           mids.delete(mid);
         }
 
-        var statusMsg = document.getElementById('status-message');
+        var statusMsg = $id('status-message');
         if (statusMsg) statusMsg.innerHTML = "<i class='fas fa-circle-check'></i> Error message removed";
         setAlertClass("success");
         return false;
@@ -140,7 +140,7 @@ function setAlert(text, alertType) {
       editBtn.style.opacity = "0.5";
     }
 
-    var discourse = document.getElementById('discourse');
+    var discourse = $id('discourse');
     if (discourse && errorCardEl) discourse.appendChild(errorCardEl);
   } else {
     // Translate known status messages
@@ -168,7 +168,7 @@ function setAlert(text, alertType) {
       }
     }
 
-    var statusEl = document.getElementById('status-message');
+    var statusEl = $id('status-message');
     if (statusEl) statusEl.innerHTML = displayText;
     setAlertClass(alertType);
 
@@ -206,7 +206,7 @@ function setAlert(text, alertType) {
  */
 function setStats(text) {
   if (text === undefined) text = "";
-  var el = document.getElementById('stats-message');
+  var el = $id('stats-message');
   if (el) el.innerHTML = text;
 }
 
@@ -214,7 +214,7 @@ function setStats(text) {
  * Clear status message text and remove all status type classes.
  */
 function clearStatusMessage() {
-  var el = document.getElementById('status-message');
+  var el = $id('status-message');
   if (!el) return;
   el.innerHTML = "";
   var classes = el.className.match(/\btext-\S+/g);
@@ -246,7 +246,7 @@ function clearErrorCards() {
  * @param {string} mid - Message ID
  */
 function deleteMessage(mid) {
-  var card = document.getElementById(mid);
+  var card = $id(mid);
   if (card && typeof detachEventListeners === 'function') {
     detachEventListeners(card);
   }

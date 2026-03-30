@@ -35,9 +35,9 @@ function handleInfo(data) {
     }
 
     // FORCE hide spinner unconditionally - new tabs should never show spinner
-    const spinnerEl = document.getElementById("monadic-spinner");
+    const spinnerEl = $id("monadic-spinner");
     if (spinnerEl) {
-      spinnerEl.style.display = 'none';
+      $hide(spinnerEl);
       const spanIcon = spinnerEl.querySelector("span i");
       if (spanIcon) {
         spanIcon.classList.remove("fa-headphones", "fa-brain", "fa-circle-nodes", "fa-cogs");
@@ -55,15 +55,15 @@ function handleInfo(data) {
     if (typeof window.checkAndHideSpinner === 'function') {
       window.checkAndHideSpinner();
     } else {
-      const fallbackSpinner = document.getElementById("monadic-spinner");
-      if (fallbackSpinner) fallbackSpinner.style.display = 'none';
+      const fallbackSpinner = $id("monadic-spinner");
+      $hide(fallbackSpinner);
     }
   }
 
   // Update status message after spinner is hidden
   const apps = window.apps || {};
   const hasAppsData = Object.keys(apps).length > 0;
-  const appsSelect = document.getElementById("apps");
+  const appsSelect = $id("apps");
   const hasDOMOptions = appsSelect ? appsSelect.querySelectorAll("option").length > 0 : false;
 
   if (!hasAppsData && !hasDOMOptions) {
@@ -94,8 +94,8 @@ function handleInfo(data) {
  */
 function _rebuildAppSelectors(apps) {
   try {
-    const appsEl = document.getElementById("apps");
-    const customDropdown = document.getElementById("custom-apps-dropdown");
+    const appsEl = $id("apps");
+    const customDropdown = $id("custom-apps-dropdown");
     if (appsEl) appsEl.innerHTML = '';
     if (customDropdown) customDropdown.innerHTML = '';
 
@@ -180,7 +180,7 @@ function _rebuildAppSelectors(apps) {
       groupEl.addEventListener("click", function() {
         const group = this.dataset.group;
         const nGroupId = normalizeGroupId(group);
-        const container = document.getElementById(`group-${nGroupId}`);
+        const container = $id(`group-${nGroupId}`);
         const icon = this.querySelector(".group-toggle-icon i");
         if (container) container.classList.toggle("collapsed");
         if (icon) {
@@ -200,7 +200,7 @@ function _rebuildAppSelectors(apps) {
       const firstApp = appsEl.querySelector("option:not(:disabled)");
       if (firstApp) {
         appsEl.value = firstApp.value;
-        appsEl.dispatchEvent(new Event('change', {bubbles: true}));
+        $dispatch(appsEl, 'change');
       }
     }
   } catch (e) {
@@ -219,7 +219,7 @@ function _appendAppOption(key, value, groupId, group) {
   const appIcon = value["icon"] || "";
   const isDisabled = value.disabled === "true";
 
-  const appsEl = document.getElementById("apps");
+  const appsEl = $id("apps");
   if (appsEl) {
     const opt = document.createElement("option");
     opt.value = key;
@@ -233,7 +233,7 @@ function _appendAppOption(key, value, groupId, group) {
   if (isDisabled) {
     disabledTitle = group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"';
   }
-  const groupContainer = document.getElementById(`group-${groupId}`);
+  const groupContainer = $id(`group-${groupId}`);
   if (groupContainer) {
     groupContainer.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
       <span style="margin-right: 8px;">${appIcon}</span>

@@ -147,6 +147,14 @@ global.setInputFocus = jest.fn();
 global.listModels = jest.fn().mockReturnValue('<option>model1</option>');
 global.modelSpec = { 'gpt-4.1': { reasoning_effort: 'high' } };
 
+// DOM helper functions (from dom-helpers.js)
+global.$id = function(id) { return document.getElementById(id); };
+global.$show = function(el) { if (el) el.style.display = ""; };
+global.$hide = function(el) { if (el) el.style.display = "none"; };
+global.$toggle = function(el, visible) { if (el) el.style.display = visible ? "" : "none"; };
+global.$on = function(el, event, fn, options) { if (el) el.addEventListener(event, fn, options); };
+global.$dispatch = function(el, eventName) { if (el) el.dispatchEvent(new Event(eventName, { bubbles: true })); };
+
 // Mock browser multimedia APIs
 global.Audio = jest.fn().mockImplementation(() => ({
   src: '',

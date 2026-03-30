@@ -46,16 +46,16 @@ function handlePastMessages(data) {
     mids.clear();
   }
 
-  var discourseEl = document.getElementById("discourse");
+  var discourseEl = $id("discourse");
   if (discourseEl) discourseEl.innerHTML = '';
 
-  var appsEl = document.getElementById("apps");
+  var appsEl = $id("apps");
   var currentApp = appsEl ? appsEl.value : null;
   if (currentApp && window.SessionState && typeof window.SessionState.setCurrentApp === "function") {
     window.SessionState.setCurrentApp(currentApp);
   }
 
-  var modelEl = document.getElementById("model");
+  var modelEl = $id("model");
   var currentModel = modelEl ? modelEl.value : null;
   if (currentModel && window.SessionState) {
     window.SessionState.app.model = currentModel;
@@ -198,7 +198,7 @@ function handlePastMessages(data) {
   const hasConversation = serverMessages.some((m) => m.role !== "system");
   const labelPromise = window.i18nReady || Promise.resolve();
   labelPromise.then(() => {
-    var startLabelEl = document.getElementById("start-label");
+    var startLabelEl = $id("start-label");
     if (startLabelEl) {
       if (hasConversation) {
         const continueText =
@@ -251,7 +251,7 @@ function handleEditSuccess(data) {
   setAlert(`<i class='fa-solid fa-circle-check'></i> ${data.content}`, "success");
 
   // Get the message card by mid
-  var cardEl = document.getElementById(data.mid);
+  var cardEl = $id(data.mid);
   if (!cardEl) {
     return;
   }
@@ -401,7 +401,7 @@ function handleDisplaySample(data) {
   }
 
   // First check if this message already exists
-  if (document.getElementById(content.mid)) {
+  if ($id(content.mid)) {
     return;
   }
 
@@ -426,7 +426,7 @@ function handleDisplaySample(data) {
   );
 
   // Append to discourse
-  var discourseEl = document.getElementById("discourse");
+  var discourseEl = $id("discourse");
   if (discourseEl && cardElement) {
     discourseEl.appendChild(cardElement[0] || cardElement);
   }

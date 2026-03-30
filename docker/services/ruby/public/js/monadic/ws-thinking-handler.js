@@ -31,7 +31,7 @@ function handleThinking(data) {
   }
 
   // Create or get temporary reasoning card
-  let tempReasoningCard = document.getElementById("temp-reasoning-card");
+  let tempReasoningCard = $id("temp-reasoning-card");
   if (!tempReasoningCard) {
     const titleText = data.type === 'thinking' ?
       (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.thinkingProcess') : 'Thinking Process') :
@@ -50,7 +50,7 @@ function handleThinking(data) {
         <div class="card-body">
           <div class="card-text"></div>
         </div>`;
-    const discourse = document.getElementById("discourse");
+    const discourse = $id("discourse");
     if (discourse) discourse.appendChild(tempReasoningCard);
   }
 
@@ -81,7 +81,7 @@ function handleThinking(data) {
  * @param {Object} _data - Message data (unused)
  */
 function handleClearFragments(_data) {
-  const tempCard = document.getElementById("temp-card");
+  const tempCard = $id("temp-card");
   if (tempCard) {
     const cardText = tempCard.querySelector(".card-text");
     if (cardText) cardText.innerHTML = '';

@@ -307,14 +307,14 @@ function resetAudioVariables() {
     }
     window.checkAndHideSpinner();
   } else {
-    const _spinnerEl = document.getElementById("monadic-spinner");
-    if (_spinnerEl) _spinnerEl.style.display = 'none';
+    const _spinnerEl = $id("monadic-spinner");
+    $hide(_spinnerEl);
   }
 }
 
 // Populate the Web Speech voices in the dropdown
 function populateWebSpeechVoices() {
-  const webSpeechSelect = document.getElementById("webspeech-voice");
+  const webSpeechSelect = $id("webspeech-voice");
   if (!webSpeechSelect) return;
 
   webSpeechSelect.innerHTML = '';
@@ -324,21 +324,21 @@ function populateWebSpeechVoices() {
   console.debug(`Found ${highQualityVoices.length} high-quality voices out of ${webSpeechVoices.length} total voices`);
 
   // Hide Web Speech option if no quality voices available
-  const ttsProviderSelect = document.getElementById("tts-provider");
+  const ttsProviderSelect = $id("tts-provider");
   const webspeechOption = ttsProviderSelect ? ttsProviderSelect.querySelector("option[value='webspeech']") : null;
 
   if (highQualityVoices.length === 0) {
     // Hide the webspeech option if no quality voices available
-    if (webspeechOption) webspeechOption.style.display = 'none';
+    $hide(webspeechOption);
     // If webspeech was selected, switch to another provider
     if (ttsProviderSelect && ttsProviderSelect.value === "webspeech") {
       ttsProviderSelect.value = "openai";
-      ttsProviderSelect.dispatchEvent(new Event("change", {bubbles: true}));
+      $dispatch(ttsProviderSelect, "change");
     }
     return;
   } else {
     // Show the webspeech option if quality voices are available
-    if (webspeechOption) webspeechOption.style.display = '';
+    $show(webspeechOption);
   }
 
   // Group voices by language for better organization
@@ -447,8 +447,8 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      const _spinnerEl = document.getElementById("monadic-spinner");
-    if (_spinnerEl) _spinnerEl.style.display = 'none';
+      const _spinnerEl = $id("monadic-spinner");
+    $hide(_spinnerEl);
     }
     return false;
   }
@@ -459,10 +459,10 @@ function speakWithWebSpeech(text, speed, callback) {
   // If no high-quality voices available, fallback to cloud providers
   if (highQualityVoices.length === 0) {
     console.warn('No high-quality Web Speech voices available, falling back to cloud provider');
-    const ttsProviderSelect = document.getElementById("tts-provider");
+    const ttsProviderSelect = $id("tts-provider");
     if (ttsProviderSelect) {
       ttsProviderSelect.value = "openai";
-      ttsProviderSelect.dispatchEvent(new Event("change", {bubbles: true}));
+      $dispatch(ttsProviderSelect, "change");
     }
     if (typeof callback === 'function') callback(false);
     // Hide spinner on error - respect Auto Speech mode
@@ -475,8 +475,8 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      const _spinnerEl = document.getElementById("monadic-spinner");
-      if (_spinnerEl) _spinnerEl.style.display = 'none';
+      const _spinnerEl = $id("monadic-spinner");
+      $hide(_spinnerEl);
     }
     return false;
   }
@@ -488,7 +488,7 @@ function speakWithWebSpeech(text, speed, callback) {
   const utterance = new SpeechSynthesisUtterance(text);
 
   // Set voice if selected
-  const voiceSelect = document.getElementById("webspeech-voice");
+  const voiceSelect = $id("webspeech-voice");
   if (voiceSelect) {
     const voiceValue = voiceSelect.value;
     
@@ -538,7 +538,7 @@ function speakWithWebSpeech(text, speed, callback) {
     // So we don't need to hide it here on onend event
 
     // Reset spinner to default state for other operations
-    const endSpinner = document.getElementById("monadic-spinner");
+    const endSpinner = $id("monadic-spinner");
     if (endSpinner) {
       const endSpan = endSpinner.querySelector("span");
       if (endSpan) endSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
@@ -559,11 +559,11 @@ function speakWithWebSpeech(text, speed, callback) {
       }
       window.checkAndHideSpinner();
     } else {
-      const _spinnerEl = document.getElementById("monadic-spinner");
-      if (_spinnerEl) _spinnerEl.style.display = 'none';
+      const _spinnerEl = $id("monadic-spinner");
+      $hide(_spinnerEl);
     }
     // Reset spinner to default state
-    const errSpinner = document.getElementById("monadic-spinner");
+    const errSpinner = $id("monadic-spinner");
     if (errSpinner) {
       const errSpan = errSpinner.querySelector("span");
       if (errSpan) errSpan.innerHTML = '<i class="fas fa-comment fa-pulse"></i> Starting';
@@ -579,8 +579,8 @@ function speakWithWebSpeech(text, speed, callback) {
 
 function ttsSpeak(text, stream, callback) {
   // Get settings from UI
-  const ttsProviderEl = document.getElementById("tts-provider");
-  const ttsSpeedEl = document.getElementById("tts-speed");
+  const ttsProviderEl = $id("tts-provider");
+  const ttsSpeedEl = $id("tts-speed");
   const provider = ttsProviderEl ? ttsProviderEl.value : "";
   const speed = ttsSpeedEl ? parseFloat(ttsSpeedEl.value) : 1.0;
 
@@ -603,7 +603,7 @@ function ttsSpeak(text, stream, callback) {
       // Auto-switch to cloud provider
       if (ttsProviderEl) {
         ttsProviderEl.value = "openai";
-        ttsProviderEl.dispatchEvent(new Event("change", {bubbles: true}));
+        $dispatch(ttsProviderEl, "change");
       }
       // Use new provider
       return ttsSpeak(text, stream, callback);
@@ -618,13 +618,13 @@ function ttsSpeak(text, stream, callback) {
   }
   
   // For traditional TTS providers (OpenAI, ElevenLabs, Gemini)
-  const ttsVoiceEl = document.getElementById("tts-voice");
+  const ttsVoiceEl = $id("tts-voice");
   const voice = ttsVoiceEl ? ttsVoiceEl.value : "";
-  const elevenlabsEl = document.getElementById("elevenlabs-tts-voice");
+  const elevenlabsEl = $id("elevenlabs-tts-voice");
   const elevenlabs_voice = elevenlabsEl ? elevenlabsEl.value : "";
-  const geminiEl = document.getElementById("gemini-tts-voice");
+  const geminiEl = $id("gemini-tts-voice");
   const gemini_voice = geminiEl ? geminiEl.value : "";
-  const mistralEl = document.getElementById("mistral-tts-voice");
+  const mistralEl = $id("mistral-tts-voice");
   const mistral_voice = mistralEl ? mistralEl.value : "";
   
   

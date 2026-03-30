@@ -174,8 +174,8 @@
         window.setTtsPlaybackStarted(true);
         window.checkAndHideSpinner();
       } else {
-        var spinner = document.getElementById("monadic-spinner");
-        if (spinner) spinner.style.display = "none";
+        var spinner = $id("monadic-spinner");
+        $hide(spinner);
       }
 
       if (typeof window.hideTtsToast === 'function') window.hideTtsToast();

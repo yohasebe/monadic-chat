@@ -2398,10 +2398,16 @@ pre code {
 
 /* END: CODE STYLE IMPROVEMENTS */
 
-#config, #main-panel, #monadic-info-panel, #ai-status-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+#config, #main-panel {
   border: none;
   border-bottom: 1px solid var(--border-light);
   padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+#monadic-info-panel, #ai-status-panel, #pdf-panel, #context-panel, #control-panel, #theme-panel, #interaction-panel, #voice-panel {
+  border: none;
+  border-bottom: 1px solid var(--border-light);
   margin-bottom: 1rem;
 }
 

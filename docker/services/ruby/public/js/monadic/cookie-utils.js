@@ -75,7 +75,7 @@ function setCookieValues() {
     if (value) {
       if (el && el.querySelector('option[value="' + value + '"]')) {
         el.value = value;
-        el.dispatchEvent(new Event("change"));
+        el.dispatchEvent(new Event("change", {bubbles: true}));
       } else if (property === "elevenlabs-tts-voice") {
         // Handle when voices load later
       } else if (property === "webspeech-voice") {
@@ -84,7 +84,7 @@ function setCookieValues() {
     } else if (property === "tts-provider") {
       if (el) {
         el.value = "openai-tts-4o";
-        el.dispatchEvent(new Event("change"));
+        el.dispatchEvent(new Event("change", {bubbles: true}));
       }
     }
   });

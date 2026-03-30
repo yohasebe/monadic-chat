@@ -1834,11 +1834,11 @@ document.addEventListener("DOMContentLoaded", function () {
           { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = true; _el.disabled = true; } };
           { const _el = document.getElementById("max-tokens"); if (_el) _el.disabled = true; };
         } else {
-          { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = true; _el.disabled = false; _el.dispatchEvent(new Event("change")); } };
+          { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = true; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
         }
       } else {
         { const _el = document.getElementById("max-tokens"); if (_el) _el.value = DEFAULT_MAX_OUTPUT_TOKENS; }
-        { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change")); } };
+        { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
       }
       // Show Thinking toggle: only for models with supports_thinking
       if (modelSpec[selectedModel]["supports_thinking"]) {
@@ -1851,7 +1851,7 @@ document.addEventListener("DOMContentLoaded", function () {
       { const _el = document.getElementById("temperature"); if (_el) _el.disabled = true; };
       { const _el = document.getElementById("presence-penalty"); if (_el) _el.disabled = true; };
       { const _el = document.getElementById("frequency-penalty"); if (_el) _el.disabled = true; };
-      { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change")); } };
+      { const _el = document.getElementById("max-tokens-toggle"); if (_el) { _el.checked = false; _el.disabled = false; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
       { const _el = document.getElementById("max-tokens"); if (_el) _el.value = DEFAULT_MAX_OUTPUT_TOKENS; };
       { const _el = document.getElementById("thinking-display-container"); if (_el) _el.style.display = "none"; };
     }
@@ -2272,17 +2272,17 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(() => {
           { const _el = document.getElementById("model"); if (_el) _el.value = model; };
           if ((document.getElementById("model") || {}).value === model) {
-            { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change")); };
+            { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
           } else {
             // Defensive fallback: select first available (non-disabled) option
             const firstOption = (document.querySelector("#model option:not(:disabled)") || {}).value;
             if (firstOption) {
-              { const _el = document.getElementById("model"); if (_el) { _el.value = firstOption; _el.dispatchEvent(new Event("change")); } };
+              { const _el = document.getElementById("model"); if (_el) { _el.value = firstOption; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
             }
           }
         }, 100);
       } else {
-        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change")); };
+        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
       }
       // Use UI utilities module if available, otherwise fallback
       if (uiUtils && uiUtils.adjustImageUploadButton) {
@@ -2304,7 +2304,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (params["model"] && models && models.includes(params["model"])) {
         { const _el = document.getElementById("model"); if (_el) _el.innerHTML = model_options; };
-        { const _el = document.getElementById("model"); if (_el) { _el.value = params["model"]; _el.dispatchEvent(new Event("change")); } };
+        { const _el = document.getElementById("model"); if (_el) { _el.value = params["model"]; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
       } else {
         let model_options = `<option disabled="disabled" selected="selected">Models not available</option>`;
         { const _el = document.getElementById("model"); if (_el) _el.innerHTML = model_options; };
@@ -2382,7 +2382,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setTimeout(function() {
       const currentModel = (document.getElementById("model") || {}).value;
       if (currentModel) {
-        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change")); };
+        { const _el = document.getElementById("model"); if (_el) _el.dispatchEvent(new Event("change", {bubbles: true})); };
       }
     }, 100);
 
@@ -2759,8 +2759,8 @@ document.addEventListener("DOMContentLoaded", function () {
     window.suppressParamBroadcastCount = (window.suppressParamBroadcastCount || 0) + 1;
     try {
       // Set checkbox values and trigger change events to update params
-      { const _el = document.getElementById("check-auto-speech"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change")); } }
-      { const _el = document.getElementById("check-easy-submit"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change")); } }
+      { const _el = document.getElementById("check-auto-speech"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change", {bubbles: true})); } }
+      { const _el = document.getElementById("check-easy-submit"); if (_el) { _el.checked = shouldCheck; _el.dispatchEvent(new Event("change", {bubbles: true})); } }
     } finally {
       window.suppressParamBroadcastCount = Math.max(0, (window.suppressParamBroadcastCount || 0) - 1);
     }
@@ -2985,7 +2985,7 @@ document.addEventListener("DOMContentLoaded", function () {
         
         // Clear input field and reset role selector immediately
         { const _el = document.getElementById("message"); if (_el) { _el.style.height = "96px"; _el.value = ""; } }
-        { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change")); } };
+        { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
       });
     } else {
       reconnect_websocket(ws, function (ws) {
@@ -3028,7 +3028,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change")); } };
+    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
@@ -3049,7 +3049,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
-    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change")); } };
+    { const _el = document.getElementById("select-role"); if (_el) { _el.value = "user"; _el.dispatchEvent(new Event("change", {bubbles: true})); } };
     // Wait for i18n to be ready before updating button text
     if (window.i18nReady) {
       window.i18nReady.then(() => {
@@ -4508,7 +4508,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Update the real select value
         $select.value = value;
-        $select.dispatchEvent(new Event("change"));
+        $select.dispatchEvent(new Event("change", {bubbles: true}));
 
         // Close dropdown using the proper method
         closeDropdown();

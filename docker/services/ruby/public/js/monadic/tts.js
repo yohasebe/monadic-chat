@@ -333,7 +333,7 @@ function populateWebSpeechVoices() {
     // If webspeech was selected, switch to another provider
     if (ttsProviderSelect && ttsProviderSelect.value === "webspeech") {
       ttsProviderSelect.value = "openai";
-      ttsProviderSelect.dispatchEvent(new Event("change"));
+      ttsProviderSelect.dispatchEvent(new Event("change", {bubbles: true}));
     }
     return;
   } else {
@@ -462,7 +462,7 @@ function speakWithWebSpeech(text, speed, callback) {
     const ttsProviderSelect = document.getElementById("tts-provider");
     if (ttsProviderSelect) {
       ttsProviderSelect.value = "openai";
-      ttsProviderSelect.dispatchEvent(new Event("change"));
+      ttsProviderSelect.dispatchEvent(new Event("change", {bubbles: true}));
     }
     if (typeof callback === 'function') callback(false);
     // Hide spinner on error - respect Auto Speech mode
@@ -603,7 +603,7 @@ function ttsSpeak(text, stream, callback) {
       // Auto-switch to cloud provider
       if (ttsProviderEl) {
         ttsProviderEl.value = "openai";
-        ttsProviderEl.dispatchEvent(new Event("change"));
+        ttsProviderEl.dispatchEvent(new Event("change", {bubbles: true}));
       }
       // Use new provider
       return ttsSpeak(text, stream, callback);

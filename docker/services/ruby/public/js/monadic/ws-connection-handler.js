@@ -58,7 +58,7 @@ function handleTokenVerified(data) {
         const defaultSTTModel = window.providerDefaults?.openai?.audio_transcription?.[0]
           || "gpt-4o-mini-transcribe-2025-12-15";
         sttModelEl.value = defaultSTTModel;
-        sttModelEl.dispatchEvent(new Event("change"));
+        sttModelEl.dispatchEvent(new Event("change", {bubbles: true}));
       }
     }
 
@@ -66,7 +66,7 @@ function handleTokenVerified(data) {
     const ttsProviderEl = document.getElementById("tts-provider");
     if (ttsProviderEl && ttsProviderEl.value === "webspeech") {
       ttsProviderEl.value = "openai-tts-4o";
-      ttsProviderEl.dispatchEvent(new Event("change"));
+      ttsProviderEl.dispatchEvent(new Event("change", {bubbles: true}));
     }
 
     // Enable various UI elements

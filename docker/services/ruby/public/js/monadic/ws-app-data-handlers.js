@@ -72,7 +72,7 @@ function handleElevenLabsVoices(data) {
     const providerSelect = document.getElementById("tts-provider");
     if (providerSelect) {
       providerSelect.value = savedProvider;
-      providerSelect.dispatchEvent(new Event("change"));
+      providerSelect.dispatchEvent(new Event("change", {bubbles: true}));
     }
   }
 }
@@ -134,7 +134,7 @@ function handleGeminiVoices(data) {
     const providerSelect = document.getElementById("tts-provider");
     if (providerSelect) {
       providerSelect.value = savedProvider;
-      providerSelect.dispatchEvent(new Event("change"));
+      providerSelect.dispatchEvent(new Event("change", {bubbles: true}));
     }
   }
 }
@@ -185,7 +185,7 @@ function handleMistralVoices(data) {
     const providerSelect = document.getElementById("tts-provider");
     if (providerSelect) {
       providerSelect.value = savedProvider;
-      providerSelect.dispatchEvent(new Event("change"));
+      providerSelect.dispatchEvent(new Event("change", {bubbles: true}));
     }
   }
 }

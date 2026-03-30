@@ -715,7 +715,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
   const initialPromptEl = document.getElementById("initial-prompt");
   if (initialPromptEl) {
     initialPromptEl.value = params["initial_prompt"] || '';
-    initialPromptEl.dispatchEvent(new Event("input"));
+    initialPromptEl.dispatchEvent(new Event("input", {bubbles: true}));
   }
   if (window.logTL) window.logTL('initial_prompt_set', {
     calledFor,
@@ -726,7 +726,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     const aiUserPromptEl = document.getElementById("ai-user-initial-prompt");
     if (aiUserPromptEl) {
       aiUserPromptEl.value = params["ai_user_initial_prompt"];
-      aiUserPromptEl.dispatchEvent(new Event("input"));
+      aiUserPromptEl.dispatchEvent(new Event("input", {bubbles: true}));
     }
     if (typeof window.setPromptView === 'function') window.setPromptView('aiuser', false);
   } else {
@@ -895,15 +895,15 @@ window.loadParams = function(params, calledFor = "loadParams") {
     if (maxTokensToggle && !maxTokensToggle.disabled) {
       let max_tokens = params["max_tokens"];
       if (max_tokens) {
-        if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change")); }
+        if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
         if (maxTokensEl) maxTokensEl.value = !isNaN(max_tokens) ? parseInt(max_tokens) : max_tokens;
       } else {
         if (spec["max_output_tokens"]) {
           if (maxTokensEl) maxTokensEl.value = spec["max_output_tokens"][1];
-          if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change")); }
+          if (maxTokensToggle) { maxTokensToggle.checked = true; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
         } else {
           if (maxTokensEl) maxTokensEl.value = DEFAULT_MAX_OUTPUT_TOKENS;
-          if (maxTokensToggle) { maxTokensToggle.checked = false; maxTokensToggle.dispatchEvent(new Event("change")); }
+          if (maxTokensToggle) { maxTokensToggle.checked = false; maxTokensToggle.dispatchEvent(new Event("change", {bubbles: true})); }
         }
       }
     }
@@ -921,7 +921,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
     if (frequencyPenaltyElFb) frequencyPenaltyElFb.disabled = true;
     if (modelParamsElFb) modelParamsElFb.style.display = 'none';
     if (maxTokensElFb) maxTokensElFb.value = DEFAULT_MAX_OUTPUT_TOKENS;
-    if (maxTokensToggleFb) { maxTokensToggleFb.checked = false; maxTokensToggleFb.dispatchEvent(new Event("change")); }
+    if (maxTokensToggleFb) { maxTokensToggleFb.checked = false; maxTokensToggleFb.dispatchEvent(new Event("change", {bubbles: true})); }
   }
 
   // (reverted) removed OpenAI PDF manager refresh hook after model updates
@@ -1409,7 +1409,7 @@ function doResetActions(resetToDefaultApp = false) {
   lastApp = currentApp;
 
   // Trigger app change to reset all settings to defaults
-  if (drApps) drApps.dispatchEvent(new Event("change"));
+  if (drApps) drApps.dispatchEvent(new Event("change", {bubbles: true}));
 
   const drBaseAppTitle = document.getElementById("base-app-title");
   if (drBaseAppTitle) drBaseAppTitle.textContent = apps[currentApp]["display_name"] || apps[currentApp]["app_name"];
@@ -1468,7 +1468,7 @@ function doResetActions(resetToDefaultApp = false) {
   // Instead of selecting the first available app, maintain the current selection
   // Use stop_apps_trigger flag to prevent app change dialog
   stop_apps_trigger = true;
-  if (drApps) drApps.dispatchEvent(new Event("change"));
+  if (drApps) drApps.dispatchEvent(new Event("change", {bubbles: true}));
 
   // Use UI utilities module if available, otherwise fallback
   const drModelVal = drModelEl ? drModelEl.value : null;
@@ -1567,7 +1567,7 @@ document.addEventListener("DOMContentLoaded", function() {
           const defaultModel = getDefaultModelForApp(currentApp, models);
           if (defaultModel) rdModelEl.value = defaultModel;
         }
-        rdModelEl.dispatchEvent(new Event("change"));
+        rdModelEl.dispatchEvent(new Event("change", {bubbles: true}));
       }
     });
   }

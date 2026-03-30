@@ -19,6 +19,7 @@
   - **jQuery Complete Removal**: Eliminated jQuery 3.7.0 dependency entirely (45 files, ~4,600 call sites converted to vanilla JS)
     - Bootstrap 5 modal/tooltip migrated to native JavaScript API
     - 87KB library removed from page load
+    - DOM helper utilities (`$id`, `$show`, `$hide`, `$toggle`, `$on`, `$dispatch`) for concise null-safe DOM operations
   - **jQuery UI Removal**: Removed jQuery UI dependency (248KB), replaced draggable with PointerEvents
   - **MathJax → KaTeX**: Migrated math rendering from MathJax to KaTeX (75% JS size reduction: 1.1MB → 272KB)
   - **Mistral Voxtral TTS**: Text-to-speech via Mistral API with 30 preset voices (9 languages: EN/FR/ES/DE/IT/PT/NL/HI/AR)

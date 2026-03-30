@@ -139,14 +139,15 @@ const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 // Hide voice button on iOS/iPadOS devices on document ready
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
   if (isIOSDevice) {
     // Hide the voice button completely on iOS/iPadOS
-    $("#voice").hide();
+    const voiceEl = document.getElementById("voice");
+    if (voiceEl) voiceEl.style.display = 'none';
   }
 });
 
-const voiceButton = $("#voice");
+const voiceButton = document.getElementById("voice");
 let mediaRecorder;
 let localStream;
 let isListening = false;
@@ -180,9 +181,13 @@ function startAudioCapture() {
     console.error(errorMsg);
     setAlert(`<i class='fas fa-exclamation-triangle'></i> ${errorMsg}`, "danger");
     // Reset button state
-    $("#voice").toggleClass("btn-info btn-danger");
-    $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
-    $("#send, #clear, #voice").prop("disabled", false);
+    const voiceEl = document.getElementById("voice");
+    if (voiceEl) {
+      voiceEl.classList.toggle("btn-info");
+      voiceEl.classList.toggle("btn-danger");
+      voiceEl.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+    }
+    ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
     isListening = false;
     return;
   }
@@ -202,7 +207,7 @@ function startAudioCapture() {
     .then(function (stream) {
       localStream = stream;
       // Check which STT model is selected
-      const sttModelSelect = $("#stt-model");
+      const sttModelSelect = document.getElementById("stt-model");
       
       // Choose audio formats based on the selected STT model
       let mimeTypes = [
@@ -241,7 +246,7 @@ function startAudioCapture() {
       const closeAudioContext = detectSilence(stream, function () {
         if (isListening) {
           silenceDetected = true;
-          voiceButton.trigger("click");
+          voiceButton.click();
         }
       }, silenceDuration);
 
@@ -252,18 +257,21 @@ function startAudioCapture() {
       console.error("Error accessing microphone:", err);
       const micErrorText = getTranslation('ui.messages.microphoneAccessError', 'MICROPHONE ACCESS ERROR');
       setAlert(`${micErrorText}: ${err.message}`, "error");
-      
+
       // Restore button state on error
-      voiceButton.toggleClass("btn-info btn-danger");
-      voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
-      $("#send, #clear").prop("disabled", false);
+      voiceButton.classList.toggle("btn-info");
+      voiceButton.classList.toggle("btn-danger");
+      voiceButton.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+      ['send', 'clear'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
       isListening = false;
-      $("#monadic-spinner").hide();
-      $("#amplitude").hide();
+      const spinnerEl = document.getElementById("monadic-spinner");
+      if (spinnerEl) spinnerEl.style.display = 'none';
+      const amplitudeEl = document.getElementById("amplitude");
+      if (amplitudeEl) amplitudeEl.style.display = 'none';
     });
 }
 
-voiceButton.on("click", function () {
+voiceButton.addEventListener("click", function () {
   if (speechSynthesis.speaking) {
     speechSynthesis.cancel();
   }
@@ -275,26 +283,32 @@ voiceButton.on("click", function () {
   }
 
     // Save original placeholder text to restore later
-    const originalPlaceholder = $("#message").attr("placeholder");
+    const messageEl = document.getElementById("message");
+    const originalPlaceholder = messageEl ? messageEl.getAttribute("placeholder") : '';
     // Store it as a data attribute on the message element
-    $("#message").data("original-placeholder", originalPlaceholder);
+    if (messageEl) messageEl.dataset.originalPlaceholder = originalPlaceholder;
     // Set new placeholder for recording state
     const listeningPlaceholder = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.listeningPlaceholder') : "Listening to your voice input...";
-    $("#message").attr("placeholder", listeningPlaceholder);
-    
-    $("#asr-p-value").text("").hide();
+    if (messageEl) messageEl.setAttribute("placeholder", listeningPlaceholder);
+
+    const asrPValue = document.getElementById("asr-p-value");
+    if (asrPValue) { asrPValue.textContent = ""; asrPValue.style.display = 'none'; }
     // Show amplitude chart when voice recording starts
-    $("#amplitude").show().css("display", "inline-flex"); // Ensure proper display mode
+    const amplitudeEl = document.getElementById("amplitude");
+    if (amplitudeEl) amplitudeEl.style.display = "inline-flex";
     silenceDetected = false;
-    voiceButton.toggleClass("btn-info btn-danger");
+    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-danger");
     const stopText = typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.stopButton') : 'Stop';
-    voiceButton.html(`<i class="fas fa-microphone"></i> ${stopText}`);
+    voiceButton.innerHTML = `<i class="fas fa-microphone"></i> ${stopText}`;
     const listeningText = getTranslation('ui.messages.listeningStatus', 'LISTENING . . .');
     setAlert(`<i class='fas fa-microphone'></i> ${listeningText}`, "info");
-    $("#send, #clear").prop("disabled", true);
-    $("#monadic-spinner").show();
+    ['send', 'clear'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
+    const spinnerEl = document.getElementById("monadic-spinner");
+    if (spinnerEl) spinnerEl.style.display = '';
     const listeningSpinnerText = getTranslation('ui.messages.spinnerListening', 'Listening...');
-    $("#monadic-spinner span").html(`<i class="fas fa-microphone fa-pulse"></i> ${listeningSpinnerText}`);
+    const spinnerSpan = document.querySelector("#monadic-spinner span");
+    if (spinnerSpan) spinnerSpan.innerHTML = `<i class="fas fa-microphone fa-pulse"></i> ${listeningSpinnerText}`;
     isListening = true;
 
     // For Electron environment, try to explicitly request permissions via bridge API
@@ -344,21 +358,26 @@ voiceButton.on("click", function () {
   // "Stop" button is pressed
   } else if (!silenceDetected) {
     // Restore original placeholder
-    const originalPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-    $("#message").attr("placeholder", originalPlaceholder);
-    
-    voiceButton.toggleClass("btn-info btn-danger");
-    voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
+    const messageElStop = document.getElementById("message");
+    const originalPlaceholder = (messageElStop && messageElStop.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+    if (messageElStop) messageElStop.setAttribute("placeholder", originalPlaceholder);
+
+    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-danger");
+    voiceButton.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
     const processingText = getTranslation('ui.messages.processingStatus', 'PROCESSING ...');
     setAlert(`<i class='fas fa-cogs'></i> ${processingText}`, "warning");
-    $("#send, #clear, #voice").prop("disabled", true);
+    ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
     // Update spinner to show processing state
     const processingSpeechText = getTranslation('ui.messages.spinnerProcessingSpeech', 'Processing speech...');
-    $("#monadic-spinner span").html(`<i class="fas fa-cogs fa-pulse"></i> ${processingSpeechText}`);
+    const spinnerSpanStop = document.querySelector("#monadic-spinner span");
+    if (spinnerSpanStop) spinnerSpanStop.innerHTML = `<i class="fas fa-cogs fa-pulse"></i> ${processingSpeechText}`;
     // Hide amplitude display immediately when processing starts
-    $("#amplitude").hide();
+    const amplitudeElStop = document.getElementById("amplitude");
+    if (amplitudeElStop) amplitudeElStop.style.display = 'none';
     // Show cancel button during STT processing
-    $("#cancel_query").show();
+    const cancelQueryEl = document.getElementById("cancel_query");
+    if (cancelQueryEl) cancelQueryEl.style.display = '';
     isListening = false;
 
     if(mediaRecorder){
@@ -372,24 +391,32 @@ voiceButton.on("click", function () {
             const noAudioText = getTranslation('ui.messages.noAudioDetected', 'NO AUDIO DETECTED: Check your microphone settings');
             setAlert(noAudioText, "error");
             // Restore original placeholder
-            const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-            $("#message").attr("placeholder", origPlaceholder);
-            
-            $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
-            $("#send, #clear, #voice").prop("disabled", false);
-            $("#amplitude").hide();
-            $("#monadic-spinner").hide();
+            const msgElNoAudio = document.getElementById("message");
+            const origPlaceholder = (msgElNoAudio && msgElNoAudio.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+            if (msgElNoAudio) msgElNoAudio.setAttribute("placeholder", origPlaceholder);
+
+            const voiceElNoAudio = document.getElementById("voice");
+            if (voiceElNoAudio) voiceElNoAudio.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+            ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+            const ampElNoAudio = document.getElementById("amplitude");
+            if (ampElNoAudio) ampElNoAudio.style.display = 'none';
+            const spinElNoAudio = document.getElementById("monadic-spinner");
+            if (spinElNoAudio) spinElNoAudio.style.display = 'none';
             return; // This prevents further processing
           }
           
           soundToBase64(event.data, function (base64) {
             if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
-              const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-              $("#message").attr("placeholder", origPlaceholder);
-              $("#voice").html('<i class=\'fas fa-microphone\'></i> Speech Input');
-              $("#send, #clear, #voice").prop("disabled", false);
-              $("#amplitude").hide();
-              $("#monadic-spinner").hide();
+              const msgElBg = document.getElementById("message");
+              const origPlaceholder = (msgElBg && msgElBg.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+              if (msgElBg) msgElBg.setAttribute("placeholder", origPlaceholder);
+              const voiceElBg = document.getElementById("voice");
+              if (voiceElBg) voiceElBg.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+              ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+              const ampElBg = document.getElementById("amplitude");
+              if (ampElBg) ampElBg.style.display = 'none';
+              const spinElBg = document.getElementById("monadic-spinner");
+              if (spinElBg) spinElBg.style.display = 'none';
               return;
             }
             // Double-check the base64 length to ensure we have actual content
@@ -398,18 +425,24 @@ voiceButton.on("click", function () {
               const audioFailedText = getTranslation('ui.messages.audioProcessingFailed', 'AUDIO PROCESSING FAILED');
               setAlert(audioFailedText, "error");
               // Restore original placeholder
-              const origPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-              $("#message").attr("placeholder", origPlaceholder);
-              
-              $("#voice").html('<i class="fas fa-microphone"></i> Speech Input');
-              $("#send, #clear, #voice").prop("disabled", false);
-              $("#amplitude").hide();
-              $("#monadic-spinner").hide();
+              const msgElFail = document.getElementById("message");
+              const origPlaceholderFail = (msgElFail && msgElFail.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+              if (msgElFail) msgElFail.setAttribute("placeholder", origPlaceholderFail);
+
+              const voiceElFail = document.getElementById("voice");
+              if (voiceElFail) voiceElFail.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+              ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+              const ampElFail = document.getElementById("amplitude");
+              if (ampElFail) ampElFail.style.display = 'none';
+              const spinElFail = document.getElementById("monadic-spinner");
+              if (spinElFail) spinElFail.style.display = 'none';
               return;
             }
             
-            let lang_code = $("#conversation-language").val();
-            let stt_model = $("#stt-model").val()
+            const convLangEl = document.getElementById("conversation-language");
+            let lang_code = convLangEl ? convLangEl.value : '';
+            const sttModelEl = document.getElementById("stt-model");
+            let stt_model = (sttModelEl ? sttModelEl.value : '')
               || window.providerDefaults?.openai?.audio_transcription?.[0]
               || "gpt-4o-mini-transcribe-2025-12-15";
 
@@ -462,30 +495,37 @@ voiceButton.on("click", function () {
         // Clean up stream reference
         localStream = null;
         
-        $("#asr-p-value").show();
-        $("#amplitude").hide();
+        const asrPValueEl = document.getElementById("asr-p-value");
+        if (asrPValueEl) asrPValueEl.style.display = '';
+        const ampElDone = document.getElementById("amplitude");
+        if (ampElDone) ampElDone.style.display = 'none';
       } catch (e) {
         console.error("Error in mediaRecorder processing:", e);
-        $("#send, #clear, #voice").prop("disabled", false);
-        $("#monadic-spinner").hide();
+        ['send', 'clear', 'voice'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+        const spinElErr = document.getElementById("monadic-spinner");
+        if (spinElErr) spinElErr.style.display = 'none';
       }
     }
 
   } else {
     // Restore original placeholder
-    const originalPlaceholder = $("#message").data("original-placeholder") || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
-    $("#message").attr("placeholder", originalPlaceholder);
-    
-    voiceButton.toggleClass("btn-info btn-danger");
+    const messageElSilence = document.getElementById("message");
+    const originalPlaceholder = (messageElSilence && messageElSilence.dataset.originalPlaceholder) || (typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messagePlaceholder') : "Type your message or click Speech Input button to use voice . . .");
+    if (messageElSilence) messageElSilence.setAttribute("placeholder", originalPlaceholder);
+
+    voiceButton.classList.toggle("btn-info");
+    voiceButton.classList.toggle("btn-danger");
     const silenceText = getTranslation('ui.messages.silenceDetected', 'SILENCE DETECTED: Check your microphone settings');
     setAlert(silenceText, "error");
-    voiceButton.html('<i class="fas fa-microphone"></i> Speech Input');
-    $("#send, #clear").prop("disabled", false);
+    voiceButton.innerHTML = '<i class="fas fa-microphone"></i> Speech Input';
+    ['send', 'clear'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
     isListening = false;
-    
+
     // Hide spinner and amplitude chart when silence is detected
-    $("#monadic-spinner").hide();
-    $("#amplitude").hide();
+    const spinElSilence = document.getElementById("monadic-spinner");
+    if (spinElSilence) spinElSilence.style.display = 'none';
+    const ampElSilence = document.getElementById("amplitude");
+    if (ampElSilence) ampElSilence.style.display = 'none';
 
     mediaRecorder.stop();
     localStream.getTracks().forEach(track => track.stop());
@@ -499,7 +539,7 @@ voiceButton.on("click", function () {
         console.warn('Error closing audio context on silence detection:', e);
       }
     }
-    
+
     // Additional cleanup to ensure all resources are released
     try {
       if (mediaRecorder) {
@@ -509,8 +549,9 @@ voiceButton.on("click", function () {
     } catch (e) {
       console.warn('Error cleaning up media resources:', e);
     }
-    
-    $("#amplitude").hide();
+
+    const ampElSilence2 = document.getElementById("amplitude");
+    if (ampElSilence2) ampElSilence2.style.display = 'none';
   }
 });
 
@@ -539,7 +580,7 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Try to pre-request microphone permissions in Electron environment on page load
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
   // Only in Electron environment
   if (window.electronAPI && window.electronAPI.requestMediaPermissions) {
     window.electronAPI.requestMediaPermissions()

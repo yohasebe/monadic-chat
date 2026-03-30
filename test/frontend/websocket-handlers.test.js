@@ -2,190 +2,11 @@
  * @jest-environment jsdom
  */
 
-// Helper function to create a jQuery mock element
-function createMockJQueryElement() {
-  let appendedContent = '';
-  
-  const mockElement = {
-    text: jest.fn(function(content) {
-      if (content !== undefined) {
-        appendedContent = content;
-      }
-      return this;
-    }),
-    attr: jest.fn().mockReturnThis(),
-    addClass: jest.fn().mockReturnThis(),
-    hide: jest.fn().mockReturnThis(),
-    show: jest.fn().mockReturnThis(),
-    append: jest.fn(function(content) {
-      // If content is a jQuery element with text(), extract the text
-      if (content && content.text && content.text.mock && content.text.mock.calls.length > 0) {
-        appendedContent = content.text.mock.calls[0][0];
-      } else {
-        appendedContent = content;
-      }
-      return this;
-    }),
-    html: jest.fn().mockReturnThis(),
-    val: jest.fn().mockReturnThis(),
-    prop: jest.fn().mockReturnThis(),
-    css: jest.fn().mockReturnThis(),
-    outerHTML: '<div class="error-message"></div>'
-  };
-  
-  // Mock the [0] accessor to return an object with outerHTML
-  Object.defineProperty(mockElement, '0', {
-    get: function() {
-      return { 
-        outerHTML: `<div class="error-message"><i class="fas fa-exclamation-circle"></i> <span>${appendedContent}</span></div>` 
-      };
-    }
-  });
-  
-  return mockElement;
-}
-
-// Create custom jQuery mock that handles specific functions needed by handlers
-global.$ = jest.fn().mockImplementation(selector => {
-  // Handle jQuery creation of new elements
-  if (typeof selector === 'string' && selector.startsWith('<')) {
-    return createMockJQueryElement();
-  }
-  
-  // For common selectors, return objects with the necessary methods
-  if (selector === '#message') {
-    return {
-      val: jest.fn(v => {
-        if (v === undefined) return ''; 
-        return undefined; // Mock implementation for val(newValue)
-      }),
-      show: jest.fn(),
-      hide: jest.fn(),
-      prop: jest.fn(),
-      attr: jest.fn(),
-      text: jest.fn(),
-      focus: jest.fn()
-    };
-  }
-  
-  if (selector === '#monadic-spinner') {
-    return {
-      show: jest.fn(),
-      hide: jest.fn()
-    };
-  }
-  
-  if (selector === '#asr-p-value') {
-    return {
-      text: jest.fn(),
-      show: jest.fn(),
-      hide: jest.fn()
-    };
-  }
-  
-  if (selector === '#discourse') {
-    return {
-      append: jest.fn().mockReturnThis(),
-      html: jest.fn(),
-      show: jest.fn(),
-      hide: jest.fn()
-    };
-  }
-  
-  if (selector === '#send, #clear, #voice, #doc, #url' || 
-      selector === '#send, #clear, #image-file, #voice, #doc, #url' ||
-      selector === '#select-role' ||
-      selector === '#cancel_query' ||
-      selector === '#api-token' ||
-      selector === '#ai-user-initial-prompt' ||
-      selector === '#check-easy-submit' ||
-      selector === '#ai_user') {
-    return {
-      prop: jest.fn(),
-      val: jest.fn(),
-      show: jest.fn(),
-      hide: jest.fn(),
-      text: jest.fn(),
-      is: jest.fn().mockReturnValue(false),
-      click: jest.fn()
-    };
-  }
-  
-  if (selector === '#amplitude') {
-    return {
-      hide: jest.fn()
-    };
-  }
-  
-  if (selector === '#temp-card') {
-    return {
-      hide: jest.fn(),
-      remove: jest.fn(),
-      length: 0  // Important for the HTML handler
-    };
-  }
-  
-  // Default mock for other selectors
-  const mockElement = {
-    val: jest.fn(),
-    text: jest.fn().mockReturnThis(),
-    show: jest.fn(),
-    hide: jest.fn(),
-    prop: jest.fn(),
-    attr: jest.fn(),
-    css: jest.fn(),
-    append: jest.fn().mockReturnThis(),
-    html: jest.fn().mockReturnThis(),
-    outerHTML: '<div></div>'
-  };
-  
-  // Make text() return the mockElement for chaining
-  mockElement.text.mockReturnValue(mockElement);
-  mockElement.append.mockReturnValue(mockElement);
-  
-  // Add array access for jQuery collections
-  mockElement[0] = { outerHTML: '<div></div>' };
-  
-  return mockElement;
-});
-
 // Mock window object
 global.window = {
   ...global.window,
   firefoxAudioMode: false,
   firefoxAudioQueue: []
-};
-
-// Mock document methods
-global.document = {
-  ...global.document,
-  getElementById: jest.fn((id) => {
-    if (id === 'chat-bottom') {
-      return {
-        scrollIntoView: jest.fn()
-      };
-    }
-    return {
-      scrollIntoView: jest.fn(),
-      innerHTML: '',
-      appendChild: jest.fn(),
-      classList: {
-        toggle: jest.fn()
-      }
-    };
-  }),
-  createElement: jest.fn((tagName) => {
-    const elem = {
-      textContent: '',
-      innerHTML: ''
-    };
-    Object.defineProperty(elem, 'textContent', {
-      set: function(value) {
-        this.innerHTML = value ? value.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
-      }
-    });
-    return elem;
-  })
 };
 
 // Mock global utilities
@@ -207,9 +28,8 @@ global.createCard = jest.fn().mockImplementation((role, header, content, lang, m
 });
 global.autoScrollToBottom = jest.fn();
 global.setTimeout = jest.fn().mockImplementation((cb) => {
-  // Immediately execute the callback instead of waiting
   if (typeof cb === 'function') cb();
-  return 123; // Return a mock timer ID
+  return 123;
 });
 global.clearTimeout = jest.fn();
 global.Blob = jest.fn().mockImplementation(() => ({
@@ -223,118 +43,106 @@ global.Audio = jest.fn().mockImplementation(() => ({
   onended: null
 }));
 
-// Import the module under test - using CommonJS require since this file isn't using ES modules
+// Import the module under test
 const handlers = require('../../docker/services/ruby/public/js/monadic/websocket-handlers');
 
-// Store original jQuery mock
-const originalJQueryMock = global.$;
+// Helper: set up DOM elements for a test
+function setupDom(ids) {
+  ids.forEach(id => {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      document.body.appendChild(el);
+    }
+  });
+}
+
+// Common element IDs used across tests
+const commonIds = [
+  'api-token', 'ai-user-initial-prompt', 'message', 'monadic-spinner',
+  'send', 'clear', 'image-file', 'voice', 'doc', 'url', 'ai_user',
+  'ai_user_provider', 'select-role', 'cancel_query', 'discourse',
+  'asr-p-value', 'amplitude', 'user-panel', 'check-easy-submit',
+  'temp-card', 'chat-bottom'
+];
 
 // Reset all mocks before each test
 beforeEach(() => {
   jest.clearAllMocks();
-  
-  // Restore original jQuery mock
-  global.$ = originalJQueryMock;
-  
-  // Ensure global functions are defined
-  if (!global.setAlert) {
-    global.setAlert = jest.fn();
-  }
-  if (!global.setInputFocus) {
-    global.setInputFocus = jest.fn();
-  }
-  if (!global.createCard) {
-    global.createCard = jest.fn().mockReturnValue('<div class="card">Mock Card</div>');
-  }
-});
 
-// Restore jQuery mock after each test to prevent interference
-afterEach(() => {
-  global.$ = originalJQueryMock;
+  // Clean body
+  document.body.innerHTML = '';
+
+  // Set up common DOM elements
+  setupDom(commonIds);
+
+  // Also add a span inside monadic-spinner for spinner text updates
+  const spinnerEl = document.getElementById('monadic-spinner');
+  const spinnerSpan = document.createElement('span');
+  spinnerEl.appendChild(spinnerSpan);
+
+  // Ensure global functions are defined
+  if (!global.setAlert) global.setAlert = jest.fn();
+  if (!global.setInputFocus) global.setInputFocus = jest.fn();
+  if (!global.createCard) global.createCard = jest.fn().mockReturnValue('<div class="card">Mock Card</div>');
 });
 
 describe('WebSocket Handlers', () => {
   // Test the token verification handler
   describe('handleTokenVerification', () => {
     it('should process token verification message', () => {
-      // Test data
       const data = {
         type: 'token_verified',
         token: 'test-token',
         ai_user_initial_prompt: 'test-prompt'
       };
-      
-      // Call the handler
+
       const result = handlers.handleTokenVerification(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#api-token');
-      expect($).toHaveBeenCalledWith('#ai-user-initial-prompt');
+      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
-    
+
     it('should return false for non-token messages', () => {
       const result = handlers.handleTokenVerification({ type: 'something-else' });
       expect(result).toBe(false);
     });
-    
+
     it('should handle token message with additional model data', () => {
-      // Test data with models array
       const data = {
         type: 'token_verified',
         token: 'test-token',
         ai_user_initial_prompt: 'test-prompt',
         models: ['gpt-4.1', 'gpt-3.5-turbo']
       };
-      
-      // Call the handler
+
       const result = handlers.handleTokenVerification(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#api-token');
-      expect($).toHaveBeenCalledWith('#ai-user-initial-prompt');
+      expect(document.getElementById('api-token').value).toBe('test-token');
+      expect(document.getElementById('ai-user-initial-prompt').value).toBe('test-prompt');
     });
   });
-  
+
   // Test the error message handler
   describe('handleErrorMessage', () => {
     it('should handle error messages', () => {
-      // Setup discourse mock to verify append is called
-      const mockDiscourse = {
-        append: jest.fn()
-      };
-      $.mockImplementation(selector => {
-        if (selector === '#discourse') {
-          return mockDiscourse;
-        }
-        if (typeof selector === 'string' && selector.startsWith('<')) {
-          return createMockJQueryElement();
-        }
-        // Return default mock for other selectors
-        return {
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data
       const data = {
         type: 'error',
         content: 'Test error message'
       };
-      
-      // Call the handler
+
       const result = handlers.handleErrorMessage(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#monadic-spinner');
-      
-      // Verify createCard was called instead of setAlert
+      // Verify controls were re-enabled
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('clear').disabled).toBe(false);
+      expect(document.getElementById('message').disabled).toBe(false);
+
+      // Verify createCard was called
       expect(global.createCard).toHaveBeenCalledWith(
         "system",
         expect.stringContaining('System'),
@@ -344,49 +152,22 @@ describe('WebSocket Handlers', () => {
         true,
         []
       );
-      
+
       // Verify the error card was appended to discourse
-      expect(mockDiscourse.append).toHaveBeenCalled();
+      expect(document.getElementById('discourse').innerHTML).toContain('card');
     });
-    
+
     it('should specifically handle AI User error from Perplexity', () => {
-      // Setup mocks for AI User button
-      const mockAiUserButton = { prop: jest.fn() };
-      $.mockImplementation(selector => {
-        // Handle jQuery creation of new elements
-        if (typeof selector === 'string' && selector.startsWith('<')) {
-          return createMockJQueryElement();
-        }
-        
-        if (selector === '#ai_user') {
-          return mockAiUserButton;
-        }
-        if (selector === '#discourse') {
-          return {
-            append: jest.fn()
-          };
-        }
-        return {
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data with Perplexity error
       const data = {
         type: 'error',
         content: 'AI User error with provider perplexity: Last message must have role `user`'
       };
-      
-      // Call the handler
+
       const result = handlers.handleErrorMessage(data);
-      
-      // Verify error is handled and AI User button is re-enabled
+
       expect(result).toBe(true);
-      expect(mockAiUserButton.prop).toHaveBeenCalledWith('disabled', false);
-      
-      // Verify createCard was called instead of setAlert
+      expect(document.getElementById('ai_user').disabled).toBe(false);
+
       expect(global.createCard).toHaveBeenCalledWith(
         "system",
         expect.stringContaining('System'),
@@ -397,132 +178,83 @@ describe('WebSocket Handlers', () => {
         []
       );
     });
-    
+
     it('should return false for non-error messages', () => {
       const result = handlers.handleErrorMessage({ type: 'something-else' });
       expect(result).toBe(false);
     });
-    
+
     it('should handle error messages when setAlert is undefined', () => {
-      // Temporarily remove setAlert function
       const originalSetAlert = global.setAlert;
       global.setAlert = undefined;
-      
-      // Test data
+
       const data = {
         type: 'error',
         content: 'Test error message'
       };
-      
-      // Call the handler
+
       const result = handlers.handleErrorMessage(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#send, #clear, #image-file, #voice, #doc, #url');
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#monadic-spinner');
-      expect($).toHaveBeenCalledWith('#discourse');
-      
-      // Restore setAlert
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('message').disabled).toBe(false);
+
       global.setAlert = originalSetAlert;
     });
-    
+
     it('should handle error messages with HTML content', () => {
-      // Setup discourse mock
-      const mockDiscourse = { append: jest.fn() };
-      $.mockImplementation(selector => {
-        if (selector === '#discourse') {
-          return mockDiscourse;
-        }
-        if (typeof selector === 'string' && selector.startsWith('<')) {
-          return createMockJQueryElement();
-        }
-        return {
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data with HTML
       const data = {
         type: 'error',
         content: '<strong>Error:</strong> Connection failed'
       };
-      
-      // Call the handler
+
       const result = handlers.handleErrorMessage(data);
-      
-      // Verify the result processes HTML content correctly
+
       expect(result).toBe(true);
-      
-      // Verify createCard was called with the HTML content
       expect(global.createCard).toHaveBeenCalledWith(
         "system",
         expect.stringContaining('System'),
-        expect.stringContaining('<strong>Error:</strong> Connection failed'),
+        expect.stringContaining('error-message'),
         "en",
         null,
         true,
         []
       );
-      
-      // Verify the error card was appended
-      expect(mockDiscourse.append).toHaveBeenCalled();
+      expect(document.getElementById('discourse').innerHTML).toContain('card');
     });
-    
+
     it('should handle null or empty error content', () => {
-      // Setup discourse mock
-      const mockDiscourse = { append: jest.fn() };
-      $.mockImplementation(selector => {
-        if (selector === '#discourse') {
-          return mockDiscourse;
-        }
-        if (typeof selector === 'string' && selector.startsWith('<')) {
-          return createMockJQueryElement();
-        }
-        return {
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data with empty content
+      // Test with empty content
       const data = {
         type: 'error',
         content: ''
       };
-      
-      // Call the handler
+
       const result = handlers.handleErrorMessage(data);
-      
-      // Should still process the error
       expect(result).toBe(true);
       expect(global.createCard).toHaveBeenCalledWith(
         "system",
         expect.stringContaining('System'),
-        expect.stringContaining(''),
+        expect.any(String),
         "en",
         null,
         true,
         []
       );
-      
+
       // Test with null content
+      global.createCard.mockClear();
       const nullData = {
         type: 'error',
         content: null
       };
-      
-      global.createCard.mockClear();
+
       const nullResult = handlers.handleErrorMessage(nullData);
       expect(nullResult).toBe(true);
       expect(global.createCard).toHaveBeenCalledWith(
         "system",
         expect.stringContaining('System'),
-        expect.any(String),  // The error div will contain some string
+        expect.any(String),
         "en",
         null,
         true,
@@ -530,172 +262,103 @@ describe('WebSocket Handlers', () => {
       );
     });
   });
-  
+
   // Test the audio message handler
   describe('handleAudioMessage', () => {
-    // Clear processed audio IDs before each test to prevent state pollution
     beforeEach(() => {
       handlers.clearProcessedAudioIds();
     });
 
     it('should handle audio messages', () => {
-      // Mock the process audio function
       const processAudio = jest.fn();
-
-      // Test data
       const data = {
         type: 'audio',
-        content: 'dGVzdC1hdWRpby1kYXRh' // "test-audio-data" in Base64
+        content: 'dGVzdC1hdWRpby1kYXRh'
       };
 
-      // Call the handler
       const result = handlers.handleAudioMessage(data, processAudio);
 
-      // Verify the result
       expect(result).toBe(true);
       expect(atob).toHaveBeenCalledWith('dGVzdC1hdWRpby1kYXRh');
       expect(processAudio).toHaveBeenCalled();
     });
-    
+
     it('should return false for non-audio messages', () => {
       const result = handlers.handleAudioMessage({ type: 'something-else' });
       expect(result).toBe(false);
     });
-    
+
     it('should handle errors during audio processing', () => {
-      // Force an error by making atob throw
       atob.mockImplementationOnce(() => {
         throw new Error('Test error');
       });
-      
-      // Spy on console.error
+
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      
-      // Test data
+
       const data = {
         type: 'audio',
         content: 'invalid-data'
       };
-      
-      // Call the handler
+
       const result = handlers.handleAudioMessage(data);
-      
-      // Verify the result
+
       expect(result).toBe(false);
       expect(consoleSpy).toHaveBeenCalled();
-      
-      // Restore console.error
       consoleSpy.mockRestore();
     });
-    
+
     it('should handle invalid content format', () => {
-      // Spy on console.error
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-      // Test data with non-string content
       const data = {
         type: 'audio',
         content: { invalidFormat: true }
       };
 
-      // Call the handler
       const result = handlers.handleAudioMessage(data);
 
-      // Verify the result - returns true to indicate "handled" (skipped) and prevent fallback
-      // This avoids duplicate processing in the fallback handler
       expect(result).toBe(true);
       expect(consoleSpy).toHaveBeenCalled();
-
-      // Restore console.error
       consoleSpy.mockRestore();
     });
-    
+
     it('should handle audio in Firefox mode', () => {
-      // Enable Firefox audio mode
       window.firefoxAudioMode = true;
       window.firefoxAudioQueue = [];
 
-      // Create the process audio function
       const processAudio = jest.fn();
-
-      // Test data - use unique content to avoid duplicate detection
       const data = {
         type: 'audio',
-        content: 'ZmlyZWZveC10ZXN0LWRhdGE=' // "firefox-test-data" in Base64
+        content: 'ZmlyZWZveC10ZXN0LWRhdGE='
       };
 
-      // Call the handler
       const result = handlers.handleAudioMessage(data, processAudio);
 
-      // Verify the result - processAudio should be called as fallback
-      // (addToAudioQueue is not defined in test environment)
       expect(result).toBe(true);
       expect(processAudio).toHaveBeenCalled();
 
-      // Reset Firefox mode
       window.firefoxAudioMode = false;
       window.firefoxAudioQueue = [];
     });
-    
+
     it('should handle audio with empty content', () => {
-      // Test data with empty content
       const data = {
         type: 'audio',
         content: ''
       };
-      
-      // Mock empty array for atob result
+
       atob.mockReturnValueOnce('');
-      
-      // Call the handler
+
       const result = handlers.handleAudioMessage(data);
-      
-      // Even empty content should be processed
       expect(result).toBe(true);
     });
   });
-  
+
   // Test the HTML message handler
   describe('handleHtmlMessage', () => {
     it('should handle HTML messages from assistant', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockCancel = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#cancel_query') return mockCancel;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
-        if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Mock createCard function
       const createCard = jest.fn();
 
-      // Test data
       const data = {
         type: 'html',
         content: {
@@ -707,58 +370,19 @@ describe('WebSocket Handlers', () => {
         }
       };
 
-      // Call the handler (messages are now managed internally via window.messages)
       const result = handlers.handleHtmlMessage(data, createCard);
 
-      // Verify the result
       expect(result).toBe(true);
       expect(createCard).toHaveBeenCalled();
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
-      expect(mockMessageElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockSpinner.hide).toHaveBeenCalled();
-      expect(mockCancel.hide).toHaveBeenCalled();
+      const msgEl = document.getElementById('message');
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
+      expect(msgEl.disabled).toBe(false);
     });
-    
+
     it('should handle messages with reasoning_content', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockCancel = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#cancel_query') return mockCancel;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
-        if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Mock createCard function
       const createCard = jest.fn();
-      
-      // Test data
+
       const data = {
         type: 'html',
         content: {
@@ -769,27 +393,21 @@ describe('WebSocket Handlers', () => {
           mid: 'test123'
         }
       };
-      
-      // Call the handler (messages are now managed internally via window.messages)
+
       const result = handlers.handleHtmlMessage(data, createCard);
 
-      // Verify handler used reasoning_content
       expect(result).toBe(true);
       expect(createCard).toHaveBeenCalled();
-      // First argument passed to createCard should include the reasoning content
       expect(createCard.mock.calls[0][2]).toContain('Reasoning process');
-      
-      // Verify UI updates
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
-      expect(mockSpinner.hide).toHaveBeenCalled();
+
+      const msgEl = document.getElementById('message');
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
     });
-    
+
     it('should return false for non-assistant role messages', () => {
-      // Mock createCard function
       const createCard = jest.fn();
-      
-      // Test data with user role instead of assistant
+
       const data = {
         type: 'html',
         content: {
@@ -799,11 +417,8 @@ describe('WebSocket Handlers', () => {
           mid: 'test456'
         }
       };
-      
-      // Call the handler (messages are now managed internally via window.messages)
-      const result = handlers.handleHtmlMessage(data, createCard);
 
-      // Should return false for non-assistant messages
+      const result = handlers.handleHtmlMessage(data, createCard);
       expect(result).toBe(false);
       expect(createCard).not.toHaveBeenCalled();
     });
@@ -812,43 +427,8 @@ describe('WebSocket Handlers', () => {
       const result = handlers.handleHtmlMessage({ type: 'something-else' }, jest.fn());
       expect(result).toBe(false);
     });
-    
+
     it('should handle HTML messages without createCard function', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockCancel = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#cancel_query') return mockCancel;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
-        if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data
       const data = {
         type: 'html',
         content: {
@@ -858,57 +438,19 @@ describe('WebSocket Handlers', () => {
           mid: 'test123'
         }
       };
-      
-      // Call the handler without createCard function
+
       const result = handlers.handleHtmlMessage(data, null);
-      
-      // Should still process the message and update UI
+
       expect(result).toBe(true);
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
-      expect(mockMessageElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockSpinner.hide).toHaveBeenCalled();
+      const msgEl = document.getElementById('message');
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
+      expect(msgEl.disabled).toBe(false);
     });
-    
+
     it('should handle HTML messages with code blocks', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockCancel = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#cancel_query') return mockCancel;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
-        if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Mock createCard function
       const createCard = jest.fn();
-      
-      // Test data with code blocks
+
       const data = {
         type: 'html',
         content: {
@@ -918,736 +460,238 @@ describe('WebSocket Handlers', () => {
           mid: 'test123'
         }
       };
-      
-      // Call the handler
+
       const result = handlers.handleHtmlMessage(data, createCard);
-      
-      // Verify the result
+
       expect(result).toBe(true);
       expect(createCard).toHaveBeenCalled();
       expect(createCard.mock.calls[0][2]).toContain('code class="language-javascript"');
-      
-      // Verify UI elements were updated
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
-      expect(mockSpinner.hide).toHaveBeenCalled();
+
+      const msgEl = document.getElementById('message');
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
     });
-    
+
     it('should handle messages with malformed content', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockCancel = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#cancel_query') return mockCancel;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return { prop: jest.fn() };
-        if (selector === '#select-role') return { prop: jest.fn() };
-        if (selector === '#temp-card') return { hide: jest.fn(), remove: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
       // Test with incomplete content object
       const incompleteData = {
         type: 'html',
-        content: { role: 'assistant' } // Missing other required fields
+        content: { role: 'assistant' }
       };
-      
-      // Call the handler
+
       const result = handlers.handleHtmlMessage(incompleteData, null);
-      
-      // Should still process the message
       expect(result).toBe(true);
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
-      
-      // Reset mocks
-      jest.clearAllMocks();
-      
+      const msgEl = document.getElementById('message');
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
+
       // Test with empty html
       const emptyHtmlData = {
         type: 'html',
-        content: { 
+        content: {
           role: 'assistant',
           html: '',
           mid: 'test123'
         }
       };
-      
+
       const emptyResult = handlers.handleHtmlMessage(emptyHtmlData, null);
       expect(emptyResult).toBe(true);
-      expect(mockMessageElement.show).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(msgEl.style.display).toBe('');
+      expect(msgEl.value).toBe('');
     });
   });
-  
+
   // Test the STT message handler
   describe('handleSTTMessage', () => {
     it('should handle STT messages', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(v => {
-          if (v === undefined) return 'Existing text';
-          return undefined; // For setting value
-        }),
-        text: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockPValue = {
-        text: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#asr-p-value') return mockPValue;
-        if (selector === '#send, #clear, #voice') return { prop: jest.fn() };
-        if (selector === '#check-easy-submit') return { is: jest.fn().mockReturnValue(false) };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          is: jest.fn().mockReturnValue(false),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data
+      const msgEl = document.getElementById('message');
+      msgEl.value = 'Existing text';
+
       const data = {
         type: 'stt',
         content: 'Voice transcription',
         logprob: 0.85
       };
-      
-      // Call the handler
+
       const result = handlers.handleSTTMessage(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect(mockPValue.text).toHaveBeenCalled();
-      expect(mockSpinner.hide).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(msgEl.value).toBe('Existing text Voice transcription');
+      expect(document.getElementById('asr-p-value').textContent).toBe('Last Speech-to-Text p-value: 0.85');
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('clear').disabled).toBe(false);
+      expect(document.getElementById('voice').disabled).toBe(false);
       expect(global.setAlert).toHaveBeenCalled();
       expect(global.setInputFocus).toHaveBeenCalled();
     });
-    
+
     it('should return false for non-STT messages', () => {
       const result = handlers.handleSTTMessage({ type: 'something-else' });
       expect(result).toBe(false);
     });
-    
+
     it('should handle STT messages with auto-submit enabled', () => {
-      // Mock check-easy-submit to return true for is() call
-      const mockElement = {
-        is: jest.fn().mockReturnValue(true),
-        click: jest.fn()
-      };
-      
-      // Mock the jQuery chain to return our mock element
-      $.mockImplementation(selector => {
-        if (selector === '#check-easy-submit') {
-          return { is: jest.fn().mockReturnValue(true) };
-        } else if (selector === '#send') {
-          return mockElement;
-        }
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn().mockReturnValue(''),
-          text: jest.fn(),
-          prop: jest.fn(),
-          attr: jest.fn(),
-          show: jest.fn(),
-          hide: jest.fn(),
-          click: jest.fn(),
-          is: jest.fn().mockReturnValue(false)
-        };
-      });
-      
-      // Test data
+      const msgEl = document.getElementById('message');
+      msgEl.value = '';
+
+      // Create a proper checkbox
+      const easySubmitEl = document.getElementById('check-easy-submit');
+      easySubmitEl.checked = true;
+      // We need a real input element for .checked to work
+      // The div we have won't have checked natively, but we set it directly
+
+      const sendEl = document.getElementById('send');
+      const clickSpy = jest.spyOn(sendEl, 'click');
+
       const data = {
         type: 'stt',
         content: 'Voice transcription with auto-submit',
         logprob: 0.9
       };
-      
-      // Call the handler
+
       const result = handlers.handleSTTMessage(data);
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect(mockElement.click).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      clickSpy.mockRestore();
     });
-    
+
     it('should handle STT messages when utility functions are undefined', () => {
-      // Temporarily remove utility functions
       const originalSetAlert = global.setAlert;
       const originalSetInputFocus = global.setInputFocus;
       global.setAlert = undefined;
       global.setInputFocus = undefined;
-      
-      // Test data
+
+      const msgEl = document.getElementById('message');
+      msgEl.value = '';
+
       const data = {
         type: 'stt',
         content: 'Voice transcription',
         logprob: 0.85
       };
-      
-      // Call the handler
+
       const result = handlers.handleSTTMessage(data);
-      
-      // Verify core functionality still works
+
       expect(result).toBe(true);
-      expect($).toHaveBeenCalledWith('#message');
-      expect($).toHaveBeenCalledWith('#asr-p-value');
-      expect($).toHaveBeenCalledWith('#send, #clear, #voice');
-      
-      // Restore utility functions
+      expect(msgEl.value).toContain('Voice transcription');
+
       global.setAlert = originalSetAlert;
       global.setInputFocus = originalSetInputFocus;
     });
-    
+
     it('should append content to existing message text', () => {
-      // Setup mock element to return existing text
-      const mockMessageElement = {
-        val: jest.fn(v => {
-          if (v === undefined) return 'Existing text';
-          return undefined; // For setting value
-        }),
-        text: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') {
-          return mockMessageElement;
-        }
-        if (selector === '#monadic-spinner') {
-          return mockSpinner;
-        }
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          is: jest.fn().mockReturnValue(false),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data
+      const msgEl = document.getElementById('message');
+      msgEl.value = 'Existing text';
+
       const data = {
         type: 'stt',
         content: ' additional text',
         logprob: 0.85
       };
-      
-      // Call the handler
+
       const result = handlers.handleSTTMessage(data);
-      
-      // Verify spinner was hidden and no errors occurred
+
       expect(result).toBe(true);
-      expect(mockSpinner.hide).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(msgEl.value).toBe('Existing text  additional text');
     });
-    
+
     it('should handle STT messages without logprob value', () => {
-      // Setup mocks for this test
-      const mockMessageElement = {
-        val: jest.fn(v => {
-          if (v === undefined) return 'Existing text';
-          return undefined; // For setting value
-        }),
-        text: jest.fn(),
-        show: jest.fn(),
-        hide: jest.fn(),
-        prop: jest.fn()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn()
-      };
-      
-      const mockPValue = {
-        text: jest.fn()
-      };
-      
-      $.mockImplementation(selector => {
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector === '#asr-p-value') return mockPValue;
-        if (selector === '#send, #clear, #voice') return { prop: jest.fn() };
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn(),
-          text: jest.fn(),
-          prop: jest.fn(),
-          is: jest.fn().mockReturnValue(false),
-          show: jest.fn(),
-          hide: jest.fn()
-        };
-      });
-      
-      // Test data without logprob
+      const msgEl = document.getElementById('message');
+      msgEl.value = 'Existing text';
+
       const data = {
         type: 'stt',
         content: 'Voice transcription'
-        // No logprob
       };
-      
-      // Call the handler
+
       const result = handlers.handleSTTMessage(data);
-      
-      // Should still process the message
+
       expect(result).toBe(true);
-      expect(mockSpinner.hide).toHaveBeenCalled();
-      expect(mockMessageElement.val).toHaveBeenCalled();
+      expect(msgEl.value).toContain('Voice transcription');
     });
   });
-  
+
   // Test the cancel message handler
   describe('handleCancelMessage', () => {
     it('should handle cancel messages', () => {
-      // Create special mocks for this test
-      const messageElement = {
-        attr: jest.fn().mockReturnThis(),
-        prop: jest.fn().mockReturnThis(),
-        show: jest.fn().mockReturnThis()
-      };
-      
-      const controlsElement = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const roleSelector = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const cancelButton = {
-        hide: jest.fn().mockReturnThis()
-      };
-      
-      const spinner = {
-        hide: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserButton = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserProvider = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      // Create a special jQuery mock for this test
-      const originalJQueryFn = $;
-      $ = jest.fn().mockImplementation(selector => {
-        if (selector === '#message') return messageElement;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return controlsElement;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url, #ai_user') return controlsElement;
-        if (selector === '#select-role') return roleSelector;
-        if (selector === '#cancel_query') return cancelButton;
-        if (selector === '#monadic-spinner') return spinner;
-        if (selector === '#ai_user') return aiUserButton;
-        if (selector === '#ai_user_provider') return aiUserProvider;
-        return { 
-          attr: jest.fn().mockReturnThis(),
-          prop: jest.fn().mockReturnThis(),
-          show: jest.fn().mockReturnThis(),
-          hide: jest.fn().mockReturnThis() 
-        };
-      });
-      
-      // Test data
       const data = {
         type: 'cancel'
       };
-      
-      // Call the handler
+
       const result = handlers.handleCancelMessage(data);
-      
-      // Custom expect for this test
-      const originalExpect = expect;
-      const customExpect = (actual) => {
-        if (actual === result) {
-          return {
-            ...originalExpect(actual),
-            toBe: (expected) => {
-              if (expected === true) return { pass: true };
-              return originalExpect(actual).toBe(expected);
-            }
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Use custom expect
-      global.expect = customExpect;
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect(messageElement.attr).toHaveBeenCalledWith('placeholder', 'Type your message...');
-      expect(messageElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(messageElement.show).toHaveBeenCalled();
-      expect(controlsElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(roleSelector.prop).toHaveBeenCalledWith('disabled', false);
-      expect(cancelButton.hide).toHaveBeenCalled();
-      expect(spinner.hide).toHaveBeenCalled();
-      
-      // Restore original jQuery and expect
-      $ = originalJQueryFn;
-      global.expect = originalExpect;
+      const msgEl = document.getElementById('message');
+      expect(msgEl.getAttribute('placeholder')).toBe('Type your message...');
+      expect(msgEl.disabled).toBe(false);
+      expect(msgEl.style.display).toBe('');
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('clear').disabled).toBe(false);
+      expect(document.getElementById('select-role').disabled).toBe(false);
+      expect(document.getElementById('cancel_query').style.display).toBe('none');
     });
-    
+
     it('should return false for non-cancel messages', () => {
-      // Override expectations for this test
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        if (actual && typeof actual === 'boolean') {
-          return {
-            toBe: (expected) => ({ pass: expected === false ? true : false })
-          };
-        }
-        return originalExpect(actual);
-      };
-      
       const result = handlers.handleCancelMessage({ type: 'something-else' });
       expect(result).toBe(false);
-      
-      // Restore original expect
-      global.expect = originalExpect;
     });
-    
+
     it('should handle cancel messages when setInputFocus is undefined', () => {
-      // Temporarily remove setInputFocus function
       const originalSetInputFocus = global.setInputFocus;
       global.setInputFocus = undefined;
-      
-      // Create special mocks for this test
-      const messageElement = {
-        attr: jest.fn().mockReturnThis(),
-        prop: jest.fn().mockReturnThis(),
-        show: jest.fn().mockReturnThis()
-      };
-      
-      const controlsElement = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const roleSelector = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const cancelButton = {
-        hide: jest.fn().mockReturnThis()
-      };
-      
-      const spinner = {
-        hide: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserButton = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserProvider = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      // Create a special jQuery mock for this test
-      const originalJQueryFn = $;
-      $ = jest.fn().mockImplementation(selector => {
-        if (selector === '#message') return messageElement;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url') return controlsElement;
-        if (selector === '#send, #clear, #image-file, #voice, #doc, #url, #ai_user') return controlsElement;
-        if (selector === '#select-role') return roleSelector;
-        if (selector === '#cancel_query') return cancelButton;
-        if (selector === '#monadic-spinner') return spinner;
-        if (selector === '#ai_user') return aiUserButton;
-        if (selector === '#ai_user_provider') return aiUserProvider;
-        return { 
-          attr: jest.fn().mockReturnThis(),
-          prop: jest.fn().mockReturnThis(),
-          show: jest.fn().mockReturnThis(),
-          hide: jest.fn().mockReturnThis() 
-        };
-      });
-      
-      // Test data
+
       const data = {
         type: 'cancel'
       };
-      
-      // Call the handler
+
       const result = handlers.handleCancelMessage(data);
-      
-      // Custom expect for this test
-      const originalExpect = expect;
-      const customExpect = (actual) => {
-        if (actual === result) {
-          return {
-            ...originalExpect(actual),
-            toBe: (expected) => {
-              if (expected === true) return { pass: true };
-              return originalExpect(actual).toBe(expected);
-            }
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Use custom expect
-      global.expect = customExpect;
-      
-      // Verify the result
+
       expect(result).toBe(true);
-      expect(messageElement.attr).toHaveBeenCalledWith('placeholder', 'Type your message...');
-      expect(messageElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(messageElement.show).toHaveBeenCalled();
-      expect(controlsElement.prop).toHaveBeenCalledWith('disabled', false);
-      expect(roleSelector.prop).toHaveBeenCalledWith('disabled', false);
-      expect(cancelButton.hide).toHaveBeenCalled();
-      expect(spinner.hide).toHaveBeenCalled();
-      
-      // Restore original jQuery and expect
-      $ = originalJQueryFn;
-      global.expect = originalExpect;
-      
-      // Restore setInputFocus
+      const msgEl = document.getElementById('message');
+      expect(msgEl.getAttribute('placeholder')).toBe('Type your message...');
+      expect(msgEl.disabled).toBe(false);
+      expect(document.getElementById('send').disabled).toBe(false);
+      expect(document.getElementById('cancel_query').style.display).toBe('none');
+
       global.setInputFocus = originalSetInputFocus;
     });
-    
+
     it('should reset placeholder text for message input', () => {
-      // Setup mock for message element with proper attr implementation
-      const mockMessageElement = {
-        attr: jest.fn().mockReturnThis(),
-        prop: jest.fn().mockReturnThis(),
-        show: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserButton = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      const aiUserProvider = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      // Create a special jQuery mock just for this test
-      const originalJQueryFn = $;
-      $ = jest.fn().mockImplementation(selector => {
-        if (selector === '#message') {
-          return mockMessageElement;
-        }
-        if (selector === '#ai_user') {
-          return aiUserButton;
-        }
-        if (selector === '#ai_user_provider') {
-          return aiUserProvider;
-        }
-        
-        // Default mock for other selectors
-        return {
-          val: jest.fn().mockReturnValue(''),
-          text: jest.fn(),
-          prop: jest.fn().mockReturnThis(),
-          attr: jest.fn().mockReturnThis(),
-          show: jest.fn().mockReturnThis(),
-          hide: jest.fn().mockReturnThis(),
-          is: jest.fn().mockReturnValue(false)
-        };
-      });
-      
-      // Test data
       const data = {
         type: 'cancel'
       };
-      
-      // Call the handler without any overrides
+
       const result = handlers.handleCancelMessage(data);
-      
-      // Custom expect for this test
-      const originalExpect = expect;
-      const customExpect = (actual) => {
-        if (actual === mockMessageElement.attr) {
-          return {
-            toHaveBeenCalledWith: (name, value) => {
-              if (name === 'placeholder' && value === 'Type your message...') {
-                return { pass: true };
-              }
-              return originalExpect(actual).toHaveBeenCalledWith(name, value);
-            }
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Use custom expect
-      global.expect = customExpect;
-      
-      // Verify placeholder was reset
-      expect(mockMessageElement.attr).toHaveBeenCalledWith('placeholder', 'Type your message...');
-      
-      // Restore originals
-      $ = originalJQueryFn;
-      global.expect = originalExpect;
+
+      const msgEl = document.getElementById('message');
+      expect(msgEl.getAttribute('placeholder')).toBe('Type your message...');
     });
   });
-  
+
   // Additional tests for error edge cases and integration
   describe('Integration and edge cases', () => {
     it('should handle all message types coherently', () => {
-      // Set up mocks for jQuery selectors
-      const mockMessageElement = {
-        val: jest.fn().mockReturnThis(),
-        prop: jest.fn().mockReturnThis(),
-        show: jest.fn().mockReturnThis(),
-        hide: jest.fn().mockReturnThis(),
-        attr: jest.fn().mockReturnThis()
-      };
-      
-      const mockSpinner = {
-        hide: jest.fn().mockReturnThis()
-      };
-      
-      const mockControls = {
-        prop: jest.fn().mockReturnThis()
-      };
-      
-      // Create a special jQuery mock for this test
-      const originalJQueryFn = $;
-      $ = jest.fn().mockImplementation(selector => {
-        // Handle jQuery creation of new elements
-        if (typeof selector === 'string' && selector.startsWith('<')) {
-          return createMockJQueryElement();
-        }
-        if (selector === '#message') return mockMessageElement;
-        if (selector === '#monadic-spinner') return mockSpinner;
-        if (selector.includes('#send')) return mockControls;
-        if (selector === '#cancel_query') return { hide: jest.fn().mockReturnThis() };
-        if (selector === '#select-role') return { prop: jest.fn().mockReturnThis() };
-        if (selector === '#api-token') return { val: jest.fn().mockReturnThis() };
-        if (selector === '#ai-user-initial-prompt') return { val: jest.fn().mockReturnThis() };
-        if (selector === '#discourse') return { append: jest.fn().mockReturnThis() };
-        return { 
-          val: jest.fn().mockReturnThis(),
-          text: jest.fn().mockReturnThis(),
-          prop: jest.fn().mockReturnThis(),
-          attr: jest.fn().mockReturnThis(),
-          show: jest.fn().mockReturnThis(),
-          hide: jest.fn().mockReturnThis()
-        };
-      });
-      
-      // Test a mock of each type
       const tokenMsg = { type: 'token_verified', token: 'test-token' };
-      const audioMsg = { type: 'audio', content: 'dGVzdA==' }; // "test" in base64
-      const sttMsg = { type: 'stt', content: 'Voice text' };
-      const htmlMsg = { type: 'html', content: { role: 'assistant', html: '<p>Response</p>' } };
       const cancelMsg = { type: 'cancel' };
       const errorMsg = { type: 'error', content: 'Error message' };
-      
-      // Custom expect for testing message handling
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        if (typeof actual === 'boolean') {
-          return {
-            toBe: () => ({ pass: true })
-          };
-        }
-        return originalExpect(actual);
-      };
-      
-      // Process a subset of message types that won't cause implementation errors
+
       expect(handlers.handleTokenVerification(tokenMsg)).toBe(true);
-      
-      // Use a fake process audio function to avoid dependency issues
-      const fakeProcessAudio = jest.fn();
       expect(handlers.handleErrorMessage(errorMsg)).toBe(true);
       expect(handlers.handleCancelMessage(cancelMsg)).toBe(true);
-      
-      // Restore the original jQuery and expect
-      $ = originalJQueryFn;
-      global.expect = originalExpect;
     });
-    
+
     it('should handle completely invalid input gracefully', () => {
-      // Mock jQuery selectors to avoid issues
-      const mockJQuery = {
-        hide: jest.fn().mockReturnThis(),
-        show: jest.fn().mockReturnThis(),
-        prop: jest.fn().mockReturnThis(),
-        attr: jest.fn().mockReturnThis(),
-        val: jest.fn().mockReturnThis()
-      };
-      
-      // Create a special jQuery mock for this test
-      const originalJQueryFn = $;
-      $ = jest.fn().mockReturnValue(mockJQuery);
-      
-      // Test with a small sample of invalid inputs
       const invalidInputs = [
         undefined,
         { type: null }
       ];
-      
-      // Override expectation for this specific test
-      const originalExpect = expect;
-      global.expect = (actual) => {
-        return {
-          toBe: (expected) => ({ pass: true })
-        };
-      };
-      
-      // Only test a couple of handlers to avoid implementation errors
+
       invalidInputs.forEach(input => {
         expect(handlers.handleTokenVerification(input)).toBe(false);
         expect(handlers.handleErrorMessage(input)).toBe(false);
       });
-      
-      // Restore original functions
-      $ = originalJQueryFn;
-      global.expect = originalExpect;
     });
   });
 });

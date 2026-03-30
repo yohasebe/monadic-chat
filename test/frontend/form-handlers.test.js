@@ -506,39 +506,33 @@ describe('Form Handlers', () => {
     beforeEach(() => {
       // Mock setTimeout to execute immediately
       jest.useFakeTimers();
+
+      // Mock bootstrap.Modal
+      global.bootstrap = {
+        Modal: {
+          getOrCreateInstance: jest.fn().mockReturnValue({
+            show: jest.fn()
+          })
+        }
+      };
     });
 
     afterEach(() => {
       jest.useRealTimers();
+      delete global.bootstrap;
     });
 
     it('should show modal and set focus', () => {
       // Create mocks
       const focusElement = { focus: jest.fn() };
       const modalElement = document.createElement('div');
+      modalElement.dataset = {};
 
       // Mock getElementById to return our mocks
       document.getElementById = jest.fn().mockImplementation(id => {
         if (id === 'testModal') return modalElement;
         if (id === 'focusInput') return focusElement;
         return null;
-      });
-
-      // Create jQuery mocks
-      const modalJQuery = {
-        modal: jest.fn(),
-        data: jest.fn().mockReturnValue(null),
-        removeData: jest.fn(),
-        one: jest.fn()
-      };
-
-      // Override jQuery for this test
-      const originalJQuery = $;
-      $ = jest.fn().mockImplementation(selector => {
-        if (selector === modalElement) {
-          return modalJQuery;
-        }
-        return { modal: jest.fn() };
       });
 
       // Call the function we're testing
@@ -550,49 +544,33 @@ describe('Form Handlers', () => {
       // Verify behavior
       expect(document.getElementById).toHaveBeenCalledWith('testModal');
       expect(document.getElementById).toHaveBeenCalledWith('focusInput');
-      expect(modalJQuery.modal).toHaveBeenCalledWith('show');
+      expect(global.bootstrap.Modal.getOrCreateInstance).toHaveBeenCalledWith(modalElement);
 
       // Verify focus is set (after timer)
       expect(focusElement.focus).toHaveBeenCalled();
-
-      // Clean up
-      $ = originalJQuery;
     });
 
     it('should handle cleanup function when modal is hidden', () => {
       // Create mocks
       const focusElement = { focus: jest.fn() };
       const modalElement = document.createElement('div');
+      modalElement.dataset = {};
+
+      // Make addEventListener immediately call the callback for hidden.bs.modal
+      const origAddEventListener = modalElement.addEventListener.bind(modalElement);
+      modalElement.addEventListener = jest.fn().mockImplementation((event, callback) => {
+        if (event === 'hidden.bs.modal' && callback) {
+          // Immediately invoke the callback to simulate modal hidden
+          callback();
+        }
+        origAddEventListener(event, callback);
+      });
 
       // Mock getElementById to return our mocks
       document.getElementById = jest.fn().mockImplementation(id => {
         if (id === 'testModal') return modalElement;
         if (id === 'focusInput') return focusElement;
         return null;
-      });
-
-      // Create jQuery mocks with one() implementation that calls the callback
-      const modalJQuery = {
-        modal: jest.fn(),
-        data: jest.fn().mockReturnValue(null),
-        removeData: jest.fn(),
-        one: jest.fn().mockImplementation((event, callback) => {
-          if (event === 'hidden.bs.modal' && callback) {
-            // Immediately invoke the callback
-            callback();
-            return modalJQuery;
-          }
-          return modalJQuery;
-        })
-      };
-
-      // Override jQuery for this test
-      const originalJQuery = $;
-      $ = jest.fn().mockImplementation(selector => {
-        if (selector === modalElement) {
-          return modalJQuery;
-        }
-        return { modal: jest.fn() };
       });
 
       // Create cleanup function
@@ -606,9 +584,6 @@ describe('Form Handlers', () => {
 
       // Verify cleanup was called
       expect(cleanupFn).toHaveBeenCalled();
-
-      // Cleanup
-      $ = originalJQuery;
     });
   });
 });

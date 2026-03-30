@@ -193,36 +193,38 @@ function showModalWithFocus(modalId, focusElementId, cleanupFn) {
   
   if (!modal || !focusElement) return;
   
-  // Show the modal using jQuery
-  $(modal).modal("show");
-  
+  // Show the modal using Bootstrap API
+  const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
+  bsModal.show();
+
   // Use a clean approach to focus management
   const timerKey = 'focusTimer';
-  
+
   // Clear any existing timer
-  const existingTimer = $(modal).data(timerKey);
+  const existingTimer = modal.dataset[timerKey];
   if (existingTimer) {
-    clearTimeout(existingTimer);
-    $(modal).removeData(timerKey);
+    clearTimeout(Number(existingTimer));
+    delete modal.dataset[timerKey];
   }
-  
+
   // Set new timer and store reference
-  $(modal).data(timerKey, setTimeout(function() {
+  modal.dataset[timerKey] = setTimeout(function() {
     focusElement.focus();
-    $(modal).removeData(timerKey);
-  }, 500));
-  
+    delete modal.dataset[timerKey];
+  }, 500);
+
   // Set up cleanup for when modal is hidden
   if (typeof cleanupFn === 'function') {
-    // Use jQuery one() to ensure this only happens once
-    $(modal).one('hidden.bs.modal', function() {
+    // Use once option to ensure this only happens once
+    modal.addEventListener('hidden.bs.modal', function onHidden() {
+      modal.removeEventListener('hidden.bs.modal', onHidden);
       cleanupFn();
-      
+
       // Also clean up any timers
-      const remainingTimer = $(modal).data(timerKey);
+      const remainingTimer = modal.dataset[timerKey];
       if (remainingTimer) {
-        clearTimeout(remainingTimer);
-        $(modal).removeData(timerKey);
+        clearTimeout(Number(remainingTimer));
+        delete modal.dataset[timerKey];
       }
     });
   }

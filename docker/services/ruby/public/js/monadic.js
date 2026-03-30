@@ -1881,7 +1881,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("reasoning-effort").addEventListener("change", function() {
+  document.getElementById("reasoning-effort")?.addEventListener("change", function() {
     const selectedModel = (document.getElementById("model") || {}).value;
     // Get current app's provider
     const currentApp = (document.getElementById("apps") || {}).value;
@@ -1901,7 +1901,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
-  document.getElementById("apps").addEventListener("change", function(event) {
+  document.getElementById("apps")?.addEventListener("change", function(event) {
     if (stop_apps_trigger) {
       stop_apps_trigger = false;
       return;
@@ -1975,7 +1975,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   
   // Handle cancellation of app change
-  document.getElementById("appChangeConfirmation").addEventListener("hidden.bs.modal", function() {
+  document.getElementById("appChangeConfirmation")?.addEventListener("hidden.bs.modal", function() {
     // If user cancelled (not confirmed), restore the original app selection
     const newAppValue = this.dataset.newApp;
     const currentAppValue = (document.getElementById("apps") || {}).value;
@@ -1989,7 +1989,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Handle confirmation of app change
-  document.getElementById("appChangeConfirmed").addEventListener("click", function() {
+  document.getElementById("appChangeConfirmed")?.addEventListener("click", function() {
     const newAppValue = (document.getElementById("appChangeConfirmation") || {}).dataset.newApp;
     // Close the modal
     bootstrap.Modal.getOrCreateInstance(document.getElementById("appChangeConfirmation")).hide();
@@ -2399,7 +2399,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const _el = document.getElementById("apps"); if (_el) _el.focus(); };
   }
 
-  document.getElementById("websearch").addEventListener("change", function() {
+  document.getElementById("websearch")?.addEventListener("change", function() {
     if (this.checked) {
       params["websearch"] = true;
     } else {
@@ -2415,7 +2415,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("check-auto-speech").addEventListener("change", function() {
+  document.getElementById("check-auto-speech")?.addEventListener("change", function() {
     if (this.checked) {
       params["auto_speech"] = true;
     } else {
@@ -2435,7 +2435,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("check-easy-submit").addEventListener("change", function() {
+  document.getElementById("check-easy-submit")?.addEventListener("change", function() {
     if (this.checked) {
       params["easy_submit"] = true;
     } else {
@@ -2455,7 +2455,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   })
 
-  document.getElementById("mathjax").addEventListener("change", function() {
+  document.getElementById("mathjax")?.addEventListener("change", function() {
     if (this.checked) {
       params["mathjax"] = true;
     } else {
@@ -2587,7 +2587,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Handle toggle-menu button click with comprehensive error handling
-  document.getElementById("toggle-menu").addEventListener("click", function(e) {
+  document.getElementById("toggle-menu")?.addEventListener("click", function(e) {
     try {
       // Prevent any default behavior
       e.preventDefault();
@@ -2774,7 +2774,7 @@ document.addEventListener("DOMContentLoaded", function () {
     window.updateToggleButtonText();
   })();
 
-  document.getElementById("start").addEventListener("click", function() {
+  document.getElementById("start")?.addEventListener("click", function() {
     audioInit();
     { const _el = document.getElementById("asr-p-value"); if (_el) { _el.textContent = ""; _el.style.display = "none"; } }
 
@@ -2876,7 +2876,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
 
-  document.getElementById("cancel_query").addEventListener("click", function() {
+  document.getElementById("cancel_query")?.addEventListener("click", function() {
     setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
     ttsStop();
 
@@ -2915,7 +2915,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setInputFocus();
   });
 
-  document.getElementById("send").addEventListener("click", function(event) {
+  document.getElementById("send")?.addEventListener("click", function(event) {
     event.preventDefault();
     if (typeof window.isForegroundTab === 'function' && !window.isForegroundTab()) {
       return;
@@ -3014,7 +3014,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const _el = document.querySelector("#role-icon i"); if (_el) { _el.classList.remove("fa-robot", "fa-bars"); _el.classList.add("fa-face-smile"); } }
   });
 
-  document.getElementById("clear").addEventListener("click", function(event) {
+  document.getElementById("clear")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("message"); if (_el) { _el.style.height = "100px"; _el.value = ""; } }
     setInputFocus()
@@ -3024,7 +3024,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
   // Regular reset button - keeps current app
-  document.getElementById("reset").addEventListener("click", function(event) {
+  document.getElementById("reset")?.addEventListener("click", function(event) {
     ttsStop();
     audioInit();
     resetEvent(event, false); // false = keep current app
@@ -3065,7 +3065,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const _el = document.getElementById("model"); if (_el) _el.disabled = false; }
   }); });
 
-  document.getElementById("save").addEventListener("click", async function () {
+  document.getElementById("save")?.addEventListener("click", async function () {
     const allMessages = [];
     const initial_prompt = (document.getElementById("initial-prompt") || {}).value;
     const sysid = Math.floor(1000 + Math.random() * 9000);
@@ -3154,7 +3154,7 @@ document.addEventListener("DOMContentLoaded", function () {
     saveObjToJson(obj, "monadic.json");
   });
 
-  document.getElementById("export-pdf").addEventListener("click", function() {
+  document.getElementById("export-pdf")?.addEventListener("click", function() {
     if (typeof window.exportConversationToPDF === 'function') {
       window.exportConversationToPDF();
     } else {
@@ -3164,7 +3164,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("load").addEventListener("click", function(event) {
+  document.getElementById("load")?.addEventListener("click", function(event) {
     event.preventDefault();
     // Reset the file input and disable the import button
     { const _el = document.getElementById("file-load"); if (_el) _el.value = ''; };
@@ -3199,18 +3199,18 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("loadModal").addEventListener("shown.bs.modal", function () {
+  document.getElementById("loadModal")?.addEventListener("shown.bs.modal", function () {
     { const _el = document.getElementById("file-title"); if (_el) _el.focus(); };
   });
   
-  document.getElementById("loadModal").addEventListener("hidden.bs.modal", function () {
+  document.getElementById("loadModal")?.addEventListener("hidden.bs.modal", function () {
     // Reset form state when modal is closed
     { const _el = document.getElementById('file-load'); if (_el) _el.value = ''; };
     { const _el = document.getElementById('import-button'); if (_el) _el.disabled = true; };
     { const _el = document.getElementById("load-spinner"); if (_el) _el.style.display = "none"; };
   });
 
-  document.getElementById("pdf-import").addEventListener("click", function(event) {
+  document.getElementById("pdf-import")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("file-title"); if (_el) _el.value = ""; };
     { const _el = document.getElementById("fileFile"); if (_el) _el.value = ""; };
@@ -3334,7 +3334,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("doc").addEventListener("click", function(event) {
+  document.getElementById("doc")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("docLabel"); if (_el) _el.value = ""; };
     { const _el = document.getElementById("docFile"); if (_el) _el.value = ""; };
@@ -3368,7 +3368,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("docModal").addEventListener("hidden.bs.modal", function () {
+  document.getElementById("docModal")?.addEventListener("hidden.bs.modal", function () {
     { const _el = document.getElementById('docFile'); if (_el) _el.value = ''; }
     { const _el = document.getElementById('convertDoc'); if (_el) _el.disabled = true; }
 
@@ -3389,13 +3389,13 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   } else {
     // Fallback to direct event handler
-    document.getElementById("docFile").addEventListener("change", function() {
+    document.getElementById("docFile")?.addEventListener("change", function() {
       const file = this.files[0];
       { const _el = document.getElementById('convertDoc'); if (_el) _el.disabled = !file; };
     });
   }
 
-  document.getElementById("convertDoc").addEventListener("click", async function () {
+  document.getElementById("convertDoc")?.addEventListener("click", async function () {
     const docInput = document.getElementById("docFile");
     const doc = docInput.files[0];
     
@@ -3457,7 +3457,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   // Audio/MIDI upload button
-  document.getElementById("audio-upload").addEventListener("click", function(event) {
+  document.getElementById("audio-upload")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("audioFile"); if (_el) _el.value = ""; };
     if (formHandlers && formHandlers.showModalWithFocus) {
@@ -3477,13 +3477,13 @@ document.addEventListener("DOMContentLoaded", function () {
       document.getElementById('uploadAudioBtn')
     );
   } else {
-    document.getElementById("audioFile").addEventListener("change", function() {
+    document.getElementById("audioFile")?.addEventListener("change", function() {
       { const _el = document.getElementById('uploadAudioBtn'); if (_el) _el.disabled = !this.files || this.files.length === 0; };
     });
   }
 
   // Audio/MIDI upload submit
-  document.getElementById("uploadAudioBtn").addEventListener("click", async function () {
+  document.getElementById("uploadAudioBtn")?.addEventListener("click", async function () {
     const file = document.getElementById("audioFile").files[0];
     if (!file) return;
     try {
@@ -3658,7 +3658,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (window.ws) ws.send(JSON.stringify({ message: "DELETE_ALL_PDFS" }));
   });
 
-  document.getElementById("url").addEventListener("click", function(event) {
+  document.getElementById("url")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("urlLabel"); if (_el) _el.value = ""; };
     { const _el = document.getElementById("pageURL"); if (_el) _el.value = ""; };
@@ -3692,7 +3692,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("urlModal").addEventListener("hidden.bs.modal", function () {
+  document.getElementById("urlModal")?.addEventListener("hidden.bs.modal", function () {
     { const _el = document.getElementById('pageURL'); if (_el) _el.value = ''; }
     { const _el = document.getElementById('fetchPage'); if (_el) _el.disabled = true; }
 
@@ -3727,7 +3727,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  document.getElementById("fetchPage").addEventListener("click", async function () {
+  document.getElementById("fetchPage")?.addEventListener("click", async function () {
     const url = (document.getElementById("pageURL") || {}).value;
     
     try {
@@ -3787,15 +3787,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("temperature").addEventListener("input", function() {
+  document.getElementById("temperature")?.addEventListener("input", function() {
     { const _el = document.getElementById("temperature-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  document.getElementById("presence-penalty").addEventListener("input", function() {
+  document.getElementById("presence-penalty")?.addEventListener("input", function() {
     { const _el = document.getElementById("presence-penalty-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
-  document.getElementById("frequency-penalty").addEventListener("input", function() {
+  document.getElementById("frequency-penalty")?.addEventListener("input", function() {
     { const _el = document.getElementById("frequency-penalty-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(1); }
   });
 
@@ -3820,18 +3820,18 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Click handlers
-  document.getElementById("back_to_top").addEventListener("click", scrollToTop);
-  document.getElementById("back_to_bottom").addEventListener("click", scrollToBottom);
+  document.getElementById("back_to_top")?.addEventListener("click", scrollToTop);
+  document.getElementById("back_to_bottom")?.addEventListener("click", scrollToBottom);
   
   // Keyboard handlers (Enter and Space)
-  document.getElementById("back_to_top").addEventListener("keydown", function(e) {
+  document.getElementById("back_to_top")?.addEventListener("keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToTop();
     }
   });
   
-  document.getElementById("back_to_bottom").addEventListener("keydown", function(e) {
+  document.getElementById("back_to_bottom")?.addEventListener("keydown", function(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       scrollToBottom();
@@ -3849,7 +3849,7 @@ document.addEventListener("DOMContentLoaded", function () {
     params["stt_model"] = savedSTTModel;
   }
 
-  document.getElementById("tts-provider").addEventListener("change", function() {
+  document.getElementById("tts-provider")?.addEventListener("change", function() {
     const oldProvider = params["tts_provider"];
     params["tts_provider"] = (document.getElementById("tts-provider") || {}).value;
     
@@ -3891,7 +3891,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("tts-voice").addEventListener("change", function() {
+  document.getElementById("tts-voice")?.addEventListener("change", function() {
     params["tts_voice"] = (document.getElementById("tts-voice") || {}).value;
     setCookie("tts-voice", params["tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
@@ -3899,7 +3899,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("elevenlabs-tts-voice").addEventListener("change", function() {
+  document.getElementById("elevenlabs-tts-voice")?.addEventListener("change", function() {
     params["elevenlabs_tts_voice"] = (document.getElementById("elevenlabs-tts-voice") || {}).value;
     setCookie("elevenlabs-tts-voice", params["elevenlabs_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
@@ -3907,7 +3907,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("gemini-tts-voice").addEventListener("change", function() {
+  document.getElementById("gemini-tts-voice")?.addEventListener("change", function() {
     params["gemini_tts_voice"] = (document.getElementById("gemini-tts-voice") || {}).value;
     setCookie("gemini-tts-voice", params["gemini_tts_voice"], 30);
     if (!isParamBroadcastSuppressed()) {
@@ -3915,7 +3915,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("stt-model").addEventListener("change", function() {
+  document.getElementById("stt-model")?.addEventListener("change", function() {
     params["stt_model"] = (document.getElementById("stt-model") || {}).value;
     setCookie("stt-model", params["stt_model"], 30);
     if (!isParamBroadcastSuppressed()) {
@@ -3923,7 +3923,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("conversation-language").addEventListener("change", function() {
+  document.getElementById("conversation-language")?.addEventListener("change", function() {
     params["conversation_language"] = (document.getElementById("conversation-language") || {}).value;
     setCookie("conversation-language", params["conversation_language"], 30);
     // Also update asr_lang for STT/TTS
@@ -3953,7 +3953,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("tts-speed").addEventListener("input", function() {
+  document.getElementById("tts-speed")?.addEventListener("input", function() {
     { const _el = document.getElementById("tts-speed-value"); if (_el) _el.textContent = parseFloat(this.value).toFixed(2); }
     params["tts_speed"] = parseFloat(this.value);
     setCookie("tts-speed", params["tts_speed"], 30);
@@ -3962,11 +3962,11 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("error-close").addEventListener("click", function(event) {
+  document.getElementById("error-close")?.addEventListener("click", function(event) {
     event.preventDefault();
   })
 
-  document.getElementById("alert-close").addEventListener("click", function(event) {
+  document.getElementById("alert-close")?.addEventListener("click", function(event) {
     event.preventDefault();
     { const _el = document.getElementById("alert-box"); if (_el) _el.style.display = "none"; };
   })
@@ -3994,10 +3994,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   };
 
-  document.getElementById("prompt-toggle-assistant").addEventListener("click", function() {
+  document.getElementById("prompt-toggle-assistant")?.addEventListener("click", function() {
     window.setPromptView(this.classList.contains("active") ? 'hidden' : 'assistant', true);
   });
-  document.getElementById("prompt-toggle-aiuser").addEventListener("click", function() {
+  document.getElementById("prompt-toggle-aiuser")?.addEventListener("click", function() {
     window.setPromptView(this.classList.contains("active") ? 'hidden' : 'aiuser', true);
   });
 
@@ -4016,7 +4016,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Set message placeholder will be handled by i18n initialization
   }
 
-  document.getElementById("select-role").addEventListener("change", function() {
+  document.getElementById("select-role")?.addEventListener("change", function() {
     const role = this.value;
     const _icon = document.querySelector("#role-icon i");
     if (!_icon) return;
@@ -4180,14 +4180,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  document.getElementById("message").addEventListener("keydown", function(event) {
+  document.getElementById("message")?.addEventListener("keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
       { const _el = document.getElementById("send"); if (_el) _el.focus(); };
     }
   });
 
-  document.getElementById("select-role").addEventListener("keydown", function(event) {
+  document.getElementById("select-role")?.addEventListener("keydown", function(event) {
     if (event.key === "Tab") {
       event.preventDefault();
       { const _el = document.getElementById("send"); if (_el) _el.focus(); };
@@ -4234,7 +4234,7 @@ document.addEventListener("DOMContentLoaded", function () {
       
       // Also register special handler for message text input
       // This ensures search is closed when focusing the input field
-      document.getElementById("message").addEventListener("focus", function() {
+      document.getElementById("message")?.addEventListener("focus", function() {
         if (uiUtils.simulateEscapeKey) {
           uiUtils.simulateEscapeKey();
         }
@@ -4361,7 +4361,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       
       // Show custom dropdown when clicking on the overlay div
-      document.getElementById("app-select-overlay").addEventListener("click", function(e) {
+      document.getElementById("app-select-overlay")?.addEventListener("click", function(e) {
         e.preventDefault();
         e.stopPropagation();
         
@@ -4609,7 +4609,7 @@ document.addEventListener("DOMContentLoaded", function () {
     { const _el = document.getElementById("monadic-spinner"); if (_el) _el.style.display = ""; };
     
     // Event handlers for the message deletion confirmation dialog
-    document.getElementById("deleteMessageOnly").addEventListener("click", function() {
+    document.getElementById("deleteMessageOnly")?.addEventListener("click", function() {
       const data = (document.getElementById("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
@@ -4623,7 +4623,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     
     // Handle deletion of the current message and all subsequent messages
-    document.getElementById("deleteMessageAndSubsequent").addEventListener("click", function() {
+    document.getElementById("deleteMessageAndSubsequent")?.addEventListener("click", function() {
       const data = (document.getElementById("deleteConfirmation") || {}).dataset;
       if (data && data.mid) {
         // Check if it's a system message that needs special handling
@@ -4637,16 +4637,16 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Lightbox modal controls (state variables are in the outer scope near MutationObserver)
-    document.getElementById("lightboxImage").addEventListener("click", function() {
+    document.getElementById("lightboxImage")?.addEventListener("click", function() {
       bootstrap.Modal.getOrCreateInstance(document.getElementById("screenshotLightbox")).hide();
     });
 
-    document.getElementById("lightboxPrev").addEventListener("click", function(e) {
+    document.getElementById("lightboxPrev")?.addEventListener("click", function(e) {
       e.stopPropagation();
       if (lightboxIndex > 0) { lightboxIndex--; updateLightbox(); }
     });
 
-    document.getElementById("lightboxNext").addEventListener("click", function(e) {
+    document.getElementById("lightboxNext")?.addEventListener("click", function(e) {
       e.stopPropagation();
       if (lightboxIndex < lightboxImages.length - 1) { lightboxIndex++; updateLightbox(); }
     });

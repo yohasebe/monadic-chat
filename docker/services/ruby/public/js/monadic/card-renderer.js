@@ -45,7 +45,7 @@ function escapeHtml(unsafe) {
  * @param {Array} [images=[]] - Image objects with data, title, masks
  * @param {boolean} [_monadic=false] - Monadic app flag
  * @param {number|null} [turnNumber=null] - Conversation turn number
- * @returns {jQuery} jQuery-wrapped card element
+ * @returns {HTMLElement} Card DOM element
  */
 function createCard(role, badge, html, _lang, mid, status, images, _monadic, turnNumber) {
   if (_lang === undefined) _lang = "en";

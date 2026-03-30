@@ -44,7 +44,7 @@
   /**
    * Get multiple elements at once
    * @param {Array<string>} selectors - Array of selectors
-   * @returns {Object} Object with selector keys and jQuery element values
+   * @returns {Object} Object with selector keys and DOM element values
    */
   function getMultiple(selectors) {
     const result = {};
@@ -74,7 +74,7 @@
   /**
    * Refresh cache for specific selector
    * @param {string} selector - Selector to refresh
-   * @returns {jQuery} Fresh jQuery element
+   * @returns {Element|null} Fresh DOM element
    */
   function refresh(selector) {
     clear(selector);

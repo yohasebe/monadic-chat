@@ -158,10 +158,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   // New tabs have empty sessionStorage, so should NEVER show processing spinner on load
   try {
     // Hide spinner immediately
-    const spinnerEl = $id("monadic-spinner");
-    if (spinnerEl) {
-      spinnerEl.style.display = 'none';
-    }
+    $hide($id("monadic-spinner"));
 
     // Reset Auto Speech completion flags to prevent sticky spinner
     if (typeof window.setTextResponseCompleted === 'function') {
@@ -197,13 +194,13 @@ document.addEventListener("DOMContentLoaded", async function () {
             toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
 
             if (isMobile) {
-              menuPanel.style.display = 'none';
-              mainPanel.style.display = '';
+              $hide(menuPanel);
+              $show(mainPanel);
               document.body.classList.remove("menu-visible");
             } else {
               mainPanel.classList.remove("col-md-8");
               mainPanel.classList.add("col-md-12");
-              menuPanel.style.display = 'none';
+              $hide(menuPanel);
             }
           } else {
             // Restore visible state
@@ -212,13 +209,13 @@ document.addEventListener("DOMContentLoaded", async function () {
             toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
 
             if (isMobile) {
-              menuPanel.style.display = '';
-              mainPanel.style.display = 'none';
+              $show(menuPanel);
+              $hide(mainPanel);
               document.body.classList.add("menu-visible");
             } else {
               mainPanel.classList.remove("col-md-12");
               mainPanel.classList.add("col-md-8");
-              menuPanel.style.display = '';
+              $show(menuPanel);
             }
           }
         }
@@ -496,10 +493,10 @@ function updateLightbox() {
   if (lightboxImages.length > 1) {
     if (lightboxCounter) {
       lightboxCounter.textContent = (lightboxIndex + 1) + " / " + lightboxImages.length;
-      lightboxCounter.style.display = '';
+      $show(lightboxCounter);
     }
-    if (lightboxPrev) lightboxPrev.style.display = lightboxIndex > 0 ? '' : 'none';
-    if (lightboxNext) lightboxNext.style.display = lightboxIndex < lightboxImages.length - 1 ? '' : 'none';
+    $toggle(lightboxPrev, lightboxIndex > 0);
+    $toggle(lightboxNext, lightboxIndex < lightboxImages.length - 1);
   } else {
     $hide(lightboxCounter); $hide(lightboxPrev); $hide(lightboxNext); }
 }
@@ -762,7 +759,7 @@ document.addEventListener("DOMContentLoaded", function () {
       var providerSelect = $id("ai_user_provider");
       if (!providerSelect) return;
       var allOptions = providerSelect.querySelectorAll("option");
-      allOptions.forEach(function(opt) { opt.style.display = 'none'; });
+      allOptions.forEach(function(opt) { $hide(opt); });
 
       // Loop through providers to check which ones have API keys available
       // Show by apps groups first (backward compatibility)
@@ -804,7 +801,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const ent = aiUserDefaults[val];
           var opt = providerSelect.querySelector("option[value='" + val + "']");
           if (opt) {
-            opt.style.display = (ent && ent.has_key) ? '' : 'none';
+            $toggle(opt, ent && ent.has_key);
           }
         });
       }
@@ -1012,7 +1009,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ws.send(JSON.stringify(ai_user_query));
 
         // Ensure the button stays visible
-        this.style.display = '';
+        $show(this);
 
         // Disable the button temporarily to prevent double-clicking
         this.disabled = true;
@@ -1246,9 +1243,9 @@ document.addEventListener("DOMContentLoaded", function () {
         // Force nav reflow to apply correct styles
         var navEl = $id('main-nav');
         if (navEl) {
-          navEl.style.display = 'none';
+          $hide(navEl);
           navEl.offsetHeight; // force reflow
-          navEl.style.display = '';
+          $show(navEl);
         }
 
         // Update previous width
@@ -1306,16 +1303,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (isMenuHidden) {
         // Menu should be hidden, main should be visible
-        menuPanel.style.display = 'none';
-        mainPanel.style.display = '';
+        $hide(menuPanel);
+        $show(mainPanel);
         mainPanel.classList.remove("col-md-8");
         mainPanel.classList.add("col-md-12");
         document.body.classList.remove("menu-visible");
         // icon stays the same; active style controlled by menu-hidden class
       } else {
         // Menu should be visible, main should be hidden
-        menuPanel.style.display = '';
-        mainPanel.style.display = 'none';
+        $show(menuPanel);
+        $hide(mainPanel);
         document.body.classList.add("menu-visible");
       }
 
@@ -1323,7 +1320,7 @@ document.addEventListener("DOMContentLoaded", function () {
       toggleBtn.style.position = "";
       toggleBtn.style.top = "";
       toggleBtn.style.right = "";
-      toggleBtn.style.display = "";
+      $show(toggleBtn);
     } else {
       // Desktop layout
       document.body.classList.remove("menu-visible");
@@ -1332,15 +1329,15 @@ document.addEventListener("DOMContentLoaded", function () {
         // Both panels visible
         mainPanel.classList.remove("col-md-12");
         mainPanel.classList.add("col-md-8");
-        mainPanel.style.display = '';
-        menuPanel.style.display = '';
+        $show(mainPanel);
+        $show(menuPanel);
         toggleBtn.classList.remove("menu-hidden");
       } else {
         // Only main panel visible
         mainPanel.classList.remove("col-md-8");
         mainPanel.classList.add("col-md-12");
-        mainPanel.style.display = '';
-        menuPanel.style.display = 'none';
+        $show(mainPanel);
+        $hide(menuPanel);
         toggleBtn.classList.add("menu-hidden");
       }
     }
@@ -2595,13 +2592,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (isMobile) {
           // On mobile: hide menu and show main
-          $menu.style.display = "none";
-          $main.style.display = "";
+          $hide($menu);
+          $show($main);
           document.body.classList.remove("menu-visible");
         } else {
           // On desktop: normal column behavior
           $main.classList.remove("col-md-8"); $main.classList.add("col-md-12");
-          $menu.style.display = "none";
+          $hide($menu);
         }
       } else {
         // Menu is hidden, will be shown
@@ -2615,13 +2612,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (isMobile) {
         // On mobile: show menu and hide main completely
-        $menu.style.display = "";
-        $main.style.display = "none";
+        $show($menu);
+        $hide($main);
         document.body.classList.add("menu-visible");
         } else {
           // On desktop: normal column behavior
           $main.classList.remove("col-md-12"); $main.classList.add("col-md-8");
-          $menu.style.display = "";
+          $show($menu);
         }
       }
       
@@ -2747,7 +2744,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   $on($id("start"), "click", function() {
     audioInit();
-    { const el = $id("asr-p-value"); if (el) { el.textContent = ""; el.style.display = "none"; } }
+    { const el = $id("asr-p-value"); if (el) { el.textContent = ""; $hide(el); } }
 
     // Mark that user has interacted with this tab (for app change confirmation)
     window.userHasInteractedInTab = true;
@@ -2931,7 +2928,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Show loading indicators but don't create a card yet
       // The actual card will be created when server responds
       $show($id("temp-card"));
-      { const el = document.querySelector("#temp-card .status"); if (el) el.style.display = "none"; }
+      { const el = document.querySelector("#temp-card .status"); $hide(el); }
       $show($id("indicator"));
     }
 
@@ -3955,10 +3952,10 @@ document.addEventListener("DOMContentLoaded", function () {
     // Show/hide textareas
     if (view === 'assistant') {
       $hide($id("ai-user-initial-prompt"));
-      { const el = $id("initial-prompt"); if (el) { el.style.display = ""; autoResize(el, 0); } }
+      { const el = $id("initial-prompt"); if (el) { $show(el); autoResize(el, 0); } }
     } else if (view === 'aiuser') {
       $hide($id("initial-prompt"));
-      { const el = $id("ai-user-initial-prompt"); if (el) { el.style.display = ""; autoResize(el, 0); } }
+      { const el = $id("ai-user-initial-prompt"); if (el) { $show(el); autoResize(el, 0); } }
     } else {
       $hide($id("initial-prompt"));
       $hide($id("ai-user-initial-prompt"));
@@ -4267,7 +4264,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Function to close the dropdown
       function closeDropdown() {
         if (isDropdownOpen) {
-          $customDropdown.style.display = "none";
+          $hide($customDropdown);
           isDropdownOpen = false;
           // Remove the document click handler
           /* removed: document off "click.customDropdown" */;
@@ -4277,7 +4274,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Function to open the dropdown
       function openDropdown() {
         if (!isDropdownOpen) {
-          $customDropdown.style.display = "";
+          $show($customDropdown);
           isDropdownOpen = true;
           
           // Get current selected value

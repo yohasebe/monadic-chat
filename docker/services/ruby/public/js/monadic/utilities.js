@@ -567,7 +567,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
         window.isLoadingParams = true;
 
         // Now trigger the change event after value is set
-        if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
+        if (appsSelect) appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
 
         // Clear the flag after a longer delay to ensure model setting completes
         setTimeout(() => {
@@ -588,11 +588,11 @@ window.loadParams = function(params, calledFor = "loadParams") {
               setTimeout(() => {
                 modelSelect.value = modelToSet;
                 if (modelSelect.value === modelToSet) {
-                  modelSelect.dispatchEvent(new Event('change'));
+                  modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
                 }
               }, 300);
             } else {
-              modelSelect.dispatchEvent(new Event('change'));
+              modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
             }
           }
         }, 300); // Increased timeout
@@ -605,7 +605,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
             modelSelect.value = modelToSet;
           }
           if (modelSelect.value === modelToSet) {
-            modelSelect.dispatchEvent(new Event('change'));
+            modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
           } else {
             console.warn(`Model ${modelToSet} could not be selected for app ${targetApp}`);
             // Fallback to first available model to avoid stale/invalid state
@@ -613,7 +613,7 @@ window.loadParams = function(params, calledFor = "loadParams") {
             const fallbackModel = firstOption ? firstOption.value : null;
             if (fallbackModel) {
               modelSelect.value = fallbackModel;
-              modelSelect.dispatchEvent(new Event('change'));
+              modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
               params["model"] = fallbackModel;
               // Clear stale reasoning_effort when model fallback happens
               if (params["reasoning_effort"]) {
@@ -1288,7 +1288,7 @@ function doResetActions(resetToDefaultApp = false) {
 
       if (firstApp && drApps) {
         drApps.value = firstApp;
-        drApps.dispatchEvent(new Event('change'));
+        drApps.dispatchEvent(new Event('change', {bubbles: true}));
       }
     }
     

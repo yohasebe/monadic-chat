@@ -200,7 +200,7 @@ function _rebuildAppSelectors(apps) {
       const firstApp = appsEl.querySelector("option:not(:disabled)");
       if (firstApp) {
         appsEl.value = firstApp.value;
-        appsEl.dispatchEvent(new Event('change'));
+        appsEl.dispatchEvent(new Event('change', {bubbles: true}));
       }
     }
   } catch (e) {

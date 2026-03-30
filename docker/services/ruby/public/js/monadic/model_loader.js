@@ -62,7 +62,7 @@
       // Trigger app change to rebuild model list
       const appsSelect = document.getElementById('apps');
       if (appsSelect && appsSelect.value) {
-        appsSelect.dispatchEvent(new Event('change'));
+        appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
       }
     }
   });

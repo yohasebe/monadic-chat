@@ -206,7 +206,7 @@ function updateAppAndModelSelection(parameters) {
   const appsSelect = document.getElementById("apps");
   if (parameters.app_name && appsSelect && appsSelect.value !== parameters.app_name) {
     appsSelect.value = parameters.app_name;
-    appsSelect.dispatchEvent(new Event('change'));
+    appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
     // Update overlay icon immediately to avoid blank state until proceedWithAppChange runs
     if (typeof updateAppSelectIcon === 'function') {
       setTimeout(() => updateAppSelectIcon(parameters.app_name), 0);
@@ -217,7 +217,7 @@ function updateAppAndModelSelection(parameters) {
     const modelSelect = document.getElementById("model");
     if (parameters.model && modelSelect && modelSelect.value !== parameters.model) {
       modelSelect.value = parameters.model;
-      modelSelect.dispatchEvent(new Event('change'));
+      modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
     }
     // End of import flow; allow normal app/model changes afterwards
     if (typeof window !== 'undefined') {
@@ -686,7 +686,7 @@ function handleAppsMessage(data) {
 
             } else {
               // Fallback to triggering change event if function not available
-              if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
+              if (appsSelect) appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
               window.logTL && window.logTL('apps_change_triggered');
             }
           }, 100);
@@ -721,7 +721,7 @@ function handleAppsMessage(data) {
               // Set flag AFTER proceedWithAppChange completes
               window.initialAppLoaded = true;
             } else {
-              if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
+              if (appsSelect) appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
               window.initialAppLoaded = true;
             }
           }
@@ -907,7 +907,7 @@ function handleParametersMessage(data) {
         if (appName && appsSelect) {
           appsSelect.value = appName;
           // Trigger change to update model list
-          appsSelect.dispatchEvent(new Event('change'));
+          appsSelect.dispatchEvent(new Event('change', {bubbles: true}));
 
           // Set model after a delay
           setTimeout(() => {
@@ -933,10 +933,10 @@ function handleParametersMessage(data) {
                 // Try again with a longer delay
                 setTimeout(() => {
                   modelSelect.value = targetModel;
-                  modelSelect.dispatchEvent(new Event('change'));
+                  modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
                 }, 500);
               } else {
-                modelSelect.dispatchEvent(new Event('change'));
+                modelSelect.dispatchEvent(new Event('change', {bubbles: true}));
               }
             }
           }, 300);

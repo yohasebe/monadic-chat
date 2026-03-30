@@ -1133,7 +1133,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 // Handle already-cached images (browser may not fire load)
                 if (imgEl.complete && imgEl.naturalWidth > 0) {
-                  imgEl.dispatchEvent(new Event("load"));
+                  imgEl.dispatchEvent(new Event("load", {bubbles: true}));
                 }
 
                 // Screenshot lightbox: add click handler directly to each image
@@ -3427,7 +3427,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { const _el = document.getElementById("doc-spinner"); if (_el) _el.style.display = "none"; };
         document.querySelectorAll("#docModal button").forEach(function(_el) { _el.disabled = false; });
         bootstrap.Modal.getOrCreateInstance(document.getElementById("docModal")).hide();
-        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click")); };
+        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click", {bubbles: true})); };
         { const _el = document.getElementById("message"); if (_el) _el.focus(); };
       } else {
         // Show error message from API
@@ -3758,7 +3758,7 @@ document.addEventListener("DOMContentLoaded", function () {
         { const _el = document.getElementById("url-spinner"); if (_el) _el.style.display = "none"; };
         document.querySelectorAll("#urlModal button").forEach(function(_el) { _el.disabled = false; });
         bootstrap.Modal.getOrCreateInstance(document.getElementById("urlModal")).hide();
-        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click")); };
+        { const _el = document.getElementById("back_to_bottom"); if (_el) _el.dispatchEvent(new Event("click", {bubbles: true})); };
         { const _el = document.getElementById("message"); if (_el) _el.focus(); };
       } else {
         // Show error message from API

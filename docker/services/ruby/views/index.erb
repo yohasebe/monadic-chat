@@ -697,39 +697,40 @@
             </form>
 
             <div class="row my-3">
-              <div id="config-initial-prompt" class="">
-                <button type="button" class="btn btn-sm btn-outline-secondary me-3 text-start" id="initial-prompt-toggle" title="Toggle initial prompt visibility">
-                  <i class="fas fa-chevron-down" id="initial-prompt-icon"></i>
-                  <span data-i18n="ui.initialPromptAssistant">Initial Prompt for Assistant</span>
-                </button>
-                <div class="form-check form-switch form-switch-inline me-3">
-                  <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
-                  <input class="form-check-input" type="checkbox" id="websearch">
+              <div id="config-prompts">
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-assistant">
+                    <i class="fas fa-chevron-right" id="prompt-icon-assistant"></i>
+                    <span data-i18n="ui.initialPromptAssistant">Initial Prompt for AI Assistant</span>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary text-start" id="prompt-toggle-aiuser">
+                    <i class="fas fa-chevron-right" id="prompt-icon-aiuser"></i>
+                    <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
+                  </button>
                 </div>
-                <div class="form-check form-switch form-switch-inline me-3" id="thinking-display-container" style="display: none;">
-                  <label class="form-check-label" for="show-thinking" data-i18n="ui.showThinking">Show Thinking</label>
-                  <input class="form-check-input" type="checkbox" id="show-thinking" checked>
-                </div>
-
-                <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt"></textarea>
+                <textarea class="form-control form-control-sm textarea-resizable" id="initial-prompt" style="display: none;"></textarea>
+                <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt" style="display: none;"></textarea>
               </div>
             </div>
 
             <div class="row my-3">
-              <div id="config-ai-user-initial-prompt" class="">
-                <button type="button" class="btn btn-sm btn-outline-secondary me-3 text-start" id="ai-user-initial-prompt-toggle" title="Toggle AI User initial prompt visibility">
-                  <i class="fas fa-chevron-down" id="ai-user-initial-prompt-icon"></i>
-                  <span data-i18n="ui.initialPromptAIUser">Initial Prompt for AI User</span>
-                </button>
-                <div class="form-check form-switch form-switch-inline me-3">
+              <div class="d-flex align-items-center flex-wrap gap-3">
+                <div class="form-check form-switch form-switch-inline">
+                  <label class="form-check-label" for="websearch" data-i18n="ui.webSearch">Web Search</label>
+                  <input class="form-check-input" type="checkbox" id="websearch">
+                </div>
+                <div class="form-check form-switch form-switch-inline" id="thinking-display-container" style="display: none;">
+                  <label class="form-check-label" for="show-thinking" data-i18n="ui.showThinking">Show Thinking</label>
+                  <input class="form-check-input" type="checkbox" id="show-thinking" checked>
+                </div>
+                <div class="form-check form-switch form-switch-inline">
                   <label class="form-check-label" for="initiate-from-assistant" data-i18n="ui.startFromAssistant">Start from assistant</label>
                   <input class="form-check-input" type="checkbox" id="initiate-from-assistant">
                 </div>
-                <div class="form-check form-switch form-switch-inline me-3">
+                <div class="form-check form-switch form-switch-inline">
                   <label class="form-check-label" for="mathjax" data-i18n="ui.mathRendering">Math Rendering</label>
                   <input class="form-check-input" type="checkbox" id="mathjax">
                 </div>
-                <textarea class="form-control form-control-sm textarea-resizable" id="ai-user-initial-prompt"></textarea>
               </div>
             </div>
 

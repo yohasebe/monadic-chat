@@ -585,7 +585,7 @@ $(function () {
   // button#browser is disabled when the system has started
   $("#browser").prop("disabled", true);
 
-  $("#send, #clear, #voice, #tts-voice, #ui-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", true);
+  $("#send, #clear, #voice, #tts-voice, #ui-language, #prompt-toggle-assistant, #prompt-toggle-aiuser, #check-auto-speech, #check-easy-submit").prop("disabled", true);
   // Keep TTS speed control always enabled as it's used by multiple TTS providers
   $("#tts-speed").prop("disabled", false);
 
@@ -639,12 +639,6 @@ $(function () {
 
     $("#context-size-toggle").on("change", function () {
       $("#context-size").prop("disabled", !$(this).is(":checked"));
-    });
-    
-    // Add handler for AI User toggle to ensure the value gets set in params
-    $("#ai-user-toggle").on("change", function () {
-      // Update the params directly when the checkbox changes
-      params["ai_user"] = $(this).is(":checked") ? "true" : "false";
     });
   }
 
@@ -1943,9 +1937,6 @@ $(function () {
       window.currentLLMProvider = getProviderFromGroup(selectedApp.group).toLowerCase();
     }
 
-    // Always enable AI User toggle for all providers
-    $("#ai-user-toggle").prop("disabled", false);
-
     // Always enable AI User button (error message will be shown if conversation not started)
     $("#ai_user").prop("disabled", false);
     // Set title with translation when available
@@ -2244,8 +2235,7 @@ $(function () {
       $("#base-app-desc").html(apps[appValue]["description"]);
     }
 
-    $("#initial-prompt-toggle").prop("checked", false).trigger("change");
-    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+    if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
     // Ensure reasoning-effort dropdown is updated after app change
     setTimeout(function() {
@@ -2749,19 +2739,6 @@ $(function () {
     }
   });
 
-  // if $ai-user-toggle is enabled, $ai-user-initial-prompt will be automatically disabled
-  $("#ai-user-toggle").on("change", function () {
-    if ($(this).is(":checked")) {
-      $("#initiate-from-assistant").prop("checked", false).trigger("change");
-    }
-  });
-
-  // if $ai-user-initial-prompt is enabled, $ai-user-toggle will be automatically disabled
-  $("#initiate-from-assistant").on("change", function () {
-    if ($(this).is(":checked")) {
-      $("#ai-user-toggle").prop("checked", false);
-    }
-  });
 
   $("#cancel_query").on("click", function () {
     setAlert(`<i class='fa-solid fa-ban' style='color: #ffc107;'></i> ${typeof webUIi18n !== 'undefined' ? webUIi18n.t('ui.messages.operationCanceled') : 'Operation canceled'}`, "warning");
@@ -3425,7 +3402,7 @@ $(function () {
       } catch (_) { console.warn("[PDF Listing] Metadata update failed:", _); }
       const files = res.files || [];
       if (files.length === 0) {
-        $list.html('<span class="text-secondary">(none)</span>');
+        $list.html(`<span class="text-secondary">${getTranslation('ui.noPdfsCloud', 'No cloud PDFs')}</span>`);
         return;
       }
       const rows = files.map(f => {
@@ -3852,34 +3829,38 @@ $(function () {
     $("#alert-box").hide();
   })
 
-  $("#initial-prompt-toggle").on("click", function () {
-    const $prompt = $("#initial-prompt");
-    const $icon = $("#initial-prompt-icon");
+  // Prompt toggle buttons (mutually exclusive, both can be off)
+  window.setPromptView = function(view, animate) {
+    const speed = animate ? 100 : 0;
 
-    if ($prompt.is(":visible")) {
-      $prompt.slideUp(100);
-      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
-    } else {
-      $prompt.slideDown(100, function() {
+    // Update button active state and chevron icons
+    $("#prompt-toggle-assistant").toggleClass("active", view === 'assistant');
+    $("#prompt-icon-assistant").toggleClass("fa-chevron-down", view === 'assistant').toggleClass("fa-chevron-right", view !== 'assistant');
+    $("#prompt-toggle-aiuser").toggleClass("active", view === 'aiuser');
+    $("#prompt-icon-aiuser").toggleClass("fa-chevron-down", view === 'aiuser').toggleClass("fa-chevron-right", view !== 'aiuser');
+
+    // Show/hide textareas
+    if (view === 'assistant') {
+      $("#ai-user-initial-prompt").slideUp(speed);
+      $("#initial-prompt").slideDown(speed, function() {
         autoResize(document.getElementById('initial-prompt'), 0);
       });
-      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
-    }
-  });
-
-  $("#ai-user-initial-prompt-toggle").on("click", function () {
-    const $prompt = $("#ai-user-initial-prompt");
-    const $icon = $("#ai-user-initial-prompt-icon");
-
-    if ($prompt.is(":visible")) {
-      $prompt.slideUp(100);
-      $icon.removeClass("fa-chevron-up").addClass("fa-chevron-down");
-    } else {
-      $prompt.slideDown(100, function() {
+    } else if (view === 'aiuser') {
+      $("#initial-prompt").slideUp(speed);
+      $("#ai-user-initial-prompt").slideDown(speed, function() {
         autoResize(document.getElementById('ai-user-initial-prompt'), 0);
       });
-      $icon.removeClass("fa-chevron-down").addClass("fa-chevron-up");
+    } else {
+      $("#initial-prompt").slideUp(speed);
+      $("#ai-user-initial-prompt").slideUp(speed);
     }
+  };
+
+  $("#prompt-toggle-assistant").on("click", function() {
+    window.setPromptView($(this).hasClass("active") ? 'hidden' : 'assistant', true);
+  });
+  $("#prompt-toggle-aiuser").on("click", function() {
+    window.setPromptView($(this).hasClass("active") ? 'hidden' : 'aiuser', true);
   });
 
   // Disable voice features for browsers that don't support them, and for iOS/iPadOS
@@ -4077,11 +4058,7 @@ $(function () {
   }
   
   $(document).ready(function () {
-    $("#initial-prompt").css("display", "none");
-    $("#initial-prompt-toggle").prop("checked", false);
-    $("#ai-user-initial-prompt").css("display", "none");
-    $("#ai-user-initial-prompt-toggle").prop("checked", false);
-    $("#ai-user-toggle").prop("checked", false);
+    if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
     
     // Initialize interface language from cookie
     // Load saved conversation language

@@ -264,7 +264,7 @@ describe('ws-session-handler', () => {
       handlers.handlePDFTitles({ content: [] });
 
       expect(mockElements['#pdf-titles'].html).toHaveBeenCalledWith(
-        expect.stringContaining('(none)')
+        expect.stringContaining('No PDFs imported')
       );
     });
 

@@ -195,7 +195,8 @@ function handlePDFTitles(data) {
          +   `</button>`
          + `</div>`;
   }).join("");
-  $("#pdf-titles").html(rows || `<span class='text-secondary'>(none)</span>`);
+  const noPdfsText = (typeof getTranslation === 'function') ? getTranslation('ui.noPdfsLocal', 'No PDFs imported') : 'No PDFs imported';
+  $("#pdf-titles").html(rows || `<span class='text-secondary'>${noPdfsText}</span>`);
   data["content"].forEach((title, index) => {
     $(`#pdf-del-${index}`).off('click').on('click', function () {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||

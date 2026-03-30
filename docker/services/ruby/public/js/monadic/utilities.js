@@ -677,12 +677,10 @@ window.loadParams = function(params, calledFor = "loadParams") {
   });
 
   if (params["ai_user_initial_prompt"]) {
-    $("#ai-user-initial-prompt-toggle").prop("checked", true).trigger("change");
     $("#ai-user-initial-prompt").val(params["ai_user_initial_prompt"]).trigger("input");
-    $("#ai-user-toggle").prop("checked", true)
+    if (typeof window.setPromptView === 'function') window.setPromptView('aiuser', false);
   } else {
-    $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
-    $("#ai-user-toggle").prop("checked", false)
+    if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
   }
 
   let model = params["model"];
@@ -1354,8 +1352,7 @@ function doResetActions(resetToDefaultApp = false) {
 
   $("#image-file").show();
 
-  $("#initial-prompt-toggle").prop("checked", false).trigger("change");
-  $("#ai-user-initial-prompt-toggle").prop("checked", false).trigger("change");
+  if (typeof window.setPromptView === 'function') window.setPromptView('hidden', false);
 
   const noDataText = getTranslation('ui.noDataAvailable', 'No data available');
   setStats(noDataText);

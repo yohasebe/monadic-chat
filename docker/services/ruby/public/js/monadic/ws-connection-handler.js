@@ -60,7 +60,7 @@ function handleTokenVerified(data) {
       $("#tts-provider").val("openai-tts-4o").trigger("change");
     }
     $("#start").prop("disabled", false);
-    $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #ai-user-initial-prompt-toggle, #ai-user-toggle, #check-auto-speech, #check-easy-submit").prop("disabled", false);
+    $("#send, #clear, #voice, #tts-provider, #elevenlabs-tts-voice, #tts-voice, #conversation-language, #prompt-toggle-assistant, #prompt-toggle-aiuser, #check-auto-speech, #check-easy-submit").prop("disabled", false);
 
     // Update the available AI User providers when token is verified
     if (typeof window.updateAvailableProviders === 'function') {

@@ -109,8 +109,10 @@
    * Get current app information
    */
   function getAppInfo() {
-    const appName = $('#base-app-title').text() || 'Monadic Chat';
-    const modelText = $('#model-selected').text() || 'Unknown Model';
+    const appTitleEl = document.getElementById('base-app-title');
+    const modelSelectedEl = document.getElementById('model-selected');
+    const appName = (appTitleEl && appTitleEl.textContent) || 'Monadic Chat';
+    const modelText = (modelSelectedEl && modelSelectedEl.textContent) || 'Unknown Model';
 
     // Parse provider and model from text like "OpenAI (gpt-4o)" or "OpenAI (gpt-4o - high)"
     let provider = 'Unknown Provider';

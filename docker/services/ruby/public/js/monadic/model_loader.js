@@ -62,12 +62,7 @@
       // Trigger app change to rebuild model list
       const appsSelect = document.getElementById('apps');
       if (appsSelect && appsSelect.value) {
-        // Use jQuery if available, otherwise dispatch native event
-        if (typeof $ !== 'undefined' && $.fn.trigger) {
-          $(appsSelect).trigger('change');
-        } else {
-          appsSelect.dispatchEvent(new Event('change'));
-        }
+        appsSelect.dispatchEvent(new Event('change'));
       }
     }
   });

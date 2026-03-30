@@ -43,7 +43,8 @@ function isPdfSupportedForModel(selectedModel) {
  */
 function isImageGenerationApp(appName) {
   if (!appName) {
-    appName = typeof $ !== 'undefined' ? $("#apps").val() : null;
+    var appsEl = document.getElementById("apps");
+    appName = appsEl ? appsEl.value : null;
   }
   var toBool = window.toBool || function(value) {
     if (typeof value === 'boolean') return value;
@@ -61,7 +62,8 @@ function isImageGenerationApp(appName) {
  */
 function isMaskEditingEnabled(appName) {
   if (!appName) {
-    appName = typeof $ !== 'undefined' ? $("#apps").val() : null;
+    var appsEl = document.getElementById("apps");
+    appName = appsEl ? appsEl.value : null;
   }
 
   // Disable mask editor for Gemini/Grok Image Generators (use semantic masking instead)

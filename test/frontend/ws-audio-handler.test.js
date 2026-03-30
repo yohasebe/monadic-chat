@@ -24,6 +24,15 @@ function createMockElement(id) {
 let mockElements;
 
 beforeEach(() => {
+  // Create real DOM elements for vanilla JS getElementById calls
+  const spinnerEl = document.createElement('div');
+  spinnerEl.id = 'monadic-spinner';
+  document.body.appendChild(spinnerEl);
+
+  const ttsProviderEl = document.createElement('select');
+  ttsProviderEl.id = 'tts-provider';
+  document.body.appendChild(ttsProviderEl);
+
   mockElements = {
     '#monadic-spinner': createMockElement('monadic-spinner'),
     '#tts-provider': createMockElement('tts-provider')
@@ -62,6 +71,11 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
+  // Clean up DOM elements added in beforeEach
+  const spinner = document.getElementById('monadic-spinner');
+  if (spinner) spinner.remove();
+  const ttsProvider = document.getElementById('tts-provider');
+  if (ttsProvider) ttsProvider.remove();
 });
 
 const handlers = require('../../docker/services/ruby/public/js/monadic/ws-audio-handler');
@@ -163,7 +177,7 @@ describe('ws-audio-handler', () => {
 
       handlers.handleAudio({ type: 'audio', content: btoa('test') });
 
-      expect(mockElements['#monadic-spinner'].hide).toHaveBeenCalled();
+      expect(document.getElementById('monadic-spinner').style.display).toBe('none');
     });
 
     it('does not hide spinner when auto speech is active', () => {
@@ -171,7 +185,7 @@ describe('ws-audio-handler', () => {
 
       handlers.handleAudio({ type: 'audio', content: btoa('test') });
 
-      expect(mockElements['#monadic-spinner'].hide).not.toHaveBeenCalled();
+      expect(document.getElementById('monadic-spinner').style.display).not.toBe('none');
     });
 
     it('skips duplicate audio in fallback', () => {
@@ -212,7 +226,11 @@ describe('ws-audio-handler', () => {
         isAudioProcessed: jest.fn().mockReturnValue(false),
         markAudioProcessed: jest.fn()
       };
-      mockElements['#tts-provider'].val = jest.fn().mockReturnValue('gemini-flash');
+      const providerSelect = document.getElementById('tts-provider');
+      const opt = document.createElement('option');
+      opt.value = 'gemini-flash';
+      providerSelect.appendChild(opt);
+      providerSelect.value = 'gemini-flash';
 
       handlers.handleAudio({
         type: 'audio',

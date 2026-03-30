@@ -180,10 +180,7 @@ function getBadgeColorClass(badge) {
  * @returns {string|undefined}
  */
 function getUserControlCheckbox(featureId) {
-  if (typeof $ !== 'undefined') {
-    var element = $('#' + featureId);
-    if (element.length > 0) return featureId;
-  }
+  if (document.getElementById(featureId)) return featureId;
   var legacyMapping = { 'mathjax': 'mathjax', 'mermaid': 'mermaid', 'websearch': 'websearch' };
   return legacyMapping[featureId];
 }

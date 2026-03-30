@@ -997,7 +997,6 @@ div.card-body.role-system {
 
 #back_to_top,
 #back_to_bottom {
-  display: none; /* Initially hidden */
   position: fixed;
   z-index: 1050; /* Above menu overlay (1040) but below modals (9999) */
   transition: opacity var(--transition-normal) ease;
@@ -3633,7 +3632,6 @@ img.base64-image,
 /* Custom apps dropdown */
 
 #custom-apps-dropdown {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;

@@ -311,7 +311,7 @@ function listModels(models, openai = false) {
     const startEl = document.getElementById("start");
     const easySubmitEl = document.getElementById("check-easy-submit");
     const autoSpeechEl = document.getElementById("check-auto-speech");
-    if (startEl && startEl.style.display !== 'none') {
+    if (startEl && startEl.offsetParent !== null) {
       startEl.focus();
     } else if (easySubmitEl && easySubmitEl.checked && autoSpeechEl && autoSpeechEl.checked) {
       const voiceEl = document.getElementById("voice");

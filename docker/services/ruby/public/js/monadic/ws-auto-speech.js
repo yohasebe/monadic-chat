@@ -31,7 +31,7 @@
   // ── TTS Toast notice ───────────────────────────────────────────────
 
   function showTtsNotice(content) {
-    if (typeof $ === 'undefined' || typeof bootstrap === 'undefined') return;
+    if (typeof bootstrap === 'undefined') return;
 
     const toastEl = document.getElementById('tts-toast');
     const toastBody = document.getElementById('tts-toast-body');

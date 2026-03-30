@@ -801,10 +801,10 @@
       }
 
       // 3. ABCJS / applyAbc (lazy-loaded, ~472 KB deferred)
-      if (typeof window.applyAbc === 'function' && window.jQuery) {
+      if (typeof window.applyAbc === 'function') {
         scheduleTask(() => {
           try {
-            window.applyAbc(window.jQuery(container));
+            window.applyAbc(container);
           } catch (err) {
             console.error('applyAbc failed:', err);
           }
@@ -838,10 +838,10 @@
       }
 
       // 4. Mermaid / applyMermaid (lazy-loaded, ~2.5 MB deferred)
-      if (typeof window.applyMermaid === 'function' && window.jQuery) {
+      if (typeof window.applyMermaid === 'function') {
         scheduleTask(() => {
           try {
-            window.applyMermaid(window.jQuery(container));
+            window.applyMermaid(container);
           } catch (err) {
             console.error('applyMermaid failed:', err);
           }
@@ -866,10 +866,10 @@
       }
 
       // 5. DrawIO / applyDrawIO
-      if (typeof window.applyDrawIO === 'function' && window.jQuery) {
+      if (typeof window.applyDrawIO === 'function') {
         scheduleTask(() => {
           try {
-            window.applyDrawIO(window.jQuery(container));
+            window.applyDrawIO(container);
           } catch (err) {
             console.error('applyDrawIO failed:', err);
           }

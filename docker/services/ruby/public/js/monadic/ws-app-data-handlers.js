@@ -29,45 +29,51 @@ function handleElevenLabsVoices(data) {
   const cookieValue = getCookie("elevenlabs-tts-voice");
   const voices = data["content"];
 
-  if (voices.length > 0) {
-    // Enable ElevenLabs TTS provider options
-    $("#elevenlabs-flash-provider-option").prop("disabled", false);
-    $("#elevenlabs-multilingual-provider-option").prop("disabled", false);
-    $("#elevenlabs-v3-provider-option").prop("disabled", false);
-    // Enable ElevenLabs STT options
-    $("#elevenlabs-stt-scribe-v2").prop("disabled", false);
-    $("#elevenlabs-stt-scribe").prop("disabled", false);
-    $("#elevenlabs-stt-scribe-experimental").prop("disabled", false);
-  } else {
-    // Disable ElevenLabs TTS provider options
-    $("#elevenlabs-flash-provider-option").prop("disabled", true);
-    $("#elevenlabs-multilingual-provider-option").prop("disabled", true);
-    $("#elevenlabs-v3-provider-option").prop("disabled", true);
-    // Disable ElevenLabs STT options
-    $("#elevenlabs-stt-scribe-v2").prop("disabled", true);
-    $("#elevenlabs-stt-scribe").prop("disabled", true);
-    $("#elevenlabs-stt-scribe-experimental").prop("disabled", true);
-  }
+  const ttsOptionIds = [
+    "elevenlabs-flash-provider-option",
+    "elevenlabs-multilingual-provider-option",
+    "elevenlabs-v3-provider-option"
+  ];
+  const sttOptionIds = [
+    "elevenlabs-stt-scribe-v2",
+    "elevenlabs-stt-scribe",
+    "elevenlabs-stt-scribe-experimental"
+  ];
 
-  $("#elevenlabs-tts-voice").empty();
-  voices.forEach((voice) => {
-    if (cookieValue === voice.voice_id) {
-      $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
-    } else {
-      $("#elevenlabs-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
-    }
+  const disabledState = !(voices.length > 0);
+  ttsOptionIds.concat(sttOptionIds).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabledState;
   });
 
-  // Restore saved cookie value for voice
-  const savedVoice = getCookie("elevenlabs-tts-voice");
-  if (savedVoice && $(`#elevenlabs-tts-voice option[value="${savedVoice}"]`).length > 0) {
-    $("#elevenlabs-tts-voice").val(savedVoice);
+  const voiceSelect = document.getElementById("elevenlabs-tts-voice");
+  if (voiceSelect) {
+    voiceSelect.innerHTML = '';
+    voices.forEach((voice) => {
+      const option = document.createElement('option');
+      option.value = voice.voice_id;
+      option.textContent = voice.name;
+      if (cookieValue === voice.voice_id) {
+        option.selected = true;
+      }
+      voiceSelect.appendChild(option);
+    });
+
+    // Restore saved cookie value for voice
+    const savedVoice = getCookie("elevenlabs-tts-voice");
+    if (savedVoice && voiceSelect.querySelector(`option[value="${savedVoice}"]`)) {
+      voiceSelect.value = savedVoice;
+    }
   }
 
   // Restore saved cookie value for provider if it was elevenlabs
   const savedProvider = getCookie("tts-provider");
   if (["elevenlabs", "elevenlabs-flash", "elevenlabs-multilingual", "elevenlabs-v3"].includes(savedProvider)) {
-    $("#tts-provider").val(savedProvider).trigger("change");
+    const providerSelect = document.getElementById("tts-provider");
+    if (providerSelect) {
+      providerSelect.value = savedProvider;
+      providerSelect.dispatchEvent(new Event("change"));
+    }
   }
 }
 
@@ -83,38 +89,53 @@ function handleGeminiVoices(data) {
 
   if (voices.length > 0) {
     // Enable Gemini TTS provider options
-    $("#gemini-flash-provider-option").prop("disabled", false);
-    $("#gemini-pro-provider-option").prop("disabled", false);
+    ["gemini-flash-provider-option", "gemini-pro-provider-option"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = false;
+    });
     // Enable Gemini STT model
-    $("#gemini-stt-flash").prop("disabled", false);
+    const sttFlash = document.getElementById("gemini-stt-flash");
+    if (sttFlash) sttFlash.disabled = false;
 
     // Populate the voice selector
-    $("#gemini-tts-voice").empty();
-    voices.forEach((voice) => {
-      if (cookieValue === voice.voice_id) {
-        $("#gemini-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
-      } else {
-        $("#gemini-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
-      }
-    });
+    const voiceSelect = document.getElementById("gemini-tts-voice");
+    if (voiceSelect) {
+      voiceSelect.innerHTML = '';
+      voices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.value = voice.voice_id;
+        option.textContent = voice.name;
+        if (cookieValue === voice.voice_id) {
+          option.selected = true;
+        }
+        voiceSelect.appendChild(option);
+      });
 
-    // Restore saved cookie value for voice
-    const savedVoice = getCookie("gemini-tts-voice");
-    if (savedVoice && $(`#gemini-tts-voice option[value="${savedVoice}"]`).length > 0) {
-      $("#gemini-tts-voice").val(savedVoice);
+      // Restore saved cookie value for voice
+      const savedVoice = getCookie("gemini-tts-voice");
+      if (savedVoice && voiceSelect.querySelector(`option[value="${savedVoice}"]`)) {
+        voiceSelect.value = savedVoice;
+      }
     }
   } else {
     // Disable Gemini TTS provider options
-    $("#gemini-flash-provider-option").prop("disabled", true);
-    $("#gemini-pro-provider-option").prop("disabled", true);
+    ["gemini-flash-provider-option", "gemini-pro-provider-option"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = true;
+    });
     // Disable Gemini STT model
-    $("#gemini-stt-flash").prop("disabled", true);
+    const sttFlash = document.getElementById("gemini-stt-flash");
+    if (sttFlash) sttFlash.disabled = true;
   }
 
   // Restore saved cookie value for provider if it was gemini
   const savedProvider = getCookie("tts-provider");
   if (savedProvider === "gemini-flash" || savedProvider === "gemini-pro") {
-    $("#tts-provider").val(savedProvider).trigger("change");
+    const providerSelect = document.getElementById("tts-provider");
+    if (providerSelect) {
+      providerSelect.value = savedProvider;
+      providerSelect.dispatchEvent(new Event("change"));
+    }
   }
 }
 
@@ -129,32 +150,43 @@ function handleMistralVoices(data) {
 
   if (voices.length > 0) {
     // Enable Mistral TTS provider option
-    $("#mistral-tts-provider-option").prop("disabled", false);
+    const providerOption = document.getElementById("mistral-tts-provider-option");
+    if (providerOption) providerOption.disabled = false;
 
     // Populate the voice selector
-    $("#mistral-tts-voice").empty();
-    voices.forEach((voice) => {
-      if (cookieValue === voice.voice_id) {
-        $("#mistral-tts-voice").append(`<option value="${voice.voice_id}" selected>${voice.name}</option>`);
-      } else {
-        $("#mistral-tts-voice").append(`<option value="${voice.voice_id}">${voice.name}</option>`);
-      }
-    });
+    const voiceSelect = document.getElementById("mistral-tts-voice");
+    if (voiceSelect) {
+      voiceSelect.innerHTML = '';
+      voices.forEach((voice) => {
+        const option = document.createElement('option');
+        option.value = voice.voice_id;
+        option.textContent = voice.name;
+        if (cookieValue === voice.voice_id) {
+          option.selected = true;
+        }
+        voiceSelect.appendChild(option);
+      });
 
-    // Restore saved cookie value for voice
-    const savedVoice = getCookie("mistral-tts-voice");
-    if (savedVoice && $(`#mistral-tts-voice option[value="${savedVoice}"]`).length > 0) {
-      $("#mistral-tts-voice").val(savedVoice);
+      // Restore saved cookie value for voice
+      const savedVoice = getCookie("mistral-tts-voice");
+      if (savedVoice && voiceSelect.querySelector(`option[value="${savedVoice}"]`)) {
+        voiceSelect.value = savedVoice;
+      }
     }
   } else {
     // Disable Mistral TTS provider option if no voices
-    $("#mistral-tts-provider-option").prop("disabled", true);
+    const providerOption = document.getElementById("mistral-tts-provider-option");
+    if (providerOption) providerOption.disabled = true;
   }
 
   // Restore saved cookie value for provider if it was mistral
   const savedProvider = getCookie("tts-provider");
   if (savedProvider === "mistral") {
-    $("#tts-provider").val(savedProvider).trigger("change");
+    const providerSelect = document.getElementById("tts-provider");
+    if (providerSelect) {
+      providerSelect.value = savedProvider;
+      providerSelect.dispatchEvent(new Event("change"));
+    }
   }
 }
 
@@ -171,8 +203,10 @@ function updateAppAndModelSelection(parameters) {
     window.lastImportTime = Date.now();
   }
   // Only update if the values are not already set correctly
-  if (parameters.app_name && $("#apps").val() !== parameters.app_name) {
-    $("#apps").val(parameters.app_name).trigger('change');
+  const appsSelect = document.getElementById("apps");
+  if (parameters.app_name && appsSelect && appsSelect.value !== parameters.app_name) {
+    appsSelect.value = parameters.app_name;
+    appsSelect.dispatchEvent(new Event('change'));
     // Update overlay icon immediately to avoid blank state until proceedWithAppChange runs
     if (typeof updateAppSelectIcon === 'function') {
       setTimeout(() => updateAppSelectIcon(parameters.app_name), 0);
@@ -180,8 +214,10 @@ function updateAppAndModelSelection(parameters) {
   }
   // Wait for app change to complete before setting model
   setTimeout(() => {
-    if (parameters.model && $("#model").val() !== parameters.model) {
-      $("#model").val(parameters.model).trigger('change');
+    const modelSelect = document.getElementById("model");
+    if (parameters.model && modelSelect && modelSelect.value !== parameters.model) {
+      modelSelect.value = parameters.model;
+      modelSelect.dispatchEvent(new Event('change'));
     }
     // End of import flow; allow normal app/model changes afterwards
     if (typeof window !== 'undefined') {
@@ -202,16 +238,18 @@ function handleAppsMessage(data) {
   const fromParamUpdate = data["from_param_update"] === true;
 
   window.appsMessageCount = (window.appsMessageCount || 0) + 1;
+  const appsSelect = document.getElementById("apps");
   window.logTL && window.logTL('apps_received', {
     count: window.appsMessageCount,
     hasAppsKeys: Object.keys(apps).length,
-    currentSelect: $("#apps").val(),
+    currentSelect: appsSelect ? appsSelect.value : null,
     fromParamUpdate
   });
 
   let version_string = data["version"];
   data["docker"] ? version_string += " (Docker)" : version_string += " (Local)";
-  $("#monadic-version-number").html(version_string);
+  const versionEl = document.getElementById("monadic-version-number");
+  if (versionEl) versionEl.innerHTML = version_string;
 
   // Check if this is an update to existing apps (e.g., from language change)
   const isUpdate = Object.keys(apps).length > 0;
@@ -223,13 +261,14 @@ function handleAppsMessage(data) {
     }
 
     // Update the currently displayed app description if needed
-    const currentApp = $("#apps").val();
+    const currentApp = appsSelect ? appsSelect.value : null;
     if (currentApp && apps[currentApp]) {
       const descriptionOnly = apps[currentApp]["description"] || "";
       if (typeof window.setBaseAppDescription === 'function') {
         window.setBaseAppDescription(descriptionOnly);
       } else {
-        $("#base-app-desc").html(descriptionOnly);
+        const descEl = document.getElementById("base-app-desc");
+        if (descEl) descEl.innerHTML = descriptionOnly;
       }
       if (typeof window.updateAppBadges === 'function') {
         window.updateAppBadges(currentApp);
@@ -338,18 +377,27 @@ function handleAppsMessage(data) {
     // Check if all OpenAI apps are disabled
     const allOpenAIAppsDisabled = regularApps.every(([key, value]) => value.disabled === "true");
 
+    const customDropdown = document.getElementById("custom-apps-dropdown");
+
     // Add OpenAI separator to standard select
-    $("#apps").append('<option disabled>──OpenAI──</option>');
+    if (appsSelect) {
+      const separator = document.createElement('option');
+      separator.disabled = true;
+      separator.textContent = '──OpenAI──';
+      appsSelect.appendChild(separator);
+    }
     // Add OpenAI separator to custom dropdown with conditional styling
     const openAIGroupClass = allOpenAIAppsDisabled ? ' all-disabled' : '';
     const openAIGroupTitle = allOpenAIAppsDisabled ? ' title="API key required for this provider"' : '';
     const openAIGroupId = normalizeGroupId("OpenAI");
-    $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
+    if (customDropdown) {
+      customDropdown.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-group${openAIGroupClass}" data-group="OpenAI"${openAIGroupTitle}>
       <span>──OpenAI──${allOpenAIAppsDisabled ? '<span class="api-key-required">(API key required)</span>' : ''}</span>
       <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
     </div>`);
-    // Create a container for the OpenAI apps (normalized id for toggle)
-    $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${openAIGroupId}"></div>`);
+      // Create a container for the OpenAI apps (normalized id for toggle)
+      customDropdown.insertAdjacentHTML('beforeend', `<div class="group-container" id="group-${openAIGroupId}"></div>`);
+    }
 
     for (const [key, value] of regularApps) {
       apps[key] = value;
@@ -359,20 +407,24 @@ function handleAppsMessage(data) {
       const isDisabled = value.disabled === "true";
 
       // Add option to standard select
-      if (isDisabled) {
-          $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-        } else {
-          $("#apps").append(`<option value="${key}">${displayText}</option>`);
-        }
+      if (appsSelect) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = displayText;
+        if (isDisabled) opt.disabled = true;
+        appsSelect.appendChild(opt);
+      }
 
-        // Add the same option to custom dropdown with icon
-        const disabledClass = isDisabled ? ' disabled' : '';
-        const disabledTitle = isDisabled ? ' title="API key required"' : '';
-        const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
+      // Add the same option to custom dropdown with icon
+      const disabledClass = isDisabled ? ' disabled' : '';
+      const disabledTitle = isDisabled ? ' title="API key required"' : '';
+      const groupContainer = document.getElementById(`group-${openAIGroupId}`);
+      if (groupContainer) {
+        groupContainer.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
           <span style="margin-right: 8px;">${appIcon}</span>
           <span>${displayText}</span></div>`);
-        $(`#group-${openAIGroupId}`).append($option);
       }
+    }
 
     // sort specialApps by group name in the order:
     // "Anthropic", "xAI", "Google", "Cohere", "Mistral", "Perplexity", "DeepSeek", "Ollama", "Extra"
@@ -392,7 +444,12 @@ function handleAppsMessage(data) {
         // This allows users to see what apps exist but are unavailable
 
           // Add group header to standard select
-          $("#apps").append(`<option disabled>──${group}──</option>`);
+          if (appsSelect) {
+            const separator = document.createElement('option');
+            separator.disabled = true;
+            separator.textContent = `──${group}──`;
+            appsSelect.appendChild(separator);
+          }
 
           // Add group header to custom dropdown with conditional styling
           const groupClass = allAppsDisabled ? ' all-disabled' : '';
@@ -400,14 +457,16 @@ function handleAppsMessage(data) {
           const disabledMessage = group === "Ollama" ? "(Ollama is not running)" : "(API key required)";
           const groupTitle = allAppsDisabled ?
             (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required for this provider"') : '';
-          $("#custom-apps-dropdown").append(`<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
+          if (customDropdown) {
+            customDropdown.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-group${groupClass}" data-group="${group}"${groupTitle}>
             <span>──${group}──${allAppsDisabled ? `<span class="api-key-required">${disabledMessage}</span>` : ''}</span>
             <span class="group-toggle-icon"><i class="fas fa-chevron-down"></i></span>
           </div>`);
 
-          // Create container for this group's apps
-          const normalizedGId = normalizeGroupId(group);
-          $("#custom-apps-dropdown").append(`<div class="group-container" id="group-${normalizedGId}"></div>`);
+            // Create container for this group's apps
+            const normalizedGId = normalizeGroupId(group);
+            customDropdown.insertAdjacentHTML('beforeend', `<div class="group-container" id="group-${normalizedGId}"></div>`);
+          }
 
           for (const [key, value] of specialApps[group]) {
             apps[key] = value;
@@ -417,10 +476,12 @@ function handleAppsMessage(data) {
             const isDisabled = value.disabled === "true";
 
             // Add option to standard select
-            if (isDisabled) {
-              $("#apps").append(`<option value="${key}" disabled>${displayText}</option>`);
-            } else {
-              $("#apps").append(`<option value="${key}">${displayText}</option>`);
+            if (appsSelect) {
+              const opt = document.createElement('option');
+              opt.value = key;
+              opt.textContent = displayText;
+              if (isDisabled) opt.disabled = true;
+              appsSelect.appendChild(opt);
             }
 
             // Add the same option to custom dropdown with icon
@@ -428,48 +489,56 @@ function handleAppsMessage(data) {
             // Special handling for Ollama apps
             const disabledTitle = isDisabled ?
               (group === "Ollama" ? ' title="Ollama is not running"' : ' title="API key required"') : '';
-            const $option = $(`<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
+            const normalizedGId2 = normalizeGroupId(group);
+            const groupContainer = document.getElementById(`group-${normalizedGId2}`);
+            if (groupContainer) {
+              groupContainer.insertAdjacentHTML('beforeend', `<div class="custom-dropdown-option${disabledClass}" data-value="${key}"${disabledTitle}>
               <span style="margin-right: 8px;">${appIcon}</span>
               <span>${displayText}</span></div>`);
-            const normalizedGId2 = normalizeGroupId(group);
-            $(`#group-${normalizedGId2}`).append($option);
+            }
           }
       }
     }
 
-    // Set up group toggle functionality
-    $(".custom-dropdown-group").on("click", function() {
-      const group = $(this).data("group");
+    // Set up group toggle functionality via event delegation
+    document.addEventListener("click", function(e) {
+      const groupHeader = e.target.closest(".custom-dropdown-group");
+      if (!groupHeader) return;
+      const group = groupHeader.dataset.group;
+      if (!group) return;
       const normalizedGId = normalizeGroupId(group);
-      const container = $(`#group-${normalizedGId}`);
-      const icon = $(this).find(".group-toggle-icon i");
+      const container = document.getElementById(`group-${normalizedGId}`);
+      if (!container) return;
+      const icon = groupHeader.querySelector(".group-toggle-icon i");
 
-      container.toggleClass("collapsed");
+      container.classList.toggle("collapsed");
 
-      if (container.hasClass("collapsed")) {
-        icon.removeClass("fa-chevron-down").addClass("fa-chevron-right");
+      if (container.classList.contains("collapsed")) {
+        if (icon) { icon.classList.remove("fa-chevron-down"); icon.classList.add("fa-chevron-right"); }
       } else {
-        icon.removeClass("fa-chevron-right").addClass("fa-chevron-down");
+        if (icon) { icon.classList.remove("fa-chevron-right"); icon.classList.add("fa-chevron-down"); }
       }
     });
 
     // Find the currently selected app's group and ensure it's expanded
-    const currentApp = $("#apps").val();
+    const currentApp = appsSelect ? appsSelect.value : null;
     if (currentApp) {
       setTimeout(() => {
-        const currentAppOption = $(`.custom-dropdown-option[data-value="${currentApp}"]`);
-        if (currentAppOption.length > 0) {
-          const parentGroup = currentAppOption.parent(".group-container");
-          if (parentGroup.length > 0) {
+        const currentAppOption = document.querySelector(`.custom-dropdown-option[data-value="${currentApp}"]`);
+        if (currentAppOption) {
+          const parentGroup = currentAppOption.closest(".group-container");
+          if (parentGroup) {
             // Ensure this group is expanded
-            parentGroup.removeClass("collapsed");
+            parentGroup.classList.remove("collapsed");
             // Update the icon
-            const groupId = parentGroup.attr("id");
+            const groupId = parentGroup.id;
             const groupName = groupId.replace("group-", "");
             // Need to handle potential dashes in the group name for xAI Grok
-            let groupSelector = groupName;
-            const groupHeader = $(`.custom-dropdown-group[data-group="${groupSelector}"]`);
-            groupHeader.find(".group-toggle-icon i").removeClass("fa-chevron-right").addClass("fa-chevron-down");
+            const groupHeader = document.querySelector(`.custom-dropdown-group[data-group="${groupName}"]`);
+            if (groupHeader) {
+              const icon = groupHeader.querySelector(".group-toggle-icon i");
+              if (icon) { icon.classList.remove("fa-chevron-right"); icon.classList.add("fa-chevron-down"); }
+            }
           }
         }
       }, 100);
@@ -478,8 +547,8 @@ function handleAppsMessage(data) {
     // If import payload specifies an app_name, or there is already a valid selection in #apps,
     // skip auto-selection to avoid overriding an existing choice (import or user selection).
     const importRequestedApp = data && data["content"] && data["content"]["app_name"];
-    const currentSelectVal = $("#apps").val();
-    const hasCurrentValidSelection = !!(currentSelectVal && $("#apps option[value='" + currentSelectVal + "']").length);
+    const currentSelectVal = appsSelect ? appsSelect.value : null;
+    const hasCurrentValidSelection = !!(currentSelectVal && appsSelect && appsSelect.querySelector(`option[value='${currentSelectVal}']`));
     // On initial load without session restore, ignore browser's auto-selection to prioritize Chat apps
     const hasSessionRestore = !!(window.lastApp && window.lastApp !== null);
     const isInitialLoad = window.appsMessageCount === 1 && !window.initialAppLoaded && !hasSessionRestore;
@@ -497,36 +566,35 @@ function handleAppsMessage(data) {
     let firstValidApp;
 
     // PRIORITY 1: Check if window.lastApp exists (from session restoration)
-    if (!firstValidApp && window.lastApp && $("#apps option[value='" + window.lastApp + "']").length && !$("#apps option[value='" + window.lastApp + "']").prop('disabled')) {
-      firstValidApp = window.lastApp;
-    } else if (window.lastApp) {
-      window.logTL && window.logTL('restored_app_unavailable', { lastApp: window.lastApp });
+    if (!firstValidApp && window.lastApp && appsSelect) {
+      const lastAppOption = appsSelect.querySelector(`option[value='${window.lastApp}']`);
+      if (lastAppOption && !lastAppOption.disabled) {
+        firstValidApp = window.lastApp;
+      } else if (!lastAppOption || lastAppOption.disabled) {
+        window.logTL && window.logTL('restored_app_unavailable', { lastApp: window.lastApp });
+      }
     }
 
     // PRIORITY 2: Try to find a Chat app from OpenAI (if API key is available)
-    if (!firstValidApp) {
-      const openAIChatOption = $("#apps option").filter(function() {
-        return $(this).val() === 'ChatOpenAI' && !$(this).prop('disabled');
-      }).first();
+    if (!firstValidApp && appsSelect) {
+      const allOptions = Array.from(appsSelect.options);
+      const openAIChatOption = allOptions.find(opt => opt.value === 'ChatOpenAI' && !opt.disabled);
 
-      if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && openAIChatOption.length > 0) {
-        firstValidApp = openAIChatOption.val();
+      if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && openAIChatOption) {
+        firstValidApp = openAIChatOption.value;
       } else {
         // Look for any Chat app from other providers
-        const anyChatOption = $("#apps option").filter(function() {
-          const val = $(this).val();
-          return val && val.includes('Chat') && !$(this).prop('disabled') && !$(this).text().includes('──');
-        }).first();
+        const anyChatOption = allOptions.find(opt => {
+          return opt.value && opt.value.includes('Chat') && !opt.disabled && !opt.textContent.includes('──');
+        });
 
-        if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && anyChatOption.length > 0) {
-          firstValidApp = anyChatOption.val();
+        if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad) && anyChatOption) {
+          firstValidApp = anyChatOption.value;
         } else {
           // Fallback: select the first available non-disabled app
           if (!importRequestedApp && (!hasCurrentValidSelection || isInitialLoad)) {
-            const fallbackApp = $("#apps option").filter(function() {
-              return !$(this).prop('disabled') && !$(this).text().includes('──');
-            }).first();
-            firstValidApp = fallbackApp.val();
+            const fallbackApp = allOptions.find(opt => !opt.disabled && !opt.textContent.includes('──'));
+            if (fallbackApp) firstValidApp = fallbackApp.value;
           }
         }
       }
@@ -537,7 +605,7 @@ function handleAppsMessage(data) {
     const shouldSetApp = !importRequestedApp && firstValidApp && (!hasCurrentValidSelection || window.isRestoringSession);
 
     if (shouldSetApp) {
-      $("#apps").val(firstValidApp);
+      if (appsSelect) appsSelect.value = firstValidApp;
 
       // Set lastApp to prevent confirmation dialog on initial load
       // Use window.lastApp to ensure it's accessible across all scopes
@@ -550,40 +618,31 @@ function handleAppsMessage(data) {
       const selectedApp = apps[firstValidApp];
       if (selectedApp) {
         const displayText = selectedApp["display_name"] || selectedApp["app_name"];
-        $("#base-app-title").text(displayText);
+        const titleEl = document.getElementById("base-app-title");
+        if (titleEl) titleEl.textContent = displayText;
 
         // Update badges immediately
-        if (selectedApp["monadic"]) {
-          $("#monadic-badge").show();
-        } else {
-          $("#monadic-badge").hide();
-        }
+        const monadicBadge = document.getElementById("monadic-badge");
+        if (monadicBadge) monadicBadge.style.display = selectedApp["monadic"] ? '' : 'none';
 
-        if (selectedApp["websearch"]) {
-          $("#websearch-badge").show();
-        } else {
-          $("#websearch-badge").hide();
-        }
+        const websearchBadge = document.getElementById("websearch-badge");
+        if (websearchBadge) websearchBadge.style.display = selectedApp["websearch"] ? '' : 'none';
 
-        if (selectedApp["tools"]) {
-          $("#tools-badge").show();
-        } else {
-          $("#tools-badge").hide();
-        }
+        const toolsBadge = document.getElementById("tools-badge");
+        if (toolsBadge) toolsBadge.style.display = selectedApp["tools"] ? '' : 'none';
 
-        if (selectedApp["mathjax"]) {
-          $("#math-badge").show();
-        } else {
-          $("#math-badge").hide();
-        }
+        const mathBadge = document.getElementById("math-badge");
+        if (mathBadge) mathBadge.style.display = selectedApp["mathjax"] ? '' : 'none';
 
-        $("#base-app-icon").html(selectedApp["icon"]);
+        const iconEl = document.getElementById("base-app-icon");
+        if (iconEl) iconEl.innerHTML = selectedApp["icon"];
 
         const descriptionOnly = selectedApp["description"] || "";
         if (typeof window.setBaseAppDescription === 'function') {
           window.setBaseAppDescription(descriptionOnly);
         } else {
-          $("#base-app-desc").html(descriptionOnly);
+          const descEl = document.getElementById("base-app-desc");
+          if (descEl) descEl.innerHTML = descriptionOnly;
         }
         if (typeof window.updateAppBadges === 'function') {
           window.updateAppBadges(firstValidApp);
@@ -627,7 +686,7 @@ function handleAppsMessage(data) {
 
             } else {
               // Fallback to triggering change event if function not available
-              $("#apps").trigger('change');
+              if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
               window.logTL && window.logTL('apps_change_triggered');
             }
           }, 100);
@@ -641,11 +700,12 @@ function handleAppsMessage(data) {
     setTimeout(function() {
       try {
         const isImportingNotRestoring = window.isImporting && !window.isRestoringSession;
+        const currentAppsVal = appsSelect ? appsSelect.value : null;
         window.logTL && window.logTL('apps_second_timeout_check', {
           appsMessageCount: window.appsMessageCount,
           importRequestedApp,
           initialAppLoaded: window.initialAppLoaded,
-          selectedApp: $("#apps").val(),
+          selectedApp: currentAppsVal,
           isImporting: window.isImporting,
           isRestoringSession: window.isRestoringSession,
           isImportingNotRestoring,
@@ -653,7 +713,7 @@ function handleAppsMessage(data) {
         });
         // Skip during import (when NOT restoring session), but allow during session restoration
         if (!fromParamUpdate && window.appsMessageCount === 1 && !importRequestedApp && !window.initialAppLoaded && !isImportingNotRestoring) {
-          const sel = $("#apps").val();
+          const sel = currentAppsVal;
           if (sel) {
             window.logTL && window.logTL('proceedWithAppChange_on_first_selected', { app: sel });
             if (typeof window.proceedWithAppChange === 'function') {
@@ -661,14 +721,14 @@ function handleAppsMessage(data) {
               // Set flag AFTER proceedWithAppChange completes
               window.initialAppLoaded = true;
             } else {
-              $("#apps").trigger('change');
+              if (appsSelect) appsSelect.dispatchEvent(new Event('change'));
               window.initialAppLoaded = true;
             }
           }
         } else {
           window.logTL && window.logTL('apps_second_timeout_skipped', {
             importRequestedApp,
-            selectedApp: $("#apps").val(),
+            selectedApp: currentAppsVal,
             fromParamUpdate,
             appsMessageCount: window.appsMessageCount,
             initialAppLoaded: window.initialAppLoaded,
@@ -687,7 +747,7 @@ function handleAppsMessage(data) {
     }
   }
   // Set originalParams to the first valid app or Chat if available
-  window.originalParams = apps["Chat"] || apps[$("#apps").val()] || {};
+  window.originalParams = apps["Chat"] || apps[appsSelect ? appsSelect.value : null] || {};
 
   // Process pending parameters if any
   if (window.pendingParameters) {
@@ -712,7 +772,7 @@ function handleAppsMessage(data) {
     // Only reset params if we don't have pending parameters to load
     // AND if we're not in a loaded session (after import)
     // AND if this is truly the first APPS message
-    const currentApp = $("#apps").val();
+    const currentApp = appsSelect ? appsSelect.value : null;
     const isFirstAppsMessage = window.appsMessageCount === 1;
 
     window.logTL && window.logTL('post_apps_maybe_reset', { currentApp, isFirstAppsMessage, loadedApp: window.loadedApp });
@@ -775,7 +835,9 @@ function handleParametersMessage(data) {
 
   // Store parameters for later processing if apps not loaded yet
   // Also defer if apps data exists but DOM options haven't been built yet
-  if (!apps || Object.keys(apps).length === 0 || (typeof $ === "function" && $("#apps").length && $("#apps option").length === 0)) {
+  const appsSelect = document.getElementById("apps");
+  const appsOptionCount = appsSelect ? appsSelect.options.length : 0;
+  if (!apps || Object.keys(apps).length === 0 || (appsSelect && appsOptionCount === 0)) {
     window.pendingParameters = data["content"];
     return 'pending';
   }
@@ -807,7 +869,7 @@ function handleParametersMessage(data) {
 
         // Call proceedWithAppChange to ensure model list is populated
         const requestedApp = data["content"]["app_name"];
-        const currentAppSelection = (typeof $ === "function" && $("#apps").length) ? $("#apps").val() : null;
+        const currentAppSelection = appsSelect ? appsSelect.value : null;
         const needsAppSync =
           !window.initialAppLoaded ||
           window.isProcessingImport ||
@@ -842,10 +904,10 @@ function handleParametersMessage(data) {
         const model = data["content"]["model"];
 
         // Set the app directly
-        if (appName) {
-          $("#apps").val(appName);
+        if (appName && appsSelect) {
+          appsSelect.value = appName;
           // Trigger change to update model list
-          $("#apps").trigger('change');
+          appsSelect.dispatchEvent(new Event('change'));
 
           // Set model after a delay
           setTimeout(() => {
@@ -863,17 +925,18 @@ function handleParametersMessage(data) {
                 targetModel = successor;
               }
             }
-            if (targetModel) {
-              $("#model").val(targetModel);
-              if ($("#model").val() !== targetModel) {
+            const modelSelect = document.getElementById("model");
+            if (targetModel && modelSelect) {
+              modelSelect.value = targetModel;
+              if (modelSelect.value !== targetModel) {
                 console.error("Failed to set model:", targetModel);
                 // Try again with a longer delay
                 setTimeout(() => {
-                  $("#model").val(targetModel);
-                  $("#model").trigger('change');
+                  modelSelect.value = targetModel;
+                  modelSelect.dispatchEvent(new Event('change'));
                 }, 500);
               } else {
-                $("#model").trigger('change');
+                modelSelect.dispatchEvent(new Event('change'));
               }
             }
           }, 300);
@@ -897,16 +960,18 @@ function handleParametersMessage(data) {
 
   // All providers now support AI User functionality
 
-  const currentApp = apps[$("#apps").val()] || apps[window.defaultApp];
+  const currentApp = apps[appsSelect ? appsSelect.value : null] || apps[window.defaultApp];
 
   // Use shared utility function to get models for the app
-  const showAll = $("#show-all-models").prop("checked");
+  const showAllEl = document.getElementById("show-all-models");
+  const showAll = showAllEl ? showAllEl.checked : false;
   let models = currentApp ? getModelsForApp(currentApp, showAll) : [];
 
   if (currentApp) {
     let openai = currentApp["group"] && currentApp["group"].toLowerCase() === "openai";
     let modelList = listModels(models, openai);
-    $("#model").html(modelList);
+    const modelSelect = document.getElementById("model");
+    if (modelSelect) modelSelect.innerHTML = modelList;
   }
 
   // Select the appropriate model using shared utility function
@@ -950,36 +1015,37 @@ function handleParametersMessage(data) {
     }
 
     // Update model display with Provider (Model) format
-    if (typeof modelSpec !== 'undefined' && modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
-      $("#model-selected").text(`${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`);
-    } else {
-      $("#model-selected").text(`${provider} (${model})`);
+    const modelSelectedEl = document.getElementById("model-selected");
+    if (modelSelectedEl) {
+      if (typeof modelSpec !== 'undefined' && modelSpec[model] && modelSpec[model].hasOwnProperty("reasoning_effort")) {
+        modelSelectedEl.textContent = `${provider} (${model} - ${modelSpec[model]["reasoning_effort"]})`;
+      } else {
+        modelSelectedEl.textContent = `${provider} (${model})`;
+      }
     }
 
-    $("#model").val(model);
+    const modelSelect = document.getElementById("model");
+    if (modelSelect) modelSelect.value = model;
 
     // Use display_name if available, otherwise fall back to app_name
     if (currentApp) {
-      $("#base-app-title").text(currentApp["display_name"] || currentApp["app_name"]);
-      $("#base-app-icon").html(currentApp["icon"]);
+      const titleEl = document.getElementById("base-app-title");
+      if (titleEl) titleEl.textContent = currentApp["display_name"] || currentApp["app_name"];
+      const iconEl = document.getElementById("base-app-icon");
+      if (iconEl) iconEl.innerHTML = currentApp["icon"];
 
-      if (currentApp["monadic"]) {
-        $("#monadic-badge").show();
-      } else {
-        $("#monadic-badge").hide();
-      }
+      const monadicBadge = document.getElementById("monadic-badge");
+      if (monadicBadge) monadicBadge.style.display = currentApp["monadic"] ? '' : 'none';
 
-      if (currentApp["tools"]) {
-        $("#tools-badge").show();
-      } else {
-        $("#tools-badge").hide();
-      }
+      const toolsBadge = document.getElementById("tools-badge");
+      if (toolsBadge) toolsBadge.style.display = currentApp["tools"] ? '' : 'none';
 
       const descriptionOnly = currentApp["description"] || "";
       if (typeof window.setBaseAppDescription === 'function') {
         window.setBaseAppDescription(descriptionOnly);
       } else {
-        $("#base-app-desc").html(descriptionOnly);
+        const descEl = document.getElementById("base-app-desc");
+        if (descEl) descEl.innerHTML = descriptionOnly;
       }
 
       // Trigger badge update after description is set
@@ -990,7 +1056,8 @@ function handleParametersMessage(data) {
       }
     }
 
-  $("#start").focus();
+  const startEl = document.getElementById("start");
+  if (startEl) startEl.focus();
 
   updateAppAndModelSelection(data["content"]);
 }

@@ -8,142 +8,44 @@
  * Tests the extracted WebSocket message handlers for:
  * - handleElevenLabsVoices: Populate ElevenLabs TTS voice selector
  * - handleGeminiVoices: Populate Gemini TTS voice selector
+ * - handleMistralVoices: Populate Mistral TTS voice selector
+ * - handleAppsMessage: Build app selector and classify apps
+ * - handleParametersMessage: Load session parameters
  */
 
-// Track prop calls per selector for verification
-const propCalls = {};
-const valCalls = {};
-const triggerCalls = {};
-
-function createSelectElement(id) {
-  const options = [];
-  let selectedValue = null;
-
-  return {
-    _options: options,
-    empty: jest.fn(function () { options.length = 0; return this; }),
-    append: jest.fn(function (html) {
-      // Parse option HTML to extract value and text
-      const match = html.match(/value="([^"]*)"[^>]*>([^<]*)</);
-      if (match) {
-        options.push({ value: match[1], text: match[2], selected: html.includes('selected') });
-        if (html.includes('selected')) selectedValue = match[1];
-      }
-      return this;
-    }),
-    val: jest.fn(function (v) {
-      if (v === undefined) return selectedValue;
-      // Check if option exists
-      const found = options.find(o => o.value === v);
-      if (found) selectedValue = v;
-      valCalls[id] = v;
-      return this;
-    }),
-    prop: jest.fn(function (name, value) {
-      if (!propCalls[id]) propCalls[id] = {};
-      propCalls[id][name] = value;
-      return this;
-    }),
-    trigger: jest.fn(function (event) {
-      triggerCalls[id] = event;
-      return this;
-    }),
-    length: 1
-  };
+/**
+ * Helper: create a <select> element with given id and append to document.body
+ */
+function createDOMSelect(id) {
+  const el = document.createElement('select');
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
-// Build mock elements
-let mockElements;
+/**
+ * Helper: create a generic DOM element with given id and tag
+ */
+function createDOMElement(id, tag = 'div') {
+  const el = document.createElement(tag);
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
+}
 
-function setupMockElements() {
-  mockElements = {
-    '#elevenlabs-tts-voice': createSelectElement('elevenlabs-tts-voice'),
-    '#gemini-tts-voice': createSelectElement('gemini-tts-voice'),
-    '#tts-provider': createSelectElement('tts-provider'),
-    '#elevenlabs-flash-provider-option': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#elevenlabs-multilingual-provider-option': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#elevenlabs-v3-provider-option': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#elevenlabs-stt-scribe-v2': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#elevenlabs-stt-scribe': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#elevenlabs-stt-scribe-experimental': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#gemini-flash-provider-option': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#gemini-pro-provider-option': { prop: jest.fn().mockReturnThis(), length: 1 },
-    '#gemini-stt-flash': { prop: jest.fn().mockReturnThis(), length: 1 }
-  };
+/**
+ * Helper: create an <option> element with given id (for enable/disable tracking)
+ */
+function createDOMOption(id) {
+  const el = document.createElement('option');
+  el.id = id;
+  document.body.appendChild(el);
+  return el;
 }
 
 beforeEach(() => {
-  setupMockElements();
-
-  // Clear tracking
-  Object.keys(propCalls).forEach(k => delete propCalls[k]);
-  Object.keys(valCalls).forEach(k => delete valCalls[k]);
-  Object.keys(triggerCalls).forEach(k => delete triggerCalls[k]);
-
-  // Mock jQuery
-  global.$ = jest.fn().mockImplementation(selector => {
-    // Handle "#apps option" selector to return option count with jQuery methods
-    if (selector === '#apps option') {
-      const appsEl = mockElements['#apps'];
-      const len = appsEl && appsEl._options ? appsEl._options.length : 0;
-      const noop = jest.fn().mockReturnValue({ length: 0, first: jest.fn().mockReturnValue({ val: jest.fn(), length: 0 }) });
-      return { length: len, filter: noop, first: jest.fn().mockReturnValue({ val: jest.fn(), length: 0 }) };
-    }
-
-    // Handle attribute selector for option existence check
-    if (typeof selector === 'string' && selector.includes('option[value=')) {
-      // Extract the voice ID from the selector
-      const match = selector.match(/option\[value="([^"]+)"\]/);
-      if (match) {
-        const voiceId = match[1];
-        // Check if option exists in any select
-        for (const key of Object.keys(mockElements)) {
-          const el = mockElements[key];
-          if (el._options) {
-            const found = el._options.find(o => o.value === voiceId);
-            if (found) return { length: 1 };
-          }
-        }
-      }
-      return { length: 0 };
-    }
-    // Default mock element with all common jQuery methods
-    return mockElements[selector] || {
-      prop: jest.fn().mockReturnThis(),
-      val: jest.fn().mockReturnThis(),
-      trigger: jest.fn().mockReturnThis(),
-      append: jest.fn().mockReturnThis(),
-      html: jest.fn().mockReturnThis(),
-      text: jest.fn().mockReturnThis(),
-      show: jest.fn().mockReturnThis(),
-      hide: jest.fn().mockReturnThis(),
-      empty: jest.fn().mockReturnThis(),
-      focus: jest.fn().mockReturnThis(),
-      on: jest.fn().mockReturnThis(),
-      data: jest.fn().mockReturnValue(null),
-      find: jest.fn().mockReturnValue({
-        removeClass: jest.fn().mockReturnThis(),
-        addClass: jest.fn().mockReturnThis()
-      }),
-      parent: jest.fn().mockReturnValue({
-        length: 0,
-        removeClass: jest.fn().mockReturnThis(),
-        attr: jest.fn().mockReturnValue('')
-      }),
-      toggleClass: jest.fn().mockReturnThis(),
-      hasClass: jest.fn().mockReturnValue(false),
-      removeClass: jest.fn().mockReturnThis(),
-      addClass: jest.fn().mockReturnThis(),
-      attr: jest.fn().mockReturnValue(''),
-      first: jest.fn().mockReturnValue({ length: 0, val: jest.fn().mockReturnValue(null) }),
-      filter: jest.fn().mockReturnValue({
-        length: 0,
-        first: jest.fn().mockReturnValue({ length: 0, val: jest.fn().mockReturnValue(null) })
-      }),
-      is: jest.fn().mockReturnValue(false),
-      length: 0
-    };
-  });
+  // Clear DOM
+  document.body.innerHTML = '';
 
   // Mock getCookie
   global.getCookie = jest.fn().mockReturnValue(null);
@@ -158,6 +60,21 @@ const handlers = require('../../docker/services/ruby/public/js/monadic/ws-app-da
 
 describe('ws-app-data-handlers', () => {
   describe('handleElevenLabsVoices', () => {
+    let voiceSelect;
+
+    beforeEach(() => {
+      voiceSelect = createDOMSelect('elevenlabs-tts-voice');
+      createDOMSelect('tts-provider');
+      // TTS provider options
+      createDOMOption('elevenlabs-flash-provider-option');
+      createDOMOption('elevenlabs-multilingual-provider-option');
+      createDOMOption('elevenlabs-v3-provider-option');
+      // STT options
+      createDOMOption('elevenlabs-stt-scribe-v2');
+      createDOMOption('elevenlabs-stt-scribe');
+      createDOMOption('elevenlabs-stt-scribe-experimental');
+    });
+
     it('populates voice selector with voices', () => {
       const data = {
         content: [
@@ -168,14 +85,11 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleElevenLabsVoices(data);
 
-      const el = mockElements['#elevenlabs-tts-voice'];
-      expect(el.empty).toHaveBeenCalled();
-      expect(el.append).toHaveBeenCalledTimes(2);
-      expect(el._options).toHaveLength(2);
-      expect(el._options[0].value).toBe('v1');
-      expect(el._options[0].text).toBe('Rachel');
-      expect(el._options[1].value).toBe('v2');
-      expect(el._options[1].text).toBe('Drew');
+      expect(voiceSelect.options.length).toBe(2);
+      expect(voiceSelect.options[0].value).toBe('v1');
+      expect(voiceSelect.options[0].textContent).toBe('Rachel');
+      expect(voiceSelect.options[1].value).toBe('v2');
+      expect(voiceSelect.options[1].textContent).toBe('Drew');
     });
 
     it('enables TTS and STT options when voices are available', () => {
@@ -185,13 +99,11 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleElevenLabsVoices(data);
 
-      // TTS provider options should be enabled
-      expect(mockElements['#elevenlabs-flash-provider-option'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#elevenlabs-multilingual-provider-option'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#elevenlabs-v3-provider-option'].prop).toHaveBeenCalledWith('disabled', false);
-      // STT options should be enabled
-      expect(mockElements['#elevenlabs-stt-scribe-v2'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#elevenlabs-stt-scribe'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(false);
+      expect(document.getElementById('elevenlabs-stt-scribe').disabled).toBe(false);
     });
 
     it('disables all options when no voices', () => {
@@ -199,10 +111,10 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleElevenLabsVoices(data);
 
-      expect(mockElements['#elevenlabs-flash-provider-option'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#elevenlabs-multilingual-provider-option'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#elevenlabs-v3-provider-option'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#elevenlabs-stt-scribe-v2'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('elevenlabs-flash-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-multilingual-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-v3-provider-option').disabled).toBe(true);
+      expect(document.getElementById('elevenlabs-stt-scribe-v2').disabled).toBe(true);
     });
 
     it('restores saved voice from cookie', () => {
@@ -220,8 +132,7 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleElevenLabsVoices(data);
 
-      // v2 should be selected
-      expect(mockElements['#elevenlabs-tts-voice'].val).toHaveBeenCalledWith('v2');
+      expect(voiceSelect.value).toBe('v2');
     });
 
     it('restores saved provider from cookie', () => {
@@ -230,13 +141,19 @@ describe('ws-app-data-handlers', () => {
         return null;
       });
 
+      // Add the option to the provider select so .value can be set
+      const providerSelect = document.getElementById('tts-provider');
+      const opt = document.createElement('option');
+      opt.value = 'elevenlabs-flash';
+      providerSelect.appendChild(opt);
+
       const data = {
         content: [{ voice_id: 'v1', name: 'Rachel' }]
       };
 
       handlers.handleElevenLabsVoices(data);
 
-      expect(mockElements['#tts-provider'].val).toHaveBeenCalledWith('elevenlabs-flash');
+      expect(providerSelect.value).toBe('elevenlabs-flash');
     });
 
     it('does not restore non-elevenlabs provider', () => {
@@ -249,14 +166,31 @@ describe('ws-app-data-handlers', () => {
         content: [{ voice_id: 'v1', name: 'Rachel' }]
       };
 
+      // Add an option so we can check it wasn't changed
+      const providerSelect = document.getElementById('tts-provider');
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.selected = true;
+      providerSelect.appendChild(opt);
+
       handlers.handleElevenLabsVoices(data);
 
       // Should not try to set a non-elevenlabs provider
-      expect(mockElements['#tts-provider'].val).not.toHaveBeenCalled();
+      expect(providerSelect.value).toBe('');
     });
   });
 
   describe('handleGeminiVoices', () => {
+    let voiceSelect;
+
+    beforeEach(() => {
+      voiceSelect = createDOMSelect('gemini-tts-voice');
+      createDOMSelect('tts-provider');
+      createDOMOption('gemini-flash-provider-option');
+      createDOMOption('gemini-pro-provider-option');
+      createDOMOption('gemini-stt-flash');
+    });
+
     it('populates voice selector with voices', () => {
       const data = {
         content: [
@@ -267,11 +201,9 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleGeminiVoices(data);
 
-      const el = mockElements['#gemini-tts-voice'];
-      expect(el.empty).toHaveBeenCalled();
-      expect(el._options).toHaveLength(2);
-      expect(el._options[0].value).toBe('Aoede');
-      expect(el._options[1].value).toBe('Charon');
+      expect(voiceSelect.options.length).toBe(2);
+      expect(voiceSelect.options[0].value).toBe('Aoede');
+      expect(voiceSelect.options[1].value).toBe('Charon');
     });
 
     it('enables provider and STT options when voices are available', () => {
@@ -281,9 +213,9 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleGeminiVoices(data);
 
-      expect(mockElements['#gemini-flash-provider-option'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#gemini-pro-provider-option'].prop).toHaveBeenCalledWith('disabled', false);
-      expect(mockElements['#gemini-stt-flash'].prop).toHaveBeenCalledWith('disabled', false);
+      expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(false);
+      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(false);
+      expect(document.getElementById('gemini-stt-flash').disabled).toBe(false);
     });
 
     it('disables all options when no voices', () => {
@@ -291,9 +223,9 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleGeminiVoices(data);
 
-      expect(mockElements['#gemini-flash-provider-option'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#gemini-pro-provider-option'].prop).toHaveBeenCalledWith('disabled', true);
-      expect(mockElements['#gemini-stt-flash'].prop).toHaveBeenCalledWith('disabled', true);
+      expect(document.getElementById('gemini-flash-provider-option').disabled).toBe(true);
+      expect(document.getElementById('gemini-pro-provider-option').disabled).toBe(true);
+      expect(document.getElementById('gemini-stt-flash').disabled).toBe(true);
     });
 
     it('restores saved voice from cookie', () => {
@@ -311,7 +243,7 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleGeminiVoices(data);
 
-      expect(mockElements['#gemini-tts-voice'].val).toHaveBeenCalledWith('Charon');
+      expect(voiceSelect.value).toBe('Charon');
     });
 
     it('restores saved gemini provider from cookie', () => {
@@ -320,13 +252,19 @@ describe('ws-app-data-handlers', () => {
         return null;
       });
 
+      // Add the option to the provider select so .value can be set
+      const providerSelect = document.getElementById('tts-provider');
+      const opt = document.createElement('option');
+      opt.value = 'gemini-flash';
+      providerSelect.appendChild(opt);
+
       const data = {
         content: [{ voice_id: 'Aoede', name: 'Aoede' }]
       };
 
       handlers.handleGeminiVoices(data);
 
-      expect(mockElements['#tts-provider'].val).toHaveBeenCalledWith('gemini-flash');
+      expect(providerSelect.value).toBe('gemini-flash');
     });
 
     it('does not restore non-gemini provider', () => {
@@ -337,9 +275,15 @@ describe('ws-app-data-handlers', () => {
 
       const data = { content: [{ voice_id: 'Aoede', name: 'Aoede' }] };
 
+      const providerSelect = document.getElementById('tts-provider');
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.selected = true;
+      providerSelect.appendChild(opt);
+
       handlers.handleGeminiVoices(data);
 
-      expect(mockElements['#tts-provider'].val).not.toHaveBeenCalled();
+      expect(providerSelect.value).toBe('');
     });
   });
 
@@ -358,23 +302,23 @@ describe('ws-app-data-handlers', () => {
 
   describe('handleAppsMessage', () => {
     beforeEach(() => {
-      // Set up additional mock elements needed for apps handler
-      mockElements['#monadic-version-number'] = { html: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#apps'] = createSelectElement('apps');
-      mockElements['#custom-apps-dropdown'] = { append: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-title'] = { text: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-icon'] = { html: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-desc'] = { html: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#monadic-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#websearch-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#tools-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#math-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#show-all-models'] = { prop: jest.fn().mockReturnValue(false), length: 1 };
-      const modelEl = createSelectElement('model');
-      modelEl.html = jest.fn().mockReturnThis();
-      mockElements['#model'] = modelEl;
-      mockElements['#model-selected'] = { text: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#start'] = { focus: jest.fn().mockReturnThis(), length: 1 };
+      // Create DOM elements needed by the handler
+      createDOMElement('monadic-version-number');
+      createDOMSelect('apps');
+      createDOMElement('custom-apps-dropdown');
+      createDOMElement('base-app-title');
+      createDOMElement('base-app-icon');
+      createDOMElement('base-app-desc');
+      createDOMElement('monadic-badge');
+      createDOMElement('websearch-badge');
+      createDOMElement('tools-badge');
+      createDOMElement('math-badge');
+      createDOMElement('show-all-models', 'input');
+      document.getElementById('show-all-models').type = 'checkbox';
+      createDOMSelect('model');
+      createDOMElement('model-selected');
+      const startBtn = createDOMElement('start', 'button');
+      startBtn.focus = jest.fn();
 
       // Set up window globals
       window.apps = {};
@@ -408,7 +352,7 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleAppsMessage(data);
 
-      expect(mockElements['#monadic-version-number'].html).toHaveBeenCalledWith('1.0.0-beta.8 (Docker)');
+      expect(document.getElementById('monadic-version-number').innerHTML).toBe('1.0.0-beta.8 (Docker)');
     });
 
     it('sets version string with Local indicator', () => {
@@ -420,7 +364,7 @@ describe('ws-app-data-handlers', () => {
 
       handlers.handleAppsMessage(data);
 
-      expect(mockElements['#monadic-version-number'].html).toHaveBeenCalledWith('1.0.0-beta.8 (Local)');
+      expect(document.getElementById('monadic-version-number').innerHTML).toBe('1.0.0-beta.8 (Local)');
     });
 
     it('increments appsMessageCount', () => {
@@ -436,6 +380,14 @@ describe('ws-app-data-handlers', () => {
       // Pre-populate apps to trigger update path
       window.apps = { ChatOpenAI: { app_name: 'ChatOpenAI', description: 'Old desc', group: 'OpenAI' } };
 
+      // Set current selection
+      const appsSelect = document.getElementById('apps');
+      const opt = document.createElement('option');
+      opt.value = 'ChatOpenAI';
+      opt.textContent = 'Chat';
+      appsSelect.appendChild(opt);
+      appsSelect.value = 'ChatOpenAI';
+
       const data = {
         version: '1.0.0',
         docker: true,
@@ -443,12 +395,6 @@ describe('ws-app-data-handlers', () => {
           ChatOpenAI: { app_name: 'ChatOpenAI', description: 'New desc', group: 'OpenAI' }
         }
       };
-
-      // Mock #apps to return current app
-      mockElements['#apps'].val = jest.fn(function(v) {
-        if (v === undefined) return 'ChatOpenAI';
-        return this;
-      });
 
       handlers.handleAppsMessage(data);
 
@@ -470,8 +416,9 @@ describe('ws-app-data-handlers', () => {
       // Both apps should be cached
       expect(window.apps.ChatOpenAI).toBeDefined();
       expect(window.apps.ChatClaude).toBeDefined();
-      // #apps dropdown should have been appended to (group separators + options)
-      expect(mockElements['#apps'].append).toHaveBeenCalled();
+      // #apps dropdown should have options (group separators + options)
+      const appsSelect = document.getElementById('apps');
+      expect(appsSelect.options.length).toBeGreaterThan(0);
     });
 
     it('skips apps with missing display name', () => {
@@ -509,21 +456,26 @@ describe('ws-app-data-handlers', () => {
 
   describe('handleParametersMessage', () => {
     beforeEach(() => {
-      // Set up mock elements for parameters handler
-      mockElements['#apps'] = createSelectElement('apps');
+      // Create DOM elements
+      const appsSelect = createDOMSelect('apps');
       // Pre-populate with an option so DOM-ready guard passes
-      mockElements['#apps']._options.push({ value: 'ChatOpenAI', text: 'Chat', selected: true });
-      const modelEl = createSelectElement('model');
-      modelEl.html = jest.fn().mockReturnThis();
-      mockElements['#model'] = modelEl;
-      mockElements['#model-selected'] = { text: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-title'] = { text: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-icon'] = { html: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#base-app-desc'] = { html: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#monadic-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#tools-badge'] = { show: jest.fn().mockReturnThis(), hide: jest.fn().mockReturnThis(), length: 1 };
-      mockElements['#show-all-models'] = { prop: jest.fn().mockReturnValue(false), length: 1 };
-      mockElements['#start'] = { focus: jest.fn().mockReturnThis(), length: 1 };
+      const opt = document.createElement('option');
+      opt.value = 'ChatOpenAI';
+      opt.textContent = 'Chat';
+      opt.selected = true;
+      appsSelect.appendChild(opt);
+
+      createDOMSelect('model');
+      createDOMElement('model-selected');
+      createDOMElement('base-app-title');
+      createDOMElement('base-app-icon');
+      createDOMElement('base-app-desc');
+      createDOMElement('monadic-badge');
+      createDOMElement('tools-badge');
+      createDOMElement('show-all-models', 'input');
+      document.getElementById('show-all-models').type = 'checkbox';
+      const startBtn = createDOMElement('start', 'button');
+      startBtn.focus = jest.fn();
 
       window.apps = { ChatOpenAI: { app_name: 'ChatOpenAI', group: 'OpenAI', display_name: 'Chat', icon: '💬' } };
       window.loadedApp = null;
@@ -608,11 +560,6 @@ describe('ws-app-data-handlers', () => {
     });
 
     it('builds model list when no app_name (generic parameters)', () => {
-      mockElements['#apps'].val = jest.fn(function(v) {
-        if (v === undefined) return 'ChatOpenAI';
-        return this;
-      });
-
       const data = {
         content: { model: 'gpt-4o' }
       };
@@ -620,7 +567,7 @@ describe('ws-app-data-handlers', () => {
       handlers.handleParametersMessage(data);
 
       expect(global.getModelsForApp).toHaveBeenCalled();
-      expect(mockElements['#start'].focus).toHaveBeenCalled();
+      expect(document.getElementById('start').focus).toHaveBeenCalled();
     });
   });
 
